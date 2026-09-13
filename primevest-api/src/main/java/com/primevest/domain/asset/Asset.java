@@ -53,4 +53,10 @@ public class Asset {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    @Column(name = "custom", nullable = false)
+    @Builder.Default
+    private boolean custom = false;
+
 }
+
