@@ -10,6 +10,7 @@ public record TransactionResponseDTO(
     UUID id,
     String ticker,
     String assetName,
+    String assetTypeName,
     TransactionType type,
     BigDecimal shares,
     BigDecimal pricePerShare,

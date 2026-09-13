@@ -8,6 +8,8 @@ import com.primevest.domain.portfolio.PortfolioAssetRepository;
 import com.primevest.domain.portfolio.PortfolioRepository;
 import com.primevest.domain.transaction.dto.TransactionCreateDTO;
 import com.primevest.domain.transaction.dto.TransactionResponseDTO;
+import com.primevest.exception.BusinessException;
+import com.primevest.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,8 +46,8 @@ public class TransactionService {
      * Gets transaction by ID.
      */
     public TransactionResponseDTO getTransactionById(UUID userId, UUID txId) {
-        Transaction tx = transactionRepository.findById(txId).orElse(null);
-        if (tx == null) return null;
+        Transaction tx = transactionRepository.findById(txId)
+            .orElseThrow(() -> new ResourceNotFoundException("Transação não encontrada"));
         return toResponseDTO(tx);
     }
 
@@ -55,10 +57,10 @@ public class TransactionService {
     @Transactional
     public TransactionResponseDTO createTransaction(UUID userId, TransactionCreateDTO dto) {
         Asset asset = assetRepository.findByTicker(dto.ticker())
-            .orElseThrow(() -> new RuntimeException("Asset not found: " + dto.ticker()));
+            .orElseThrow(() -> new BusinessException("Ativo não encontrado: " + dto.ticker()));
 
         Portfolio portfolio = portfolioRepository.findFirstByUserId(userId)
-            .orElseThrow(() -> new RuntimeException("Portfolio not found"));
+            .orElseThrow(() -> new BusinessException("Portfolio não encontrado"));
 
         PortfolioAsset pa = portfolioAssetRepository.findByPortfolioIdAndAssetId(portfolio.getId(), asset.getId())
             .orElseGet(() -> {
@@ -91,6 +93,27 @@ public class TransactionService {
     }
 
     /**
+     * Updates an existing transaction.
+     * Only allows editing: shares, pricePerShare, brokerageFee, transactionDate.
+     * Does NOT allow changing: type, ticker/asset.
+     */
+    @Transactional
+    public TransactionResponseDTO updateTransaction(UUID userId, UUID txId, TransactionCreateDTO dto) {
+        Transaction tx = transactionRepository.findById(txId)
+            .orElseThrow(() -> new ResourceNotFoundException("Transação não encontrada"));
+
+        // Only update allowed fields (quantity, price, fee, date)
+        tx.setShares(dto.shares());
+        tx.setPricePerShare(dto.pricePerShare());
+        tx.setTotalAmount(dto.shares().multiply(dto.pricePerShare()));
+        tx.setBrokerageFee(dto.brokerageFee() != null ? dto.brokerageFee() : BigDecimal.ZERO);
+        tx.setTransactionDate(dto.transactionDate());
+
+        tx = transactionRepository.save(tx);
+        return toResponseDTO(tx);
+    }
+
+    /**
      * Deletes a transaction.
      */
     @Transactional
@@ -102,8 +125,10 @@ public class TransactionService {
         PortfolioAsset pa = tx.getPortfolioAsset();
         String ticker = pa != null && pa.getAsset() != null ? pa.getAsset().getTicker() : "";
         String assetName = pa != null && pa.getAsset() != null ? pa.getAsset().getName() : "";
+        String assetTypeName = pa != null && pa.getAsset() != null && pa.getAsset().getAssetType() != null
+                ? pa.getAsset().getAssetType().getName() : "";
         return new TransactionResponseDTO(
-            tx.getId(), ticker, assetName, tx.getType(),
+            tx.getId(), ticker, assetName, assetTypeName, tx.getType(),
             tx.getShares(), tx.getPricePerShare(), tx.getTotalAmount(),
             tx.getBrokerageFee(), tx.getTransactionDate(), tx.getCreatedAt()
         );

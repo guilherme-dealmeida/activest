@@ -109,6 +109,7 @@ export interface TransactionResponse {
   id: string;
   ticker: string;
   assetName: string;
+  assetTypeName: string;
   type: string;
   shares: number;
   pricePerShare: number;

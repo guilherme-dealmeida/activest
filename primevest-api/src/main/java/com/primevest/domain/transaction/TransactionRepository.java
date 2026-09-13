@@ -13,6 +13,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     List<Transaction> findByPortfolioAssetIdOrderByTransactionDateDesc(UUID portfolioAssetId);
     List<Transaction> findByPortfolioAssetPortfolioIdOrderByTransactionDateDesc(UUID portfolioId);
 
-    @Query("SELECT t FROM Transaction t JOIN FETCH t.portfolioAsset pa JOIN FETCH pa.asset WHERE pa.portfolio.user.id = :userId")
+    @Query("SELECT t FROM Transaction t JOIN FETCH t.portfolioAsset pa JOIN FETCH pa.asset a JOIN FETCH a.assetType WHERE pa.portfolio.user.id = :userId")
     List<Transaction> findAllTransactionsByUserId(@Param("userId") UUID userId);
 }
