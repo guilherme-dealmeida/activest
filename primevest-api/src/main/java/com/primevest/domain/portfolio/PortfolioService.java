@@ -128,7 +128,8 @@ public class PortfolioService {
         for (PortfolioAsset pa : assets) {
             if (safe(pa.getTotalInvested()).compareTo(BigDecimal.ZERO) == 0) continue;
             
-            String typeName = pa.getAsset().getAssetType().getName();
+            String typeName = pa.getAsset().getAssetType().getDescription() != null
+                ? pa.getAsset().getAssetType().getDescription() : pa.getAsset().getAssetType().getName();
             typeColors.put(typeName, pa.getAsset().getAssetType().getColorHex());
             
             BigDecimal assetPrice = pa.getAsset().getCurrentPrice();
@@ -168,7 +169,8 @@ public class PortfolioService {
         for (PortfolioAsset pa : assets) {
             if (safe(pa.getTotalInvested()).compareTo(BigDecimal.ZERO) == 0) continue;
 
-            String typeName = pa.getAsset().getAssetType().getName();
+            String typeName = pa.getAsset().getAssetType().getDescription() != null
+                ? pa.getAsset().getAssetType().getDescription() : pa.getAsset().getAssetType().getName();
             String colorHex = pa.getAsset().getAssetType().getColorHex();
             String categoryName = pa.getAsset().getAssetCategory() != null
                 ? pa.getAsset().getAssetCategory().getName()

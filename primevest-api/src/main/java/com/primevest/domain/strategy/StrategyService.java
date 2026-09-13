@@ -40,7 +40,7 @@ public class StrategyService {
             .map(s -> new StrategyDTO(
                 s.getId(),
                 s.getAssetType().getId(),
-                s.getAssetType().getName(),
+                s.getAssetType().getDescription() != null ? s.getAssetType().getDescription() : s.getAssetType().getName(),
                 s.getTargetPercentage(),
                 s.isIncludeReservation()
             ))
@@ -55,22 +55,36 @@ public class StrategyService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new BusinessException("User not found"));
         
+        // Delete all existing strategy items for this user
+        List<Strategy> existing = strategyRepository.findByUserId(userId);
+        strategyRepository.deleteAll(existing);
+        strategyRepository.flush();
+        
+        // Create new items from the request
         for (StrategyUpdateDTO.StrategyItemDTO item : dto.items()) {
             AssetType assetType = assetTypeRepository.findById(item.assetTypeId())
                 .orElseThrow(() -> new BusinessException("Asset type not found: " + item.assetTypeId()));
             
-            Strategy strategy = strategyRepository.findByUserIdAndAssetTypeId(userId, item.assetTypeId())
-                .orElseGet(() -> Strategy.builder()
-                    .user(user)
-                    .assetType(assetType)
-                    .build());
-            
-            strategy.setTargetPercentage(item.targetPercentage());
-            strategy.setIncludeReservation(item.includeReservation());
+            Strategy strategy = Strategy.builder()
+                .user(user)
+                .assetType(assetType)
+                .targetPercentage(item.targetPercentage())
+                .includeReservation(item.includeReservation())
+                .build();
             strategyRepository.save(strategy);
         }
         
         return getUserStrategy(userId);
+    }
+
+    /**
+     * Deletes a strategy item for a specific asset type.
+     */
+    @Transactional
+    public void deleteStrategyItem(UUID userId, Long assetTypeId) {
+        Strategy strategy = strategyRepository.findByUserIdAndAssetTypeId(userId, assetTypeId)
+            .orElseThrow(() -> new BusinessException("Strategy item not found"));
+        strategyRepository.delete(strategy);
     }
 
     /**
@@ -116,14 +130,16 @@ public class StrategyService {
                     ? currentValue.multiply(BigDecimal.valueOf(100)).divide(totalValue, 2, RoundingMode.HALF_UP)
                     : BigDecimal.ZERO;
                 items.add(new RebalanceDTO.RebalanceItem(
-                    type.getName(), BigDecimal.ZERO, currentPct, currentPct.negate(),
+                    type.getDescription() != null ? type.getDescription() : type.getName(),
+                    BigDecimal.ZERO, currentPct, currentPct.negate(),
                     currentValue, BigDecimal.ZERO, currentValue.negate()
                 ));
             }
         } else {
             for (Strategy strategy : strategies) {
                 Long typeId = strategy.getAssetType().getId();
-                String typeName = strategy.getAssetType().getName();
+                String typeName = strategy.getAssetType().getDescription() != null 
+                    ? strategy.getAssetType().getDescription() : strategy.getAssetType().getName();
                 BigDecimal targetPct = strategy.getTargetPercentage();
                 BigDecimal currentValue = valueByType.getOrDefault(typeId, BigDecimal.ZERO);
                 
