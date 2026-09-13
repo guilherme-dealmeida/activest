@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Dark mode (default) */
+  html.dark body {
+    @apply bg-black text-white antialiased;
+  }
+
+  /* Light mode */
+  html.light body {
+    background-color: #f5f5f0;
+    color: #1a1a1a;
+  }
+
+  html.light .bg-surface {
+    background-color: #ffffff;
+  }
+
+  html.light .bg-surface-light {
+    background-color: #f0f0e8;
+  }
+
+  html.light .border-white\/10 {
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+
+  html.light .border-white\/5 {
+    border-color: rgba(0, 0, 0, 0.05);
+  }
+
+  html.light .text-white {
+    color: #1a1a1a;
+  }
+
+  html.light .text-gray-300 {
+    color: #555555;
+  }
+
+  html.light .text-gray-400 {
+    color: #777777;
+  }
+
+  html.light .text-gray-500 {
+    color: #999999;
+  }
+
+  html.light .hover\:bg-white\/5:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+
+  html.light .bg-white\/5 {
+    background-color: rgba(0, 0, 0, 0.03);
+  }
+
+  html.light .bg-white\/10 {
+    background-color: rgba(0, 0, 0, 0.06);
+  }
+
+  /* Custom Scrollbar - Dark */
+  html.dark ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  html.dark ::-webkit-scrollbar-track {
+    background: #111111;
+  }
+
+  html.dark ::-webkit-scrollbar-thumb {
+    @apply rounded-full;
+    background: #2a2a2a;
+    border: 2px solid #111111;
+  }
+
+  html.dark ::-webkit-scrollbar-thumb:hover {
+    background: #444444;
+  }
+
+  /* Custom Scrollbar - Light */
+  html.light ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  html.light ::-webkit-scrollbar-track {
+    background: #f5f5f0;
+  }
+
+  html.light ::-webkit-scrollbar-thumb {
+    @apply rounded-full;
+    background: #cccccc;
+    border: 2px solid #f5f5f0;
+  }
+
+  html.light ::-webkit-scrollbar-thumb:hover {
+    background: #aaaaaa;
+  }
+}
