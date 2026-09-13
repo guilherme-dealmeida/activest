@@ -30,7 +30,7 @@ public class CeilingPrice {
     @JoinColumn(name = "asset_id", nullable = false)
     private Asset asset;
 
-    @Column(name = "max_price", precision = 19, scale = 4, nullable = false)
+    @Column(name = "max_price", precision = 18, scale = 8, nullable = false)
     private BigDecimal maxPrice;
 
     @Column(name = "alert_enabled", nullable = false)

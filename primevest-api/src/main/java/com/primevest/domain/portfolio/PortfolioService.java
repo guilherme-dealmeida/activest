@@ -98,7 +98,7 @@ public class PortfolioService {
                     pa.getId(),
                     pa.getAsset().getTicker(),
                     pa.getAsset().getName(),
-                    pa.getAsset().getAssetType().getName(),
+                    pa.getAsset().getAssetType().getDescription() != null ? pa.getAsset().getAssetType().getDescription() : pa.getAsset().getAssetType().getName(),
                     pa.getAsset().getAssetCategory() != null ? pa.getAsset().getAssetCategory().getName() : null,
                     safe(pa.getTotalShares()),
                     safe(pa.getAveragePrice()),

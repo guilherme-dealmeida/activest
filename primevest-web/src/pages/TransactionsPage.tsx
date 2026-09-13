@@ -156,28 +156,15 @@ export const TransactionsPage = () => {
 
   const selectAsset = (asset: AssetOption) => {
     setFormData({ ...formData, ticker: asset.ticker });
-    setFormAssetType(typeDisplayName(asset.typeName || ''));
+    setFormAssetType(asset.typeName || '');
     setTickerInput(asset.ticker);
     setShowDropdown(false);
     setAssetOptions([]);
   };
 
-  // Map backend asset type names to friendly display names
-  const typeDisplayName = (name: string): string => {
-    const map: Record<string, string> = {
-      'RENDA_FIXA': 'Renda Fixa',
-      'TESOURO_DIRETO': 'Tesouro Direto',
-      'FII': 'FII',
-      'RENDA_VARIAVEL': 'Renda Variável',
-      'INTERNACIONAL': 'Internacional',
-      'CRYPTO': 'Crypto',
-    };
-    return map[name] || name;
-  };
-
   const enriched = (transactions || []).map(t => ({
     ...t,
-    assetType: typeDisplayName(t.assetTypeName || '')
+    assetType: t.assetTypeName || ''
   }));
 
   const uniqueTypes = [...new Set(enriched.map(t => t.assetType).filter(Boolean))].sort();

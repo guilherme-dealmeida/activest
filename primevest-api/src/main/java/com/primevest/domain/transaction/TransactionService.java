@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -52,7 +53,7 @@ public class TransactionService {
     }
 
     /**
-     * Creates a transaction.
+     * Creates a transaction and updates portfolio totals.
      */
     @Transactional
     public TransactionResponseDTO createTransaction(UUID userId, TransactionCreateDTO dto) {
@@ -89,11 +90,12 @@ public class TransactionService {
             .build();
 
         tx = transactionRepository.save(tx);
+        recalculatePortfolioAsset(pa);
         return toResponseDTO(tx);
     }
 
     /**
-     * Updates an existing transaction.
+     * Updates an existing transaction and recalculates portfolio totals.
      * Only allows editing: shares, pricePerShare, brokerageFee, transactionDate.
      * Does NOT allow changing: type, ticker/asset.
      */
@@ -110,15 +112,99 @@ public class TransactionService {
         tx.setTransactionDate(dto.transactionDate());
 
         tx = transactionRepository.save(tx);
+        recalculatePortfolioAsset(tx.getPortfolioAsset());
         return toResponseDTO(tx);
     }
 
     /**
-     * Deletes a transaction.
+     * Deletes a transaction and recalculates portfolio totals.
      */
     @Transactional
     public void deleteTransaction(UUID userId, UUID txId) {
-        transactionRepository.deleteById(txId);
+        Transaction tx = transactionRepository.findById(txId)
+            .orElseThrow(() -> new ResourceNotFoundException("Transação não encontrada"));
+        PortfolioAsset pa = tx.getPortfolioAsset();
+        transactionRepository.delete(tx);
+        transactionRepository.flush();
+        recalculatePortfolioAsset(pa);
+    }
+
+    /**
+     * Recalculates ALL portfolio assets for a user.
+     * Useful to fix historical data that wasn't recalculated.
+     */
+    @Transactional
+    public void recalculateAllPortfolioAssets(UUID userId) {
+        Portfolio portfolio = portfolioRepository.findFirstByUserId(userId)
+            .orElseThrow(() -> new BusinessException("Portfolio não encontrado"));
+        List<PortfolioAsset> assets = portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId());
+        for (PortfolioAsset pa : assets) {
+            recalculatePortfolioAsset(pa);
+        }
+    }
+
+    /**
+     * Recalculates PortfolioAsset totals from ALL its transactions.
+     * 
+     * Logic:
+     * - BUY: adds shares, recalculates weighted average price, adds to totalInvested
+     * - SELL: subtracts shares, keeps averagePrice unchanged, subtracts (shares * avgPrice) from totalInvested
+     * - currentValue = totalShares * asset.currentPrice (or averagePrice if no market price)
+     */
+    private void recalculatePortfolioAsset(PortfolioAsset pa) {
+        List<Transaction> txs = transactionRepository
+            .findByPortfolioAssetIdOrderByTransactionDateDesc(pa.getId());
+
+        // Process chronologically (oldest first)
+        txs.sort(Comparator.comparing(Transaction::getTransactionDate)
+            .thenComparing(Transaction::getCreatedAt));
+
+        BigDecimal totalShares = BigDecimal.ZERO;
+        BigDecimal totalCost = BigDecimal.ZERO; // accumulated cost for average price calculation
+
+        for (Transaction tx : txs) {
+            BigDecimal txShares = tx.getShares();
+            BigDecimal txPrice = tx.getPricePerShare();
+
+            if (tx.getType() == TransactionType.BUY) {
+                // Weighted average: newAvg = (oldCost + newCost) / (oldShares + newShares)
+                BigDecimal txCost = txShares.multiply(txPrice);
+                totalCost = totalCost.add(txCost);
+                totalShares = totalShares.add(txShares);
+            } else if (tx.getType() == TransactionType.SELL) {
+                if (totalShares.compareTo(BigDecimal.ZERO) > 0) {
+                    // Remove proportional cost: cost reduction = (sellShares / totalShares) * totalCost
+                    BigDecimal avgPrice = totalCost.divide(totalShares, 10, RoundingMode.HALF_UP);
+                    BigDecimal costReduction = txShares.multiply(avgPrice);
+                    totalCost = totalCost.subtract(costReduction);
+                    totalShares = totalShares.subtract(txShares);
+                    // Prevent negatives
+                    if (totalShares.compareTo(BigDecimal.ZERO) < 0) {
+                        totalShares = BigDecimal.ZERO;
+                        totalCost = BigDecimal.ZERO;
+                    }
+                }
+            }
+        }
+
+        // Calculate average price
+        BigDecimal averagePrice = BigDecimal.ZERO;
+        if (totalShares.compareTo(BigDecimal.ZERO) > 0) {
+            averagePrice = totalCost.divide(totalShares, 4, RoundingMode.HALF_UP);
+        }
+
+        // Calculate current value using market price if available, otherwise use average price
+        BigDecimal marketPrice = pa.getAsset() != null ? pa.getAsset().getCurrentPrice() : null;
+        BigDecimal priceForValue = (marketPrice != null && marketPrice.compareTo(BigDecimal.ZERO) > 0)
+            ? marketPrice : averagePrice;
+        BigDecimal currentValue = totalShares.multiply(priceForValue);
+
+        // Update portfolio asset
+        pa.setTotalShares(totalShares);
+        pa.setAveragePrice(averagePrice);
+        pa.setTotalInvested(totalCost);
+        pa.setCurrentValue(currentValue);
+        portfolioAssetRepository.save(pa);
     }
 
     private TransactionResponseDTO toResponseDTO(Transaction tx) {
@@ -126,7 +212,7 @@ public class TransactionService {
         String ticker = pa != null && pa.getAsset() != null ? pa.getAsset().getTicker() : "";
         String assetName = pa != null && pa.getAsset() != null ? pa.getAsset().getName() : "";
         String assetTypeName = pa != null && pa.getAsset() != null && pa.getAsset().getAssetType() != null
-                ? pa.getAsset().getAssetType().getName() : "";
+                ? (pa.getAsset().getAssetType().getDescription() != null ? pa.getAsset().getAssetType().getDescription() : pa.getAsset().getAssetType().getName()) : "";
         return new TransactionResponseDTO(
             tx.getId(), ticker, assetName, assetTypeName, tx.getType(),
             tx.getShares(), tx.getPricePerShare(), tx.getTotalAmount(),

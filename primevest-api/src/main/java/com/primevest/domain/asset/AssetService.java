@@ -63,7 +63,7 @@ public class AssetService {
      */
     public List<AssetCategoryResponseDTO> getCategoriesByType(Long typeId) {
         return assetCategoryRepository.findByAssetTypeId(typeId).stream()
-            .map(c -> new AssetCategoryResponseDTO(c.getId(), c.getName(), c.getDescription(), c.getAssetType().getId(), c.getAssetType().getName()))
+            .map(c -> new AssetCategoryResponseDTO(c.getId(), c.getName(), c.getDescription(), c.getAssetType().getId(), c.getAssetType().getDescription() != null ? c.getAssetType().getDescription() : c.getAssetType().getName()))
             .collect(Collectors.toList());
     }
 
@@ -91,7 +91,7 @@ public class AssetService {
             asset.getId(),
             asset.getTicker(),
             asset.getName(),
-            asset.getAssetType() != null ? asset.getAssetType().getName() : null,
+            asset.getAssetType() != null ? (asset.getAssetType().getDescription() != null ? asset.getAssetType().getDescription() : asset.getAssetType().getName()) : null,
             asset.getAssetCategory() != null ? asset.getAssetCategory().getName() : null,
             asset.getSector(),
             asset.getCurrentPrice(),

@@ -45,4 +45,10 @@ public class TransactionController {
         transactionService.deleteTransaction(SecurityUtils.getCurrentUserId(), id);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/recalculate-all")
+    public ResponseEntity<Void> recalculateAll() {
+        transactionService.recalculateAllPortfolioAssets(SecurityUtils.getCurrentUserId());
+        return ResponseEntity.ok().build();
+    }
 }

@@ -30,16 +30,16 @@ public class Transaction {
     @Column(nullable = false)
     private TransactionType type;
 
-    @Column(precision = 19, scale = 4, nullable = false)
+    @Column(precision = 18, scale = 8, nullable = false)
     private BigDecimal shares;
 
-    @Column(name = "price_per_share", precision = 19, scale = 4, nullable = false)
+    @Column(name = "price_per_share", precision = 18, scale = 8, nullable = false)
     private BigDecimal pricePerShare;
 
-    @Column(name = "total_amount", precision = 19, scale = 4, nullable = false)
+    @Column(name = "total_amount", precision = 18, scale = 2, nullable = false)
     private BigDecimal totalAmount;
 
-    @Column(name = "brokerage_fee", precision = 19, scale = 4)
+    @Column(name = "brokerage_fee", precision = 18, scale = 2)
     private BigDecimal brokerageFee;
 
     @Column(name = "transaction_date", nullable = false)

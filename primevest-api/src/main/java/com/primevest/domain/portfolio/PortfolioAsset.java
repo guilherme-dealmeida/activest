@@ -33,19 +33,19 @@ public class PortfolioAsset {
     @JoinColumn(name = "asset_id", nullable = false)
     private Asset asset;
 
-    @Column(name = "total_shares", precision = 19, scale = 4)
+    @Column(name = "total_shares", precision = 18, scale = 8)
     private BigDecimal totalShares;
 
-    @Column(name = "average_price", precision = 19, scale = 4)
+    @Column(name = "average_price", precision = 18, scale = 8)
     private BigDecimal averagePrice;
 
-    @Column(name = "total_invested", precision = 19, scale = 4)
+    @Column(name = "total_invested", precision = 18, scale = 2)
     private BigDecimal totalInvested;
 
-    @Column(name = "current_value", precision = 19, scale = 4)
+    @Column(name = "current_value", precision = 18, scale = 2)
     private BigDecimal currentValue;
 
-    @Column(name = "total_dividends", precision = 19, scale = 4)
+    @Column(name = "total_dividends", precision = 18, scale = 2)
     private BigDecimal totalDividends;
 
     @Column(name = "is_reservation", nullable = false)

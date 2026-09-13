@@ -36,7 +36,7 @@ public class Asset {
 
     private String sector;
 
-    @Column(name = "current_price", precision = 19, scale = 4)
+    @Column(name = "current_price", precision = 18, scale = 8)
     private BigDecimal currentPrice;
 
     @Column(name = "price_updated_at")
@@ -47,7 +47,7 @@ public class Asset {
 
     private String indexer;
 
-    @Column(name = "indexer_rate", precision = 19, scale = 4)
+    @Column(name = "indexer_rate", precision = 10, scale = 4)
     private BigDecimal indexerRate;
 
     @Column(nullable = false)

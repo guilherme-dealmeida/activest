@@ -19,6 +19,7 @@ CREATE TABLE portfolio_assets (
     current_value DECIMAL(18,2) DEFAULT 0,
     total_dividends DECIMAL(18,2) DEFAULT 0,
     is_reservation BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE(portfolio_id, asset_id)
 );
 CREATE INDEX idx_portfolio_assets_portfolio ON portfolio_assets(portfolio_id);

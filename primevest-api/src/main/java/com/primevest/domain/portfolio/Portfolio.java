@@ -31,13 +31,13 @@ public class Portfolio {
     @Column(nullable = false)
     private String name;
 
-    @Column(name = "total_invested", precision = 19, scale = 4)
+    @Column(name = "total_invested", precision = 18, scale = 2)
     private BigDecimal totalInvested;
 
-    @Column(name = "current_value", precision = 19, scale = 4)
+    @Column(name = "current_value", precision = 18, scale = 2)
     private BigDecimal currentValue;
 
-    @Column(name = "total_dividends", precision = 19, scale = 4)
+    @Column(name = "total_dividends", precision = 18, scale = 2)
     private BigDecimal totalDividends;
 
     @Column(name = "created_at", updatable = false)

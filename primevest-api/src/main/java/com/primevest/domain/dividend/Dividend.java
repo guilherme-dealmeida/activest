@@ -30,10 +30,10 @@ public class Dividend {
     @JoinColumn(name = "portfolio_asset_id")
     private PortfolioAsset portfolioAsset;
 
-    @Column(name = "amount_per_share", precision = 19, scale = 4, nullable = false)
+    @Column(name = "amount_per_share", precision = 18, scale = 8, nullable = false)
     private BigDecimal amountPerShare;
 
-    @Column(name = "total_amount", precision = 19, scale = 4)
+    @Column(name = "total_amount", precision = 18, scale = 2)
     private BigDecimal totalAmount;
 
     @Column(name = "ex_date", nullable = false)
