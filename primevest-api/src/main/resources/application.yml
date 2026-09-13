@@ -16,11 +16,17 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
   # Flyway
+  #
+  # 'baseline-version: 18' foi removido daqui. Ele fazia o Flyway marcar um banco
+  # vazio como se já estivesse na versão 18, pulando a criação das tabelas (V1-V11)
+  # e todos os seeds (V12-V18) — só a V19 rodava. Na prática o projeto não subia do
+  # zero, dependia de um banco criado à mão antes disso.
+  # Cada perfil decide se o Flyway roda: dev deixa desligado (banco local já pronto),
+  # docker liga (banco nasce vazio e é construído pela cadeia completa).
   flyway:
     enabled: true
     locations: classpath:db/migration
-    baseline-on-migrate: true
-    baseline-version: 18
+    baseline-on-migrate: false
 
   # Jackson
   jackson:
