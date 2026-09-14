@@ -39,7 +39,7 @@ public class Dividend {
     @Column(name = "ex_date", nullable = false)
     private LocalDate exDate;
 
-    @Column(name = "payment_date", nullable = false)
+    @Column(name = "payment_date")
     private LocalDate paymentDate;
 
     @Enumerated(EnumType.STRING)

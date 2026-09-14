@@ -28,6 +28,17 @@ public class AssetType {
     @Column(name = "color_hex")
     private String colorHex;
 
+    /** Provedor de cotação deste tipo. Ver {@link PriceSource}. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "price_source", nullable = false)
+    @Builder.Default
+    private PriceSource priceSource = PriceSource.MANUAL;
+
+    /** Tipos com remuneração contratada (rate_type, indexer, indexer_rate em Asset). */
+    @Column(name = "fixed_income", nullable = false)
+    @Builder.Default
+    private boolean fixedIncome = false;
+
     @JsonIgnore
     @OneToMany(mappedBy = "assetType", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default

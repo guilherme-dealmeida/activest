@@ -17,4 +17,13 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
 
     @Query("SELECT a FROM Asset a WHERE LOWER(a.ticker) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(a.name) LIKE LOWER(CONCAT('%', :query, '%'))")
     List<Asset> searchByTickerOrName(@Param("query") String query);
+
+    /** Autocomplete do cadastro de transação: o tipo escolhido restringe a lista. */
+    @Query("""
+        SELECT a FROM Asset a
+        WHERE a.assetType.id = :typeId
+          AND (LOWER(a.ticker) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(a.name)   LIKE LOWER(CONCAT('%', :query, '%')))
+        """)
+    List<Asset> searchByTypeAndTickerOrName(@Param("typeId") Long typeId, @Param("query") String query);
 }

@@ -4,5 +4,6 @@ public record AssetTypeResponseDTO(
     Long id,
     String name,
     String description,
-    String colorHex
+    String colorHex,
+    boolean fixedIncome
 ) {}

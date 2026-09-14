@@ -17,7 +17,7 @@ services:
     ports:
       # 5433 no host para não colidir com o PostgreSQL instalado na máquina (que usa 5432).
       # Para conectar pelo pgAdmin: localhost:5433
-      - "${DB_PORT:-5433}:5432"
+      - "0.0.0.0:${DB_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -31,7 +31,7 @@ services:
     image: redis:7-alpine
     container_name: primevest-redis
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "0.0.0.0:${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -58,7 +58,7 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-dummy}
       BRAPI_TOKEN: ${BRAPI_TOKEN:-}
     ports:
-      - "${API_PORT:-8080}:8080"
+      - "0.0.0.0:${API_PORT:-8080}:8080"
     volumes:
       # Hot reload: o código-fonte vem da máquina, o Spring DevTools reinicia sozinho.
       - ./primevest-api/src:/app/src
@@ -83,7 +83,11 @@ services:
       # Bind mount no Windows não propaga eventos de arquivo: polling é necessário para o hot reload.
       CHOKIDAR_USEPOLLING: "true"
     ports:
-      - "${WEB_PORT:-5173}:5173"
+      # O prefixo 0.0.0.0: existe para publicar SOMENTE em IPv4. Sem ele o Docker
+      # publica nas duas pilhas e o navegador tenta ::1 primeiro; como o Vite
+      # escuta só numa delas, localhost:5173 fica pendurado (127.0.0.1 funciona).
+      # O mesmo vale para as demais portas deste arquivo.
+      - "0.0.0.0:${WEB_PORT:-5173}:5173"
     volumes:
       - ./primevest-web:/app
       # Volume anônimo: preserva o node_modules instalado na imagem Linux,

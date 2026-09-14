@@ -5,10 +5,12 @@ import { twMerge } from 'tailwind-merge';
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
+  /** Texto auxiliar abaixo do campo. Suprimido quando há erro. */
+  hint?: string;
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, id, ...props }, ref) => {
+  ({ className, label, error, hint, id, ...props }, ref) => {
     const inputId = id || Math.random().toString(36).substring(7);
     return (
       <div className="w-full">
@@ -30,6 +32,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           {...props}
         />
         {error && <p className="mt-1 text-sm text-danger">{error}</p>}
+        {!error && hint && <p className="mt-1 text-xs text-gray-500">{hint}</p>}
       </div>
     );
   }

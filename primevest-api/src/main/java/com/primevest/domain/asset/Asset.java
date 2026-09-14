@@ -45,8 +45,17 @@ public class Asset {
     @Column(name = "maturity_date")
     private LocalDate maturityDate;
 
-    private String indexer;
+    /** Como remunera. Ver {@link RateType}. Nulo para renda variável. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "rate_type", length = 20)
+    private RateType rateType;
 
+    /** Índice de remuneração. Nulo quando prefixado. Ver {@link Indexer}. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private Indexer indexer;
+
+    /** Significado dado por {@link #rateType}: % a.a., % do índice, ou spread. */
     @Column(name = "indexer_rate", precision = 10, scale = 4)
     private BigDecimal indexerRate;
 

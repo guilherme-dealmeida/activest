@@ -54,7 +54,7 @@ public class AssetService {
      */
     public List<AssetTypeResponseDTO> getAllTypes() {
         return assetTypeRepository.findAll().stream()
-            .map(t -> new AssetTypeResponseDTO(t.getId(), t.getName(), t.getDescription(), t.getColorHex()))
+            .map(t -> new AssetTypeResponseDTO(t.getId(), t.getName(), t.getDescription(), t.getColorHex(), t.isFixedIncome()))
             .collect(Collectors.toList());
     }
 
@@ -71,7 +71,19 @@ public class AssetService {
      * Searches assets by query.
      */
     public List<AssetResponseDTO> searchAssets(String query) {
-        return assetRepository.searchByTickerOrName(query).stream().map(this::toDTO).collect(Collectors.toList());
+        return searchAssets(query, null);
+    }
+
+    /**
+     * Busca por texto, opcionalmente restrita a um tipo de ativo.
+     * O autocomplete do cadastro de transação usa a forma com typeId: o tipo
+     * escolhido determina a lista, e não o contrário.
+     */
+    public List<AssetResponseDTO> searchAssets(String query, Long typeId) {
+        List<Asset> found = typeId != null
+            ? assetRepository.searchByTypeAndTickerOrName(typeId, query)
+            : assetRepository.searchByTickerOrName(query);
+        return found.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     /**
@@ -91,12 +103,15 @@ public class AssetService {
             asset.getId(),
             asset.getTicker(),
             asset.getName(),
+            asset.getAssetType() != null ? asset.getAssetType().getId() : null,
             asset.getAssetType() != null ? (asset.getAssetType().getDescription() != null ? asset.getAssetType().getDescription() : asset.getAssetType().getName()) : null,
+            asset.getAssetCategory() != null ? asset.getAssetCategory().getId() : null,
             asset.getAssetCategory() != null ? asset.getAssetCategory().getName() : null,
             asset.getSector(),
             asset.getCurrentPrice(),
             asset.getPriceUpdatedAt(),
             asset.getMaturityDate(),
+            asset.getRateType(),
             asset.getIndexer(),
             asset.getIndexerRate(),
             asset.isActive()

@@ -18,6 +18,8 @@ export interface AssetType {
   name: string;
   description: string;
   colorHex: string;
+  /** Tipos com remuneração contratada: mostram os campos de renda fixa no cadastro. */
+  fixedIncome: boolean;
 }
 
 export interface AssetCategory {
@@ -28,17 +30,28 @@ export interface AssetCategory {
   assetTypeName: string;
 }
 
+export type RateType = 'PREFIXADO' | 'POS_FIXADO' | 'HIBRIDO';
+export type Indexer = 'CDI' | 'SELIC' | 'IPCA' | 'IGPM' | 'INPC' | 'TR';
+
 export interface Asset {
   id: number;
   ticker: string;
   name: string;
+  typeId: number | null;
   typeName: string;
+  categoryId: number | null;
   categoryName: string;
   sector: string;
   currentPrice: number;
   priceUpdatedAt: string;
   maturityDate: string | null;
-  indexer: string | null;
+  // Remuneração de renda fixa: as três andam juntas.
+  // PREFIXADO   -> indexer null, indexerRate = % a.a.
+  // POS_FIXADO  -> indexer = CDI/SELIC/..., indexerRate = % do índice (ex: 110)
+  // HIBRIDO     -> indexer = IPCA/IGPM/..., indexerRate = spread % a.a. (ex: 6)
+  // Renda variável deixa as três nulas.
+  rateType: RateType | null;
+  indexer: Indexer | null;
   indexerRate: number | null;
   active: boolean;
 }
@@ -127,6 +140,16 @@ export interface TransactionCreate {
   brokerageFee?: number;
   transactionDate: string;
   isReservation?: boolean;
+
+  // Usados apenas quando o ticker ainda não existe: o ativo é criado junto
+  // com a transação. Se o ticker já existe, o backend ignora tudo abaixo.
+  assetTypeId?: number | null;
+  assetCategoryId?: number | null;
+  assetName?: string | null;
+  maturityDate?: string | null;
+  rateType?: RateType | null;
+  indexer?: Indexer | null;
+  indexerRate?: number | null;
 }
 
 export interface Strategy {
@@ -160,6 +183,7 @@ export interface CeilingPrice {
   id: string;
   ticker: string;
   assetName: string;
+  assetTypeName: string;
   maxPrice: number;
   currentPrice: number;
   diffPercentage: number;

@@ -1,7 +1,6 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { transactionsApi } from '@/api/transactions';
-import { assetsApi } from '@/api/assets';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -9,15 +8,17 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Pagination } from '@/components/ui/Pagination';
 import { formatCurrency, formatDate, formatShares } from '@/utils/format';
-import { TransactionResponse, TransactionCreate, TransactionType } from '@/types';
-import { Plus, Trash2, Pencil, ArrowUpRight, ArrowDownLeft, Search } from 'lucide-react';
+import { TransactionResponse, TransactionCreate, TransactionType, Asset, AssetType } from '@/types';
+import { Plus, Trash2, Pencil, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { useSortable } from '@/hooks/useSortable';
+import { AssetTypeSelect } from '@/components/forms/AssetTypeSelect';
+import { TickerAutocomplete } from '@/components/forms/TickerAutocomplete';
+import { FixedIncomeFields, FixedIncomeValues } from '@/components/forms/FixedIncomeFields';
 
-interface AssetOption {
-  ticker: string;
-  name: string;
-  typeName: string;
-}
+const EMPTY_FIXED_INCOME: FixedIncomeValues = {
+  assetName: '', assetCategoryId: null, maturityDate: '',
+  rateType: null, indexer: null, indexerRate: null
+};
 
 // Currency mask helper
 function toCurrencyDisplay(value: number): string {
@@ -46,7 +47,12 @@ export const TransactionsPage = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [filterType, setFilterType] = useState('ALL');
   const [filterPeriod, setFilterPeriod] = useState('30');
-  const [formAssetType, setFormAssetType] = useState('');
+  // O tipo escolhido comanda o formulário: restringe o autocomplete e decide
+  // se o bloco de renda fixa aparece.
+  const [selectedType, setSelectedType] = useState<AssetType | null>(null);
+  // Ativo já cadastrado que casou com o ticker. Null = ativo novo, campos editáveis.
+  const [matchedAsset, setMatchedAsset] = useState<Asset | null>(null);
+  const [fixedIncome, setFixedIncome] = useState<FixedIncomeValues>(EMPTY_FIXED_INCOME);
   const [formData, setFormData] = useState<TransactionCreate>({
     ticker: '',
     type: TransactionType.BUY,
@@ -59,52 +65,7 @@ export const TransactionsPage = () => {
   const [priceDisplay, setPriceDisplay] = useState('');
   const [feeDisplay, setFeeDisplay] = useState('');
 
-  // Autocomplete state
   const [tickerInput, setTickerInput] = useState('');
-  const [assetOptions, setAssetOptions] = useState<AssetOption[]>([]);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-  const [highlightIndex, setHighlightIndex] = useState(-1);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Debounced asset search
-  useEffect(() => {
-    if (tickerInput.length < 2 || editingId) {
-      setAssetOptions([]);
-      setShowDropdown(false);
-      return;
-    }
-    setIsSearching(true);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const results = await assetsApi.getAll(undefined, tickerInput);
-        const limited = (results as AssetOption[]).slice(0, 15);
-        setAssetOptions(limited);
-        setShowDropdown(limited.length > 0);
-        setHighlightIndex(-1);
-      } catch {
-        setAssetOptions([]);
-        setShowDropdown(false);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 300);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [tickerInput, editingId]);
-
-  // Close dropdown on click outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShowDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const { data: transactions, isLoading } = useQuery<TransactionResponse[]>({
     queryKey: ['transactions'],
@@ -141,10 +102,10 @@ export const TransactionsPage = () => {
 
   const resetForm = useCallback(() => {
     setEditingId(null);
-    setFormAssetType('');
+    setSelectedType(null);
+    setMatchedAsset(null);
+    setFixedIncome(EMPTY_FIXED_INCOME);
     setTickerInput('');
-    setAssetOptions([]);
-    setShowDropdown(false);
     setFormData({
       ticker: '', type: TransactionType.BUY, shares: 0,
       pricePerShare: 0, brokerageFee: 0,
@@ -154,12 +115,33 @@ export const TransactionsPage = () => {
     setFeeDisplay('');
   }, []);
 
-  const selectAsset = (asset: AssetOption) => {
-    setFormData({ ...formData, ticker: asset.ticker });
-    setFormAssetType(asset.typeName || '');
-    setTickerInput(asset.ticker);
-    setShowDropdown(false);
-    setAssetOptions([]);
+  /** Trocar o tipo invalida o ticker: a lista do autocomplete é outra. */
+  const handleTypeChange = (type: AssetType | null) => {
+    setSelectedType(type);
+    setMatchedAsset(null);
+    setFixedIncome(EMPTY_FIXED_INCOME);
+    setTickerInput('');
+    setFormData(prev => ({ ...prev, ticker: '' }));
+  };
+
+  /**
+   * asset != null -> ticker casou com ativo existente: espelha os dados dele e
+   * trava os campos. asset == null -> digitação livre, ativo possivelmente novo.
+   */
+  const handleTickerChange = (ticker: string, asset: Asset | null) => {
+    setTickerInput(ticker);
+    setFormData(prev => ({ ...prev, ticker }));
+    setMatchedAsset(asset);
+    if (asset) {
+      setFixedIncome({
+        assetName: asset.name ?? '',
+        assetCategoryId: asset.categoryId ?? null,
+        maturityDate: asset.maturityDate ?? '',
+        rateType: asset.rateType ?? null,
+        indexer: asset.indexer ?? null,
+        indexerRate: asset.indexerRate ?? null
+      });
+    }
   };
 
   const enriched = (transactions || []).map(t => ({
@@ -190,9 +172,25 @@ export const TransactionsPage = () => {
     e.preventDefault();
     if (editingId) {
       updateMutation.mutate({ id: editingId, txData: formData });
-    } else {
-      createMutation.mutate(formData);
+      return;
     }
+    // Ativo já existe -> backend ignora os campos de ativo; ainda assim só
+    // mandamos o que é relevante, para o payload contar a mesma história.
+    const payload: TransactionCreate = {
+      ...formData,
+      assetTypeId: selectedType?.id ?? null,
+      ...(matchedAsset ? {} : {
+        assetName: fixedIncome.assetName || null,
+        assetCategoryId: fixedIncome.assetCategoryId,
+        maturityDate: fixedIncome.maturityDate || null,
+        ...(selectedType?.fixedIncome ? {
+          rateType: fixedIncome.rateType,
+          indexer: fixedIncome.indexer,
+          indexerRate: fixedIncome.indexerRate
+        } : {})
+      })
+    };
+    createMutation.mutate(payload);
   };
 
   const handleOpenModal = () => {
@@ -202,7 +200,6 @@ export const TransactionsPage = () => {
 
   const handleEdit = (row: TransactionResponse & { assetType: string }) => {
     setEditingId(row.id);
-    setFormAssetType(row.assetType);
     setTickerInput(row.ticker);
     setFormData({
       ticker: row.ticker,
@@ -375,82 +372,43 @@ export const TransactionsPage = () => {
             </div>
           </div>
 
-          {/* Tipo de Ativo (auto-preenchido) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">Tipo de Ativo</label>
-            <input
-              type="text"
-              readOnly
-              className="flex h-10 w-full rounded-md border border-surface-light bg-surface-light/50 px-3 py-2 text-sm text-white cursor-default opacity-70"
-              value={formAssetType}
-              placeholder="Preenchido ao selecionar ativo"
-            />
-          </div>
+          {/* Tipo de Ativo — primeiro campo: comanda o resto do formulário */}
+          <AssetTypeSelect
+            value={selectedType?.id ?? null}
+            disabled={!!editingId}
+            onChange={handleTypeChange}
+          />
 
-          {/* Ticker - Autocomplete */}
-          <div ref={dropdownRef} className="relative">
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">Ticker (Ativo)</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                ref={inputRef}
-                type="text"
-                autoComplete="off"
-                className={`flex h-10 w-full rounded-md border border-surface-light bg-surface pl-9 pr-3 py-2 text-sm text-white focus:ring-2 focus:ring-accent focus:border-transparent ${editingId ? 'opacity-60 cursor-not-allowed' : ''}`}
-                value={tickerInput}
-                onChange={(e) => {
-                  const val = e.target.value.toUpperCase();
-                  setTickerInput(val);
-                  setFormData({ ...formData, ticker: val });
-                  if (val.length < 2) {
-                    setFormAssetType('');
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (!showDropdown || assetOptions.length === 0) return;
-                  if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    setHighlightIndex(prev => Math.min(prev + 1, assetOptions.length - 1));
-                  } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    setHighlightIndex(prev => Math.max(prev - 1, 0));
-                  } else if (e.key === 'Enter' && highlightIndex >= 0) {
-                    e.preventDefault();
-                    selectAsset(assetOptions[highlightIndex]);
-                  } else if (e.key === 'Escape') {
-                    setShowDropdown(false);
-                  }
-                }}
-                required
-                placeholder="Digite o ticker (ex: PETR4, HGBS11)"
-                readOnly={!!editingId}
-              />
-              {isSearching && (
-                <LoadingSpinner className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-accent" />
-              )}
-            </div>
-            {showDropdown && assetOptions.length > 0 && !editingId && (
-              <div className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto rounded-md border border-white/10 bg-surface shadow-xl">
-                {assetOptions.map((opt, idx) => (
-                  <button
-                    key={opt.ticker}
-                    type="button"
-                    onClick={() => selectAsset(opt)}
-                    className={`w-full text-left px-3 py-2.5 flex items-center gap-3 text-sm transition-colors border-b border-white/5 last:border-0 ${
-                      idx === highlightIndex ? 'bg-accent/15 text-white' : 'text-gray-300 hover:bg-white/5'
-                    }`}
-                  >
-                    <span className="font-semibold text-white min-w-[80px]">{opt.ticker}</span>
-                    <span className="truncate flex-1 text-gray-400">{opt.name}</span>
-                    <span className="text-xs text-accent/70 whitespace-nowrap">{opt.typeName}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {tickerInput.length >= 2 && !isSearching && assetOptions.length === 0 && showDropdown === false && formData.ticker !== tickerInput && (
-              <p className="text-xs text-gray-500 mt-1">Nenhum ativo encontrado para "{tickerInput}"</p>
-            )}
-          </div>
+          {/* Ticker — autocomplete restrito ao tipo escolhido */}
+          {editingId ? (
+            <Input label="Ticker (Ativo)" value={tickerInput} readOnly disabled />
+          ) : (
+            <TickerAutocomplete
+              value={tickerInput}
+              typeId={selectedType?.id ?? null}
+              onChange={handleTickerChange}
+            />
+          )}
+
+          {/* Bloco de renda fixa — só para tipos com remuneração contratada */}
+          {!editingId && selectedType?.fixedIncome && tickerInput.trim().length >= 2 && (
+            <FixedIncomeFields
+              typeId={selectedType.id}
+              values={fixedIncome}
+              readOnly={!!matchedAsset}
+              onChange={(patch) => setFixedIncome(prev => ({ ...prev, ...patch }))}
+            />
+          )}
+
+          {/* Nome e categoria para ativo novo que NÃO é renda fixa */}
+          {!editingId && selectedType && !selectedType.fixedIncome && !matchedAsset && tickerInput.trim().length >= 2 && (
+            <Input
+              label="Nome do ativo"
+              value={fixedIncome.assetName}
+              onChange={(e) => setFixedIncome(prev => ({ ...prev, assetName: e.target.value }))}
+              placeholder="Ativo novo — informe o nome para cadastrá-lo"
+            />
+          )}
 
           {/* Quantidade + Preço */}
           <div className="grid grid-cols-2 gap-4">

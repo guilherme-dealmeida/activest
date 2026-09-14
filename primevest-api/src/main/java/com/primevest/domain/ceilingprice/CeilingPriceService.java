@@ -96,10 +96,17 @@ public class CeilingPriceService {
 
         boolean belowCeiling = currentPrice.compareTo(maxPrice) <= 0;
 
+        // Descrição amigável do tipo (convenção do projeto: getDescription para
+        // exibição, getName só para lógica interna), com fallback para o name.
+        var assetType = cp.getAsset().getAssetType();
+        String assetTypeName = assetType == null ? ""
+            : (assetType.getDescription() != null ? assetType.getDescription() : assetType.getName());
+
         return new CeilingPriceDTO(
             cp.getId(),
             cp.getAsset().getTicker(),
             cp.getAsset().getName(),
+            assetTypeName,
             maxPrice,
             currentPrice,
             diffPct,

@@ -1,7 +1,12 @@
 package com.primevest.domain.transaction;
 
 import com.primevest.domain.asset.Asset;
+import com.primevest.domain.asset.AssetCategory;
+import com.primevest.domain.asset.AssetCategoryRepository;
 import com.primevest.domain.asset.AssetRepository;
+import com.primevest.domain.asset.AssetType;
+import com.primevest.domain.asset.AssetTypeRepository;
+import com.primevest.domain.asset.RateType;
 import com.primevest.domain.portfolio.Portfolio;
 import com.primevest.domain.portfolio.PortfolioAsset;
 import com.primevest.domain.portfolio.PortfolioAssetRepository;
@@ -30,6 +35,8 @@ public class TransactionService {
     private final PortfolioRepository portfolioRepository;
     private final PortfolioAssetRepository portfolioAssetRepository;
     private final AssetRepository assetRepository;
+    private final AssetTypeRepository assetTypeRepository;
+    private final AssetCategoryRepository assetCategoryRepository;
 
     /**
      * Gets user transactions.
@@ -58,7 +65,7 @@ public class TransactionService {
     @Transactional
     public TransactionResponseDTO createTransaction(UUID userId, TransactionCreateDTO dto) {
         Asset asset = assetRepository.findByTicker(dto.ticker())
-            .orElseThrow(() -> new BusinessException("Ativo não encontrado: " + dto.ticker()));
+            .orElseGet(() -> createAssetFrom(dto));
 
         Portfolio portfolio = portfolioRepository.findFirstByUserId(userId)
             .orElseThrow(() -> new BusinessException("Portfolio não encontrado"));
@@ -92,6 +99,72 @@ public class TransactionService {
         tx = transactionRepository.save(tx);
         recalculatePortfolioAsset(pa);
         return toResponseDTO(tx);
+    }
+
+    /**
+     * Cria o ativo a partir dos dados do formulário, quando o ticker digitado
+     * ainda não existe no catálogo. Nasce com custom = true.
+     *
+     * <p>É o que permite registrar a compra de um CDB específico sem passar por
+     * uma tela separada de cadastro de ativo.</p>
+     */
+    private Asset createAssetFrom(TransactionCreateDTO dto) {
+        if (dto.assetTypeId() == null) {
+            throw new BusinessException(
+                "Ativo não encontrado: " + dto.ticker() + ". Informe o tipo de ativo para cadastrá-lo.");
+        }
+
+        AssetType type = assetTypeRepository.findById(dto.assetTypeId())
+            .orElseThrow(() -> new BusinessException("Tipo de ativo inválido"));
+
+        AssetCategory category = null;
+        if (dto.assetCategoryId() != null) {
+            category = assetCategoryRepository.findById(dto.assetCategoryId())
+                .orElseThrow(() -> new BusinessException("Categoria inválida"));
+            if (!category.getAssetType().getId().equals(type.getId())) {
+                throw new BusinessException("A categoria escolhida não pertence ao tipo de ativo");
+            }
+        }
+
+        validateRemuneration(type, dto);
+
+        Asset asset = Asset.builder()
+            .ticker(dto.ticker())
+            .name(dto.assetName() != null && !dto.assetName().isBlank() ? dto.assetName() : dto.ticker())
+            .assetType(type)
+            .assetCategory(category)
+            .maturityDate(dto.maturityDate())
+            .rateType(type.isFixedIncome() ? dto.rateType() : null)
+            .indexer(type.isFixedIncome() ? dto.indexer() : null)
+            .indexerRate(type.isFixedIncome() ? dto.indexerRate() : null)
+            .active(true)
+            .custom(true)
+            .build();
+
+        return assetRepository.save(asset);
+    }
+
+    /**
+     * Espelha em mensagem de negócio a constraint ck_assets_rate_coherence.
+     * Sem isso o usuário receberia um erro cru de violação de constraint.
+     */
+    private void validateRemuneration(AssetType type, TransactionCreateDTO dto) {
+        if (!type.isFixedIncome()) {
+            return;
+        }
+        if (dto.rateType() == null) {
+            throw new BusinessException("Informe como o título remunera (prefixado, pós-fixado ou híbrido)");
+        }
+        boolean precisaIndice = dto.rateType() == RateType.POS_FIXADO || dto.rateType() == RateType.HIBRIDO;
+        if (precisaIndice && dto.indexer() == null) {
+            throw new BusinessException("Informe o índice para títulos pós-fixados ou híbridos");
+        }
+        if (dto.rateType() == RateType.PREFIXADO && dto.indexer() != null) {
+            throw new BusinessException("Título prefixado não tem índice");
+        }
+        if (dto.indexerRate() == null) {
+            throw new BusinessException("Informe a taxa");
+        }
     }
 
     /**

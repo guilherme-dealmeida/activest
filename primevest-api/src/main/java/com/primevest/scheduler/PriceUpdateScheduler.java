@@ -2,6 +2,7 @@ package com.primevest.scheduler;
 
 import com.primevest.domain.asset.Asset;
 import com.primevest.domain.asset.AssetRepository;
+import com.primevest.domain.asset.PriceSource;
 import com.primevest.domain.pricehistory.AssetPriceHistory;
 import com.primevest.domain.pricehistory.AssetPriceHistoryRepository;
 import com.primevest.integration.brapi.BrApiClient;
@@ -40,7 +41,6 @@ public class PriceUpdateScheduler {
     private final BrApiClient brApiClient;
     private final CoinGeckoClient coinGeckoClient;
 
-    private static final String CRYPTO_TYPE = "CRYPTO";
     private static final int BATCH_SIZE = 15;
 
     /**
@@ -77,7 +77,7 @@ public class PriceUpdateScheduler {
 
         List<Asset> cryptoAssets = assetRepository.findByActiveTrue()
                 .stream()
-                .filter(a -> a.getAssetType() != null && CRYPTO_TYPE.equals(a.getAssetType().getName()))
+                .filter(a -> a.getAssetType() != null && a.getAssetType().getPriceSource() == PriceSource.COINGECKO)
                 .toList();
 
         if (cryptoAssets.isEmpty()) {
@@ -111,11 +111,8 @@ public class PriceUpdateScheduler {
     private void updateB3Prices() {
         List<Asset> b3Assets = assetRepository.findByActiveTrue()
                 .stream()
-                .filter(a -> a.getAssetType() != null && !CRYPTO_TYPE.equals(a.getAssetType().getName()))
+                .filter(a -> a.getAssetType() != null && a.getAssetType().getPriceSource() == PriceSource.BRAPI)
                 .filter(a -> a.getTicker() != null && !a.getTicker().isBlank())
-                // Filtrar apenas ativos com ticker que faz sentido buscar na BrAPI
-                // (não inclui Tesouro Direto/Renda Fixa com vencimento)
-                .filter(a -> !isFixedIncomeAsset(a))
                 .toList();
 
         if (b3Assets.isEmpty()) {
@@ -186,16 +183,6 @@ public class PriceUpdateScheduler {
         }
 
         log.info("Daily price history saved for {} assets", saved);
-    }
-
-    /**
-     * Verifica se é um ativo de renda fixa (Tesouro Direto, CDB, etc.)
-     * que não tem cotação em tempo real na BrAPI.
-     */
-    private boolean isFixedIncomeAsset(Asset asset) {
-        if (asset.getAssetType() == null) return false;
-        String typeName = asset.getAssetType().getName();
-        return "RENDA_FIXA".equals(typeName) || "TESOURO_DIRETO".equals(typeName);
     }
 
     /**

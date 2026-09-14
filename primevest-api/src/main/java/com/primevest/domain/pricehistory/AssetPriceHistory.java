@@ -32,7 +32,7 @@ public class AssetPriceHistory {
     @Column(name = "open_price", precision = 18, scale = 8)
     private BigDecimal openPrice;
 
-    @Column(name = "close_price", precision = 18, scale = 8, nullable = false)
+    @Column(name = "close_price", precision = 18, scale = 8)
     private BigDecimal closePrice;
 
     @Column(name = "high_price", precision = 18, scale = 8)

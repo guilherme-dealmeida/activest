@@ -12,7 +12,6 @@ import { formatCurrency, formatPercentage } from '@/utils/format';
 import { CeilingPrice, CeilingPriceCreate } from '@/types';
 import { Plus, Trash2, Edit2 } from 'lucide-react';
 import { useSortable } from '@/hooks/useSortable';
-import { getAssetType, getAllAssetTypes } from '@/utils/assetTypes';
 
 export const CeilingPricesPage = () => {
   const queryClient = useQueryClient();
@@ -47,9 +46,14 @@ export const CeilingPricesPage = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ceilingPrices'] })
   });
 
-  // Enrich data with assetType for sorting
-  const enriched = (prices || []).map(p => ({ ...p, assetType: getAssetType(p.ticker) }));
-  const filtered = enriched.filter(p => filterType === 'ALL' || p.assetType === filterType);
+  // O tipo do ativo vem da API (CeilingPriceDTO.assetTypeName), não de mapa local.
+  const rows = prices || [];
+  // Opções do filtro derivadas dos próprios dados: só aparece tipo que existe
+  // na lista, evitando filtro que não devolve nada.
+  const assetTypeOptions = Array.from(
+    new Set(rows.map(p => p.assetTypeName).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const filtered = rows.filter(p => filterType === 'ALL' || p.assetTypeName === filterType);
   const { sortedData, requestSort, getSortIndicator, getSortClass } = useSortable(filtered);
   const totalPages = Math.ceil(sortedData.length / itemsPerPage);
   const paginated = sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -89,7 +93,7 @@ export const CeilingPricesPage = () => {
               className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2"
             >
               <option value="ALL">Todos</option>
-              {getAllAssetTypes().map(t => <option key={t} value={t}>{t}</option>)}
+              {assetTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
           <p className="text-gray-400 text-sm pb-2">Monitore seus ativos baseados no seu preço teto pessoal.</p>
@@ -105,8 +109,8 @@ export const CeilingPricesPage = () => {
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-gray-400 uppercase border-b border-white/10">
               <tr>
-                <th className={`px-4 py-3 cursor-pointer ${getSortClass('assetType')}`} onClick={() => requestSort('assetType')}>
-                  TIPO ATIVO{getSortIndicator('assetType')}
+                <th className={`px-4 py-3 cursor-pointer ${getSortClass('assetTypeName')}`} onClick={() => requestSort('assetTypeName')}>
+                  TIPO ATIVO{getSortIndicator('assetTypeName')}
                 </th>
                 <th className={`px-4 py-3 cursor-pointer ${getSortClass('ticker')}`} onClick={() => requestSort('ticker')}>
                   ATIVO{getSortIndicator('ticker')}
@@ -129,7 +133,7 @@ export const CeilingPricesPage = () => {
             <tbody className="divide-y divide-white/5">
               {paginated.map((row) => (
                 <tr key={row.id} className="hover:bg-white/5 transition-colors">
-                  <td className="px-4 py-3 text-gray-400">{row.assetType}</td>
+                  <td className="px-4 py-3 text-gray-400">{row.assetTypeName}</td>
                   <td className="px-4 py-3 font-medium text-white">{row.ticker}</td>
                   <td className="px-4 py-3 text-right">{formatCurrency(row.currentPrice)}</td>
                   <td className="px-4 py-3 text-right">{formatCurrency(row.maxPrice)}</td>
