@@ -1,9 +1,7 @@
 package com.primevest.config;
 
 import com.primevest.domain.auth.JwtAuthFilter;
-import com.primevest.domain.auth.OAuth2SuccessHandler;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -27,9 +25,6 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
 
-    @Autowired(required = false)
-    private OAuth2SuccessHandler oAuth2SuccessHandler;
-
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -42,11 +37,10 @@ public class SecurityConfig {
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
-        // Only configure OAuth2 if handler is available
-        if (oAuth2SuccessHandler != null) {
-            http.oauth2Login(oauth2 -> oauth2.successHandler(oAuth2SuccessHandler));
-        }
-
+        // Sem oauth2Login: o login pelo Google não usa redirect de servidor. O
+        // navegador obtém o ID token direto do Google e o envia para
+        // POST /api/v1/auth/google, que já está em permitAll acima. Assim a API
+        // continua STATELESS de verdade — nenhuma sessão, nenhum callback.
         return http.build();
     }
 

@@ -8,7 +8,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Pagination } from '@/components/ui/Pagination';
 import { formatCurrency, formatDate } from '@/utils/format';
-import { DividendResponse, DividendCreate, DividendType, DividendSummary } from '@/types';
+import { DividendCreate, DividendType, DividendSummary } from '@/types';
 import { Plus, DollarSign } from 'lucide-react';
 import { useSortable } from '@/hooks/useSortable';
 

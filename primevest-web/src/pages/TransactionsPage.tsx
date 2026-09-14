@@ -4,6 +4,7 @@ import { transactionsApi } from '@/api/transactions';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Pagination } from '@/components/ui/Pagination';
@@ -15,23 +16,22 @@ import { AssetTypeSelect } from '@/components/forms/AssetTypeSelect';
 import { TickerAutocomplete } from '@/components/forms/TickerAutocomplete';
 import { FixedIncomeFields, FixedIncomeValues } from '@/components/forms/FixedIncomeFields';
 
+/**
+ * Único ponto do front que compara o tipo por nome. No Tesouro Direto a família
+ * do papel já está no próprio nome do título, então a categoria seria uma
+ * segunda fonte para o mesmo fato. Se surgir outro tipo com a mesma
+ * característica, o lugar certo é uma coluna em asset_types — foi assim que
+ * price_source e fixed_income tiraram do código as comparações por string.
+ */
+const TESOURO_DIRETO = 'TESOURO_DIRETO';
+
+/** Liga os botões do rodapé do Modal ao <form>, que fica na área que rola. */
+const FORM_ID = 'transaction-form';
+
 const EMPTY_FIXED_INCOME: FixedIncomeValues = {
   assetName: '', assetCategoryId: null, maturityDate: '',
   rateType: null, indexer: null, indexerRate: null
 };
-
-// Currency mask helper
-function toCurrencyDisplay(value: number): string {
-  if (!value && value !== 0) return '';
-  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function parseCurrency(value: string): number {
-  const cleaned = value.replace(/[^\d,]/g, '');
-  const normalized = cleaned.replace(',', '.');
-  const num = parseFloat(normalized);
-  return isNaN(num) ? 0 : num;
-}
 
 function getDateFromDaysAgo(days: number): string {
   const d = new Date();
@@ -61,9 +61,6 @@ export const TransactionsPage = () => {
     brokerageFee: 0,
     transactionDate: new Date().toISOString().split('T')[0]
   });
-
-  const [priceDisplay, setPriceDisplay] = useState('');
-  const [feeDisplay, setFeeDisplay] = useState('');
 
   const [tickerInput, setTickerInput] = useState('');
 
@@ -111,8 +108,6 @@ export const TransactionsPage = () => {
       pricePerShare: 0, brokerageFee: 0,
       transactionDate: new Date().toISOString().split('T')[0]
     });
-    setPriceDisplay('');
-    setFeeDisplay('');
   }, []);
 
   /** Trocar o tipo invalida o ticker: a lista do autocomplete é outra. */
@@ -209,12 +204,17 @@ export const TransactionsPage = () => {
       brokerageFee: row.brokerageFee || 0,
       transactionDate: row.transactionDate
     });
-    setPriceDisplay(toCurrencyDisplay(row.pricePerShare));
-    setFeeDisplay(row.brokerageFee ? toCurrencyDisplay(row.brokerageFee) : '');
     setIsModalOpen(true);
   };
 
   const computedTotal = (formData.shares || 0) * (formData.pricePerShare || 0);
+  /**
+   * Quando o quadro do título aparece, ele vai para uma COLUNA ao lado dos
+   * campos da operação em vez de empilhar acima deles. As duas alturas passam a
+   * se sobrepor: o formulário para de crescer o tamanho do quadro inteiro.
+   */
+  const mostraDadosTitulo =
+    !editingId && !!selectedType?.fixedIncome && tickerInput.trim().length >= 2;
   const modalTitle = editingId ? 'Editar Transação' : 'Nova Transação';
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
@@ -337,81 +337,97 @@ export const TransactionsPage = () => {
         />
       </Card>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={modalTitle}>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Toggle Compra/Venda */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Operação</label>
-            <div className={`flex bg-surface rounded-lg border border-white/10 p-1 ${editingId ? 'opacity-60 pointer-events-none' : ''}`}>
-              <button
-                type="button"
-                disabled={!!editingId}
-                onClick={() => setFormData({...formData, type: TransactionType.BUY})}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md text-sm font-medium transition-all ${
-                  formData.type === TransactionType.BUY
-                    ? 'bg-success/15 text-success border border-success/30 shadow-sm'
-                    : 'text-gray-400 hover:text-gray-300 hover:bg-white/5'
-                }`}
-              >
-                <ArrowDownLeft className="w-4 h-4" />
-                Compra
-              </button>
-              <button
-                type="button"
-                disabled={!!editingId}
-                onClick={() => setFormData({...formData, type: TransactionType.SELL})}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md text-sm font-medium transition-all ${
-                  formData.type === TransactionType.SELL
-                    ? 'bg-danger/15 text-danger border border-danger/30 shadow-sm'
-                    : 'text-gray-400 hover:text-gray-300 hover:bg-white/5'
-                }`}
-              >
-                <ArrowUpRight className="w-4 h-4" />
-                Venda
-              </button>
-            </div>
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={modalTitle}
+        size="xl"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+            <Button type="submit" form={FORM_ID} isLoading={isSaving}>Salvar</Button>
           </div>
+        }
+      >
+        {/*
+          Duas colunas de alturas independentes: a transação inteira à esquerda,
+          o quadro do título à direita. A proporção 3fr/2fr existe porque a
+          esquerda ainda se divide em dois campos por linha — repartida meio a
+          meio, cada campo ficava com uns 165px e Quantidade/Preço espremiam.
+          Sem o quadro, a esquerda ocupa a largura toda.
+        */}
+        <form
+          id={FORM_ID}
+          onSubmit={handleSubmit}
+          className={`grid grid-cols-1 gap-6 ${mostraDadosTitulo ? 'lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start' : ''}`}
+        >
+          {/* Coluna da transação */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 content-start">
+            {/* Toggle Compra/Venda */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">Operação</label>
+              <div className={`flex bg-surface rounded-md border border-white/10 p-1 ${editingId ? 'opacity-60 pointer-events-none' : ''}`}>
+                <button
+                  type="button"
+                  disabled={!!editingId}
+                  onClick={() => setFormData({...formData, type: TransactionType.BUY})}
+                  className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded text-sm font-medium transition-all ${
+                    formData.type === TransactionType.BUY
+                      ? 'bg-success/15 text-success border border-success/30 shadow-sm'
+                      : 'text-gray-400 hover:text-gray-300 hover:bg-white/5'
+                  }`}
+                >
+                  <ArrowDownLeft className="w-4 h-4" />
+                  Compra
+                </button>
+                <button
+                  type="button"
+                  disabled={!!editingId}
+                  onClick={() => setFormData({...formData, type: TransactionType.SELL})}
+                  className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded text-sm font-medium transition-all ${
+                    formData.type === TransactionType.SELL
+                      ? 'bg-danger/15 text-danger border border-danger/30 shadow-sm'
+                      : 'text-gray-400 hover:text-gray-300 hover:bg-white/5'
+                  }`}
+                >
+                  <ArrowUpRight className="w-4 h-4" />
+                  Venda
+                </button>
+              </div>
+            </div>
 
-          {/* Tipo de Ativo — primeiro campo: comanda o resto do formulário */}
-          <AssetTypeSelect
-            value={selectedType?.id ?? null}
-            disabled={!!editingId}
-            onChange={handleTypeChange}
-          />
-
-          {/* Ticker — autocomplete restrito ao tipo escolhido */}
-          {editingId ? (
-            <Input label="Ticker (Ativo)" value={tickerInput} readOnly disabled />
-          ) : (
-            <TickerAutocomplete
-              value={tickerInput}
-              typeId={selectedType?.id ?? null}
-              onChange={handleTickerChange}
+            {/* Tipo de Ativo — comanda o resto do formulário */}
+            <AssetTypeSelect
+              value={selectedType?.id ?? null}
+              disabled={!!editingId}
+              onChange={handleTypeChange}
             />
-          )}
 
-          {/* Bloco de renda fixa — só para tipos com remuneração contratada */}
-          {!editingId && selectedType?.fixedIncome && tickerInput.trim().length >= 2 && (
-            <FixedIncomeFields
-              typeId={selectedType.id}
-              values={fixedIncome}
-              readOnly={!!matchedAsset}
-              onChange={(patch) => setFixedIncome(prev => ({ ...prev, ...patch }))}
-            />
-          )}
+            {/* Ticker — autocomplete restrito ao tipo escolhido */}
+            <div className="sm:col-span-2">
+              {editingId ? (
+                <Input label="Ticker (Ativo)" value={tickerInput} readOnly disabled />
+              ) : (
+                <TickerAutocomplete
+                  value={tickerInput}
+                  typeId={selectedType?.id ?? null}
+                  onChange={handleTickerChange}
+                />
+              )}
+            </div>
 
-          {/* Nome e categoria para ativo novo que NÃO é renda fixa */}
-          {!editingId && selectedType && !selectedType.fixedIncome && !matchedAsset && tickerInput.trim().length >= 2 && (
-            <Input
-              label="Nome do ativo"
-              value={fixedIncome.assetName}
-              onChange={(e) => setFixedIncome(prev => ({ ...prev, assetName: e.target.value }))}
-              placeholder="Ativo novo — informe o nome para cadastrá-lo"
-            />
-          )}
+            {/* Nome para ativo novo que NÃO é renda fixa */}
+            {!editingId && selectedType && !selectedType.fixedIncome && !matchedAsset && tickerInput.trim().length >= 2 && (
+              <div className="sm:col-span-2">
+                <Input
+                  label="Nome do ativo"
+                  value={fixedIncome.assetName}
+                  onChange={(e) => setFixedIncome(prev => ({ ...prev, assetName: e.target.value }))}
+                  placeholder="Ativo novo — informe o nome para cadastrá-lo"
+                />
+              </div>
+            )}
 
-          {/* Quantidade + Preço */}
-          <div className="grid grid-cols-2 gap-4">
             <Input
               label="Quantidade"
               type="number"
@@ -421,34 +437,13 @@ export const TransactionsPage = () => {
               onChange={(e) => setFormData({...formData, shares: Number(e.target.value)})}
               required
             />
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">Preço Unitário (R$)</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">R$</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  className="flex h-10 w-full rounded-md border border-surface-light bg-surface pl-9 pr-3 py-2 text-sm text-white focus:ring-2 focus:ring-accent focus:border-transparent"
-                  value={priceDisplay}
-                  onChange={(e) => {
-                    const raw = e.target.value.replace(/[^\d,\.]/g, '');
-                    setPriceDisplay(raw);
-                    setFormData({...formData, pricePerShare: parseCurrency(raw)});
-                  }}
-                  onBlur={() => {
-                    if (formData.pricePerShare > 0) {
-                      setPriceDisplay(toCurrencyDisplay(formData.pricePerShare));
-                    }
-                  }}
-                  placeholder="0,00"
-                  required
-                />
-              </div>
-            </div>
-          </div>
+            <CurrencyInput
+              label="Preço Unitário"
+              value={formData.pricePerShare}
+              onChange={(v) => setFormData({ ...formData, pricePerShare: v })}
+              required
+            />
 
-          {/* Data + Taxas */}
-          <div className="grid grid-cols-2 gap-4">
             <Input
               label="Data"
               type="date"
@@ -456,49 +451,34 @@ export const TransactionsPage = () => {
               onChange={(e) => setFormData({...formData, transactionDate: e.target.value})}
               required
             />
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">Taxas (R$)</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">R$</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  className="flex h-10 w-full rounded-md border border-surface-light bg-surface pl-9 pr-3 py-2 text-sm text-white focus:ring-2 focus:ring-accent focus:border-transparent"
-                  value={feeDisplay}
-                  onChange={(e) => {
-                    const raw = e.target.value.replace(/[^\d,\.]/g, '');
-                    setFeeDisplay(raw);
-                    setFormData({...formData, brokerageFee: parseCurrency(raw)});
-                  }}
-                  onBlur={() => {
-                    if (formData.brokerageFee && formData.brokerageFee > 0) {
-                      setFeeDisplay(toCurrencyDisplay(formData.brokerageFee));
-                    }
-                  }}
-                  placeholder="0,00"
-                />
-              </div>
+            <CurrencyInput
+              label="Taxas"
+              value={formData.brokerageFee}
+              onChange={(v) => setFormData({ ...formData, brokerageFee: v })}
+            />
+
+            {/* Total é resultado, não campo: uma linha de leitura ocupa metade
+                da altura de um input com rótulo e texto de apoio. */}
+            <div className="sm:col-span-2 flex items-baseline justify-between gap-4 rounded-md border border-surface-light bg-surface-light/40 px-4 py-3">
+              <span className="text-sm text-gray-400">
+                Total <span className="text-gray-500">— quantidade x preço unitário, sem as taxas</span>
+              </span>
+              <span className="text-lg font-semibold tabular-nums text-white">
+                {formatCurrency(computedTotal)}
+              </span>
             </div>
           </div>
 
-          {/* Total (readonly) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">Total (R$)</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">R$</span>
-              <input
-                type="text"
-                readOnly
-                className="flex h-10 w-full rounded-md border border-surface-light bg-surface-light/50 pl-9 pr-3 py-2 text-sm text-white font-semibold cursor-default"
-                value={toCurrencyDisplay(computedTotal)}
-              />
-            </div>
-          </div>
-
-          <div className="pt-4 flex justify-end gap-3 border-t border-surface-light">
-            <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-            <Button type="submit" isLoading={isSaving}>Salvar</Button>
-          </div>
+          {/* Coluna do título — só para tipos com remuneração contratada */}
+          {mostraDadosTitulo && selectedType && (
+            <FixedIncomeFields
+              typeId={selectedType.id}
+              values={fixedIncome}
+              readOnly={!!matchedAsset}
+              showCategory={selectedType.name !== TESOURO_DIRETO}
+              onChange={(patch) => setFixedIncome(prev => ({ ...prev, ...patch }))}
+            />
+          )}
         </form>
       </Modal>
     </div>

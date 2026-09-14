@@ -1,4 +1,3 @@
-import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { assetsApi } from '@/api/assets';
 import { AssetType } from '@/types';

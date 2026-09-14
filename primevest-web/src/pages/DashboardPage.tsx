@@ -1,4 +1,3 @@
-import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { portfolioApi } from '@/api/portfolio';
 import { Card } from '@/components/ui/Card';
@@ -6,7 +5,6 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { formatCurrency, formatPercentage, getReturnColor } from '@/utils/format';
 import { Wallet, TrendingUp, PiggyBank, DollarSign } from 'lucide-react';
 import { AllocationPieChart } from '@/components/charts/AllocationPieChart';
-import { PortfolioAssetDetail } from '@/types';
 
 export const DashboardPage = () => {
   const { data: summary, isLoading: loadingSummary } = useQuery({

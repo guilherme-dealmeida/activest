@@ -33,4 +33,19 @@ public class AssetCategory {
     @OneToMany(mappedBy = "assetCategory", fetch = FetchType.LAZY)
     @Builder.Default
     private List<Asset> assets = new ArrayList<>();
+
+    /**
+     * Rótulo para exibição: a descrição quando existe, senão o nome técnico.
+     *
+     * name é a chave usada nas migrations e nos scripts ('LAJES_CORPORATIVAS');
+     * description é o que uma pessoa lê ('Lajes Corporativas'). Toda tela deve
+     * usar este método — as três que mostravam categoria vinham exibindo a
+     * chave, enquanto o tipo de ativo ao lado já mostrava a descrição.
+     *
+     * Não é propriedade mapeada: a entidade usa acesso por campo (a anotação
+     * @Id está no campo), então o Hibernate ignora getters extras.
+     */
+    public String getDisplayName() {
+        return description != null && !description.isBlank() ? description : name;
+    }
 }

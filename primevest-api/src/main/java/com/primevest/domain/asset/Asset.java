@@ -34,8 +34,6 @@ public class Asset {
     @JoinColumn(name = "asset_category_id")
     private AssetCategory assetCategory;
 
-    private String sector;
-
     @Column(name = "current_price", precision = 18, scale = 8)
     private BigDecimal currentPrice;
 

@@ -1,9 +1,9 @@
-import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { assetsApi } from '@/api/assets';
 import { AssetCategory, Indexer, RateType } from '@/types';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { PercentInput } from '@/components/ui/PercentInput';
 
 export interface FixedIncomeValues {
   assetName: string;
@@ -19,6 +19,12 @@ interface Props {
   values: FixedIncomeValues;
   /** true quando o ticker casou com um ativo já cadastrado: campos viram leitura. */
   readOnly: boolean;
+  /**
+   * Nem todo tipo de renda fixa usa categoria. No Tesouro Direto a família já
+   * está no nome do título ("Tesouro Selic 2031"), então o campo seria uma
+   * segunda fonte para o mesmo fato — e duas fontes divergem.
+   */
+  showCategory?: boolean;
   onChange: (patch: Partial<FixedIncomeValues>) => void;
 }
 
@@ -38,21 +44,21 @@ const RATE_TYPES: { value: RateType; label: string }[] = [
 function rateLabel(rateType: RateType | null, indexer: Indexer | null): { label: string; hint: string } {
   switch (rateType) {
     case 'PREFIXADO':
-      return { label: 'Taxa (% ao ano)', hint: 'Ex: 12,5 para 12,5% a.a.' };
+      return { label: 'Taxa ao ano', hint: 'Ex: 12,50 para 12,5% a.a.' };
     case 'POS_FIXADO':
-      return { label: `Percentual do ${indexer ?? 'índice'} (%)`, hint: 'Ex: 110 para 110% do CDI' };
+      return { label: `Percentual do ${indexer ?? 'índice'}`, hint: 'Ex: 110,00 para 110% do CDI' };
     case 'HIBRIDO':
-      return { label: 'Spread (% ao ano)', hint: `Ex: 6 para ${indexer ?? 'IPCA'} + 6% a.a.` };
+      return { label: 'Spread ao ano', hint: `Ex: 6,00 para ${indexer ?? 'IPCA'} + 6% a.a.` };
     default:
       return { label: 'Taxa', hint: 'Escolha antes como o título remunera' };
   }
 }
 
-export const FixedIncomeFields = ({ typeId, values, readOnly, onChange }: Props) => {
+export const FixedIncomeFields = ({ typeId, values, readOnly, showCategory = true, onChange }: Props) => {
   const { data: categories } = useQuery<AssetCategory[]>({
     queryKey: ['assetCategories', typeId],
     queryFn: () => assetsApi.getCategories(typeId) as any,
-    enabled: !!typeId
+    enabled: !!typeId && showCategory
   });
 
   const precisaIndice = values.rateType === 'POS_FIXADO' || values.rateType === 'HIBRIDO';
@@ -72,18 +78,20 @@ export const FixedIncomeFields = ({ typeId, values, readOnly, onChange }: Props)
         placeholder="Ex: CDB BTG Pactual 2027"
       />
 
-      <div className="grid grid-cols-2 gap-4">
-        <Select
-          label="Categoria"
-          value={values.assetCategoryId ?? ''}
-          disabled={readOnly}
-          onChange={(e) => onChange({ assetCategoryId: e.target.value ? Number(e.target.value) : null })}
-        >
-          <option value="">Selecione</option>
-          {(categories || []).map(c => (
-            <option key={c.id} value={c.id}>{c.description || c.name}</option>
-          ))}
-        </Select>
+      <div className={showCategory ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : ''}>
+        {showCategory && (
+          <Select
+            label="Categoria"
+            value={values.assetCategoryId ?? ''}
+            disabled={readOnly}
+            onChange={(e) => onChange({ assetCategoryId: e.target.value ? Number(e.target.value) : null })}
+          >
+            <option value="">Selecione</option>
+            {(categories || []).map(c => (
+              <option key={c.id} value={c.id}>{c.description || c.name}</option>
+            ))}
+          </Select>
+        )}
 
         <Input
           label="Vencimento"
@@ -109,7 +117,7 @@ export const FixedIncomeFields = ({ typeId, values, readOnly, onChange }: Props)
         {RATE_TYPES.map(rt => <option key={rt.value} value={rt.value}>{rt.label}</option>)}
       </Select>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {precisaIndice && (
           <Select
             label="Índice"
@@ -122,14 +130,12 @@ export const FixedIncomeFields = ({ typeId, values, readOnly, onChange }: Props)
           </Select>
         )}
 
-        <Input
+        <PercentInput
           label={label}
-          type="number"
-          step="any"
           hint={hint}
-          value={values.indexerRate ?? ''}
+          value={values.indexerRate}
           disabled={readOnly || !values.rateType}
-          onChange={(e) => onChange({ indexerRate: e.target.value === '' ? null : Number(e.target.value) })}
+          onChange={(v) => onChange({ indexerRate: v || null })}
         />
       </div>
     </div>

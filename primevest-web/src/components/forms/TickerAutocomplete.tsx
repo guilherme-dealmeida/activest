@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { assetsApi } from '@/api/assets';
 import { Asset } from '@/types';
@@ -13,6 +13,13 @@ interface Props {
 }
 
 /**
+ * Espelha AssetService.LIMITE_BUSCA. Serve só para saber se a lista veio
+ * cortada e avisar — o corte em si acontece no servidor, onde existe uma
+ * ordenação para decidir o que fica de fora.
+ */
+const LIMITE_BUSCA = 50;
+
+/**
  * Autocomplete de ticker restrito a um tipo de ativo.
  *
  * O tipo é quem manda: sem tipo escolhido o campo fica desabilitado, e a busca
@@ -24,25 +31,29 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
   const [options, setOptions] = useState<Asset[]>([]);
   const [open, setOpen] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [truncado, setTruncado] = useState(false);
   const [highlight, setHighlight] = useState(-1);
   const boxRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (disabled || !typeId || value.trim().length < 2) {
-      setOptions([]); setOpen(false); return;
+      setOptions([]); setOpen(false); setTruncado(false); return;
     }
     setSearching(true);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       try {
-        const results = await assetsApi.getAll(typeId, value.trim());
-        const limited = (results as Asset[]).slice(0, 15);
-        setOptions(limited);
-        setOpen(limited.length > 0);
+        // Nada de slice aqui: a lista já vem limitada e ordenada do servidor.
+        // Cortar no cliente descartava linhas arbitrárias — era o que sumia com
+        // o Tesouro Selic 2031 numa busca por "SELIC".
+        const results = (await assetsApi.getAll(typeId, value.trim())) as Asset[];
+        setOptions(results);
+        setTruncado(results.length >= LIMITE_BUSCA);
+        setOpen(results.length > 0);
         setHighlight(-1);
       } catch {
-        setOptions([]); setOpen(false);
+        setOptions([]); setOpen(false); setTruncado(false);
       } finally {
         setSearching(false);
       }
@@ -107,6 +118,14 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
               <span className="truncate flex-1 text-gray-400">{opt.name}</span>
             </button>
           ))}
+
+          {/* Truncou: o usuário precisa saber que existe mais coisa, senão
+              conclui que o ativo não está cadastrado e cria um duplicado. */}
+          {truncado && (
+            <p className="px-3 py-2 text-xs text-gray-500 border-t border-white/5">
+              Mostrando os {LIMITE_BUSCA} primeiros. Refine a busca para ver o resto.
+            </p>
+          )}
         </div>
       )}
 

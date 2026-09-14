@@ -1,0 +1,23 @@
+-- Remove assets.sector.
+--
+-- A coluna veio da BrAPI com a taxonomia FactSet — 20 setores em inglês,
+-- concorrente da classificação da B3 que asset_categories usa. Duas colunas
+-- classificando a mesma coisa por vocabulários diferentes é convite a
+-- divergência, e a qualidade delas nunca foi equivalente:
+--
+--   Ações   781 linhas preenchidas, mas em inglês e num recorte que parte
+--           setores da B3 ao meio (Retail Trade juntava AMER3 e ASAI3)
+--   FIIs    206 dos 338 nulos, o resto 'Miscellaneous' — não classificava nada
+--   Tesouro 100% nulo
+--   Renda fixa  nunca preenchido: createAssetFrom não toca nessa coluna, e
+--               setSector não é chamado em lugar nenhum do código
+--
+-- Depois das V23 a V29, asset_category_id está preenchido em 100% do catálogo,
+-- na taxonomia escolhida. O sector passou a ser um segundo endereço para o
+-- mesmo fato — e o pior tipo: o desatualizado, que ninguém alimenta.
+--
+-- O que ele ainda servia foi consumido antes de sumir: a V23 derivou dele as
+-- 539 ações de mapeamento direto, e a V28 copiou o da ITSA4 para o INHF11.
+-- Ambas rodam antes desta migration, então um banco criado do zero continua
+-- chegando ao mesmo resultado.
+ALTER TABLE assets DROP COLUMN sector;

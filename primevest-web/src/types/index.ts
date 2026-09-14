@@ -41,7 +41,6 @@ export interface Asset {
   typeName: string;
   categoryId: number | null;
   categoryName: string;
-  sector: string;
   currentPrice: number;
   priceUpdatedAt: string;
   maturityDate: string | null;

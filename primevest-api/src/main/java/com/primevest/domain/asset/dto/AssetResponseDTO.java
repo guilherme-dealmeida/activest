@@ -15,7 +15,6 @@ public record AssetResponseDTO(
     String typeName,
     Long categoryId,
     String categoryName,
-    String sector,
     BigDecimal currentPrice,
     LocalDateTime priceUpdatedAt,
     LocalDate maturityDate,
