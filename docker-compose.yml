@@ -54,8 +54,11 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       JWT_SECRET: ${JWT_SECRET:-primevest-default-secret-key-change-in-production-minimum-256-bits-long}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-dummy}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-dummy}
+      # Mesmo valor que o web recebe em VITE_GOOGLE_CLIENT_ID. Os dois lados
+      # PRECISAM bater: o navegador pede o ID token para esta audience e a API
+      # só aceita token emitido para ela. Vazio desliga o login pelo Google.
+      # Não existe client secret aqui — o fluxo de ID token não usa.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       BRAPI_TOKEN: ${BRAPI_TOKEN:-}
     ports:
       - "${API_PORT:-8080}:8080"
@@ -82,6 +85,9 @@ services:
       VITE_API_TARGET: http://api:8080
       # Bind mount no Windows não propaga eventos de arquivo: polling é necessário para o hot reload.
       CHOKIDAR_USEPOLLING: "true"
+      # Mesma variável do .env que vai para a api, para não haver dois valores
+      # para a mesma coisa. O Vite embute isso no bundle: é público por natureza.
+      VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     ports:
       - "${WEB_PORT:-5173}:5173"
     volumes:

@@ -1,14 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useGoogleSignIn } from '@/hooks/useGoogleSignIn';
 
 export const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+
+  const handleGoogle = useCallback(async (credential: string) => {
+    await loginWithGoogle(credential);
+    navigate('/');
+  }, [loginWithGoogle, navigate]);
+
+  const google = useGoogleSignIn({ onCredential: handleGoogle });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,9 +41,9 @@ export const LoginPage = () => {
         </div>
         <div className="bg-surface rounded-xl p-8 border border-white/10">
           <h2 className="text-xl font-semibold text-white mb-6">Entrar</h2>
-          {error && (
+          {(error || google.error) && (
             <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
-              {error}
+              {error || google.error}
             </div>
           )}
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -63,12 +71,30 @@ export const LoginPage = () => {
             </div>
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || google.isLoading}
               className="w-full bg-accent hover:bg-accent/90 text-black font-semibold py-2.5 px-4 rounded-md transition-colors disabled:opacity-50"
             >
               {isLoading ? 'Entrando...' : 'Entrar'}
             </button>
           </form>
+
+          {/* Sem VITE_GOOGLE_CLIENT_ID o bloco inteiro some: um botão que não
+              teria como funcionar é pior do que botão nenhum. */}
+          {google.enabled && (
+            <>
+              <div className="flex items-center gap-3 my-6">
+                <span className="h-px flex-1 bg-white/10" />
+                <span className="text-xs uppercase tracking-wider text-gray-500">ou</span>
+                <span className="h-px flex-1 bg-white/10" />
+              </div>
+
+              <div className="flex justify-center min-h-[44px]">
+                {google.isLoading
+                  ? <span className="text-sm text-gray-400 self-center">Entrando com o Google...</span>
+                  : <div ref={google.containerRef} />}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

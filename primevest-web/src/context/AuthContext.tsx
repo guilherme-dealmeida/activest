@@ -14,6 +14,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  /** Login pelo Google: recebe o ID token que o Google entregou ao navegador. */
+  loginWithGoogle: (credential: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -44,7 +46,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     const response = await authApi.login({ email, password });
-    localStorage.setItem('primevest_token', response.accessToken);
+    await establishSession(response.accessToken);
+  };
+
+  const loginWithGoogle = async (credential: string) => {
+    const response = await authApi.google(credential);
+    await establishSession(response.accessToken);
+  };
+
+  /**
+   * Guardar o token e carregar o usuário são um passo só: enquanto o
+   * fetchUser não volta, isAuthenticated ainda é false e as rotas protegidas
+   * devolvem o usuário para /login. Os dois logins passam por aqui para não
+   * divergirem nessa ordem.
+   */
+  const establishSession = async (accessToken: string) => {
+    localStorage.setItem('primevest_token', accessToken);
     await fetchUser();
   };
 
@@ -55,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -25,7 +25,6 @@ function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/oauth2/callback" element={<Navigate to="/dashboard" replace />} />
       
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<DashboardPage />} />
