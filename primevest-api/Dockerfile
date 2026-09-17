@@ -12,13 +12,18 @@ RUN mvn -B dependency:go-offline
 # ---------------------------------------------------------------------------
 # dev: roda via spring-boot:run com DevTools.
 # O código-fonte entra por bind mount (ver docker-compose.yml), então a imagem
-# não precisa conter o src — alterar um .java reinicia a aplicação sozinho.
+# não precisa conter o src. O dev-watch.sh recompila src/ quando algo muda e
+# avisa o DevTools, que reinicia a aplicação — ver o comentário no script.
 # ---------------------------------------------------------------------------
 FROM deps AS dev
 WORKDIR /app
 EXPOSE 8080
 ENV SPRING_PROFILES_ACTIVE=docker
-CMD ["mvn", "-B", "spring-boot:run", "-Dspring-boot.run.jvmArguments=-Dspring.devtools.restart.poll-interval=2s -Dspring.devtools.restart.quiet-period=1s"]
+COPY dev-watch.sh /usr/local/bin/dev-watch.sh
+# O sed tira o CR: num checkout do Windows o script pode vir com CRLF, e aí o
+# shebang vira "/bin/sh\r" e o container nem sobe.
+RUN sed -i 's/\r$//' /usr/local/bin/dev-watch.sh && chmod +x /usr/local/bin/dev-watch.sh
+CMD ["/usr/local/bin/dev-watch.sh"]
 
 # ---------------------------------------------------------------------------
 # build + runtime: imagem enxuta para produção.

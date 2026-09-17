@@ -1,15 +1,18 @@
 package com.primevest.domain.dividend;
 
 import com.primevest.config.SecurityUtils;
-import com.primevest.domain.dividend.dto.DividendCreateDTO;
 import com.primevest.domain.dividend.dto.DividendResponseDTO;
 import com.primevest.domain.dividend.dto.DividendSummaryDTO;
-import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * Proventos sao somente leitura. Todos entram pelo DividendSyncScheduler, que
+ * conhece a data-com e as cotas que o usuario tinha nela; o cadastro manual
+ * usava as cotas do dia do lancamento e gravava total errado.
+ */
 @RestController
 @RequestMapping("/api/v1/dividends")
 public class DividendController {
@@ -18,11 +21,6 @@ public class DividendController {
 
     public DividendController(DividendService dividendService) {
         this.dividendService = dividendService;
-    }
-
-    @PostMapping("/")
-    public ResponseEntity<DividendResponseDTO> registerDividend(@Valid @RequestBody DividendCreateDTO dto) {
-        return ResponseEntity.ok(dividendService.registerDividend(SecurityUtils.getCurrentUserId(), dto));
     }
 
     @GetMapping("/")

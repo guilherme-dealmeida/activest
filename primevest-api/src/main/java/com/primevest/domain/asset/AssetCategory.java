@@ -25,6 +25,14 @@ public class AssetCategory {
 
     private String description;
 
+    /**
+     * Segundo nível da classificação, abaixo de name/description.
+     * FII: segmento de atuação ('Lajes Corporativas'), com name = tipo de fundo.
+     * Ação: segmento da B3 ('Bancos'), com name = setor econômico.
+     * Nulo nos demais tipos.
+     */
+    private String segment;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "asset_type_id", nullable = false)
     private AssetType assetType;

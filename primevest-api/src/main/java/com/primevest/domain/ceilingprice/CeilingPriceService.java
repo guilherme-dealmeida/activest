@@ -2,6 +2,7 @@ package com.primevest.domain.ceilingprice;
 
 import com.primevest.domain.asset.Asset;
 import com.primevest.domain.asset.AssetRepository;
+import com.primevest.exception.ResourceNotFoundException;
 import com.primevest.domain.ceilingprice.dto.CeilingPriceCreateDTO;
 import com.primevest.domain.ceilingprice.dto.CeilingPriceDTO;
 import com.primevest.domain.user.User;
@@ -60,8 +61,7 @@ public class CeilingPriceService {
      */
     @Transactional
     public CeilingPriceDTO updateCeilingPrice(UUID userId, UUID id, CeilingPriceCreateDTO dto) {
-        CeilingPrice cp = ceilingPriceRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Ceiling price not found"));
+        CeilingPrice cp = findOwnedCeilingPrice(userId, id);
 
         if (dto.ticker() != null) {
             Asset asset = assetRepository.findByTicker(dto.ticker())
@@ -79,7 +79,22 @@ public class CeilingPriceService {
      */
     @Transactional
     public void deleteCeilingPrice(UUID userId, UUID id) {
-        ceilingPriceRepository.deleteById(id);
+        ceilingPriceRepository.delete(findOwnedCeilingPrice(userId, id));
+    }
+
+    /**
+     * Carrega o preco teto garantindo que ele e do usuario.
+     *
+     * Registro de outro dono responde "nao encontrado" de proposito: dizer "sem
+     * permissao" confirmaria que o id existe. Mesmo criterio de
+     * GoalService.findOwnedGoal.
+     *
+     * A listagem ja era escopada por findByUserId; eram as escritas que
+     * aceitavam qualquer id — e o delete era um deleteById solto.
+     */
+    private CeilingPrice findOwnedCeilingPrice(UUID userId, UUID id) {
+        return ceilingPriceRepository.findByIdAndUserId(id, userId)
+            .orElseThrow(() -> new ResourceNotFoundException("Preço teto não encontrado"));
     }
 
     private CeilingPriceDTO toDTO(CeilingPrice cp) {

@@ -3,10 +3,12 @@ package com.primevest.scheduler;
 import com.primevest.domain.asset.Asset;
 import com.primevest.domain.asset.AssetRepository;
 import com.primevest.domain.dividend.Dividend;
+import com.primevest.domain.dividend.DividendRecalculator;
 import com.primevest.domain.dividend.DividendRepository;
 import com.primevest.domain.dividend.DividendType;
 import com.primevest.domain.portfolio.PortfolioAsset;
 import com.primevest.domain.portfolio.PortfolioAssetRepository;
+import com.primevest.domain.transaction.Transaction;
 import com.primevest.integration.brapi.BrApiClient;
 import com.primevest.integration.brapi.BrApiDividendResponse;
 import lombok.RequiredArgsConstructor;
@@ -16,10 +18,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Scheduler para sincronização automática de dividendos/proventos.
@@ -35,14 +38,18 @@ public class DividendSyncScheduler {
     private final AssetRepository assetRepository;
     private final DividendRepository dividendRepository;
     private final PortfolioAssetRepository portfolioAssetRepository;
+    private final DividendRecalculator dividendRecalculator;
     private final BrApiClient brApiClient;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     /**
-     * Sincroniza dividendos uma vez ao dia, às 20h.
-     * Busca novos dividendos dos últimos 30 dias para todos os ativos
-     * que possuem posições em carteiras de usuários.
+     * Sincroniza dividendos uma vez ao dia, às 20h, para todos os ativos que
+     * possuem posições em carteiras de usuários.
+     *
+     * <p>Sem limite de data: todo provento que a BrAPI devolve é conferido. Uma
+     * compra lançada com data antiga passa a receber os proventos daquela época
+     * na primeira sincronização seguinte.</p>
      */
     @Scheduled(cron = "0 0 20 * * *", zone = "America/Sao_Paulo")
     @Transactional
@@ -96,12 +103,22 @@ public class DividendSyncScheduler {
         }
 
         int count = 0;
-        LocalDate thirtyDaysAgo = LocalDate.now().minusDays(30);
+
+        // Todas as posicoes deste ativo, inclusive as zeradas hoje: quem vendeu
+        // depois da data-com ainda recebe. O filtro por cotas e feito na
+        // data-com, e nao pelas cotas de hoje. As transacoes de cada posicao
+        // sao lidas uma vez so, e nao uma por provento.
+        Map<PortfolioAsset, List<Transaction>> positions = new LinkedHashMap<>();
+        portfolioAssets.stream()
+                .filter(pa -> pa.getAsset().getId().equals(asset.getId()))
+                .forEach(pa -> positions.put(pa, dividendRecalculator.chronologicalTransactions(pa)));
 
         for (BrApiDividendResponse.BrApiDividend brApiDividend : brApiResponse.get().getDividends()) {
             try {
+                // lastDatePrior e a data-com: ultimo dia em que ter a cota da
+                // direito ao provento. Gravada em dividends.ex_date.
                 LocalDate exDate = parseDate(brApiDividend.getLastDatePrior());
-                if (exDate == null || exDate.isBefore(thirtyDaysAgo)) {
+                if (exDate == null) {
                     continue;
                 }
 
@@ -109,48 +126,57 @@ public class DividendSyncScheduler {
                 BigDecimal amountPerShare = brApiDividend.getRate();
                 DividendType type = parseDividendType(brApiDividend.getType());
 
-                // Para cada portfolio_asset que contém este ativo,
-                // verificar se o dividendo já foi registrado
-                List<PortfolioAsset> relevantAssets = portfolioAssets.stream()
-                        .filter(pa -> pa.getAsset().getId().equals(asset.getId()))
-                        .filter(pa -> pa.getTotalShares().compareTo(BigDecimal.ZERO) > 0)
-                        .toList();
+                for (Map.Entry<PortfolioAsset, List<Transaction>> entry : positions.entrySet()) {
+                    PortfolioAsset pa = entry.getKey();
+                    BigDecimal shares = dividendRecalculator.sharesOn(entry.getValue(), exDate);
 
-                for (PortfolioAsset pa : relevantAssets) {
-                    // Verificar se já existe este dividendo para este portfolio_asset
-                    boolean alreadyExists = dividendRepository
+                    // Mesmo provento = mesma data-com e mesmo valor por cota.
+                    Dividend existing = dividendRepository
                             .findByPortfolioAssetIdOrderByExDateDesc(pa.getId())
                             .stream()
-                            .anyMatch(d -> d.getExDate().equals(exDate)
-                                    && d.getAmountPerShare().compareTo(amountPerShare) == 0);
+                            .filter(d -> d.getExDate().equals(exDate)
+                                    && d.getAmountPerShare().compareTo(amountPerShare) == 0)
+                            .findFirst()
+                            .orElse(null);
 
-                    if (!alreadyExists) {
-                        BigDecimal totalAmount = amountPerShare
-                                .multiply(pa.getTotalShares())
-                                .setScale(2, RoundingMode.HALF_UP);
-
-                        Dividend dividend = Dividend.builder()
-                                .asset(asset)
-                                .portfolioAsset(pa)
-                                .amountPerShare(amountPerShare)
-                                .totalAmount(totalAmount)
-                                .exDate(exDate)
-                                .paymentDate(paymentDate)
-                                .type(type)
-                                .build();
-
-                        dividendRepository.save(dividend);
-
-                        // Atualizar totais de dividendos no portfolio_asset
-                        pa.setTotalDividends(
-                                pa.getTotalDividends().add(totalAmount)
-                        );
-                        portfolioAssetRepository.save(pa);
-
-                        count++;
-                        log.debug("New dividend registered: {} - {} per share on {}",
-                                ticker, amountPerShare, exDate);
+                    if (shares.compareTo(BigDecimal.ZERO) <= 0) {
+                        // Sem cotas na data-com. Se ja havia provento gravado, a
+                        // transacao que dava direito a ele saiu ou mudou de data.
+                        if (existing != null) {
+                            dividendRepository.delete(existing);
+                        }
+                        continue;
                     }
+
+                    BigDecimal totalAmount = dividendRecalculator.totalAmount(amountPerShare, shares);
+
+                    if (existing != null) {
+                        // Ja gravado: confere o total contra as cotas de hoje na
+                        // data-com, que mudam com lancamentos retroativos.
+                        if (existing.getTotalAmount() == null
+                                || existing.getTotalAmount().compareTo(totalAmount) != 0) {
+                            existing.setTotalAmount(totalAmount);
+                            dividendRepository.save(existing);
+                        }
+                        continue;
+                    }
+
+                    Dividend dividend = Dividend.builder()
+                            .portfolioAsset(pa)
+                            .amountPerShare(amountPerShare)
+                            .totalAmount(totalAmount)
+                            .exDate(exDate)
+                            .paymentDate(paymentDate)
+                            .type(type)
+                            .build();
+
+                    // Sem total a atualizar na posicao: ele e a soma dos
+                    // proventos, calculada na leitura.
+                    dividendRepository.save(dividend);
+
+                    count++;
+                    log.debug("New dividend registered: {} - {} per share on {}",
+                            ticker, amountPerShare, exDate);
                 }
             } catch (Exception e) {
                 log.warn("Error processing dividend for {}: {}", ticker, e.getMessage());

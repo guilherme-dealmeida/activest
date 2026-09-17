@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { transactionsApi } from '@/api/transactions';
+import { assetsApi } from '@/api/assets';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -8,7 +9,7 @@ import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Pagination } from '@/components/ui/Pagination';
-import { formatCurrency, formatDate, formatShares } from '@/utils/format';
+import { formatCurrency, formatDate, formatShares, toLocalISODate } from '@/utils/format';
 import { TransactionResponse, TransactionCreate, TransactionType, Asset, AssetType } from '@/types';
 import { Plus, Trash2, Pencil, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { useSortable } from '@/hooks/useSortable';
@@ -25,18 +26,26 @@ import { FixedIncomeFields, FixedIncomeValues } from '@/components/forms/FixedIn
  */
 const TESOURO_DIRETO = 'TESOURO_DIRETO';
 
+/**
+ * Renda Fixa é lançada por valor total: um CDB aplicado no banco não tem
+ * quantidade nem preço unitário que o usuário conheça, só o valor aplicado.
+ * Tesouro Direto segue por quantidade x PU. Mesma ressalva do TESOURO_DIRETO
+ * acima sobre comparar por nome.
+ */
+const RENDA_FIXA = 'RENDA_FIXA';
+
 /** Liga os botões do rodapé do Modal ao <form>, que fica na área que rola. */
 const FORM_ID = 'transaction-form';
 
 const EMPTY_FIXED_INCOME: FixedIncomeValues = {
-  assetName: '', assetCategoryId: null, maturityDate: '',
+  assetCategoryId: null, issuer: '', maturityDate: '',
   rateType: null, indexer: null, indexerRate: null
 };
 
 function getDateFromDaysAgo(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() - days);
-  return d.toISOString().split('T')[0];
+  return toLocalISODate(d);
 }
 
 export const TransactionsPage = () => {
@@ -46,23 +55,35 @@ export const TransactionsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [filterType, setFilterType] = useState('ALL');
-  const [filterPeriod, setFilterPeriod] = useState('30');
+  const [filterPeriod, setFilterPeriod] = useState('ALL');
   // O tipo escolhido comanda o formulário: restringe o autocomplete e decide
   // se o bloco de renda fixa aparece.
   const [selectedType, setSelectedType] = useState<AssetType | null>(null);
-  // Ativo já cadastrado que casou com o ticker. Null = ativo novo, campos editáveis.
+  // Ativo do catálogo que casou com o ticker.
   const [matchedAsset, setMatchedAsset] = useState<Asset | null>(null);
+  // Título da transação sendo editada. Distingue "renda fixa sem papel" de
+  // "papel existente", que é o que faz o quadro aparecer na edição.
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [fixedIncome, setFixedIncome] = useState<FixedIncomeValues>(EMPTY_FIXED_INCOME);
   const [formData, setFormData] = useState<TransactionCreate>({
     ticker: '',
     type: TransactionType.BUY,
     shares: 0,
     pricePerShare: 0,
+    totalAmount: 0,
     brokerageFee: 0,
-    transactionDate: new Date().toISOString().split('T')[0]
+    transactionDate: toLocalISODate()
   });
 
   const [tickerInput, setTickerInput] = useState('');
+
+  // Mesma queryKey do AssetTypeSelect, entao nao ha requisicao extra: o cache
+  // do React Query e um so. A pagina precisa da lista para reconstruir o tipo
+  // na edicao, a partir do assetTypeId que a transacao carrega.
+  const { data: assetTypes } = useQuery<AssetType[]>({
+    queryKey: ['assetTypes'],
+    queryFn: assetsApi.getTypes as any
+  });
 
   const { data: transactions, isLoading } = useQuery<TransactionResponse[]>({
     queryKey: ['transactions'],
@@ -99,43 +120,53 @@ export const TransactionsPage = () => {
 
   const resetForm = useCallback(() => {
     setEditingId(null);
+    setEditingNoteId(null);
     setSelectedType(null);
     setMatchedAsset(null);
     setFixedIncome(EMPTY_FIXED_INCOME);
     setTickerInput('');
     setFormData({
       ticker: '', type: TransactionType.BUY, shares: 0,
-      pricePerShare: 0, brokerageFee: 0,
-      transactionDate: new Date().toISOString().split('T')[0]
+      pricePerShare: 0, totalAmount: 0, brokerageFee: 0,
+      transactionDate: toLocalISODate()
     });
   }, []);
 
-  /** Trocar o tipo invalida o ticker: a lista do autocomplete é outra. */
+  /**
+   * Trocar o tipo invalida o ticker: a lista do autocomplete é outra. Invalida
+   * também os valores: entrar ou sair de Renda Fixa troca quantidade e preço
+   * por valor total, e o que foi digitado num modo não tem sentido no outro.
+   */
   const handleTypeChange = (type: AssetType | null) => {
     setSelectedType(type);
     setMatchedAsset(null);
     setFixedIncome(EMPTY_FIXED_INCOME);
     setTickerInput('');
-    setFormData(prev => ({ ...prev, ticker: '' }));
+    setFormData(prev => ({ ...prev, ticker: '', shares: 0, pricePerShare: 0, totalAmount: 0 }));
   };
 
   /**
-   * asset != null -> ticker casou com ativo existente: espelha os dados dele e
-   * trava os campos. asset == null -> digitação livre, ativo possivelmente novo.
+   * asset != null -> ticker casou com um ativo do catalogo. Os parametros
+   * publicos dele (Tesouro) preenchem o titulo; emissor e taxa ficam com o
+   * usuario. asset == null -> nada escolhido ainda.
    */
   const handleTickerChange = (ticker: string, asset: Asset | null) => {
     setTickerInput(ticker);
     setFormData(prev => ({ ...prev, ticker }));
     setMatchedAsset(asset);
     if (asset) {
+      // Os parametros publicos do papel (asset_terms) entram como ponto de
+      // partida; o resto — emissor e taxa — e do usuario e comeca vazio.
       setFixedIncome({
-        assetName: asset.name ?? '',
         assetCategoryId: asset.categoryId ?? null,
+        issuer: '',
         maturityDate: asset.maturityDate ?? '',
         rateType: asset.rateType ?? null,
         indexer: asset.indexer ?? null,
-        indexerRate: asset.indexerRate ?? null
+        indexerRate: null
       });
+    } else {
+      setFixedIncome(EMPTY_FIXED_INCOME);
     }
   };
 
@@ -165,26 +196,35 @@ export const TransactionsPage = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingId) {
-      updateMutation.mutate({ id: editingId, txData: formData });
-      return;
-    }
-    // Ativo já existe -> backend ignora os campos de ativo; ainda assim só
-    // mandamos o que é relevante, para o payload contar a mesma história.
-    const payload: TransactionCreate = {
-      ...formData,
-      assetTypeId: selectedType?.id ?? null,
-      ...(matchedAsset ? {} : {
-        assetName: fixedIncome.assetName || null,
-        assetCategoryId: fixedIncome.assetCategoryId,
-        maturityDate: fixedIncome.maturityDate || null,
-        ...(selectedType?.fixedIncome ? {
+    // Renda fixa leva junto os dados do título: no cadastro eles viram uma nota
+    // do usuário (fixed_income_notes), não um ativo novo no catálogo; na edição
+    // atualizam a nota que já existe. Renda variável manda só a movimentação.
+    //
+    // Mandar isto na edição não é opcional: a API só toca no título quando a
+    // requisição traz esses campos, e é assim que editar a quantidade de um CDB
+    // deixa de apagar o emissor e a taxa dele.
+    //
+    // Renda Fixa manda o valor total e anula quantidade e preço; os demais tipos
+    // mandam quantidade e preço e deixam o total para a API calcular.
+    const valores: TransactionCreate = isValorTotal
+      ? { ...formData, shares: null, pricePerShare: null, totalAmount: formData.totalAmount || 0 }
+      : { ...formData, totalAmount: null };
+
+    const payload: TransactionCreate = mostraDadosTitulo
+      ? {
+          ...valores,
+          issuer: fixedIncome.issuer || null,
+          maturityDate: fixedIncome.maturityDate || null,
           rateType: fixedIncome.rateType,
           indexer: fixedIncome.indexer,
           indexerRate: fixedIncome.indexerRate
-        } : {})
-      })
-    };
+        }
+      : valores;
+
+    if (editingId) {
+      updateMutation.mutate({ id: editingId, txData: payload });
+      return;
+    }
     createMutation.mutate(payload);
   };
 
@@ -193,28 +233,87 @@ export const TransactionsPage = () => {
     setIsModalOpen(true);
   };
 
-  const handleEdit = (row: TransactionResponse & { assetType: string }) => {
+  /**
+   * Reabre o formulário no estado em que ele foi preenchido.
+   *
+   * O tipo de ativo comanda o resto da tela — decide o que o autocomplete busca
+   * e se o quadro do título aparece —, então reconstruí-lo é a primeira coisa a
+   * fazer. Vem pelo id que a transação carrega, não por casamento de string com
+   * o nome descritivo.
+   */
+  const handleEdit = async (row: TransactionResponse & { assetType: string }) => {
     setEditingId(row.id);
+    setEditingNoteId(row.noteId ?? null);
     setTickerInput(row.ticker);
+    setSelectedType((assetTypes || []).find(t => t.id === row.assetTypeId) ?? null);
+    setMatchedAsset(null);
     setFormData({
       ticker: row.ticker,
       type: row.type as TransactionType,
-      shares: row.shares,
-      pricePerShare: row.pricePerShare,
+      shares: row.shares ?? 0,
+      pricePerShare: row.pricePerShare ?? 0,
+      totalAmount: row.totalAmount ?? 0,
       brokerageFee: row.brokerageFee || 0,
       transactionDate: row.transactionDate
     });
+    // O que está no quadro é o que foi CONTRATADO, e isso mora no título — não
+    // no catálogo. Um ajuste posterior em asset_terms não deve reescrever uma
+    // posição já registrada, então os valores vêm da própria transação.
+    setFixedIncome(row.noteId ? {
+      assetCategoryId: null,
+      issuer: row.issuer ?? '',
+      maturityDate: row.maturityDate ?? '',
+      rateType: row.rateType ?? null,
+      indexer: row.indexer ?? null,
+      indexerRate: row.indexerRate ?? null
+    } : EMPTY_FIXED_INCOME);
     setIsModalOpen(true);
+
+    if (row.noteId) {
+      // O ativo diz duas coisas que a transação não sabe: a categoria, e quais
+      // campos são parâmetros públicos do papel (Tesouro) e portanto não se
+      // digitam. Falhar aqui deixa o quadro editável, o que não impede a edição.
+      try {
+        const asset = await assetsApi.getByTicker(row.ticker);
+        setMatchedAsset(asset);
+        setFixedIncome(prev => ({ ...prev, assetCategoryId: asset?.categoryId ?? null }));
+      } catch {
+        /* segue sem os dados do catálogo */
+      }
+    }
   };
 
-  const computedTotal = (formData.shares || 0) * (formData.pricePerShare || 0);
+  /** Renda Fixa: o usuário informa o Valor (total_amount) em vez de quantidade x preço. */
+  const isValorTotal = selectedType?.name === RENDA_FIXA;
+  const computedTotal = isValorTotal
+    ? (formData.totalAmount || 0)
+    : (formData.shares || 0) * (formData.pricePerShare || 0);
   /**
    * Quando o quadro do título aparece, ele vai para uma COLUNA ao lado dos
    * campos da operação em vez de empilhar acima deles. As duas alturas passam a
    * se sobrepor: o formulário para de crescer o tamanho do quadro inteiro.
+   *
+   * No cadastro exige matchedAsset: o quadro descreve um papel DAQUELE ativo, e
+   * sem ativo escolhido não há o que emitir nem o que herdar do catálogo. Na
+   * edição quem manda é o próprio título já gravado — esperar o ativo chegar
+   * faria o quadro piscar, e uma transação de renda variável não tem papel
+   * nenhum para mostrar.
    */
-  const mostraDadosTitulo =
-    !editingId && !!selectedType?.fixedIncome && tickerInput.trim().length >= 2;
+  const mostraDadosTitulo = !!selectedType?.fixedIncome
+    && (editingId ? !!editingNoteId : !!matchedAsset);
+
+  /**
+   * O ativo já traz vencimento e forma de remuneração? Então são do papel, não
+   * da aplicação — é o caso do Tesouro Direto — e não se digitam. A taxa segue
+   * editável em qualquer caso: ela é do dia da compra.
+   *
+   * Na edição o ativo chega depois do modal abrir. Até chegar, os campos ficam
+   * travados: destravar primeiro e travar depois descartaria o que o usuário
+   * tivesse digitado nesse intervalo.
+   */
+  const lockedTerms = editingId && !matchedAsset
+    ? true
+    : (!!matchedAsset?.maturityDate || !!matchedAsset?.rateType);
   const modalTitle = editingId ? 'Editar Transação' : 'Nova Transação';
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
@@ -260,7 +359,7 @@ export const TransactionsPage = () => {
             <thead className="text-xs text-gray-400 uppercase border-b border-white/10">
               <tr>
                 <th className={`px-4 py-3 cursor-pointer ${getSortClass('transactionDate')}`} onClick={() => requestSort('transactionDate')}>
-                  DATA{getSortIndicator('transactionDate')}
+                  DATA TRANSAÇÃO{getSortIndicator('transactionDate')}
                 </th>
                 <th className={`px-4 py-3 cursor-pointer ${getSortClass('assetType')}`} onClick={() => requestSort('assetType')}>
                   TIPO ATIVO{getSortIndicator('assetType')}
@@ -297,8 +396,8 @@ export const TransactionsPage = () => {
                       {row.type === TransactionType.BUY ? 'Compra' : 'Venda'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">{formatShares(row.shares)}</td>
-                  <td className="px-4 py-3 text-right">{formatCurrency(row.pricePerShare)}</td>
+                  <td className="px-4 py-3 text-right">{row.shares != null ? formatShares(row.shares) : '—'}</td>
+                  <td className="px-4 py-3 text-right">{row.pricePerShare != null ? formatCurrency(row.pricePerShare) : '—'}</td>
                   <td className="px-4 py-3 text-right">{formatCurrency(row.brokerageFee)}</td>
                   <td className="px-4 py-3 text-right font-medium text-white">{formatCurrency(row.totalAmount)}</td>
                   <td className="px-4 py-3 text-center">
@@ -416,36 +515,37 @@ export const TransactionsPage = () => {
               )}
             </div>
 
-            {/* Nome para ativo novo que NÃO é renda fixa */}
-            {!editingId && selectedType && !selectedType.fixedIncome && !matchedAsset && tickerInput.trim().length >= 2 && (
+            {isValorTotal ? (
               <div className="sm:col-span-2">
-                <Input
-                  label="Nome do ativo"
-                  value={fixedIncome.assetName}
-                  onChange={(e) => setFixedIncome(prev => ({ ...prev, assetName: e.target.value }))}
-                  placeholder="Ativo novo — informe o nome para cadastrá-lo"
+                <CurrencyInput
+                  label="Valor"
+                  value={formData.totalAmount ?? 0}
+                  onChange={(v) => setFormData({ ...formData, totalAmount: v })}
+                  required
                 />
               </div>
+            ) : (
+              <>
+                <Input
+                  label="Quantidade"
+                  type="number"
+                  step="any"
+                  min="0"
+                  value={formData.shares || ''}
+                  onChange={(e) => setFormData({...formData, shares: Number(e.target.value)})}
+                  required
+                />
+                <CurrencyInput
+                  label="Preço Unitário"
+                  value={formData.pricePerShare ?? 0}
+                  onChange={(v) => setFormData({ ...formData, pricePerShare: v })}
+                  required
+                />
+              </>
             )}
 
             <Input
-              label="Quantidade"
-              type="number"
-              step="any"
-              min="0"
-              value={formData.shares || ''}
-              onChange={(e) => setFormData({...formData, shares: Number(e.target.value)})}
-              required
-            />
-            <CurrencyInput
-              label="Preço Unitário"
-              value={formData.pricePerShare}
-              onChange={(v) => setFormData({ ...formData, pricePerShare: v })}
-              required
-            />
-
-            <Input
-              label="Data"
+              label="Data da Transação"
               type="date"
               value={formData.transactionDate}
               onChange={(e) => setFormData({...formData, transactionDate: e.target.value})}
@@ -461,7 +561,13 @@ export const TransactionsPage = () => {
                 da altura de um input com rótulo e texto de apoio. */}
             <div className="sm:col-span-2 flex items-baseline justify-between gap-4 rounded-md border border-surface-light bg-surface-light/40 px-4 py-3">
               <span className="text-sm text-gray-400">
-                Total <span className="text-gray-500">— quantidade x preço unitário, sem as taxas</span>
+                {/* A explicação só cabe quando o total é de fato calculado: sem
+                    tipo escolhido ainda não se sabe, e em Renda Fixa ele é o
+                    próprio Valor digitado. */}
+                Total
+                {selectedType && !isValorTotal && (
+                  <span className="text-gray-500"> — quantidade x preço unitário, sem as taxas</span>
+                )}
               </span>
               <span className="text-lg font-semibold tabular-nums text-white">
                 {formatCurrency(computedTotal)}
@@ -474,8 +580,9 @@ export const TransactionsPage = () => {
             <FixedIncomeFields
               typeId={selectedType.id}
               values={fixedIncome}
-              readOnly={!!matchedAsset}
+              lockedTerms={lockedTerms}
               showCategory={selectedType.name !== TESOURO_DIRETO}
+              showIssuer={selectedType.name !== TESOURO_DIRETO}
               onChange={(patch) => setFixedIncome(prev => ({ ...prev, ...patch }))}
             />
           )}

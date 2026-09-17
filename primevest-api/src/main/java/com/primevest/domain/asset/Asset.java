@@ -4,9 +4,18 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/**
+ * Catálogo de ativos: o que o instrumento É, sem nada sobre uma compra.
+ *
+ * <p>Vencimento e remuneração saíram daqui. Os que são públicos e do papel
+ * (Tesouro Direto) foram para {@link AssetTerms}; os que são de cada aplicação
+ * (CDB, LCI, debênture) foram para {@code FixedIncomeNote}, que pertence ao
+ * usuário. Enquanto moravam nesta tabela, registrar dois CDBs de bancos
+ * diferentes exigia dois ativos — num catálogo global, visível na busca de
+ * todo mundo.</p>
+ */
 @Entity
 @Table(name = "assets")
 @Getter
@@ -40,30 +49,27 @@ public class Asset {
     @Column(name = "price_updated_at")
     private LocalDateTime priceUpdatedAt;
 
-    @Column(name = "maturity_date")
-    private LocalDate maturityDate;
-
-    /** Como remunera. Ver {@link RateType}. Nulo para renda variável. */
-    @Enumerated(EnumType.STRING)
-    @Column(name = "rate_type", length = 20)
-    private RateType rateType;
-
-    /** Índice de remuneração. Nulo quando prefixado. Ver {@link Indexer}. */
-    @Enumerated(EnumType.STRING)
-    @Column(length = 20)
-    private Indexer indexer;
-
-    /** Significado dado por {@link #rateType}: % a.a., % do índice, ou spread. */
-    @Column(name = "indexer_rate", precision = 10, scale = 4)
-    private BigDecimal indexerRate;
+    /**
+     * Parâmetros públicos do papel, quando existem. Nulo para renda variável e
+     * para os produtos genéricos de renda fixa (CDB, LCI...), cujo prazo e taxa
+     * são de cada aplicação.
+     *
+     * <p>Lado inverso de um {@code @OneToOne}: o Hibernate precisa saber se é
+     * nulo, então carrega junto mesmo marcado LAZY. Por isso as consultas que
+     * devolvem listas usam {@code LEFT JOIN FETCH a.terms} — sem isso é uma
+     * consulta extra por linha.</p>
+     *
+     * <p>Sem cascade e sem orphanRemoval de proposito. Com eles, salvar um
+     * ativo destacado cujo campo {@code terms} viesse nulo — o scheduler de
+     * precos salva ativo o tempo todo — apagaria a linha de asset_terms. Os
+     * 130 vencimentos do Tesouro nao dependem de ninguem lembrar de carregar
+     * a associacao antes de um save.</p>
+     */
+    @OneToOne(mappedBy = "asset", fetch = FetchType.LAZY)
+    private AssetTerms terms;
 
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
 
-    @Column(name = "custom", nullable = false)
-    @Builder.Default
-    private boolean custom = false;
-
 }
-

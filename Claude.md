@@ -5,6 +5,61 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
+> **Última revisão**: 15/09/2026, conferida arquivo a arquivo contra o código.
+> O que este documento afirma foi verificado; o que está pendente está em
+> `PENDENCIAS.txt`, na raiz do repositório.
+
+---
+
+## 🧭 A decisão estrutural que explica o resto
+
+Se você só vai ler uma seção, leia esta. Quase toda escolha estranha no schema
+vem daqui.
+
+**O catálogo é global; o papel é do usuário.**
+
+`assets` é o catálogo: o que o instrumento É. "PETR4", "Tesouro Selic 2031",
+"CDB". Não tem `user_id` de propósito — um ativo é o mesmo para todo mundo.
+
+Só que renda fixa não cabe nisso. Um CDB não tem vencimento nem taxa próprios:
+cada aplicação negocia os seus com o banco, no dia da compra. Enquanto essas
+colunas viviam em `assets`, registrar dois CDBs de bancos diferentes exigia
+criar dois ativos — "CDB BTG 2027", "CDB Inter 2028" — num catálogo global, que
+aparecia na busca de todos os usuários.
+
+A separação em três lugares, cada um com um dono:
+
+| Tabela | Dono | O que guarda |
+|--------|------|--------------|
+| `assets` | ninguém (global) | o instrumento: ticker, nome, tipo, categoria |
+| `asset_terms` | ninguém (global) | parâmetros **públicos** do papel, 1:1 com `assets`. Hoje só Tesouro Direto |
+| `fixed_income_notes` | usuário | **o papel**: emissor, vencimento, forma de remuneração e a taxa contratada |
+
+Por que `asset_terms` existe em vez de continuar como colunas em `assets`:
+"Tesouro IPCA+ 2029" vence em 15/05/2029 e remunera IPCA mais spread para
+qualquer investidor — isso é do papel e é público, então fica no catálogo. Mas
+só 130 dos 1.264 ativos têm esses parâmetros; os outros 1.134 carregavam quatro
+colunas nulas.
+
+Por que a taxa **não** está em `asset_terms`: no Tesouro ela é do dia da compra,
+não do título. Dois investidores levam o mesmo papel a IPCA + 6,2% e IPCA + 5,8%
+conforme quando compraram. Taxa é sempre da nota.
+
+Consequências que aparecem em vários pontos do sistema:
+
+- `transactions.note_id` e `portfolio_assets.note_id`, nulos na renda variável.
+- **A carteira repete ticker.** Três CDBs de emissores diferentes são três
+  linhas, todas "CDB — Certificado de Depósito Bancário". Por isso
+  `PortfolioAssetDetailDTO` carrega `issuer` e `maturityDate`, e a tela os
+  exibe: sem eles as linhas ficam indistinguíveis.
+- A unicidade da posição é `(portfolio_id, asset_id, note_id)` com
+  **`NULLS NOT DISTINCT`**. Sem isso a regra sumiria para ações: no padrão SQL
+  dois NULLs nunca são iguais, então duas posições de PETR4 com `note_id` nulo
+  não conflitariam.
+- A nota **copia** de `asset_terms` no lançamento, em vez de referenciar. O que
+  vale para o cálculo é o que foi contratado; uma correção futura no catálogo não
+  deve reescrever posição já registrada.
+
 ---
 
 ## 🚀 Como rodar
@@ -15,7 +70,7 @@ Sobe banco, cache, API e front de uma vez, com o banco construído do zero pelas
 migrations. Não exige Java, Maven, Node nem PostgreSQL instalados na máquina.
 
 ```bash
-docker compose up --build
+docker compose up -d --build
 ```
 
 | Serviço | URL / Porta |
@@ -27,28 +82,40 @@ docker compose up --build
 | Redis | localhost:6379 |
 
 > A porta do banco é **5433** de propósito, para não colidir com o PostgreSQL 17
-> instalado na máquina, que ocupa a 5432. Para conectar pelo pgAdmin use `localhost:5433`.
+> instalado na máquina, que ocupa a 5432. No pgAdmin use `localhost:5433`.
 
 Comandos do dia a dia:
 
 ```bash
-docker compose up --build      # sobe tudo (build na primeira vez)
+docker compose up -d --build   # sobe tudo
 docker compose down            # para tudo, mantém o banco
-docker compose down -v         # para tudo e APAGA o banco (recria do zero na próxima subida)
-docker compose logs -f api     # acompanha os logs do backend
-docker compose exec db psql -U postgres -d db_primevest   # psql dentro do container
+docker compose down -v         # para tudo e APAGA o banco (recria do zero)
+docker compose logs -f api     # logs do backend
+docker compose exec db psql -U postgres -d db_primevest   # psql no container
 ```
 
-**Hot reload**: `primevest-api/src` e `primevest-web/` entram por bind mount.
-Alterar um `.java` reinicia o Spring via DevTools; alterar um `.tsx` recarrega o Vite.
+**Portas publicadas com prefixo `0.0.0.0:`** no `docker-compose.yml`. Sem ele o
+Docker publica em dual-stack enquanto o Vite escuta em uma pilha só, e
+`localhost:5173` fica pendurado sem erro. Se alguém "limpar" esse prefixo, o
+front para de abrir — já aconteceu.
 
-**Variáveis de ambiente**: tudo tem padrão no `docker-compose.yml`, então o projeto
-sobe sem configuração. Para sobrescrever, copie `.env.example` para `.env`
-(já está no `.gitignore`).
+**Hot reload**: `primevest-api/src` e `primevest-web/` entram por bind mount.
+Alterar um `.tsx` recarrega o Vite. No backend, o `dev-watch.sh` (CMD do estágio
+`dev`) verifica `src/` a cada 2 s, roda `mvn compile` quando algo mudou e, se
+compilar, toca o gatilho do DevTools, que reinicia o Spring — migration nova
+entra junto. Compilação com erro aparece no log do container e mantém a versão
+anterior no ar. Arquivo apagado não dispara sozinho: salve outro ou reinicie.
+
+> Mexeu no `Dockerfile` ou no `dev-watch.sh`? Precisa rebuild:
+> `docker compose up -d --build api`.
+
+**Mudou entidade JPA e migration juntas?** Tem que ser a mesma subida.
+`ddl-auto: validate` compara entidades com o schema: se o Java mudar sem a
+migration, ou o contrário, a API não sobe.
 
 ### Opção 2 — Local, sem Docker
 
-Exige Java 21, Maven 3.9+, Node 24 e PostgreSQL 17 com o banco `db_primevest` já criado.
+Exige Java 21, Maven 3.9+, Node 24 e PostgreSQL 17 com o banco `db_primevest` criado.
 
 ```powershell
 # Backend — porta 8080
@@ -74,19 +141,19 @@ $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";"
 |--------|-----------|
 | Backend | Java 21 + Spring Boot 3.3.5 |
 | Frontend | React 18 + TypeScript + Vite 5 |
-| Banco | PostgreSQL 17 |
+| Banco | PostgreSQL 17 (o `NULLS NOT DISTINCT` exige 15+) |
 | Cache | Redis 7 (cotações; `cache.type: simple` no perfil dev) |
-| ORM | Spring Data JPA / Hibernate |
+| ORM | Spring Data JPA / Hibernate 6.5 |
 | Migrations | Flyway |
-| Autenticação | JWT (jjwt 0.12.6) + Spring Security + Google OAuth2 |
+| Autenticação | JWT (jjwt 0.12.6) + Spring Security + Google Identity Services |
 | HTTP externo | Spring WebFlux / WebClient |
-| Mapeamento | MapStruct 1.6.3 + Lombok |
+| Utilitários | Lombok (MapStruct está no `pom.xml` mas nenhum mapper foi escrito — o mapeamento é manual, em métodos `toDTO` nos services) |
 | Documentação de API | SpringDoc OpenAPI 2.6.0 (`/swagger-ui.html`) |
 | Gráficos | Recharts |
 | Estado/fetch | TanStack React Query 5 |
 | Rotas | React Router 6 |
 | CSS | Tailwind CSS 3 |
-| Testes | JUnit 5, Mockito, Spring Security Test, H2, Testcontainers |
+| Testes | **não existem** — ver Pontos de Atenção |
 | Build | Maven / npm |
 
 ### Integrações externas
@@ -95,7 +162,7 @@ $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";"
 |-----|-----|--------|
 | **BrAPI** | Cotações da B3 (ações, FIIs, ETFs, BDRs) | `brapi.base-url`, `BRAPI_TOKEN` |
 | **CoinGecko** | Cotações de criptomoedas | `coingecko.base-url` |
-| **Google OAuth2** | Login social | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
+| **Google Identity Services** | Login social (fluxo de ID token, sem client secret) | `VITE_GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_ID` |
 
 ---
 
@@ -107,25 +174,27 @@ primevest/
 ├── .env.example                 # variáveis (copiar para .env)
 ├── README.md                    # visão geral do produto
 ├── Claude.md                    # este arquivo — referência operacional
-├── generate_assets_sql.py       # gera SQL de ativos da B3
-├── generate_classes.py          # gerador auxiliar de classes
-├── generate_seeds.js            # gerador dos seeds V13-V18
+├── PENDENCIAS.txt               # o que ficou por fazer, com o porquê
+├── generate_assets_sql.py       # geradores auxiliares, usados uma vez
+├── generate_classes.py          #   para montar seeds; não fazem parte do build
+├── generate_seeds.js            #
 │
 ├── primevest-api/
 │   ├── Dockerfile               # alvos: dev (spring-boot:run) e runtime (jar)
-│   ├── .dockerignore
 │   ├── pom.xml
 │   └── src/main/
 │       ├── java/com/primevest/
 │       │   ├── config/          # SecurityConfig, CorsConfig, RedisConfig,
 │       │   │                    # SwaggerConfig, SecurityUtils, PasswordEncoderConfig
 │       │   ├── domain/
-│       │   │   ├── asset/       # Asset, AssetType, AssetCategory, AssetService
+│       │   │   ├── asset/       # Asset, AssetTerms, AssetType, AssetCategory,
+│       │   │   │                # RateType, Indexer, PriceSource, service
 │       │   │   ├── auth/        # AuthController/Service, JwtTokenProvider,
-│       │   │   │                # JwtAuthFilter, OAuth2SuccessHandler, UserDetailsServiceImpl
+│       │   │   │                # JwtAuthFilter, GoogleTokenVerifier
 │       │   │   ├── ceilingprice/# CeilingPrice + service
 │       │   │   ├── dividend/    # Dividend, DividendType, service
-│       │   │   ├── goal/        # Goal, GoalStatus, service        (metas)
+│       │   │   ├── fixedincome/ # FixedIncomeNote + repository  ← o papel do usuário
+│       │   │   ├── goal/        # Goal, GoalStatus, service
 │       │   │   ├── portfolio/   # Portfolio, PortfolioAsset, service
 │       │   │   ├── pricehistory/# AssetPriceHistory + service
 │       │   │   ├── strategy/    # Strategy, service (ideal + rebalanceamento)
@@ -137,27 +206,30 @@ primevest/
 │       │   │   ├── brapi/       # BrApiClient + DTOs
 │       │   │   └── coingecko/   # CoinGeckoClient + DTO
 │       │   └── scheduler/       # PriceUpdateScheduler, DividendSyncScheduler
-│       └── resources/
-│           ├── application.yml          # base
-│           ├── application-dev.yml      # local (Flyway OFF)
-│           ├── application-docker.yml   # containers (Flyway ON)
-│           ├── application-prod.yml
-│           └── db/migration/            # V1 .. V19
+│       ├── resources/
+│       │   ├── application.yml          # base
+│       │   ├── application-dev.yml      # local (Flyway OFF, ddl-auto none)
+│       │   ├── application-docker.yml   # containers (Flyway ON, ddl-auto validate)
+│       │   ├── application-prod.yml
+│       │   └── db/migration/            # V1 .. V28
+│       └── test/                        # VAZIO
 │
 └── primevest-web/
     ├── Dockerfile               # alvos: dev (vite) e runtime (nginx)
-    ├── .dockerignore
     ├── vite.config.ts           # proxy /api configurável por VITE_API_TARGET
     ├── tailwind.config.js
     └── src/
         ├── api/                 # clients axios por domínio
-        ├── components/          # charts/, layout/, ui/
+        ├── components/
+        │   ├── charts/
+        │   ├── forms/           # AssetTypeSelect, TickerAutocomplete, FixedIncomeFields
+        │   ├── layout/
+        │   └── ui/              # Modal, MaskedNumberInput, CurrencyInput, PercentInput...
         ├── context/             # AuthContext, ThemeContext
-        ├── hooks/               # useSortable
-        ├── mocks/               # data.ts — LEGADO, a remover
+        ├── hooks/               # useSortable, useGoogleSignIn
         ├── pages/               # 10 páginas
         ├── types/               # interfaces TypeScript
-        └── utils/               # format.ts, assetTypes.ts (legado)
+        └── utils/               # format.ts
 ```
 
 ---
@@ -172,86 +244,188 @@ primevest/
 | Docker (entre containers) | db | 5432 | db_primevest | postgres |
 | Local | localhost | 5432 | db_primevest | postgres |
 
-Credenciais vêm de variáveis de ambiente (`DB_USERNAME`, `DB_PASSWORD`), com
-padrão `postgres`/`postgres` em desenvolvimento. **Não versione credenciais reais.**
+Credenciais vêm de `DB_USERNAME` / `DB_PASSWORD`, com padrão `postgres`/`postgres`
+em desenvolvimento. **Não versione credenciais reais.**
 
-### Tabelas
+### Tabelas — 14
 
 | Tabela | Descrição |
 |--------|-----------|
-| `users` | Usuários (senha bcrypt em `password_hash`, ou `google_id` para OAuth) |
+| `users` | Usuários (bcrypt em `password_hash`, ou `google_id` para OAuth) |
 | `portfolios` | Carteira (1 por usuário) |
-| `portfolio_assets` | Posição consolidada: `total_shares`, `average_price`, `total_invested`, `current_value`, `is_reservation` |
-| `transactions` | Compras e vendas |
-| `assets` | Cadastro de ativos (`ticker`, `name`, `custom`) |
-| `asset_types` | 6 tipos fixos |
-| `asset_categories` | Categorias dentro de cada tipo |
+| `portfolio_assets` | A posição. Chave lógica: `(portfolio_id, asset_id, note_id)` com `NULLS NOT DISTINCT`. **Não guarda cotas, preço médio nem custo** — saem das transações (V28) |
+| `transactions` | Compras e vendas. Fonte da verdade da posição. `note_id` nulo na renda variável |
+| `assets` | Catálogo global: `ticker`, `name`, `asset_type_id`, `asset_category_id`, `current_price`, `active` |
+| `asset_terms` | Parâmetros públicos do papel, PK = `asset_id`. Só Tesouro Direto hoje |
+| `fixed_income_notes` | **O papel do usuário**: `issuer`, `maturity_date`, `rate_type`, `indexer`, `indexer_rate` |
+| `asset_types` | 12 tipos |
+| `asset_categories` | 115 categorias, dentro de cada tipo: `name`, `description`, `segment` (FII: tipo de fundo › segmento; Ação: setor B3 › segmento B3; demais tipos: `segment` nulo) |
 | `strategies` | % ideal por tipo — `unique(user_id, asset_type_id)` |
-| `dividends` | Proventos recebidos |
+| `dividends` | Proventos. **Sem `user_id`** — ver Pontos de Atenção |
 | `ceiling_prices` | Preço teto por ativo — `unique(user_id, asset_id)` |
 | `goals` | Metas de investimento |
 | `asset_price_history` | Histórico de cotações |
 
-### Asset Types
+### Asset Types — 12
 
-| ID | name | description |
-|----|------|-------------|
-| 1 | RENDA_FIXA | Renda Fixa |
-| 2 | TESOURO_DIRETO | Tesouro Direto |
-| 3 | FII | Fundos Imobiliários |
-| 4 | RENDA_VARIAVEL | Renda Variável (Ações) |
-| 5 | INTERNACIONAL | Investimentos Internacionais |
-| 6 | CRYPTO | Criptomoedas |
+| ID | name | description | price_source | fixed_income |
+|----|------|-------------|--------------|--------------|
+| 1 | ACAO | Ações | BRAPI | não |
+| 2 | FII | FIIs | BRAPI | não |
+| 3 | RENDA_FIXA | Renda Fixa | MANUAL | **sim** |
+| 4 | TESOURO_DIRETO | Tesouro Direto | MANUAL | **sim** |
+| 5 | ETF | ETFs | BRAPI | não |
+| 6 | FUNDO_INVESTIMENTO | Fundos de Investimentos | MANUAL | não |
+| 7 | BDR | BDRs | BRAPI | não |
+| 8 | STOCK | Stocks | MANUAL | não |
+| 9 | REIT | REITs | MANUAL | não |
+| 10 | ETF_INTERNACIONAL | ETFs Internacionais | MANUAL | não |
+| 11 | CRIPTO | Criptomoedas | COINGECKO | não |
+| 12 | OUTROS | Outros | MANUAL | não |
 
-> **Convenção**: em DTOs e respostas de API, usar `getDescription()` para exibição
-> ao usuário. `getName()` é só para lógica interna (ex: Scheduler).
+> Os ids acima valem para um banco que rodou as migrations nesta ordem. **Nunca
+> fixe id de `BIGSERIAL` em código ou migration** — resolva por `name`, como
+> fazem todos os seeds.
 
-### Coluna `custom` em `assets`
+`price_source` e `fixed_income` são colunas, e não lista de nomes no código, de
+propósito. Antes o scheduler fazia `"CRYPTO".equals(name)`, que quebrava em
+silêncio a cada renomeação ou tipo novo. A tela e os services só perguntam à
+coluna.
 
-- `custom = true` → ativo inserido manualmente pelo usuário
-- `custom = false` → ativo cadastrado automaticamente (B3, Tesouro Direto)
+> **Convenção**: em DTOs e respostas de API use `getDescription()` para exibir ao
+> usuário; `getName()` é para lógica interna. `AssetCategory.getDisplayName()`
+> encapsula o fallback description → name.
 
-### Flyway
+### Flyway — V1 a V28
 
-O Flyway roda **do zero** (V1 → V19) no perfil `docker`. No perfil `dev` fica
-desligado, porque o banco local já existe e é gerenciado à mão.
+O Flyway roda do zero no perfil `docker`. No perfil `dev` fica desligado, porque
+o banco local é gerenciado à mão.
 
-Estado após uma subida limpa, verificado contra PostgreSQL:
+As migrations foram **refeitas do zero em 15/09/2026**. As 33 anteriores
+descreviam o caminho — criavam colunas que depois eram derrubadas, classificavam
+ativos em quatro etapas — e foram substituídas por 22 que descrevem o resultado.
+O estado final foi conferido linha a linha contra o conjunto antigo: 1.264 ativos,
+48 categorias, 12 tipos, 103 colunas, 54 constraints e 47 índices idênticos.
+
+| Faixa | Conteúdo |
+|-------|----------|
+| V1–V14 | Estrutura, uma tabela por arquivo, na ordem das FKs |
+| V15 | Seed dos 12 tipos |
+| V16 | Seed das 48 categorias |
+| V17–V20 | Seed dos ativos: 782 ações, 337 FIIs, 130 Tesouro, 15 renda fixa |
+| V21 | Seed dos 130 `asset_terms` |
+| V22 | Usuário de desenvolvimento + carteira |
+| V23 | Coluna `segment` em `asset_categories`; FIIs reclassificados por tipo de fundo (CATEGORIA_FIIS.xlsx) e ações por setor/segmento da Classificação Setorial da B3 |
+| V24 | `transactions.shares` e `price_per_share` anuláveis: Renda Fixa é lançada por valor total |
+| V25 | `portfolio_assets.is_settled` e `appreciation`; sai `portfolio_assets.current_value` |
+| V26 | `dividends.asset_id` sai (o ativo vem pela posição); `portfolio_asset_id` obrigatório; sai `portfolio_assets.total_dividends` |
+| V27 | Sai `portfolios.total_dividends` |
+| V28 | Saem `portfolio_assets.total_shares`, `average_price`, `total_invested` e `portfolios.total_invested`, `current_value`: a posição é calculada das transações |
+
+Ordem das tabelas (é a ordem das FKs, não alfabética): users → asset_types →
+asset_categories → assets → asset_terms → portfolios → **fixed_income_notes** →
+portfolio_assets → transactions → dividends → asset_price_history → strategies →
+ceiling_prices → goals.
+
+`fixed_income_notes` precisa vir antes de `portfolio_assets` e `transactions`,
+porque as duas referenciam a nota.
+
+Estado após uma subida limpa:
 
 | Tabela | Linhas |
 |--------|--------|
-| assets | 1.426 (1.407 com `custom = false`) |
-| portfolio_assets | 42 |
-| transactions | 106 |
-| strategies | 6 |
-| ceiling_prices | 6 |
-| dividends | 6 |
-| goals | 4 |
+| assets | 1.264 |
+| asset_terms | 130 |
+| asset_categories | 115 |
+| asset_types | 12 |
 | users | 1 |
+| portfolios | 1 |
+| todo o resto | 0 |
 
-> **Histórico**: `baseline-version: 18` foi removido do `application.yml`. Ele fazia
-> o Flyway tratar um banco vazio como se já estivesse na versão 18, pulando a criação
-> de todas as tabelas e seeds e rodando apenas a V19 — o projeto não subia do zero.
-> Junto disso, `portfolio_assets` e `strategies` ganharam a coluna `created_at`
-> (V5 e V7), que as seeds V13 e V18 já inseriam mas o schema não declarava.
+**Não há mais seed de transação, posição ou estratégia.** Os dados de teste
+manuais foram descartados no reset, por decisão do usuário.
+
+> **Se o Flyway recusar a subida** reclamando de checksum ou de migration
+> aplicada que não existe mais: o volume tem o histórico antigo.
+> `docker compose down -v` e suba de novo.
+
+### Convenções das migrations
+
+- **Nunca editar migration já aplicada.** O Flyway guarda checksum; qualquer
+  alteração quebra a próxima subida.
+- **FK resolvida por nome**, nunca por id literal:
+  `JOIN asset_types t ON t.name = 'ACAO'`.
+- **`ON CONFLICT DO NOTHING`** nos seeds de ativo: se o ticker já existe, ele
+  pode ter posição atrelada, e sobrescrever nome ou categoria de um ativo em uso
+  é pior que não inserir. Nos seeds de referência (tipos, categorias) o
+  `DO UPDATE` é aceitável.
+- **Guarda antes de DROP destrutivo**: bloco `DO $$ ... RAISE EXCEPTION` que
+  confere se a cópia dos dados deu certo antes de derrubar a coluna.
+
+---
+
+## 🔒 Autorização — como o escopo por usuário funciona
+
+Corrigido em 15/09/2026. **Ao escrever qualquer método novo que receba
+`userId`, siga isto.**
+
+O padrão de referência é `GoalService.findOwnedGoal`:
+
+```java
+private Goal findOwnedGoal(UUID userId, UUID goalId) {
+    Goal goal = goalRepository.findById(goalId)
+        .orElseThrow(() -> new ResourceNotFoundException("Meta não encontrada"));
+    if (goal.getUser() == null || !goal.getUser().getId().equals(userId)) {
+        throw new ResourceNotFoundException("Meta não encontrada");
+    }
+    return goal;
+}
+```
+
+Duas regras:
+
+1. **Registro de outro dono responde "não encontrado", nunca "sem permissão".**
+   "Sem permissão" confirma que o id existe, e um id que existe é exatamente o
+   que um atacante procura.
+2. **Quando o dono está a um join de distância, o filtro vai para a consulta**,
+   não para uma comparação depois de carregar. A linha alheia não chega a sair
+   do banco.
+
+Implementações em vigor:
+
+| Service | Consulta escopada | Caminho até o dono |
+|---------|-------------------|--------------------|
+| `TransactionService` | `TransactionRepository.findOwnedById` | transação → posição → carteira → usuário |
+| `CeilingPriceService` | `CeilingPriceRepository.findByIdAndUserId` | campo direto |
+| `DividendService` | `DividendRepository.findByAssetIdAndOwner` | provento → posição → carteira → usuário |
+| `StrategyService` | `findByUserIdAndAssetTypeId` | campo direto |
+
+> `DividendRepository.findByAssetIdOrderByExDateDesc` foi **removido**. Era a
+> consulta que devolvia os proventos de todos os usuários naquele ativo. Não
+> recrie: consulta sem escopo num repositório é arma carregada.
 
 ---
 
 ## 🔑 Autenticação
 
 - **Login por email/senha**: `POST /api/v1/auth/login` → `{ "accessToken": "..." }`
-- **Login Google**: `POST /api/v1/auth/google` com o token do Google
+- **Login Google**: `POST /api/v1/auth/google` com o ID token do Google
 - **Header nas demais chamadas**: `Authorization: Bearer <token>`
-- Token guardado no frontend em `localStorage` sob a chave `primevest_token`
-- Resposta 401 em qualquer chamada limpa o token e redireciona para `/login`
-- Usuário semeado pela V12: `guilhermeunatec@gmail.com` (hash bcrypt na migration;
-  **a senha não fica documentada aqui**)
+- Token no frontend em `localStorage`, chave `primevest_token`
+- 401 em qualquer chamada limpa o token e redireciona para `/login`
+- Usuário semeado pela **V22**: `guilhermeunatec@gmail.com`
+  (hash bcrypt na migration; **a senha não fica documentada aqui**, e em produção
+  esse arquivo não deveria existir — credencial versionada é credencial pública)
+
+**Google**: o fluxo usa Google Identity Services diretamente
+(`google.accounts.id` em `useGoogleSignIn`), com ID token e **sem client secret**.
+Sem `VITE_GOOGLE_CLIENT_ID` o hook fica inerte e o botão some da tela de login —
+de propósito, um botão que não funciona é pior que botão nenhum.
+Falta criar o Client ID no Google Cloud Console.
 
 ---
 
 ## 🔌 Endpoints da API
-
-Conferidos contra os clients do frontend (`primevest-web/src/api/`).
 
 ### Auth
 | Método | Endpoint |
@@ -264,7 +438,7 @@ Conferidos contra os clients do frontend (`primevest-web/src/api/`).
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
 | GET | `/api/v1/portfolio/` | Resumo da carteira |
-| GET | `/api/v1/portfolio/assets` | Ativos com posição detalhada |
+| GET | `/api/v1/portfolio/assets` | Posição detalhada (com `issuer` e `maturityDate` do título) |
 | GET | `/api/v1/portfolio/allocation` | Alocação por tipo |
 | GET | `/api/v1/portfolio/allocation/detailed` | Alocação por tipo e categoria |
 | GET | `/api/v1/portfolio/performance` | Rentabilidade |
@@ -275,10 +449,9 @@ Conferidos contra os clients do frontend (`primevest-web/src/api/`).
 |--------|----------|-----------|
 | GET | `/api/v1/transactions/` | Listar |
 | GET | `/api/v1/transactions/{id}` | Buscar por ID |
-| POST | `/api/v1/transactions/` | Criar (recalcula portfólio) |
-| PUT | `/api/v1/transactions/{id}` | Editar (recalcula portfólio) |
-| DELETE | `/api/v1/transactions/{id}` | Excluir (recalcula portfólio) |
-| POST | `/api/v1/transactions/recalculate-all` | Manutenção: recalcula todos os portfolio_assets |
+| POST | `/api/v1/transactions/` | Criar (cria a nota se for renda fixa; recalcula proventos) |
+| PUT | `/api/v1/transactions/{id}` | Editar (atualiza a nota; recalcula proventos) |
+| DELETE | `/api/v1/transactions/{id}` | Excluir (recalcula proventos) |
 
 ### Strategy
 | Método | Endpoint | Descrição |
@@ -291,33 +464,30 @@ Conferidos contra os clients do frontend (`primevest-web/src/api/`).
 ### Assets
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| GET | `/api/v1/assets/` | Listar — params `typeId`, `query` (autocomplete) |
+| GET | `/api/v1/assets/` | Listar — params `typeId`, `query` (autocomplete, teto 50) |
 | GET | `/api/v1/assets/{ticker}` | Buscar por ticker |
 | GET | `/api/v1/assets/types` | Tipos de ativo |
 | GET | `/api/v1/assets/categories` | Categorias — param `typeId` |
+| GET | `/api/v1/assets/{ticker}/history` | Histórico de cotações |
 
 ### Dividends
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
 | GET | `/api/v1/dividends/` | Resumo de proventos |
 | POST | `/api/v1/dividends/` | Registrar |
-| GET | `/api/v1/dividends/asset/{ticker}` | Proventos de um ativo |
+| GET | `/api/v1/dividends/asset/{ticker}` | Proventos de um ativo (escopado por usuário) |
 
-### Ceiling Prices
+### Ceiling Prices / Goals
 | Método | Endpoint |
 |--------|----------|
-| GET | `/api/v1/ceiling-prices/` |
-| POST | `/api/v1/ceiling-prices/` |
-| PUT | `/api/v1/ceiling-prices/{id}` |
-| DELETE | `/api/v1/ceiling-prices/{id}` |
+| GET / POST | `/api/v1/ceiling-prices/` · `/api/v1/goals/` |
+| PUT / DELETE | `/api/v1/ceiling-prices/{id}` · `/api/v1/goals/{id}` |
 
-### Goals
+### Users
 | Método | Endpoint |
 |--------|----------|
-| GET | `/api/v1/goals/` |
-| POST | `/api/v1/goals/` |
-| PUT | `/api/v1/goals/{id}` |
-| DELETE | `/api/v1/goals/{id}` |
+| GET | `/api/v1/users/me` |
+| PUT | `/api/v1/users/me` |
 
 ---
 
@@ -325,121 +495,197 @@ Conferidos contra os clients do frontend (`primevest-web/src/api/`).
 
 Rotas em `App.tsx`; tudo abaixo de `/login` é protegido por `ProtectedRoute`.
 
-| Rota | Tela | Menu lateral |
-|------|------|--------------|
-| `/dashboard` | Dashboard — pizza de alocação por tipo, cards de resumo | Dashboard |
-| `/portfolio` | Carteira — posição por ativo | Carteira |
-| `/allocation` | Alocação — abas "Carteira de Investimentos" e "Por Categoria" | Alocação |
-| `/strategy` | Estratégia — abas "Ideal Estratégico" e "Rebalanceamento" | Estratégia |
-| `/transactions` | Transações — CRUD completo | Transações |
-| `/ceiling-prices` | Preço Teto — CRUD | Preço Teto |
-| `/dividends` | Dividendos | Dividendos |
-| `/goals` | Metas | Metas |
-| `/settings` | Configurações | (ícone de engrenagem no rodapé) |
-| `/login` | Login (email/senha + Google) | — |
+| Rota | Tela |
+|------|------|
+| `/dashboard` | Pizza de alocação por tipo, cards de resumo |
+| `/portfolio` | Carteira — posição por ativo, com EMISSOR e VENCIMENTO |
+| `/allocation` | Abas "Carteira de Investimentos" e "Por Categoria" |
+| `/strategy` | Abas "Ideal Estratégico" e "Rebalanceamento" |
+| `/transactions` | CRUD completo |
+| `/ceiling-prices` | Preço Teto — CRUD |
+| `/dividends` | Dividendos |
+| `/goals` | Metas |
+| `/settings` | Configurações |
+| `/login` | Login (email/senha + Google) |
+
+### Carteira
+A tabela repete ticker, porque a posição é por título. `key` da linha é
+`asset.id` (o id da posição), **não o ticker** — ticker deixou de ser único aqui.
+As colunas EMISSOR e VENCIMENTO são o que distingue duas linhas "CDB".
 
 ### Transações
-- CRUD completo
-- Autocomplete de ticker (busca a partir de 2 caracteres, debounce 300ms)
-- Tipo de ativo preenchido pelo backend (`description` do AssetType)
-- Filtros por período (30/60/90 dias/Tudo) e por tipo de ativo
-- Paginação 10 / 25 / 50 / 100 (padrão 10)
-- Campo Total (readonly) = quantidade × preço unitário
-- Na edição, ticker e tipo de ativo são readonly
+- Modal em duas colunas: operação à esquerda, quadro do título à direita, com
+  alturas independentes. Sem isso o quadro esticava o modal inteiro.
+- O **tipo de ativo comanda o formulário**: restringe o autocomplete e decide se
+  o quadro do título aparece.
+- Autocomplete a partir de 2 caracteres, debounce 300ms, teto de 50 no servidor.
+  O corte é no `@Query` com `ORDER BY` de relevância — cortar no cliente
+  descartava linhas arbitrárias de um resultado sem ordem.
+- **Não é possível criar ativo pela transação.** Ticker fora do catálogo é erro.
+- Máscaras: `CurrencyInput` (R$, dígitos da direita para a esquerda) e
+  `PercentInput` (%, 2 casas).
+- Na edição, ticker e tipo de ativo são readonly, mas **o tipo é preenchido** a
+  partir do `assetTypeId` que a transação carrega, e o quadro do título reaparece
+  com os dados da nota.
 
 ### Estratégia
-- **Aba "Ideal Estratégico"**: tabela de percentuais editáveis + pizza lado a lado.
-  Adicionar/remover tipos age só em memória; o botão Salvar persiste tudo
-  (full replace: delete all + insert). Botão ↻ restaura do banco. Há indicador
-  visual de alterações não salvas.
-- **Aba "Rebalanceamento"**: Tipo Ativo, % Ideal, Aportado, Aportar,
-  Estratégico (Aportado+Aportar), % Carteira, % Diff, Sugestão (APORTAR/AGUARDAR).
+- **Ideal Estratégico**: percentuais editáveis + pizza. Adicionar/remover age em
+  memória; Salvar persiste tudo (full replace). ↻ restaura do banco.
+- **Rebalanceamento**: Tipo Ativo, % Ideal, Aportado, Aportar, Estratégico,
+  % Carteira, % Diff, Sugestão (APORTAR/AGUARDAR).
 
 ---
 
 ## 🔄 Fluxo de Transações → Portfólio
 
-Criar, editar ou excluir uma transação dispara `recalculatePortfolioAsset(pa)`:
+**A posição não é gravada: é calculada das transações na leitura** (V28).
+`portfolio_assets` guarda só a identidade da posição (carteira, ativo, nota) e o
+que não vem de transação (`appreciation`, `is_reservation`, `is_settled`).
+Não existe mais recálculo de posição nem `recalculate-all`.
 
-1. Busca **todas as transações** daquele PortfolioAsset em ordem cronológica
-2. **BUY**: soma shares, recalcula preço médio ponderado, acumula custo
-3. **SELL**: subtrai shares, reduz o custo proporcionalmente (pelo preço médio)
-4. Atualiza `totalShares`, `averagePrice`, `totalInvested`, `currentValue`
+`PositionCalculator` é a regra única. Percorre as transações da posição em
+ordem cronológica (data, depois criação):
 
-Para correção em massa: `POST /api/v1/transactions/recalculate-all`.
+1. **BUY**: soma cotas e custo (cotas × preço)
+2. **SELL**: tira cotas e tira custo **pelo preço médio do momento**; o preço
+   médio não muda. Venda sem cotas é ignorada; venda maior que a posição zera
+3. **Preço médio** = custo / cotas (4 casas); **custo** com 2 casas
+4. **Renda Fixa** (`isValuedByTotal`): sem cotas nem preço médio; custo =
+   aplicações − resgates, nunca negativo
+
+Não é `SUM`/`AVG`: compra 100 a R$ 10, compra 100 a R$ 20, venda 100 a R$ 30 →
+preço médio R$ 15 e custo R$ 1.500 (a média simples daria R$ 20).
+
+`positionsOf(portfolioId, posições)` faz **uma consulta** para todas as
+transações da carteira. Usado por `PortfolioService` e `StrategyService`.
+
+**Valorização é gravada** em `portfolio_assets.appreciation`, e a tela só lê.
+Valor atual = custo + `appreciation`.
+
+- **Com cotação** (Ações, FIIs, ETFs, BDRs, Cripto): `AppreciationUpdater` grava
+  cotas × cotação − custo (2 casas) quando um dos lados muda — ao fim de cada
+  rodada do `PriceUpdateScheduler`, em `AssetService.updateAssetPrice` e ao
+  criar, editar ou excluir transação. Na subida da API (`ApplicationReadyEvent`)
+  todas as posições com cotação são regravadas.
+- **Sem cotação** (Renda Fixa, Tesouro, tipos MANUAL): nada derivado de
+  transação sobrescreve; o valor vem de fora (curva, quando existir).
+
+**O que é regravado ao mudar transação** (`TransactionService.afterPositionChange`):
+`dividends.total_amount`, que depende das cotas na data-com
+(`DividendRecalculator.recalculate`, contando cotas com o mesmo
+`PositionCalculator.sharesOn`), e `portfolio_assets.appreciation` das posições
+com cotação.
+
+### Renda fixa: como a nota entra
+
+`TransactionService.resolveNote` decide, em três caminhos:
+
+| Situação | O que acontece |
+|----------|----------------|
+| Ativo não é renda fixa | nota nula; `noteId` no DTO é erro |
+| DTO traz `noteId` | carrega **escopado pelo dono** e confere que é do mesmo ativo |
+| Compra sem `noteId` | cria nota nova, herdando de `asset_terms` o que o DTO não trouxer |
+| **Venda sem `noteId`** | **recusa** — ver Pontos de Atenção |
+
+`applyNoteFields` só roda no update quando a requisição traz campos de título
+(`hasNoteData`). Sem essa guarda, corrigir a quantidade de um CDB pela tela de
+edição apagaria emissor, vencimento e taxa.
 
 ---
 
 ## 📐 Padrão Visual
 
-- **Tema**: dark por padrão, com tema claro disponível (`darkMode: 'class'`,
-  alternado pelo `ThemeContext` e pelo botão sol/lua na barra lateral)
-- **Background**: `#000000` (claro: `#f5f5f0`)
-- **Surfaces**: `#111111` (claro: `#ffffff`)
-- **Accent/Gold**: `#c9a84c`
-- **Success**: `#38a169` · **Danger**: `#e53e3e`
-- **Fonte**: Inter
-- **Idioma da UI**: Português (Brasil)
+- **Tema**: dark por padrão, claro disponível (`darkMode: 'class'`, `ThemeContext`)
+- **Background**: `#000000` (claro: `#f5f5f0`) · **Surfaces**: `#111111` (claro: `#ffffff`)
+- **Accent/Gold**: `#c9a84c` · **Success**: `#38a169` · **Danger**: `#e53e3e`
+- **Fonte**: Inter · **Idioma da UI**: Português (Brasil)
 
 ---
 
 ## ⚠️ Pontos de Atenção
 
-### Constraint unique em `strategies`
-`unique(user_id, asset_type_id)`. No update é necessário `flush()` entre o
-`deleteAll` e os novos `save`, senão dá erro 23505.
+### Venda de renda fixa está bloqueada
+`resolveNote` recusa venda sem `noteId`, porque criar nota nova numa venda
+geraria posição negativa de um papel nunca comprado. Como o frontend ainda não
+tem seletor de título, **vender renda fixa é impossível hoje**. Foi escolha
+consciente: erro claro em vez de dado errado. Some quando o seletor existir.
 
-### Soma da estratégia semeada passa de 100%
-A V18 semeia 30+30+30+30+5+5 = **130%**. A tela de Estratégia mostra esse total
-como ideal. Decidir se é dado de exemplo a corrigir ou se a regra aceita >100%.
+### Valorização de renda fixa dá sempre zero
+Sem cotação, o valor atual é custo + `appreciation`, e nada preenche
+`appreciation` ainda, então `currentValue == totalInvested`. Não é arredondamento — é a ausência do cálculo
+de curva. Depende da série histórica dos índices. Detalhes em `PENDENCIAS.txt`.
 
-### `GOOGLE_CLIENT_ID` hardcoded no frontend
-`primevest-web/src/main.tsx` tem `const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID_HERE"`
-com um TODO. O login Google pelo frontend não funciona até isso vir de
-`import.meta.env.VITE_GOOGLE_CLIENT_ID`.
+### `dividends` não tem dono próprio
+O dono vem de `portfolio_asset_id`, que é **opcional** (FK `ON DELETE SET NULL`,
+para registrar provento de ativo que saiu da carteira). Provento com posição
+nula não pertence a ninguém: a consulta escopada o exclui — mostrá-lo seria
+mostrá-lo a todos —, mas ele fica invisível também para o dono legítimo. Hoje
+não há nenhum órfão; a primeira exclusão de posição cria um.
+
+### `assets.terms` sem cascade, de propósito
+O `@OneToOne` de `Asset` para `AssetTerms` **não** tem `cascade` nem
+`orphanRemoval`. Com eles, salvar um ativo destacado cujo `terms` viesse nulo —
+e o scheduler de preços salva ativo o tempo todo — apagaria a linha de
+`asset_terms`. Os 130 vencimentos do Tesouro não dependem de alguém lembrar de
+carregar a associação antes de um `save`.
+
+### Lado inverso de `@OneToOne` não é preguiçoso
+O Hibernate precisa decidir entre objeto e `null`, então dispara um SELECT por
+linha mesmo com `FetchType.LAZY`. Por isso toda consulta de `Asset` que vira DTO
+usa `LEFT JOIN FETCH a.terms`. Numa lista de 1.264 ativos, a diferença é 1 contra
+1.265 consultas.
+
+### `Pageable` com `@Query` que já tem ORDER BY
+Passar um `Sort` faz o Spring Data concatenar um segundo `ORDER BY` e quebrar.
+Use `PageRequest.of(0, N)` sem `Sort` — é o que `AssetService` faz.
 
 ### `ddl-auto: validate` no perfil docker
-Ligado depois de conferir as 12 entidades JPA coluna a coluna contra o schema
-final das migrations: **nenhuma coluna mapeada está ausente**. As colunas
-`created_at` acrescentadas em `portfolio_assets` e `strategies` não são mapeadas
-por entidade alguma — o validador do Hibernate ignora coluna extra no banco.
-Se a subida falhar, a mensagem nomeia tabela e coluna; voltar para `none` é uma linha.
+Entidade e migration têm que mudar na mesma subida. Se a API não subir, a
+mensagem nomeia tabela e coluna. Voltar para `none` é uma linha, mas resolve o
+sintoma, não a causa.
 
-### Precisão decimal: entidades alinhadas ao schema
-As entidades declaravam `precision = 19, scale = 4` em 23 colunas cujo banco dizia
-outra coisa. Foi corrigido **nas anotações**, nunca no banco — mexer no schema aqui
-truncaria dados. Regra em vigor, e que vale para qualquer coluna decimal nova:
+### Precisão decimal — regra em vigor
+As anotações é que cedem ao schema, nunca o contrário: mexer no banco aqui
+truncaria dados.
 
 | Natureza | Tipo | Colunas |
 |----------|------|---------|
-| Quantidades e preços unitários | `numeric(18,8)` | `total_shares`, `shares`, `price_per_share`, `average_price`, `current_price`, `max_price`, `amount_per_share`, preços do histórico |
-| Valores monetários agregados | `numeric(18,2)` | `total_invested`, `current_value`, `total_dividends`, `total_amount`, `brokerage_fee`, `target_amount`, `current_amount` |
+| Quantidades e preços unitários | `numeric(18,8)` | `shares`, `price_per_share`, `current_price`, `max_price`, `amount_per_share`, preços do histórico |
+| Valores monetários agregados | `numeric(18,2)` | `appreciation`, `total_amount`, `brokerage_fee`, `target_amount`, `current_amount` |
 | Taxa de indexador | `numeric(10,4)` | `indexer_rate` |
-| Percentual da estratégia | `numeric(5,2)` | `target_percentage` (já estava correto) |
+| Percentual da estratégia | `numeric(5,2)` | `target_percentage` |
 
-As **8 casas decimais das quantidades existem por causa de cripto** — alinhar para 4
-truncaria fração de BTC. Por isso a entidade é que cedeu, não a migration.
+As **8 casas das quantidades existem por causa de cripto** — alinhar para 4
+truncaria fração de BTC.
 
-Nota: `precision`/`scale` só afetam a geração de DDL. Em tempo de execução quem manda
-é a escala da coluna, então o alinhamento não muda valores já gravados.
+### Nenhum teste
+`src/test` está vazio e o build roda com `-Dmaven.test.skip=true`. Quando voltar:
+Testcontainers com PostgreSQL, porque metade do que importa aqui é comportamento
+de banco — as constraints de coerência de taxa, o `NULLS NOT DISTINCT`, o
+recálculo cronológico. Teste em H2 não cobre nada disso.
 
-### Testes esvaziados
-`AuthServiceTest.java` (35 bytes) e `StrategyServiceTest.java` (39 bytes) foram
-zerados para evitar erro de compilação. `PortfolioServiceTest.java` e
-`TransactionServiceTest.java` têm conteúdo real e servem de modelo de estilo.
+### `GoogleOAuthProvider` vestigial em `main.tsx`
+`main.tsx` ainda envolve a app em `GoogleOAuthProvider` com
+`"YOUR_GOOGLE_CLIENT_ID_HERE"`, mas nada usa os hooks de `@react-oauth/google` —
+o login foi feito com Google Identity Services direto. O wrapper pode sair.
 
-### Dados mockados no frontend
-Dois arquivos legados, a remover depois de conferir quem ainda importa:
-- `src/mocks/data.ts` (~40 KB)
-- `src/utils/assetTypes.ts` — mapa ticker→tipo hardcoded com ~35 ativos;
-  essa informação deve vir do backend
+### Nomes de ação sem acento
+Os 782 nomes de ação vieram sem acento da importação original: `AALR3` é
+"ALLIANA SADE E PARTICIPAES S.A.". Os 337 FIIs têm acento normalmente. Corrigir
+exige a lista certa, de fonte com encoding correto — não dá para adivinhar.
 
 ### Encoding no PowerShell
-PowerShell corrompe UTF-8. Para SQL com acentos, usar escape:
+PowerShell corrompe UTF-8. Para SQL com acentos, use escape:
 ```sql
-UPDATE asset_types SET description = E'Ações' WHERE id = 4;
+UPDATE asset_types SET description = E'Ações' WHERE id = 1;
 ```
 Dentro do Docker isso não é problema.
+
+### Egress bloqueado
+A política da organização bloqueia, entre outros: `repo.maven.apache.org`
+(então não dá para compilar fora do Docker em ambiente restrito),
+`api.bcb.gov.br`, `b3.com.br`, `statusinvest.com.br`, `brapi.dev`. Um 403/000 do
+proxy é negação de política — não é para contornar.
 
 ---
 
@@ -448,23 +694,21 @@ Dentro do Docker isso não é problema.
 - **Repositório**: https://github.com/guilherme-dealmeida/primevest.git
 - **Branch atual**: `TRACK_01-ajustes_crud_inicial`
 - **Branches**: master, uat, develop, TRACK_01-ajustes_crud_inicial
-- **Regra**: não comitar sem instrução explícita do usuário
+- **Regra**: **não comitar sem instrução explícita do usuário**
 
-### Commits recentes (TRACK_01)
-1. `TRACK_01 - Ajuste CRUD de Transações` — autocomplete, tipo de ativo do backend, PUT
-2. `TRACK_01 - Inserção dos principais ativos na tabela assets por categoria` — V19, 1.420 ativos
-3. `TRACK_01 - Ajustes CRUD de Estratégia` — abas, pizza, add/remove tipos, description, recálculo
+### Estado do working tree
 
-### Pendente de commit
-- `TransactionService.java` — recálculo automático do portfólio
-- `TransactionController.java` — endpoint `recalculate-all`
-- `PortfolioService.java` — description no detalhe do portfólio
-- `AssetService.java` — description nos DTOs de asset/category
-- `TransactionsPage.tsx` — remoção do `typeDisplayName` hardcoded
-- `docker-compose.yml`, Dockerfiles, `.dockerignore`, `.env.example`, `application-docker.yml`
-- `application.yml` — remoção do `baseline-version: 18`
-- `V5__create_portfolio_tables.sql`, `V7__create_strategy_table.sql` — coluna `created_at`
-- `vite.config.ts` — proxy configurável
-- `Asset.java`, `AssetPriceHistory.java`, `CeilingPrice.java`, `Dividend.java`,
-  `Goal.java`, `Portfolio.java`, `PortfolioAsset.java`, `Transaction.java` — precisão decimal
-- `Claude.md` — este arquivo
+Há trabalho considerável **não comitado**, acumulado nas últimas sessões:
+
+- Separação catálogo / título: `AssetTerms`, `FixedIncomeNote` e repositórios,
+  `Asset` sem as quatro colunas, `note_id` em transação e posição
+- Reset das migrations: 33 arquivos substituídos por 22
+  (os antigos estão em `_to_delete/migrations-antigas/`)
+- Correções de autorização nos quatro services
+- Frontend: carteira com emissor/vencimento, modal de transação em duas colunas,
+  máscaras, correção da edição
+- `PENDENCIAS.txt` (novo)
+
+### Limpeza pendente
+`_to_delete/` pode ser apagada por inteiro: contém as 33 migrations antigas, uma
+migration descartada e tarballs temporários.

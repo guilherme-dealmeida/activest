@@ -5,6 +5,8 @@ import com.primevest.domain.asset.AssetTypeRepository;
 import com.primevest.domain.portfolio.PortfolioAsset;
 import com.primevest.domain.portfolio.PortfolioAssetRepository;
 import com.primevest.domain.portfolio.PortfolioRepository;
+import com.primevest.domain.portfolio.Position;
+import com.primevest.domain.portfolio.PositionCalculator;
 import com.primevest.domain.strategy.dto.RebalanceDTO;
 import com.primevest.domain.strategy.dto.StrategyDTO;
 import com.primevest.domain.strategy.dto.StrategyUpdateDTO;
@@ -30,6 +32,7 @@ public class StrategyService {
     private final PortfolioRepository portfolioRepository;
     private final PortfolioAssetRepository portfolioAssetRepository;
     private final UserRepository userRepository;
+    private final PositionCalculator positionCalculator;
 
     /**
      * Gets user strategy.
@@ -104,9 +107,14 @@ public class StrategyService {
             ? portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId())
             : List.of();
 
+        // Custo de cada posicao, apurado das transacoes: nao e mais gravado.
+        Map<UUID, Position> positions = portfolio != null
+            ? positionCalculator.positionsOf(portfolio.getId(), portfolioAssets)
+            : Map.of();
+
         // Calculate total portfolio value
         BigDecimal totalValue = portfolioAssets.stream()
-            .map(pa -> pa.getTotalInvested() != null ? pa.getTotalInvested() : BigDecimal.ZERO)
+            .map(pa -> invested(positions, pa))
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // Group portfolio value by asset type
@@ -114,7 +122,7 @@ public class StrategyService {
         for (PortfolioAsset pa : portfolioAssets) {
             if (pa.getAsset() != null && pa.getAsset().getAssetType() != null) {
                 Long typeId = pa.getAsset().getAssetType().getId();
-                BigDecimal value = pa.getTotalInvested() != null ? pa.getTotalInvested() : BigDecimal.ZERO;
+                BigDecimal value = invested(positions, pa);
                 valueByType.merge(typeId, value, BigDecimal::add);
             }
         }
@@ -159,5 +167,10 @@ public class StrategyService {
         }
         
         return new RebalanceDTO(totalValue, items);
+    }
+
+    private BigDecimal invested(Map<UUID, Position> positions, PortfolioAsset pa) {
+        Position position = positions.get(pa.getId());
+        return position != null && position.totalInvested() != null ? position.totalInvested() : BigDecimal.ZERO;
     }
 }

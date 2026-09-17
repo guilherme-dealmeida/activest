@@ -1,5 +1,7 @@
 package com.primevest.domain.portfolio;
 
+import com.primevest.domain.dividend.DividendRepository;
+import com.primevest.domain.dividend.PositionDividendTotal;
 import com.primevest.domain.portfolio.dto.*;
 import com.primevest.domain.portfolio.dto.PortfolioPerformanceDTO.AssetPerformance;
 import com.primevest.domain.user.User;
@@ -19,36 +21,39 @@ public class PortfolioService {
     private final PortfolioRepository portfolioRepository;
     private final PortfolioAssetRepository portfolioAssetRepository;
     private final UserRepository userRepository;
+    private final DividendRepository dividendRepository;
+    private final PositionCalculator positionCalculator;
 
-    public PortfolioService(PortfolioRepository portfolioRepository, PortfolioAssetRepository portfolioAssetRepository, UserRepository userRepository) {
+    public PortfolioService(PortfolioRepository portfolioRepository, PortfolioAssetRepository portfolioAssetRepository,
+                            UserRepository userRepository, DividendRepository dividendRepository,
+                            PositionCalculator positionCalculator) {
         this.portfolioRepository = portfolioRepository;
         this.portfolioAssetRepository = portfolioAssetRepository;
         this.userRepository = userRepository;
+        this.dividendRepository = dividendRepository;
+        this.positionCalculator = positionCalculator;
     }
 
     /**
-     * Gets portfolio summary — calculates totals from portfolio_assets instead of the portfolio table.
+     * Resumo da carteira. Nenhum total e gravado: tudo sai das posicoes, que
+     * por sua vez saem das transacoes.
      */
     public PortfolioSummaryDTO getPortfolioSummary(UUID userId) {
         Portfolio portfolio = getOrCreatePortfolio(userId);
         List<PortfolioAsset> assets = portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId());
+        Map<UUID, Position> positions = positionCalculator.positionsOf(portfolio.getId(), assets);
+        Map<UUID, BigDecimal> dividends = dividendsByPosition(portfolio.getId());
 
         BigDecimal totalInvested = BigDecimal.ZERO;
         BigDecimal currentValue = BigDecimal.ZERO;
         BigDecimal totalDividends = BigDecimal.ZERO;
 
         for (PortfolioAsset pa : assets) {
-            totalInvested = totalInvested.add(safe(pa.getTotalInvested()));
-            totalDividends = totalDividends.add(safe(pa.getTotalDividends()));
-            
-            // currentValue: use asset's current price * shares if available, otherwise use stored currentValue
-            BigDecimal assetCurrentPrice = pa.getAsset() != null ? pa.getAsset().getCurrentPrice() : null;
-            if (assetCurrentPrice != null && assetCurrentPrice.compareTo(BigDecimal.ZERO) > 0) {
-                currentValue = currentValue.add(assetCurrentPrice.multiply(safe(pa.getTotalShares())));
-            } else {
-                // For fixed income and others without live price, use the stored current_value
-                currentValue = currentValue.add(safe(pa.getCurrentValue()));
-            }
+            Position position = positions.get(pa.getId());
+            totalInvested = totalInvested.add(safe(position.totalInvested()));
+            totalDividends = totalDividends.add(dividends.getOrDefault(pa.getId(), BigDecimal.ZERO));
+
+            currentValue = currentValue.add(currentValue(pa, position));
         }
 
         BigDecimal totalReturn = currentValue.add(totalDividends).subtract(totalInvested);
@@ -69,30 +74,35 @@ public class PortfolioService {
      */
     public List<PortfolioAssetDetailDTO> getPortfolioAssets(UUID userId) {
         Portfolio portfolio = getOrCreatePortfolio(userId);
-        return portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId()).stream()
-            .filter(pa -> safe(pa.getTotalInvested()).compareTo(BigDecimal.ZERO) > 0) // only show assets with investment
+        List<PortfolioAsset> assets = portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId());
+        Map<UUID, Position> positions = positionCalculator.positionsOf(portfolio.getId(), assets);
+        Map<UUID, BigDecimal> dividends = dividendsByPosition(portfolio.getId());
+        return assets.stream()
+            .filter(pa -> positions.get(pa.getId()).hasInvestment()) // only show assets with investment
             .map(pa -> {
-                BigDecimal assetPrice = pa.getAsset() != null ? pa.getAsset().getCurrentPrice() : null;
-                BigDecimal currentValue;
+                Position position = positions.get(pa.getId());
+                BigDecimal invested = safe(position.totalInvested());
+                BigDecimal valorization = appreciation(pa);
+                BigDecimal currentValue = invested.add(valorization);
+
                 BigDecimal currentPrice;
-
-                if (assetPrice != null && assetPrice.compareTo(BigDecimal.ZERO) > 0) {
-                    currentPrice = assetPrice;
-                    currentValue = currentPrice.multiply(safe(pa.getTotalShares()));
+                if (AppreciationUpdater.hasMarketPrice(pa.getAsset())) {
+                    currentPrice = pa.getAsset().getCurrentPrice();
                 } else {
-                    // Fixed income — use stored values
-                    currentValue = safe(pa.getCurrentValue());
-                    currentPrice = safe(pa.getTotalShares()).compareTo(BigDecimal.ZERO) > 0
-                        ? currentValue.divide(safe(pa.getTotalShares()), 4, RoundingMode.HALF_UP)
-                        : safe(pa.getAveragePrice());
+                    // Sem cotacao (renda fixa e afins): preco implicito pelo valor atual
+                    currentPrice = safe(position.totalShares()).compareTo(BigDecimal.ZERO) > 0
+                        ? currentValue.divide(position.totalShares(), 4, RoundingMode.HALF_UP)
+                        : safe(position.averagePrice());
                 }
-
-                BigDecimal invested = safe(pa.getTotalInvested());
-                BigDecimal valorization = currentValue.subtract(invested);
                 BigDecimal returnPct = BigDecimal.ZERO;
                 if (invested.compareTo(BigDecimal.ZERO) > 0) {
                     returnPct = valorization.divide(invested, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
                 }
+
+                // A carteira repete ticker desde que a posicao passou a ser por
+                // papel: sem emissor e vencimento, duas linhas "CDB" ficam
+                // indistinguiveis na tela.
+                var note = pa.getNote();
 
                 return new PortfolioAssetDetailDTO(
                     pa.getId(),
@@ -100,12 +110,18 @@ public class PortfolioService {
                     pa.getAsset().getName(),
                     pa.getAsset().getAssetType().getDescription() != null ? pa.getAsset().getAssetType().getDescription() : pa.getAsset().getAssetType().getName(),
                     pa.getAsset().getAssetCategory() != null ? pa.getAsset().getAssetCategory().getDisplayName() : null,
-                    safe(pa.getTotalShares()),
-                    safe(pa.getAveragePrice()),
+                    note != null ? note.getId() : null,
+                    note != null ? note.getIssuer() : null,
+                    note != null ? note.getMaturityDate() : null,
+                    note != null ? note.getRateType() : null,
+                    note != null ? note.getIndexer() : null,
+                    note != null ? note.getIndexerRate() : null,
+                    safe(position.totalShares()),
+                    safe(position.averagePrice()),
                     invested,
                     currentValue,
                     currentPrice,
-                    safe(pa.getTotalDividends()),
+                    dividends.getOrDefault(pa.getId(), BigDecimal.ZERO),
                     valorization,
                     returnPct,
                     pa.isReservation()
@@ -119,6 +135,7 @@ public class PortfolioService {
     public List<PortfolioAllocationDTO> getAllocation(UUID userId) {
         Portfolio portfolio = getOrCreatePortfolio(userId);
         List<PortfolioAsset> assets = portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId());
+        Map<UUID, Position> positions = positionCalculator.positionsOf(portfolio.getId(), assets);
 
         // Calculate total current value from assets
         BigDecimal totalVal = BigDecimal.ZERO;
@@ -126,19 +143,14 @@ public class PortfolioService {
         Map<String, String> typeColors = new HashMap<>();
 
         for (PortfolioAsset pa : assets) {
-            if (safe(pa.getTotalInvested()).compareTo(BigDecimal.ZERO) == 0) continue;
+            Position position = positions.get(pa.getId());
+            if (safe(position.totalInvested()).compareTo(BigDecimal.ZERO) == 0) continue;
             
             String typeName = pa.getAsset().getAssetType().getDescription() != null
                 ? pa.getAsset().getAssetType().getDescription() : pa.getAsset().getAssetType().getName();
             typeColors.put(typeName, pa.getAsset().getAssetType().getColorHex());
             
-            BigDecimal assetPrice = pa.getAsset().getCurrentPrice();
-            BigDecimal val;
-            if (assetPrice != null && assetPrice.compareTo(BigDecimal.ZERO) > 0) {
-                val = assetPrice.multiply(safe(pa.getTotalShares()));
-            } else {
-                val = safe(pa.getCurrentValue());
-            }
+            BigDecimal val = currentValue(pa, position);
             totalVal = totalVal.add(val);
             typeValues.merge(typeName, val, BigDecimal::add);
         }
@@ -158,6 +170,7 @@ public class PortfolioService {
     public List<PortfolioAllocationDetailedDTO> getAllocationDetailed(UUID userId) {
         Portfolio portfolio = getOrCreatePortfolio(userId);
         List<PortfolioAsset> assets = portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId());
+        Map<UUID, Position> positions = positionCalculator.positionsOf(portfolio.getId(), assets);
 
         // Calculate total portfolio value
         BigDecimal totalPortfolioValue = BigDecimal.ZERO;
@@ -167,7 +180,8 @@ public class PortfolioService {
         Map<String, Map<String, BigDecimal>> typeCategories = new LinkedHashMap<>();
 
         for (PortfolioAsset pa : assets) {
-            if (safe(pa.getTotalInvested()).compareTo(BigDecimal.ZERO) == 0) continue;
+            Position position = positions.get(pa.getId());
+            if (safe(position.totalInvested()).compareTo(BigDecimal.ZERO) == 0) continue;
 
             String typeName = pa.getAsset().getAssetType().getDescription() != null
                 ? pa.getAsset().getAssetType().getDescription() : pa.getAsset().getAssetType().getName();
@@ -176,13 +190,7 @@ public class PortfolioService {
                 ? pa.getAsset().getAssetCategory().getDisplayName()
                 : "Sem Categoria";
 
-            BigDecimal assetPrice = pa.getAsset().getCurrentPrice();
-            BigDecimal val;
-            if (assetPrice != null && assetPrice.compareTo(BigDecimal.ZERO) > 0) {
-                val = assetPrice.multiply(safe(pa.getTotalShares()));
-            } else {
-                val = safe(pa.getCurrentValue());
-            }
+            BigDecimal val = currentValue(pa, position);
 
             totalPortfolioValue = totalPortfolioValue.add(val);
             typeColorMap.put(typeName, colorHex);
@@ -228,17 +236,15 @@ public class PortfolioService {
         PortfolioSummaryDTO summary = getPortfolioSummary(userId);
         Portfolio portfolio = getOrCreatePortfolio(userId);
 
-        List<AssetPerformance> assetPerfs = portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId()).stream()
-            .filter(pa -> safe(pa.getTotalInvested()).compareTo(BigDecimal.ZERO) > 0)
+        List<PortfolioAsset> assets = portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId());
+        Map<UUID, Position> positions = positionCalculator.positionsOf(portfolio.getId(), assets);
+
+        List<AssetPerformance> assetPerfs = assets.stream()
+            .filter(pa -> positions.get(pa.getId()).hasInvestment())
             .map(pa -> {
-                BigDecimal invested = safe(pa.getTotalInvested());
-                BigDecimal assetPrice = pa.getAsset() != null ? pa.getAsset().getCurrentPrice() : null;
-                BigDecimal currentValue;
-                if (assetPrice != null && assetPrice.compareTo(BigDecimal.ZERO) > 0) {
-                    currentValue = assetPrice.multiply(safe(pa.getTotalShares()));
-                } else {
-                    currentValue = safe(pa.getCurrentValue());
-                }
+                Position position = positions.get(pa.getId());
+                BigDecimal invested = safe(position.totalInvested());
+                BigDecimal currentValue = currentValue(pa, position);
                 BigDecimal returnPct = BigDecimal.ZERO;
                 if (invested.compareTo(BigDecimal.ZERO) > 0) {
                     returnPct = currentValue.subtract(invested).divide(invested, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
@@ -259,34 +265,34 @@ public class PortfolioService {
             Portfolio p = new Portfolio();
             p.setUser(user);
             p.setName("Main Portfolio");
-            p.setTotalInvested(BigDecimal.ZERO);
-            p.setCurrentValue(BigDecimal.ZERO);
-            p.setTotalDividends(BigDecimal.ZERO);
             return portfolioRepository.save(p);
         });
     }
 
-    @Transactional
-    public void recalculatePortfolio(UUID portfolioId) {
-        Portfolio p = portfolioRepository.findById(portfolioId).orElseThrow();
-        List<PortfolioAsset> assets = portfolioAssetRepository.findByPortfolioId(portfolioId);
-        BigDecimal totalInvested = BigDecimal.ZERO;
-        BigDecimal currentValue = BigDecimal.ZERO;
-        BigDecimal totalDividends = BigDecimal.ZERO;
-        for (PortfolioAsset pa : assets) {
-            totalInvested = totalInvested.add(safe(pa.getTotalInvested()));
-            totalDividends = totalDividends.add(safe(pa.getTotalDividends()));
-            BigDecimal price = pa.getAsset() != null ? pa.getAsset().getCurrentPrice() : null;
-            if (price != null && price.compareTo(BigDecimal.ZERO) > 0) {
-                currentValue = currentValue.add(price.multiply(safe(pa.getTotalShares())));
-            } else {
-                currentValue = currentValue.add(safe(pa.getCurrentValue()));
-            }
-        }
-        p.setTotalInvested(totalInvested);
-        p.setCurrentValue(currentValue);
-        p.setTotalDividends(totalDividends);
-        portfolioRepository.save(p);
+    /**
+     * Valorizacao da posicao: sempre a gravada em portfolio_assets.appreciation.
+     *
+     * <p>A leitura nao calcula. Com cotacao, quem grava e o
+     * {@link AppreciationUpdater} (cotas x cotacao - custo), a cada atualizacao
+     * de cotacao ou de transacao. Sem cotacao (renda fixa, Tesouro, tipos
+     * MANUAL), o valor e apurado por fora.</p>
+     */
+    private BigDecimal appreciation(PortfolioAsset pa) {
+        return safe(pa.getAppreciation());
+    }
+
+    /** Valor atual = valor inicial + valorizacao. Nunca e gravado. */
+    private BigDecimal currentValue(PortfolioAsset pa, Position position) {
+        return safe(position.totalInvested()).add(appreciation(pa));
+    }
+
+    /**
+     * Proventos por posicao: a soma de dividends.total_amount de cada uma. Uma
+     * consulta para a carteira inteira, em vez de uma por posicao.
+     */
+    private Map<UUID, BigDecimal> dividendsByPosition(UUID portfolioId) {
+        return dividendRepository.sumTotalAmountByPosition(portfolioId).stream()
+            .collect(Collectors.toMap(PositionDividendTotal::portfolioAssetId, t -> safe(t.total())));
     }
 
     private BigDecimal safe(BigDecimal val) {

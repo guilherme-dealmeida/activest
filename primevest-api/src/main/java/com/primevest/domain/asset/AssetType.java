@@ -39,6 +39,20 @@ public class AssetType {
     @Builder.Default
     private boolean fixedIncome = false;
 
+    /**
+     * Tipos lancados por VALOR TOTAL, sem quantidade nem preco unitario. Hoje so
+     * RENDA_FIXA: um CDB, uma LCI ou uma debenture comprados no banco tem valor
+     * aplicado, nao "N cotas a R$ X". Tesouro Direto fica de fora de proposito,
+     * porque o titulo e negociado em fracoes com preco unitario publicado.
+     *
+     * <p>Comparacao por nome concentrada neste unico ponto. Se outro tipo passar
+     * a ter a mesma caracteristica, o lugar certo e uma coluna em asset_types,
+     * como price_source e fixed_income.</p>
+     */
+    public boolean isValuedByTotal() {
+        return "RENDA_FIXA".equals(name);
+    }
+
     @JsonIgnore
     @OneToMany(mappedBy = "assetType", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default

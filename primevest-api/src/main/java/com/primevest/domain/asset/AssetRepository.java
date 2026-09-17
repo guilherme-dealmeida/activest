@@ -12,9 +12,25 @@ import java.util.Optional;
 @Repository
 public interface AssetRepository extends JpaRepository<Asset, Long> {
     Optional<Asset> findByTicker(String ticker);
-    List<Asset> findByAssetTypeId(Long assetTypeId);
     List<Asset> findByAssetCategoryId(Long categoryId);
     List<Asset> findByActiveTrue();
+
+    /**
+     * Todas as consultas que viram DTO trazem {@code terms} no mesmo SELECT.
+     *
+     * O lado inverso de um {@code @OneToOne} não é de fato preguiçoso: o
+     * Hibernate precisa decidir entre o objeto e null, então dispara um SELECT
+     * por linha se a associação não vier junto. Numa lista de 1249 ativos isso
+     * é 1250 consultas.
+     */
+    @Query("SELECT a FROM Asset a LEFT JOIN FETCH a.terms")
+    List<Asset> findAllWithTerms();
+
+    @Query("SELECT a FROM Asset a LEFT JOIN FETCH a.terms WHERE a.assetType.id = :typeId")
+    List<Asset> findByAssetTypeId(@Param("typeId") Long typeId);
+
+    @Query("SELECT a FROM Asset a LEFT JOIN FETCH a.terms WHERE a.ticker = :ticker")
+    Optional<Asset> findByTickerWithTerms(@Param("ticker") String ticker);
 
     /**
      * Busca por ticker ou nome, ordenada por relevância e paginada.
@@ -29,9 +45,14 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
      *   2. títulos já vencidos por último — quem digita "SELIC" quer o que
      *      ainda existe, não a série liquidada em 2005
      *   3. ticker, para a ordem ser estável entre chamadas iguais
+     *
+     * O vencimento agora vem de asset_terms. O LEFT JOIN FETCH serve às duas
+     * coisas de uma vez: alimenta o critério 2 e evita o SELECT por linha na
+     * hora de montar o DTO.
      */
     @Query("""
         SELECT a FROM Asset a
+        LEFT JOIN FETCH a.terms t
         WHERE LOWER(a.ticker) LIKE LOWER(CONCAT('%', :query, '%'))
            OR LOWER(a.name)   LIKE LOWER(CONCAT('%', :query, '%'))
         ORDER BY
@@ -39,7 +60,7 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
                WHEN LOWER(a.ticker) LIKE LOWER(CONCAT(:query, '%'))  THEN 1
                WHEN LOWER(a.name)   LIKE LOWER(CONCAT(:query, '%'))  THEN 2
                ELSE 3 END,
-          CASE WHEN a.maturityDate IS NOT NULL AND a.maturityDate < CURRENT_DATE THEN 1 ELSE 0 END,
+          CASE WHEN t.maturityDate IS NOT NULL AND t.maturityDate < CURRENT_DATE THEN 1 ELSE 0 END,
           a.ticker
         """)
     List<Asset> searchByTickerOrName(@Param("query") String query, Pageable pageable);
@@ -47,6 +68,7 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
     /** Autocomplete do cadastro de transação: o tipo escolhido restringe a lista. */
     @Query("""
         SELECT a FROM Asset a
+        LEFT JOIN FETCH a.terms t
         WHERE a.assetType.id = :typeId
           AND (LOWER(a.ticker) LIKE LOWER(CONCAT('%', :query, '%'))
             OR LOWER(a.name)   LIKE LOWER(CONCAT('%', :query, '%')))
@@ -55,7 +77,7 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
                WHEN LOWER(a.ticker) LIKE LOWER(CONCAT(:query, '%'))  THEN 1
                WHEN LOWER(a.name)   LIKE LOWER(CONCAT(:query, '%'))  THEN 2
                ELSE 3 END,
-          CASE WHEN a.maturityDate IS NOT NULL AND a.maturityDate < CURRENT_DATE THEN 1 ELSE 0 END,
+          CASE WHEN t.maturityDate IS NOT NULL AND t.maturityDate < CURRENT_DATE THEN 1 ELSE 0 END,
           a.ticker
         """)
     List<Asset> searchByTypeAndTickerOrName(@Param("typeId") Long typeId, @Param("query") String query, Pageable pageable);

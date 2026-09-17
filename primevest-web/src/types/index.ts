@@ -26,6 +26,8 @@ export interface AssetCategory {
   id: number;
   name: string;
   description: string;
+  /** FII: segmento de atuação; Ação: segmento da B3; demais tipos: null. */
+  segment: string | null;
   assetTypeId: number;
   assetTypeName: string;
 }
@@ -43,15 +45,16 @@ export interface Asset {
   categoryName: string;
   currentPrice: number;
   priceUpdatedAt: string;
+  // Parâmetros PÚBLICOS do papel, vindos de asset_terms. Hoje só o Tesouro
+  // Direto os tem: "Tesouro IPCA+ 2029" vence e remunera igual para todo mundo.
+  // Nulos para ações, FIIs e para os produtos genéricos de renda fixa (CDB,
+  // LCI...), cujo prazo é de cada aplicação.
+  //
+  // Não há indexerRate aqui: a taxa é da NOTA do usuário, nunca do catálogo —
+  // no Tesouro ela depende do dia da compra, num CDB depende do banco.
   maturityDate: string | null;
-  // Remuneração de renda fixa: as três andam juntas.
-  // PREFIXADO   -> indexer null, indexerRate = % a.a.
-  // POS_FIXADO  -> indexer = CDI/SELIC/..., indexerRate = % do índice (ex: 110)
-  // HIBRIDO     -> indexer = IPCA/IGPM/..., indexerRate = spread % a.a. (ex: 6)
-  // Renda variável deixa as três nulas.
   rateType: RateType | null;
   indexer: Indexer | null;
-  indexerRate: number | null;
   active: boolean;
 }
 
@@ -71,6 +74,18 @@ export interface PortfolioAssetDetail {
   assetName: string;
   typeName: string;
   categoryName: string;
+  // Do título. A posição passou a ser por papel, então a carteira repete
+  // ticker: três CDBs de emissores diferentes são três linhas, todas "CDB —
+  // Certificado de Depósito Bancário". Emissor e vencimento são o que as
+  // distingue. Nulos para renda variável.
+  noteId: string | null;
+  issuer: string | null;
+  maturityDate: string | null;
+  // Remuneração contratada na nota ("110% do CDI", "IPCA + 6%"). O sentido de
+  // indexerRate depende de rateType. Nulos para renda variável.
+  rateType: RateType | null;
+  indexer: Indexer | null;
+  indexerRate: number | null;
   totalShares: number;
   averagePrice: number;
   totalInvested: number;
@@ -121,30 +136,50 @@ export interface TransactionResponse {
   id: string;
   ticker: string;
   assetName: string;
+  // O id existe porque a edição reabre o formulário no mesmo estado, e o tipo
+  // de ativo comanda esse formulário. Pelo nome descritivo a tela teria que
+  // adivinhar o tipo casando strings.
+  assetTypeId: number | null;
   assetTypeName: string;
   type: string;
-  shares: number;
-  pricePerShare: number;
+  // Nulos em Renda Fixa, que é lançada por valor total.
+  shares: number | null;
+  pricePerShare: number | null;
   totalAmount: number;
   brokerageFee: number;
   transactionDate: string;
   createdAt: string;
+
+  // Do título. Nulos na renda variável.
+  noteId: string | null;
+  issuer: string | null;
+  maturityDate: string | null;
+  rateType: RateType | null;
+  indexer: Indexer | null;
+  indexerRate: number | null;
 }
 
 export interface TransactionCreate {
   ticker: string;
   type: string;
-  shares: number;
-  pricePerShare: number;
+  // Renda Fixa manda só totalAmount, com shares e pricePerShare nulos. Os
+  // demais tipos mandam shares e pricePerShare e a API calcula o total.
+  shares: number | null;
+  pricePerShare: number | null;
+  totalAmount?: number | null;
   brokerageFee?: number;
   transactionDate: string;
   isReservation?: boolean;
 
-  // Usados apenas quando o ticker ainda não existe: o ativo é criado junto
-  // com a transação. Se o ticker já existe, o backend ignora tudo abaixo.
-  assetTypeId?: number | null;
-  assetCategoryId?: number | null;
-  assetName?: string | null;
+  // Dados do título (renda fixa). Viram uma linha em fixed_income_notes: dois
+  // CDBs de bancos diferentes são duas notas, cada uma com seu emissor,
+  // vencimento e taxa. Renda variável deixa tudo indefinido.
+  //
+  // noteId aponta para uma nota que já existe, para lançar mais de uma
+  // movimentação sobre o mesmo papel. Ausente numa compra de renda fixa
+  // significa "papel novo": a nota nasce junto com a transação.
+  noteId?: string | null;
+  issuer?: string | null;
   maturityDate?: string | null;
   rateType?: RateType | null;
   indexer?: Indexer | null;
@@ -210,14 +245,6 @@ export interface DividendResponse {
   totalAmount: number;
   exDate: string;
   paymentDate: string;
-  type: string;
-}
-
-export interface DividendCreate {
-  ticker: string;
-  amountPerShare: number;
-  exDate: string;
-  paymentDate?: string;
   type: string;
 }
 

@@ -3,6 +3,7 @@ package com.primevest.domain.asset;
 import com.primevest.domain.asset.dto.AssetCategoryResponseDTO;
 import com.primevest.domain.asset.dto.AssetResponseDTO;
 import com.primevest.domain.asset.dto.AssetTypeResponseDTO;
+import com.primevest.domain.portfolio.AppreciationUpdater;
 import com.primevest.exception.ResourceNotFoundException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -21,18 +22,21 @@ public class AssetService {
     private final AssetRepository assetRepository;
     private final AssetTypeRepository assetTypeRepository;
     private final AssetCategoryRepository assetCategoryRepository;
+    private final AppreciationUpdater appreciationUpdater;
 
-    public AssetService(AssetRepository assetRepository, AssetTypeRepository assetTypeRepository, AssetCategoryRepository assetCategoryRepository) {
+    public AssetService(AssetRepository assetRepository, AssetTypeRepository assetTypeRepository,
+                        AssetCategoryRepository assetCategoryRepository, AppreciationUpdater appreciationUpdater) {
         this.assetRepository = assetRepository;
         this.assetTypeRepository = assetTypeRepository;
         this.assetCategoryRepository = assetCategoryRepository;
+        this.appreciationUpdater = appreciationUpdater;
     }
 
     /**
      * Gets all assets.
      */
     public List<AssetResponseDTO> getAllAssets() {
-        return assetRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
+        return assetRepository.findAllWithTerms().stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     /**
@@ -46,7 +50,7 @@ public class AssetService {
      * Gets asset by ticker.
      */
     public AssetResponseDTO getAssetByTicker(String ticker) {
-        Asset asset = assetRepository.findByTicker(ticker)
+        Asset asset = assetRepository.findByTickerWithTerms(ticker)
             .orElseThrow(() -> new ResourceNotFoundException("Asset not found"));
         return toDTO(asset);
     }
@@ -65,7 +69,7 @@ public class AssetService {
      */
     public List<AssetCategoryResponseDTO> getCategoriesByType(Long typeId) {
         return assetCategoryRepository.findByAssetTypeId(typeId).stream()
-            .map(c -> new AssetCategoryResponseDTO(c.getId(), c.getName(), c.getDescription(), c.getAssetType().getId(), c.getAssetType().getDescription() != null ? c.getAssetType().getDescription() : c.getAssetType().getName()))
+            .map(c -> new AssetCategoryResponseDTO(c.getId(), c.getName(), c.getDescription(), c.getSegment(), c.getAssetType().getId(), c.getAssetType().getDescription() != null ? c.getAssetType().getDescription() : c.getAssetType().getName()))
             .collect(Collectors.toList());
     }
 
@@ -114,9 +118,14 @@ public class AssetService {
         asset.setCurrentPrice(newPrice);
         asset.setPriceUpdatedAt(LocalDateTime.now());
         assetRepository.save(asset);
+        // A valorizacao gravada das posicoes deste ativo depende da cotacao.
+        appreciationUpdater.refreshAssets(List.of(assetId));
     }
 
     private AssetResponseDTO toDTO(Asset asset) {
+        // Ativo sem parametros publicos nao tem linha em asset_terms: a
+        // ausencia da linha JA e a informacao "nao tem prazo nem indexador".
+        AssetTerms terms = asset.getTerms();
         return new AssetResponseDTO(
             asset.getId(),
             asset.getTicker(),
@@ -127,10 +136,9 @@ public class AssetService {
             asset.getAssetCategory() != null ? asset.getAssetCategory().getDisplayName() : null,
             asset.getCurrentPrice(),
             asset.getPriceUpdatedAt(),
-            asset.getMaturityDate(),
-            asset.getRateType(),
-            asset.getIndexer(),
-            asset.getIndexerRate(),
+            terms != null ? terms.getMaturityDate() : null,
+            terms != null ? terms.getRateType()     : null,
+            terms != null ? terms.getIndexer()      : null,
             asset.isActive()
         );
     }

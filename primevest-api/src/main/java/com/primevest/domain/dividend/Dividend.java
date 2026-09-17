@@ -1,6 +1,5 @@
 package com.primevest.domain.dividend;
 
-import com.primevest.domain.asset.Asset;
 import com.primevest.domain.portfolio.PortfolioAsset;
 import jakarta.persistence.*;
 import lombok.*;
@@ -22,12 +21,16 @@ public class Dividend {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /**
+     * A posicao que recebeu o provento. E o unico caminho ate o ativo
+     * (provento -> posicao -> ativo) e ate o dono (-> carteira -> usuario).
+     *
+     * <p>Antes havia tambem asset_id, um segundo caminho para o mesmo ativo que
+     * podia divergir do da posicao, e portfolio_asset_id era opcional. Provento
+     * sem posicao nao tinha dono e sumia ate para quem o recebeu.</p>
+     */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "asset_id", nullable = false)
-    private Asset asset;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "portfolio_asset_id")
+    @JoinColumn(name = "portfolio_asset_id", nullable = false)
     private PortfolioAsset portfolioAsset;
 
     @Column(name = "amount_per_share", precision = 18, scale = 8, nullable = false)

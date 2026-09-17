@@ -9,9 +9,10 @@
 --   MANUAL     sem provedor automático (renda fixa, fundos, ativos dos EUA
 --              enquanto não houver cliente para eles)
 --
--- fixed_income marca os tipos que têm remuneração contratada (rate_type,
--- indexer, indexer_rate em assets). É coluna, e não lista de nomes no código,
--- pela mesma razão de price_source: a tela e o service só perguntam à flag.
+-- fixed_income marca os tipos que têm remuneração contratada — os que abrem o
+-- quadro do título no lançamento e geram uma linha em fixed_income_notes. É
+-- coluna, e não lista de nomes no código, pela mesma razão de price_source: a
+-- tela e o service só perguntam à flag.
 CREATE TABLE asset_types (
     id           BIGSERIAL    PRIMARY KEY,
     name         VARCHAR(255) NOT NULL,

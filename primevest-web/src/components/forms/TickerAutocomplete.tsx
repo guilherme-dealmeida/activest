@@ -33,12 +33,25 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
   const [searching, setSearching] = useState(false);
   const [truncado, setTruncado] = useState(false);
   const [highlight, setHighlight] = useState(-1);
+  /**
+   * Ticker que o usuário escolheu na lista.
+   *
+   * Sem isso, "escolheu um ativo" e "a busca não achou nada" ficam
+   * indistinguíveis: pick() limpa options, e semResultado olhava só para
+   * options.length === 0 — então selecionar CDB acusava "não encontrado".
+   * Também evita a rebusca que reabria o dropdown logo após a escolha.
+   */
+  const [escolhido, setEscolhido] = useState<string | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (disabled || !typeId || value.trim().length < 2) {
       setOptions([]); setOpen(false); setTruncado(false); return;
+    }
+    // Valor que veio da própria lista: não há o que buscar nem o que avisar.
+    if (escolhido && value.trim() === escolhido) {
+      setOpen(false); setSearching(false); return;
     }
     setSearching(true);
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -59,7 +72,7 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
       }
     }, 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [value, typeId, disabled]);
+  }, [value, typeId, disabled, escolhido]);
 
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
@@ -71,16 +84,19 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
 
   const pick = (asset: Asset) => {
     onChange(asset.ticker, asset);
+    setEscolhido(asset.ticker);
     setOpen(false);
     setOptions([]);
   };
 
   const semTipo = !typeId;
-  const semResultado = !semTipo && !searching && value.trim().length >= 2 && options.length === 0;
+  const temEscolha = !!escolhido && value.trim() === escolhido;
+  const semResultado =
+    !semTipo && !searching && !temEscolha && value.trim().length >= 2 && options.length === 0;
 
   return (
     <div ref={boxRef} className="relative">
-      <label className="block text-sm font-medium text-gray-300 mb-1.5">Ticker (Ativo)</label>
+      <label className="block text-sm font-medium text-gray-300 mb-1.5">Ativo (Ticker)</label>
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input
@@ -89,7 +105,12 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
           required
           disabled={disabled || semTipo}
           value={value}
-          onChange={(e) => onChange(e.target.value.toUpperCase(), null)}
+          onChange={(e) => {
+            // Editar o texto desfaz a seleção: o ativo casado deixa de valer,
+            // tanto aqui quanto no formulário (asset = null).
+            setEscolhido(null);
+            onChange(e.target.value.toUpperCase(), null);
+          }}
           onKeyDown={(e) => {
             if (!open || options.length === 0) return;
             if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight(p => Math.min(p + 1, options.length - 1)); }
@@ -97,7 +118,7 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
             else if (e.key === 'Enter' && highlight >= 0) { e.preventDefault(); pick(options[highlight]); }
             else if (e.key === 'Escape') setOpen(false);
           }}
-          placeholder={semTipo ? 'Escolha o tipo de ativo primeiro' : 'Digite o ticker (ex: PETR4, CDB-BTG-2027)'}
+          placeholder={semTipo ? 'Escolha o tipo de ativo primeiro' : 'Digite para buscar (ex: PETR4, MXRF11, CDB)'}
           className="flex h-10 w-full rounded-md border border-surface-light bg-surface pl-9 pr-3 py-2 text-sm text-white focus:ring-2 focus:ring-accent focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed"
         />
         {searching && <LoadingSpinner className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-accent" />}
@@ -130,8 +151,8 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
       )}
 
       {semResultado && (
-        <p className="text-xs text-accent/80 mt-1">
-          Ativo novo — preencha os dados abaixo para cadastrá-lo junto com a transação.
+        <p className="text-xs text-danger mt-1">
+          Ativo não encontrado no catálogo. Escolha um da lista para registrar a transação.
         </p>
       )}
     </div>

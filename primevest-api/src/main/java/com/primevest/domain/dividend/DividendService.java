@@ -1,6 +1,5 @@
 package com.primevest.domain.dividend;
 
-import com.primevest.domain.dividend.dto.DividendCreateDTO;
 import com.primevest.domain.dividend.dto.DividendResponseDTO;
 import com.primevest.domain.dividend.dto.DividendSummaryDTO;
 import com.primevest.domain.portfolio.Portfolio;
@@ -71,51 +70,24 @@ public class DividendService {
     }
 
     /**
-     * Registers a dividend.
-     */
-    @Transactional
-    public DividendResponseDTO registerDividend(UUID userId, DividendCreateDTO dto) {
-        Asset asset = assetRepository.findByTicker(dto.ticker())
-            .orElseThrow(() -> new RuntimeException("Asset not found: " + dto.ticker()));
-
-        Portfolio portfolio = portfolioRepository.findFirstByUserId(userId)
-            .orElseThrow(() -> new RuntimeException("Portfolio not found"));
-
-        PortfolioAsset pa = portfolioAssetRepository.findByPortfolioIdAndAssetId(portfolio.getId(), asset.getId())
-            .orElse(null);
-
-        Dividend dividend = Dividend.builder()
-            .asset(asset)
-            .portfolioAsset(pa)
-            .amountPerShare(dto.amountPerShare())
-            .totalAmount(dto.amountPerShare()) // default to amountPerShare if no total provided
-            .exDate(dto.exDate())
-            .paymentDate(dto.paymentDate())
-            .type(dto.type())
-            .build();
-
-        dividend = dividendRepository.save(dividend);
-        return toResponseDTO(dividend);
-    }
-
-    /**
      * Gets dividends by asset ticker.
      */
     public List<DividendResponseDTO> getDividendsByAsset(UUID userId, String ticker) {
         Asset asset = assetRepository.findByTicker(ticker).orElse(null);
         if (asset == null) return List.of();
 
-        return dividendRepository.findByAssetIdOrderByExDateDesc(asset.getId())
+        return dividendRepository.findByAssetIdAndOwner(userId, asset.getId())
             .stream()
             .map(this::toResponseDTO)
             .collect(Collectors.toList());
     }
 
     private DividendResponseDTO toResponseDTO(Dividend d) {
+        Asset asset = d.getPortfolioAsset() != null ? d.getPortfolioAsset().getAsset() : null;
         return new DividendResponseDTO(
             d.getId(),
-            d.getAsset() != null ? d.getAsset().getTicker() : "",
-            d.getAsset() != null ? d.getAsset().getName() : "",
+            asset != null ? asset.getTicker() : "",
+            asset != null ? asset.getName() : "",
             d.getAmountPerShare(),
             d.getTotalAmount(),
             d.getExDate(),
