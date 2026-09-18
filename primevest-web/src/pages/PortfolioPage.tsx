@@ -1,11 +1,14 @@
 import { ReactNode, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { clsx } from 'clsx';
+import { ArrowDownLeft, ArrowUpRight, List } from 'lucide-react';
 import { portfolioApi } from '@/api/portfolio';
 import { assetsApi } from '@/api/assets';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { TransactionFormModal, TransactionPreset } from '@/components/transactions/TransactionFormModal';
 import { useSortable } from '@/hooks/useSortable';
-import { AssetType, PortfolioAssetDetail, RateType } from '@/types';
+import { AssetType, PortfolioAssetDetail, RateType, TransactionType } from '@/types';
 import { formatCurrency, formatDate, formatPercentage, formatShares, getReturnColor } from '@/utils/format';
 
 /**
@@ -16,7 +19,10 @@ import { formatCurrency, formatDate, formatPercentage, formatShares, getReturnCo
  * A única exceção nominal é o emissor do Tesouro Direto — é sempre o Tesouro
  * Nacional, então a coluna repetiria o mesmo valor em todas as linhas.
  */
-const isFixedIncomeNote = (type: AssetType) => type.fixedIncome && type.name !== 'TESOURO_DIRETO';
+const TESOURO_DIRETO = 'TESOURO_DIRETO';
+const RENDA_FIXA = 'RENDA_FIXA';
+
+const isFixedIncomeNote = (type: AssetType) => type.fixedIncome && type.name !== TESOURO_DIRETO;
 const showIssuer = isFixedIncomeNote;
 const showMaturity = (type: AssetType) => type.fixedIncome;
 const showDividends = (type: AssetType) => !type.fixedIncome;
@@ -41,6 +47,8 @@ const showShares = (type: AssetType) => !isFixedIncomeNote(type);
 // Preço atual é a cotação de mercado (BrAPI, CoinGecko). Renda fixa e Tesouro
 // não têm cotação: ali o número seria só custo + valorização dividido por cotas.
 const showCurrentPrice = (type: AssetType) => !type.fixedIncome;
+// Resgatado só existe onde a venda tira dinheiro sem tirar cotas: Renda Fixa.
+const showSold = (type: AssetType) => type.name === RENDA_FIXA;
 
 const RATE_TYPE_LABELS: Record<RateType, string> = {
   PREFIXADO: 'Prefixado',
@@ -65,6 +73,14 @@ const formatRate = (a: PortfolioAssetDetail): string => {
 interface Column {
   key: keyof PortfolioAssetDetail;
   label: string;
+  /**
+   * Rótulo que depende do tipo. Existe por causa do VALOR INICIAL: nos tipos
+   * por cota ele é o custo que ainda está na posição, já reduzido pelas vendas;
+   * na Renda Fixa é o valor aplicado, a soma das compras, e o resgate aparece
+   * em coluna própria. Mesmo número, significados diferentes — chamar os dois
+   * de "valor inicial" convidaria a comparar um com o outro.
+   */
+  labelFor?: (type: AssetType) => string;
   align: 'left' | 'right';
   render: (asset: PortfolioAssetDetail) => ReactNode;
   visible?: (type: AssetType) => boolean;
@@ -141,7 +157,20 @@ const COLUMNS: Column[] = [
     visible: showCurrentPrice,
     render: (a) => formatCurrency(a.currentPrice),
   },
-  { key: 'totalInvested', label: 'VALOR INICIAL', align: 'right', render: (a) => formatCurrency(a.totalInvested) },
+  {
+    key: 'totalInvested',
+    label: 'VALOR INICIAL',
+    labelFor: (type) => (type.name === RENDA_FIXA ? 'VALOR APLICADO' : 'VALOR INICIAL'),
+    align: 'right',
+    render: (a) => formatCurrency(a.totalInvested),
+  },
+  {
+    key: 'totalSold',
+    label: 'RESGATADO',
+    align: 'right',
+    visible: showSold,
+    render: (a) => formatCurrency(a.totalSold),
+  },
   { key: 'currentValue', label: 'VALOR ATUAL', align: 'right', render: (a) => formatCurrency(a.currentValue) },
   {
     key: 'totalDividends',
@@ -164,7 +193,15 @@ const COLUMNS: Column[] = [
   },
 ];
 
-const PortfolioTypeTable = ({ type, assets }: { type: AssetType; assets: PortfolioAssetDetail[] }) => {
+interface TableProps {
+  type: AssetType;
+  assets: PortfolioAssetDetail[];
+  onList: (asset: PortfolioAssetDetail) => void;
+  onBuy: (asset: PortfolioAssetDetail) => void;
+  onSell: (asset: PortfolioAssetDetail) => void;
+}
+
+const PortfolioTypeTable = ({ type, assets, onList, onBuy, onSell }: TableProps) => {
   // Começa ordenada por ativo (A→Z); o clique no cabeçalho continua trocando.
   const { sortedData, requestSort, getSortIndicator, getSortClass } = useSortable(assets, {
     key: 'ticker',
@@ -174,6 +211,7 @@ const PortfolioTypeTable = ({ type, assets }: { type: AssetType; assets: Portfol
   const columns = COLUMNS.filter((c) => !c.visible || c.visible(type));
 
   const totalInvested = assets.reduce((sum, a) => sum + a.totalInvested, 0);
+  const totalSold = assets.reduce((sum, a) => sum + a.totalSold, 0);
   const totalCurrent = assets.reduce((sum, a) => sum + a.currentValue, 0);
   const totalDividends = assets.reduce((sum, a) => sum + a.totalDividends, 0);
   const totalValorization = assets.reduce((sum, a) => sum + a.valorization, 0);
@@ -182,6 +220,7 @@ const PortfolioTypeTable = ({ type, assets }: { type: AssetType; assets: Portfol
 
   const footer: Partial<Record<keyof PortfolioAssetDetail, ReactNode>> = {
     totalInvested: formatCurrency(totalInvested),
+    totalSold: formatCurrency(totalSold),
     currentValue: formatCurrency(totalCurrent),
     totalDividends: formatCurrency(totalDividends),
     valorization: <span className={getReturnColor(totalValorization)}>{formatCurrency(totalValorization)}</span>,
@@ -205,10 +244,12 @@ const PortfolioTypeTable = ({ type, assets }: { type: AssetType; assets: Portfol
                 )}
                 onClick={() => requestSort(col.key)}
               >
-                {col.label}
+                {col.labelFor ? col.labelFor(type) : col.label}
                 {getSortIndicator(col.key)}
               </th>
             ))}
+            {/* Ações não ordena: não é dado da posição. */}
+            <th className="py-3 px-3 font-medium text-xs text-center">AÇÕES</th>
           </tr>
         </thead>
         <tbody>
@@ -220,6 +261,31 @@ const PortfolioTypeTable = ({ type, assets }: { type: AssetType; assets: Portfol
                   {col.render(asset)}
                 </td>
               ))}
+              <td className="py-3 px-3">
+                <div className="flex items-center justify-center gap-1">
+                  <button
+                    onClick={() => onList(asset)}
+                    title="Ver as transações desta posição"
+                    className="text-gray-500 hover:text-accent transition-colors p-1"
+                  >
+                    <List className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => onBuy(asset)}
+                    title="Comprar"
+                    className="text-gray-500 hover:text-success transition-colors p-1"
+                  >
+                    <ArrowDownLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => onSell(asset)}
+                    title="Vender"
+                    className="text-gray-500 hover:text-danger transition-colors p-1"
+                  >
+                    <ArrowUpRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -233,6 +299,7 @@ const PortfolioTypeTable = ({ type, assets }: { type: AssetType; assets: Portfol
                 {footer[col.key]}
               </td>
             ))}
+            <td className="py-3 px-3" />
           </tr>
         </tfoot>
       </table>
@@ -241,7 +308,9 @@ const PortfolioTypeTable = ({ type, assets }: { type: AssetType; assets: Portfol
 };
 
 export const PortfolioPage = () => {
+  const navigate = useNavigate();
   const [activeTypeId, setActiveTypeId] = useState<number | null>(null);
+  const [preset, setPreset] = useState<TransactionPreset | null>(null);
 
   const { data: allAssets = [], isLoading: loadingAssets } = useQuery({
     queryKey: ['portfolio', 'assets'],
@@ -277,6 +346,29 @@ export const PortfolioPage = () => {
 
   const activeTab = tabs.find((t) => t.type.id === activeTypeId) ?? tabs[0];
 
+  /**
+   * O que o modal já sabe ao abrir pela carteira.
+   *
+   * O título só vai junto na Renda Fixa: lá a linha É uma aplicação, e comprar
+   * mais significa aportar nela. No Tesouro cada compra é um título novo — a
+   * taxa é a do dia — e a venda é do ativo, com os títulos escolhidos por FIFO.
+   */
+  const presetOf = (operation: TransactionType, type: AssetType, asset: PortfolioAssetDetail): TransactionPreset => ({
+    operation,
+    assetType: type,
+    ticker: asset.ticker,
+    note: isFixedIncomeNote(type) && asset.noteId
+      ? {
+          noteId: asset.noteId,
+          issuer: asset.issuer,
+          maturityDate: asset.maturityDate,
+          rateType: asset.rateType,
+          indexer: asset.indexer,
+          indexerRate: asset.indexerRate,
+        }
+      : null,
+  });
+
   return (
     <div className="space-y-6">
       {tabs.length > 0 && (
@@ -301,11 +393,25 @@ export const PortfolioPage = () => {
       <div className="bg-surface rounded-lg border border-white/10 p-6">
         {activeTab ? (
           // key pelo tipo: trocar de aba volta a ordenação para o padrão.
-          <PortfolioTypeTable key={activeTab.type.id} type={activeTab.type} assets={activeTab.assets} />
+          <PortfolioTypeTable
+            key={activeTab.type.id}
+            type={activeTab.type}
+            assets={activeTab.assets}
+            onList={(asset) => navigate(`/transactions?position=${asset.id}`)}
+            onBuy={(asset) => setPreset(presetOf(TransactionType.BUY, activeTab.type, asset))}
+            onSell={(asset) => setPreset(presetOf(TransactionType.SELL, activeTab.type, asset))}
+          />
         ) : (
           <p className="text-sm text-gray-400">Nenhum ativo na carteira.</p>
         )}
       </div>
+
+      <TransactionFormModal
+        isOpen={!!preset}
+        onClose={() => setPreset(null)}
+        preset={preset}
+        assetTypes={assetTypes}
+      />
     </div>
   );
 };

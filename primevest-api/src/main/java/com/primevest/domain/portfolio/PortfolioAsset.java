@@ -75,8 +75,20 @@ public class PortfolioAsset {
     private boolean isReservation;
 
     /**
-     * Posicao liquidada: titulo que venceu ou renda fixa resgatada. Ainda sem
-     * regra que a ligue; existe para as funcionalidades de vencimento e resgate.
+     * Posicao encerrada. Quem a liga depende do tipo:
+     *
+     * <ul>
+     *   <li><b>Renda Fixa</b> — uma venda marcada como liquidacao total
+     *   (FixedIncomeSettlement);</li>
+     *   <li><b>tipos por cota</b> — a posicao ficou sem cotas; volta a false
+     *   quando as cotas voltam;</li>
+     *   <li><b>Tesouro Direto</b> — o titulo foi consumido pelo FIFO das vendas
+     *   (TreasuryAllocator), e reabre quando uma compra retroativa faz as cotas
+     *   vendidas sairem de outro titulo.</li>
+     * </ul>
+     *
+     * <p>Nunca e mantida de uma escrita para a outra: e derivada de novo a cada
+     * alteracao da posicao (regra J). Vencimento ainda nao liquida sozinho.</p>
      */
     @Column(name = "is_settled", nullable = false)
     private boolean isSettled;

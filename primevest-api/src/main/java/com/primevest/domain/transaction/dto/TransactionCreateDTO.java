@@ -24,7 +24,9 @@ import com.primevest.domain.transaction.TransactionType;
  *
  * <p>{@code noteId} aponta para uma nota já existente, para lançar mais de uma
  * movimentação sobre o mesmo papel. Nulo numa compra de renda fixa significa
- * "papel novo": a nota nasce junto com a transação.</p>
+ * "papel novo": a nota nasce junto com a transação. No Tesouro Direto ele nunca
+ * é informado: cada compra é um título novo (regra H) e a venda é do ativo, com
+ * os títulos atribuídos por FIFO.</p>
  */
 public record TransactionCreateDTO(
     @NotBlank String ticker,
@@ -38,6 +40,16 @@ public record TransactionCreateDTO(
     BigDecimal brokerageFee,
     @NotNull LocalDate transactionDate,
     Boolean isReservation,
+
+    /**
+     * Venda de Renda Fixa: o usuário marcou "liquidação total".
+     *
+     * <p>Muda o que a venda significa. Marcada, ela encerra a aplicação e a
+     * valorização é ajustada para que aplicado + valorização seja exatamente o
+     * que foi resgatado. Desmarcada, é resgate parcial e sempre sobra posição.
+     * Ignorado fora de Renda Fixa e fora de venda.</p>
+     */
+    Boolean isFullSettlement,
 
     // ----- dados do título (renda fixa) -----
     UUID noteId,

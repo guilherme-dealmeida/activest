@@ -1,27 +1,30 @@
 package com.primevest.domain.transaction.dto;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.UUID;
 import com.primevest.domain.asset.Indexer;
 import com.primevest.domain.asset.RateType;
 import com.primevest.domain.transaction.TransactionType;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
 /**
- * Transação como a tela a lê.
+ * Transação como as telas a leem.
  *
- * <p>assetTypeId existe porque a edição precisa reabrir o formulário no mesmo
- * estado em que ele foi preenchido, e o tipo de ativo comanda esse formulário:
- * decide o que o autocomplete busca e se o quadro do título aparece. Com só o
- * nome descritivo em mãos, a tela teria que adivinhar o tipo casando strings.</p>
+ * <p>{@code portfolioAssetId} existe para o filtro "Listar" da carteira: o
+ * ticker não identifica a posição desde que ela passou a ser por título — três
+ * CDBs são três posições, todas "CDB".</p>
  *
- * <p>Os campos do título vêm do papel (fixed_income_notes) e são nulos na renda
- * variável. Sem eles, abrir a edição de um CDB mostraria o quadro vazio — e
- * salvar por cima apagaria o que estava lá.</p>
+ * <p>Os campos de grupo descrevem a venda do usuário quando ela foi dividida
+ * por título (Tesouro Direto). {@code groupShares} e {@code groupBrokerageFee}
+ * são o que ele digitou; {@code shares} e {@code brokerageFee} são a parte
+ * desta linha. A edição reabre o formulário com os valores do GRUPO, porque é
+ * a venda inteira que se edita.</p>
  */
 public record TransactionResponseDTO(
     UUID id,
+    UUID portfolioAssetId,
     String ticker,
     String assetName,
     Long assetTypeId,
@@ -34,7 +37,20 @@ public record TransactionResponseDTO(
     LocalDate transactionDate,
     LocalDateTime createdAt,
 
-    // ----- do título (renda fixa) -----
+    // ----- venda dividida por titulo -----
+    UUID saleGroupId,
+    /** Posição desta linha dentro do grupo, a partir de 1. Nulo fora de grupo. */
+    Integer groupPart,
+    /** Quantas linhas o grupo tem. Nulo fora de grupo. */
+    Integer groupParts,
+    /** Quantidade e taxas da venda inteira. Iguais aos da linha fora de grupo. */
+    BigDecimal groupShares,
+    BigDecimal groupBrokerageFee,
+
+    /** Venda de Renda Fixa marcada como liquidação total. */
+    boolean isFullSettlement,
+
+    // ----- dados do titulo -----
     UUID noteId,
     String issuer,
     LocalDate maturityDate,

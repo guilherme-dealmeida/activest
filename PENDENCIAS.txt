@@ -257,6 +257,58 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
 
 
 ================================================================================
+10. VENDA DE ATIVOS (escopo de 17/09/2026)
+================================================================================
+
+  10.1 DIVIDA ACEITA: a reparticao da venda de Tesouro Direto fica GRAVADA.
+
+       No Tesouro o saldo e do ativo e a posicao e do titulo, entao uma venda
+       de 5 cotas pode consumir dois titulos. Cada parte virou uma transacao
+       presa ao titulo que ela liquida, com sale_group_id em comum.
+
+       Isso e dado derivado que fica gravado — exatamente o que a V28 tirou do
+       sistema quando cotas, preco medio e custo saiam de portfolio_assets. A
+       reparticao so continua certa enquanto TODO caminho que mexe em transacao
+       de Tesouro chamar o recalculo, porque uma compra lancada com data
+       retroativa muda de qual titulo as cotas ja vendidas saem (regra 4.2).
+
+       Hoje esse caminho e unico: TransactionService.reallocate, chamado por
+       criar, editar e excluir, tanto compra quanto venda. Qualquer codigo novo
+       que grave transacao de Tesouro por fora dele deixa a carteira errada sem
+       avisar.
+
+       A alternativa avaliada e descartada foi manter a venda no nivel do ativo
+       (uma posicao com note_id nulo) e derivar a reparticao na leitura. Ela
+       nao tem esta divida, mas tira a venda de cima de um titulo real e obriga
+       a agregar posicoes do mesmo ativo em toda leitura. A escolha foi pela
+       que espelha a realidade da operacao; a outra continua valendo se o
+       recalculo se mostrar fragil.
+
+       Primeiro teste a escrever quando o item 8 sair do papel: Exemplo 6 do
+       escopo — compra retroativa depois de uma venda ja repartida.
+
+  10.2 A valorizacao de renda fixa que sobra quando uma venda e EXCLUIDA.
+
+       Vender por mais do que a posicao valia corrige a valorizacao para cima
+       (regras 3.1.1 e 3.1.2). Excluir essa venda depois nao devolve o valor
+       antigo: a posicao reabre (regra J), mas com uma valorizacao que ninguem
+       ganhou. Foi decisao explicita nao guardar o delta para desfazer.
+
+       Quem corrige e a rotina assincrona de rentabilidade de renda fixa, que
+       ainda nao existe (item 2.1). Enquanto ela nao existir, esse numero fica
+       de pe ate o proximo resgate.
+
+  10.3 A rotina de rentabilidade de renda fixa, quando vier, passa pelas mesmas
+       regras E, F e G — FixedIncomeSettlement e o unico lugar que grava
+       appreciation de renda fixa hoje, e o certo e ela entrar por la em vez de
+       escrever direto na coluna.
+
+  10.4 Ativos com vencimento ainda nao sao liquidados sozinhos. is_settled so
+       muda por venda (renda fixa), por zerar cotas (renda variavel e Tesouro)
+       ou pela regra J. O vencimento continua fora.
+
+
+================================================================================
 ORDEM SUGERIDA
 ================================================================================
 

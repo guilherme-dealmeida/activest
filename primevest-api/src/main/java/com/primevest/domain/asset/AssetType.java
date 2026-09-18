@@ -53,6 +53,27 @@ public class AssetType {
         return "RENDA_FIXA".equals(name);
     }
 
+    /**
+     * Tesouro Direto. Tem titulo como a Renda Fixa, mas o saldo e por COTA e do
+     * ATIVO, nao do titulo: a venda e do ativo e consome os titulos mais
+     * antigos primeiro (FIFO). E o unico tipo com esse comportamento.
+     *
+     * <p>Mesma ressalva do {@link #isValuedByTotal()} sobre comparar por nome:
+     * se surgir outro tipo assim, a caracteristica vira coluna em asset_types.</p>
+     */
+    public boolean isTreasury() {
+        return "TESOURO_DIRETO".equals(name);
+    }
+
+    /**
+     * Renda fixa com titulo informado pelo usuario (CDB, LCI, debenture...). O
+     * Tesouro tambem tem titulo, mas ele nasce de cada compra e nunca e
+     * escolhido a mao.
+     */
+    public boolean isUserNote() {
+        return fixedIncome && !isTreasury();
+    }
+
     @JsonIgnore
     @OneToMany(mappedBy = "assetType", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default

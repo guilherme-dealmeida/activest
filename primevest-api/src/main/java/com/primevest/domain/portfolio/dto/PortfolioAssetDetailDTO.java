@@ -16,6 +16,13 @@ import java.util.UUID;
  *
  * <p>rateType, indexer e indexerRate são a remuneração contratada na nota
  * ("110% do CDI", "IPCA + 6%"). Também nulos para renda variável.</p>
+ *
+ * <p>{@code totalInvested} tem significados diferentes por tipo, de propósito:
+ * nos tipos por cota é o custo que ainda está na posição, já reduzido pelas
+ * vendas; na Renda Fixa é o VALOR APLICADO, a soma das compras, e o que saiu
+ * está em {@code totalSold}. A tela usa rótulos diferentes pelo mesmo motivo —
+ * as regras E e F da renda fixa comparam o aplicado com o resgatado, e abater
+ * um do outro tornaria as duas indecidíveis.</p>
  */
 public record PortfolioAssetDetailDTO(
     UUID id,
@@ -32,10 +39,13 @@ public record PortfolioAssetDetailDTO(
     BigDecimal totalShares,
     BigDecimal averagePrice,
     BigDecimal totalInvested,
+    /** Resgatado: só na Renda Fixa. Zero nos tipos por cota. */
+    BigDecimal totalSold,
     BigDecimal currentValue,
     BigDecimal currentPrice,
     BigDecimal totalDividends,
     BigDecimal valorization,
     BigDecimal returnPercentage,
-    boolean isReservation
+    boolean isReservation,
+    boolean isSettled
 ) {}

@@ -14,6 +14,9 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     List<Transaction> findByPortfolioAssetIdOrderByTransactionDateDesc(UUID portfolioAssetId);
     List<Transaction> findByPortfolioAssetPortfolioIdOrderByTransactionDateDesc(UUID portfolioId);
 
+    /** As partes de uma mesma venda do usuario. */
+    List<Transaction> findBySaleGroupId(UUID saleGroupId);
+
     /**
      * Transacao pelo id, mas so se ela for do usuario.
      *
@@ -51,4 +54,25 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
         WHERE pa.portfolio.user.id = :userId
         """)
     List<Transaction> findAllTransactionsByUserId(@Param("userId") UUID userId);
+
+    /**
+     * Todas as transacoes de um ATIVO dentro de uma carteira, de todos os
+     * titulos dele.
+     *
+     * <p>E a unidade de trabalho do Tesouro Direto: o saldo e do ativo e a
+     * reparticao das vendas entre titulos e refeita por inteiro a cada escrita,
+     * entao o recalculo precisa enxergar o ativo, e nao uma posicao.</p>
+     */
+    @Query("""
+        SELECT t FROM Transaction t
+        JOIN FETCH t.portfolioAsset pa
+        JOIN FETCH pa.asset a
+        JOIN FETCH a.assetType
+        LEFT JOIN FETCH pa.note
+        LEFT JOIN FETCH t.note
+        WHERE pa.portfolio.id = :portfolioId
+          AND a.id = :assetId
+        """)
+    List<Transaction> findByPortfolioIdAndAssetId(@Param("portfolioId") UUID portfolioId,
+                                                  @Param("assetId") Long assetId);
 }

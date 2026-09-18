@@ -64,6 +64,32 @@ public class Transaction {
     @Column(name = "transaction_date", nullable = false)
     private LocalDate transactionDate;
 
+    /**
+     * A venda do usuario a que esta linha pertence.
+     *
+     * <p>No Tesouro Direto o saldo e do ativo e a posicao e do titulo: uma
+     * venda de 5 cotas pode consumir dois titulos comprados em datas
+     * diferentes, e cada parte vira uma transacao presa ao titulo que ela
+     * liquida. O grupo e o que diz que as partes sao a MESMA venda — e por isso
+     * editar e excluir agem sobre ele, nunca sobre a linha isolada.</p>
+     *
+     * <p>Nulo em compra e nos tipos cujo saldo nao e por titulo.</p>
+     */
+    @Column(name = "sale_group_id")
+    private UUID saleGroupId;
+
+    /**
+     * Venda de Renda Fixa marcada como liquidacao total.
+     *
+     * <p>Fica na transacao, e nao so na posicao, porque a regra precisa dela
+     * duas vezes: para reabrir o formulario com a marca certa e para reavaliar
+     * a venda quando o valor dela e editado. O is_settled da posicao e
+     * derivado daqui.</p>
+     */
+    @Column(name = "is_full_settlement", nullable = false)
+    @Builder.Default
+    private boolean fullSettlement = false;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

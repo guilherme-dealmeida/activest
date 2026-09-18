@@ -1,6 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
-import { assetsApi } from '@/api/assets';
-import { AssetCategory, Indexer, RateType } from '@/types';
+import { Indexer, RateType } from '@/types';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { PercentInput } from '@/components/ui/PercentInput';
@@ -25,10 +23,25 @@ interface Props {
    */
   lockedTerms: boolean;
   /**
+   * Nada se digita: o título já existe e a operação é sobre ele.
+   *
+   * <p>É o caso de Comprar e Vender abertos pela carteira, onde o título vem
+   * da linha clicada. Mostrar os dados continua valendo — eles são o que
+   * distingue uma aplicação da outra —, mas editá-los ali mudaria o título por
+   * tabela.</p>
+   */
+  readOnly?: boolean;
+  /**
    * Emissor não se pergunta ao Tesouro Direto: é sempre o Tesouro Nacional.
    * Num CDB é a informação que distingue duas aplicações do mesmo produto.
    */
   showIssuer?: boolean;
+  /**
+   * A taxa é do dia da COMPRA. Numa venda de Tesouro Direto ela não existe: a
+   * venda é do ativo e pode consumir títulos de taxas diferentes, escolhidos
+   * pelo FIFO.
+   */
+  showRate?: boolean;
   onChange: (patch: Partial<FixedIncomeValues>) => void;
 }
 
@@ -61,29 +74,25 @@ function rateLabel(rateType: RateType | null, indexer: Indexer | null): { label:
 /**
  * Dados do PAPEL, não do ativo.
  *
- * O bloco voltou a ser editável, mas o que ele preenche mudou de lugar: não
- * cria mais ativo no catálogo, e sim uma nota do usuário (fixed_income_notes).
- * Dois CDBs de bancos diferentes são duas notas — duas linhas na carteira, cada
- * uma com sua taxa — em vez de dois ativos globais que apareciam na busca de
- * todo mundo.
+ * O bloco preenche uma nota do usuário (fixed_income_notes), não um ativo no
+ * catálogo. Dois CDBs de bancos diferentes são duas notas — duas linhas na
+ * carteira, cada uma com sua taxa — em vez de dois ativos globais que
+ * apareciam na busca de todo mundo.
  */
 export const FixedIncomeFields = ({
-  typeId, values, lockedTerms, showIssuer = true, onChange
+  values, lockedTerms, readOnly = false, showIssuer = true, showRate = true, onChange
 }: Props) => {
-  const { data: categories } = useQuery<AssetCategory[]>({
-    queryKey: ['assetCategories', typeId],
-    queryFn: () => assetsApi.getCategories(typeId) as any,
-    enabled: !!typeId
-  });
-
   const precisaIndice = values.rateType === 'POS_FIXADO' || values.rateType === 'HIBRIDO';
   const { label, hint } = rateLabel(values.rateType, values.indexer);
+  const travado = readOnly || lockedTerms;
 
   return (
     <div className="rounded-md border border-accent/20 bg-accent/5 p-4 space-y-4">
       <p className="text-xs uppercase tracking-wider text-accent/80 font-medium">
         Dados do título
-        {lockedTerms && (
+        {readOnly ? (
+          <span className="text-gray-500 normal-case tracking-normal"> · da posição selecionada</span>
+        ) : lockedTerms && (
           <span className="text-gray-500 normal-case tracking-normal"> · prazo e remuneração são do papel</span>
         )}
       </p>
@@ -93,6 +102,7 @@ export const FixedIncomeFields = ({
           label="Emissor"
           placeholder="Ex: Banco BTG"
           value={values.issuer}
+          disabled={readOnly}
           onChange={(e) => onChange({ issuer: e.target.value })}
         />
       )}
@@ -101,14 +111,14 @@ export const FixedIncomeFields = ({
         label="Vencimento"
         type="date"
         value={values.maturityDate}
-        disabled={lockedTerms}
+        disabled={travado}
         onChange={(e) => onChange({ maturityDate: e.target.value })}
       />
 
       <Select
         label="Como remunera"
         value={values.rateType ?? ''}
-        disabled={lockedTerms}
+        disabled={travado}
         onChange={(e) => {
           const rt = (e.target.value || null) as RateType | null;
           // Prefixado não tem índice: limpa para não enviar combinação que o
@@ -125,7 +135,7 @@ export const FixedIncomeFields = ({
           <Select
             label="Índice"
             value={values.indexer ?? ''}
-            disabled={lockedTerms}
+            disabled={travado}
             onChange={(e) => onChange({ indexer: (e.target.value || null) as Indexer | null })}
           >
             <option value="">Selecione</option>
@@ -133,16 +143,19 @@ export const FixedIncomeFields = ({
           </Select>
         )}
 
-        {/* A taxa nunca trava, nem no Tesouro: ela é do dia da compra, não do
-            título. Dois investidores levam o mesmo papel a IPCA + 6,2% e
-            IPCA + 5,8% conforme quando compraram. */}
-        <PercentInput
-          label={label}
-          hint={hint}
-          value={values.indexerRate}
-          disabled={!values.rateType}
-          onChange={(v) => onChange({ indexerRate: v || null })}
-        />
+        {/* A taxa não trava pelo papel, nem no Tesouro: ela é do dia da compra.
+            Dois investidores levam o mesmo papel a IPCA + 6,2% e IPCA + 5,8%
+            conforme quando compraram. Some na venda de Tesouro, onde a
+            operação é do ativo e os títulos saem por FIFO. */}
+        {showRate && (
+          <PercentInput
+            label={label}
+            hint={hint}
+            value={values.indexerRate}
+            disabled={readOnly || !values.rateType}
+            onChange={(v) => onChange({ indexerRate: v || null })}
+          />
+        )}
       </div>
     </div>
   );

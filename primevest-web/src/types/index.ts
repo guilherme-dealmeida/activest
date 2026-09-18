@@ -88,13 +88,21 @@ export interface PortfolioAssetDetail {
   indexerRate: number | null;
   totalShares: number;
   averagePrice: number;
+  // Nos tipos por cota é o custo que ainda está na posição, já reduzido pelas
+  // vendas. Na Renda Fixa é o VALOR APLICADO — a soma das compras —, e o que
+  // saiu está em totalSold: as regras E e F comparam as duas pontas, e abater
+  // uma da outra tornaria ambas indecidíveis. A tabela usa rótulos diferentes
+  // por isso.
   totalInvested: number;
+  totalSold: number;
   currentValue: number;
   currentPrice: number;
   totalDividends: number;
   valorization: number;
   returnPercentage: number;
   isReservation: boolean;
+  /** Posição encerrada: renda fixa liquidada ou título sem cotas. */
+  isSettled: boolean;
 }
 
 export interface PortfolioAllocation {
@@ -134,6 +142,8 @@ export enum TransactionType {
 
 export interface TransactionResponse {
   id: string;
+  /** A posição a que a transação pertence. É por ela que a carteira filtra o extrato. */
+  portfolioAssetId: string | null;
   ticker: string;
   assetName: string;
   // O id existe porque a edição reabre o formulário no mesmo estado, e o tipo
@@ -149,6 +159,18 @@ export interface TransactionResponse {
   brokerageFee: number;
   transactionDate: string;
   createdAt: string;
+
+  // A venda do usuário, quando ela foi repartida entre títulos (Tesouro
+  // Direto). groupShares e groupBrokerageFee são o que ele digitou; shares e
+  // brokerageFee são a parte desta linha. Editar e excluir agem sobre o grupo.
+  saleGroupId: string | null;
+  groupPart: number | null;
+  groupParts: number | null;
+  groupShares: number | null;
+  groupBrokerageFee: number | null;
+
+  /** Venda de Renda Fixa marcada como liquidação total. */
+  isFullSettlement: boolean;
 
   // Do título. Nulos na renda variável.
   noteId: string | null;
@@ -170,6 +192,13 @@ export interface TransactionCreate {
   brokerageFee?: number;
   transactionDate: string;
   isReservation?: boolean;
+
+  /**
+   * Venda de Renda Fixa: encerra a aplicação. A valorização é ajustada para
+   * que aplicado + valorização seja exatamente o resgatado. Só existe em venda
+   * de Renda Fixa.
+   */
+  isFullSettlement?: boolean | null;
 
   // Dados do título (renda fixa). Viram uma linha em fixed_income_notes: dois
   // CDBs de bancos diferentes são duas notas, cada uma com seu emissor,

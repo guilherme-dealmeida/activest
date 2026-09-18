@@ -30,8 +30,7 @@ import java.util.stream.Collectors;
  * <ul>
  *   <li><b>Compra</b>: soma cotas e custo (cotas x preco).</li>
  *   <li><b>Venda</b>: tira cotas e tira custo pelo preco medio do momento
- *   (cotas vendidas x custo / cotas). O preco medio nao muda na venda. Venda
- *   sem cotas em carteira e ignorada; venda maior que a posicao zera tudo.</li>
+ *   (cotas vendidas x custo / cotas). O preco medio nao muda na venda.</li>
  *   <li><b>Preco medio</b> = custo / cotas.</li>
  * </ul>
  *
@@ -39,9 +38,15 @@ import java.util.stream.Collectors;
  * R$ 20 e venda 100 a R$ 30 da preco medio R$ 15 e custo R$ 1.500 — a media
  * simples dos precos daria R$ 20 e a soma de quantidade x preco, R$ 6.000.</p>
  *
+ * <p>Venda sem cotas em carteira nao e mais possivel: a regra B a recusa antes
+ * de gravar, em qualquer data. O calculo ainda tolera o caso (zera a posicao)
+ * porque ele tambem roda sobre dados anteriores a essa regra.</p>
+ *
  * <p>Tipos lancados por valor total ({@link com.primevest.domain.asset.AssetType#isValuedByTotal()})
- * nao tem quantidade: cotas e preco medio ficam nulos, compra soma o valor
- * aplicado e venda subtrai o resgatado, sem deixar o custo negativo.</p>
+ * nao tem quantidade: cotas e preco medio ficam nulos, o custo e o valor
+ * APLICADO (so as compras) e o resgatado fica em {@link Position#totalSold()}.
+ * As duas pontas ficam separadas porque as regras E e F comparam uma com a
+ * outra.</p>
  *
  * <p>Os proventos usam a mesma contagem de cotas ({@link #sharesOn}), para
  * que posicao e provento nunca divirjam.</p>
@@ -117,7 +122,7 @@ public class PositionCalculator {
                 : BigDecimal.ZERO;
 
         return new Position(holding.shares(), averagePrice,
-                holding.cost().setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+                holding.cost().setScale(MONEY_SCALE, RoundingMode.HALF_UP), BigDecimal.ZERO);
     }
 
     /**
@@ -166,17 +171,26 @@ public class PositionCalculator {
         }
     }
 
+    /**
+     * Tipos lancados por valor: o aplicado e o resgatado ficam separados.
+     *
+     * <p>Abater a venda do aplicado, como se fazia antes, misturava principal e
+     * ganho num numero so e tornava as regras E e F indecidiveis.</p>
+     */
     private Position calculateByTotal(List<Transaction> chronological) {
-        BigDecimal cost = BigDecimal.ZERO;
+        BigDecimal applied = BigDecimal.ZERO;
+        BigDecimal sold = BigDecimal.ZERO;
         for (Transaction tx : chronological) {
             BigDecimal amount = tx.getTotalAmount() != null ? tx.getTotalAmount() : BigDecimal.ZERO;
             if (tx.getType() == TransactionType.BUY) {
-                cost = cost.add(amount);
+                applied = applied.add(amount);
             } else if (tx.getType() == TransactionType.SELL) {
-                cost = cost.subtract(amount).max(BigDecimal.ZERO);
+                sold = sold.add(amount);
             }
         }
-        return new Position(null, null, cost.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+        return new Position(null, null,
+                applied.setScale(MONEY_SCALE, RoundingMode.HALF_UP),
+                sold.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
     }
 
     private boolean isValuedByTotal(Asset asset) {

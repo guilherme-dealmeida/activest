@@ -37,6 +37,10 @@ public class PortfolioService {
     /**
      * Resumo da carteira. Nenhum total e gravado: tudo sai das posicoes, que
      * por sua vez saem das transacoes.
+     *
+     * <p>Posicao liquidada fica de fora de todos os totais. Ela nao vale mais
+     * nada: o que valia virou dinheiro na venda, e a valorizacao que sobrou
+     * gravada e o ganho realizado, nao patrimonio.</p>
      */
     public PortfolioSummaryDTO getPortfolioSummary(UUID userId) {
         Portfolio portfolio = getOrCreatePortfolio(userId);
@@ -50,9 +54,13 @@ public class PortfolioService {
 
         for (PortfolioAsset pa : assets) {
             Position position = positions.get(pa.getId());
-            totalInvested = totalInvested.add(safe(position.totalInvested()));
+            // Proventos de posicao liquidada continuam contando: eles foram
+            // recebidos, e some-los de repente reescreveria o passado.
             totalDividends = totalDividends.add(dividends.getOrDefault(pa.getId(), BigDecimal.ZERO));
-
+            if (pa.isSettled()) {
+                continue;
+            }
+            totalInvested = totalInvested.add(safe(position.totalInvested()));
             currentValue = currentValue.add(currentValue(pa, position));
         }
 
@@ -78,12 +86,14 @@ public class PortfolioService {
         Map<UUID, Position> positions = positionCalculator.positionsOf(portfolio.getId(), assets);
         Map<UUID, BigDecimal> dividends = dividendsByPosition(portfolio.getId());
         return assets.stream()
-            .filter(pa -> positions.get(pa.getId()).hasInvestment()) // only show assets with investment
+            // So posicoes em aberto: a liquidada acabou, e a sem custo nunca
+            // comecou.
+            .filter(pa -> !pa.isSettled() && positions.get(pa.getId()).hasInvestment())
             .map(pa -> {
                 Position position = positions.get(pa.getId());
                 BigDecimal invested = safe(position.totalInvested());
                 BigDecimal valorization = appreciation(pa);
-                BigDecimal currentValue = invested.add(valorization);
+                BigDecimal currentValue = currentValue(pa, position);
 
                 BigDecimal currentPrice;
                 if (AppreciationUpdater.hasMarketPrice(pa.getAsset())) {
@@ -119,12 +129,14 @@ public class PortfolioService {
                     safe(position.totalShares()),
                     safe(position.averagePrice()),
                     invested,
+                    position.sold(),
                     currentValue,
                     currentPrice,
                     dividends.getOrDefault(pa.getId(), BigDecimal.ZERO),
                     valorization,
                     returnPct,
-                    pa.isReservation()
+                    pa.isReservation(),
+                    pa.isSettled()
                 );
             }).collect(Collectors.toList());
     }
@@ -144,12 +156,12 @@ public class PortfolioService {
 
         for (PortfolioAsset pa : assets) {
             Position position = positions.get(pa.getId());
-            if (safe(position.totalInvested()).compareTo(BigDecimal.ZERO) == 0) continue;
-            
+            if (pa.isSettled() || safe(position.totalInvested()).compareTo(BigDecimal.ZERO) == 0) continue;
+
             String typeName = pa.getAsset().getAssetType().getDescription() != null
                 ? pa.getAsset().getAssetType().getDescription() : pa.getAsset().getAssetType().getName();
             typeColors.put(typeName, pa.getAsset().getAssetType().getColorHex());
-            
+
             BigDecimal val = currentValue(pa, position);
             totalVal = totalVal.add(val);
             typeValues.merge(typeName, val, BigDecimal::add);
@@ -181,7 +193,7 @@ public class PortfolioService {
 
         for (PortfolioAsset pa : assets) {
             Position position = positions.get(pa.getId());
-            if (safe(position.totalInvested()).compareTo(BigDecimal.ZERO) == 0) continue;
+            if (pa.isSettled() || safe(position.totalInvested()).compareTo(BigDecimal.ZERO) == 0) continue;
 
             String typeName = pa.getAsset().getAssetType().getDescription() != null
                 ? pa.getAsset().getAssetType().getDescription() : pa.getAsset().getAssetType().getName();
@@ -240,7 +252,7 @@ public class PortfolioService {
         Map<UUID, Position> positions = positionCalculator.positionsOf(portfolio.getId(), assets);
 
         List<AssetPerformance> assetPerfs = assets.stream()
-            .filter(pa -> positions.get(pa.getId()).hasInvestment())
+            .filter(pa -> !pa.isSettled() && positions.get(pa.getId()).hasInvestment())
             .map(pa -> {
                 Position position = positions.get(pa.getId());
                 BigDecimal invested = safe(position.totalInvested());
@@ -275,15 +287,24 @@ public class PortfolioService {
      * <p>A leitura nao calcula. Com cotacao, quem grava e o
      * {@link AppreciationUpdater} (cotas x cotacao - custo), a cada atualizacao
      * de cotacao ou de transacao. Sem cotacao (renda fixa, Tesouro, tipos
-     * MANUAL), o valor e apurado por fora.</p>
+     * MANUAL), o valor e apurado por fora — na Renda Fixa, pela propria venda
+     * (ver FixedIncomeSettlement).</p>
      */
     private BigDecimal appreciation(PortfolioAsset pa) {
         return safe(pa.getAppreciation());
     }
 
-    /** Valor atual = valor inicial + valorizacao. Nunca e gravado. */
+    /**
+     * Valor atual = valor aplicado + valorizacao - resgatado. Nunca e gravado.
+     *
+     * <p>O resgate so aparece nos tipos lancados por valor (Renda Fixa), onde
+     * a venda tira dinheiro da posicao sem tirar cotas: la o aplicado e a soma
+     * das compras e o resgatado fica a parte, porque as regras E e F comparam
+     * um com o outro. Nos tipos por cota a venda ja reduziu o custo pelo preco
+     * medio, e o resgatado e zero.</p>
+     */
     private BigDecimal currentValue(PortfolioAsset pa, Position position) {
-        return safe(position.totalInvested()).add(appreciation(pa));
+        return safe(position.totalInvested()).add(appreciation(pa)).subtract(position.sold());
     }
 
     /**

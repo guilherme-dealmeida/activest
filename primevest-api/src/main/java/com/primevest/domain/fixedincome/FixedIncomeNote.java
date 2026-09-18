@@ -61,6 +61,22 @@ public class FixedIncomeNote {
     @Column(name = "maturity_date")
     private LocalDate maturityDate;
 
+    /**
+     * A data da compra do título.
+     *
+     * <p>Preenchida só no Tesouro Direto, onde ela faz dois trabalhos: ordena o
+     * FIFO — as vendas saem dos títulos mais antigos primeiro — e é a chave da
+     * regra H, que proíbe dois títulos do mesmo ativo comprados no mesmo dia
+     * (comprar de novo na mesma data é aumentar a quantidade da compra que já
+     * existe).</p>
+     *
+     * <p>Nula na Renda Fixa: lá o mesmo título recebe vários aportes, inclusive
+     * no mesmo dia, e o saldo é por valor, não por cota. O índice único em
+     * banco é parcial justamente por isso.</p>
+     */
+    @Column(name = "purchase_date")
+    private LocalDate purchaseDate;
+
     /** Como remunera. Ver {@link RateType}. */
     @Enumerated(EnumType.STRING)
     @Column(name = "rate_type", length = 20)

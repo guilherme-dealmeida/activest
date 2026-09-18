@@ -169,8 +169,19 @@ public class StrategyService {
         return new RebalanceDTO(totalValue, items);
     }
 
+    /**
+     * O que a posicao ainda tem na carteira.
+     *
+     * <p>Posicao liquidada nao entra: ela virou dinheiro e nao ocupa mais
+     * espaco na alocacao. Na Renda Fixa o valor aplicado nao desconta os
+     * resgates — as regras E e F precisam das duas pontas separadas —, entao o
+     * desconto e feito aqui.</p>
+     */
     private BigDecimal invested(Map<UUID, Position> positions, PortfolioAsset pa) {
         Position position = positions.get(pa.getId());
-        return position != null && position.totalInvested() != null ? position.totalInvested() : BigDecimal.ZERO;
+        if (position == null || pa.isSettled()) {
+            return BigDecimal.ZERO;
+        }
+        return position.invested().subtract(position.sold()).max(BigDecimal.ZERO);
     }
 }

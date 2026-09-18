@@ -25,6 +25,23 @@ public interface PortfolioAssetRepository extends JpaRepository<PortfolioAsset, 
     Optional<PortfolioAsset> findByPortfolioIdAndNoteId(UUID portfolioId, UUID noteId);
 
     /**
+     * Todas as posições de um ativo numa carteira — os títulos dele.
+     *
+     * <p>É a unidade do Tesouro Direto: o saldo é do ativo, e a venda consome
+     * os títulos do mais antigo para o mais novo. A nota vem junto porque é
+     * dela que sai a data de compra, que ordena o FIFO.</p>
+     */
+    @Query("""
+        SELECT pa FROM PortfolioAsset pa
+        JOIN FETCH pa.asset
+        LEFT JOIN FETCH pa.note
+        WHERE pa.portfolio.id = :portfolioId
+          AND pa.asset.id = :assetId
+        """)
+    List<PortfolioAsset> findAllByPortfolioIdAndAssetId(@Param("portfolioId") UUID portfolioId,
+                                                        @Param("assetId") Long assetId);
+
+    /**
      * A nota vem junto porque a carteira agora repete ticker: sem emissor e
      * vencimento na tela, duas linhas "CDB" ficam indistinguíveis. Buscá-la
      * depois, linha a linha, seria uma consulta por posição.
