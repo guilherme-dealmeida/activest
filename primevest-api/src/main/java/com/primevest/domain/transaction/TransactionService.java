@@ -769,6 +769,12 @@ public class TransactionService {
         String assetTypeName = assetType != null
                 ? (assetType.getDescription() != null ? assetType.getDescription() : assetType.getName()) : "";
 
+        // Categoria do ativo, para o filtro da listagem. getDisplayName pela
+        // mesma convencao do tipo: a tela mostra o rotulo, nunca a chave.
+        var assetCategory = pa != null && pa.getAsset() != null ? pa.getAsset().getAssetCategory() : null;
+        Long assetCategoryId = assetCategory != null ? assetCategory.getId() : null;
+        String assetCategoryName = assetCategory != null ? assetCategory.getDisplayName() : "";
+
         // O titulo vai junto: a edicao reabre o formulario com ele, e sem esses
         // campos salvar por cima apagaria emissor, vencimento e taxa.
         FixedIncomeNote note = tx.getNote();
@@ -780,7 +786,8 @@ public class TransactionService {
         return new TransactionResponseDTO(
             tx.getId(),
             pa != null ? pa.getId() : null,
-            ticker, assetName, assetTypeId, assetTypeName, tx.getType(),
+            ticker, assetName, assetTypeId, assetTypeName,
+            assetCategoryId, assetCategoryName, tx.getType(),
             tx.getShares(), tx.getPricePerShare(), tx.getTotalAmount(),
             tx.getBrokerageFee(), tx.getTransactionDate(), tx.getCreatedAt(),
             tx.getSaleGroupId(), part, parts,

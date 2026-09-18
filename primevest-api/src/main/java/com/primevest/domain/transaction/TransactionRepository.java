@@ -34,6 +34,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
         JOIN FETCH t.portfolioAsset pa
         JOIN FETCH pa.asset a
         JOIN FETCH a.assetType
+        LEFT JOIN FETCH a.assetCategory
         LEFT JOIN FETCH t.note
         WHERE t.id = :txId
           AND pa.portfolio.user.id = :userId
@@ -50,6 +51,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
         JOIN FETCH t.portfolioAsset pa
         JOIN FETCH pa.asset a
         JOIN FETCH a.assetType
+        LEFT JOIN FETCH a.assetCategory
         LEFT JOIN FETCH t.note
         WHERE pa.portfolio.user.id = :userId
         """)
@@ -68,6 +70,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
         JOIN FETCH t.portfolioAsset pa
         JOIN FETCH pa.asset a
         JOIN FETCH a.assetType
+        LEFT JOIN FETCH a.assetCategory
         LEFT JOIN FETCH pa.note
         LEFT JOIN FETCH t.note
         WHERE pa.portfolio.id = :portfolioId

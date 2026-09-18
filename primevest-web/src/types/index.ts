@@ -151,6 +151,11 @@ export interface TransactionResponse {
   // adivinhar o tipo casando strings.
   assetTypeId: number | null;
   assetTypeName: string;
+  // A categoria do ativo, para o filtro da listagem. assetCategoryName já vem
+  // como rótulo (getDisplayName), nunca a chave técnica. Nulos/vazios quando o
+  // ativo não tem categoria — o vínculo é opcional no catálogo.
+  assetCategoryId: number | null;
+  assetCategoryName: string;
   type: string;
   // Nulos em Renda Fixa, que é lançada por valor total.
   shares: number | null;

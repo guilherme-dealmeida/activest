@@ -10,6 +10,7 @@ import { TransactionFormModal, TransactionPreset } from '@/components/transactio
 import { useSortable } from '@/hooks/useSortable';
 import { AssetType, PortfolioAssetDetail, RateType, TransactionType } from '@/types';
 import { formatCurrency, formatDate, formatPercentage, formatShares, getReturnColor } from '@/utils/format';
+import { RENDA_FIXA, isFixedIncomeNote } from '@/utils/assetTypeRules';
 
 /**
  * Colunas que só fazem sentido para alguns tipos de ativo.
@@ -18,11 +19,10 @@ import { formatCurrency, formatDate, formatPercentage, formatShares, getReturnCo
  * mesmo motivo do scheduler: tipo novo de renda fixa já nasce com vencimento.
  * A única exceção nominal é o emissor do Tesouro Direto — é sempre o Tesouro
  * Nacional, então a coluna repetiria o mesmo valor em todas as linhas.
+ *
+ * isFixedIncomeNote e RENDA_FIXA vivem em utils/assetTypeRules porque a tela de
+ * transações aplica a mesma distinção nos filtros.
  */
-const TESOURO_DIRETO = 'TESOURO_DIRETO';
-const RENDA_FIXA = 'RENDA_FIXA';
-
-const isFixedIncomeNote = (type: AssetType) => type.fixedIncome && type.name !== TESOURO_DIRETO;
 const showIssuer = isFixedIncomeNote;
 const showMaturity = (type: AssetType) => type.fixedIncome;
 const showDividends = (type: AssetType) => !type.fixedIncome;
@@ -193,6 +193,49 @@ const COLUMNS: Column[] = [
   },
 ];
 
+/**
+ * Chave da flag que liga e desliga um grupo de posições na tabela.
+ *
+ * É a categoria, menos nas abas de renda fixa com emissor (CDB, LCI, LCA...),
+ * onde o próprio ativo já faz o papel dela — é o mesmo motivo pelo qual a
+ * coluna CATEGORIA não aparece nessas abas (showCategory).
+ */
+const flagKeyOf = (type: AssetType, asset: PortfolioAssetDetail): string =>
+  isFixedIncomeNote(type) ? asset.ticker : asset.categoryName || 'Sem categoria';
+
+interface FlagsProps {
+  keys: string[];
+  offKeys: Set<string>;
+  onToggle: (key: string) => void;
+}
+
+/** Flags em fila horizontal: ON soma as posições daquele grupo à tabela, OFF as tira. */
+const PortfolioFlags = ({ keys, offKeys, onToggle }: FlagsProps) => (
+  <div className="flex flex-wrap items-center gap-2 pb-4">
+    {keys.map((key) => {
+      const on = !offKeys.has(key);
+      return (
+        <button
+          key={key}
+          type="button"
+          aria-pressed={on}
+          onClick={() => onToggle(key)}
+          title={on ? `Ocultar ${key}` : `Mostrar ${key}`}
+          className={clsx(
+            'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+            on
+              ? 'border-accent/40 bg-accent/15 text-accent hover:bg-accent/25'
+              : 'border-white/10 bg-surface-light/40 text-gray-500 hover:text-gray-300'
+          )}
+        >
+          <span className={clsx('h-1.5 w-1.5 rounded-full', on ? 'bg-accent' : 'bg-gray-600')} />
+          {key}
+        </button>
+      );
+    })}
+  </div>
+);
+
 interface TableProps {
   type: AssetType;
   assets: PortfolioAssetDetail[];
@@ -307,6 +350,49 @@ const PortfolioTypeTable = ({ type, assets, onList, onBuy, onSell }: TableProps)
   );
 };
 
+/**
+ * A aba inteira: as flags e a tabela que elas alimentam.
+ *
+ * O estado das flags mora aqui, e não na página, porque a aba é remontada a
+ * cada troca de tipo (key pelo type.id) — é o mesmo mecanismo que devolve a
+ * ordenação ao padrão, e faz com que toda aba comece com tudo ligado.
+ */
+const PortfolioTypeSection = ({ type, assets, onList, onBuy, onSell }: TableProps) => {
+  const [offKeys, setOffKeys] = useState<Set<string>>(new Set());
+
+  // Só entram na fila as chaves que têm posição nesta aba.
+  const keys = useMemo(
+    () =>
+      [...new Set(assets.map((a) => flagKeyOf(type, a)))].sort((a, b) => a.localeCompare(b, 'pt-BR')),
+    [type, assets]
+  );
+
+  const toggle = (key: string) =>
+    setOffKeys((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
+
+  // Uma categoria que saiu da carteira não pode continuar desligando nada.
+  const visible = assets.filter((a) => !offKeys.has(flagKeyOf(type, a)));
+
+  return (
+    <>
+      {keys.length > 0 && <PortfolioFlags keys={keys} offKeys={offKeys} onToggle={toggle} />}
+      {visible.length > 0 ? (
+        <PortfolioTypeTable type={type} assets={visible} onList={onList} onBuy={onBuy} onSell={onSell} />
+      ) : (
+        <p className="text-sm text-gray-400">
+          {isFixedIncomeNote(type)
+            ? 'Nenhum ativo selecionado. Ligue ao menos uma flag para ver as posições.'
+            : 'Nenhuma categoria selecionada. Ligue ao menos uma flag para ver as posições.'}
+        </p>
+      )}
+    </>
+  );
+};
+
 export const PortfolioPage = () => {
   const navigate = useNavigate();
   const [activeTypeId, setActiveTypeId] = useState<number | null>(null);
@@ -392,8 +478,8 @@ export const PortfolioPage = () => {
 
       <div className="bg-surface rounded-lg border border-white/10 p-6">
         {activeTab ? (
-          // key pelo tipo: trocar de aba volta a ordenação para o padrão.
-          <PortfolioTypeTable
+          // key pelo tipo: trocar de aba volta a ordenação e as flags ao padrão.
+          <PortfolioTypeSection
             key={activeTab.type.id}
             type={activeTab.type}
             assets={activeTab.assets}

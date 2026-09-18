@@ -12,6 +12,12 @@ import { TransactionFormModal } from '@/components/transactions/TransactionFormM
 import { formatCurrency, formatDate, formatShares, toLocalISODate } from '@/utils/format';
 import { TransactionResponse, TransactionType, AssetType } from '@/types';
 import { useSortable } from '@/hooks/useSortable';
+import { isFixedIncomeNote } from '@/utils/assetTypeRules';
+
+/** Rótulo do tipo como a listagem o mostra — a mesma convenção dos DTOs. */
+const labelOfType = (type: AssetType) => type.description || type.name;
+
+const ordenarPt = (a: string, b: string) => a.localeCompare(b, 'pt-BR');
 
 function getDateFromDaysAgo(days: number): string {
   const d = new Date();
@@ -27,6 +33,8 @@ export const TransactionsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [filterType, setFilterType] = useState('ALL');
+  const [filterCategory, setFilterCategory] = useState('ALL');
+  const [filterAsset, setFilterAsset] = useState('ALL');
   const [filterPeriod, setFilterPeriod] = useState('ALL');
 
   /**
@@ -69,6 +77,47 @@ export const TransactionsPage = () => {
 
   const uniqueTypes = [...new Set(enriched.map(t => t.assetType).filter(Boolean))].sort();
 
+  /**
+   * O tipo escolhido, como entidade e não como rótulo.
+   *
+   * O filtro guarda o nome exibido (é o que a listagem mostra na coluna), mas
+   * quem decide o segundo filtro é o tipo em si: renda fixa com emissor filtra
+   * por ATIVO, porque lá o ativo já é a categoria.
+   */
+  const tipoSelecionado = useMemo(
+    () => (filterType === 'ALL' ? null : (assetTypes || []).find(t => labelOfType(t) === filterType) ?? null),
+    [assetTypes, filterType]
+  );
+  const filtrarPorAtivo = !!tipoSelecionado && isFixedIncomeNote(tipoSelecionado);
+
+  // As transações do tipo escolhido, ignorando os filtros que dependem dele:
+  // são elas que dizem quais categorias (ou ativos) têm o que mostrar.
+  const doTipo = useMemo(
+    () => (filterType === 'ALL' ? [] : enriched.filter(row => row.assetType === filterType)),
+    [enriched, filterType]
+  );
+
+  // Só as categorias com transação neste tipo. Sem tipo escolhido a lista é
+  // vazia e o filtro fica só com "Todas".
+  const categoriasDoTipo = useMemo(
+    () => [...new Set(doTipo.map(row => row.assetCategoryName).filter(Boolean))].sort(ordenarPt),
+    [doTipo]
+  );
+
+  const ativosDoTipo = useMemo(
+    () => [...new Set(doTipo.map(row => row.ticker).filter(Boolean))].sort(ordenarPt),
+    [doTipo]
+  );
+
+  // Trocar o tipo zera o filtro dependente: uma categoria de FII não significa
+  // nada dentro de Ações, e o filtro preso deixaria a tabela vazia sem motivo.
+  const handleTypeChange = (value: string) => {
+    setFilterType(value);
+    setFilterCategory('ALL');
+    setFilterAsset('ALL');
+    setCurrentPage(1);
+  };
+
   const posicaoFiltrada = positionFilter
     ? enriched.find(row => row.portfolioAssetId === positionFilter)
     : undefined;
@@ -76,6 +125,11 @@ export const TransactionsPage = () => {
   const filtered = enriched.filter(row => {
     if (positionFilter && row.portfolioAssetId !== positionFilter) return false;
     if (filterType !== 'ALL' && row.assetType !== filterType) return false;
+    if (filtrarPorAtivo) {
+      if (filterAsset !== 'ALL' && row.ticker !== filterAsset) return false;
+    } else if (filterCategory !== 'ALL' && row.assetCategoryName !== filterCategory) {
+      return false;
+    }
     if (filterPeriod !== 'ALL') {
       const minDate = getDateFromDaysAgo(Number(filterPeriod));
       if (row.transactionDate < minDate) return false;
@@ -151,13 +205,45 @@ export const TransactionsPage = () => {
           <label className="block text-xs text-gray-400 mb-1">Tipo de Ativo</label>
           <select
             value={filterType}
-            onChange={(e) => { setFilterType(e.target.value); setCurrentPage(1); }}
+            onChange={(e) => handleTypeChange(e.target.value)}
             className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2"
           >
             <option value="ALL">Todos</option>
             {uniqueTypes.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
         </div>
+
+        {/* Filtro dependente do tipo: categoria em quase todos, ativo na renda
+            fixa com emissor, onde o ativo (CDB, LCI, LCA) já é a categoria. */}
+        {filtrarPorAtivo ? (
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Ativo</label>
+            <select
+              value={filterAsset}
+              onChange={(e) => { setFilterAsset(e.target.value); setCurrentPage(1); }}
+              className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2"
+            >
+              <option value="ALL">Todos</option>
+              {ativosDoTipo.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </div>
+        ) : (
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Categoria</label>
+            <select
+              value={filterCategory}
+              // Sem tipo escolhido só existe "Todas": categoria é do tipo, e
+              // misturar as de todos eles não filtraria nada compreensível.
+              disabled={filterType === 'ALL' || categoriasDoTipo.length === 0}
+              onChange={(e) => { setFilterCategory(e.target.value); setCurrentPage(1); }}
+              className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <option value="ALL">Todas</option>
+              {categoriasDoTipo.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        )}
+
         <div>
           <label className="block text-xs text-gray-400 mb-1">Período</label>
           <select

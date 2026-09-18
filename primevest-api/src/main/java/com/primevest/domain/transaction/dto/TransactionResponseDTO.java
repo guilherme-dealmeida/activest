@@ -29,6 +29,14 @@ public record TransactionResponseDTO(
     String assetName,
     Long assetTypeId,
     String assetTypeName,
+    /**
+     * Categoria do ativo. Existe para o filtro da listagem: sem ela a tela teria
+     * que buscar o catálogo inteiro para descobrir a categoria de cada linha.
+     * Nula quando o ativo não tem categoria — o vínculo é opcional em assets.
+     */
+    Long assetCategoryId,
+    /** Rótulo da categoria (getDisplayName), nunca a chave técnica. Vazio sem categoria. */
+    String assetCategoryName,
     TransactionType type,
     BigDecimal shares,
     BigDecimal pricePerShare,
