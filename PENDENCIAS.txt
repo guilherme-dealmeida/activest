@@ -1,5 +1,8 @@
 PRIMEVEST — PENDENCIAS EM ABERTO
-Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido no codigo antes de entrar aqui.
+Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
+no codigo antes de entrar aqui.
+Ultima atualizacao: 18/09/2026 — itens 9.1, 9.2, 9.8, a secao 12 (lint) e o
+segundo reset das migrations.
 
 
 ================================================================================
@@ -230,30 +233,66 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
 9. DOCUMENTACAO E LIMPEZA
 ================================================================================
 
-  9.1  Claude.md esta desatualizado depois das ultimas mudancas:
-         - tem uma secao "Coluna custom em assets" — a coluna nao existe mais
-         - a lista de Tabelas nao menciona asset_terms nem fixed_income_notes
-         - a secao Flyway fala das migrations antigas, que viraram 22
-         - nada sobre a separacao catalogo / titulo, que e a decisao estrutural
-           mais importante do projeto hoje
+  9.1  Claude.md — ATUALIZADO em 18/09/2026, em duas rodadas.
+       Primeira: a contagem real de migrations, a linha da V29 na tabela, as
+       mascaras novas do modal de transacao, a troca da imagem do front para
+       node:24 e a nota do WinNAT na porta 8080.
+       Segunda: a V30 (auditoria de datas) — o banco fica hoje na versao 30,
+       com 30 arquivos em db/migration; o "22" continua sendo o numero do
+       reset, nao o total. Entraram tambem a secao de lint, o eslint.config.js
+       e a pasta .claude/ na estrutura, e a secao nova "Como o Claude executa
+       comandos aqui", que documenta a ponte via Claude Code como servidor MCP.
+       README.md tambem foi corrigido na mesma data: prometia JUnit e Mockito
+       (nao existem), citava @react-oauth/google (o login e por Google Identity
+       Services), pedia GOOGLE_CLIENT_SECRET (o fluxo de ID token dispensa),
+       mandava criar o banco com o nome errado e nao mencionava o Docker, que e
+       o caminho recomendado.
+       Os quatro pontos originais deste item (secao "Coluna custom em assets",
+       asset_terms e fixed_income_notes fora da lista de Tabelas, secao Flyway
+       velha, ausencia da separacao catalogo / titulo) ja estavam resolvidos em
+       revisoes anteriores — reconferir se voltar a divergir.
 
-  9.2  Apagar E:\repos\primevest\_to_delete\ por inteiro. Contem:
-         - migrations-antigas\  (as 33 substituidas pelo reset)
-         - V31__drop_assets_active_custom.sql.descartada
-         - api-src.tgz e m2.tar, arquivos temporarios meus
-       Nao consigo apagar daqui — a permissao de delete nao esta liberada para
-       a sessao, so movi para la.
+  9.2  FEITO em 18/09/2026 — _to_delete\ apagada por inteiro.
+       Na hora da exclusao a pasta ja estava praticamente vazia: as 33
+       migrations antigas, a V31 descartada e os tarballs temporarios tinham
+       sumido antes, e restavam dois arquivos de teste somando 34 bytes.
 
-  9.3  Copia velha do projeto em
-       C:\Users\guilh\.gemini\antigravity\scratch\primevest
-       Esta defasada e aparece nas buscas. Apagar ou desconectar da sessao.
+  9.8  FEITO em 18/09/2026 — SEGUNDO RESET DAS MIGRATIONS.
+       As 30 migrations viraram 9: V1 com o schema completo e V2..V9 com os
+       seeds. 156 KB contra 340 KB. As antigas ficaram guardadas em
+       E:\repos\primevest-backups\migration-antiga-20260918-182315.
 
-  9.4  Google OAuth: o codigo esta pronto e usa fluxo de ID token, sem client
-       secret. Falta VOCE criar o Client ID no Google Cloud Console — nao crio
-       credencial na sua conta. Depois e so preencher a variavel de ambiente.
+       Motivo: o conjunto de 30 voltara a descrever o CAMINHO e nao o resultado
+       — criava colunas derrubadas depois (current_value, total_shares,
+       total_invested, dividends.asset_id), tornava campos anulaveis meses
+       adiante, e classificava os ativos em duas etapas (o seed inseria a
+       categoria antiga e a V23 reclassificava tudo).
 
-  9.5  Nada foi comitado. Todas as mudancas das ultimas sessoes estao no working
-       tree, conforme a regra do projeto de nao comitar sem instrucao.
+       VERIFICACAO, que e o que importa se houver um terceiro reset:
+       montou-se um db_ref aplicando as 30 antigas em ordem e um db_new com as
+       9 novas, e os dois foram comparados por consulta normalizada e ordenada
+       (nao por pg_dump bruto): 108 colunas, 53 constraints, 48 indices e 1.524
+       linhas de seed, identicos nos quatro eixos. Depois docker compose down -v
+       e subida limpa: Flyway na versao 9 e a API de pe com ddl-auto: validate,
+       que prova que as entidades JPA batem com o schema.
+
+       A comparacao pegou duas divergencias que a leitura dos arquivos nao
+       pegaria: a unicidade de asset_categories inclui segment (a V23 trocou a
+       constraint), e uma categoria e o par (name, segment) — CONSUMO_CICLICO
+       sozinho aparece em 21 segmentos, entao resolver a categoria so pelo nome
+       apontaria 782 acoes para a linha errada.
+
+       EFEITO COLATERAL ACEITO: a ordem relativa das colunas mudou nas tabelas
+       que tinham sofrido DROP COLUMN. Num CREATE TABLE novo as colunas de
+       auditoria ficam no fim, em vez de onde o ALTER as deixou. Nao afeta JPA
+       nem consulta nomeada; afeta SELECT * e a saida do pg_dump.
+
+       CORRECAO DE CONTAGEM: sao 116 categorias, nao 115. O numero errado
+       circulava no Claude.md e aqui.
+
+  9.9  FEITO — a pasta "Claude outputs" dentro de src/main/java/com/primevest
+       nao existe mais. Continha um unico claude_desktop_config.json, copia da
+       configuracao do app desktop, sobra de sessao anterior.
 
 
 ================================================================================
@@ -309,6 +348,79 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
 
 
 ================================================================================
+11. HISTORICO DE PRECO — asset_price_history
+================================================================================
+
+  11.1 A tabela so escreve, nunca le. PriceUpdateScheduler.saveDailyPriceHistory()
+       roda as 18:30 de segunda a sexta, logo apos o update de precos da B3, e
+       insere uma linha por ativo ativo com cotacao. Ninguem consome essas
+       linhas. Sao ~1.264 por pregao.
+
+  11.2 A leitura e um stub. AssetPriceHistoryService.getHistory() retorna
+       List.of() — corpo vazio. E GET /api/v1/assets/{ticker}/history no
+       AssetController e um "return ResponseEntity.ok().build()", com o
+       comentario "Handled by pricehistory module, would call
+       AssetPriceHistoryService here or redirect". Nunca foi ligado.
+       O frontend tambem nao chama: nao ha nenhuma referencia a history em
+       primevest-web/src.
+
+  11.3 So close_price e gravado. As colunas open_price, high_price, low_price e
+       volume existem na entidade e ficam sempre nulas, porque a BrAPI e
+       consultada so pelo preco corrente. Se o grafico for de candle, a mudanca
+       comeca na chamada a BrAPI, nao no endpoint.
+
+  11.4 O scheduler de cripto (a cada 30 min) nao grava historico nenhum. So o
+       fechamento da B3 grava.
+
+  11.5 Dos dois metodos do AssetPriceHistoryRepository, so
+       findByAssetIdAndReferenceDate e usado — pelo proprio scheduler, para nao
+       duplicar a linha do dia. O findByAssetIdAndReferenceDateBetween..., que
+       seria o do grafico, esta orfao.
+
+  11.6 Decidir: ligar a leitura (endpoint + grafico na tela de ativo) ou parar
+       de gravar. Hoje e custo sem retorno. Nao confundir com o item 5, que e
+       serie historica de INDICES (CDI, SELIC, IPCA) e serve para valorizar
+       renda fixa — sao coisas diferentes.
+
+
+================================================================================
+12. LINT DO FRONT
+================================================================================
+
+  12.1 RESOLVIDO em 18/09/2026 — npm run lint passou a funcionar.
+       Falhava desde sempre com "couldn't find an eslint.config.(js|mjs|cjs)".
+       Faltavam AS DUAS pecas: o ESLint 9 abandonou o .eslintrc e o projeto nao
+       tinha eslint.config.js; e typescript-eslint nao estava no package.json,
+       sem o qual o ESLint nem faz o parse de um .tsx. Entraram os dois.
+
+  12.2 Os quatro erros do primeiro lint foram corrigidos na mesma data.
+       Tres cosmeticos: prefer-const em DataTable.tsx (linhas 40 e 41) e
+       interface vazia em LoadingSpinner.tsx.
+       O quarto era real: MaskedNumberInput.tsx fazia
+         const inputId = id || React.useId();
+       O curto-circuito so chamava o useId quando a prop id vinha vazia, entao
+       a quantidade de hooks do componente mudava conforme a prop — quebra da
+       regra de ordem dos hooks. Passou a chamar o useId incondicionalmente e
+       escolher depois (id ?? generatedId).
+       Nunca chegou a se manifestar porque id e estavel por instancia, mas o
+       componente sustenta CurrencyInput, PercentInput e a Quantidade do modal
+       de transacao — as mascaras mexidas no mesmo dia.
+
+  12.3 PENDENTE: 35 avisos, quase todos @typescript-eslint/no-explicit-any.
+       Concentrados em src/api (respostas nao tipadas), nos blocos catch das
+       paginas e em DataTable/useSortable (accessor generico).
+       A regra ficou como AVISO de proposito: subir para erro antes de tipar as
+       respostas da API transformaria o lint numa parede que ninguem le.
+       Alvo natural quando alguem tipar os DTOs de resposta.
+       Sobram dois avisos de react-refresh/only-export-components, em
+       AuthContext e ThemeContext — os dois exportam hook junto com o provider.
+       Custo real: hot reload desses arquivos recarrega a pagina inteira.
+
+  12.4 Nao ha lint no backend. Nenhum Checkstyle, SpotBugs ou formatador no
+       pom.xml. Decidir se vale, e se vale, antes ou depois do item 8.
+
+
+================================================================================
 ORDEM SUGERIDA
 ================================================================================
 
@@ -321,3 +433,16 @@ consegue vender um titulo (4.2).
 O 3.1 pode esperar ate ter provento de verdade cadastrado.
 
 O 8 nao tem hora certa, mas cada item acima fica mais barato se vier depois dele.
+
+O 11 e barato de decidir e caro de adiar: cada pregao acumula ~1.264 linhas que
+ninguem le. Decidir entre ligar a leitura e parar de gravar vale mais que a
+implementacao em si.
+
+O 12.3 nao tem pressa e nao bloqueia nada, mas e o tipo de divida que so cresce:
+cada `any` novo entra sem resistencia enquanto a regra for aviso.
+
+Com o reset de 18/09/2026 o conjunto de migrations voltou a descrever o
+resultado. Ele so continua assim se as proximas mudancas de schema forem poucas
+e grandes, em vez de muitas e pequenas — um terceiro reset seria sintoma de que
+a regra de nao editar migration aplicada esta sendo usada como desculpa para
+empilhar ALTER.

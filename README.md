@@ -21,9 +21,12 @@ primevest/
 - **Flyway** (migrations)
 - **Redis** (cache de cotações)
 - **WebClient** (integrações com BrAPI e CoinGecko)
-- **JUnit 5** + **Mockito** (testes)
 - **SpringDoc OpenAPI** (Swagger)
 - **Maven**
+
+> Ainda **não há testes automatizados**: `src/test` está vazio e o build roda com
+> `-Dmaven.test.skip=true`. O plano, quando a suíte nascer, é Testcontainers com
+> PostgreSQL — metade do que importa aqui é comportamento de banco. Ver `PENDENCIAS.txt`.
 
 ### Frontend
 - **React 18** + **TypeScript**
@@ -32,14 +35,15 @@ primevest/
 - **Recharts** (gráficos)
 - **TanStack React Query** (data fetching)
 - **React Router v6** (SPA routing)
-- **Google OAuth** (@react-oauth/google)
+- **ESLint 9** + **typescript-eslint** (`npm run lint`)
+- **Google Identity Services** (login social por ID token, sem client secret)
 
 ## 📋 Funcionalidades
 
 ### Módulo Gestão de Carteira B3
-- ✅ Cadastro de ativos (Ações, FIIs, Tesouro, Renda Fixa, ETFs, BDRs, Crypto)
+- ✅ Catálogo de ativos já populado (Ações, FIIs, Tesouro, Renda Fixa, ETFs, BDRs, Cripto) — a transação seleciona do catálogo, não cria ativo novo
 - ✅ Registro de compras e vendas com cálculo de preço médio
-- ✅ Cálculo de rentabilidade por ativo e da carteira total
+- ✅ Cálculo de rentabilidade por ativo e da carteira total — **renda variável apenas**; renda fixa ainda marca zero, por falta do cálculo de curva (ver `PENDENCIAS.txt`, item 2.1)
 - ✅ Gráficos de alocação (pizza por tipo e por categoria)
 - ✅ Estratégia de alocação com % ideal e sugestão de rebalanceamento
 - ✅ Preço teto por ativo definido pelo usuário
@@ -53,42 +57,55 @@ primevest/
 
 ## ⚙️ Setup
 
-### Pré-requisitos
-- Java 21+
-- Maven 3.9+
-- Node.js 18+
-- PostgreSQL 15+
-- Redis (opcional, para cache)
+### Opção 1 — Docker (recomendada)
 
-### Backend
+Sobe banco, cache, API e front de uma vez, com o schema construído do zero pelas
+migrations. Não exige Java, Maven, Node nem PostgreSQL instalados na máquina.
 
 ```bash
-# Criar banco de dados
-createdb primevest
-
-# Configurar variáveis de ambiente
-export GOOGLE_CLIENT_ID=your-google-client-id
-export GOOGLE_CLIENT_SECRET=your-google-client-secret
-export DB_USERNAME=postgres
-export DB_PASSWORD=postgres
-
-# Rodar
-cd primevest-api
-mvn spring-boot:run
+cp .env.example .env
+docker compose up -d --build
 ```
 
-A API estará disponível em `http://localhost:8080`
-Swagger UI: `http://localhost:8080/swagger-ui.html`
+| Serviço | URL |
+|---------|-----|
+| Frontend (Vite, hot reload) | http://localhost:5173 |
+| API | http://localhost:8080 |
+| Swagger UI | http://localhost:8080/swagger-ui.html |
+| PostgreSQL | localhost:**5433** |
+| Redis | localhost:6379 |
 
-### Frontend
+> A porta do banco é 5433 de propósito, para não colidir com um PostgreSQL local
+> na 5432.
+
+### Opção 2 — Local, sem Docker
+
+Pré-requisitos: **Java 21**, **Maven 3.9+**, **Node 24**, **PostgreSQL 17** (o
+`NULLS NOT DISTINCT` usado na carteira exige 15+) com o banco `db_primevest`
+criado, e Redis opcional para cache de cotações.
 
 ```bash
+# Variáveis de ambiente
+export DB_USERNAME=postgres
+export DB_PASSWORD=postgres
+export GOOGLE_CLIENT_ID=seu-client-id        # opcional; sem ele o botão do Google some
+
+# Backend — porta 8080
+cd primevest-api
+mvn spring-boot:run
+
+# Frontend — porta 5173, proxy /api -> localhost:8080
 cd primevest-web
 npm install
 npm run dev
+npm run lint     # ESLint 9; hoje fecha em 0 erro
 ```
 
-O frontend estará disponível em `http://localhost:5173`
+> Não existe `GOOGLE_CLIENT_SECRET`: o login usa o fluxo de ID token do Google
+> Identity Services, que dispensa client secret.
+
+Detalhes operacionais — schema, migrations, decisões de modelagem e armadilhas
+conhecidas — estão em `Claude.md`. O que ficou por fazer está em `PENDENCIAS.txt`.
 
 ## 🔌 APIs Externas
 

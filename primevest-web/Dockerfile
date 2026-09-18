@@ -3,8 +3,15 @@
 # ---------------------------------------------------------------------------
 # deps: instala node_modules dentro da imagem Linux.
 # Importante no Windows — binários nativos compilados no host não funcionam aqui.
+#
+# Debian e não Alpine: as camadas de node:24-alpine ficaram corrompidas no store
+# local do Docker Desktop (arquivos com tamanho certo e conteúdo todo zero —
+# `exec format error` no entrypoint, segfault no binário do node). O pull não
+# as rebaixa porque o digest confere; só uma purga do store resolveria. Alpine
+# em si está bom: nginx:alpine abaixo e postgres/redis do compose rodam normal.
+# Voltar para -alpine é seguro depois de purgar o store, e economiza ~700 MB.
 # ---------------------------------------------------------------------------
-FROM node:24-alpine AS deps
+FROM node:24 AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci

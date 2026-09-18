@@ -2,7 +2,7 @@ import React from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-interface LoadingSpinnerProps extends React.HTMLAttributes<HTMLDivElement> {}
+type LoadingSpinnerProps = React.HTMLAttributes<HTMLDivElement>;
 
 export const LoadingSpinner = ({ className, ...props }: LoadingSpinnerProps) => {
   return (

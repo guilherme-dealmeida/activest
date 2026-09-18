@@ -40,3 +40,7 @@ build/
 
 # Redis dump
 dump.rdb
+
+# Ponte de execucao do Claude (ver .claude/README.md)
+# Os scripts e o README sao versionados; os logs, nao.
+.claude/logs/

@@ -5,7 +5,8 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 15/09/2026, conferida arquivo a arquivo contra o código.
+> **Última revisão**: 18/09/2026. A conferência arquivo a arquivo contra o
+> código é de 15/09/2026; o que entrou depois está datado no texto.
 > O que este documento afirma foi verificado; o que está pendente está em
 > `PENDENCIAS.txt`, na raiz do repositório.
 
@@ -109,6 +110,10 @@ anterior no ar. Arquivo apagado não dispara sozinho: salve outro ou reinicie.
 > Mexeu no `Dockerfile` ou no `dev-watch.sh`? Precisa rebuild:
 > `docker compose up -d --build api`.
 
+**A imagem do front é `node:24` (Debian), não `node:24-alpine`** — ver "Imagem
+do front" em Pontos de Atenção. Alpine continua em uso no `nginx:alpine` do
+estágio `runtime` e nos containers de banco e cache.
+
 **Mudou entidade JPA e migration juntas?** Tem que ser a mesma subida.
 `ddl-auto: validate` compara entidades com o schema: se o Java mudar sem a
 migration, ou o contrário, a API não sobe.
@@ -154,6 +159,7 @@ $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";"
 | Rotas | React Router 6 |
 | CSS | Tailwind CSS 3 |
 | Testes | **não existem** — ver Pontos de Atenção |
+| Lint (front) | ESLint 9 em flat config + `typescript-eslint` — ver Pontos de Atenção |
 | Build | Maven / npm |
 
 ### Integrações externas
@@ -175,6 +181,7 @@ primevest/
 ├── README.md                    # visão geral do produto
 ├── Claude.md                    # este arquivo — referência operacional
 ├── PENDENCIAS.txt               # o que ficou por fazer, com o porquê
+├── .claude/                     # ponte de execução: build.ps1 + logs/ (ver README de lá)
 ├── generate_assets_sql.py       # geradores auxiliares, usados uma vez
 ├── generate_classes.py          #   para montar seeds; não fazem parte do build
 ├── generate_seeds.js            #
@@ -211,12 +218,13 @@ primevest/
 │       │   ├── application-dev.yml      # local (Flyway OFF, ddl-auto none)
 │       │   ├── application-docker.yml   # containers (Flyway ON, ddl-auto validate)
 │       │   ├── application-prod.yml
-│       │   └── db/migration/            # V1 .. V28
+│       │   └── db/migration/            # V1 (schema) .. V9 (seeds)
 │       └── test/                        # VAZIO
 │
 └── primevest-web/
     ├── Dockerfile               # alvos: dev (vite) e runtime (nginx)
     ├── vite.config.ts           # proxy /api configurável por VITE_API_TARGET
+    ├── eslint.config.js         # flat config do ESLint 9 (18/09/2026)
     ├── tailwind.config.js
     └── src/
         ├── api/                 # clients axios por domínio
@@ -259,7 +267,7 @@ em desenvolvimento. **Não versione credenciais reais.**
 | `asset_terms` | Parâmetros públicos do papel, PK = `asset_id`. Só Tesouro Direto hoje |
 | `fixed_income_notes` | **O papel do usuário**: `issuer`, `maturity_date`, `rate_type`, `indexer`, `indexer_rate` |
 | `asset_types` | 12 tipos |
-| `asset_categories` | 115 categorias, dentro de cada tipo: `name`, `description`, `segment` (FII: tipo de fundo › segmento; Ação: setor B3 › segmento B3; demais tipos: `segment` nulo) |
+| `asset_categories` | 116 categorias. Uma categoria é o par `(name, segment)` dentro do tipo — a unicidade é `(asset_type_id, name, segment)` com `NULLS NOT DISTINCT`. FII: tipo de fundo › segmento; Ação: setor B3 › segmento B3; demais tipos: `segment` nulo |
 | `strategies` | % ideal por tipo — `unique(user_id, asset_type_id)` |
 | `dividends` | Proventos. **Sem `user_id`** — ver Pontos de Atenção |
 | `ceiling_prices` | Preço teto por ativo — `unique(user_id, asset_id)` |
@@ -296,31 +304,49 @@ coluna.
 > usuário; `getName()` é para lógica interna. `AssetCategory.getDisplayName()`
 > encapsula o fallback description → name.
 
-### Flyway — V1 a V28
+### Flyway — V1 a V9
 
 O Flyway roda do zero no perfil `docker`. No perfil `dev` fica desligado, porque
 o banco local é gerenciado à mão.
 
-As migrations foram **refeitas do zero em 15/09/2026**. As 33 anteriores
-descreviam o caminho — criavam colunas que depois eram derrubadas, classificavam
-ativos em quatro etapas — e foram substituídas por 22 que descrevem o resultado.
-O estado final foi conferido linha a linha contra o conjunto antigo: 1.264 ativos,
-48 categorias, 12 tipos, 103 colunas, 54 constraints e 47 índices idênticos.
+**Segundo reset, em 18/09/2026.** As 30 migrations anteriores voltaram a
+descrever o caminho e não o resultado: criavam colunas derrubadas depois
+(`current_value`, `total_shares`, `total_invested`, `dividends.asset_id`),
+tornavam campos anuláveis meses adiante e classificavam os ativos em duas
+etapas — o seed inseria a categoria antiga e a V23 reclassificava tudo.
+Nada disso interessa a um banco novo, e cada passo intermediário era mais uma
+coisa que podia falhar numa subida limpa.
 
-| Faixa | Conteúdo |
-|-------|----------|
-| V1–V14 | Estrutura, uma tabela por arquivo, na ordem das FKs |
-| V15 | Seed dos 12 tipos |
-| V16 | Seed das 48 categorias |
-| V17–V20 | Seed dos ativos: 782 ações, 337 FIIs, 130 Tesouro, 15 renda fixa |
-| V21 | Seed dos 130 `asset_terms` |
-| V22 | Usuário de desenvolvimento + carteira |
-| V23 | Coluna `segment` em `asset_categories`; FIIs reclassificados por tipo de fundo (CATEGORIA_FIIS.xlsx) e ações por setor/segmento da Classificação Setorial da B3 |
-| V24 | `transactions.shares` e `price_per_share` anuláveis: Renda Fixa é lançada por valor total |
-| V25 | `portfolio_assets.is_settled` e `appreciation`; sai `portfolio_assets.current_value` |
-| V26 | `dividends.asset_id` sai (o ativo vem pela posição); `portfolio_asset_id` obrigatório; sai `portfolio_assets.total_dividends` |
-| V27 | Sai `portfolios.total_dividends` |
-| V28 | Saem `portfolio_assets.total_shares`, `average_price`, `total_invested` e `portfolios.total_invested`, `current_value`: a posição é calculada das transações |
+Hoje são **9 arquivos, 156 KB contra 340 KB**, e o banco fica na **versão 9**.
+
+| Arquivo | Conteúdo |
+|---------|----------|
+| V1 | **Schema completo**: as 14 tabelas na ordem das FKs, com constraints e índices |
+| V2 | Seed dos 12 tipos |
+| V3 | Seed das 116 categorias, já com `segment` |
+| V4–V7 | Seed dos ativos: 782 ações, 337 FIIs, 130 Tesouro, 15 renda fixa |
+| V8 | Seed dos 130 `asset_terms` |
+| V9 | Usuário de desenvolvimento + carteira |
+
+**Como o reset foi verificado** — vale registrar, porque é o método a repetir se
+houver um terceiro. Construiu-se um banco `db_ref` aplicando as 30 migrations
+antigas em ordem, e um `db_new` com o conjunto novo. Os dois foram comparados
+por consulta normalizada e ordenada, não por `pg_dump` bruto: **108 colunas,
+53 constraints, 48 índices e 1.524 linhas de seed, idênticos nos quatro eixos.**
+Depois o volume foi derrubado (`down -v`) e a API subiu com `ddl-auto: validate`,
+que é a prova de que as entidades JPA batem com o schema gerado.
+
+A comparação pegou duas divergências que a leitura dos arquivos não pegaria: a
+unicidade de `asset_categories` inclui `segment` (a V23 trocou a constraint), e
+uma categoria é o par `(name, segment)` — `CONSUMO_CICLICO` sozinho aparece em
+21 segmentos, então resolver a categoria só pelo nome, como fazia o rascunho,
+apontaria 782 ações para a linha errada.
+
+> A ordem relativa das colunas mudou nas tabelas que tinham sofrido
+> `DROP COLUMN` (`portfolio_assets`, `portfolios`, `transactions`,
+> `fixed_income_notes`, `dividends`): num `CREATE TABLE` novo as colunas de
+> auditoria ficam no fim, em vez de onde o `ALTER` as deixou. Não afeta JPA nem
+> consulta nomeada — só `SELECT *` e a saída do `pg_dump`.
 
 Ordem das tabelas (é a ordem das FKs, não alfabética): users → asset_types →
 asset_categories → assets → asset_terms → portfolios → **fixed_income_notes** →
@@ -336,14 +362,15 @@ Estado após uma subida limpa:
 |--------|--------|
 | assets | 1.264 |
 | asset_terms | 130 |
-| asset_categories | 115 |
+| asset_categories | 116 |
 | asset_types | 12 |
 | users | 1 |
 | portfolios | 1 |
 | todo o resto | 0 |
 
-**Não há mais seed de transação, posição ou estratégia.** Os dados de teste
-manuais foram descartados no reset, por decisão do usuário.
+**Não há seed de transação, posição ou estratégia.** Os dados de teste do
+segundo reset (29 transações, 25 posições, 14 títulos, 3 estratégias) foram
+descartados por decisão do usuário, com dump guardado fora do repositório.
 
 > **Se o Flyway recusar a subida** reclamando de checksum ou de migration
 > aplicada que não existe mais: o volume tem o histórico antigo.
@@ -522,8 +549,14 @@ As colunas EMISSOR e VENCIMENTO são o que distingue duas linhas "CDB".
   O corte é no `@Query` com `ORDER BY` de relevância — cortar no cliente
   descartava linhas arbitrárias de um resultado sem ordem.
 - **Não é possível criar ativo pela transação.** Ticker fora do catálogo é erro.
-- Máscaras: `CurrencyInput` (R$, dígitos da direita para a esquerda) e
-  `PercentInput` (%, 2 casas).
+- Máscaras, todas sobre o mesmo `MaskedNumberInput` (dígitos lidos da direita
+  para a esquerda, sem separador digitado): `CurrencyInput` (R$, 2 casas) em
+  Valor, Preço Unitário e Taxas; **Quantidade com 2 casas**; e `PercentInput`
+  (%) com **3 casas** no campo de taxa do título — `indexer_rate` é
+  `NUMERIC(10,4)` e taxas de CDB e Tesouro vêm com fração de décimo
+  ("IPCA + 6,125%"). Quantidade usava `<input type="number">` até 18/09/2026;
+  a troca eliminou o caso de "1.5" digitado por quem espera vírgula virar
+  quinze.
 - Na edição, ticker e tipo de ativo são readonly, mas **o tipo é preenchido** a
   partir do `assetTypeId` que a transação carrega, e o quadro do título reaparece
   com os dados da nota.
@@ -658,11 +691,56 @@ truncaria dados.
 As **8 casas das quantidades existem por causa de cripto** — alinhar para 4
 truncaria fração de BTC.
 
+### Auditoria de datas — quem tem e como é preenchida
+Desde a V30 (18/09/2026), `created_at` + `updated_at` existem em: `users`,
+`portfolios` (só criação), `transactions`, `fixed_income_notes`, `dividends`
+(só criação), `ceiling_prices`, `goals`, `portfolio_assets` e
+`asset_price_history`. Ficam de fora, de propósito, as tabelas de catálogo e
+referência (`assets`, `asset_terms`, `asset_types`, `asset_categories`) e
+`strategies`.
+
+O preenchimento é **manual**, por `@PrePersist` / `@PreUpdate` com
+`LocalDateTime.now()` — não se usa `@CreationTimestamp` do Hibernate. Duas
+consequências:
+
+- Um INSERT feito fora do Hibernate (seed, migration, correção via psql) não
+  passa pelos callbacks. Por isso toda coluna tem `NOT NULL DEFAULT NOW()` no
+  banco: é o DEFAULT que segura esse caso.
+- `@PreUpdate` só dispara em entidade gerenciada. Um `UPDATE` em JPQL/SQL com
+  `@Modifying` passaria por cima — hoje não existe nenhum no projeto, e essa é
+  a razão de não existir.
+
+**`portfolio_assets.updated_at` se move sozinha.** `AppreciationUpdater` grava
+`appreciation` a cada rodada do `PriceUpdateScheduler` e na subida da API, e
+isso conta como alteração da linha. A coluna responde "quando esta linha mudou",
+não "quando o usuário mexeu nesta posição" — para a segunda pergunta, o que vale
+é `transactions.updated_at`.
+
 ### Nenhum teste
 `src/test` está vazio e o build roda com `-Dmaven.test.skip=true`. Quando voltar:
 Testcontainers com PostgreSQL, porque metade do que importa aqui é comportamento
 de banco — as constraints de coerência de taxa, o `NULLS NOT DISTINCT`, o
 recálculo cronológico. Teste em H2 não cobre nada disso.
+
+### O lint do front passou a existir em 18/09/2026
+`npm run lint` falhava desde sempre com *couldn't find an eslint.config.(js|mjs|cjs)*:
+faltavam **as duas** peças, o arquivo de config e o parser. O ESLint 9 abandonou o
+`.eslintrc`, e `typescript-eslint` não estava no `package.json` — sem ele o ESLint
+nem faz o parse de um `.tsx`. Entraram os dois.
+
+Hoje fecha em **0 erro e 35 avisos**. Os avisos são quase todos `any` nos clients de
+API e em blocos `catch`; `no-explicit-any` ficou como **aviso**, não erro, de
+propósito — subir a régua antes de tipar as respostas transformaria o lint numa
+parede que ninguém lê.
+
+Os quatro erros do primeiro `npm run lint` foram corrigidos no mesmo dia. Três eram
+cosméticos (`prefer-const` no `DataTable`, interface vazia no `LoadingSpinner`). O
+quarto não: `MaskedNumberInput` fazia `const inputId = id || React.useId()`, e o
+curto-circuito só chamava o `useId` quando a prop `id` vinha vazia — a quantidade de
+hooks do componente mudava conforme a prop, que é exatamente o que as regras de hooks
+proíbem. Passou a chamar o `useId` incondicionalmente e escolher depois. Nunca chegou
+a se manifestar porque `id` é estável por instância, mas é o componente que sustenta
+`CurrencyInput`, `PercentInput` e a Quantidade do modal de transação.
 
 ### `GoogleOAuthProvider` vestigial em `main.tsx`
 `main.tsx` ainda envolve a app em `GoogleOAuthProvider` com
@@ -681,11 +759,96 @@ UPDATE asset_types SET description = E'Ações' WHERE id = 1;
 ```
 Dentro do Docker isso não é problema.
 
+### Imagem do front: `node:24`, não `node:24-alpine`
+Trocada em 18/09/2026. As camadas de `node:24-alpine` ficaram **corrompidas no
+store local do Docker Desktop**: arquivos com o tamanho certo e o conteúdo todo
+zero. O sintoma era `exec /usr/local/bin/docker-entrypoint.sh: exec format
+error` e o container reiniciando em laço; `docker run --rm --entrypoint sh
+node:24-alpine -c "node -v"` dava segfault e um `od -c` do entrypoint mostrava
+só `\0`.
+
+Não era arquitetura (host e imagem amd64) nem Alpine (o `alpine:3.22`,
+`node:22-alpine`, `postgres:17-alpine` e `redis:7-alpine` rodam). Era só aquela
+imagem. Remover e baixar de novo **não resolve**: o digest confere, então o
+Docker reaproveita as camadas ruins — o pull sai sem nenhuma linha de layer, que
+é a pista. Só uma purga do content store (Docker Desktop → Troubleshoot → Clean
+/ Purge data) devolveria a `-alpine`, e ela apaga **todos** os volumes junto,
+inclusive o `pgdata`. Se for fazer, salve o banco antes:
+
+```powershell
+docker run --rm -v primevest_pgdata:/from -v E:\repos:/to alpine tar cf /to/pgdata-backup.tar -C /from .
+```
+
+Custo de ficar no Debian: ~700 MB a mais na imagem de dev. Como o código entra
+por bind mount, é download de uma vez, não custo de execução.
+
+### Porta 8080 sequestrada pelo WinNAT
+`ports are not available: ... bind: An attempt was made to access a socket in a
+way forbidden by its access permissions` no Windows quase nunca é porta ocupada:
+é porta **reservada** por uma faixa de exclusão do WinNAT/Hyper-V, que costuma
+engolir a 8080 quando o container é derrubado para recriar.
+
+```powershell
+netstat -ano | findstr :8080                              # normalmente vazio
+netsh interface ipv4 show excludedportrange protocol=tcp  # a 8080 aparece aqui
+net stop winnat; net start winnat                         # como administrador
+```
+
+Se voltar a cada reboot, a saída definitiva é `API_PORT=8081` num `.env` na
+raiz — o compose já lê a variável, e o front fala com a API por `api:8080` na
+rede interna, então nada mais muda.
+
 ### Egress bloqueado
 A política da organização bloqueia, entre outros: `repo.maven.apache.org`
 (então não dá para compilar fora do Docker em ambiente restrito),
 `api.bcb.gov.br`, `b3.com.br`, `statusinvest.com.br`, `brapi.dev`. Um 403/000 do
 proxy é negação de política — não é para contornar.
+
+---
+
+## 🤖 Como o Claude executa comandos aqui
+
+Relevante porque explica por que existe a pasta `.claude/` e por que, em algumas
+sessões, o assistente consegue compilar e em outras não.
+
+O Claude no **Cowork** (sessão em nuvem do app desktop) enxerga as pastas
+conectadas, mas o shell dele é uma **VM Linux isolada**: sem Maven, sem Docker,
+com JDK 11 e com a rede barrada pela política de egress da organização —
+`repo.maven.apache.org` e `registry.npmjs.org` respondem 403. Nessa configuração
+ele lê, busca e edita arquivo, e só. Nem `npm install`, nem `mvn`, nem subir
+container.
+
+O que destrava é instalar o **Claude Code** no Windows e registrá-lo como
+servidor MCP local do app desktop. O `claude mcp serve` expõe as ferramentas
+dele (Bash, PowerShell, Read, Edit, Glob, Grep) por stdio, e a sessão em nuvem
+passa a executar **no PowerShell real**, com `JAVA_HOME`, `MAVEN_HOME` e o
+Docker Desktop da máquina. Configurado em 18/09/2026, em
+`claude_desktop_config.json`:
+
+```json
+"mcpServers": {
+  "claude-code": {
+    "type": "stdio",
+    "command": "C:\\Users\\<usuario>\\.local\\bin\\claude.exe",
+    "args": ["mcp", "serve"]
+  }
+}
+```
+
+Dois detalhes que custaram tempo: o botão **Adicionar conector** das
+configurações só aceita URL HTTPS e serve para servidores remotos — servidor
+stdio local não entra por ali; e o app **reescreve** esse arquivo, então ele só
+deve ser editado com o app fechado, sob pena de a alteração ser sobrescrita na
+saída.
+
+Comando que bloqueia (`mvn spring-boot:run`, `npm run dev`) não funciona bem por
+esse caminho, porque cada chamada de ferramenta tem tempo limite. Suba
+desacoplado (`docker compose up -d`) e leia o log num comando separado — que é
+justamente o que o `.claude/build.ps1` faz.
+
+Sem a ponte, o fallback é o `.claude/build.ps1` rodado à mão: ele grava a saída
+em `.claude/logs/`, e o Claude lê o log inteiro em vez de depender de um trecho
+colado no chat.
 
 ---
 
@@ -703,12 +866,28 @@ Há trabalho considerável **não comitado**, acumulado nas últimas sessões:
 - Separação catálogo / título: `AssetTerms`, `FixedIncomeNote` e repositórios,
   `Asset` sem as quatro colunas, `note_id` em transação e posição
 - Reset das migrations: 33 arquivos substituídos por 22
-  (os antigos estão em `_to_delete/migrations-antigas/`)
 - Correções de autorização nos quatro services
 - Frontend: carteira com emissor/vencimento, modal de transação em duas colunas,
   máscaras, correção da edição
+- Máscaras do modal de transação (18/09/2026): Quantidade com 2 casas, taxa do
+  título com 3
+- `primevest-web/Dockerfile`: base `node:24-alpine` → `node:24`
+- V30 + seis entidades: `created_at` / `updated_at` (ver "Auditoria de datas") —
+  absorvida pelo segundo reset
+- **Segundo reset das migrations (18/09/2026)**: 30 arquivos substituídos por 9
+  (as antigas em `E:\repos\primevest-backups\migration-antiga-*`)
 - `PENDENCIAS.txt` (novo)
+- Lint do front (18/09/2026): `eslint.config.js` novo, `typescript-eslint` no
+  `package.json`, e as quatro correções — `MaskedNumberInput`, `DataTable`,
+  `LoadingSpinner`
+- `.claude/` (novo): `build.ps1`, `README.md` e `logs/` ignorado
+- `.gitignore`: entrada para `.claude/logs/`
 
-### Limpeza pendente
-`_to_delete/` pode ser apagada por inteiro: contém as 33 migrations antigas, uma
-migration descartada e tarballs temporários.
+### Limpeza
+`_to_delete/` foi **apagada em 18/09/2026**. Na hora da exclusão ela já estava
+praticamente vazia: as 33 migrations antigas, a migration descartada e os tarballs
+temporários tinham sumido antes, e restavam só dois arquivos de teste de 34 bytes.
+
+A pasta `primevest-api/src/main/java/com/primevest/Claude outputs/`, que continha
+um único `claude_desktop_config.json` — cópia da configuração do app desktop,
+sobra de sessão anterior —, também não existe mais.

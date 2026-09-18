@@ -9,6 +9,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -102,4 +103,26 @@ public class PortfolioAsset {
     @OneToMany(mappedBy = "portfolioAsset", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default
     private List<Dividend> dividends = new ArrayList<>();
+
+    /**
+     * Criacao e ultima alteracao da linha. Preenchidas pelos callbacks
+     * {@code PrePersist} e {@code PreUpdate} abaixo, como no resto do projeto:
+     * nao se usa {@code CreationTimestamp} do Hibernate aqui.
+     */
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = this.createdAt;
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
 }

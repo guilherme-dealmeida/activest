@@ -61,11 +61,11 @@ const RATE_TYPES: { value: RateType; label: string }[] = [
 function rateLabel(rateType: RateType | null, indexer: Indexer | null): { label: string; hint: string } {
   switch (rateType) {
     case 'PREFIXADO':
-      return { label: 'Taxa ao ano', hint: 'Ex: 12,50 para 12,5% a.a.' };
+      return { label: 'Taxa ao ano', hint: 'Ex: 12,500 para 12,5% a.a.' };
     case 'POS_FIXADO':
-      return { label: `Percentual do ${indexer ?? 'índice'}`, hint: 'Ex: 110,00 para 110% do CDI' };
+      return { label: `Percentual do ${indexer ?? 'índice'}`, hint: 'Ex: 110,000 para 110% do CDI' };
     case 'HIBRIDO':
-      return { label: 'Spread ao ano', hint: `Ex: 6,00 para ${indexer ?? 'IPCA'} + 6% a.a.` };
+      return { label: 'Spread ao ano', hint: `Ex: 6,000 para ${indexer ?? 'IPCA'} + 6% a.a.` };
     default:
       return { label: 'Taxa', hint: 'Escolha antes como o título remunera' };
   }
@@ -146,11 +146,15 @@ export const FixedIncomeFields = ({
         {/* A taxa não trava pelo papel, nem no Tesouro: ela é do dia da compra.
             Dois investidores levam o mesmo papel a IPCA + 6,2% e IPCA + 5,8%
             conforme quando compraram. Some na venda de Tesouro, onde a
-            operação é do ativo e os títulos saem por FIFO. */}
+            operação é do ativo e os títulos saem por FIFO.
+
+            Três casas na máscara: indexer_rate é NUMERIC(10,4), e taxas de CDB
+            e Tesouro chegam com fração de décimo ("IPCA + 6,125%"). */}
         {showRate && (
           <PercentInput
             label={label}
             hint={hint}
+            decimals={3}
             value={values.indexerRate}
             disabled={readOnly || !values.rateType}
             onChange={(v) => onChange({ indexerRate: v || null })}

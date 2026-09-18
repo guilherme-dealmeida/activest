@@ -34,7 +34,10 @@ export interface MaskedNumberInputProps
  */
 export const MaskedNumberInput = React.forwardRef<HTMLInputElement, MaskedNumberInputProps>(
   ({ className, label, error, hint, value, onChange, decimals = 2, adornment, id, disabled, ...props }, ref) => {
-    const inputId = id || React.useId();
+    // O useId e chamado incondicionalmente: encurtar com `id || useId()` mudava
+    // a quantidade de hooks conforme a prop, o que quebra a ordem entre renders.
+    const generatedId = React.useId();
+    const inputId = id ?? generatedId;
 
     const display = value
       ? value.toLocaleString('pt-BR', {

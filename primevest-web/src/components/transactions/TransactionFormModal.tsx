@@ -6,6 +6,7 @@ import { assetsApi } from '@/api/assets';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
+import { MaskedNumberInput } from '@/components/ui/MaskedNumberInput';
 import { Modal } from '@/components/ui/Modal';
 import { AssetTypeSelect } from '@/components/forms/AssetTypeSelect';
 import { TickerAutocomplete } from '@/components/forms/TickerAutocomplete';
@@ -495,13 +496,14 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
             </div>
           ) : (
             <>
-              <Input
+              {/* Quantidade usa a mesma máscara dos valores: duas casas fixas,
+                  digitadas da direita para a esquerda. Sem ela, "1.5" digitado
+                  por quem está acostumado à vírgula virava quinze. */}
+              <MaskedNumberInput
                 label="Quantidade"
-                type="number"
-                step="any"
-                min="0"
-                value={formData.shares || ''}
-                onChange={(e) => setFormData({ ...formData, shares: Number(e.target.value) })}
+                decimals={2}
+                value={formData.shares ?? 0}
+                onChange={(v) => setFormData({ ...formData, shares: v })}
                 required
               />
               <CurrencyInput

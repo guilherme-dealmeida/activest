@@ -6,6 +6,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "asset_price_history", uniqueConstraints = {
@@ -42,4 +43,26 @@ public class AssetPriceHistory {
     private BigDecimal lowPrice;
 
     private Long volume;
+
+    /**
+     * Criacao e ultima alteracao da linha. Preenchidas pelos callbacks
+     * {@code PrePersist} e {@code PreUpdate} abaixo, como no resto do projeto:
+     * nao se usa {@code CreationTimestamp} do Hibernate aqui.
+     */
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = this.createdAt;
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
 }

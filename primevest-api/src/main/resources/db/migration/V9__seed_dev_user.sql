@@ -7,6 +7,10 @@
 -- A carteira também é criada aqui. O cadastro por /auth/register cria uma
 -- automaticamente, mas usuário semeado não passa por esse caminho — e sem
 -- carteira o lançamento da primeira transação falha com "Portfolio não encontrado".
+--
+-- Os ids são fixos de propósito: são UUIDs, não BIGSERIAL, então não dependem
+-- da ordem em que as migrations rodaram, e ter um id estável ajuda ao conferir
+-- dados no psql durante o desenvolvimento.
 INSERT INTO users (id, name, email, password_hash, is_admin, created_at, updated_at)
 VALUES (
     'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
@@ -22,12 +26,13 @@ ON CONFLICT (email) DO UPDATE
         is_admin = EXCLUDED.is_admin;
 
 -- Carteira padrão do usuário, com o mesmo nome que o registro por API usaria.
-INSERT INTO portfolios (id, user_id, name, total_invested, current_value, total_dividends)
+-- Sem totais: portfolios não guarda mais total_invested, current_value nem
+-- total_dividends — o resumo soma as posições na leitura.
+INSERT INTO portfolios (id, user_id, name)
 SELECT
     'b1b2c3d4-e5f6-7890-abcd-ef1234567890',
     u.id,
-    'Minha Carteira',
-    0, 0, 0
+    'Minha Carteira'
 FROM users u
 WHERE u.email = 'guilhermeunatec@gmail.com'
   AND NOT EXISTS (SELECT 1 FROM portfolios p WHERE p.user_id = u.id);
