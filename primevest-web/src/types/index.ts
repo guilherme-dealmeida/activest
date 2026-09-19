@@ -105,6 +105,13 @@ export interface PortfolioAssetDetail {
   isSettled: boolean;
 }
 
+/** Resposta de PATCH /portfolio/assets/{id}/reservation. */
+export interface PortfolioAssetReservation {
+  id: string;
+  ticker: string;
+  isReservation: boolean;
+}
+
 export interface PortfolioAllocation {
   typeName: string;
   colorHex: string;

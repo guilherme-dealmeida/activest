@@ -6,6 +6,8 @@ import com.primevest.domain.portfolio.dto.*;
 import com.primevest.domain.portfolio.dto.PortfolioPerformanceDTO.AssetPerformance;
 import com.primevest.domain.user.User;
 import com.primevest.domain.user.UserRepository;
+import com.primevest.exception.BusinessException;
+import com.primevest.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -139,6 +141,41 @@ public class PortfolioService {
                     pa.isSettled()
                 );
             }).collect(Collectors.toList());
+    }
+
+    /**
+     * Marca ou desmarca a posicao como reserva de emergencia.
+     *
+     * <p>Recebe o ESTADO desejado, nao um "inverta": o switch da carteira pode
+     * ser clicado duas vezes antes da primeira resposta chegar, e um toggle
+     * cego deixaria o resultado na mao da ordem de chegada. Reenviar a mesma
+     * requisicao nao muda nada.</p>
+     *
+     * <p>So renda fixa compoe reserva. A regra olha a coluna fixed_income do
+     * tipo, e nao uma lista de nomes: tipo novo de renda fixa ja nasce
+     * elegivel, e nenhum lugar precisa ser lembrado de incluir o nome dele.</p>
+     *
+     * <p>Posicao de outro dono responde "nao encontrada", nunca "sem
+     * permissao" — id que existe e exatamente o que confirmaria o alvo.</p>
+     */
+    @Transactional
+    public PortfolioAssetReservationDTO setReservation(UUID userId, UUID positionId, boolean isReservation) {
+        PortfolioAsset position = portfolioAssetRepository.findOwnedById(userId, positionId)
+            .orElseThrow(() -> new ResourceNotFoundException("Posição não encontrada"));
+
+        if (!position.getAsset().getAssetType().isFixedIncome()) {
+            throw new BusinessException(
+                "Somente ativos de renda fixa podem compor a reserva de emergência");
+        }
+
+        position.setReservation(isReservation);
+        portfolioAssetRepository.save(position);
+
+        return new PortfolioAssetReservationDTO(
+            position.getId(),
+            position.getAsset().getTicker(),
+            position.isReservation()
+        );
     }
 
     /**

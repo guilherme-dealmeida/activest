@@ -65,6 +65,24 @@ public interface PortfolioAssetRepository extends JpaRepository<PortfolioAsset, 
         """)
     List<PortfolioAsset> findAllByAssetIdIn(@Param("assetIds") Collection<Long> assetIds);
 
+    /**
+     * Uma posição, escopada pelo dono. É o padrão de findOwnedById do
+     * TransactionRepository: o filtro pelo usuário vai na consulta, não numa
+     * comparação depois de carregar — a linha alheia não sai do banco.
+     *
+     * <p>O tipo do ativo vem junto porque quem chama decide pela coluna
+     * fixed_income (só renda fixa compõe reserva de emergência), e buscá-lo
+     * depois seria mais uma consulta.</p>
+     */
+    @Query("""
+        SELECT pa FROM PortfolioAsset pa
+        JOIN FETCH pa.asset a
+        JOIN FETCH a.assetType
+        WHERE pa.id = :id
+          AND pa.portfolio.user.id = :userId
+        """)
+    Optional<PortfolioAsset> findOwnedById(@Param("userId") UUID userId, @Param("id") UUID id);
+
     /** Todas as posições, com o ativo. Usado para regravar a valorização na subida. */
     @Query("SELECT pa FROM PortfolioAsset pa JOIN FETCH pa.asset")
     List<PortfolioAsset> findAllWithAsset();

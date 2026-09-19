@@ -141,6 +141,15 @@ anterior no ar. Arquivo apagado não dispara sozinho: salve outro ou reinicie.
 > Mexeu no `Dockerfile` ou no `dev-watch.sh`? Precisa rebuild:
 > `docker compose up -d --build api`.
 
+**O compile incremental já deixou passar arquivo alterado** (19/09/2026): um
+controller modificado no Windows foi compilado pelo `dev-watch` sem que o
+`.class` ganhasse o método novo — a API subiu sem o mapping e respondeu
+`NoResourceFoundException` (que aparece como 500 ou 404, não como 405). Se um
+endpoint recém-escrito "não existe" para o Spring, confira o `.class` antes de
+procurar erro no código:
+`docker compose exec api sh -c "grep -ac <trecho> target/classes/<...>.class"`.
+A saída é `touch` no `.java` e `mvn -o compile` dentro do container.
+
 **A imagem do front é `node:24` (Debian), não `node:24-alpine`** — ver "Imagem
 do front" em Pontos de Atenção. Alpine continua em uso no `nginx:alpine` do
 estágio `runtime` e nos containers de banco e cache.
@@ -501,6 +510,7 @@ Falta criar o Client ID no Google Cloud Console.
 | GET | `/api/v1/portfolio/allocation/detailed` | Alocação por tipo e categoria |
 | GET | `/api/v1/portfolio/performance` | Rentabilidade |
 | GET | `/api/v1/portfolio/dividends` | Dividendos da carteira |
+| PATCH | `/api/v1/portfolio/assets/{id}/reservation` | Liga/desliga a reserva de emergência da posição (só renda fixa) |
 
 ### Transactions
 | Método | Endpoint | Descrição |
@@ -570,6 +580,20 @@ Rotas em `App.tsx`; tudo abaixo de `/login` é protegido por `ProtectedRoute`.
 A tabela repete ticker, porque a posição é por título. `key` da linha é
 `asset.id` (o id da posição), **não o ticker** — ticker deixou de ser único aqui.
 As colunas EMISSOR e VENCIMENTO são o que distingue duas linhas "CDB".
+
+**Reserva de emergência** (19/09/2026): primeira coluna, um switch que grava
+`portfolio_assets.is_reservation` direto, sem modal. Aparece só onde
+`asset_types.fixed_income` é verdadeiro — Renda Fixa e Tesouro Direto hoje, e
+qualquer tipo novo marcado assim amanhã; o backend recusa o resto com 422, de
+modo que esconder a coluna é conveniência, não a regra. A requisição manda o
+ESTADO desejado, não um "inverta", e a chave da linha fica desabilitada
+enquanto a resposta não volta: dois cliques rápidos não dependem da ordem de
+chegada. O sucesso invalida `['portfolio']` e `['strategy']`, porque a
+estratégia desconta a reserva quando `includeReservation` é falso.
+
+A coluna fica **fora de `COLUMNS`**: um render de coluna recebe só a posição, e
+a chave precisa avisar quem está de fora que o estado mudou. Por isso o
+`colSpan` de "Totais" no rodapé soma 1 quando ela aparece.
 
 ### Transações
 - Modal em duas colunas: operação à esquerda, quadro do título à direita, com
@@ -663,6 +687,11 @@ edição apagaria emissor, vencimento e taxa.
 - **Background**: `#000000` (claro: `#f5f5f0`) · **Surfaces**: `#111111` (claro: `#ffffff`)
 - **Accent/Gold**: `#c9a84c` · **Success**: `#38a169` · **Danger**: `#e53e3e`
 - **Fonte**: Inter · **Idioma da UI**: Português (Brasil)
+- **Avisos**: `ToastContext` (`useToast`) — canto superior direito, empilha,
+  some em 4s, variantes `success` / `error` / `info`. Criado em 19/09/2026 com
+  o switch da reserva: uma ação que grava sem modal não tem onde pendurar o
+  "deu certo", e até então só existia erro dentro do formulário que o causou.
+  O provider fica no `main.tsx`, entre `ThemeProvider` e `AuthProvider`.
 
 ---
 
@@ -913,6 +942,11 @@ Há trabalho considerável **não comitado**, acumulado nas últimas sessões:
   `LoadingSpinner`
 - `.claude/` (novo): `build.ps1`, `README.md` e `logs/` ignorado
 - `.gitignore`: entrada para `.claude/logs/`
+- **Reserva de emergência (19/09/2026)**: `findOwnedById` em
+  `PortfolioAssetRepository`, `PortfolioService.setReservation`,
+  `PATCH /portfolio/assets/{id}/reservation` com `ReservationUpdateDTO` e
+  `PortfolioAssetReservationDTO`; no front, `ToastContext`, `ui/Switch` e a
+  coluna RESERVA da carteira. Sem migration: `is_reservation` já vinha da V1
 
 ### Limpeza
 `_to_delete/` foi **apagada em 18/09/2026**. Na hora da exclusão ela já estava

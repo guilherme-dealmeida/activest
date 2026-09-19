@@ -5,6 +5,7 @@ import {
   PortfolioAllocation,
   PortfolioAllocationDetailed,
   PortfolioPerformance,
+  PortfolioAssetReservation,
 } from '@/types';
 
 /**
@@ -40,6 +41,21 @@ export const portfolioApi = {
 
   getPerformance: async (): Promise<PortfolioPerformance> => {
     const { data } = await apiClient.get<PortfolioPerformance>('/portfolio/performance');
+    return data;
+  },
+
+  /**
+   * Liga ou desliga a reserva de emergência de uma posição.
+   *
+   * Manda o estado desejado, não um "inverta": dois cliques rápidos no switch
+   * não dependem da ordem em que as respostas voltam. Só renda fixa é aceita —
+   * o backend recusa o resto com 422.
+   */
+  setReservation: async (id: string, isReservation: boolean): Promise<PortfolioAssetReservation> => {
+    const { data } = await apiClient.patch<PortfolioAssetReservation>(
+      `/portfolio/assets/${id}/reservation`,
+      { isReservation }
+    );
     return data;
   },
 

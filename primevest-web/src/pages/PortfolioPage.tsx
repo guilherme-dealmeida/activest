@@ -1,11 +1,13 @@
 import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { clsx } from 'clsx';
 import { ArrowDownLeft, ArrowUpRight, List } from 'lucide-react';
 import { portfolioApi } from '@/api/portfolio';
 import { assetsApi } from '@/api/assets';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { Switch } from '@/components/ui/Switch';
+import { useToast } from '@/context/ToastContext';
 import { TransactionFormModal, TransactionPreset } from '@/components/transactions/TransactionFormModal';
 import { useSortable } from '@/hooks/useSortable';
 import { AssetType, PortfolioAssetDetail, RateType, TransactionType } from '@/types';
@@ -236,15 +238,34 @@ const PortfolioFlags = ({ keys, offKeys, onToggle }: FlagsProps) => (
   </div>
 );
 
+/**
+ * A coluna RESERVA e o que ela precisa para funcionar.
+ *
+ * Fica fora de COLUMNS porque um render de coluna recebe só a posição, e a
+ * chave precisa avisar quem está de fora que o estado mudou. pendingId desliga
+ * a chave da linha que está gravando — sem isso o segundo clique sai antes da
+ * primeira resposta e a tela mostra um estado que o banco não tem.
+ */
+interface ReservationControl {
+  pendingId: string | null;
+  onToggle: (asset: PortfolioAssetDetail, next: boolean) => void;
+}
+
 interface TableProps {
   type: AssetType;
   assets: PortfolioAssetDetail[];
+  reservation: ReservationControl;
   onList: (asset: PortfolioAssetDetail) => void;
   onBuy: (asset: PortfolioAssetDetail) => void;
   onSell: (asset: PortfolioAssetDetail) => void;
 }
 
-const PortfolioTypeTable = ({ type, assets, onList, onBuy, onSell }: TableProps) => {
+const PortfolioTypeTable = ({ type, assets, reservation, onList, onBuy, onSell }: TableProps) => {
+  // Regra (A): só renda fixa compõe reserva de emergência. A condição é a
+  // coluna fixed_income do tipo, e não uma lista de nomes — Renda Fixa e
+  // Tesouro Direto hoje, e qualquer tipo novo marcado assim amanhã.
+  const showReservation = type.fixedIncome;
+
   // Começa ordenada por ativo (A→Z); o clique no cabeçalho continua trocando.
   const { sortedData, requestSort, getSortIndicator, getSortClass } = useSortable(assets, {
     key: 'ticker',
@@ -277,6 +298,9 @@ const PortfolioTypeTable = ({ type, assets, onList, onBuy, onSell }: TableProps)
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-white/10">
+            {/* Primeira coluna, e só nas abas de renda fixa. Não ordena: o
+                estado muda com um clique ali mesmo. */}
+            {showReservation && <th className="py-3 px-3 font-medium text-xs text-center">RESERVA</th>}
             {columns.map((col) => (
               <th
                 key={col.key}
@@ -299,6 +323,23 @@ const PortfolioTypeTable = ({ type, assets, onList, onBuy, onSell }: TableProps)
           {sortedData.map((asset) => (
             // key pelo id da posição: o ticker não é único na carteira.
             <tr key={asset.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+              {showReservation && (
+                <td className="py-3 px-3">
+                  <div className="flex items-center justify-center">
+                    <Switch
+                      checked={asset.isReservation}
+                      disabled={reservation.pendingId === asset.id}
+                      onChange={(next) => reservation.onToggle(asset, next)}
+                      label={`Reserva de emergência — ${asset.ticker}`}
+                      title={
+                        asset.isReservation
+                          ? 'Retirar da reserva de emergência'
+                          : 'Incluir na reserva de emergência'
+                      }
+                    />
+                  </div>
+                </td>
+              )}
               {columns.map((col) => (
                 <td key={col.key} className={clsx('py-3 px-3', col.align === 'right' && 'text-right')}>
                   {col.render(asset)}
@@ -334,7 +375,7 @@ const PortfolioTypeTable = ({ type, assets, onList, onBuy, onSell }: TableProps)
         </tbody>
         <tfoot>
           <tr className="border-t border-white/10 font-semibold">
-            <td className="py-3 px-3" colSpan={labelSpan}>
+            <td className="py-3 px-3" colSpan={labelSpan + (showReservation ? 1 : 0)}>
               Totais
             </td>
             {columns.slice(labelSpan).map((col) => (
@@ -357,7 +398,7 @@ const PortfolioTypeTable = ({ type, assets, onList, onBuy, onSell }: TableProps)
  * cada troca de tipo (key pelo type.id) — é o mesmo mecanismo que devolve a
  * ordenação ao padrão, e faz com que toda aba comece com tudo ligado.
  */
-const PortfolioTypeSection = ({ type, assets, onList, onBuy, onSell }: TableProps) => {
+const PortfolioTypeSection = ({ type, assets, reservation, onList, onBuy, onSell }: TableProps) => {
   const [offKeys, setOffKeys] = useState<Set<string>>(new Set());
 
   // Só entram na fila as chaves que têm posição nesta aba.
@@ -381,7 +422,14 @@ const PortfolioTypeSection = ({ type, assets, onList, onBuy, onSell }: TableProp
     <>
       {keys.length > 0 && <PortfolioFlags keys={keys} offKeys={offKeys} onToggle={toggle} />}
       {visible.length > 0 ? (
-        <PortfolioTypeTable type={type} assets={visible} onList={onList} onBuy={onBuy} onSell={onSell} />
+        <PortfolioTypeTable
+          type={type}
+          assets={visible}
+          reservation={reservation}
+          onList={onList}
+          onBuy={onBuy}
+          onSell={onSell}
+        />
       ) : (
         <p className="text-sm text-gray-400">
           {isFixedIncomeNote(type)
@@ -393,10 +441,28 @@ const PortfolioTypeSection = ({ type, assets, onList, onBuy, onSell }: TableProp
   );
 };
 
+/**
+ * Mensagem de erro que o backend mandou, quando mandou.
+ *
+ * O GlobalExceptionHandler responde { status, message, ... }, e é dele que sai
+ * o texto da regra (A) — "somente ativos de renda fixa...". Uma falha de rede
+ * não tem corpo nenhum, daí o undefined e o texto genérico no lugar.
+ */
+const apiMessage = (error: unknown): string | undefined => {
+  if (typeof error === 'object' && error !== null && 'response' in error) {
+    const { response } = error as { response?: { data?: { message?: string } } };
+    return response?.data?.message;
+  }
+  return undefined;
+};
+
 export const PortfolioPage = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [activeTypeId, setActiveTypeId] = useState<number | null>(null);
   const [preset, setPreset] = useState<TransactionPreset | null>(null);
+  const [pendingReservationId, setPendingReservationId] = useState<string | null>(null);
 
   const { data: allAssets = [], isLoading: loadingAssets } = useQuery({
     queryKey: ['portfolio', 'assets'],
@@ -407,6 +473,45 @@ export const PortfolioPage = () => {
     queryKey: ['assets', 'types'],
     queryFn: assetsApi.getTypes,
   });
+
+  /**
+   * Liga e desliga a reserva de emergência da posição.
+   *
+   * Manda o estado desejado — o switch já sabe para onde vai —, e não um
+   * "inverta", que dependeria da ordem em que as respostas voltam.
+   *
+   * A estratégia também é invalidada: ela desconta a reserva quando
+   * includeReservation é falso, então marcar um CDB aqui muda o rebalanceamento
+   * lá. Sem isso a outra tela mostraria o cálculo anterior até alguém recarregar.
+   */
+  const reservationMutation = useMutation({
+    mutationFn: ({ id, isReservation }: { id: string; isReservation: boolean }) =>
+      portfolioApi.setReservation(id, isReservation),
+    onMutate: ({ id }) => {
+      setPendingReservationId(id);
+    },
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ['portfolio'] });
+      queryClient.invalidateQueries({ queryKey: ['strategy'] });
+      showToast(
+        updated.isReservation
+          ? `O ${updated.ticker} selecionado agora faz parte da sua reserva de emergência`
+          : `O ${updated.ticker} selecionado NÃO faz mais parte da sua reserva de emergência`,
+        'success'
+      );
+    },
+    onError: (error: unknown) => {
+      showToast(apiMessage(error) ?? 'Não foi possível atualizar a reserva de emergência.', 'error');
+    },
+    onSettled: () => {
+      setPendingReservationId(null);
+    },
+  });
+
+  const reservation: ReservationControl = {
+    pendingId: pendingReservationId,
+    onToggle: (asset, next) => reservationMutation.mutate({ id: asset.id, isReservation: next }),
+  };
 
   // Uma aba por tipo que tem posição, na ordem de cadastro de asset_types.
   // O findAll do backend não garante ordem, por isso o sort por id aqui.
@@ -483,6 +588,7 @@ export const PortfolioPage = () => {
             key={activeTab.type.id}
             type={activeTab.type}
             assets={activeTab.assets}
+            reservation={reservation}
             onList={(asset) => navigate(`/transactions?position=${asset.id}`)}
             onBuy={(asset) => setPreset(presetOf(TransactionType.BUY, activeTab.type, asset))}
             onSell={(asset) => setPreset(presetOf(TransactionType.SELL, activeTab.type, asset))}
