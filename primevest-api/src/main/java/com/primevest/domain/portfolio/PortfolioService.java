@@ -190,6 +190,9 @@ public class PortfolioService {
         // Group: typeName -> { colorHex, categoryName -> value }
         Map<String, String> typeColorMap = new LinkedHashMap<>();
         Map<String, Map<String, BigDecimal>> typeCategories = new LinkedHashMap<>();
+        // Ordem de cadastro do tipo de ativo: e ela que a tela segue, e nao a
+        // ordem em que as posicoes aparecem na carteira.
+        Map<String, Long> typeOrder = new HashMap<>();
 
         for (PortfolioAsset pa : assets) {
             Position position = positions.get(pa.getId());
@@ -206,6 +209,7 @@ public class PortfolioService {
 
             totalPortfolioValue = totalPortfolioValue.add(val);
             typeColorMap.put(typeName, colorHex);
+            typeOrder.putIfAbsent(typeName, pa.getAsset().getAssetType().getId());
             typeCategories.computeIfAbsent(typeName, k -> new LinkedHashMap<>())
                 .merge(categoryName, val, BigDecimal::add);
         }
@@ -237,6 +241,8 @@ public class PortfolioService {
                 typeName, typeColorMap.get(typeName), typeTotal, typePct, catAllocations
             ));
         }
+
+        result.sort(Comparator.comparing(item -> typeOrder.getOrDefault(item.typeName(), Long.MAX_VALUE)));
 
         return result;
     }

@@ -150,13 +150,15 @@ export const StrategyPage = () => {
     };
   });
 
-  // Pie chart data
+  // Pie chart data. A cor e a cadastrada no tipo de ativo (asset_types.color_hex);
+  // a paleta local so cobre tipo sem cor cadastrada.
   const pieData = strategyRows
     .filter(s => Number(s.value) > 0)
     .map((s, idx) => ({
       name: s.typeName,
       value: Number(s.value),
-      color: PIE_COLORS[idx % PIE_COLORS.length]
+      color: (assetTypes || []).find(t => t.id === s.assetTypeId)?.colorHex
+        || PIE_COLORS[idx % PIE_COLORS.length]
     }));
 
   const totalPct = Object.values(editingRows).reduce((acc, row) => acc + Number(row.value), 0);
@@ -256,18 +258,22 @@ export const StrategyPage = () => {
                       <td className="px-4 py-3 text-center">{formatPercentage(row.currentPercentage)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-2">
-                          <Input
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.1"
-                            className="w-24 text-center"
-                            value={row.value}
-                            onChange={(e) => setEditingRows(prev => ({
-                              ...prev,
-                              [row.assetTypeId]: { ...prev[row.assetTypeId], value: e.target.value }
-                            }))}
-                          />
+                          {/* O Input vem embrulhado num div w-full; sem esta caixa
+                              de largura fixa o "%" era empurrado para longe dele. */}
+                          <div className="w-24">
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.1"
+                              className="text-center"
+                              value={row.value}
+                              onChange={(e) => setEditingRows(prev => ({
+                                ...prev,
+                                [row.assetTypeId]: { ...prev[row.assetTypeId], value: e.target.value }
+                              }))}
+                            />
+                          </div>
                           <span className="text-gray-400">%</span>
                         </div>
                       </td>
@@ -300,7 +306,7 @@ export const StrategyPage = () => {
                         "font-semibold",
                         totalPct === 100 ? "text-success" : "text-danger"
                       )}>
-                        {totalPct.toFixed(1)}%
+                        {formatPercentage(totalPct)}
                       </span>
                     </td>
                     <td colSpan={2}></td>
@@ -363,7 +369,7 @@ export const StrategyPage = () => {
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8">
                   <span className="text-sm text-gray-400">Total</span>
-                  <span className="text-lg font-semibold text-white">{totalPct.toFixed(1)}%</span>
+                  <span className="text-lg font-semibold text-white">{formatPercentage(totalPct)}</span>
                 </div>
               </div>
             ) : (
