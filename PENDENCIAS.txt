@@ -1,7 +1,7 @@
 PRIMEVEST — PENDENCIAS EM ABERTO
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 18/09/2026 — itens 9.1, 9.2, 9.8, a secao 12 (lint) e o
+Ultima atualizacao: 18/09/2026 — itens 9.1 a 9.8, a secao 12 (lint) e o
 segundo reset das migrations.
 
 
@@ -257,7 +257,37 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
        migrations antigas, a V31 descartada e os tarballs temporarios tinham
        sumido antes, e restavam dois arquivos de teste somando 34 bytes.
 
-  9.8  FEITO em 18/09/2026 — SEGUNDO RESET DAS MIGRATIONS.
+  9.3  Copia velha do projeto em
+       C:\Users\guilh\.gemini\antigravity\scratch\primevest
+       Esta defasada e aparece nas buscas. Apagar ou desconectar da sessao.
+
+  9.4  Google OAuth: o codigo esta pronto e usa fluxo de ID token, sem client
+       secret. Falta VOCE criar o Client ID no Google Cloud Console — nao crio
+       credencial na sua conta. Depois e so preencher a variavel de ambiente.
+
+  9.5  COMITADO em 18/09/2026. O acumulo das ultimas sessoes saiu do working
+       tree, na branch TRACK_01-ajustes_crud_inicial:
+         b1fbfa9  Filtro tela de Categoria e Transacao
+         672ad13  Configuracoes de uso voltados para o Claude
+         7d8a150  Ajustado balanceamento estrategico
+       Entraram ai o segundo reset das migrations (30 arquivos -> 9), o lint do
+       front (eslint.config.js, typescript-eslint e as quatro correcoes), a
+       pasta .claude/ e a revisao de Claude.md, README.md e deste arquivo.
+       A regra continua valendo: nao comitar sem instrucao explicita.
+
+  9.6  primevest-web/Dockerfile usa node:24 (Debian) em vez de node:24-alpine.
+       Nao foi escolha de projeto: as camadas da imagem -alpine estao
+       corrompidas no store local do Docker Desktop (arquivos com tamanho certo
+       e conteudo todo zero — "exec format error" no entrypoint, segfault no
+       binario do node). Remover e baixar de novo nao resolve, porque o digest
+       confere e o Docker reaproveita as camadas ruins; so uma purga do content
+       store (Troubleshoot > Clean / Purge data) devolveria a -alpine, e ela
+       apaga TODOS os volumes junto, inclusive o pgdata.
+       Custo de ficar no Debian: ~700 MB a mais na imagem de dev. Detalhes e o
+       comando de backup do pgdata estao no Claude.md, em Pontos de Atencao.
+       Voltar para -alpine e opcional e so vale se o tamanho incomodar.
+
+  9.7  FEITO em 18/09/2026 — SEGUNDO RESET DAS MIGRATIONS.
        As 30 migrations viraram 9: V1 com o schema completo e V2..V9 com os
        seeds. 156 KB contra 340 KB. As antigas ficaram guardadas em
        E:\repos\primevest-backups\migration-antiga-20260918-182315.
@@ -290,7 +320,7 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
        CORRECAO DE CONTAGEM: sao 116 categorias, nao 115. O numero errado
        circulava no Claude.md e aqui.
 
-  9.9  FEITO — a pasta "Claude outputs" dentro de src/main/java/com/primevest
+  9.8  FEITO — a pasta "Claude outputs" dentro de src/main/java/com/primevest
        nao existe mais. Continha um unico claude_desktop_config.json, copia da
        configuracao do app desktop, sobra de sessao anterior.
 
