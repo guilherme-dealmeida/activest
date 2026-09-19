@@ -91,19 +91,24 @@ public class StrategyService {
     }
 
     /**
-     * Gets rebalance suggestion based on current portfolio vs target strategy.
+     * Sugestao de aporte para levar a carteira aos ideais estrategicos.
+     *
+     * <p>Regra A: a base do calculo e o tipo que esta mais acima do seu ideal.
+     * Dele sai quanto vale cada ponto percentual da carteira estrategica; os
+     * demais tipos recebem aporte ate alcancar esse mesmo padrao. Assim o
+     * rebalanceamento acontece so com aporte, sem precisar vender nada — e o
+     * tipo que serviu de base fica com sugestao zero.</p>
+     *
+     * <p>Regra B: ativo cujo tipo nao tem ideal cadastrado nao entra na conta.
+     * Regra C: posicao de reserva tambem fica de fora, a menos que o ideal do
+     * tipo esteja marcado para incluir reserva.</p>
      */
     public RebalanceDTO getRebalanceSuggestion(UUID userId) {
         List<Strategy> strategies = strategyRepository.findByUserId(userId);
-        
-        // Get all asset types for naming
         List<AssetType> allTypes = assetTypeRepository.findAll();
-        Map<Long, String> typeNames = allTypes.stream()
-            .collect(Collectors.toMap(AssetType::getId, AssetType::getName));
 
-        // Get portfolio assets
         var portfolio = portfolioRepository.findFirstByUserId(userId).orElse(null);
-        List<PortfolioAsset> portfolioAssets = portfolio != null 
+        List<PortfolioAsset> portfolioAssets = portfolio != null
             ? portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId())
             : List.of();
 
@@ -112,61 +117,114 @@ public class StrategyService {
             ? positionCalculator.positionsOf(portfolio.getId(), portfolioAssets)
             : Map.of();
 
-        // Calculate total portfolio value
-        BigDecimal totalValue = portfolioAssets.stream()
-            .map(pa -> invested(positions, pa))
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // Group portfolio value by asset type
-        Map<Long, BigDecimal> valueByType = new HashMap<>();
-        for (PortfolioAsset pa : portfolioAssets) {
-            if (pa.getAsset() != null && pa.getAsset().getAssetType() != null) {
-                Long typeId = pa.getAsset().getAssetType().getId();
-                BigDecimal value = invested(positions, pa);
-                valueByType.merge(typeId, value, BigDecimal::add);
-            }
-        }
-
-        // Build rebalance items
-        List<RebalanceDTO.RebalanceItem> items = new ArrayList<>();
-        
-        // If no strategies defined, create items for all asset types with 0% target
+        // Sem nenhum ideal cadastrado nao ha estrategia a comparar: a tela
+        // mostra apenas como a carteira esta distribuida hoje.
         if (strategies.isEmpty()) {
+            Map<Long, BigDecimal> valueByType = new HashMap<>();
+            for (PortfolioAsset pa : portfolioAssets) {
+                if (pa.getAsset() != null && pa.getAsset().getAssetType() != null) {
+                    valueByType.merge(pa.getAsset().getAssetType().getId(), invested(positions, pa), BigDecimal::add);
+                }
+            }
+            BigDecimal totalValue = valueByType.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            List<RebalanceDTO.RebalanceItem> items = new ArrayList<>();
             for (AssetType type : allTypes) {
                 BigDecimal currentValue = valueByType.getOrDefault(type.getId(), BigDecimal.ZERO);
-                BigDecimal currentPct = totalValue.compareTo(BigDecimal.ZERO) > 0
-                    ? currentValue.multiply(BigDecimal.valueOf(100)).divide(totalValue, 2, RoundingMode.HALF_UP)
-                    : BigDecimal.ZERO;
+                BigDecimal currentPct = percentageOf(currentValue, totalValue);
                 items.add(new RebalanceDTO.RebalanceItem(
                     type.getDescription() != null ? type.getDescription() : type.getName(),
                     BigDecimal.ZERO, currentPct, currentPct.negate(),
                     currentValue, BigDecimal.ZERO, currentValue.negate()
                 ));
             }
-        } else {
-            for (Strategy strategy : strategies) {
-                Long typeId = strategy.getAssetType().getId();
-                String typeName = strategy.getAssetType().getDescription() != null 
-                    ? strategy.getAssetType().getDescription() : strategy.getAssetType().getName();
-                BigDecimal targetPct = strategy.getTargetPercentage();
-                BigDecimal currentValue = valueByType.getOrDefault(typeId, BigDecimal.ZERO);
-                
-                BigDecimal currentPct = totalValue.compareTo(BigDecimal.ZERO) > 0
-                    ? currentValue.multiply(BigDecimal.valueOf(100)).divide(totalValue, 2, RoundingMode.HALF_UP)
-                    : BigDecimal.ZERO;
-                
-                BigDecimal diffPct = currentPct.subtract(targetPct);
-                BigDecimal idealValue = totalValue.multiply(targetPct).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-                BigDecimal amountToRebalance = idealValue.subtract(currentValue);
-                
-                items.add(new RebalanceDTO.RebalanceItem(
-                    typeName, targetPct, currentPct, diffPct,
-                    currentValue, idealValue, amountToRebalance
-                ));
+            return new RebalanceDTO(totalValue, items);
+        }
+
+        Map<Long, Strategy> strategyByType = new LinkedHashMap<>();
+        for (Strategy strategy : strategies) {
+            strategyByType.put(strategy.getAssetType().getId(), strategy);
+        }
+
+        // Regras B e C: o que nao tem ideal para o seu tipo, e a reserva de
+        // tipo que nao pediu para incluir reserva, ficam fora do total.
+        Map<Long, BigDecimal> valueByType = new HashMap<>();
+        for (PortfolioAsset pa : portfolioAssets) {
+            if (pa.getAsset() == null || pa.getAsset().getAssetType() == null) {
+                continue;
+            }
+            Long typeId = pa.getAsset().getAssetType().getId();
+            Strategy strategy = strategyByType.get(typeId);
+            if (strategy == null) {
+                continue;
+            }
+            if (pa.isReservation() && !strategy.isIncludeReservation()) {
+                continue;
+            }
+            valueByType.merge(typeId, invested(positions, pa), BigDecimal::add);
+        }
+
+        BigDecimal totalValue = valueByType.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Regra A: quanto vale um ponto percentual da carteira estrategica.
+        // Sai do tipo com a maior razao aportado/ideal — o mais acima do seu
+        // ideal. Empate (mais de um tipo na mesma razao) cai no mesmo valor e
+        // nao muda nada; carteira ja equilibrada da a mesma razao para todos e
+        // zera todas as sugestoes. Tipo com ideal zero nao serve de base: ele
+        // nao tem espaco na estrategia, entao nao ha razao a comparar.
+        BigDecimal valuePerPoint = BigDecimal.ZERO;
+        for (Strategy strategy : strategies) {
+            BigDecimal targetPct = targetOf(strategy);
+            if (targetPct.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            BigDecimal currentValue = valueByType.getOrDefault(strategy.getAssetType().getId(), BigDecimal.ZERO);
+            BigDecimal ratio = currentValue.divide(targetPct, 10, RoundingMode.HALF_UP);
+            if (ratio.compareTo(valuePerPoint) > 0) {
+                valuePerPoint = ratio;
             }
         }
-        
+
+        List<RebalanceDTO.RebalanceItem> items = new ArrayList<>();
+        for (Strategy strategy : strategies) {
+            Long typeId = strategy.getAssetType().getId();
+            String typeName = strategy.getAssetType().getDescription() != null
+                ? strategy.getAssetType().getDescription() : strategy.getAssetType().getName();
+            BigDecimal targetPct = targetOf(strategy);
+            BigDecimal currentValue = valueByType.getOrDefault(typeId, BigDecimal.ZERO);
+
+            BigDecimal currentPct = percentageOf(currentValue, totalValue);
+            BigDecimal diffPct = currentPct.subtract(targetPct);
+
+            // Valor que o tipo passa a ter depois do aporte sugerido.
+            BigDecimal idealValue = valuePerPoint.multiply(targetPct).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal amountToRebalance = idealValue.subtract(currentValue);
+
+            // So arredondamento pode deixar a base levemente negativa; o unico
+            // negativo de verdade e o do tipo com ideal zero e dinheiro dentro.
+            if (amountToRebalance.compareTo(BigDecimal.ZERO) < 0
+                && amountToRebalance.compareTo(new BigDecimal("-0.01")) >= 0) {
+                amountToRebalance = BigDecimal.ZERO;
+            }
+
+            items.add(new RebalanceDTO.RebalanceItem(
+                typeName, targetPct, currentPct, diffPct,
+                currentValue, idealValue, amountToRebalance
+            ));
+        }
+
         return new RebalanceDTO(totalValue, items);
+    }
+
+    private BigDecimal targetOf(Strategy strategy) {
+        return strategy.getTargetPercentage() != null ? strategy.getTargetPercentage() : BigDecimal.ZERO;
+    }
+
+    private BigDecimal percentageOf(BigDecimal value, BigDecimal total) {
+        if (total == null || total.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return value.multiply(BigDecimal.valueOf(100)).divide(total, 2, RoundingMode.HALF_UP);
     }
 
     /**

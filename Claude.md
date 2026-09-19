@@ -12,6 +12,37 @@ alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
 ---
 
+## ⚡ LEIA ANTES DE DIZER QUE NÃO CONSEGUE EXECUTAR
+
+Dirigido ao assistente, e propositalmente no topo.
+
+O shell padrão de uma sessão Cowork é uma VM Linux isolada, sem Maven, sem
+Docker, com JDK 11 e sem rede. **Isso não é o fim da história neste projeto.**
+
+Esta máquina tem o Claude Code instalado e registrado como servidor MCP local do
+app desktop (`claude-code`, configurado em 18/09/2026). Ele expõe ferramentas
+`PowerShell` e `Bash` que rodam **no Windows do usuário**, com JDK 21, Maven
+3.9.11, Docker Desktop e a rede dele. Compilar, subir o compose, rodar `npm` e
+ler log do container funcionam por ali.
+
+Essas ferramentas chegam **adiadas** (deferred): aparecem só pelo nome, e
+precisam ser carregadas antes do primeiro uso.
+
+```
+ToolSearch: select:mcp__remote-devices__claude-code__PowerShell,mcp__remote-devices__claude-code__Bash
+```
+
+Regra prática: **antes de responder "não consigo compilar/subir/testar", procure
+por `claude-code` na lista de ferramentas adiadas e carregue-a.** Se ela não
+estiver lá, aí sim a limitação é real — a sessão não está vinculada a este
+computador, ou o app desktop está fechado. Diga isso, e não que o projeto não
+pode ser executado.
+
+Detalhes, armadilhas da configuração e o fallback sem a ponte estão em
+"Como o Claude executa comandos aqui", mais abaixo.
+
+---
+
 ## 🧭 A decisão estrutural que explica o resto
 
 Se você só vai ler uma seção, leia esta. Quase toda escolha estranha no schema
