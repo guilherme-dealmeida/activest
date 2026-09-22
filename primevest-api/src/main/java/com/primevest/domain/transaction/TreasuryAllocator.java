@@ -161,7 +161,7 @@ public class TreasuryAllocator {
             throw new BusinessException(
                 "Saldo insuficiente de " + asset.getTicker() + " em " + sale.date().format(DATA)
                 + ": faltam " + pending.stripTrailingZeros().toPlainString()
-                + " cotas compradas ate essa data.");
+                + " cotas compradas até essa data.");
         }
         return allocations;
     }

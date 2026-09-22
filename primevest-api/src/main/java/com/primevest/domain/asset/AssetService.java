@@ -51,7 +51,7 @@ public class AssetService {
      */
     public AssetResponseDTO getAssetByTicker(String ticker) {
         Asset asset = assetRepository.findByTickerWithTerms(ticker)
-            .orElseThrow(() -> new ResourceNotFoundException("Asset not found"));
+            .orElseThrow(() -> new ResourceNotFoundException("Ativo não encontrado"));
         return toDTO(asset);
     }
 
@@ -114,7 +114,7 @@ public class AssetService {
     @Transactional
     public void updateAssetPrice(Long assetId, BigDecimal newPrice) {
         Asset asset = assetRepository.findById(assetId)
-            .orElseThrow(() -> new ResourceNotFoundException("Asset not found"));
+            .orElseThrow(() -> new ResourceNotFoundException("Ativo não encontrado"));
         asset.setCurrentPrice(newPrice);
         asset.setPriceUpdatedAt(LocalDateTime.now());
         assetRepository.save(asset);

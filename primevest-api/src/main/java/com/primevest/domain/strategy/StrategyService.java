@@ -9,6 +9,7 @@ import com.primevest.domain.strategy.dto.StrategyUpdateDTO;
 import com.primevest.domain.user.User;
 import com.primevest.domain.user.UserRepository;
 import com.primevest.exception.BusinessException;
+import com.primevest.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,8 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class StrategyService {
+
+    private static final BigDecimal CEM = new BigDecimal("100.0");
 
     private final StrategyRepository strategyRepository;
     private final AssetTypeRepository assetTypeRepository;
@@ -45,42 +48,81 @@ public class StrategyService {
     }
 
     /**
-     * Updates user strategy.
+     * Substitui a estrategia inteira do usuario (full replace).
+     *
+     * <p>Tres regras antes de gravar, todas conferidas sobre a requisicao e nao
+     * sobre o que esta no banco:</p>
+     * <ol>
+     *   <li>tipo de ativo tem que existir — id inexistente responde "nao
+     *   encontrado", como qualquer recurso;</li>
+     *   <li>nenhum tipo repetido — antes isso batia na unicidade do banco e
+     *   virava erro 500, que nao diz nada a quem chamou;</li>
+     *   <li>a soma dos ideais e 100%.</li>
+     * </ol>
      */
     @Transactional
     public List<StrategyDTO> updateStrategy(UUID userId, StrategyUpdateDTO dto) {
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new BusinessException("User not found"));
-        
-        // Delete all existing strategy items for this user
+            .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+
+        List<StrategyUpdateDTO.StrategyItemDTO> items =
+            dto.items() != null ? dto.items() : List.of();
+
+        Map<Long, AssetType> tipos = new LinkedHashMap<>();
+        for (StrategyUpdateDTO.StrategyItemDTO item : items) {
+            AssetType assetType = assetTypeRepository.findById(item.assetTypeId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                    "Tipo de ativo não encontrado: " + item.assetTypeId()));
+            if (tipos.putIfAbsent(item.assetTypeId(), assetType) != null) {
+                throw new BusinessException("O tipo " + displayNameOf(assetType)
+                    + " aparece mais de uma vez na estratégia.");
+            }
+        }
+
+        validateTotal(items);
+
+        // Full replace: o que nao veio na requisicao deixa de existir.
         List<Strategy> existing = strategyRepository.findByUserId(userId);
         strategyRepository.deleteAll(existing);
         strategyRepository.flush();
-        
-        // Create new items from the request
-        for (StrategyUpdateDTO.StrategyItemDTO item : dto.items()) {
-            AssetType assetType = assetTypeRepository.findById(item.assetTypeId())
-                .orElseThrow(() -> new BusinessException("Asset type not found: " + item.assetTypeId()));
-            
-            Strategy strategy = Strategy.builder()
+
+        for (StrategyUpdateDTO.StrategyItemDTO item : items) {
+            strategyRepository.save(Strategy.builder()
                 .user(user)
-                .assetType(assetType)
+                .assetType(tipos.get(item.assetTypeId()))
                 .targetPercentage(item.targetPercentage())
-                .build();
-            strategyRepository.save(strategy);
+                .build());
         }
-        
+
         return getUserStrategy(userId);
     }
 
     /**
-     * Deletes a strategy item for a specific asset type.
+     * A soma dos ideais e 100%, com a tolerancia do arredondamento.
+     *
+     * <p>Cada item tem duas casas ({@code numeric(5,2)}), e dividir 100 em
+     * partes iguais nunca fecha exato: 33,33 tres vezes da 99,99 e 8,33 doze
+     * vezes da 99,96. Por isso a conferencia e sobre a soma arredondada para
+     * UMA casa — a mesma conta que a tela ja faz antes de salvar.</p>
+     *
+     * <p>Lista vazia nao passa: zerar a estrategia por um PUT sem itens
+     * apagaria tudo em silencio, e quem quer remover um tipo manda a lista sem
+     * ele, redistribuindo os 100%.</p>
      */
-    @Transactional
-    public void deleteStrategyItem(UUID userId, Long assetTypeId) {
-        Strategy strategy = strategyRepository.findByUserIdAndAssetTypeId(userId, assetTypeId)
-            .orElseThrow(() -> new BusinessException("Strategy item not found"));
-        strategyRepository.delete(strategy);
+    private void validateTotal(List<StrategyUpdateDTO.StrategyItemDTO> items) {
+        BigDecimal soma = items.stream()
+            .map(StrategyUpdateDTO.StrategyItemDTO::targetPercentage)
+            .filter(Objects::nonNull)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (soma.setScale(1, RoundingMode.HALF_UP).compareTo(CEM) != 0) {
+            throw new BusinessException("A soma dos percentuais ideais deve ser 100%. Atual: "
+                + soma.stripTrailingZeros().toPlainString() + "%");
+        }
+    }
+
+    private String displayNameOf(AssetType type) {
+        return type.getDescription() != null ? type.getDescription() : type.getName();
     }
 
     /**

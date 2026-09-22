@@ -56,9 +56,4 @@ public class StrategyController {
         return ResponseEntity.ok(strategyService.getRebalanceSuggestion(SecurityUtils.getCurrentUserId()));
     }
 
-    @DeleteMapping("/{assetTypeId}")
-    public ResponseEntity<Void> deleteStrategyItem(@PathVariable Long assetTypeId) {
-        strategyService.deleteStrategyItem(SecurityUtils.getCurrentUserId(), assetTypeId);
-        return ResponseEntity.noContent().build();
-    }
 }

@@ -20,6 +20,8 @@ e o Claude le o log inteiro em vez de voce colar um pedaco dele.
 ## Uso
 
     .\.claude\build.ps1          # compila a API e grava logs\build-api.log
+    .\.claude\build.ps1 -Test    # mvn clean test   -> logs\test-api.log
+    .\.claude\build.ps1 -Verify  # mvn clean verify -> logs\verify-api.log (sobe PostgreSQL em container)
     .\.claude\build.ps1 -Docker  # + docker compose logs -> logs\docker-api.log
     .\.claude\build.ps1 -Web     # + tsc/vite build -> logs\build-web.log
 

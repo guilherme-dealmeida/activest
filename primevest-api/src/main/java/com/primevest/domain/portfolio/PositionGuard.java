@@ -49,7 +49,7 @@ public class PositionGuard {
                 throw new BusinessException(
                     "Saldo insuficiente de " + label + " em " + tx.getTransactionDate().format(DATA)
                     + ": faltam " + numero(saldo.negate()) + " cotas nessa data."
-                    + " Ajuste as compras do periodo antes de lancar esta venda.");
+                    + " Ajuste as compras do período antes de lançar esta venda.");
             }
         }
     }
@@ -64,7 +64,7 @@ public class PositionGuard {
     public void validateSellHasPosition(boolean temPosicaoComCompras, String label) {
         if (!temPosicaoComCompras) {
             throw new BusinessException(
-                "Nao ha posicao de " + label + " na carteira para vender.");
+                "Não há posição de " + label + " na carteira para vender.");
         }
     }
 
@@ -80,8 +80,8 @@ public class PositionGuard {
         }
         if (position.invested().signum() <= 0) {
             throw new BusinessException(
-                "A posicao de " + label + " ficaria sem valor aplicado."
-                + " Uma posicao em aberto precisa de pelo menos uma compra.");
+                "A posição de " + label + " ficaria sem valor aplicado."
+                + " Uma posição em aberto precisa de pelo menos uma compra.");
         }
     }
 

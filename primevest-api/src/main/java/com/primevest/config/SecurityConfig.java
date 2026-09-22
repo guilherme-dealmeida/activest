@@ -3,6 +3,8 @@ package com.primevest.config;
 import com.primevest.domain.auth.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
@@ -35,6 +37,12 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/auth/**", "/api-docs/**", "/api-docs", "/v3/api-docs/**", "/v3/api-docs", "/swagger-ui/**", "/swagger-ui.html", "/actuator/**").permitAll()
                 .anyRequest().authenticated()
             )
+            // Sem token, ou com token vencido, a resposta e 401 — nao o 403 que o
+            // Spring usa por padrao quando nao ha entry point. O front so limpa o
+            // token e manda para /login no 401 (api/client.ts); com 403 o usuario
+            // ficava na tela recebendo erro, sem ser levado ao login.
+            .exceptionHandling(ex -> ex.authenticationEntryPoint(
+                new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         // Sem oauth2Login: o login pelo Google não usa redirect de servidor. O

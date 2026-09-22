@@ -5,6 +5,8 @@
 
   Uso:
     .\.claude\build.ps1                 # so a API (mvn compile)
+    .\.claude\build.ps1 -Test           # testes rapidos (mvn clean test)
+    .\.claude\build.ps1 -Verify         # testes + funcionais (mvn clean verify)
     .\.claude\build.ps1 -Web            # so o front (tsc -b + vite build)
     .\.claude\build.ps1 -Docker         # so os logs dos containers
     .\.claude\build.ps1 -All            # tudo
@@ -12,6 +14,8 @@
 param(
   [switch]$Web,
   [switch]$Docker,
+  [switch]$Test,
+  [switch]$Verify,
   [switch]$All
 )
 
@@ -21,9 +25,12 @@ $logs    = Join-Path $PSScriptRoot 'logs'
 New-Item -ItemType Directory -Force -Path $logs | Out-Null
 
 # Sem nenhum switch, o padrao e a API.
-$doApi    = $All -or (-not $Web -and -not $Docker)
+$doApi    = $All -or (-not $Web -and -not $Docker -and -not $Test -and -not $Verify)
 $doWeb    = $All -or $Web
 $doDocker = $All -or $Docker
+$doTest   = $Test
+# -All roda a bateria completa: e ela que prova que nada quebrou.
+$doVerify = $All -or $Verify
 
 function Write-Header([string]$file, [string]$cmd) {
   $header = @(
@@ -49,6 +56,35 @@ if ($doApi) {
   Push-Location (Join-Path $root 'primevest-api')
   Write-Header $out $cmd
   & mvn -B compile *>&1 | Add-Content -Path $out -Encoding utf8
+  Write-Footer $out $LASTEXITCODE
+  Pop-Location
+}
+
+# Testes rapidos: repositorio, servico e controller (*Test).
+#
+# 'clean' de proposito: o target guarda as migrations antigas de antes do reset,
+# e o Flyway recusa a subida reclamando de duas V1.
+if ($doTest) {
+  $out = Join-Path $logs 'test-api.log'
+  $cmd = 'mvn -B clean test'
+  Write-Host "[test] $cmd"
+  Push-Location (Join-Path $root 'primevest-api')
+  Write-Header $out $cmd
+  & mvn -B clean test *>&1 | Add-Content -Path $out -Encoding utf8
+  Write-Footer $out $LASTEXITCODE
+  Pop-Location
+}
+
+# Bateria completa: os *Test acima mais os funcionais (*IT), que sobem a
+# aplicacao inteira contra um PostgreSQL em container (Testcontainers).
+# Precisa do Docker Desktop rodando.
+if ($doVerify) {
+  $out = Join-Path $logs 'verify-api.log'
+  $cmd = 'mvn -B clean verify'
+  Write-Host "[verify] $cmd"
+  Push-Location (Join-Path $root 'primevest-api')
+  Write-Header $out $cmd
+  & mvn -B clean verify *>&1 | Add-Content -Path $out -Encoding utf8
   Write-Footer $out $LASTEXITCODE
   Pop-Location
 }

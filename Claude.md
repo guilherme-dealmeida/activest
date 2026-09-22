@@ -198,7 +198,7 @@ $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";"
 | Estado/fetch | TanStack React Query 5 |
 | Rotas | React Router 6 |
 | CSS | Tailwind CSS 3 |
-| Testes | **não existem** — ver Pontos de Atenção |
+| Testes | JUnit 5, Mockito, AssertJ, Testcontainers (PostgreSQL 17) — ver Pontos de Atenção |
 | Lint (front) | ESLint 9 em flat config + `typescript-eslint` — ver Pontos de Atenção |
 | Build | Maven / npm |
 
@@ -259,7 +259,7 @@ primevest/
 │       │   ├── application-docker.yml   # containers (Flyway ON, ddl-auto validate)
 │       │   ├── application-prod.yml
 │       │   └── db/migration/            # V1 (schema) .. V12
-│       └── test/                        # VAZIO
+│       └── test/                        # 234 testes: support/, domain/, functional/
 │
 └── primevest-web/
     ├── Dockerfile               # alvos: dev (vite) e runtime (nginx)
@@ -533,7 +533,6 @@ Falta criar o Client ID no Google Cloud Console.
 |--------|----------|-----------|
 | GET | `/api/v1/strategy/` | Estratégia do usuário |
 | PUT | `/api/v1/strategy/` | Atualizar (full replace) |
-| DELETE | `/api/v1/strategy/{assetTypeId}` | Remover um tipo |
 | GET | `/api/v1/strategy/rebalance` | Sugestão de rebalanceamento. `items` é a geração de renda por tipo; `reservation` é a linha da reserva de emergência |
 | GET | `/api/v1/strategy/reservation` | Estratégia de reserva + números apurados (reserva, geração de renda, % atual, ideal, diff). Cria a linha padrão se faltar |
 | PUT | `/api/v1/strategy/reservation` | Troca tipo e alvo. **Não há DELETE** |
@@ -567,6 +566,19 @@ Falta criar o Client ID no Google Cloud Console.
 | PUT | `/api/v1/users/me` |
 
 ---
+
+### Erros — o que a API responde
+
+| Situação | Status |
+|----------|--------|
+| Sem token, ou token vencido | **401** (era 403 até 22/09/2026; o front só trata 401) |
+| Registro de outro dono, ou id inexistente | **404** |
+| Corpo inválido (Bean Validation), JSON malformado, parâmetro errado | **400** |
+| Regra de negócio recusada (`BusinessException`) | **422** |
+| Rota inexistente | **404** · método não suportado: **405** |
+| Violação de constraint que escapou do serviço | **409** |
+
+Mensagens em português, acentuadas — conferidas nos testes de controller.
 
 ## 📊 Telas
 
@@ -716,7 +728,9 @@ ordem cronológica (data, depois criação):
 
 1. **BUY**: soma cotas e custo (cotas × preço)
 2. **SELL**: tira cotas e tira custo **pelo preço médio do momento**; o preço
-   médio não muda. Venda sem cotas é ignorada; venda maior que a posição zera
+   médio não muda. **Venda sem saldo na data é recusada** pela regra B, em
+   qualquer data da linha do tempo (`PositionGuard.validateShareLedger`); o
+   cálculo ainda tolera o caso porque roda sobre dados anteriores a essa regra
 3. **Preço médio** = custo / cotas (4 casas); **custo** com 2 casas
 4. **Renda Fixa** (`isValuedByTotal`): sem cotas nem preço médio; custo =
    aplicações − resgates, nunca negativo
@@ -743,6 +757,19 @@ Valor atual = custo + `appreciation`.
 (`DividendRecalculator.recalculate`, contando cotas com o mesmo
 `PositionCalculator.sharesOn`), e `portfolio_assets.appreciation` das posições
 com cotação.
+
+### Tesouro Direto: um título por compra, venda por FIFO
+
+Cada compra de Tesouro é um **título novo** (a taxa é do dia), e a regra H
+proíbe dois títulos do mesmo ativo comprados na mesma data. A venda é **do
+ativo**: `TreasuryAllocator` reparte as cotas do título mais antigo para o mais
+novo e grava uma linha por título, todas com o mesmo `sale_group_id` — a tela
+mostra a venda do usuário somando as partes (`groupShares`).
+
+A repartição é **refeita por inteiro a cada escrita no ativo**: uma compra
+lançada com data retroativa passa a ser o título mais antigo, leva as cotas que
+saíam de outro e reabre título que estava liquidado. É o Exemplo 6 do escopo, e
+está em `TransacoesIT.exemplo6`.
 
 ### Renda fixa: como a nota entra
 
@@ -777,11 +804,12 @@ edição apagaria emissor, vencimento e taxa.
 
 ## ⚠️ Pontos de Atenção
 
-### Venda de renda fixa está bloqueada
+### Venda de renda fixa exige o título
 `resolveNote` recusa venda sem `noteId`, porque criar nota nova numa venda
-geraria posição negativa de um papel nunca comprado. Como o frontend ainda não
-tem seletor de título, **vender renda fixa é impossível hoje**. Foi escolha
-consciente: erro claro em vez de dado errado. Some quando o seletor existir.
+geraria posição negativa de um papel nunca comprado. **Pela API funciona** — é o
+que os testes de resgate parcial e liquidação total fazem —, mas **pela tela
+ainda não**: falta o seletor de título no formulário de venda. Foi escolha
+consciente: erro claro em vez de dado errado.
 
 ### Valorização de renda fixa dá sempre zero
 Sem cotação, o valor atual é custo + `appreciation`, e nada preenche
@@ -856,11 +884,46 @@ isso conta como alteração da linha. A coluna responde "quando esta linha mudou
 não "quando o usuário mexeu nesta posição" — para a segunda pergunta, o que vale
 é `transactions.updated_at`.
 
-### Nenhum teste
-`src/test` está vazio e o build roda com `-Dmaven.test.skip=true`. Quando voltar:
-Testcontainers com PostgreSQL, porque metade do que importa aqui é comportamento
-de banco — as constraints de coerência de taxa, o `NULLS NOT DISTINCT`, o
-recálculo cronológico. Teste em H2 não cobre nada disso.
+### Testes — existem desde 22/09/2026
+
+`src/test` deixou de estar vazio. **234 testes**, verdes em `mvn clean verify`
+(~52s): 176 rapidos (`*Test`, Surefire) e 58 funcionais (`*IT`, Failsafe).
+
+| Camada | O que cobre |
+|--------|-------------|
+| Repositório (37) | consultas escopadas pelo dono, `NULLS NOT DISTINCT` da posição, unicidade e CHECK da reserva, regra H no índice de títulos, ordenação da busca de ativos |
+| Regra pura (36) | `PositionCalculator`, `PositionGuard` (regras A, B, I), `FixedIncomeSettlement` (E, F, G, J) |
+| Serviço (72) | Portfolio, Strategy, StrategyReservation, Transaction — decisão e roteamento, com repositórios mockados |
+| Controller (31) | 401 sem token, 400 de validação, 404, 422, e o JSON que a tela lê |
+| Funcional (58) | Transações, Carteira, Alocação e Estratégia pela API, com PostgreSQL de verdade |
+
+**Tudo contra PostgreSQL 17 em container** (Testcontainers), com Flyway rodando
+e `ddl-auto: validate` — cada teste de integração também prova que entidade e
+migration continuam batendo. H2 foi removido: ele não tem `NULLS NOT DISTINCT`,
+nem os CHECKs, nem o `ORDER BY` com `CASE` da busca.
+
+Os **exemplos 1 a 6 do escopo de vendas** viraram testes com o nome do exemplo,
+em `TransacoesIT`: saldo por cota em qualquer data (1 a 3), FIFO do Tesouro (4),
+venda sem cotas na data (5) e a compra retroativa que refaz a repartição (6).
+
+Como rodar:
+
+```powershell
+mvn clean test      # rapido, sem os funcionais
+mvn clean verify    # tudo (precisa do Docker Desktop)
+.\.claude\build.ps1 -Verify   # o mesmo, com log em .claude\logs\
+```
+
+> **`clean` não é opcional.** O `target/` guarda migrations de antes do reset, e
+> o Flyway recusa a subida reclamando de duas V1.
+
+> **Docker 29 exigiu Testcontainers 1.21.4** (`testcontainers.version` no
+> `pom.xml`). A versão que o Spring Boot 3.3.5 gerencia (1.19.8) fala uma versão
+> de API que o Docker 29 recusa, e o erro é enganoso: "Could not find a valid
+> Docker environment", com o Docker Desktop rodando normalmente.
+
+O perfil `test` (`src/test/resources/application-test.yml`) desliga Redis e as
+rotinas agendadas, e mocka BrAPI e CoinGecko: nenhum teste depende de rede.
 
 ### O lint do front passou a existir em 18/09/2026
 `npm run lint` falhava desde sempre com *couldn't find an eslint.config.(js|mjs|cjs)*:

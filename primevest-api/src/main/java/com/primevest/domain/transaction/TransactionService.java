@@ -118,7 +118,7 @@ public class TransactionService {
                 + ". Selecione um ativo existente na busca."));
 
         Portfolio portfolio = portfolioRepository.findFirstByUserId(userId)
-            .orElseThrow(() -> new BusinessException("Portfolio não encontrado"));
+            .orElseThrow(() -> new BusinessException("Carteira não encontrada"));
 
         validateSettlementFlag(asset, dto);
 
@@ -276,7 +276,7 @@ public class TransactionService {
                                                           Asset asset, TransactionCreateDTO dto) {
         if (dto.noteId() != null) {
             throw new BusinessException(
-                "Cada compra de Tesouro Direto e um titulo novo: nao se lanca sobre um titulo existente.");
+                "Cada compra de Tesouro Direto é um título novo: não se lança sobre um título existente.");
         }
 
         List<Transaction> current = transactionRepository
@@ -328,8 +328,8 @@ public class TransactionService {
                                                       TransactionCreateDTO dto) {
         if (dto.noteId() != null) {
             throw new BusinessException(
-                "A venda de Tesouro Direto e do ativo: o titulo sai do mais antigo para o mais novo,"
-                + " e nao se escolhe na tela.");
+                "A venda de Tesouro Direto é do ativo: o título sai do mais antigo para o mais novo,"
+                + " e não se escolhe na tela.");
         }
         if (dto.shares() == null || dto.pricePerShare() == null) {
             throw new BusinessException("Informe a quantidade e o preço unitário.");
@@ -475,8 +475,8 @@ public class TransactionService {
 
         if (existe) {
             throw new BusinessException(
-                "Ja existe um titulo de " + asset.getTicker() + " comprado em " + date.format(DATA)
-                + ". Para aplicar mais nessa data, altere a quantidade da compra que ja existe.");
+                "Já existe um título de " + asset.getTicker() + " comprado em " + date.format(DATA)
+                + ". Para aplicar mais nessa data, altere a quantidade da compra que já existe.");
         }
     }
 
@@ -555,7 +555,7 @@ public class TransactionService {
         if (Boolean.TRUE.equals(dto.isFullSettlement())
                 && (dto.type() != TransactionType.SELL || !isValuedByTotal(asset))) {
             throw new BusinessException(
-                "Liquidacao total so existe em venda de Renda Fixa.");
+                "Liquidação total só existe em venda de Renda Fixa.");
         }
     }
 
@@ -600,6 +600,18 @@ public class TransactionService {
             throw new BusinessException("Informe a quantidade e o preço unitário.");
         }
         return new Valores(dto.shares(), dto.pricePerShare(), dto.shares().multiply(dto.pricePerShare()));
+    }
+
+    /** O tipo de remuneracao por extenso, para a mensagem sair legivel. */
+    private String remuneracao(RateType rateType) {
+        if (rateType == null) {
+            return "";
+        }
+        return switch (rateType) {
+            case PREFIXADO -> "prefixada";
+            case POS_FIXADO -> "pós-fixada";
+            case HIBRIDO -> "híbrida";
+        };
     }
 
     /**
@@ -647,7 +659,7 @@ public class TransactionService {
         if (!rendaFixa) {
             if (dto.noteId() != null) {
                 throw new BusinessException(
-                    "Titulo informado para um ativo que nao e de renda fixa: " + asset.getTicker());
+                    "Título informado para um ativo que não é de renda fixa: " + asset.getTicker());
             }
             return null;
         }
@@ -657,18 +669,18 @@ public class TransactionService {
             // usuario daria para lancar transacao sobre o papel de outro.
             FixedIncomeNote existente = fixedIncomeNoteRepository
                 .findByIdAndUserId(dto.noteId(), userId)
-                .orElseThrow(() -> new BusinessException("Titulo nao encontrado"));
+                .orElseThrow(() -> new BusinessException("Título não encontrado"));
 
             if (!existente.getAsset().getId().equals(asset.getId())) {
                 throw new BusinessException(
-                    "O titulo selecionado pertence a outro ativo: " + existente.getAsset().getTicker());
+                    "O título selecionado pertence a outro ativo: " + existente.getAsset().getTicker());
             }
             return existente;
         }
 
         if (dto.type() == TransactionType.SELL) {
             throw new BusinessException(
-                "Venda de renda fixa precisa apontar qual titulo esta sendo vendido.");
+                "Venda de renda fixa precisa apontar qual título está sendo vendido.");
         }
 
         FixedIncomeNote nova = FixedIncomeNote.builder()
@@ -712,10 +724,10 @@ public class TransactionService {
         }
         if ((rateType == RateType.POS_FIXADO || rateType == RateType.HIBRIDO) && indexer == null) {
             throw new BusinessException(
-                "Remuneracao " + rateType + " precisa de um indice (CDI, IPCA, ...).");
+                "Remuneração " + remuneracao(rateType) + " precisa de um índice (CDI, IPCA, ...).");
         }
         if (rateType == null && indexer != null) {
-            throw new BusinessException("Informe como o titulo remunera antes de escolher o indice.");
+            throw new BusinessException("Informe como o título remunera antes de escolher o índice.");
         }
 
         note.setRateType(rateType);

@@ -110,9 +110,9 @@ public class FixedIncomeSettlement {
             valorizacao = resgatado.subtract(aplicado);
             if (valorizacao.signum() < 0) {
                 throw new BusinessException(
-                    "Liquidacao total de " + label + ": o resgate de " + moeda(resgatado)
-                    + " e menor que o valor aplicado (" + moeda(aplicado) + ")."
-                    + " Em renda fixa nao existe valorizacao negativa.");
+                    "Liquidação total de " + label + ": o resgate de " + moeda(resgatado)
+                    + " é menor que o valor aplicado (" + moeda(aplicado) + ")."
+                    + " Em renda fixa não existe valorização negativa.");
             }
         } else if (vendaLancada && resgatado.signum() > 0
                 && resgatado.compareTo(aplicado.add(valorizacao)) >= 0) {
@@ -124,8 +124,8 @@ public class FixedIncomeSettlement {
         // Regra G.
         if (valorizacao.signum() < 0) {
             throw new BusinessException(
-                "A valorizacao de " + label + " ficaria negativa (" + moeda(valorizacao) + ")."
-                + " Em renda fixa isso nao existe.");
+                "A valorização de " + label + " ficaria negativa (" + moeda(valorizacao) + ")."
+                + " Em renda fixa isso não existe.");
         }
 
         BigDecimal saldoBruto = aplicado.add(valorizacao);
@@ -134,16 +134,16 @@ public class FixedIncomeSettlement {
         if (saldoBruto.compareTo(resgatado) < 0) {
             throw new BusinessException(
                 "Em " + label + ", o total resgatado (" + moeda(resgatado) + ") passaria do valor aplicado"
-                + " mais a valorizacao (" + moeda(saldoBruto) + ")."
-                + " Ajuste as compras ou a valorizacao antes desta alteracao.");
+                + " mais a valorização (" + moeda(saldoBruto) + ")."
+                + " Ajuste as compras ou a valorização antes desta alteração.");
         }
 
         // Regra F.
         if (saldoBruto.compareTo(resgatado) == 0 && !liquidacaoTotal && resgatado.signum() > 0) {
             throw new BusinessException(
                 "Em " + label + ", o total resgatado (" + moeda(resgatado) + ") igualaria o valor aplicado"
-                + " mais a valorizacao. Zerar a posicao so e possivel marcando a venda"
-                + " como liquidacao total.");
+                + " mais a valorização. Zerar a posição só é possível marcando a venda"
+                + " como liquidação total.");
         }
 
         pa.setAppreciation(valorizacao);
