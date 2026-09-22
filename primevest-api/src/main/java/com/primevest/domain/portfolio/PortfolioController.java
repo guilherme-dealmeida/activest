@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -49,9 +50,20 @@ public class PortfolioController {
             SecurityUtils.getCurrentUserId(), id, dto.isReservation()));
     }
 
+    /**
+     * Alocacao por tipo. {@code excludeReservation=true} deixa so a geracao de
+     * renda (tela Alocacao); sem ele, a carteira inteira (Dashboard).
+     */
     @GetMapping("/allocation")
-    public ResponseEntity<List<PortfolioAllocationDTO>> getAllocation() {
-        return ResponseEntity.ok(portfolioService.getAllocation(SecurityUtils.getCurrentUserId()));
+    public ResponseEntity<List<PortfolioAllocationDTO>> getAllocation(
+            @RequestParam(defaultValue = "false") boolean excludeReservation) {
+        return ResponseEntity.ok(portfolioService.getAllocation(SecurityUtils.getCurrentUserId(), excludeReservation));
+    }
+
+    /** Reserva de emergencia x geracao de renda, pelo valor atual. */
+    @GetMapping("/allocation/reservation")
+    public ResponseEntity<ReservationAllocationDTO> getReservationAllocation() {
+        return ResponseEntity.ok(portfolioService.getReservationAllocation(SecurityUtils.getCurrentUserId()));
     }
 
     @GetMapping("/allocation/detailed")

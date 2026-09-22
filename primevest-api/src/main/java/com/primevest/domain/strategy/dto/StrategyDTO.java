@@ -7,6 +7,5 @@ public record StrategyDTO(
     UUID id,
     Long assetTypeId,
     String assetTypeName,
-    BigDecimal targetPercentage,
-    boolean includeReservation
+    BigDecimal targetPercentage
 ) {}

@@ -14,7 +14,10 @@ export const DashboardPage = () => {
 
   const { data: allocation, isLoading: loadingAllocation } = useQuery({
     queryKey: ['portfolio', 'allocation'],
-    queryFn: portfolioApi.getAllocation
+    // Carteira inteira, reserva incluída. Embrulhado numa arrow porque o
+    // React Query passa o próprio contexto como primeiro argumento, e ele
+    // chegaria em getAllocation como excludeReservation.
+    queryFn: () => portfolioApi.getAllocation()
   });
 
   const { data: assets, isLoading: loadingAssets } = useQuery({

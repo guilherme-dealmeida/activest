@@ -34,6 +34,6 @@ public class Strategy {
     @Column(name = "target_percentage", precision = 5, scale = 2, nullable = false)
     private BigDecimal targetPercentage;
 
-    @Column(name = "include_reservation", nullable = false)
-    private boolean includeReservation;
+    // include_reservation saiu na V10: a reserva de emergencia nunca entra no
+    // ideal por tipo — ela tem a sua propria estrategia (StrategyReservation).
 }

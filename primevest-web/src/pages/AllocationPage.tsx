@@ -6,14 +6,18 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { AllocationPieChart } from '@/components/charts/AllocationPieChart';
 import { AllocationDetailedCharts } from '@/components/charts/AllocationDetailedCharts';
 import { clsx } from 'clsx';
-import { PortfolioAllocation, PortfolioAllocationDetailed } from '@/types';
+import { PortfolioAllocation, PortfolioAllocationDetailed, ReservationAllocation } from '@/types';
+import { INCOME_COLOR, RESERVATION_COLOR } from '@/utils/reservation';
 
 export const AllocationPage = () => {
   const [activeTab, setActiveTab] = useState<'geral' | 'detalhada'>('geral');
 
+  // Sem a reserva de emergência, como no rebalanceamento: ela tem o gráfico
+  // próprio ao lado. Chave diferente da do Dashboard, que mostra a carteira
+  // inteira pelo mesmo endpoint — sem isso as duas telas dividiriam o cache.
   const { data: allocation, isLoading: loadingAlloc } = useQuery<PortfolioAllocation[]>({
-    queryKey: ['portfolio', 'allocation'],
-    queryFn: portfolioApi.getAllocation
+    queryKey: ['portfolio', 'allocation', 'income'],
+    queryFn: () => portfolioApi.getAllocation(true)
   });
 
   const { data: detailedAllocation, isLoading: loadingDetailed } = useQuery<PortfolioAllocationDetailed[]>({
@@ -21,7 +25,14 @@ export const AllocationPage = () => {
     queryFn: portfolioApi.getAllocationDetailed
   });
 
-  if (loadingAlloc || loadingDetailed) {
+  // Reserva x geração de renda, como está hoje. A chave fica sob ['portfolio']
+  // para que ligar a reserva de um ativo na Carteira já atualize este gráfico.
+  const { data: reservationAllocation, isLoading: loadingReservation } = useQuery<ReservationAllocation>({
+    queryKey: ['portfolio', 'allocation', 'reservation'],
+    queryFn: portfolioApi.getReservationAllocation
+  });
+
+  if (loadingAlloc || loadingDetailed || loadingReservation) {
     return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent" /></div>;
   }
 
@@ -33,6 +44,25 @@ export const AllocationPage = () => {
   })) || [];
 
   const totalValue = allocation?.reduce((acc, item) => acc + item.value, 0) || 0;
+
+  // Fatia zerada fica de fora: sem reserva nenhuma, o gráfico é um anel cinza
+  // inteiro, e não um anel com uma fatia de 0% espremida no paddingAngle.
+  const reservationChartData = reservationAllocation
+    ? [
+        {
+          name: 'Reserva de Emergência',
+          value: reservationAllocation.reservationValue,
+          percentage: reservationAllocation.reservationPercentage,
+          color: RESERVATION_COLOR
+        },
+        {
+          name: 'Geração de Renda',
+          value: reservationAllocation.incomeValue,
+          percentage: reservationAllocation.incomePercentage,
+          color: INCOME_COLOR
+        }
+      ].filter(slice => slice.value > 0)
+    : [];
 
   return (
     <div className="space-y-6">
@@ -58,12 +88,25 @@ export const AllocationPage = () => {
       </div>
 
       {activeTab === 'geral' && (
-        <Card className="h-[600px] flex items-center justify-center">
-          <AllocationPieChart 
-            data={chartData} 
-            totalValue={totalValue} 
-            title="Alocação da Carteira (Por Tipo de Ativo)"
-          />
+        // Um card, duas metades iguais: por tipo à esquerda, reserva à
+        // direita. Em tela estreita os gráficos empilham.
+        <Card className="lg:h-[600px]">
+          <div className="grid h-full grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="h-[560px] lg:h-full">
+              <AllocationPieChart
+                data={chartData}
+                totalValue={totalValue}
+                title="Alocação da Carteira (Por Tipo de Ativo)"
+              />
+            </div>
+            <div className="h-[560px] lg:h-full">
+              <AllocationPieChart
+                data={reservationChartData}
+                totalValue={reservationAllocation?.totalValue ?? 0}
+                title="Alocação da Reserva de Emergência"
+              />
+            </div>
+          </div>
         </Card>
       )}
 

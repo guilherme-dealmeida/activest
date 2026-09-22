@@ -6,6 +6,7 @@ import {
   PortfolioAllocationDetailed,
   PortfolioPerformance,
   PortfolioAssetReservation,
+  ReservationAllocation,
 } from '@/types';
 
 /**
@@ -29,13 +30,25 @@ export const portfolioApi = {
     return data;
   },
 
-  getAllocation: async (): Promise<PortfolioAllocation[]> => {
-    const { data } = await apiClient.get<PortfolioAllocation[]>('/portfolio/allocation');
+  /**
+   * Alocação por tipo. excludeReservation deixa só a geração de renda — é o
+   * que a tela Alocação pede; o Dashboard mostra a carteira inteira.
+   */
+  getAllocation: async (excludeReservation = false): Promise<PortfolioAllocation[]> => {
+    const { data } = await apiClient.get<PortfolioAllocation[]>('/portfolio/allocation', {
+      params: excludeReservation ? { excludeReservation: true } : undefined,
+    });
     return data;
   },
 
+  /** Geração de renda por tipo e categoria: a reserva nunca entra. */
   getAllocationDetailed: async (): Promise<PortfolioAllocationDetailed[]> => {
     const { data } = await apiClient.get<PortfolioAllocationDetailed[]>('/portfolio/allocation/detailed');
+    return data;
+  },
+
+  getReservationAllocation: async (): Promise<ReservationAllocation> => {
+    const { data } = await apiClient.get<ReservationAllocation>('/portfolio/allocation/reservation');
     return data;
   },
 

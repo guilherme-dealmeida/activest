@@ -480,9 +480,10 @@ export const PortfolioPage = () => {
    * Manda o estado desejado — o switch já sabe para onde vai —, e não um
    * "inverta", que dependeria da ordem em que as respostas voltam.
    *
-   * A estratégia também é invalidada: ela desconta a reserva quando
-   * includeReservation é falso, então marcar um CDB aqui muda o rebalanceamento
-   * lá. Sem isso a outra tela mostraria o cálculo anterior até alguém recarregar.
+   * A estratégia também é invalidada: a reserva de emergência é um bloco
+   * próprio que concorre com o resto da carteira, então marcar um CDB aqui muda
+   * a aba Estratégia Reserva e as duas tabelas do rebalanceamento. Sem isso a
+   * outra tela mostraria o cálculo anterior até alguém recarregar.
    */
   const reservationMutation = useMutation({
     mutationFn: ({ id, isReservation }: { id: string; isReservation: boolean }) =>

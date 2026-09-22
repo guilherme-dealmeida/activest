@@ -3,10 +3,6 @@ package com.primevest.domain.strategy;
 import com.primevest.domain.asset.AssetType;
 import com.primevest.domain.asset.AssetTypeRepository;
 import com.primevest.domain.portfolio.PortfolioAsset;
-import com.primevest.domain.portfolio.PortfolioAssetRepository;
-import com.primevest.domain.portfolio.PortfolioRepository;
-import com.primevest.domain.portfolio.Position;
-import com.primevest.domain.portfolio.PositionCalculator;
 import com.primevest.domain.strategy.dto.RebalanceDTO;
 import com.primevest.domain.strategy.dto.StrategyDTO;
 import com.primevest.domain.strategy.dto.StrategyUpdateDTO;
@@ -29,10 +25,9 @@ public class StrategyService {
 
     private final StrategyRepository strategyRepository;
     private final AssetTypeRepository assetTypeRepository;
-    private final PortfolioRepository portfolioRepository;
-    private final PortfolioAssetRepository portfolioAssetRepository;
     private final UserRepository userRepository;
-    private final PositionCalculator positionCalculator;
+    private final StrategyHoldings strategyHoldings;
+    private final StrategyReservationService strategyReservationService;
 
     /**
      * Gets user strategy.
@@ -44,8 +39,7 @@ public class StrategyService {
                 s.getId(),
                 s.getAssetType().getId(),
                 s.getAssetType().getDescription() != null ? s.getAssetType().getDescription() : s.getAssetType().getName(),
-                s.getTargetPercentage(),
-                s.isIncludeReservation()
+                s.getTargetPercentage()
             ))
             .collect(Collectors.toList());
     }
@@ -72,7 +66,6 @@ public class StrategyService {
                 .user(user)
                 .assetType(assetType)
                 .targetPercentage(item.targetPercentage())
-                .includeReservation(item.includeReservation())
                 .build();
             strategyRepository.save(strategy);
         }
@@ -100,30 +93,31 @@ public class StrategyService {
      * tipo que serviu de base fica com sugestao zero.</p>
      *
      * <p>Regra B: ativo cujo tipo nao tem ideal cadastrado nao entra na conta.
-     * Regra C: posicao de reserva tambem fica de fora, a menos que o ideal do
-     * tipo esteja marcado para incluir reserva.</p>
+     * Regra C: posicao de reserva de emergencia nunca entra. A reserva
+     * concorre com o resto da carteira como um bloco proprio, com a sua linha
+     * em {@code reservation}; somada tambem aqui, o mesmo CDB seria contado
+     * duas vezes. Os itens por tipo sao, portanto, a geracao de renda.</p>
      */
     public RebalanceDTO getRebalanceSuggestion(UUID userId) {
         List<Strategy> strategies = strategyRepository.findByUserId(userId);
         List<AssetType> allTypes = assetTypeRepository.findAll();
 
-        var portfolio = portfolioRepository.findFirstByUserId(userId).orElse(null);
-        List<PortfolioAsset> portfolioAssets = portfolio != null
-            ? portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId())
-            : List.of();
-
         // Custo de cada posicao, apurado das transacoes: nao e mais gravado.
-        Map<UUID, Position> positions = portfolio != null
-            ? positionCalculator.positionsOf(portfolio.getId(), portfolioAssets)
-            : Map.of();
+        StrategyHoldings.Holdings holdings = strategyHoldings.of(userId);
+        List<PortfolioAsset> portfolioAssets = holdings.assets();
+        var reservation = strategyReservationService.rebalance(userId, holdings);
 
         // Sem nenhum ideal cadastrado nao ha estrategia a comparar: a tela
         // mostra apenas como a carteira esta distribuida hoje.
         if (strategies.isEmpty()) {
             Map<Long, BigDecimal> valueByType = new HashMap<>();
             for (PortfolioAsset pa : portfolioAssets) {
+                // Regra C vale aqui tambem: geracao de renda tem uma definicao so.
+                if (pa.isReservation()) {
+                    continue;
+                }
                 if (pa.getAsset() != null && pa.getAsset().getAssetType() != null) {
-                    valueByType.merge(pa.getAsset().getAssetType().getId(), invested(positions, pa), BigDecimal::add);
+                    valueByType.merge(pa.getAsset().getAssetType().getId(), holdings.held(pa), BigDecimal::add);
                 }
             }
             BigDecimal totalValue = valueByType.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -138,7 +132,7 @@ public class StrategyService {
                     currentValue, BigDecimal.ZERO, currentValue.negate()
                 ));
             }
-            return new RebalanceDTO(totalValue, items);
+            return new RebalanceDTO(totalValue, items, reservation);
         }
 
         Map<Long, Strategy> strategyByType = new LinkedHashMap<>();
@@ -146,8 +140,8 @@ public class StrategyService {
             strategyByType.put(strategy.getAssetType().getId(), strategy);
         }
 
-        // Regras B e C: o que nao tem ideal para o seu tipo, e a reserva de
-        // tipo que nao pediu para incluir reserva, ficam fora do total.
+        // Regras B e C: o que nao tem ideal para o seu tipo, e toda posicao de
+        // reserva, ficam fora do total.
         Map<Long, BigDecimal> valueByType = new HashMap<>();
         for (PortfolioAsset pa : portfolioAssets) {
             if (pa.getAsset() == null || pa.getAsset().getAssetType() == null) {
@@ -158,10 +152,10 @@ public class StrategyService {
             if (strategy == null) {
                 continue;
             }
-            if (pa.isReservation() && !strategy.isIncludeReservation()) {
+            if (pa.isReservation()) {
                 continue;
             }
-            valueByType.merge(typeId, invested(positions, pa), BigDecimal::add);
+            valueByType.merge(typeId, holdings.held(pa), BigDecimal::add);
         }
 
         BigDecimal totalValue = valueByType.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -213,7 +207,7 @@ public class StrategyService {
             ));
         }
 
-        return new RebalanceDTO(totalValue, items);
+        return new RebalanceDTO(totalValue, items, reservation);
     }
 
     private BigDecimal targetOf(Strategy strategy) {
@@ -225,21 +219,5 @@ public class StrategyService {
             return BigDecimal.ZERO;
         }
         return value.multiply(BigDecimal.valueOf(100)).divide(total, 2, RoundingMode.HALF_UP);
-    }
-
-    /**
-     * O que a posicao ainda tem na carteira.
-     *
-     * <p>Posicao liquidada nao entra: ela virou dinheiro e nao ocupa mais
-     * espaco na alocacao. Na Renda Fixa o valor aplicado nao desconta os
-     * resgates — as regras E e F precisam das duas pontas separadas —, entao o
-     * desconto e feito aqui.</p>
-     */
-    private BigDecimal invested(Map<UUID, Position> positions, PortfolioAsset pa) {
-        Position position = positions.get(pa.getId());
-        if (position == null || pa.isSettled()) {
-            return BigDecimal.ZERO;
-        }
-        return position.invested().subtract(position.sold()).max(BigDecimal.ZERO);
     }
 }

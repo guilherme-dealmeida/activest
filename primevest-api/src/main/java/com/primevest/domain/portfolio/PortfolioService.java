@@ -179,9 +179,58 @@ public class PortfolioService {
     }
 
     /**
-     * Gets portfolio allocation by asset type.
+     * Alocacao atual entre reserva de emergencia e geracao de renda.
+     *
+     * <p>Mesmo filtro e mesmo valor de {@link #getAllocation}: posicao em
+     * aberto, pelo valor atual. E o grafico ao lado do "por tipo" na aba
+     * Carteira de Investimentos; como aquele exclui a reserva, a geracao de
+     * renda daqui e exatamente o total de la.</p>
      */
-    public List<PortfolioAllocationDTO> getAllocation(UUID userId) {
+    public ReservationAllocationDTO getReservationAllocation(UUID userId) {
+        Portfolio portfolio = getOrCreatePortfolio(userId);
+        List<PortfolioAsset> assets = portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId());
+        Map<UUID, Position> positions = positionCalculator.positionsOf(portfolio.getId(), assets);
+
+        BigDecimal reservation = BigDecimal.ZERO;
+        BigDecimal income = BigDecimal.ZERO;
+        for (PortfolioAsset pa : assets) {
+            Position position = positions.get(pa.getId());
+            if (pa.isSettled() || safe(position.totalInvested()).compareTo(BigDecimal.ZERO) == 0) continue;
+
+            BigDecimal val = currentValue(pa, position);
+            if (pa.isReservation()) {
+                reservation = reservation.add(val);
+            } else {
+                income = income.add(val);
+            }
+        }
+
+        BigDecimal total = reservation.add(income);
+        return new ReservationAllocationDTO(
+            total,
+            reservation,
+            share(reservation, total),
+            income,
+            share(income, total)
+        );
+    }
+
+    private BigDecimal share(BigDecimal value, BigDecimal total) {
+        if (total.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return value.multiply(BigDecimal.valueOf(100)).divide(total, 2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Alocacao da carteira por tipo de ativo.
+     *
+     * <p>{@code excludeReservation} tira as posicoes de reserva de emergencia
+     * da conta, com o mesmo criterio do rebalanceamento: a reserva e um bloco
+     * proprio, e o que sobra e a geracao de renda. A tela Alocacao pede assim;
+     * o Dashboard nao, porque ali a pergunta e a carteira inteira.</p>
+     */
+    public List<PortfolioAllocationDTO> getAllocation(UUID userId, boolean excludeReservation) {
         Portfolio portfolio = getOrCreatePortfolio(userId);
         List<PortfolioAsset> assets = portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId());
         Map<UUID, Position> positions = positionCalculator.positionsOf(portfolio.getId(), assets);
@@ -194,6 +243,7 @@ public class PortfolioService {
         for (PortfolioAsset pa : assets) {
             Position position = positions.get(pa.getId());
             if (pa.isSettled() || safe(position.totalInvested()).compareTo(BigDecimal.ZERO) == 0) continue;
+            if (excludeReservation && pa.isReservation()) continue;
 
             String typeName = pa.getAsset().getAssetType().getDescription() != null
                 ? pa.getAsset().getAssetType().getDescription() : pa.getAsset().getAssetType().getName();
@@ -214,7 +264,11 @@ public class PortfolioService {
     }
 
     /**
-     * Gets detailed allocation — grouped by asset type, then by category within each type.
+     * Alocacao por tipo e, dentro de cada tipo, por categoria.
+     *
+     * <p>E a geracao de renda: posicao de reserva de emergencia nunca entra,
+     * com o mesmo criterio do rebalanceamento. So a tela Alocacao consome este
+     * endpoint, e ali a reserva tem o seu grafico proprio.</p>
      */
     public List<PortfolioAllocationDetailedDTO> getAllocationDetailed(UUID userId) {
         Portfolio portfolio = getOrCreatePortfolio(userId);
@@ -234,6 +288,7 @@ public class PortfolioService {
         for (PortfolioAsset pa : assets) {
             Position position = positions.get(pa.getId());
             if (pa.isSettled() || safe(position.totalInvested()).compareTo(BigDecimal.ZERO) == 0) continue;
+            if (pa.isReservation()) continue;
 
             String typeName = pa.getAsset().getAssetType().getDescription() != null
                 ? pa.getAsset().getAssetType().getDescription() : pa.getAsset().getAssetType().getName();

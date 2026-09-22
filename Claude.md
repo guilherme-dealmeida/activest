@@ -258,7 +258,7 @@ primevest/
 │       │   ├── application-dev.yml      # local (Flyway OFF, ddl-auto none)
 │       │   ├── application-docker.yml   # containers (Flyway ON, ddl-auto validate)
 │       │   ├── application-prod.yml
-│       │   └── db/migration/            # V1 (schema) .. V9 (seeds)
+│       │   └── db/migration/            # V1 (schema) .. V12
 │       └── test/                        # VAZIO
 │
 └── primevest-web/
@@ -295,7 +295,7 @@ primevest/
 Credenciais vêm de `DB_USERNAME` / `DB_PASSWORD`, com padrão `postgres`/`postgres`
 em desenvolvimento. **Não versione credenciais reais.**
 
-### Tabelas — 14
+### Tabelas — 15
 
 | Tabela | Descrição |
 |--------|-----------|
@@ -308,7 +308,8 @@ em desenvolvimento. **Não versione credenciais reais.**
 | `fixed_income_notes` | **O papel do usuário**: `issuer`, `maturity_date`, `rate_type`, `indexer`, `indexer_rate` |
 | `asset_types` | 12 tipos |
 | `asset_categories` | 116 categorias. Uma categoria é o par `(name, segment)` dentro do tipo — a unicidade é `(asset_type_id, name, segment)` com `NULLS NOT DISTINCT`. FII: tipo de fundo › segmento; Ação: setor B3 › segmento B3; demais tipos: `segment` nulo |
-| `strategies` | % ideal por tipo — `unique(user_id, asset_type_id)` |
+| `strategies` | % ideal por tipo — `unique(user_id, asset_type_id)`. É a **geração de renda**: posição de reserva nunca entra (`include_reservation` saiu na V10) |
+| `strategy_reservations` | Estratégia da reserva de emergência — **uma por usuário** (`unique(user_id)`), nunca apagada. `type_reservation` 1 = por percentual (`target_percentage`), 2 = por valor (`target_value`); a outra coluna fica nula, e `ck_strategy_reservations_target` confere |
 | `dividends` | Proventos. **Sem `user_id`** — ver Pontos de Atenção |
 | `ceiling_prices` | Preço teto por ativo — `unique(user_id, asset_id)` |
 | `goals` | Metas de investimento |
@@ -344,7 +345,7 @@ coluna.
 > usuário; `getName()` é para lógica interna. `AssetCategory.getDisplayName()`
 > encapsula o fallback description → name.
 
-### Flyway — V1 a V9
+### Flyway — V1 a V12
 
 O Flyway roda do zero no perfil `docker`. No perfil `dev` fica desligado, porque
 o banco local é gerenciado à mão.
@@ -357,7 +358,8 @@ etapas — o seed inseria a categoria antiga e a V23 reclassificava tudo.
 Nada disso interessa a um banco novo, e cada passo intermediário era mais uma
 coisa que podia falhar numa subida limpa.
 
-Hoje são **9 arquivos, 156 KB contra 340 KB**, e o banco fica na **versão 9**.
+O reset deixou **9 arquivos, 156 KB contra 340 KB**. Desde então entraram
+V10–V12 (20/09/2026), e o banco fica na **versão 12**.
 
 | Arquivo | Conteúdo |
 |---------|----------|
@@ -367,6 +369,9 @@ Hoje são **9 arquivos, 156 KB contra 340 KB**, e o banco fica na **versão 9**.
 | V4–V7 | Seed dos ativos: 782 ações, 337 FIIs, 130 Tesouro, 15 renda fixa |
 | V8 | Seed dos 130 `asset_terms` |
 | V9 | Usuário de desenvolvimento + carteira |
+| V10 | Derruba `strategies.include_reservation`, com guarda (`RAISE EXCEPTION` se houver `true`) |
+| V11 | `strategy_reservations` |
+| V12 | Estratégia de reserva do usuário de desenvolvimento (percentual, 0,00%) |
 
 **Como o reset foi verificado** — vale registrar, porque é o método a repetir se
 houver um terceiro. Construiu-se um banco `db_ref` aplicando as 30 migrations
@@ -391,7 +396,7 @@ apontaria 782 ações para a linha errada.
 Ordem das tabelas (é a ordem das FKs, não alfabética): users → asset_types →
 asset_categories → assets → asset_terms → portfolios → **fixed_income_notes** →
 portfolio_assets → transactions → dividends → asset_price_history → strategies →
-ceiling_prices → goals.
+ceiling_prices → goals, e depois **strategy_reservations** (V11).
 
 `fixed_income_notes` precisa vir antes de `portfolio_assets` e `transactions`,
 porque as duas referenciam a nota.
@@ -406,6 +411,7 @@ Estado após uma subida limpa:
 | asset_types | 12 |
 | users | 1 |
 | portfolios | 1 |
+| strategy_reservations | 1 |
 | todo o resto | 0 |
 
 **Não há seed de transação, posição ou estratégia.** Os dados de teste do
@@ -506,8 +512,9 @@ Falta criar o Client ID no Google Cloud Console.
 |--------|----------|-----------|
 | GET | `/api/v1/portfolio/` | Resumo da carteira |
 | GET | `/api/v1/portfolio/assets` | Posição detalhada (com `issuer` e `maturityDate` do título) |
-| GET | `/api/v1/portfolio/allocation` | Alocação por tipo |
-| GET | `/api/v1/portfolio/allocation/detailed` | Alocação por tipo e categoria |
+| GET | `/api/v1/portfolio/allocation` | Alocação por tipo. `excludeReservation=true` tira a reserva de emergência (tela Alocação); sem ele, carteira inteira (Dashboard) |
+| GET | `/api/v1/portfolio/allocation/detailed` | Alocação por tipo e categoria — **sempre sem** a reserva de emergência |
+| GET | `/api/v1/portfolio/allocation/reservation` | Reserva de emergência × geração de renda, pelo valor atual |
 | GET | `/api/v1/portfolio/performance` | Rentabilidade |
 | GET | `/api/v1/portfolio/dividends` | Dividendos da carteira |
 | PATCH | `/api/v1/portfolio/assets/{id}/reservation` | Liga/desliga a reserva de emergência da posição (só renda fixa) |
@@ -527,7 +534,9 @@ Falta criar o Client ID no Google Cloud Console.
 | GET | `/api/v1/strategy/` | Estratégia do usuário |
 | PUT | `/api/v1/strategy/` | Atualizar (full replace) |
 | DELETE | `/api/v1/strategy/{assetTypeId}` | Remover um tipo |
-| GET | `/api/v1/strategy/rebalance` | Sugestão de rebalanceamento |
+| GET | `/api/v1/strategy/rebalance` | Sugestão de rebalanceamento. `items` é a geração de renda por tipo; `reservation` é a linha da reserva de emergência |
+| GET | `/api/v1/strategy/reservation` | Estratégia de reserva + números apurados (reserva, geração de renda, % atual, ideal, diff). Cria a linha padrão se faltar |
+| PUT | `/api/v1/strategy/reservation` | Troca tipo e alvo. **Não há DELETE** |
 
 ### Assets
 | Método | Endpoint | Descrição |
@@ -576,6 +585,31 @@ Rotas em `App.tsx`; tudo abaixo de `/login` é protegido por `ProtectedRoute`.
 | `/settings` | Configurações |
 | `/login` | Login (email/senha + Google) |
 
+### Alocação
+Aba **Carteira de Investimentos**: um card, duas metades iguais — "Alocação da
+Carteira (Por Tipo de Ativo)" à esquerda e "Alocação da Reserva de Emergência"
+à direita (20/09/2026), ambos no mesmo `AllocationPieChart`; em tela estreita
+empilham. O da reserva mostra a distribuição **atual**, reserva `#8a00c4` e
+geração de renda `#7d7e7f`, na **mesma base de valor** do gráfico por tipo
+(valor atual: custo + valorização − resgates, só posição em aberto).
+
+**A tela Alocação não conta a reserva** nos gráficos por tipo nem nos de **Por
+Categoria** — mesmo critério do rebalanceamento: a reserva é um bloco próprio,
+com o gráfico dela ao lado. Por isso o total do gráfico por tipo é a geração de
+renda, e bate com a fatia cinza do gráfico da reserva. **O Dashboard continua
+mostrando a carteira inteira**, reserva incluída: ele chama o mesmo
+`/allocation` sem `excludeReservation`, com outra chave de cache
+(`['portfolio','allocation']` contra `['portfolio','allocation','income']`).
+
+> `queryFn: portfolioApi.getAllocation` direto quebraria o Dashboard: o React
+> Query passa o próprio contexto como primeiro argumento, e ele chegaria como
+> `excludeReservation` truthy. Por isso as duas telas chamam por arrow.
+
+Não confundir com o donut da aba **Estratégia Reserva**, que mostra a
+distribuição **ideal** e compara aportes pela base de custo da estratégia. A
+query fica sob `['portfolio', ...]`, então ligar a reserva de um ativo na
+Carteira já atualiza o gráfico.
+
 ### Carteira
 A tabela repete ticker, porque a posição é por título. `key` da linha é
 `asset.id` (o id da posição), **não o ticker** — ticker deixou de ser único aqui.
@@ -588,8 +622,9 @@ qualquer tipo novo marcado assim amanhã; o backend recusa o resto com 422, de
 modo que esconder a coluna é conveniência, não a regra. A requisição manda o
 ESTADO desejado, não um "inverta", e a chave da linha fica desabilitada
 enquanto a resposta não volta: dois cliques rápidos não dependem da ordem de
-chegada. O sucesso invalida `['portfolio']` e `['strategy']`, porque a
-estratégia desconta a reserva quando `includeReservation` é falso.
+chegada. O sucesso invalida `['portfolio']` e `['strategy']`: a reserva é um
+bloco próprio da estratégia, e marcar um CDB muda a aba Estratégia Reserva e as
+duas tabelas do rebalanceamento.
 
 A coluna fica **fora de `COLUMNS`**: um render de coluna recebe só a posição, e
 a chave precisa avisar quem está de fora que o estado mudou. Por isso o
@@ -619,8 +654,53 @@ a chave precisa avisar quem está de fora que o estado mudou. Por isso o
 ### Estratégia
 - **Ideal Estratégico**: percentuais editáveis + pizza. Adicionar/remover age em
   memória; Salvar persiste tudo (full replace). ↻ restaura do banco.
-- **Rebalanceamento**: Tipo Ativo, % Ideal, Aportado, Aportar, Estratégico,
-  % Carteira, % Diff, Sugestão (APORTAR/AGUARDAR).
+- **Estratégia Reserva** (20/09/2026): uma linha — Tipo de Estratégia (select
+  Por Porcentagem / Por Valor), % Atual, % Ideal, % Diff. O input troca com o
+  tipo: `PercentInput` ("%" à direita) ou `CurrencyInput` ("R$" à esquerda).
+  % Ideal e % Diff reagem ao que está sendo digitado; % Atual vem do servidor.
+  Donut "Distribuição Estratégica Reserva" com a distribuição **ideal**:
+  reserva `#8a00c4`, geração de renda `#7d7e7f`, em % no tipo percentual e em
+  R$ no tipo valor. Componente em `components/strategy/ReservationStrategyTab`.
+- **Rebalanceamento**: primeiro o card "Rebalanceamento Reserva de Emergência"
+  (Tipo de Estratégia, % Ideal — "—" no tipo valor —, Aportado, Aportar,
+  Estratégico, % Carteira, % Diff, Sugestão), depois "Sugestão de Aporte" por
+  tipo: Tipo Ativo, % Ideal, Aportado, Aportar, Estratégico, % Carteira,
+  % Diff, Sugestão (APORTAR/AGUARDAR).
+
+### Reserva de emergência — como é calculada
+A reserva **concorre com o resto da carteira**: somam-se as posições com
+`is_reservation = true`, e o restante é a **geração de renda**. As duas contas
+leem de `StrategyHoldings`, que carrega posições e transações uma vez e aplica a
+mesma regra de valor do rebalanceamento (custo menos resgates; posição liquidada
+vale zero). Por isso a reserva nunca entra no rebalanceamento por tipo, em
+nenhum dos dois ramos dele: contada lá também, o mesmo CDB apareceria duas vezes.
+
+**Aportar**, em `StrategyReservationService.amountToContribute`:
+
+| Tipo | Fórmula | Por quê |
+|------|---------|---------|
+| Por percentual | `(p × total − reserva) ÷ (1 − p)`, `p` em fração | O aporte entra no total da carteira: depois dele a reserva bate o % **exato**. Completar só `p × total` deixaria a reserva abaixo do alvo |
+| Por percentual, `p = 100%` | `total − reserva` | A fórmula divide por zero; enquanto houver geração de renda nenhum aporte finito chega a 100% |
+| Por valor | `alvo − reserva` | O alvo é absoluto; o total não entra |
+
+Negativo quando a reserva está acima do alvo: aparece em vermelho e a Sugestão
+fica AGUARDAR — a tela mostra o excesso, não manda vender. No tipo valor, o
+**% ideal** usado pelo % Diff é `alvo ÷ total` da carteira de hoje, limitado a
+100%.
+
+Exemplo conferido de ponta a ponta: carteira R$ 10.000, reserva R$ 2.000 (20%).
+Ideal 30% → aportar **R$ 1.428,57** (3.428,57 / 11.428,57 = 30%); ideal R$ 3.000
+→ aportar R$ 1.000; ideal 10% → aportar **−R$ 1.111,11**.
+
+**Nascimento**: `AuthService.createDefaults` cria carteira e estratégia de
+reserva nos dois caminhos que criam usuário (e-mail e Google). O usuário semeado
+recebe a sua pela V12. Usuário anterior à feature ganha a linha padrão na
+primeira leitura de `GET /strategy/reservation` — a leitura do rebalanceamento,
+que é somente leitura, usa o padrão em memória sem gravar.
+
+**`type_reservation` é SMALLINT**, e não VARCHAR como os outros enums do
+projeto: 1 e 2 vieram do escopo. `ReservationType` + `ReservationTypeConverter`
+fazem a ponte, e na API o enum trafega pelo nome (`PERCENTAGE` / `VALUE`).
 
 ---
 
@@ -744,7 +824,7 @@ truncaria dados.
 | Natureza | Tipo | Colunas |
 |----------|------|---------|
 | Quantidades e preços unitários | `numeric(18,8)` | `shares`, `price_per_share`, `current_price`, `max_price`, `amount_per_share`, preços do histórico |
-| Valores monetários agregados | `numeric(18,2)` | `appreciation`, `total_amount`, `brokerage_fee`, `target_amount`, `current_amount` |
+| Valores monetários agregados | `numeric(18,2)` | `appreciation`, `total_amount`, `brokerage_fee`, `target_amount`, `current_amount`, `target_value` |
 | Taxa de indexador | `numeric(10,4)` | `indexer_rate` |
 | Percentual da estratégia | `numeric(5,2)` | `target_percentage` |
 
@@ -917,36 +997,39 @@ colado no chat.
 - **Repositório**: https://github.com/guilherme-dealmeida/primevest.git
 - **Branch atual**: `TRACK_01-ajustes_crud_inicial`
 - **Branches**: master, uat, develop, TRACK_01-ajustes_crud_inicial
-- **Regra**: **não comitar sem instrução explícita do usuário**
+- **Git é do usuário** (19/09/2026): o assistente **não executa** comando de
+  git — nem commit, nem branch, nem push — e **não comenta** o que está ou não
+  comitado. Nada de "segue não comitado", nada de status de working tree, nada
+  de sugerir commit ao terminar. O usuário cuida disso por fora.
+- **A validação da implementação é a última etapa do assistente.** Compilar,
+  rodar o lint, subir o ambiente e conferir o comportamento fecham o trabalho:
+  entregue isso, o assunto acabou.
 
 ### Estado do working tree
 
-Há trabalho considerável **não comitado**, acumulado nas últimas sessões:
+**Limpo em 19/09/2026**, na `TRACK_01-ajustes_crud_inicial`. O que esta seção
+listava como pendente foi comitado; ela agora registra em que commit cada
+bloco entrou, para quem precisar voltar a um deles.
 
-- Separação catálogo / título: `AssetTerms`, `FixedIncomeNote` e repositórios,
-  `Asset` sem as quatro colunas, `note_id` em transação e posição
-- Reset das migrations: 33 arquivos substituídos por 22
-- Correções de autorização nos quatro services
-- Frontend: carteira com emissor/vencimento, modal de transação em duas colunas,
-  máscaras, correção da edição
-- Máscaras do modal de transação (18/09/2026): Quantidade com 2 casas, taxa do
-  título com 3
-- `primevest-web/Dockerfile`: base `node:24-alpine` → `node:24`
-- V30 + seis entidades: `created_at` / `updated_at` (ver "Auditoria de datas") —
-  absorvida pelo segundo reset
-- **Segundo reset das migrations (18/09/2026)**: 30 arquivos substituídos por 9
-  (as antigas em `E:\repos\primevest-backups\migration-antiga-*`)
-- `PENDENCIAS.txt` (novo)
-- Lint do front (18/09/2026): `eslint.config.js` novo, `typescript-eslint` no
-  `package.json`, e as quatro correções — `MaskedNumberInput`, `DataTable`,
-  `LoadingSpinner`
-- `.claude/` (novo): `build.ps1`, `README.md` e `logs/` ignorado
-- `.gitignore`: entrada para `.claude/logs/`
-- **Reserva de emergência (19/09/2026)**: `findOwnedById` em
-  `PortfolioAssetRepository`, `PortfolioService.setReservation`,
-  `PATCH /portfolio/assets/{id}/reservation` com `ReservationUpdateDTO` e
-  `PortfolioAssetReservationDTO`; no front, `ToastContext`, `ui/Switch` e a
-  coluna RESERVA da carteira. Sem migration: `is_reservation` já vinha da V1
+| Commit | O que entrou |
+|--------|--------------|
+| `2e731b3` | **Reserva de emergência**: `findOwnedById` em `PortfolioAssetRepository`, `PortfolioService.setReservation`, `PATCH /portfolio/assets/{id}/reservation` com `ReservationUpdateDTO` e `PortfolioAssetReservationDTO`; no front, `ToastContext`, `ui/Switch` e a coluna RESERVA da carteira. Sem migration — `is_reservation` já vinha da V1 |
+| `c19ff7c` | Ajustes das telas de Alocação e Estratégia |
+| `a63ca14` | `PENDENCIAS.txt` e atualizações deste documento |
+| `7d8a150` | Rebalanceamento estratégico |
+| `672ad13` | `.claude/` (`build.ps1`, `README.md`, `logs/` ignorado) e a entrada no `.gitignore` |
+
+Nos mesmos commits vieram, das sessões anteriores: a separação catálogo /
+título (`AssetTerms`, `FixedIncomeNote`, `note_id` em transação e posição), os
+**dois resets das migrations** (33 → 22 e depois 30 → 9; as antigas em
+`E:\repos\primevest-backups\migration-antiga-*`), as correções de autorização
+nos quatro services, a V30 de auditoria de datas — absorvida pelo segundo
+reset —, a carteira com emissor e vencimento, o modal de transação em duas
+colunas com as máscaras, a troca da imagem do front para `node:24` e o lint do
+front (`eslint.config.js`, `typescript-eslint` e as quatro correções).
+
+Esta seção é um retrato do dia 19/09/2026, mantido só como histórico do que
+entrou em cada commit. O estado atual do repositório é assunto do usuário.
 
 ### Limpeza
 `_to_delete/` foi **apagada em 18/09/2026**. Na hora da exclusão ela já estava

@@ -10,6 +10,8 @@ import { clsx } from 'clsx';
 import { Save, Plus, Trash2, RefreshCw } from 'lucide-react';
 import { Strategy, Rebalance } from '@/types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { ReservationStrategyTab } from '@/components/strategy/ReservationStrategyTab';
+import { ReservationRebalanceCard } from '@/components/strategy/ReservationRebalanceCard';
 
 const PIE_COLORS = ['#c9a84c', '#38a169', '#e53e3e', '#3182ce', '#805ad5', '#d69e2e', '#ed8936', '#dd6b20'];
 
@@ -37,7 +39,7 @@ const CustomTooltip = ({ active, payload }: any) => {
 
 export const StrategyPage = () => {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'ideal' | 'rebalanceamento'>('ideal');
+  const [activeTab, setActiveTab] = useState<'ideal' | 'reserva' | 'rebalanceamento'>('ideal');
   // Local editing state: { assetTypeId -> { value, typeName } }
   const [editingRows, setEditingRows] = useState<Record<number, { value: string; typeName: string }>>({});
   const [selectedTypeToAdd, setSelectedTypeToAdd] = useState<string>('');
@@ -131,8 +133,7 @@ export const StrategyPage = () => {
     mutation.mutate({
       items: Object.entries(editingRows).map(([id, row]) => ({
         assetTypeId: Number(id),
-        targetPercentage: Number(row.value),
-        includeReservation: false
+        targetPercentage: Number(row.value)
       }))
     });
   };
@@ -197,6 +198,15 @@ export const StrategyPage = () => {
           )}
         >
           Ideal Estratégico
+        </button>
+        <button
+          onClick={() => setActiveTab('reserva')}
+          className={clsx(
+            "px-4 py-2 text-sm font-medium rounded-md transition-colors",
+            activeTab === 'reserva' ? "bg-surface-light text-white" : "text-gray-400 hover:text-white hover:bg-surface-light/50"
+          )}
+        >
+          Estratégia Reserva
         </button>
         <button
           onClick={() => setActiveTab('rebalanceamento')}
@@ -381,8 +391,13 @@ export const StrategyPage = () => {
         </div>
       )}
 
-      {/* Tab 2: Rebalanceamento */}
+      {/* Tab 2: Estratégia Reserva */}
+      {activeTab === 'reserva' && <ReservationStrategyTab />}
+
+      {/* Tab 3: Rebalanceamento — a reserva primeiro, depois a geração de renda por tipo */}
       {activeTab === 'rebalanceamento' && (
+        <div className="space-y-6">
+        {rebalance?.reservation && <ReservationRebalanceCard reservation={rebalance.reservation} />}
         <Card title="Sugestão de Aporte (Rebalanceamento)">
           <div className="overflow-x-auto mt-4">
             <table className="w-full text-sm text-left">
@@ -449,6 +464,7 @@ export const StrategyPage = () => {
             </table>
           </div>
         </Card>
+        </div>
       )}
     </div>
   );

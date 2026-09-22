@@ -5,6 +5,8 @@ import com.primevest.domain.auth.dto.RegisterRequestDTO;
 import com.primevest.domain.auth.dto.TokenResponseDTO;
 import com.primevest.domain.portfolio.Portfolio;
 import com.primevest.domain.portfolio.PortfolioRepository;
+import com.primevest.domain.strategy.StrategyReservation;
+import com.primevest.domain.strategy.StrategyReservationRepository;
 import com.primevest.domain.user.User;
 import com.primevest.domain.user.UserRepository;
 import com.primevest.exception.BusinessException;
@@ -26,6 +28,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
     private final PortfolioRepository portfolioRepository;
+    private final StrategyReservationRepository strategyReservationRepository;
     private final GoogleTokenVerifier googleTokenVerifier;
 
     public AuthService(JwtTokenProvider jwtTokenProvider,
@@ -33,12 +36,14 @@ public class AuthService {
                        PasswordEncoder passwordEncoder,
                        UserRepository userRepository,
                        PortfolioRepository portfolioRepository,
+                       StrategyReservationRepository strategyReservationRepository,
                        GoogleTokenVerifier googleTokenVerifier) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.authenticationManager = authenticationManager;
         this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
         this.portfolioRepository = portfolioRepository;
+        this.strategyReservationRepository = strategyReservationRepository;
         this.googleTokenVerifier = googleTokenVerifier;
     }
     
@@ -57,11 +62,7 @@ public class AuthService {
             .build();
         user = userRepository.save(user);
         
-        // Create default portfolio
-        Portfolio portfolio = new Portfolio();
-        portfolio.setName("Minha Carteira");
-        portfolio.setUser(user);
-        portfolioRepository.save(portfolio);
+        createDefaults(user);
     }
 
     public TokenResponseDTO loginWithEmail(LoginRequestDTO request) {
@@ -130,12 +131,26 @@ public class AuthService {
             .avatarUrl(profile.pictureUrl())
             .build());
 
+        createDefaults(user);
+        return user;
+    }
+
+    /**
+     * O que todo usuario tem desde o nascimento: a carteira padrao e a
+     * estrategia de reserva de emergencia (por percentual, alvo 0,00%).
+     *
+     * <p>Um metodo so para os dois caminhos que criam usuario — email e
+     * Google —, para que o proximo item do nascimento nao seja lembrado em um
+     * e esquecido no outro. O usuario semeado pela V9 nao passa por aqui: a
+     * carteira dele vem da propria V9, e a estrategia de reserva da V12.</p>
+     */
+    private void createDefaults(User user) {
         Portfolio portfolio = new Portfolio();
         portfolio.setName("Minha Carteira");
         portfolio.setUser(user);
         portfolioRepository.save(portfolio);
 
-        return user;
+        strategyReservationRepository.save(StrategyReservation.defaultFor(user));
     }
 
     public TokenResponseDTO refreshToken(String refreshToken) {

@@ -10,7 +10,6 @@ public record StrategyUpdateDTO(
 ) {
     public record StrategyItemDTO(
         Long assetTypeId,
-        @DecimalMin("0") @DecimalMax("100") BigDecimal targetPercentage,
-        boolean includeReservation
+        @DecimalMin("0") @DecimalMax("100") BigDecimal targetPercentage
     ) {}
 }

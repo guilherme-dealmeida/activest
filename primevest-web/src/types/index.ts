@@ -112,6 +112,19 @@ export interface PortfolioAssetReservation {
   isReservation: boolean;
 }
 
+/**
+ * GET /portfolio/allocation/reservation: a carteira de hoje dividida entre
+ * reserva de emergência e geração de renda. Mesma base de valor do gráfico por
+ * tipo (valor atual), para os dois totais baterem lado a lado.
+ */
+export interface ReservationAllocation {
+  totalValue: number;
+  reservationValue: number;
+  reservationPercentage: number;
+  incomeValue: number;
+  incomePercentage: number;
+}
+
 export interface PortfolioAllocation {
   typeName: string;
   colorHex: string;
@@ -232,11 +245,58 @@ export interface Strategy {
   assetTypeId: number;
   assetTypeName: string;
   targetPercentage: number;
-  includeReservation: boolean;
 }
 
 export interface StrategyUpdate {
-  items: { assetTypeId: number; targetPercentage: number; includeReservation: boolean }[];
+  items: { assetTypeId: number; targetPercentage: number }[];
+}
+
+/**
+ * Como a estratégia de reserva define o alvo. No banco é 1 e 2
+ * (strategy_reservations.type_reservation); na API, o nome.
+ */
+export type ReservationType = 'PERCENTAGE' | 'VALUE';
+
+/** GET/PUT /strategy/reservation. Espelha StrategyReservationDTO. */
+export interface StrategyReservation {
+  id: string;
+  typeReservation: ReservationType;
+  /** Alvo do tipo PERCENTAGE; null no VALUE. */
+  targetPercentage: number | null;
+  /** Alvo do tipo VALUE; null no PERCENTAGE. */
+  targetValue: number | null;
+  /** A carteira inteira: reserva + geração de renda. */
+  totalPortfolioValue: number;
+  reservationValue: number;
+  incomeValue: number;
+  currentPercentage: number;
+  /** No PERCENTAGE é o alvo; no VALUE, alvo ÷ carteira, limitado a 100%. */
+  idealPercentage: number;
+  /** Atual − ideal: negativo é abaixo do alvo. */
+  diffPercentage: number;
+}
+
+export interface StrategyReservationUpdate {
+  typeReservation: ReservationType;
+  targetPercentage: number | null;
+  targetValue: number | null;
+}
+
+/** Linha "Rebalanceamento Reserva de Emergência". Espelha RebalanceDTO.ReservationRebalance. */
+export interface ReservationRebalance {
+  typeReservation: ReservationType;
+  /** null no tipo VALUE: a tela mostra "—". */
+  idealPercentage: number | null;
+  /** null no tipo PERCENTAGE. */
+  targetValue: number | null;
+  /** Aportado: o que a reserva vale hoje. */
+  currentValue: number;
+  /** Aportar. Negativo quando a reserva já passou do alvo. */
+  amountToRebalance: number;
+  /** Estratégico: a reserva depois do aporte sugerido. */
+  idealValue: number;
+  currentPercentage: number;
+  diffPercentage: number;
 }
 
 export interface RebalanceItem {
@@ -249,9 +309,14 @@ export interface RebalanceItem {
   amountToRebalance: number;
 }
 
+/**
+ * totalPortfolioValue e items são a geração de renda: posição de reserva não
+ * entra no rebalanceamento por tipo. A reserva tem a sua linha em reservation.
+ */
 export interface Rebalance {
   totalPortfolioValue: number;
   items: RebalanceItem[];
+  reservation: ReservationRebalance;
 }
 
 export interface CeilingPrice {
