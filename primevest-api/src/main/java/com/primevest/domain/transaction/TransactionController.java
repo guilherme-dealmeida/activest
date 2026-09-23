@@ -35,6 +35,11 @@ public class TransactionController {
         return ResponseEntity.ok(transactionService.getTransactionById(SecurityUtils.getCurrentUserId(), id));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<TransactionResponseDTO> updateTransaction(@PathVariable UUID id, @Valid @RequestBody TransactionCreateDTO dto) {
+        return ResponseEntity.ok(transactionService.updateTransaction(SecurityUtils.getCurrentUserId(), id, dto));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTransaction(@PathVariable UUID id) {
         transactionService.deleteTransaction(SecurityUtils.getCurrentUserId(), id);

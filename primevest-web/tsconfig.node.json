@@ -5,7 +5,16 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
-    "strict": true
+    "strict": true,
+    /* vite.config.ts roda no Node: sem estes tipos, path, process e __dirname
+       não existem para o tsc, e o `tsc -b` do `npm run build` falha. */
+    "types": ["node"],
+    /* Projeto referenciado não pode ter noEmit (TS6310). Emite só a
+       declaração, e dentro de node_modules: com o outDir padrão o `tsc -b`
+       gravava vite.config.js ao lado do .ts — e o Vite carrega o .js antes. */
+    "emitDeclarationOnly": true,
+    "outDir": "./node_modules/.tmp/tsconfig-node",
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo"
   },
   "include": ["vite.config.ts"]
 }

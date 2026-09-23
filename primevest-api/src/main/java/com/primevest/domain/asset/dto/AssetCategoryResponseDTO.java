@@ -4,6 +4,7 @@ public record AssetCategoryResponseDTO(
     Long id,
     String name,
     String description,
+    String segment,
     Long assetTypeId,
     String assetTypeName
 ) {}

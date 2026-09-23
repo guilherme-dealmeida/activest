@@ -2,13 +2,13 @@ import { useState, useMemo } from 'react';
 
 type SortDirection = 'asc' | 'desc' | null;
 
-interface SortConfig {
+export interface SortConfig {
   key: string;
   direction: SortDirection;
 }
 
-export function useSortable<T>(data: T[]) {
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: '', direction: null });
+export function useSortable<T>(data: T[], initialSort: SortConfig = { key: '', direction: null }) {
+  const [sortConfig, setSortConfig] = useState<SortConfig>(initialSort);
 
   const requestSort = (key: string) => {
     let direction: SortDirection = 'asc';

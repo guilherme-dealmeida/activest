@@ -1,258 +1,519 @@
 package com.primevest.domain.transaction;
 
+import com.primevest.domain.asset.Asset;
 import com.primevest.domain.asset.AssetRepository;
+import com.primevest.domain.asset.AssetTerms;
+import com.primevest.domain.asset.AssetType;
+import com.primevest.domain.asset.Indexer;
+import com.primevest.domain.asset.PriceSource;
+import com.primevest.domain.asset.RateType;
+import com.primevest.domain.dividend.DividendRecalculator;
+import com.primevest.domain.fixedincome.FixedIncomeNote;
+import com.primevest.domain.fixedincome.FixedIncomeNoteRepository;
+import com.primevest.domain.fixedincome.FixedIncomeSettlement;
+import com.primevest.domain.portfolio.AppreciationUpdater;
 import com.primevest.domain.portfolio.Portfolio;
 import com.primevest.domain.portfolio.PortfolioAsset;
 import com.primevest.domain.portfolio.PortfolioAssetRepository;
 import com.primevest.domain.portfolio.PortfolioRepository;
+import com.primevest.domain.portfolio.PositionCalculator;
+import com.primevest.domain.portfolio.PositionGuard;
+import com.primevest.domain.transaction.dto.TransactionCreateDTO;
+import com.primevest.domain.user.UserRepository;
 import com.primevest.exception.BusinessException;
+import com.primevest.exception.ResourceNotFoundException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+/**
+ * Decisao e roteamento do TransactionService — o que ele recusa, o que ele
+ * grava e o que ele delega. O efeito combinado (FIFO, liquidacao, valorizacao)
+ * fica nos testes funcionais, onde o banco participa.
+ */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class TransactionServiceTest {
 
-    @Mock
-    private TransactionRepository transactionRepository;
+    @Mock private TransactionRepository transactionRepository;
+    @Mock private PortfolioRepository portfolioRepository;
+    @Mock private PortfolioAssetRepository portfolioAssetRepository;
+    @Mock private AssetRepository assetRepository;
+    @Mock private FixedIncomeNoteRepository fixedIncomeNoteRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private DividendRecalculator dividendRecalculator;
+    @Mock private PositionCalculator positionCalculator;
+    @Mock private AppreciationUpdater appreciationUpdater;
+    @Mock private FixedIncomeSettlement fixedIncomeSettlement;
+    @Mock private TreasuryAllocator treasuryAllocator;
 
-    @Mock
-    private PortfolioAssetRepository portfolioAssetRepository;
+    /** O guard entra de verdade: as regras A e B sao dele, e ja tem teste proprio. */
+    private final PositionGuard positionGuard = new PositionGuard();
 
-    @Mock
-    private PortfolioRepository portfolioRepository;
+    private TransactionService service;
 
-    @Mock
-    private AssetRepository assetRepository;
+    private UUID userId;
+    private Portfolio carteira;
+    private Asset acao;
+    private Asset cdb;
 
-    @InjectMocks
-    private TransactionService transactionService;
+    @BeforeEach
+    void cenario() {
+        service = new TransactionService(transactionRepository, portfolioRepository, portfolioAssetRepository,
+            assetRepository, fixedIncomeNoteRepository, userRepository, dividendRecalculator, positionCalculator,
+            appreciationUpdater, positionGuard, fixedIncomeSettlement, treasuryAllocator);
 
-    @Test
-    @DisplayName("Deve criar transação de COMPRA e atualizar posição no portfólio")
-    void testCreateBuyTransaction() {
-        // Arrange
-        UUID userId = UUID.randomUUID();
-        Portfolio portfolio = new Portfolio();
-        portfolio.setId(UUID.randomUUID());
-        
-        when(portfolioRepository.findByUserId(userId)).thenReturn(Optional.of(portfolio));
+        userId = UUID.randomUUID();
+        carteira = Portfolio.builder().name("Minha Carteira").build();
+        carteira.setId(UUID.randomUUID());
 
-        TransactionCreateDTO dto = new TransactionCreateDTO();
-        dto.setTicker("PETR4");
-        dto.setType(TransactionType.BUY);
-        dto.setShares(new BigDecimal("100"));
-        dto.setPrice(new BigDecimal("35.00"));
+        acao = asset("PETR4", tipo("ACAO", "Ações", PriceSource.BRAPI, false));
+        cdb = asset("CDB", tipo("RENDA_FIXA", "Renda Fixa", PriceSource.MANUAL, true));
 
-        PortfolioAsset asset = new PortfolioAsset();
-        asset.setTicker("PETR4");
-        asset.setShares(BigDecimal.ZERO);
-        asset.setAveragePrice(BigDecimal.ZERO);
-
-        when(portfolioAssetRepository.findByPortfolioIdAndTicker(portfolio.getId(), "PETR4"))
-                .thenReturn(Optional.of(asset));
+        when(portfolioRepository.findFirstByUserId(userId)).thenReturn(Optional.of(carteira));
+        when(assetRepository.findByTicker("PETR4")).thenReturn(Optional.of(acao));
+        when(assetRepository.findByTicker("CDB")).thenReturn(Optional.of(cdb));
         when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> {
-            Transaction t = i.getArgument(0);
-            t.setId(UUID.randomUUID());
-            return t;
+            Transaction tx = i.getArgument(0);
+            if (tx.getId() == null) {
+                tx.setId(UUID.randomUUID());
+            }
+            return tx;
         });
-
-        // Act
-        TransactionResponseDTO response = transactionService.createTransaction(userId, dto);
-
-        // Assert
-        assertThat(response).isNotNull();
-        assertThat(response.getTicker()).isEqualTo("PETR4");
-        assertThat(asset.getShares()).isEqualByComparingTo("100");
-        assertThat(asset.getAveragePrice()).isEqualByComparingTo("35.00");
-        verify(portfolioAssetRepository, times(1)).save(asset);
+        when(portfolioAssetRepository.save(any(PortfolioAsset.class))).thenAnswer(i -> {
+            PortfolioAsset pa = i.getArgument(0);
+            if (pa.getId() == null) {
+                pa.setId(UUID.randomUUID());
+            }
+            return pa;
+        });
+        when(positionCalculator.chronologicalTransactions(any())).thenReturn(List.of());
+        when(positionCalculator.calculate(anyBoolean(), anyList()))
+            .thenReturn(new com.primevest.domain.portfolio.Position(
+                BigDecimal.ONE, BigDecimal.ONE, new BigDecimal("100.00"), BigDecimal.ZERO));
     }
 
-    @Test
-    @DisplayName("Deve atualizar o preço médio corretamente em nova compra (média ponderada)")
-    void testCreateBuyTransaction_updatesAveragePrice() {
-        // Arrange
-        UUID userId = UUID.randomUUID();
-        Portfolio portfolio = new Portfolio();
-        portfolio.setId(UUID.randomUUID());
-        
-        when(portfolioRepository.findByUserId(userId)).thenReturn(Optional.of(portfolio));
-
-        TransactionCreateDTO dto = new TransactionCreateDTO();
-        dto.setTicker("PETR4");
-        dto.setType(TransactionType.BUY);
-        dto.setShares(new BigDecimal("50"));
-        dto.setPrice(new BigDecimal("38.00"));
-
-        PortfolioAsset asset = new PortfolioAsset();
-        asset.setTicker("PETR4");
-        // Existing: 100 shares at 35.00
-        asset.setShares(new BigDecimal("100"));
-        asset.setAveragePrice(new BigDecimal("35.00"));
-
-        when(portfolioAssetRepository.findByPortfolioIdAndTicker(portfolio.getId(), "PETR4"))
-                .thenReturn(Optional.of(asset));
-        when(transactionRepository.save(any())).thenReturn(new Transaction());
-
-        // Act
-        transactionService.createTransaction(userId, dto);
-
-        // Assert
-        // Old Total: 100 * 35 = 3500
-        // New Amount: 50 * 38 = 1900
-        // Total Invested = 5400
-        // Total Shares = 150
-        // New Avg Price = 5400 / 150 = 36.00
-        assertThat(asset.getShares()).isEqualByComparingTo("150");
-        assertThat(asset.getAveragePrice()).isEqualByComparingTo("36.00");
+    private static boolean anyBoolean() {
+        return org.mockito.ArgumentMatchers.anyBoolean();
     }
 
-    @Test
-    @DisplayName("Deve criar transação de VENDA e abater quantidade de ações")
-    void testCreateSellTransaction() {
-        // Arrange
-        UUID userId = UUID.randomUUID();
-        Portfolio portfolio = new Portfolio();
-        portfolio.setId(UUID.randomUUID());
-        
-        when(portfolioRepository.findByUserId(userId)).thenReturn(Optional.of(portfolio));
-
-        TransactionCreateDTO dto = new TransactionCreateDTO();
-        dto.setTicker("PETR4");
-        dto.setType(TransactionType.SELL);
-        dto.setShares(new BigDecimal("50"));
-        dto.setPrice(new BigDecimal("38.00")); // Selling with profit
-
-        PortfolioAsset asset = new PortfolioAsset();
-        asset.setTicker("PETR4");
-        asset.setShares(new BigDecimal("100"));
-        asset.setAveragePrice(new BigDecimal("35.00"));
-
-        when(portfolioAssetRepository.findByPortfolioIdAndTicker(portfolio.getId(), "PETR4"))
-                .thenReturn(Optional.of(asset));
-        when(transactionRepository.save(any())).thenReturn(new Transaction());
-
-        // Act
-        transactionService.createTransaction(userId, dto);
-
-        // Assert
-        // Sell 50 shares -> Remaining 50 shares. Avg price doesn't change on selling.
-        assertThat(asset.getShares()).isEqualByComparingTo("50");
-        assertThat(asset.getAveragePrice()).isEqualByComparingTo("35.00");
+    private static AssetType tipo(String name, String description, PriceSource source, boolean fixedIncome) {
+        AssetType type = AssetType.builder()
+            .name(name).description(description).priceSource(source).fixedIncome(fixedIncome).build();
+        type.setId(1L);
+        return type;
     }
 
-    @Test
-    @DisplayName("Deve lançar BusinessException ao tentar vender mais ações do que possui")
-    void testCreateSellTransaction_insufficientShares() {
-        // Arrange
-        UUID userId = UUID.randomUUID();
-        Portfolio portfolio = new Portfolio();
-        portfolio.setId(UUID.randomUUID());
-        
-        when(portfolioRepository.findByUserId(userId)).thenReturn(Optional.of(portfolio));
-
-        TransactionCreateDTO dto = new TransactionCreateDTO();
-        dto.setTicker("VALE3");
-        dto.setType(TransactionType.SELL);
-        dto.setShares(new BigDecimal("100"));
-        dto.setPrice(new BigDecimal("70.00"));
-
-        PortfolioAsset asset = new PortfolioAsset();
-        asset.setTicker("VALE3");
-        asset.setShares(new BigDecimal("50")); // Only has 50
-        asset.setAveragePrice(new BigDecimal("72.00"));
-
-        when(portfolioAssetRepository.findByPortfolioIdAndTicker(portfolio.getId(), "VALE3"))
-                .thenReturn(Optional.of(asset));
-
-        // Act & Assert
-        assertThrows(BusinessException.class, () -> transactionService.createTransaction(userId, dto));
-        verify(transactionRepository, never()).save(any());
+    private static Asset asset(String ticker, AssetType tipo) {
+        Asset asset = Asset.builder().ticker(ticker).name(ticker).assetType(tipo).build();
+        asset.setId(ticker.hashCode() & 0xffL);
+        return asset;
     }
 
-    @Test
-    @DisplayName("Deve criar novo PortfolioAsset caso não exista na primeira compra")
-    void testCreateTransaction_newAsset() {
-        // Arrange
-        UUID userId = UUID.randomUUID();
-        Portfolio portfolio = new Portfolio();
-        portfolio.setId(UUID.randomUUID());
-        
-        when(portfolioRepository.findByUserId(userId)).thenReturn(Optional.of(portfolio));
-
-        TransactionCreateDTO dto = new TransactionCreateDTO();
-        dto.setTicker("MXRF11");
-        dto.setType(TransactionType.BUY);
-        dto.setShares(new BigDecimal("200"));
-        dto.setPrice(new BigDecimal("10.00"));
-
-        when(portfolioAssetRepository.findByPortfolioIdAndTicker(portfolio.getId(), "MXRF11"))
-                .thenReturn(Optional.empty()); // Does not exist
-        when(transactionRepository.save(any())).thenReturn(new Transaction());
-
-        // Act
-        transactionService.createTransaction(userId, dto);
-
-        // Assert
-        verify(portfolioAssetRepository, times(1)).save(argThat(asset -> 
-            asset.getTicker().equals("MXRF11") &&
-            asset.getShares().compareTo(new BigDecimal("200")) == 0 &&
-            asset.getAveragePrice().compareTo(new BigDecimal("10.00")) == 0
-        ));
+    private PortfolioAsset posicaoExistente(Asset asset, FixedIncomeNote note) {
+        PortfolioAsset pa = PortfolioAsset.builder()
+            .portfolio(carteira).asset(asset).note(note).appreciation(BigDecimal.ZERO).build();
+        pa.setId(UUID.randomUUID());
+        if (note == null) {
+            when(portfolioAssetRepository.findByPortfolioIdAndAssetIdAndNoteIsNull(carteira.getId(), asset.getId()))
+                .thenReturn(Optional.of(pa));
+        } else {
+            when(portfolioAssetRepository.findByPortfolioIdAndNoteId(carteira.getId(), note.getId()))
+                .thenReturn(Optional.of(pa));
+        }
+        return pa;
     }
 
-    @Test
-    @DisplayName("Deve deletar transação e reverter efeito na posição (desfazer compra)")
-    void testDeleteTransaction_reversesBuy() {
-        // Arrange
-        UUID userId = UUID.randomUUID();
-        UUID txId = UUID.randomUUID();
-        
-        Portfolio portfolio = new Portfolio();
-        portfolio.setId(UUID.randomUUID());
+    private static TransactionCreateDTO compraDeAcao(String cotas, String preco) {
+        return new TransactionCreateDTO("PETR4", TransactionType.BUY, new BigDecimal(cotas),
+            new BigDecimal(preco), null, null, LocalDate.of(2026, 9, 1), null, null,
+            null, null, null, null, null, null);
+    }
 
-        Transaction tx = new Transaction();
-        tx.setId(txId);
-        tx.setTicker("VALE3");
-        tx.setType(TransactionType.BUY);
-        tx.setShares(new BigDecimal("50"));
-        tx.setPrice(new BigDecimal("70.00"));
-        tx.setPortfolioId(portfolio.getId());
+    @Nested
+    @DisplayName("Catalogo e carteira")
+    class Precondicoes {
 
-        PortfolioAsset asset = new PortfolioAsset();
-        asset.setTicker("VALE3");
-        asset.setShares(new BigDecimal("100")); // Had 100
-        // Let's assume prior avg price was 60.00 for 50 shares
-        // So total was 3000 (old) + 3500 (new) = 6500. Avg price now = 65.00
-        asset.setAveragePrice(new BigDecimal("65.00"));
+        @Test
+        @DisplayName("Ticker fora do catalogo e erro: a transacao nao cria ativo")
+        void tickerInexistente() {
+            when(assetRepository.findByTicker("XXXX9")).thenReturn(Optional.empty());
 
-        when(transactionRepository.findById(txId)).thenReturn(Optional.of(tx));
-        when(portfolioRepository.findByUserId(userId)).thenReturn(Optional.of(portfolio));
-        when(portfolioAssetRepository.findByPortfolioIdAndTicker(portfolio.getId(), "VALE3"))
-                .thenReturn(Optional.of(asset));
+            assertThatThrownBy(() -> service.createTransaction(userId,
+                new TransactionCreateDTO("XXXX9", TransactionType.BUY, BigDecimal.ONE, BigDecimal.TEN, null,
+                    null, LocalDate.of(2026, 9, 1), null, null, null, null, null, null, null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Ativo não encontrado no catálogo: XXXX9")
+                .hasMessageContaining("Selecione um ativo existente na busca");
 
-        // Act
-        transactionService.deleteTransaction(userId, txId);
+            verify(assetRepository, never()).save(any());
+        }
 
-        // Assert
-        // Reverting the buy of 50 shares at 70.00
-        // New total shares = 100 - 50 = 50
-        // Old Invested = (100 * 65.00) - (50 * 70.00) = 6500 - 3500 = 3000
-        // Reverted Avg Price = 3000 / 50 = 60.00
-        assertThat(asset.getShares()).isEqualByComparingTo("50");
-        assertThat(asset.getAveragePrice()).isEqualByComparingTo("60.00");
-        verify(transactionRepository, times(1)).delete(tx);
+        @Test
+        @DisplayName("Usuario sem carteira recebe mensagem propria")
+        void semCarteira() {
+            when(portfolioRepository.findFirstByUserId(userId)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.createTransaction(userId, compraDeAcao("10", "30.00")))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Carteira não encontrada");
+        }
+
+        @Test
+        @DisplayName("Transacao de outro dono responde 'nao encontrada' — 404, nunca 403")
+        void transacaoDeOutroDono() {
+            UUID txId = UUID.randomUUID();
+            when(transactionRepository.findOwnedById(userId, txId)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.getTransactionById(userId, txId))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Transação não encontrada");
+            assertThatThrownBy(() -> service.deleteTransaction(userId, txId))
+                .isInstanceOf(ResourceNotFoundException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("Como a transacao e valorada")
+    class Valores {
+
+        @Test
+        @DisplayName("Renda variavel: o total e calculado, e o que veio no DTO e ignorado")
+        void totalCalculado() {
+            posicaoExistente(acao, null);
+            TransactionCreateDTO comTotalErrado = new TransactionCreateDTO("PETR4", TransactionType.BUY,
+                new BigDecimal("10"), new BigDecimal("30.00"), new BigDecimal("999999.00"), null,
+                LocalDate.of(2026, 9, 1), null, null, null, null, null, null, null, null);
+
+            service.createTransaction(userId, comTotalErrado);
+
+            ArgumentCaptor<Transaction> captor = ArgumentCaptor.forClass(Transaction.class);
+            verify(transactionRepository).save(captor.capture());
+            assertThat(captor.getValue().getTotalAmount()).isEqualByComparingTo("300.00");
+        }
+
+        @Test
+        @DisplayName("Renda variavel sem quantidade ou sem preco e recusada")
+        void faltaQuantidadeOuPreco() {
+            posicaoExistente(acao, null);
+
+            assertThatThrownBy(() -> service.createTransaction(userId,
+                new TransactionCreateDTO("PETR4", TransactionType.BUY, null, new BigDecimal("30.00"), null,
+                    null, LocalDate.of(2026, 9, 1), null, null, null, null, null, null, null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Informe a quantidade e o preço unitário.");
+        }
+
+        @Test
+        @DisplayName("Renda fixa com quantidade ou preco unitario e recusada, em vez de descartada em silencio")
+        void rendaFixaComQuantidade() {
+            assertThatThrownBy(() -> service.createTransaction(userId,
+                new TransactionCreateDTO("CDB", TransactionType.BUY, new BigDecimal("1"), new BigDecimal("1000.00"),
+                    null, null, LocalDate.of(2026, 9, 1), null, null, null, "BTG", LocalDate.of(2030, 1, 15),
+                    RateType.POS_FIXADO, Indexer.CDI, new BigDecimal("110.0000"))))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Renda Fixa é lançada pelo valor total, sem quantidade nem preço unitário.");
+        }
+
+        @Test
+        @DisplayName("Renda fixa sem valor total e recusada")
+        void rendaFixaSemValor() {
+            assertThatThrownBy(() -> service.createTransaction(userId,
+                new TransactionCreateDTO("CDB", TransactionType.BUY, null, null, null, null,
+                    LocalDate.of(2026, 9, 1), null, null, null, "BTG", LocalDate.of(2030, 1, 15),
+                    RateType.POS_FIXADO, Indexer.CDI, new BigDecimal("110.0000"))))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Informe o valor da transação.");
+        }
+
+        @Test
+        @DisplayName("A taxa de corretagem ausente vira zero, e nao nulo")
+        void corretagemAusente() {
+            posicaoExistente(acao, null);
+
+            service.createTransaction(userId, compraDeAcao("10", "30.00"));
+
+            ArgumentCaptor<Transaction> captor = ArgumentCaptor.forClass(Transaction.class);
+            verify(transactionRepository).save(captor.capture());
+            assertThat(captor.getValue().getBrokerageFee()).isEqualByComparingTo("0");
+        }
+    }
+
+    @Nested
+    @DisplayName("Regra A — a venda nao abre posicao")
+    class RegraA {
+
+        @Test
+        @DisplayName("Venda de ativo que nao esta na carteira e recusada")
+        void vendaSemPosicao() {
+            when(portfolioAssetRepository.findByPortfolioIdAndAssetIdAndNoteIsNull(carteira.getId(), acao.getId()))
+                .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.createTransaction(userId,
+                new TransactionCreateDTO("PETR4", TransactionType.SELL, new BigDecimal("10"),
+                    new BigDecimal("30.00"), null, null, LocalDate.of(2026, 9, 1), null, null,
+                    null, null, null, null, null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Não há posição de PETR4 na carteira para vender.");
+
+            verify(transactionRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("Venda em posicao que existe mas nunca teve compra tambem e recusada")
+        void vendaEmPosicaoSemCompra() {
+            posicaoExistente(acao, null);
+            when(positionCalculator.chronologicalTransactions(any())).thenReturn(List.of());
+
+            assertThatThrownBy(() -> service.createTransaction(userId,
+                new TransactionCreateDTO("PETR4", TransactionType.SELL, new BigDecimal("10"),
+                    new BigDecimal("30.00"), null, null, LocalDate.of(2026, 9, 1), null, null,
+                    null, null, null, null, null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Não há posição de PETR4 na carteira para vender.");
+        }
+
+        @Test
+        @DisplayName("Compra abre a posicao normalmente")
+        void compraAbrePosicao() {
+            when(portfolioAssetRepository.findByPortfolioIdAndAssetIdAndNoteIsNull(carteira.getId(), acao.getId()))
+                .thenReturn(Optional.empty());
+
+            service.createTransaction(userId, compraDeAcao("10", "30.00"));
+
+            // A posicao e gravada duas vezes: ao nascer e na reavaliacao que
+            // sempre roda depois da escrita.
+            verify(portfolioAssetRepository, org.mockito.Mockito.atLeastOnce()).save(any(PortfolioAsset.class));
+            verify(transactionRepository).save(any(Transaction.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("Liquidacao total e titulo de renda fixa")
+    class RendaFixa {
+
+        private FixedIncomeNote nota() {
+            FixedIncomeNote note = FixedIncomeNote.builder()
+                .asset(cdb).issuer("BTG").maturityDate(LocalDate.of(2030, 1, 15))
+                .rateType(RateType.POS_FIXADO).indexer(Indexer.CDI).indexerRate(new BigDecimal("110.0000"))
+                .build();
+            note.setId(UUID.randomUUID());
+            return note;
+        }
+
+        @Test
+        @DisplayName("Liquidacao total fora de venda de renda fixa e recusada")
+        void liquidacaoTotalSoEmVendaDeRendaFixa() {
+            assertThatThrownBy(() -> service.createTransaction(userId,
+                new TransactionCreateDTO("PETR4", TransactionType.BUY, new BigDecimal("10"),
+                    new BigDecimal("30.00"), null, null, LocalDate.of(2026, 9, 1), null, true,
+                    null, null, null, null, null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Liquidação total só existe em venda de Renda Fixa.");
+        }
+
+        @Test
+        @DisplayName("Titulo informado para ativo que nao e de renda fixa e recusado")
+        void noteIdEmAtivoQueNaoERendaFixa() {
+            posicaoExistente(acao, null);
+
+            assertThatThrownBy(() -> service.createTransaction(userId,
+                new TransactionCreateDTO("PETR4", TransactionType.BUY, new BigDecimal("10"),
+                    new BigDecimal("30.00"), null, null, LocalDate.of(2026, 9, 1), null, null,
+                    UUID.randomUUID(), null, null, null, null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Título informado para um ativo que não é de renda fixa: PETR4");
+        }
+
+        @Test
+        @DisplayName("Titulo de outro usuario responde 'Titulo nao encontrado' — o id vem do cliente")
+        void noteIdDeOutroUsuario() {
+            UUID noteId = UUID.randomUUID();
+            when(fixedIncomeNoteRepository.findByIdAndUserId(noteId, userId)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.createTransaction(userId,
+                new TransactionCreateDTO("CDB", TransactionType.BUY, null, null, new BigDecimal("1000.00"),
+                    null, LocalDate.of(2026, 9, 1), null, null, noteId, null, null, null, null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Título não encontrado");
+        }
+
+        @Test
+        @DisplayName("Titulo de outro ativo e recusado")
+        void noteIdDeOutroAtivo() {
+            FixedIncomeNote deOutroAtivo = nota();
+            deOutroAtivo.setAsset(acao);
+            when(fixedIncomeNoteRepository.findByIdAndUserId(deOutroAtivo.getId(), userId))
+                .thenReturn(Optional.of(deOutroAtivo));
+
+            assertThatThrownBy(() -> service.createTransaction(userId,
+                new TransactionCreateDTO("CDB", TransactionType.BUY, null, null, new BigDecimal("1000.00"),
+                    null, LocalDate.of(2026, 9, 1), null, null, deOutroAtivo.getId(), null, null, null, null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("O título selecionado pertence a outro ativo: PETR4");
+        }
+
+        @Test
+        @DisplayName("Venda de renda fixa sem titulo e recusada: nao se cria titulo numa venda")
+        void vendaSemNoteId() {
+            assertThatThrownBy(() -> service.createTransaction(userId,
+                new TransactionCreateDTO("CDB", TransactionType.SELL, null, null, new BigDecimal("500.00"),
+                    null, LocalDate.of(2026, 9, 1), null, null, null, null, null, null, null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Venda de renda fixa precisa apontar qual título está sendo vendido.");
+        }
+
+        @Test
+        @DisplayName("Compra sem titulo cria o titulo com o que o formulario mandou")
+        void compraCriaTitulo() {
+            when(fixedIncomeNoteRepository.save(any(FixedIncomeNote.class))).thenAnswer(i -> {
+                FixedIncomeNote n = i.getArgument(0);
+                n.setId(UUID.randomUUID());
+                return n;
+            });
+
+            service.createTransaction(userId, new TransactionCreateDTO("CDB", TransactionType.BUY, null, null,
+                new BigDecimal("1000.00"), null, LocalDate.of(2026, 9, 1), null, null, null,
+                "BTG", LocalDate.of(2030, 1, 15), RateType.POS_FIXADO, Indexer.CDI, new BigDecimal("110.0000")));
+
+            ArgumentCaptor<FixedIncomeNote> captor = ArgumentCaptor.forClass(FixedIncomeNote.class);
+            verify(fixedIncomeNoteRepository).save(captor.capture());
+            FixedIncomeNote criada = captor.getValue();
+            assertThat(criada.getIssuer()).isEqualTo("BTG");
+            assertThat(criada.getIndexerRate()).isEqualByComparingTo("110.0000");
+            assertThat(criada.getMaturityDate()).isEqualTo(LocalDate.of(2030, 1, 15));
+        }
+
+        @Test
+        @DisplayName("O que o formulario nao manda e herdado de asset_terms — e copiado, nao referenciado")
+        void herancaDeAssetTerms() {
+            AssetTerms terms = AssetTerms.builder()
+                .maturityDate(LocalDate.of(2050, 8, 15))
+                .rateType(RateType.HIBRIDO)
+                .indexer(Indexer.IPCA)
+                .build();
+            cdb.setTerms(terms);
+            when(fixedIncomeNoteRepository.save(any(FixedIncomeNote.class))).thenAnswer(i -> {
+                FixedIncomeNote n = i.getArgument(0);
+                n.setId(UUID.randomUUID());
+                return n;
+            });
+
+            service.createTransaction(userId, new TransactionCreateDTO("CDB", TransactionType.BUY, null, null,
+                new BigDecimal("1000.00"), null, LocalDate.of(2026, 9, 1), null, null, null,
+                "Tesouro Nacional", null, null, null, new BigDecimal("7.0900")));
+
+            ArgumentCaptor<FixedIncomeNote> captor = ArgumentCaptor.forClass(FixedIncomeNote.class);
+            verify(fixedIncomeNoteRepository).save(captor.capture());
+            assertThat(captor.getValue().getMaturityDate()).isEqualTo(LocalDate.of(2050, 8, 15));
+            assertThat(captor.getValue().getIndexer()).isEqualTo(Indexer.IPCA);
+        }
+
+        @Test
+        @DisplayName("Prefixado com indice limpa o indice, em vez de deixar o banco recusar a linha")
+        void prefixadoLimpaIndice() {
+            when(fixedIncomeNoteRepository.save(any(FixedIncomeNote.class))).thenAnswer(i -> {
+                FixedIncomeNote n = i.getArgument(0);
+                n.setId(UUID.randomUUID());
+                return n;
+            });
+
+            service.createTransaction(userId, new TransactionCreateDTO("CDB", TransactionType.BUY, null, null,
+                new BigDecimal("1000.00"), null, LocalDate.of(2026, 9, 1), null, null, null,
+                "BTG", LocalDate.of(2030, 1, 15), RateType.PREFIXADO, Indexer.CDI, new BigDecimal("12.5000")));
+
+            ArgumentCaptor<FixedIncomeNote> captor = ArgumentCaptor.forClass(FixedIncomeNote.class);
+            verify(fixedIncomeNoteRepository).save(captor.capture());
+            assertThat(captor.getValue().getIndexer()).isNull();
+        }
+
+        @Test
+        @DisplayName("Pos-fixado sem indice e recusado, com o tipo por extenso na mensagem")
+        void posFixadoSemIndice() {
+            assertThatThrownBy(() -> service.createTransaction(userId,
+                new TransactionCreateDTO("CDB", TransactionType.BUY, null, null, new BigDecimal("1000.00"),
+                    null, LocalDate.of(2026, 9, 1), null, null, null, "BTG", LocalDate.of(2030, 1, 15),
+                    RateType.POS_FIXADO, null, new BigDecimal("110.0000"))))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Remuneração pós-fixada precisa de um índice (CDI, IPCA, ...).");
+        }
+
+        @Test
+        @DisplayName("Indice sem forma de remuneracao e recusado")
+        void indiceSemForma() {
+            assertThatThrownBy(() -> service.createTransaction(userId,
+                new TransactionCreateDTO("CDB", TransactionType.BUY, null, null, new BigDecimal("1000.00"),
+                    null, LocalDate.of(2026, 9, 1), null, null, null, "BTG", LocalDate.of(2030, 1, 15),
+                    null, Indexer.CDI, new BigDecimal("110.0000"))))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Informe como o título remunera antes de escolher o índice.");
+        }
+
+        @Test
+        @DisplayName("Editar so quantidade e valor nao apaga emissor, vencimento e taxa do titulo")
+        void edicaoSemDadosDeTituloNaoApagaNada() {
+            FixedIncomeNote note = nota();
+            PortfolioAsset pa = posicaoExistente(cdb, note);
+            Transaction existente = Transaction.builder()
+                .portfolioAsset(pa).note(note).type(TransactionType.BUY)
+                .totalAmount(new BigDecimal("1000.00")).transactionDate(LocalDate.of(2026, 9, 1))
+                .build();
+            existente.setId(UUID.randomUUID());
+            when(transactionRepository.findOwnedById(userId, existente.getId())).thenReturn(Optional.of(existente));
+
+            service.updateTransaction(userId, existente.getId(), new TransactionCreateDTO("CDB",
+                TransactionType.BUY, null, null, new BigDecimal("1500.00"), null,
+                LocalDate.of(2026, 9, 1), null, null, null, null, null, null, null, null));
+
+            assertThat(note.getIssuer()).isEqualTo("BTG");
+            assertThat(note.getMaturityDate()).isEqualTo(LocalDate.of(2030, 1, 15));
+            assertThat(note.getIndexerRate()).isEqualByComparingTo("110.0000");
+            verify(fixedIncomeNoteRepository, never()).save(any(FixedIncomeNote.class));
+        }
+
+        @Test
+        @DisplayName("Editar mandando dados de titulo atualiza o titulo")
+        void edicaoComDadosDeTituloAtualiza() {
+            FixedIncomeNote note = nota();
+            PortfolioAsset pa = posicaoExistente(cdb, note);
+            Transaction existente = Transaction.builder()
+                .portfolioAsset(pa).note(note).type(TransactionType.BUY)
+                .totalAmount(new BigDecimal("1000.00")).transactionDate(LocalDate.of(2026, 9, 1))
+                .build();
+            existente.setId(UUID.randomUUID());
+            when(transactionRepository.findOwnedById(userId, existente.getId())).thenReturn(Optional.of(existente));
+
+            service.updateTransaction(userId, existente.getId(), new TransactionCreateDTO("CDB",
+                TransactionType.BUY, null, null, new BigDecimal("1000.00"), null,
+                LocalDate.of(2026, 9, 1), null, null, null, "Inter", LocalDate.of(2031, 5, 10),
+                RateType.POS_FIXADO, Indexer.CDI, new BigDecimal("105.0000")));
+
+            assertThat(note.getIssuer()).isEqualTo("Inter");
+            assertThat(note.getIndexerRate()).isEqualByComparingTo("105.0000");
+            verify(fixedIncomeNoteRepository).save(note);
+        }
     }
 }

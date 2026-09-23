@@ -29,10 +29,10 @@ public class Goal {
     @Column(nullable = false)
     private String name;
 
-    @Column(name = "target_amount", precision = 19, scale = 4, nullable = false)
+    @Column(name = "target_amount", precision = 18, scale = 2, nullable = false)
     private BigDecimal targetAmount;
 
-    @Column(name = "current_amount", precision = 19, scale = 4)
+    @Column(name = "current_amount", precision = 18, scale = 2)
     private BigDecimal currentAmount;
 
     @Column(name = "target_date")
@@ -45,11 +45,20 @@ public class Goal {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
+        this.updatedAt = this.createdAt;
         if (this.status == null) {
             this.status = GoalStatus.ACTIVE;
         }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 }

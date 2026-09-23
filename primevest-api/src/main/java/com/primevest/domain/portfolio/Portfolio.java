@@ -5,7 +5,6 @@ import com.primevest.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,14 +30,8 @@ public class Portfolio {
     @Column(nullable = false)
     private String name;
 
-    @Column(name = "total_invested", precision = 19, scale = 4)
-    private BigDecimal totalInvested;
-
-    @Column(name = "current_value", precision = 19, scale = 4)
-    private BigDecimal currentValue;
-
-    @Column(name = "total_dividends", precision = 19, scale = 4)
-    private BigDecimal totalDividends;
+    // Totais da carteira (investido, valor atual, proventos) nao sao gravados:
+    // o resumo soma as posicoes na leitura (V27, V28).
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

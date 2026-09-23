@@ -7,6 +7,7 @@ import App from './App.tsx';
 import './index.css';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { ToastProvider } from './context/ToastContext';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,9 +27,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <ThemeProvider>
-            <AuthProvider>
-              <App />
-            </AuthProvider>
+            <ToastProvider>
+              <AuthProvider>
+                <App />
+              </AuthProvider>
+            </ToastProvider>
           </ThemeProvider>
         </BrowserRouter>
       </QueryClientProvider>

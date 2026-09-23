@@ -41,6 +41,11 @@ public class User {
     @Column(name = "avatar_url")
     private String avatarUrl;
 
+    /** Acesso administrativo. Ainda não é consumido por nenhuma regra de autorização. */
+    @Column(name = "is_admin", nullable = false)
+    @Builder.Default
+    private boolean isAdmin = false;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

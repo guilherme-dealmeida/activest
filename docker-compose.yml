@@ -1,0 +1,108 @@
+# PrimeVest - ambiente de desenvolvimento completo
+#
+#   docker compose up --build       sobe tudo
+#   docker compose down             para tudo (mantém o banco)
+#   docker compose down -v          para tudo e APAGA o banco (recria do zero na próxima subida)
+#
+# Copie .env.example para .env se quiser sobrescrever qualquer valor.
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: primevest-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-db_primevest}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      # 5433 no host para não colidir com o PostgreSQL instalado na máquina (que usa 5432).
+      # Para conectar pelo pgAdmin: localhost:5433
+      - "0.0.0.0:${DB_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${POSTGRES_DB:-db_primevest}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: primevest-redis
+    ports:
+      - "0.0.0.0:${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./primevest-api
+      target: dev
+    container_name: primevest-api
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_HOST: db
+      DB_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-db_primevest}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-primevest-default-secret-key-change-in-production-minimum-256-bits-long}
+      # Mesmo valor que o web recebe em VITE_GOOGLE_CLIENT_ID. Os dois lados
+      # PRECISAM bater: o navegador pede o ID token para esta audience e a API
+      # só aceita token emitido para ela. Vazio desliga o login pelo Google.
+      # Não existe client secret aqui — o fluxo de ID token não usa.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      BRAPI_TOKEN: ${BRAPI_TOKEN:-}
+    ports:
+      - "0.0.0.0:${API_PORT:-8080}:8080"
+    volumes:
+      # Hot reload: o código-fonte vem da máquina, o Spring DevTools reinicia sozinho.
+      - ./primevest-api/src:/app/src
+      - ./primevest-api/pom.xml:/app/pom.xml
+      # Cache do Maven entre subidas — sem isso cada build rebaixa todas as dependências.
+      - maven-repo:/root/.m2
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./primevest-web
+      target: dev
+    container_name: primevest-web
+    environment:
+      # O proxy do Vite precisa apontar para o container da API, não para localhost.
+      VITE_API_TARGET: http://api:8080
+      # Bind mount no Windows não propaga eventos de arquivo: polling é necessário para o hot reload.
+      CHOKIDAR_USEPOLLING: "true"
+      # Mesma variável do .env que vai para a api, para não haver dois valores
+      # para a mesma coisa. O Vite embute isso no bundle: é público por natureza.
+      VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    ports:
+      # O prefixo 0.0.0.0: existe para publicar SOMENTE em IPv4. Sem ele o Docker
+      # publica nas duas pilhas e o navegador tenta ::1 primeiro; como o Vite
+      # escuta só numa delas, localhost:5173 fica pendurado (127.0.0.1 funciona).
+      # O mesmo vale para as demais portas deste arquivo.
+      - "0.0.0.0:${WEB_PORT:-5173}:5173"
+    volumes:
+      - ./primevest-web:/app
+      # Volume anônimo: preserva o node_modules instalado na imagem Linux,
+      # evitando que o node_modules do Windows sobrescreva binários nativos.
+      - /app/node_modules
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  maven-repo:

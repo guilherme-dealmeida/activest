@@ -2,6 +2,8 @@ package com.primevest.scheduler;
 
 import com.primevest.domain.asset.Asset;
 import com.primevest.domain.asset.AssetRepository;
+import com.primevest.domain.asset.PriceSource;
+import com.primevest.domain.portfolio.AppreciationUpdater;
 import com.primevest.domain.pricehistory.AssetPriceHistory;
 import com.primevest.domain.pricehistory.AssetPriceHistoryRepository;
 import com.primevest.integration.brapi.BrApiClient;
@@ -17,8 +19,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Scheduler para atualização automática de preços de ativos.
@@ -29,6 +33,10 @@ import java.util.Map;
  *   <li><b>Fora do pregão:</b> 1x ao dia (fechamento)</li>
  *   <li><b>Crypto:</b> A cada 30 minutos via CoinGecko (24/7)</li>
  * </ul>
+ *
+ * <p>Toda cotacao alterada termina em portfolio_assets.appreciation: as
+ * posicoes dos ativos atualizados tem a valorizacao regravada no fim de cada
+ * rodada, pelo {@link AppreciationUpdater}. A tela le o valor gravado.</p>
  */
 @Slf4j
 @Component
@@ -39,8 +47,8 @@ public class PriceUpdateScheduler {
     private final AssetPriceHistoryRepository priceHistoryRepository;
     private final BrApiClient brApiClient;
     private final CoinGeckoClient coinGeckoClient;
+    private final AppreciationUpdater appreciationUpdater;
 
-    private static final String CRYPTO_TYPE = "CRYPTO";
     private static final int BATCH_SIZE = 15;
 
     /**
@@ -77,7 +85,7 @@ public class PriceUpdateScheduler {
 
         List<Asset> cryptoAssets = assetRepository.findByActiveTrue()
                 .stream()
-                .filter(a -> a.getAssetType() != null && CRYPTO_TYPE.equals(a.getAssetType().getName()))
+                .filter(a -> a.getAssetType() != null && a.getAssetType().getPriceSource() == PriceSource.COINGECKO)
                 .toList();
 
         if (cryptoAssets.isEmpty()) {
@@ -91,18 +99,20 @@ public class PriceUpdateScheduler {
 
         Map<String, BigDecimal> prices = coinGeckoClient.getBatchPricesByTicker(tickers);
 
-        int updated = 0;
+        Set<Long> updatedIds = new HashSet<>();
         for (Asset asset : cryptoAssets) {
             BigDecimal newPrice = prices.get(asset.getTicker());
             if (newPrice != null) {
                 asset.setCurrentPrice(newPrice);
                 asset.setPriceUpdatedAt(LocalDateTime.now());
                 assetRepository.save(asset);
-                updated++;
+                updatedIds.add(asset.getId());
             }
         }
 
-        log.info("Crypto price update complete. Updated {}/{} assets", updated, cryptoAssets.size());
+        log.info("Crypto price update complete. Updated {}/{} assets", updatedIds.size(), cryptoAssets.size());
+        int positions = appreciationUpdater.refreshAssets(updatedIds);
+        log.info("Crypto appreciation saved for {} positions", positions);
     }
 
     /**
@@ -111,11 +121,8 @@ public class PriceUpdateScheduler {
     private void updateB3Prices() {
         List<Asset> b3Assets = assetRepository.findByActiveTrue()
                 .stream()
-                .filter(a -> a.getAssetType() != null && !CRYPTO_TYPE.equals(a.getAssetType().getName()))
+                .filter(a -> a.getAssetType() != null && a.getAssetType().getPriceSource() == PriceSource.BRAPI)
                 .filter(a -> a.getTicker() != null && !a.getTicker().isBlank())
-                // Filtrar apenas ativos com ticker que faz sentido buscar na BrAPI
-                // (não inclui Tesouro Direto/Renda Fixa com vencimento)
-                .filter(a -> !isFixedIncomeAsset(a))
                 .toList();
 
         if (b3Assets.isEmpty()) {
@@ -126,6 +133,7 @@ public class PriceUpdateScheduler {
         // Processar em batches de BATCH_SIZE
         List<List<Asset>> batches = partition(b3Assets, BATCH_SIZE);
         int totalUpdated = 0;
+        Set<Long> updatedIds = new HashSet<>();
 
         for (List<Asset> batch : batches) {
             List<String> tickers = batch.stream()
@@ -143,6 +151,7 @@ public class PriceUpdateScheduler {
                                 asset.setCurrentPrice(quote.getRegularMarketPrice());
                                 asset.setPriceUpdatedAt(LocalDateTime.now());
                                 assetRepository.save(asset);
+                                updatedIds.add(asset.getId());
                             }
                         });
                 totalUpdated++;
@@ -158,6 +167,8 @@ public class PriceUpdateScheduler {
         }
 
         log.info("B3 price update complete. Updated {}/{} assets", totalUpdated, b3Assets.size());
+        int positions = appreciationUpdater.refreshAssets(updatedIds);
+        log.info("B3 appreciation saved for {} positions", positions);
     }
 
     /**
@@ -186,16 +197,6 @@ public class PriceUpdateScheduler {
         }
 
         log.info("Daily price history saved for {} assets", saved);
-    }
-
-    /**
-     * Verifica se é um ativo de renda fixa (Tesouro Direto, CDB, etc.)
-     * que não tem cotação em tempo real na BrAPI.
-     */
-    private boolean isFixedIncomeAsset(Asset asset) {
-        if (asset.getAssetType() == null) return false;
-        String typeName = asset.getAssetType().getName();
-        return "RENDA_FIXA".equals(typeName) || "TESOURO_DIRETO".equals(typeName);
     }
 
     /**

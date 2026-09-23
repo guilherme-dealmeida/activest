@@ -30,7 +30,7 @@ public class CeilingPrice {
     @JoinColumn(name = "asset_id", nullable = false)
     private Asset asset;
 
-    @Column(name = "max_price", precision = 19, scale = 4, nullable = false)
+    @Column(name = "max_price", precision = 18, scale = 8, nullable = false)
     private BigDecimal maxPrice;
 
     @Column(name = "alert_enabled", nullable = false)
@@ -39,8 +39,17 @@ public class CeilingPrice {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
+        this.updatedAt = this.createdAt;
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 }

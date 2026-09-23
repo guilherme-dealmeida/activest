@@ -1,11 +1,10 @@
-import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { useTheme } from '@/context/ThemeContext';
 import { clsx } from 'clsx';
 
 const routeNames: Record<string, string> = {
   '/dashboard': 'Dashboard',
-  '/portfolio': 'Sua Carteira',
+  '/portfolio': 'Carteira',
   '/allocation': 'Alocação',
   '/strategy': 'Estratégia de Investimentos',
   '/transactions': 'Transações',

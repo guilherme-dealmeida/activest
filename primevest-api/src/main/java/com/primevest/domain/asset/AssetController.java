@@ -25,7 +25,8 @@ public class AssetController {
             @RequestParam(required = false) Long typeId,
             @RequestParam(required = false) String query) {
         if (query != null && !query.isEmpty()) {
-            return ResponseEntity.ok(assetService.searchAssets(query));
+            // typeId junto com query restringe o autocomplete ao tipo escolhido
+            return ResponseEntity.ok(assetService.searchAssets(query, typeId));
         } else if (typeId != null) {
             return ResponseEntity.ok(assetService.getAssetsByType(typeId));
         }

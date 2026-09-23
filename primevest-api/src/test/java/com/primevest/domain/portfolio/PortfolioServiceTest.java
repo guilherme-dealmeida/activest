@@ -1,271 +1,359 @@
 package com.primevest.domain.portfolio;
 
-import com.primevest.domain.asset.AssetRepository;
+import com.primevest.domain.asset.Asset;
+import com.primevest.domain.asset.AssetCategory;
+import com.primevest.domain.asset.AssetType;
+import com.primevest.domain.asset.PriceSource;
+import com.primevest.domain.dividend.DividendRepository;
+import com.primevest.domain.dividend.PositionDividendTotal;
+import com.primevest.domain.portfolio.dto.PortfolioAllocationDTO;
+import com.primevest.domain.portfolio.dto.PortfolioAllocationDetailedDTO;
+import com.primevest.domain.portfolio.dto.PortfolioAssetDetailDTO;
+import com.primevest.domain.portfolio.dto.PortfolioSummaryDTO;
+import com.primevest.domain.portfolio.dto.ReservationAllocationDTO;
 import com.primevest.domain.user.UserRepository;
+import com.primevest.exception.BusinessException;
+import com.primevest.exception.ResourceNotFoundException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class PortfolioServiceTest {
 
-    @Mock
-    private PortfolioRepository portfolioRepository;
+    @Mock private PortfolioRepository portfolioRepository;
+    @Mock private PortfolioAssetRepository portfolioAssetRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private DividendRepository dividendRepository;
+    @Mock private PositionCalculator positionCalculator;
 
-    @Mock
-    private PortfolioAssetRepository portfolioAssetRepository;
+    @InjectMocks private PortfolioService service;
 
-    @Mock
-    private AssetRepository assetRepository;
+    private UUID userId;
+    private Portfolio carteira;
+    private AssetType acaoTipo;
+    private AssetType fiiTipo;
+    private AssetType rendaFixaTipo;
 
-    @Mock
-    private UserRepository userRepository;
+    private final List<PortfolioAsset> posicoes = new ArrayList<>();
+    private final Map<UUID, Position> posicoesCalculadas = new HashMap<>();
 
-    @InjectMocks
-    private PortfolioService portfolioService;
+    @BeforeEach
+    void cenario() {
+        userId = UUID.randomUUID();
+        carteira = Portfolio.builder().name("Minha Carteira").build();
+        carteira.setId(UUID.randomUUID());
 
-    @Test
-    @DisplayName("Deve retornar resumo do portfólio com ativos, calculando retorno e percentual corretamente")
-    void testGetPortfolioSummary_withAssets() {
-        // Arrange
-        UUID userId = UUID.randomUUID();
-        Portfolio portfolio = new Portfolio();
-        portfolio.setId(UUID.randomUUID());
-        portfolio.setUserId(userId);
+        acaoTipo = tipo(1L, "ACAO", "Ações", PriceSource.BRAPI, false);
+        fiiTipo = tipo(2L, "FII", "FIIs", PriceSource.BRAPI, false);
+        rendaFixaTipo = tipo(3L, "RENDA_FIXA", "Renda Fixa", PriceSource.MANUAL, true);
 
-        when(portfolioRepository.findByUserId(userId)).thenReturn(Optional.of(portfolio));
-
-        PortfolioAsset petr4 = new PortfolioAsset();
-        petr4.setAveragePrice(new BigDecimal("35.00"));
-        petr4.setShares(new BigDecimal("100"));
-        petr4.setCurrentPrice(new BigDecimal("38.50"));
-        petr4.setDividends(BigDecimal.ZERO);
-
-        PortfolioAsset mxrf11 = new PortfolioAsset();
-        mxrf11.setAveragePrice(new BigDecimal("10.00"));
-        mxrf11.setShares(new BigDecimal("200"));
-        mxrf11.setCurrentPrice(new BigDecimal("10.50"));
-        mxrf11.setDividends(new BigDecimal("50.00"));
-
-        when(portfolioAssetRepository.findByPortfolioId(portfolio.getId()))
-                .thenReturn(List.of(petr4, mxrf11));
-
-        // Act
-        PortfolioSummaryDTO summary = portfolioService.getPortfolioSummary(userId);
-
-        // Assert
-        // Total Invested = (35 * 100) + (10 * 200) = 3500 + 2000 = 5500
-        // Current Value = (38.50 * 100) + (10.50 * 200) = 3850 + 2100 = 5950
-        // Dividends = 0 + 50 = 50
-        // Total Return = (5950 + 50) - 5500 = 500
-        // Return % = (500 / 5500) * 100 = 9.09%
-
-        assertThat(summary).isNotNull();
-        assertThat(summary.getTotalInvested()).isEqualByComparingTo("5500.00");
-        assertThat(summary.getCurrentValue()).isEqualByComparingTo("5950.00");
-        assertThat(summary.getTotalDividends()).isEqualByComparingTo("50.00");
-        assertThat(summary.getTotalReturn()).isEqualByComparingTo("500.00");
-        
-        // Use a reasonable tolerance for percentages
-        assertThat(summary.getReturnPercentage()).isCloseTo(new BigDecimal("9.09"), org.assertj.core.data.Percentage.withPercentage(1));
+        when(portfolioRepository.findFirstByUserId(userId)).thenReturn(Optional.of(carteira));
+        when(portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(carteira.getId())).thenReturn(posicoes);
+        when(positionCalculator.positionsOf(any(), any())).thenReturn(posicoesCalculadas);
+        when(dividendRepository.sumTotalAmountByPosition(carteira.getId())).thenReturn(List.of());
     }
 
-    @Test
-    @DisplayName("Deve retornar valores zerados para portfólio vazio")
-    void testGetPortfolioSummary_emptyPortfolio() {
-        // Arrange
-        UUID userId = UUID.randomUUID();
-        Portfolio portfolio = new Portfolio();
-        portfolio.setId(UUID.randomUUID());
-        portfolio.setUserId(userId);
-
-        when(portfolioRepository.findByUserId(userId)).thenReturn(Optional.of(portfolio));
-        when(portfolioAssetRepository.findByPortfolioId(portfolio.getId())).thenReturn(List.of());
-
-        // Act
-        PortfolioSummaryDTO summary = portfolioService.getPortfolioSummary(userId);
-
-        // Assert
-        assertThat(summary).isNotNull();
-        assertThat(summary.getTotalInvested()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(summary.getCurrentValue()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(summary.getTotalDividends()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(summary.getTotalReturn()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(summary.getReturnPercentage()).isEqualByComparingTo(BigDecimal.ZERO);
+    private static AssetType tipo(Long id, String name, String description, PriceSource source, boolean fixedIncome) {
+        AssetType type = AssetType.builder()
+            .name(name).description(description).priceSource(source).fixedIncome(fixedIncome)
+            .colorHex("#c9a84c").build();
+        type.setId(id);
+        return type;
     }
 
-    @Test
-    @DisplayName("Deve incluir dividendos no cálculo de retorno do portfólio")
-    void testGetPortfolioSummary_withDividends() {
-        // Arrange
-        UUID userId = UUID.randomUUID();
-        Portfolio portfolio = new Portfolio();
-        portfolio.setId(UUID.randomUUID());
-        portfolio.setUserId(userId);
-
-        when(portfolioRepository.findByUserId(userId)).thenReturn(Optional.of(portfolio));
-
-        PortfolioAsset mxrf11 = new PortfolioAsset();
-        mxrf11.setAveragePrice(new BigDecimal("10.00"));
-        mxrf11.setShares(new BigDecimal("100"));
-        mxrf11.setCurrentPrice(new BigDecimal("10.00")); // No capital gain
-        mxrf11.setDividends(new BigDecimal("100.00")); // Only dividends
-
-        when(portfolioAssetRepository.findByPortfolioId(portfolio.getId())).thenReturn(List.of(mxrf11));
-
-        // Act
-        PortfolioSummaryDTO summary = portfolioService.getPortfolioSummary(userId);
-
-        // Assert
-        // Invested: 1000, Current: 1000, Div: 100
-        // Return: 100, Return %: 10%
-        assertThat(summary.getTotalReturn()).isEqualByComparingTo("100.00");
-        assertThat(summary.getReturnPercentage()).isEqualByComparingTo("10.00");
+    /** Uma posicao por cota: custo, valorizacao gravada e, opcionalmente, reserva. */
+    private PortfolioAsset posicao(AssetType tipo, String ticker, String custo, String valorizacao,
+                                   String cotas, boolean reserva) {
+        Asset asset = Asset.builder().ticker(ticker).name(ticker).assetType(tipo)
+            .currentPrice(new BigDecimal("10.00")).build();
+        PortfolioAsset pa = PortfolioAsset.builder()
+            .portfolio(carteira).asset(asset)
+            .appreciation(new BigDecimal(valorizacao))
+            .isReservation(reserva)
+            .build();
+        pa.setId(UUID.randomUUID());
+        posicoes.add(pa);
+        posicoesCalculadas.put(pa.getId(), new Position(
+            cotas == null ? null : new BigDecimal(cotas),
+            cotas == null ? null : new BigDecimal("1.0000"),
+            new BigDecimal(custo), BigDecimal.ZERO));
+        return pa;
     }
 
-    @Test
-    @DisplayName("Deve listar ativos do portfólio calculando valorização corretamente")
-    void testGetPortfolioAssets_calculatesValorizationCorrectly() {
-        // Arrange
-        UUID userId = UUID.randomUUID();
-        Portfolio portfolio = new Portfolio();
-        portfolio.setId(UUID.randomUUID());
-        
-        when(portfolioRepository.findByUserId(userId)).thenReturn(Optional.of(portfolio));
+    @Nested
+    @DisplayName("Resumo e posicao")
+    class Carteira {
 
-        PortfolioAsset petr4 = new PortfolioAsset();
-        petr4.setTicker("PETR4");
-        petr4.setAveragePrice(new BigDecimal("35.00"));
-        petr4.setShares(new BigDecimal("100"));
-        petr4.setCurrentPrice(new BigDecimal("38.50"));
+        @Test
+        @DisplayName("Valor atual e custo mais valorizacao; o retorno inclui proventos")
+        void resumo() {
+            PortfolioAsset petr = posicao(acaoTipo, "PETR4", "1000.00", "200.00", "100", false);
+            when(dividendRepository.sumTotalAmountByPosition(carteira.getId()))
+                .thenReturn(List.of(new PositionDividendTotal(petr.getId(), new BigDecimal("50.00"))));
 
-        when(portfolioAssetRepository.findByPortfolioId(portfolio.getId())).thenReturn(List.of(petr4));
+            PortfolioSummaryDTO resumo = service.getPortfolioSummary(userId);
 
-        // Act
-        List<PortfolioAssetDetailDTO> assets = portfolioService.getPortfolioAssets(userId);
+            assertThat(resumo.totalInvested()).isEqualByComparingTo("1000.00");
+            assertThat(resumo.currentValue()).isEqualByComparingTo("1200.00");
+            assertThat(resumo.totalDividends()).isEqualByComparingTo("50.00");
+            assertThat(resumo.totalReturn()).isEqualByComparingTo("250.00");
+            assertThat(resumo.returnPercentage()).isEqualByComparingTo("25.00");
+        }
 
-        // Assert
-        assertThat(assets).hasSize(1);
-        PortfolioAssetDetailDTO dto = assets.get(0);
-        // Valorization = (38.5 - 35) * 100 = 350
-        // Return % = (38.5 / 35 - 1) * 100 = 10%
-        assertThat(dto.getValorization()).isEqualByComparingTo("350.00");
-        assertThat(dto.getReturnPercentage()).isEqualByComparingTo("10.00");
+        @Test
+        @DisplayName("Carteira vazia responde zeros, sem dividir por zero")
+        void carteiraVazia() {
+            PortfolioSummaryDTO resumo = service.getPortfolioSummary(userId);
+
+            assertThat(resumo.totalInvested()).isEqualByComparingTo("0");
+            assertThat(resumo.currentValue()).isEqualByComparingTo("0");
+            assertThat(resumo.returnPercentage()).isEqualByComparingTo("0");
+        }
+
+        @Test
+        @DisplayName("Posicao liquidada sai dos totais, mas os proventos recebidos continuam contando")
+        void posicaoLiquidada() {
+            PortfolioAsset vendida = posicao(acaoTipo, "PETR4", "0.00", "300.00", "0", false);
+            vendida.setSettled(true);
+            when(dividendRepository.sumTotalAmountByPosition(carteira.getId()))
+                .thenReturn(List.of(new PositionDividendTotal(vendida.getId(), new BigDecimal("40.00"))));
+
+            PortfolioSummaryDTO resumo = service.getPortfolioSummary(userId);
+
+            assertThat(resumo.totalInvested()).isEqualByComparingTo("0");
+            assertThat(resumo.currentValue()).isEqualByComparingTo("0");
+            assertThat(resumo.totalDividends()).isEqualByComparingTo("40.00");
+        }
+
+        @Test
+        @DisplayName("A listagem traz o tipo pela descricao e o titulo (emissor e vencimento) da renda fixa")
+        void listagemDeAtivos() {
+            posicao(acaoTipo, "PETR4", "1000.00", "200.00", "100", false);
+
+            List<PortfolioAssetDetailDTO> lista = service.getPortfolioAssets(userId);
+
+            assertThat(lista).hasSize(1);
+            PortfolioAssetDetailDTO linha = lista.get(0);
+            assertThat(linha.typeName()).isEqualTo("Ações");
+            assertThat(linha.currentValue()).isEqualByComparingTo("1200.00");
+            assertThat(linha.valorization()).isEqualByComparingTo("200.00");
+            assertThat(linha.returnPercentage()).isEqualByComparingTo("20.00");
+        }
+
+        @Test
+        @DisplayName("Posicao liquidada e posicao sem custo ficam fora da listagem")
+        void listagemSoPosicaoEmAberto() {
+            PortfolioAsset liquidada = posicao(acaoTipo, "PETR4", "0.00", "0.00", "0", false);
+            liquidada.setSettled(true);
+            posicao(fiiTipo, "HGLG11", "0.00", "0.00", "0", false);
+
+            assertThat(service.getPortfolioAssets(userId)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("Renda fixa sem cotacao: valor atual igual ao aplicado enquanto a valorizacao for zero")
+        void rendaFixaSemCotacao() {
+            posicao(rendaFixaTipo, "CDB", "1000.00", "0.00", null, false);
+
+            PortfolioAssetDetailDTO linha = service.getPortfolioAssets(userId).get(0);
+
+            assertThat(linha.currentValue()).isEqualByComparingTo("1000.00");
+            assertThat(linha.valorization()).isEqualByComparingTo("0.00");
+        }
+
+        @Test
+        @DisplayName("Sem carteira, uma e criada na primeira leitura")
+        void carteiraCriadaNaPrimeiraLeitura() {
+            when(portfolioRepository.findFirstByUserId(userId)).thenReturn(Optional.empty());
+            when(userRepository.findById(userId)).thenReturn(Optional.of(
+                com.primevest.domain.user.User.builder().email("dono@primevest.test").build()));
+            when(portfolioRepository.save(any(Portfolio.class))).thenAnswer(i -> {
+                Portfolio p = i.getArgument(0);
+                p.setId(UUID.randomUUID());
+                return p;
+            });
+
+            Portfolio criada = service.getOrCreatePortfolio(userId);
+
+            assertThat(criada).isNotNull();
+            verify(portfolioRepository).save(any(Portfolio.class));
+        }
     }
 
-    @Test
-    @DisplayName("Deve lidar com ativo com retorno negativo corretamente")
-    void testGetPortfolioAssets_negativeReturn() {
-        // Arrange
-        UUID userId = UUID.randomUUID();
-        Portfolio portfolio = new Portfolio();
-        portfolio.setId(UUID.randomUUID());
-        
-        when(portfolioRepository.findByUserId(userId)).thenReturn(Optional.of(portfolio));
+    @Nested
+    @DisplayName("Reserva de emergencia")
+    class Reserva {
 
-        PortfolioAsset vale3 = new PortfolioAsset();
-        vale3.setTicker("VALE3");
-        vale3.setAveragePrice(new BigDecimal("72.00"));
-        vale3.setShares(new BigDecimal("50"));
-        vale3.setCurrentPrice(new BigDecimal("68.20"));
+        @Test
+        @DisplayName("So renda fixa compoe reserva — a regra olha a coluna fixed_income do tipo")
+        void somenteRendaFixa() {
+            PortfolioAsset acao = posicao(acaoTipo, "PETR4", "1000.00", "0.00", "100", false);
+            when(portfolioAssetRepository.findOwnedById(userId, acao.getId())).thenReturn(Optional.of(acao));
 
-        when(portfolioAssetRepository.findByPortfolioId(portfolio.getId())).thenReturn(List.of(vale3));
+            assertThatThrownBy(() -> service.setReservation(userId, acao.getId(), true))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Somente ativos de renda fixa podem compor a reserva de emergência");
+        }
 
-        // Act
-        List<PortfolioAssetDetailDTO> assets = portfolioService.getPortfolioAssets(userId);
+        @Test
+        @DisplayName("A requisicao manda o ESTADO desejado: reenviar o mesmo valor nao muda nada")
+        void idempotente() {
+            PortfolioAsset cdb = posicao(rendaFixaTipo, "CDB", "1000.00", "0.00", null, true);
+            when(portfolioAssetRepository.findOwnedById(userId, cdb.getId())).thenReturn(Optional.of(cdb));
 
-        // Assert
-        assertThat(assets).hasSize(1);
-        PortfolioAssetDetailDTO dto = assets.get(0);
-        // Valorization = (68.2 - 72) * 50 = -3.8 * 50 = -190
-        // Return % = (68.2 / 72 - 1) * 100 = -5.277...
-        assertThat(dto.getValorization()).isEqualByComparingTo("-190.00");
-        assertThat(dto.getReturnPercentage()).isCloseTo(new BigDecimal("-5.28"), org.assertj.core.data.Percentage.withPercentage(1));
+            service.setReservation(userId, cdb.getId(), true);
+            service.setReservation(userId, cdb.getId(), true);
+
+            assertThat(cdb.isReservation()).isTrue();
+        }
+
+        @Test
+        @DisplayName("Desmarcar tira a posicao da reserva")
+        void desmarcar() {
+            PortfolioAsset cdb = posicao(rendaFixaTipo, "CDB", "1000.00", "0.00", null, true);
+            when(portfolioAssetRepository.findOwnedById(userId, cdb.getId())).thenReturn(Optional.of(cdb));
+
+            service.setReservation(userId, cdb.getId(), false);
+
+            assertThat(cdb.isReservation()).isFalse();
+        }
+
+        @Test
+        @DisplayName("Posicao de outro dono responde 'nao encontrada', nunca 'sem permissao'")
+        void posicaoDeOutroDono() {
+            UUID id = UUID.randomUUID();
+            when(portfolioAssetRepository.findOwnedById(userId, id)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.setReservation(userId, id, true))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Posição não encontrada");
+        }
+
+        @Test
+        @DisplayName("A alocacao da reserva divide a carteira entre reserva e geracao de renda")
+        void alocacaoDaReserva() {
+            posicao(rendaFixaTipo, "CDB", "2000.00", "0.00", null, true);
+            posicao(acaoTipo, "PETR4", "7000.00", "1000.00", "100", false);
+
+            ReservationAllocationDTO dto = service.getReservationAllocation(userId);
+
+            assertThat(dto.totalValue()).isEqualByComparingTo("10000.00");
+            assertThat(dto.reservationValue()).isEqualByComparingTo("2000.00");
+            assertThat(dto.reservationPercentage()).isEqualByComparingTo("20.00");
+            assertThat(dto.incomeValue()).isEqualByComparingTo("8000.00");
+            assertThat(dto.incomePercentage()).isEqualByComparingTo("80.00");
+        }
+
+        @Test
+        @DisplayName("Carteira vazia nao divide por zero na alocacao da reserva")
+        void alocacaoDaReservaVazia() {
+            ReservationAllocationDTO dto = service.getReservationAllocation(userId);
+
+            assertThat(dto.totalValue()).isEqualByComparingTo("0");
+            assertThat(dto.reservationPercentage()).isEqualByComparingTo("0");
+        }
     }
 
-    @Test
-    @DisplayName("Deve calcular alocação do portfólio agrupada por tipo de ativo")
-    void testGetAllocation_groupsByType() {
-        // Arrange
-        UUID userId = UUID.randomUUID();
-        Portfolio portfolio = new Portfolio();
-        portfolio.setId(UUID.randomUUID());
+    @Nested
+    @DisplayName("Alocacao")
+    class Alocacao {
 
-        when(portfolioRepository.findByUserId(userId)).thenReturn(Optional.of(portfolio));
+        @Test
+        @DisplayName("Sem excludeReservation (Dashboard) a reserva entra na conta")
+        void dashboardIncluiReserva() {
+            posicao(rendaFixaTipo, "CDB", "2000.00", "0.00", null, true);
+            posicao(acaoTipo, "PETR4", "8000.00", "0.00", "100", false);
 
-        PortfolioAsset rv1 = new PortfolioAsset();
-        rv1.setAssetType("RENDA_VARIAVEL");
-        rv1.setCurrentPrice(new BigDecimal("100")); // Total 1000
-        rv1.setShares(new BigDecimal("10"));
+            List<PortfolioAllocationDTO> alocacao = service.getAllocation(userId, false);
 
-        PortfolioAsset rv2 = new PortfolioAsset();
-        rv2.setAssetType("RENDA_VARIAVEL");
-        rv2.setCurrentPrice(new BigDecimal("50"));  // Total 1000
-        rv2.setShares(new BigDecimal("20"));
+            assertThat(alocacao).extracting(PortfolioAllocationDTO::typeName)
+                .containsExactlyInAnyOrder("Ações", "Renda Fixa");
+            assertThat(alocacao.stream().map(PortfolioAllocationDTO::percentage)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)).isEqualByComparingTo("100.00");
+        }
 
-        PortfolioAsset fii = new PortfolioAsset();
-        fii.setAssetType("FII");
-        fii.setCurrentPrice(new BigDecimal("10"));  // Total 2000
-        fii.setShares(new BigDecimal("200"));
+        @Test
+        @DisplayName("Com excludeReservation (tela Alocacao) a reserva fica de fora e o resto e 100%")
+        void telaAlocacaoExcluiReserva() {
+            posicao(rendaFixaTipo, "CDB", "2000.00", "0.00", null, true);
+            posicao(acaoTipo, "PETR4", "6000.00", "0.00", "100", false);
+            posicao(fiiTipo, "HGLG11", "2000.00", "0.00", "50", false);
 
-        when(portfolioAssetRepository.findByPortfolioId(portfolio.getId()))
-                .thenReturn(List.of(rv1, rv2, fii));
+            List<PortfolioAllocationDTO> alocacao = service.getAllocation(userId, true);
 
-        // Act
-        List<PortfolioAllocationDTO> allocation = portfolioService.getAllocation(userId);
+            assertThat(alocacao).extracting(PortfolioAllocationDTO::typeName)
+                .containsExactlyInAnyOrder("Ações", "FIIs");
+            assertThat(alocacao.stream().filter(a -> a.typeName().equals("Ações")).findFirst().orElseThrow()
+                .percentage()).isEqualByComparingTo("75.00");
+        }
 
-        // Assert
-        // Total Value = 1000 + 1000 + 2000 = 4000
-        // RENDA_VARIAVEL = 2000 (50%)
-        // FII = 2000 (50%)
-        assertThat(allocation).hasSize(2);
-        
-        Optional<PortfolioAllocationDTO> rv = allocation.stream().filter(a -> a.getAssetType().equals("RENDA_VARIAVEL")).findFirst();
-        assertThat(rv).isPresent();
-        assertThat(rv.get().getPercentage()).isEqualByComparingTo("50.00");
+        @Test
+        @DisplayName("O total da alocacao sem reserva bate com a geracao de renda do grafico da reserva")
+        void alocacaoSemReservaBateComGeracaoDeRenda() {
+            posicao(rendaFixaTipo, "CDB", "2000.00", "0.00", null, true);
+            posicao(acaoTipo, "PETR4", "6000.00", "1000.00", "100", false);
 
-        Optional<PortfolioAllocationDTO> fiis = allocation.stream().filter(a -> a.getAssetType().equals("FII")).findFirst();
-        assertThat(fiis).isPresent();
-        assertThat(fiis.get().getPercentage()).isEqualByComparingTo("50.00");
-    }
+            BigDecimal totalSemReserva = service.getAllocation(userId, true).stream()
+                .map(PortfolioAllocationDTO::value).reduce(BigDecimal.ZERO, BigDecimal::add);
 
-    @Test
-    @DisplayName("Deve calcular alocação com 100% em um único tipo")
-    void testGetAllocation_singleType() {
-        // Arrange
-        UUID userId = UUID.randomUUID();
-        Portfolio portfolio = new Portfolio();
-        portfolio.setId(UUID.randomUUID());
+            assertThat(totalSemReserva).isEqualByComparingTo(service.getReservationAllocation(userId).incomeValue());
+        }
 
-        when(portfolioRepository.findByUserId(userId)).thenReturn(Optional.of(portfolio));
+        @Test
+        @DisplayName("Posicao liquidada e posicao sem custo nao entram na alocacao")
+        void alocacaoSoPosicaoEmAberto() {
+            PortfolioAsset liquidada = posicao(acaoTipo, "PETR4", "1000.00", "0.00", "0", false);
+            liquidada.setSettled(true);
+            posicao(fiiTipo, "HGLG11", "0.00", "0.00", "0", false);
 
-        PortfolioAsset fii = new PortfolioAsset();
-        fii.setAssetType("FII");
-        fii.setCurrentPrice(new BigDecimal("10.50"));
-        fii.setShares(new BigDecimal("100")); // Total 1050
+            assertThat(service.getAllocation(userId, false)).isEmpty();
+        }
 
-        when(portfolioAssetRepository.findByPortfolioId(portfolio.getId()))
-                .thenReturn(List.of(fii));
+        @Test
+        @DisplayName("A alocacao detalhada agrupa por tipo e categoria, e nunca inclui a reserva")
+        void alocacaoDetalhada() {
+            PortfolioAsset petr = posicao(acaoTipo, "PETR4", "6000.00", "0.00", "100", false);
+            petr.getAsset().setAssetCategory(categoria("PETROLEO", "Exploração"));
+            PortfolioAsset vale = posicao(acaoTipo, "VALE3", "2000.00", "0.00", "50", false);
+            vale.getAsset().setAssetCategory(categoria("MINERACAO", "Minerais"));
+            posicao(rendaFixaTipo, "CDB", "2000.00", "0.00", null, true);
 
-        // Act
-        List<PortfolioAllocationDTO> allocation = portfolioService.getAllocation(userId);
+            List<PortfolioAllocationDetailedDTO> detalhada = service.getAllocationDetailed(userId);
 
-        // Assert
-        assertThat(allocation).hasSize(1);
-        assertThat(allocation.get(0).getAssetType()).isEqualTo("FII");
-        assertThat(allocation.get(0).getPercentage()).isEqualByComparingTo("100.00");
+            assertThat(detalhada).hasSize(1);
+            PortfolioAllocationDetailedDTO acoes = detalhada.get(0);
+            assertThat(acoes.typeName()).isEqualTo("Ações");
+            assertThat(acoes.totalValue()).isEqualByComparingTo("8000.00");
+            assertThat(acoes.categories()).hasSize(2);
+            assertThat(acoes.categories()).extracting(PortfolioAllocationDetailedDTO.CategoryAllocation::categoryName)
+                .containsExactlyInAnyOrder("Exploração", "Minerais");
+        }
+
+        private AssetCategory categoria(String nome, String descricao) {
+            return AssetCategory.builder().name(nome).description(descricao).build();
+        }
     }
 }

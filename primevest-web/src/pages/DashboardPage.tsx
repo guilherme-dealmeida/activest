@@ -1,4 +1,3 @@
-import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { portfolioApi } from '@/api/portfolio';
 import { Card } from '@/components/ui/Card';
@@ -6,7 +5,6 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { formatCurrency, formatPercentage, getReturnColor } from '@/utils/format';
 import { Wallet, TrendingUp, PiggyBank, DollarSign } from 'lucide-react';
 import { AllocationPieChart } from '@/components/charts/AllocationPieChart';
-import { PortfolioAssetDetail } from '@/types';
 
 export const DashboardPage = () => {
   const { data: summary, isLoading: loadingSummary } = useQuery({
@@ -16,7 +14,10 @@ export const DashboardPage = () => {
 
   const { data: allocation, isLoading: loadingAllocation } = useQuery({
     queryKey: ['portfolio', 'allocation'],
-    queryFn: portfolioApi.getAllocation
+    // Carteira inteira, reserva incluída. Embrulhado numa arrow porque o
+    // React Query passa o próprio contexto como primeiro argumento, e ele
+    // chegaria em getAllocation como excludeReservation.
+    queryFn: () => portfolioApi.getAllocation()
   });
 
   const { data: assets, isLoading: loadingAssets } = useQuery({

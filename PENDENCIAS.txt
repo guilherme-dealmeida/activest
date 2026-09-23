@@ -1,0 +1,478 @@
+PRIMEVEST — PENDENCIAS EM ABERTO
+Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
+no codigo antes de entrar aqui.
+Ultima atualizacao: 18/09/2026 — itens 9.1 a 9.8, a secao 12 (lint) e o
+segundo reset das migrations.
+
+
+================================================================================
+1. AUTORIZACAO — RESOLVIDO em 15/09/2026
+================================================================================
+
+Os quatro itens foram corrigidos. O criterio seguido e o do
+GoalService.findOwnedGoal: registro de outro dono responde "nao encontrado",
+nunca "sem permissao" — dizer "sem permissao" confirmaria que o id existe, e um
+id que existe e justamente o que um atacante procura.
+
+Uma diferenca proposital em relacao ao GoalService: onde o dono esta a um join
+de distancia, o filtro foi para dentro da consulta em vez de virar comparacao
+depois de carregar. A linha de outro usuario nao chega a sair do banco.
+
+  1.1  FEITO — TransactionService
+       TransactionRepository.findOwnedById filtra por
+       transacao -> posicao -> carteira -> usuario, com os mesmos JOIN FETCH da
+       listagem. getTransactionById, updateTransaction e deleteTransaction
+       passam por findOwnedTransaction.
+
+  1.2  FEITO — CeilingPriceService
+       CeilingPriceRepository.findByIdAndUserId. updateCeilingPrice e
+       deleteCeilingPrice passam por findOwnedCeilingPrice. O deleteById solto
+       deixou de existir.
+
+  1.3  FEITO — DividendService
+       DividendRepository.findByAssetIdAndOwner navega
+       provento -> posicao -> carteira -> usuario.
+       O metodo antigo findByAssetIdOrderByExDateDesc foi REMOVIDO do
+       repositorio: era a consulta vazante, e deixa-la la e convite para alguem
+       chamar de novo sem querer.
+
+  1.4  FEITO — varredura completa dos services. Nada mais no mesmo padrao:
+         - StrategyService.deleteStrategyItem ja usava
+           findByUserIdAndAssetTypeId — escopado.
+         - GoalService ja tinha o findOwnedGoal — era o modelo.
+         - PortfolioService, DividendService.getDividendSummary e
+           UserService.updateUser sempre partem do userId autenticado.
+         - PortfolioService.recalculatePortfolio(portfolioId) foi removido
+           em 17/09/2026 (V28): os totais da carteira nao sao mais gravados.
+         - UserService.getUserById(id) aceita id arbitrario, mas o
+           UserController so expoe /me e sempre passa o id autenticado.
+           Vale trocar a assinatura para deixar isso explicito.
+
+  PROVA: montei dois usuarios com posicao, transacao, provento e preco teto no
+  MESMO ativo e rodei as tres consultas novas. Cada um ve so o proprio; o outro
+  ve zero. No caso dos proventos, a consulta antiga devolvia os 3 registros
+  (R$ 1.074) para qualquer um, e a nova devolve R$ 50 para A e R$ 25 para B.
+
+  PENDENTE, descoberto no caminho: ver item 3.3.
+
+
+================================================================================
+2. CALCULO — valorizacao de renda fixa da sempre zero
+================================================================================
+
+  2.1  PortfolioService.appreciation: sem cotacao, a valorizacao e a gravada
+       em portfolio_assets.appreciation, que nada preenche ainda.
+
+       Renda fixa nao tem cotacao, entao o valor atual e custo + zero. Resultado: currentValue == totalInvested, valorizacao
+       zero, rentabilidade zero. Nao e um bug de arredondamento — e a ausencia
+       do calculo.
+
+       O que falta e marcar a curva do titulo: pegar a taxa contratada da nota
+       (fixed_income_notes.indexer_rate) e o tempo decorrido desde a compra.
+       Prefixado resolve so com isso. Pos-fixado e hibrido dependem do item 5.1,
+       a serie historica do indice — sem CDI e IPCA nao da para saber quanto o
+       papel rendeu.
+
+  2.2  Enquanto 2.1 nao existe, o total da carteira subestima o patrimonio.
+       Vale decidir se a tela mostra "—" em vez de 0,00% para renda fixa, para
+       nao parecer que o titulo nao rendeu nada.
+
+
+================================================================================
+3. PROVENTOS — DividendSyncScheduler
+================================================================================
+
+  3.1  Linha 129: o total do provento e calculado com pa.getTotalShares(), a
+       posicao de HOJE, e nao a posicao que existia na data-com. Quem comprou
+       depois do ex-date recebe provento que nao teve direito; quem vendeu antes
+       deixa de receber o que teve.
+       O certo e reconstruir a posicao na data lendo as transacoes ate o exDate
+       — a mesma logica cronologica de PositionCalculator.
+       (Ja feito: DividendRecalculator.sharesOn usa PositionCalculator.sharesOn.)
+
+  3.2  Confirmar o mapeamento do JSON da BrAPI. getLastDatePrior esta sendo lido
+       como data-com; conferir contra a resposta real da API se esse campo e a
+       data-com mesmo ou a data de anuncio.
+
+  3.3  Provento nao tem dono proprio. A tabela dividends nao tem user_id: o
+       dono e alcancado pela posicao (portfolio_asset_id), e essa coluna e
+       OPCIONAL — existe para registrar provento de ativo que saiu da carteira,
+       e a FK e ON DELETE SET NULL.
+       Resultado: provento com posicao nula nao pertence a ninguem.
+       A consulta nova do item 1.3 os exclui, que e o comportamento seguro —
+       mostra-los seria mostra-los a todos. Mas eles ficam invisiveis para o
+       proprio dono tambem.
+       Duas saidas: dar user_id a dividends, ou impedir que a posicao seja
+       desfeita sem o provento ir junto. A primeira parece melhor, porque o
+       provento e um fato do usuario, nao da posicao.
+       Impacto hoje: nenhum, a base nao tem provento orfao. Mas a primeira
+       exclusao de posicao cria um.
+
+
+================================================================================
+4. RENDA FIXA — o que ficou pela metade na reestruturacao
+================================================================================
+
+  4.1  Varios lancamentos no mesmo titulo. A tabela ja aguenta: transactions
+       aponta para a nota, e portfolio_assets tem unicidade por
+       (carteira, ativo, titulo). Falta o seletor no frontend — hoje o modal so
+       cria titulo novo, nunca reaproveita um existente.
+
+  4.2  CONSEQUENCIA DIRETA DE 4.1: vender renda fixa esta BLOQUEADO.
+       TransactionService.resolveNote recusa venda sem noteId, porque criar
+       titulo novo numa venda geraria posicao negativa de um papel nunca
+       comprado. Sem o seletor do 4.1, nao ha como informar o noteId.
+       Foi escolha consciente: erro claro em vez de dado errado. Mas some assim
+       que 4.1 existir.
+
+  4.3  Emissor e texto livre. Virar tabela de emissores quando houver uso o
+       bastante para saber quais nomes voce realmente digita — antes disso a
+       lista seria chute.
+
+  4.4  Quantidade x preco unitario nao descreve bem renda fixa. Aplicar
+       R$ 10.000 num CDB nao tem "quantidade" nem "preco": tem valor. Hoje se
+       resolve com quantidade 1 e preco 10.000, o que funciona mas mente sobre o
+       que o campo significa. Decisao em aberto desde a conversa sobre o modelo.
+
+
+================================================================================
+5. INDICES — serie historica
+================================================================================
+
+  5.1  Cadastrar CDI, SELIC, IPCA, IGP-M, INPC e TR. Voce disse que faria em
+       branch separada.
+       Fonte: API SGS do Banco Central. Codigos das series:
+         CDI .......... 12      SELIC ........ 11      SELIC meta ... 432
+         IPCA ......... 433     INPC ......... 188     IGP-M ........ 189
+         TR ........... 226
+       Periodicidade: CDI e SELIC diarios; IPCA, INPC e IGP-M mensais.
+       ATENCAO: api.bcb.gov.br esta bloqueado pela politica de egress da sua
+       organizacao — testei e volta 000. A coleta tera de rodar da sua maquina
+       ou de um ambiente com saida liberada.
+
+  5.2  Sem 5.1, o item 2.1 so resolve prefixado.
+
+
+================================================================================
+6. CATALOGO DE ATIVOS
+================================================================================
+
+  6.1  ETFs. Cerca de 245 na B3. Voce apagou o BRAX dizendo que o cadastro viria
+       depois. O tipo ETF ja existe em asset_types com price_source BRAPI;
+       faltam os ativos e as categorias.
+
+  6.2  Nomes de acao sem acento. Os 782 estao assim desde o seed original:
+       AALR3 e "ALLIANA SADE E PARTICIPAES S.A." em vez de "ALIANCA SAUDE E
+       PARTICIPACOES S.A.". Nenhum nome de acao tem acento; 136 nomes de FII
+       tem. A fonte das acoes perdeu os acentos na importacao.
+       Nao corrigi junto com o reset das migrations porque seriam 782 grafias
+       adivinhadas. Precisa da lista certa, de uma fonte com encoding correto.
+
+  6.3  O catalogo e global — assets nao tem user_id, de proposito: um ativo e o
+       mesmo para todo mundo. Continua valendo. Mas quando entrar cadastro de
+       ativo pelo usuario, essa decisao precisa ser revisitada, porque foi
+       exatamente por essa porta que "CDB BTG 2027" virava ativo global.
+
+  6.4  Coluna active em assets. Voce pediu para manter por enquanto. Ela e lida
+       pelo PriceUpdateScheduler (findByActiveTrue), entao nao e coluna morta —
+       mas nada no sistema a escreve. Decidir quem a desliga.
+
+
+================================================================================
+7. CARTEIRA — refatoracao adiada
+================================================================================
+
+  7.1  Dois caminhos ate o ativo. portfolio_assets tem asset_id E note_id, e a
+       nota tambem tem asset_id. Nada impede que divirjam. Aceito na hora da
+       mudanca, para nao misturar duas refatoracoes; voce disse que o Portfolio
+       seria revisto.
+
+  7.2  A regra "renda fixa exige titulo" vive na aplicacao, nao no banco. Um
+       CHECK precisaria enxergar assets.asset_type_id a partir de transactions,
+       o que so trigger faz. Enquanto nao houver teste (item 8), nada guarda
+       essa regra alem do codigo.
+
+  7.3  FEITO em 17/09/2026 (V28) — cotas, preco medio e custo da posicao e os
+       totais da carteira deixaram de ser gravados; saem das transacoes via
+       PositionCalculator. Sairam recalculatePortfolioAsset,
+       recalculateAllPortfolioAssets, POST /transactions/recalculate-all e
+       PortfolioService.recalculatePortfolio. Tabela associativa entre posicao
+       e transacao foi descartada: transactions.portfolio_asset_id ja e a
+       ligacao, e uma segunda seria outra fonte para o mesmo fato.
+
+  7.4  Corretagem fora do custo. transactions.brokerage_fee e gravado, mas
+       PositionCalculator nao o soma ao custo nem ao preco medio. Pela regra da
+       Receita, corretagem e taxas compoem o preco medio de compra.
+
+  7.5  Venda maior que a posicao e aceita: o calculo zera cotas e custo sem
+       aviso. Vale recusar na criacao/edicao da transacao, conferindo as cotas
+       na data da venda com PositionCalculator.sharesOn.
+
+  7.6  dividends.total_amount ainda e gravado e depende das cotas na data-com
+       (por isso DividendRecalculator.recalculate continua rodando a cada
+       mudanca de transacao). Poderia virar calculo: amount_per_share x
+       sharesOn(ex_date).
+
+
+================================================================================
+8. TESTES
+================================================================================
+
+  8.1  Nao existe teste nenhum: src/test esta vazio, e o build roda com
+       -Dmaven.test.skip=true. Voce adiou explicitamente a fundacao.
+       Quando voltar: Testcontainers com PostgreSQL, porque metade do que
+       importa aqui e comportamento de banco — as constraints de coerencia de
+       taxa, o NULLS NOT DISTINCT da posicao, o recalculo cronologico.
+       Um teste que roda em H2 nao cobre nada disso.
+
+  8.2  Primeiro alvo natural: os itens 1 (autorizacao) e 3.1 (posicao na
+       data-com). Sao bugs que um teste pega e que voltam sozinhos sem teste.
+
+
+================================================================================
+9. DOCUMENTACAO E LIMPEZA
+================================================================================
+
+  9.1  Claude.md — ATUALIZADO em 18/09/2026, em duas rodadas.
+       Primeira: a contagem real de migrations, a linha da V29 na tabela, as
+       mascaras novas do modal de transacao, a troca da imagem do front para
+       node:24 e a nota do WinNAT na porta 8080.
+       Segunda: a V30 (auditoria de datas) — o banco fica hoje na versao 30,
+       com 30 arquivos em db/migration; o "22" continua sendo o numero do
+       reset, nao o total. Entraram tambem a secao de lint, o eslint.config.js
+       e a pasta .claude/ na estrutura, e a secao nova "Como o Claude executa
+       comandos aqui", que documenta a ponte via Claude Code como servidor MCP.
+       README.md tambem foi corrigido na mesma data: prometia JUnit e Mockito
+       (nao existem), citava @react-oauth/google (o login e por Google Identity
+       Services), pedia GOOGLE_CLIENT_SECRET (o fluxo de ID token dispensa),
+       mandava criar o banco com o nome errado e nao mencionava o Docker, que e
+       o caminho recomendado.
+       Os quatro pontos originais deste item (secao "Coluna custom em assets",
+       asset_terms e fixed_income_notes fora da lista de Tabelas, secao Flyway
+       velha, ausencia da separacao catalogo / titulo) ja estavam resolvidos em
+       revisoes anteriores — reconferir se voltar a divergir.
+
+  9.2  FEITO em 18/09/2026 — _to_delete\ apagada por inteiro.
+       Na hora da exclusao a pasta ja estava praticamente vazia: as 33
+       migrations antigas, a V31 descartada e os tarballs temporarios tinham
+       sumido antes, e restavam dois arquivos de teste somando 34 bytes.
+
+  9.3  Copia velha do projeto em
+       C:\Users\guilh\.gemini\antigravity\scratch\primevest
+       Esta defasada e aparece nas buscas. Apagar ou desconectar da sessao.
+
+  9.4  Google OAuth: o codigo esta pronto e usa fluxo de ID token, sem client
+       secret. Falta VOCE criar o Client ID no Google Cloud Console — nao crio
+       credencial na sua conta. Depois e so preencher a variavel de ambiente.
+
+  9.5  COMITADO em 18/09/2026. O acumulo das ultimas sessoes saiu do working
+       tree, na branch TRACK_01-ajustes_crud_inicial:
+         b1fbfa9  Filtro tela de Categoria e Transacao
+         672ad13  Configuracoes de uso voltados para o Claude
+         7d8a150  Ajustado balanceamento estrategico
+       Entraram ai o segundo reset das migrations (30 arquivos -> 9), o lint do
+       front (eslint.config.js, typescript-eslint e as quatro correcoes), a
+       pasta .claude/ e a revisao de Claude.md, README.md e deste arquivo.
+       A regra continua valendo: nao comitar sem instrucao explicita.
+
+  9.6  primevest-web/Dockerfile usa node:24 (Debian) em vez de node:24-alpine.
+       Nao foi escolha de projeto: as camadas da imagem -alpine estao
+       corrompidas no store local do Docker Desktop (arquivos com tamanho certo
+       e conteudo todo zero — "exec format error" no entrypoint, segfault no
+       binario do node). Remover e baixar de novo nao resolve, porque o digest
+       confere e o Docker reaproveita as camadas ruins; so uma purga do content
+       store (Troubleshoot > Clean / Purge data) devolveria a -alpine, e ela
+       apaga TODOS os volumes junto, inclusive o pgdata.
+       Custo de ficar no Debian: ~700 MB a mais na imagem de dev. Detalhes e o
+       comando de backup do pgdata estao no Claude.md, em Pontos de Atencao.
+       Voltar para -alpine e opcional e so vale se o tamanho incomodar.
+
+  9.7  FEITO em 18/09/2026 — SEGUNDO RESET DAS MIGRATIONS.
+       As 30 migrations viraram 9: V1 com o schema completo e V2..V9 com os
+       seeds. 156 KB contra 340 KB. As antigas ficaram guardadas em
+       E:\repos\primevest-backups\migration-antiga-20260918-182315.
+
+       Motivo: o conjunto de 30 voltara a descrever o CAMINHO e nao o resultado
+       — criava colunas derrubadas depois (current_value, total_shares,
+       total_invested, dividends.asset_id), tornava campos anulaveis meses
+       adiante, e classificava os ativos em duas etapas (o seed inseria a
+       categoria antiga e a V23 reclassificava tudo).
+
+       VERIFICACAO, que e o que importa se houver um terceiro reset:
+       montou-se um db_ref aplicando as 30 antigas em ordem e um db_new com as
+       9 novas, e os dois foram comparados por consulta normalizada e ordenada
+       (nao por pg_dump bruto): 108 colunas, 53 constraints, 48 indices e 1.524
+       linhas de seed, identicos nos quatro eixos. Depois docker compose down -v
+       e subida limpa: Flyway na versao 9 e a API de pe com ddl-auto: validate,
+       que prova que as entidades JPA batem com o schema.
+
+       A comparacao pegou duas divergencias que a leitura dos arquivos nao
+       pegaria: a unicidade de asset_categories inclui segment (a V23 trocou a
+       constraint), e uma categoria e o par (name, segment) — CONSUMO_CICLICO
+       sozinho aparece em 21 segmentos, entao resolver a categoria so pelo nome
+       apontaria 782 acoes para a linha errada.
+
+       EFEITO COLATERAL ACEITO: a ordem relativa das colunas mudou nas tabelas
+       que tinham sofrido DROP COLUMN. Num CREATE TABLE novo as colunas de
+       auditoria ficam no fim, em vez de onde o ALTER as deixou. Nao afeta JPA
+       nem consulta nomeada; afeta SELECT * e a saida do pg_dump.
+
+       CORRECAO DE CONTAGEM: sao 116 categorias, nao 115. O numero errado
+       circulava no Claude.md e aqui.
+
+  9.8  FEITO — a pasta "Claude outputs" dentro de src/main/java/com/primevest
+       nao existe mais. Continha um unico claude_desktop_config.json, copia da
+       configuracao do app desktop, sobra de sessao anterior.
+
+
+================================================================================
+10. VENDA DE ATIVOS (escopo de 17/09/2026)
+================================================================================
+
+  10.1 DIVIDA ACEITA: a reparticao da venda de Tesouro Direto fica GRAVADA.
+
+       No Tesouro o saldo e do ativo e a posicao e do titulo, entao uma venda
+       de 5 cotas pode consumir dois titulos. Cada parte virou uma transacao
+       presa ao titulo que ela liquida, com sale_group_id em comum.
+
+       Isso e dado derivado que fica gravado — exatamente o que a V28 tirou do
+       sistema quando cotas, preco medio e custo saiam de portfolio_assets. A
+       reparticao so continua certa enquanto TODO caminho que mexe em transacao
+       de Tesouro chamar o recalculo, porque uma compra lancada com data
+       retroativa muda de qual titulo as cotas ja vendidas saem (regra 4.2).
+
+       Hoje esse caminho e unico: TransactionService.reallocate, chamado por
+       criar, editar e excluir, tanto compra quanto venda. Qualquer codigo novo
+       que grave transacao de Tesouro por fora dele deixa a carteira errada sem
+       avisar.
+
+       A alternativa avaliada e descartada foi manter a venda no nivel do ativo
+       (uma posicao com note_id nulo) e derivar a reparticao na leitura. Ela
+       nao tem esta divida, mas tira a venda de cima de um titulo real e obriga
+       a agregar posicoes do mesmo ativo em toda leitura. A escolha foi pela
+       que espelha a realidade da operacao; a outra continua valendo se o
+       recalculo se mostrar fragil.
+
+       Primeiro teste a escrever quando o item 8 sair do papel: Exemplo 6 do
+       escopo — compra retroativa depois de uma venda ja repartida.
+
+  10.2 A valorizacao de renda fixa que sobra quando uma venda e EXCLUIDA.
+
+       Vender por mais do que a posicao valia corrige a valorizacao para cima
+       (regras 3.1.1 e 3.1.2). Excluir essa venda depois nao devolve o valor
+       antigo: a posicao reabre (regra J), mas com uma valorizacao que ninguem
+       ganhou. Foi decisao explicita nao guardar o delta para desfazer.
+
+       Quem corrige e a rotina assincrona de rentabilidade de renda fixa, que
+       ainda nao existe (item 2.1). Enquanto ela nao existir, esse numero fica
+       de pe ate o proximo resgate.
+
+  10.3 A rotina de rentabilidade de renda fixa, quando vier, passa pelas mesmas
+       regras E, F e G — FixedIncomeSettlement e o unico lugar que grava
+       appreciation de renda fixa hoje, e o certo e ela entrar por la em vez de
+       escrever direto na coluna.
+
+  10.4 Ativos com vencimento ainda nao sao liquidados sozinhos. is_settled so
+       muda por venda (renda fixa), por zerar cotas (renda variavel e Tesouro)
+       ou pela regra J. O vencimento continua fora.
+
+
+================================================================================
+11. HISTORICO DE PRECO — asset_price_history
+================================================================================
+
+  11.1 A tabela so escreve, nunca le. PriceUpdateScheduler.saveDailyPriceHistory()
+       roda as 18:30 de segunda a sexta, logo apos o update de precos da B3, e
+       insere uma linha por ativo ativo com cotacao. Ninguem consome essas
+       linhas. Sao ~1.264 por pregao.
+
+  11.2 A leitura e um stub. AssetPriceHistoryService.getHistory() retorna
+       List.of() — corpo vazio. E GET /api/v1/assets/{ticker}/history no
+       AssetController e um "return ResponseEntity.ok().build()", com o
+       comentario "Handled by pricehistory module, would call
+       AssetPriceHistoryService here or redirect". Nunca foi ligado.
+       O frontend tambem nao chama: nao ha nenhuma referencia a history em
+       primevest-web/src.
+
+  11.3 So close_price e gravado. As colunas open_price, high_price, low_price e
+       volume existem na entidade e ficam sempre nulas, porque a BrAPI e
+       consultada so pelo preco corrente. Se o grafico for de candle, a mudanca
+       comeca na chamada a BrAPI, nao no endpoint.
+
+  11.4 O scheduler de cripto (a cada 30 min) nao grava historico nenhum. So o
+       fechamento da B3 grava.
+
+  11.5 Dos dois metodos do AssetPriceHistoryRepository, so
+       findByAssetIdAndReferenceDate e usado — pelo proprio scheduler, para nao
+       duplicar a linha do dia. O findByAssetIdAndReferenceDateBetween..., que
+       seria o do grafico, esta orfao.
+
+  11.6 Decidir: ligar a leitura (endpoint + grafico na tela de ativo) ou parar
+       de gravar. Hoje e custo sem retorno. Nao confundir com o item 5, que e
+       serie historica de INDICES (CDI, SELIC, IPCA) e serve para valorizar
+       renda fixa — sao coisas diferentes.
+
+
+================================================================================
+12. LINT DO FRONT
+================================================================================
+
+  12.1 RESOLVIDO em 18/09/2026 — npm run lint passou a funcionar.
+       Falhava desde sempre com "couldn't find an eslint.config.(js|mjs|cjs)".
+       Faltavam AS DUAS pecas: o ESLint 9 abandonou o .eslintrc e o projeto nao
+       tinha eslint.config.js; e typescript-eslint nao estava no package.json,
+       sem o qual o ESLint nem faz o parse de um .tsx. Entraram os dois.
+
+  12.2 Os quatro erros do primeiro lint foram corrigidos na mesma data.
+       Tres cosmeticos: prefer-const em DataTable.tsx (linhas 40 e 41) e
+       interface vazia em LoadingSpinner.tsx.
+       O quarto era real: MaskedNumberInput.tsx fazia
+         const inputId = id || React.useId();
+       O curto-circuito so chamava o useId quando a prop id vinha vazia, entao
+       a quantidade de hooks do componente mudava conforme a prop — quebra da
+       regra de ordem dos hooks. Passou a chamar o useId incondicionalmente e
+       escolher depois (id ?? generatedId).
+       Nunca chegou a se manifestar porque id e estavel por instancia, mas o
+       componente sustenta CurrencyInput, PercentInput e a Quantidade do modal
+       de transacao — as mascaras mexidas no mesmo dia.
+
+  12.3 PENDENTE: 35 avisos, quase todos @typescript-eslint/no-explicit-any.
+       Concentrados em src/api (respostas nao tipadas), nos blocos catch das
+       paginas e em DataTable/useSortable (accessor generico).
+       A regra ficou como AVISO de proposito: subir para erro antes de tipar as
+       respostas da API transformaria o lint numa parede que ninguem le.
+       Alvo natural quando alguem tipar os DTOs de resposta.
+       Sobram dois avisos de react-refresh/only-export-components, em
+       AuthContext e ThemeContext — os dois exportam hook junto com o provider.
+       Custo real: hot reload desses arquivos recarrega a pagina inteira.
+
+  12.4 Nao ha lint no backend. Nenhum Checkstyle, SpotBugs ou formatador no
+       pom.xml. Decidir se vale, e se vale, antes ou depois do item 8.
+
+
+================================================================================
+ORDEM SUGERIDA
+================================================================================
+
+O item 1 saiu. Sobrou como proximo passo o 5.1 (indices), que destrava o 2.1 — e o 2.1 e a razao de
+existir da renda fixa no sistema: saber quanto ela rendeu.
+
+O 4.1 vem junto ou logo depois, porque enquanto ele nao existir voce nao
+consegue vender um titulo (4.2).
+
+O 3.1 pode esperar ate ter provento de verdade cadastrado.
+
+O 8 nao tem hora certa, mas cada item acima fica mais barato se vier depois dele.
+
+O 11 e barato de decidir e caro de adiar: cada pregao acumula ~1.264 linhas que
+ninguem le. Decidir entre ligar a leitura e parar de gravar vale mais que a
+implementacao em si.
+
+O 12.3 nao tem pressa e nao bloqueia nada, mas e o tipo de divida que so cresce:
+cada `any` novo entra sem resistencia enquanto a regra for aviso.
+
+Com o reset de 18/09/2026 o conjunto de migrations voltou a descrever o
+resultado. Ele so continua assim se as proximas mudancas de schema forem poucas
+e grandes, em vez de muitas e pequenas — um terceiro reset seria sintoma de que
+a regra de nao editar migration aplicada esta sendo usada como desculpa para
+empilhar ALTER.

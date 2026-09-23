@@ -11,4 +11,10 @@ import java.util.UUID;
 public interface CeilingPriceRepository extends JpaRepository<CeilingPrice, UUID> {
     List<CeilingPrice> findByUserId(UUID userId);
     Optional<CeilingPrice> findByUserIdAndAssetId(UUID userId, Long assetId);
+
+    /**
+     * Preco teto pelo id, mas so se for do usuario. O id vem do cliente, entao
+     * o dono entra na propria consulta: linha de outro nao chega a ser lida.
+     */
+    Optional<CeilingPrice> findByIdAndUserId(UUID id, UUID userId);
 }

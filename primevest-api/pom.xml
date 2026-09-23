@@ -22,6 +22,13 @@
         <jjwt.version>0.12.6</jjwt.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <springdoc.version>2.6.0</springdoc.version>
+        <!--
+            Acima da versao que o Spring Boot 3.3.5 gerencia (1.19.8): o Docker
+            Engine 29 recusa as versoes antigas da API que o docker-java daquela
+            linha usa, e o Testcontainers respondia "Could not find a valid
+            Docker environment" com o Docker Desktop rodando normalmente.
+        -->
+        <testcontainers.version>1.21.4</testcontainers.version>
     </properties>
 
     <dependencies>
@@ -37,10 +44,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-oauth2-client</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -137,9 +140,14 @@
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!--
+            Testes contra PostgreSQL de verdade. H2 saiu de propósito: metade do que
+            importa aqui é comportamento do banco (NULLS NOT DISTINCT, CHECK da
+            reserva, ORDER BY com CASE, Flyway) e H2 daria verde falso.
+        -->
         <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -156,6 +164,22 @@
 
     <build>
         <plugins>
+            <!--
+                *Test -> Surefire (mvn test): repositório, serviço e controller.
+                *IT   -> Failsafe (mvn verify): funcionais, com a aplicação inteira.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

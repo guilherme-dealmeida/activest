@@ -7,6 +7,7 @@ public record CeilingPriceDTO(
     UUID id,
     String ticker,
     String assetName,
+    String assetTypeName,
     BigDecimal maxPrice,
     BigDecimal currentPrice,
     BigDecimal diffPercentage,

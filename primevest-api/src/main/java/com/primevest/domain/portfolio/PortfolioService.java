@@ -1,9 +1,13 @@
 package com.primevest.domain.portfolio;
 
+import com.primevest.domain.dividend.DividendRepository;
+import com.primevest.domain.dividend.PositionDividendTotal;
 import com.primevest.domain.portfolio.dto.*;
 import com.primevest.domain.portfolio.dto.PortfolioPerformanceDTO.AssetPerformance;
 import com.primevest.domain.user.User;
 import com.primevest.domain.user.UserRepository;
+import com.primevest.exception.BusinessException;
+import com.primevest.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,36 +23,47 @@ public class PortfolioService {
     private final PortfolioRepository portfolioRepository;
     private final PortfolioAssetRepository portfolioAssetRepository;
     private final UserRepository userRepository;
+    private final DividendRepository dividendRepository;
+    private final PositionCalculator positionCalculator;
 
-    public PortfolioService(PortfolioRepository portfolioRepository, PortfolioAssetRepository portfolioAssetRepository, UserRepository userRepository) {
+    public PortfolioService(PortfolioRepository portfolioRepository, PortfolioAssetRepository portfolioAssetRepository,
+                            UserRepository userRepository, DividendRepository dividendRepository,
+                            PositionCalculator positionCalculator) {
         this.portfolioRepository = portfolioRepository;
         this.portfolioAssetRepository = portfolioAssetRepository;
         this.userRepository = userRepository;
+        this.dividendRepository = dividendRepository;
+        this.positionCalculator = positionCalculator;
     }
 
     /**
-     * Gets portfolio summary — calculates totals from portfolio_assets instead of the portfolio table.
+     * Resumo da carteira. Nenhum total e gravado: tudo sai das posicoes, que
+     * por sua vez saem das transacoes.
+     *
+     * <p>Posicao liquidada fica de fora de todos os totais. Ela nao vale mais
+     * nada: o que valia virou dinheiro na venda, e a valorizacao que sobrou
+     * gravada e o ganho realizado, nao patrimonio.</p>
      */
     public PortfolioSummaryDTO getPortfolioSummary(UUID userId) {
         Portfolio portfolio = getOrCreatePortfolio(userId);
         List<PortfolioAsset> assets = portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId());
+        Map<UUID, Position> positions = positionCalculator.positionsOf(portfolio.getId(), assets);
+        Map<UUID, BigDecimal> dividends = dividendsByPosition(portfolio.getId());
 
         BigDecimal totalInvested = BigDecimal.ZERO;
         BigDecimal currentValue = BigDecimal.ZERO;
         BigDecimal totalDividends = BigDecimal.ZERO;
 
         for (PortfolioAsset pa : assets) {
-            totalInvested = totalInvested.add(safe(pa.getTotalInvested()));
-            totalDividends = totalDividends.add(safe(pa.getTotalDividends()));
-            
-            // currentValue: use asset's current price * shares if available, otherwise use stored currentValue
-            BigDecimal assetCurrentPrice = pa.getAsset() != null ? pa.getAsset().getCurrentPrice() : null;
-            if (assetCurrentPrice != null && assetCurrentPrice.compareTo(BigDecimal.ZERO) > 0) {
-                currentValue = currentValue.add(assetCurrentPrice.multiply(safe(pa.getTotalShares())));
-            } else {
-                // For fixed income and others without live price, use the stored current_value
-                currentValue = currentValue.add(safe(pa.getCurrentValue()));
+            Position position = positions.get(pa.getId());
+            // Proventos de posicao liquidada continuam contando: eles foram
+            // recebidos, e some-los de repente reescreveria o passado.
+            totalDividends = totalDividends.add(dividends.getOrDefault(pa.getId(), BigDecimal.ZERO));
+            if (pa.isSettled()) {
+                continue;
             }
+            totalInvested = totalInvested.add(safe(position.totalInvested()));
+            currentValue = currentValue.add(currentValue(pa, position));
         }
 
         BigDecimal totalReturn = currentValue.add(totalDividends).subtract(totalInvested);
@@ -69,56 +84,157 @@ public class PortfolioService {
      */
     public List<PortfolioAssetDetailDTO> getPortfolioAssets(UUID userId) {
         Portfolio portfolio = getOrCreatePortfolio(userId);
-        return portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId()).stream()
-            .filter(pa -> safe(pa.getTotalInvested()).compareTo(BigDecimal.ZERO) > 0) // only show assets with investment
+        List<PortfolioAsset> assets = portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId());
+        Map<UUID, Position> positions = positionCalculator.positionsOf(portfolio.getId(), assets);
+        Map<UUID, BigDecimal> dividends = dividendsByPosition(portfolio.getId());
+        return assets.stream()
+            // So posicoes em aberto: a liquidada acabou, e a sem custo nunca
+            // comecou.
+            .filter(pa -> !pa.isSettled() && positions.get(pa.getId()).hasInvestment())
             .map(pa -> {
-                BigDecimal assetPrice = pa.getAsset() != null ? pa.getAsset().getCurrentPrice() : null;
-                BigDecimal currentValue;
+                Position position = positions.get(pa.getId());
+                BigDecimal invested = safe(position.totalInvested());
+                BigDecimal valorization = appreciation(pa);
+                BigDecimal currentValue = currentValue(pa, position);
+
                 BigDecimal currentPrice;
-
-                if (assetPrice != null && assetPrice.compareTo(BigDecimal.ZERO) > 0) {
-                    currentPrice = assetPrice;
-                    currentValue = currentPrice.multiply(safe(pa.getTotalShares()));
+                if (AppreciationUpdater.hasMarketPrice(pa.getAsset())) {
+                    currentPrice = pa.getAsset().getCurrentPrice();
                 } else {
-                    // Fixed income — use stored values
-                    currentValue = safe(pa.getCurrentValue());
-                    currentPrice = safe(pa.getTotalShares()).compareTo(BigDecimal.ZERO) > 0
-                        ? currentValue.divide(safe(pa.getTotalShares()), 4, RoundingMode.HALF_UP)
-                        : safe(pa.getAveragePrice());
+                    // Sem cotacao (renda fixa e afins): preco implicito pelo valor atual
+                    currentPrice = safe(position.totalShares()).compareTo(BigDecimal.ZERO) > 0
+                        ? currentValue.divide(position.totalShares(), 4, RoundingMode.HALF_UP)
+                        : safe(position.averagePrice());
                 }
-
-                BigDecimal invested = safe(pa.getTotalInvested());
-                BigDecimal valorization = currentValue.subtract(invested);
                 BigDecimal returnPct = BigDecimal.ZERO;
                 if (invested.compareTo(BigDecimal.ZERO) > 0) {
                     returnPct = valorization.divide(invested, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
                 }
 
+                // A carteira repete ticker desde que a posicao passou a ser por
+                // papel: sem emissor e vencimento, duas linhas "CDB" ficam
+                // indistinguiveis na tela.
+                var note = pa.getNote();
+
                 return new PortfolioAssetDetailDTO(
                     pa.getId(),
                     pa.getAsset().getTicker(),
                     pa.getAsset().getName(),
-                    pa.getAsset().getAssetType().getName(),
-                    pa.getAsset().getAssetCategory() != null ? pa.getAsset().getAssetCategory().getName() : null,
-                    safe(pa.getTotalShares()),
-                    safe(pa.getAveragePrice()),
+                    pa.getAsset().getAssetType().getDescription() != null ? pa.getAsset().getAssetType().getDescription() : pa.getAsset().getAssetType().getName(),
+                    pa.getAsset().getAssetCategory() != null ? pa.getAsset().getAssetCategory().getDisplayName() : null,
+                    note != null ? note.getId() : null,
+                    note != null ? note.getIssuer() : null,
+                    note != null ? note.getPurchaseDate() : null,
+                    note != null ? note.getMaturityDate() : null,
+                    note != null ? note.getRateType() : null,
+                    note != null ? note.getIndexer() : null,
+                    note != null ? note.getIndexerRate() : null,
+                    safe(position.totalShares()),
+                    safe(position.averagePrice()),
                     invested,
+                    position.sold(),
                     currentValue,
                     currentPrice,
-                    safe(pa.getTotalDividends()),
+                    dividends.getOrDefault(pa.getId(), BigDecimal.ZERO),
                     valorization,
                     returnPct,
-                    pa.isReservation()
+                    pa.isReservation(),
+                    pa.isSettled()
                 );
             }).collect(Collectors.toList());
     }
 
     /**
-     * Gets portfolio allocation by asset type.
+     * Marca ou desmarca a posicao como reserva de emergencia.
+     *
+     * <p>Recebe o ESTADO desejado, nao um "inverta": o switch da carteira pode
+     * ser clicado duas vezes antes da primeira resposta chegar, e um toggle
+     * cego deixaria o resultado na mao da ordem de chegada. Reenviar a mesma
+     * requisicao nao muda nada.</p>
+     *
+     * <p>So renda fixa compoe reserva. A regra olha a coluna fixed_income do
+     * tipo, e nao uma lista de nomes: tipo novo de renda fixa ja nasce
+     * elegivel, e nenhum lugar precisa ser lembrado de incluir o nome dele.</p>
+     *
+     * <p>Posicao de outro dono responde "nao encontrada", nunca "sem
+     * permissao" — id que existe e exatamente o que confirmaria o alvo.</p>
      */
-    public List<PortfolioAllocationDTO> getAllocation(UUID userId) {
+    @Transactional
+    public PortfolioAssetReservationDTO setReservation(UUID userId, UUID positionId, boolean isReservation) {
+        PortfolioAsset position = portfolioAssetRepository.findOwnedById(userId, positionId)
+            .orElseThrow(() -> new ResourceNotFoundException("Posição não encontrada"));
+
+        if (!position.getAsset().getAssetType().isFixedIncome()) {
+            throw new BusinessException(
+                "Somente ativos de renda fixa podem compor a reserva de emergência");
+        }
+
+        position.setReservation(isReservation);
+        portfolioAssetRepository.save(position);
+
+        return new PortfolioAssetReservationDTO(
+            position.getId(),
+            position.getAsset().getTicker(),
+            position.isReservation()
+        );
+    }
+
+    /**
+     * Alocacao atual entre reserva de emergencia e geracao de renda.
+     *
+     * <p>Mesmo filtro e mesmo valor de {@link #getAllocation}: posicao em
+     * aberto, pelo valor atual. E o grafico ao lado do "por tipo" na aba
+     * Carteira de Investimentos; como aquele exclui a reserva, a geracao de
+     * renda daqui e exatamente o total de la.</p>
+     */
+    public ReservationAllocationDTO getReservationAllocation(UUID userId) {
         Portfolio portfolio = getOrCreatePortfolio(userId);
         List<PortfolioAsset> assets = portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId());
+        Map<UUID, Position> positions = positionCalculator.positionsOf(portfolio.getId(), assets);
+
+        BigDecimal reservation = BigDecimal.ZERO;
+        BigDecimal income = BigDecimal.ZERO;
+        for (PortfolioAsset pa : assets) {
+            Position position = positions.get(pa.getId());
+            if (pa.isSettled() || safe(position.totalInvested()).compareTo(BigDecimal.ZERO) == 0) continue;
+
+            BigDecimal val = currentValue(pa, position);
+            if (pa.isReservation()) {
+                reservation = reservation.add(val);
+            } else {
+                income = income.add(val);
+            }
+        }
+
+        BigDecimal total = reservation.add(income);
+        return new ReservationAllocationDTO(
+            total,
+            reservation,
+            share(reservation, total),
+            income,
+            share(income, total)
+        );
+    }
+
+    private BigDecimal share(BigDecimal value, BigDecimal total) {
+        if (total.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return value.multiply(BigDecimal.valueOf(100)).divide(total, 2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Alocacao da carteira por tipo de ativo.
+     *
+     * <p>{@code excludeReservation} tira as posicoes de reserva de emergencia
+     * da conta, com o mesmo criterio do rebalanceamento: a reserva e um bloco
+     * proprio, e o que sobra e a geracao de renda. A tela Alocacao pede assim;
+     * o Dashboard nao, porque ali a pergunta e a carteira inteira.</p>
+     */
+    public List<PortfolioAllocationDTO> getAllocation(UUID userId, boolean excludeReservation) {
+        Portfolio portfolio = getOrCreatePortfolio(userId);
+        List<PortfolioAsset> assets = portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId());
+        Map<UUID, Position> positions = positionCalculator.positionsOf(portfolio.getId(), assets);
 
         // Calculate total current value from assets
         BigDecimal totalVal = BigDecimal.ZERO;
@@ -126,18 +242,15 @@ public class PortfolioService {
         Map<String, String> typeColors = new HashMap<>();
 
         for (PortfolioAsset pa : assets) {
-            if (safe(pa.getTotalInvested()).compareTo(BigDecimal.ZERO) == 0) continue;
-            
-            String typeName = pa.getAsset().getAssetType().getName();
+            Position position = positions.get(pa.getId());
+            if (pa.isSettled() || safe(position.totalInvested()).compareTo(BigDecimal.ZERO) == 0) continue;
+            if (excludeReservation && pa.isReservation()) continue;
+
+            String typeName = pa.getAsset().getAssetType().getDescription() != null
+                ? pa.getAsset().getAssetType().getDescription() : pa.getAsset().getAssetType().getName();
             typeColors.put(typeName, pa.getAsset().getAssetType().getColorHex());
-            
-            BigDecimal assetPrice = pa.getAsset().getCurrentPrice();
-            BigDecimal val;
-            if (assetPrice != null && assetPrice.compareTo(BigDecimal.ZERO) > 0) {
-                val = assetPrice.multiply(safe(pa.getTotalShares()));
-            } else {
-                val = safe(pa.getCurrentValue());
-            }
+
+            BigDecimal val = currentValue(pa, position);
             totalVal = totalVal.add(val);
             typeValues.merge(typeName, val, BigDecimal::add);
         }
@@ -152,11 +265,16 @@ public class PortfolioService {
     }
 
     /**
-     * Gets detailed allocation — grouped by asset type, then by category within each type.
+     * Alocacao por tipo e, dentro de cada tipo, por categoria.
+     *
+     * <p>E a geracao de renda: posicao de reserva de emergencia nunca entra,
+     * com o mesmo criterio do rebalanceamento. So a tela Alocacao consome este
+     * endpoint, e ali a reserva tem o seu grafico proprio.</p>
      */
     public List<PortfolioAllocationDetailedDTO> getAllocationDetailed(UUID userId) {
         Portfolio portfolio = getOrCreatePortfolio(userId);
         List<PortfolioAsset> assets = portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId());
+        Map<UUID, Position> positions = positionCalculator.positionsOf(portfolio.getId(), assets);
 
         // Calculate total portfolio value
         BigDecimal totalPortfolioValue = BigDecimal.ZERO;
@@ -164,26 +282,27 @@ public class PortfolioService {
         // Group: typeName -> { colorHex, categoryName -> value }
         Map<String, String> typeColorMap = new LinkedHashMap<>();
         Map<String, Map<String, BigDecimal>> typeCategories = new LinkedHashMap<>();
+        // Ordem de cadastro do tipo de ativo: e ela que a tela segue, e nao a
+        // ordem em que as posicoes aparecem na carteira.
+        Map<String, Long> typeOrder = new HashMap<>();
 
         for (PortfolioAsset pa : assets) {
-            if (safe(pa.getTotalInvested()).compareTo(BigDecimal.ZERO) == 0) continue;
+            Position position = positions.get(pa.getId());
+            if (pa.isSettled() || safe(position.totalInvested()).compareTo(BigDecimal.ZERO) == 0) continue;
+            if (pa.isReservation()) continue;
 
-            String typeName = pa.getAsset().getAssetType().getName();
+            String typeName = pa.getAsset().getAssetType().getDescription() != null
+                ? pa.getAsset().getAssetType().getDescription() : pa.getAsset().getAssetType().getName();
             String colorHex = pa.getAsset().getAssetType().getColorHex();
             String categoryName = pa.getAsset().getAssetCategory() != null
-                ? pa.getAsset().getAssetCategory().getName()
+                ? pa.getAsset().getAssetCategory().getDisplayName()
                 : "Sem Categoria";
 
-            BigDecimal assetPrice = pa.getAsset().getCurrentPrice();
-            BigDecimal val;
-            if (assetPrice != null && assetPrice.compareTo(BigDecimal.ZERO) > 0) {
-                val = assetPrice.multiply(safe(pa.getTotalShares()));
-            } else {
-                val = safe(pa.getCurrentValue());
-            }
+            BigDecimal val = currentValue(pa, position);
 
             totalPortfolioValue = totalPortfolioValue.add(val);
             typeColorMap.put(typeName, colorHex);
+            typeOrder.putIfAbsent(typeName, pa.getAsset().getAssetType().getId());
             typeCategories.computeIfAbsent(typeName, k -> new LinkedHashMap<>())
                 .merge(categoryName, val, BigDecimal::add);
         }
@@ -216,6 +335,8 @@ public class PortfolioService {
             ));
         }
 
+        result.sort(Comparator.comparing(item -> typeOrder.getOrDefault(item.typeName(), Long.MAX_VALUE)));
+
         return result;
     }
 
@@ -226,17 +347,15 @@ public class PortfolioService {
         PortfolioSummaryDTO summary = getPortfolioSummary(userId);
         Portfolio portfolio = getOrCreatePortfolio(userId);
 
-        List<AssetPerformance> assetPerfs = portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId()).stream()
-            .filter(pa -> safe(pa.getTotalInvested()).compareTo(BigDecimal.ZERO) > 0)
+        List<PortfolioAsset> assets = portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId());
+        Map<UUID, Position> positions = positionCalculator.positionsOf(portfolio.getId(), assets);
+
+        List<AssetPerformance> assetPerfs = assets.stream()
+            .filter(pa -> !pa.isSettled() && positions.get(pa.getId()).hasInvestment())
             .map(pa -> {
-                BigDecimal invested = safe(pa.getTotalInvested());
-                BigDecimal assetPrice = pa.getAsset() != null ? pa.getAsset().getCurrentPrice() : null;
-                BigDecimal currentValue;
-                if (assetPrice != null && assetPrice.compareTo(BigDecimal.ZERO) > 0) {
-                    currentValue = assetPrice.multiply(safe(pa.getTotalShares()));
-                } else {
-                    currentValue = safe(pa.getCurrentValue());
-                }
+                Position position = positions.get(pa.getId());
+                BigDecimal invested = safe(position.totalInvested());
+                BigDecimal currentValue = currentValue(pa, position);
                 BigDecimal returnPct = BigDecimal.ZERO;
                 if (invested.compareTo(BigDecimal.ZERO) > 0) {
                     returnPct = currentValue.subtract(invested).divide(invested, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
@@ -257,34 +376,43 @@ public class PortfolioService {
             Portfolio p = new Portfolio();
             p.setUser(user);
             p.setName("Main Portfolio");
-            p.setTotalInvested(BigDecimal.ZERO);
-            p.setCurrentValue(BigDecimal.ZERO);
-            p.setTotalDividends(BigDecimal.ZERO);
             return portfolioRepository.save(p);
         });
     }
 
-    @Transactional
-    public void recalculatePortfolio(UUID portfolioId) {
-        Portfolio p = portfolioRepository.findById(portfolioId).orElseThrow();
-        List<PortfolioAsset> assets = portfolioAssetRepository.findByPortfolioId(portfolioId);
-        BigDecimal totalInvested = BigDecimal.ZERO;
-        BigDecimal currentValue = BigDecimal.ZERO;
-        BigDecimal totalDividends = BigDecimal.ZERO;
-        for (PortfolioAsset pa : assets) {
-            totalInvested = totalInvested.add(safe(pa.getTotalInvested()));
-            totalDividends = totalDividends.add(safe(pa.getTotalDividends()));
-            BigDecimal price = pa.getAsset() != null ? pa.getAsset().getCurrentPrice() : null;
-            if (price != null && price.compareTo(BigDecimal.ZERO) > 0) {
-                currentValue = currentValue.add(price.multiply(safe(pa.getTotalShares())));
-            } else {
-                currentValue = currentValue.add(safe(pa.getCurrentValue()));
-            }
-        }
-        p.setTotalInvested(totalInvested);
-        p.setCurrentValue(currentValue);
-        p.setTotalDividends(totalDividends);
-        portfolioRepository.save(p);
+    /**
+     * Valorizacao da posicao: sempre a gravada em portfolio_assets.appreciation.
+     *
+     * <p>A leitura nao calcula. Com cotacao, quem grava e o
+     * {@link AppreciationUpdater} (cotas x cotacao - custo), a cada atualizacao
+     * de cotacao ou de transacao. Sem cotacao (renda fixa, Tesouro, tipos
+     * MANUAL), o valor e apurado por fora — na Renda Fixa, pela propria venda
+     * (ver FixedIncomeSettlement).</p>
+     */
+    private BigDecimal appreciation(PortfolioAsset pa) {
+        return safe(pa.getAppreciation());
+    }
+
+    /**
+     * Valor atual = valor aplicado + valorizacao - resgatado. Nunca e gravado.
+     *
+     * <p>O resgate so aparece nos tipos lancados por valor (Renda Fixa), onde
+     * a venda tira dinheiro da posicao sem tirar cotas: la o aplicado e a soma
+     * das compras e o resgatado fica a parte, porque as regras E e F comparam
+     * um com o outro. Nos tipos por cota a venda ja reduziu o custo pelo preco
+     * medio, e o resgatado e zero.</p>
+     */
+    private BigDecimal currentValue(PortfolioAsset pa, Position position) {
+        return safe(position.totalInvested()).add(appreciation(pa)).subtract(position.sold());
+    }
+
+    /**
+     * Proventos por posicao: a soma de dividends.total_amount de cada uma. Uma
+     * consulta para a carteira inteira, em vez de uma por posicao.
+     */
+    private Map<UUID, BigDecimal> dividendsByPosition(UUID portfolioId) {
+        return dividendRepository.sumTotalAmountByPosition(portfolioId).stream()
+            .collect(Collectors.toMap(PositionDividendTotal::portfolioAssetId, t -> safe(t.total())));
     }
 
     private BigDecimal safe(BigDecimal val) {

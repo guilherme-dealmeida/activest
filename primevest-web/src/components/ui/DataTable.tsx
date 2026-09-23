@@ -37,8 +37,8 @@ export function DataTable<T>({ data, columns, keyField, className }: DataTablePr
     const column = columns[sortConfig.key];
     
     return [...data].sort((a, b) => {
-      let aValue = typeof column.accessor === 'function' ? column.accessor(a) : a[column.accessor];
-      let bValue = typeof column.accessor === 'function' ? column.accessor(b) : b[column.accessor];
+      const aValue = typeof column.accessor === 'function' ? column.accessor(a) : a[column.accessor];
+      const bValue = typeof column.accessor === 'function' ? column.accessor(b) : b[column.accessor];
 
       if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
       if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
