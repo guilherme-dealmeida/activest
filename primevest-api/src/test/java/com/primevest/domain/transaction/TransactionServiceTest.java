@@ -8,6 +8,7 @@ import com.primevest.domain.asset.Indexer;
 import com.primevest.domain.asset.PriceSource;
 import com.primevest.domain.asset.RateType;
 import com.primevest.domain.dividend.DividendRecalculator;
+import com.primevest.domain.dividend.Dividend;
 import com.primevest.domain.fixedincome.FixedIncomeNote;
 import com.primevest.domain.fixedincome.FixedIncomeNoteRepository;
 import com.primevest.domain.fixedincome.FixedIncomeSettlement;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -46,6 +48,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -514,6 +517,101 @@ class TransactionServiceTest {
             assertThat(note.getIssuer()).isEqualTo("Inter");
             assertThat(note.getIndexerRate()).isEqualByComparingTo("105.0000");
             verify(fixedIncomeNoteRepository).save(note);
+        }
+    }
+
+    @Nested
+    @DisplayName("Regra K — posicao sem transacao deixa de existir")
+    class RegraK {
+
+        private Transaction transacaoDe(PortfolioAsset pa, TransactionType tipo) {
+            Transaction tx = Transaction.builder()
+                .portfolioAsset(pa).type(tipo)
+                .shares(BigDecimal.TEN).pricePerShare(BigDecimal.TEN).totalAmount(new BigDecimal("100.00"))
+                .transactionDate(LocalDate.of(2026, 9, 1))
+                .build();
+            tx.setId(UUID.randomUUID());
+            when(transactionRepository.findOwnedById(userId, tx.getId())).thenReturn(Optional.of(tx));
+            return tx;
+        }
+
+        private FixedIncomeNote titulo(Asset asset) {
+            FixedIncomeNote note = FixedIncomeNote.builder().asset(asset).issuer("BTG").build();
+            note.setId(UUID.randomUUID());
+            return note;
+        }
+
+        private void semTransacoesRestantes(PortfolioAsset pa) {
+            when(transactionRepository.findByPortfolioAssetIdOrderByTransactionDateDesc(pa.getId()))
+                .thenReturn(List.of());
+        }
+
+        @Test
+        @DisplayName("Regra K — excluir a ultima transacao de uma acao apaga a posicao, sem reavalia-la")
+        void regraK_acao() {
+            PortfolioAsset pa = posicaoExistente(acao, null);
+            Transaction tx = transacaoDe(pa, TransactionType.BUY);
+            semTransacoesRestantes(pa);
+
+            service.deleteTransaction(userId, tx.getId());
+
+            verify(transactionRepository).delete(tx);
+            verify(portfolioAssetRepository).delete(pa);
+            verify(fixedIncomeNoteRepository, never()).delete(any());
+            verify(appreciationUpdater, never()).refresh(any());
+        }
+
+        @Test
+        @DisplayName("Regra K — na renda fixa a posicao sai com o titulo, e o titulo depois dela (FK)")
+        void regraK_rendaFixa() {
+            FixedIncomeNote note = titulo(cdb);
+            PortfolioAsset pa = posicaoExistente(cdb, note);
+            Transaction tx = transacaoDe(pa, TransactionType.BUY);
+            semTransacoesRestantes(pa);
+
+            service.deleteTransaction(userId, tx.getId());
+
+            InOrder ordem = inOrder(portfolioAssetRepository, fixedIncomeNoteRepository);
+            ordem.verify(portfolioAssetRepository).delete(pa);
+            ordem.verify(fixedIncomeNoteRepository).delete(note);
+            verify(fixedIncomeSettlement, never()).recompute(any(), anyList(), anyBoolean());
+        }
+
+        @Test
+        @DisplayName("Regra K — com transacao restante a posicao continua e e reavaliada")
+        void regraK_restamTransacoes() {
+            PortfolioAsset pa = posicaoExistente(acao, null);
+            Transaction tx = transacaoDe(pa, TransactionType.BUY);
+            Transaction outra = Transaction.builder().portfolioAsset(pa).type(TransactionType.BUY).build();
+            when(transactionRepository.findByPortfolioAssetIdOrderByTransactionDateDesc(pa.getId()))
+                .thenReturn(List.of(outra));
+
+            service.deleteTransaction(userId, tx.getId());
+
+            verify(portfolioAssetRepository, never()).delete(any());
+            verify(appreciationUpdater).refresh(pa);
+        }
+
+        @Test
+        @DisplayName("Regra K — no Tesouro o titulo sai mesmo tendo provento registrado")
+        void regraK_tesouroComProvento() {
+            Asset tesouro = asset("TESOURO", tipo("TESOURO_DIRETO", "Tesouro Direto", PriceSource.MANUAL, true));
+            FixedIncomeNote note = titulo(tesouro);
+            PortfolioAsset pa = posicaoExistente(tesouro, note);
+            pa.getDividends().add(Dividend.builder()
+                .portfolioAsset(pa).amountPerShare(BigDecimal.ONE).exDate(LocalDate.of(2026, 9, 5)).build());
+            Transaction tx = transacaoDe(pa, TransactionType.BUY);
+            semTransacoesRestantes(pa);
+            when(transactionRepository.findByPortfolioIdAndAssetId(carteira.getId(), tesouro.getId()))
+                .thenReturn(List.of());
+            when(treasuryAllocator.salesOf(anyList())).thenReturn(List.of());
+            when(portfolioAssetRepository.findAllByPortfolioIdAndAssetId(carteira.getId(), tesouro.getId()))
+                .thenReturn(List.of());
+
+            service.deleteTransaction(userId, tx.getId());
+
+            verify(portfolioAssetRepository).delete(pa);
+            verify(fixedIncomeNoteRepository).delete(note);
         }
     }
 }

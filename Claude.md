@@ -657,6 +657,12 @@ a chave precisa avisar quem está de fora que o estado mudou. Por isso o
   O corte é no `@Query` com `ORDER BY` de relevância — cortar no cliente
   descartava linhas arbitrárias de um resultado sem ordem.
 - **Não é possível criar ativo pela transação.** Ticker fora do catálogo é erro.
+- **Regra K** (23/09/2026): excluída a última transação de uma posição, a
+  posição é apagada, qualquer que seja o tipo de ativo, com o título de renda
+  fixa e os proventos dela (`TransactionService.removeIfEmpty`). Antes só o
+  Tesouro fazia isso, e só sem provento; nos demais tipos a posição vazia
+  ficava, e a valorização de uma venda excluída continuava contando como
+  patrimônio.
 - Máscaras, todas sobre o mesmo `MaskedNumberInput` (dígitos lidos da direita
   para a esquerda, sem separador digitado): `CurrencyInput` (R$, 2 casas) em
   Valor, Preço Unitário e Taxas; **Quantidade com 2 casas**; e `PercentInput`
