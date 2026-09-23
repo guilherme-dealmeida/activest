@@ -7,12 +7,14 @@ import { portfolioApi } from '@/api/portfolio';
 import { assetsApi } from '@/api/assets';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Switch } from '@/components/ui/Switch';
+import { LabelWithInfo } from '@/components/ui/InfoTooltip';
 import { useToast } from '@/context/ToastContext';
 import { TransactionFormModal, TransactionPreset } from '@/components/transactions/TransactionFormModal';
 import { useSortable } from '@/hooks/useSortable';
 import { AssetType, PortfolioAssetDetail, RateType, TransactionType } from '@/types';
 import { formatCurrency, formatDate, formatPercentage, formatShares, getReturnColor } from '@/utils/format';
 import { RENDA_FIXA, isFixedIncomeNote } from '@/utils/assetTypeRules';
+import { apiMessage } from '@/utils/apiError';
 
 /**
  * Colunas que só fazem sentido para alguns tipos de ativo.
@@ -83,6 +85,8 @@ interface Column {
    * de "valor inicial" convidaria a comparar um com o outro.
    */
   labelFor?: (type: AssetType) => string;
+  /** Explicação no (i) do cabeçalho. Função quando o significado muda com o tipo. */
+  info?: string | ((type: AssetType) => string);
   align: 'left' | 'right';
   render: (asset: PortfolioAssetDetail) => ReactNode;
   visible?: (type: AssetType) => boolean;
@@ -148,6 +152,7 @@ const COLUMNS: Column[] = [
   {
     key: 'averagePrice',
     label: 'PREÇO MÉDIO',
+    info: 'Custo médio por cota, considerando todas as compras da posição.',
     align: 'right',
     visible: showAveragePrice,
     render: (a) => formatCurrency(a.averagePrice),
@@ -163,20 +168,33 @@ const COLUMNS: Column[] = [
     key: 'totalInvested',
     label: 'VALOR INICIAL',
     labelFor: (type) => (type.name === RENDA_FIXA ? 'VALOR APLICADO' : 'VALOR INICIAL'),
+    // Mesmo motivo do labelFor: nos tipos por cota a venda já reduziu o custo,
+    // então "a soma das compras" só é verdade na Renda Fixa.
+    info: (type) => (type.name === RENDA_FIXA
+      ? 'Quanto foi investido na posição: a soma das compras.'
+      : 'Custo que continua na posição: o que foi investido, já descontadas as vendas pelo preço médio.'),
     align: 'right',
     render: (a) => formatCurrency(a.totalInvested),
   },
   {
     key: 'totalSold',
     label: 'RESGATADO',
+    info: 'Quanto já foi resgatado desta aplicação.',
     align: 'right',
     visible: showSold,
     render: (a) => formatCurrency(a.totalSold),
   },
-  { key: 'currentValue', label: 'VALOR ATUAL', align: 'right', render: (a) => formatCurrency(a.currentValue) },
+  {
+    key: 'currentValue',
+    label: 'VALOR ATUAL',
+    info: 'Valor aplicado + valorização − resgatado.',
+    align: 'right',
+    render: (a) => formatCurrency(a.currentValue),
+  },
   {
     key: 'totalDividends',
     label: 'PROVENTOS',
+    info: 'Total de proventos recebidos desde o início da posição, incluindo dividendos, JCP e outras distribuições.',
     align: 'right',
     visible: showDividends,
     render: (a) => formatCurrency(a.totalDividends),
@@ -184,12 +202,14 @@ const COLUMNS: Column[] = [
   {
     key: 'valorization',
     label: 'VALORIZAÇÃO',
+    info: 'Quanto a posição ganhou ou perdeu em relação ao valor aplicado.',
     align: 'right',
     render: (a) => <span className={getReturnColor(a.valorization)}>{formatCurrency(a.valorization)}</span>,
   },
   {
     key: 'returnPercentage',
     label: 'RENT. %',
+    info: 'Valorização dividida pelo valor aplicado.',
     align: 'right',
     render: (a) => <span className={getReturnColor(a.returnPercentage)}>{formatPercentage(a.returnPercentage)}</span>,
   },
@@ -300,7 +320,13 @@ const PortfolioTypeTable = ({ type, assets, reservation, onList, onBuy, onSell }
           <tr className="border-b border-white/10">
             {/* Primeira coluna, e só nas abas de renda fixa. Não ordena: o
                 estado muda com um clique ali mesmo. */}
-            {showReservation && <th className="py-3 px-3 font-medium text-xs text-center">RESERVA</th>}
+            {showReservation && (
+              <th className="py-3 px-3 font-medium text-xs text-center">
+                <LabelWithInfo info="Marque os títulos que fazem parte da sua reserva de emergência. Eles saem do rebalanceamento por tipo e passam a contar no bloco da reserva.">
+                  RESERVA
+                </LabelWithInfo>
+              </th>
+            )}
             {columns.map((col) => (
               <th
                 key={col.key}
@@ -311,8 +337,14 @@ const PortfolioTypeTable = ({ type, assets, reservation, onList, onBuy, onSell }
                 )}
                 onClick={() => requestSort(col.key)}
               >
-                {col.labelFor ? col.labelFor(type) : col.label}
-                {getSortIndicator(col.key)}
+                {/* A seta de ordenação vai junto do rótulo, antes do (i): fora
+                    dele ela quebrava sozinha para a linha de baixo. */}
+                <LabelWithInfo info={typeof col.info === 'function' ? col.info(type) : col.info}>
+                  <span>
+                    {col.labelFor ? col.labelFor(type) : col.label}
+                    {getSortIndicator(col.key)}
+                  </span>
+                </LabelWithInfo>
               </th>
             ))}
             {/* Ações não ordena: não é dado da posição. */}
@@ -439,21 +471,6 @@ const PortfolioTypeSection = ({ type, assets, reservation, onList, onBuy, onSell
       )}
     </>
   );
-};
-
-/**
- * Mensagem de erro que o backend mandou, quando mandou.
- *
- * O GlobalExceptionHandler responde { status, message, ... }, e é dele que sai
- * o texto da regra (A) — "somente ativos de renda fixa...". Uma falha de rede
- * não tem corpo nenhum, daí o undefined e o texto genérico no lugar.
- */
-const apiMessage = (error: unknown): string | undefined => {
-  if (typeof error === 'object' && error !== null && 'response' in error) {
-    const { response } = error as { response?: { data?: { message?: string } } };
-    return response?.data?.message;
-  }
-  return undefined;
 };
 
 export const PortfolioPage = () => {

@@ -12,6 +12,9 @@ import { PercentInput } from '@/components/ui/PercentInput';
 import { useToast } from '@/context/ToastContext';
 import { ReservationType, StrategyReservation } from '@/types';
 import { formatCurrency, formatPercentage } from '@/utils/format';
+import { apiMessage } from '@/utils/apiError';
+import { LabelWithInfo } from '@/components/ui/InfoTooltip';
+import { STRATEGY_HELP, restoredMessage } from './strategyHelp';
 import { INCOME_COLOR, RESERVATION_COLOR, RESERVATION_TYPE_LABELS } from '@/utils/reservation';
 
 interface Draft {
@@ -25,15 +28,6 @@ const draftFrom = (s: StrategyReservation): Draft => ({
   percentage: s.targetPercentage ?? 0,
   value: s.targetValue ?? 0,
 });
-
-/** Mesma leitura do GlobalExceptionHandler usada na carteira. */
-const apiMessage = (error: unknown): string | undefined => {
-  if (typeof error === 'object' && error !== null && 'response' in error) {
-    const { response } = error as { response?: { data?: { message?: string } } };
-    return response?.data?.message;
-  }
-  return undefined;
-};
 
 interface SliceTooltipProps {
   active?: boolean;
@@ -87,7 +81,7 @@ export const ReservationStrategyTab = () => {
     onSuccess: () => {
       // Prefixo ['strategy']: a própria reserva e a linha dela no rebalanceamento.
       queryClient.invalidateQueries({ queryKey: ['strategy'] });
-      showToast('Estratégia de reserva de emergência salva', 'success');
+      showToast('Estratégia de reserva de emergência salva.', 'success');
     },
     onError: (error: unknown) => {
       showToast(apiMessage(error) ?? 'Não foi possível salvar a estratégia de reserva.', 'error');
@@ -156,7 +150,10 @@ export const ReservationStrategyTab = () => {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setDraft(draftFrom(reservation))}
+              onClick={() => {
+                setDraft(draftFrom(reservation));
+                showToast(restoredMessage(hasChanges), 'info');
+              }}
               className="p-2 text-gray-400 hover:text-white transition-colors rounded-md hover:bg-surface-light"
               title="Restaurar do banco de dados"
             >
@@ -179,10 +176,10 @@ export const ReservationStrategyTab = () => {
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-gray-400 uppercase bg-surface-light border-b border-surface-light">
               <tr>
-                <th className="px-4 py-3">Tipo de Estratégia</th>
-                <th className="px-4 py-3 text-center">% Atual</th>
-                <th className="px-4 py-3 text-center">% Ideal</th>
-                <th className="px-4 py-3 text-center">% Diff</th>
+                <th className="px-4 py-3"><LabelWithInfo info={STRATEGY_HELP.reservationType}>Tipo de Estratégia</LabelWithInfo></th>
+                <th className="px-4 py-3 text-center"><LabelWithInfo info={STRATEGY_HELP.currentPercentage}>% Atual</LabelWithInfo></th>
+                <th className="px-4 py-3 text-center"><LabelWithInfo info={STRATEGY_HELP.idealPercentage}>% Ideal</LabelWithInfo></th>
+                <th className="px-4 py-3 text-center"><LabelWithInfo info={STRATEGY_HELP.diffPercentage}>% Diff</LabelWithInfo></th>
               </tr>
             </thead>
             <tbody>

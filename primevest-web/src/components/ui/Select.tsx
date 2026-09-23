@@ -1,9 +1,12 @@
 import React from 'react';
 import { clsx } from 'clsx';
+import { LabelWithInfo } from './InfoTooltip';
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   hint?: string;
+  /** Explicação no (i) ao lado do rótulo. */
+  info?: React.ReactNode;
 }
 
 /**
@@ -11,10 +14,12 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
  * <select> cru com as classes repetidas em cada lugar.
  */
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, hint, className, children, ...props }, ref) => (
+  ({ label, hint, info, className, children, ...props }, ref) => (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-gray-300 mb-1.5">{label}</label>
+        <label className="block text-sm font-medium text-gray-300 mb-1.5">
+          <LabelWithInfo info={info}>{label}</LabelWithInfo>
+        </label>
       )}
       <select
         ref={ref}

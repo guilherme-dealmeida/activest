@@ -12,6 +12,10 @@ import { Strategy, Rebalance } from '@/types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { ReservationStrategyTab } from '@/components/strategy/ReservationStrategyTab';
 import { ReservationRebalanceCard } from '@/components/strategy/ReservationRebalanceCard';
+import { STRATEGY_HELP, restoredMessage } from '@/components/strategy/strategyHelp';
+import { LabelWithInfo } from '@/components/ui/InfoTooltip';
+import { useToast } from '@/context/ToastContext';
+import { apiMessage } from '@/utils/apiError';
 
 const PIE_COLORS = ['#c9a84c', '#38a169', '#e53e3e', '#3182ce', '#805ad5', '#d69e2e', '#ed8936', '#dd6b20'];
 
@@ -39,6 +43,7 @@ const CustomTooltip = ({ active, payload }: any) => {
 
 export const StrategyPage = () => {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<'ideal' | 'reserva' | 'rebalanceamento'>('ideal');
   // Local editing state: { assetTypeId -> { value, typeName } }
   const [editingRows, setEditingRows] = useState<Record<number, { value: string; typeName: string }>>({});
@@ -64,6 +69,10 @@ export const StrategyPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['strategy'] });
       queryClient.invalidateQueries({ queryKey: ['strategy', 'rebalance'] });
+      showToast('Estratégia salva.', 'success');
+    },
+    onError: (error: unknown) => {
+      showToast(apiMessage(error) ?? 'Não foi possível salvar a estratégia.', 'error');
     }
   });
 
@@ -119,6 +128,7 @@ export const StrategyPage = () => {
   const handleRefresh = () => {
     if (strategy) {
       syncFromServer(strategy);
+      showToast(restoredMessage(hasChanges), 'info');
     }
   };
 
@@ -126,7 +136,10 @@ export const StrategyPage = () => {
   const handleSave = () => {
     const total = Object.values(editingRows).reduce((acc, row) => acc + Number(row.value), 0);
     if (Math.round(total * 10) !== 1000) {
-      alert(`A soma dos percentuais deve ser 100%. Atual: ${total.toFixed(1)}%`);
+      showToast(
+        `A soma dos percentuais deve ser 100%. Hoje está em ${total.toFixed(1).replace('.', ',')}%.`,
+        'error'
+      );
       return;
     }
 
@@ -255,9 +268,9 @@ export const StrategyPage = () => {
                 <thead className="text-xs text-gray-400 uppercase bg-surface-light border-b border-surface-light">
                   <tr>
                     <th className="px-4 py-3">Tipo Ativo</th>
-                    <th className="px-4 py-3 text-center">% Atual</th>
-                    <th className="px-4 py-3 text-center">% Ideal</th>
-                    <th className="px-4 py-3 text-center">% Diff</th>
+                    <th className="px-4 py-3 text-center"><LabelWithInfo info={STRATEGY_HELP.currentPercentage}>% Atual</LabelWithInfo></th>
+                    <th className="px-4 py-3 text-center"><LabelWithInfo info={STRATEGY_HELP.idealPercentage}>% Ideal</LabelWithInfo></th>
+                    <th className="px-4 py-3 text-center"><LabelWithInfo info={STRATEGY_HELP.diffPercentage}>% Diff</LabelWithInfo></th>
                     <th className="px-4 py-3 w-10"></th>
                   </tr>
                 </thead>
@@ -398,19 +411,19 @@ export const StrategyPage = () => {
       {activeTab === 'rebalanceamento' && (
         <div className="space-y-6">
         {rebalance?.reservation && <ReservationRebalanceCard reservation={rebalance.reservation} />}
-        <Card title="Sugestão de Aporte (Rebalanceamento)">
+        <Card title="Sugestão de Aporte (Rebalanceamento)" titleInfo={STRATEGY_HELP.typeRebalance}>
           <div className="overflow-x-auto mt-4">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-gray-400 uppercase bg-surface-light border-b border-surface-light">
                 <tr>
                   <th className="px-4 py-3">Tipo Ativo</th>
-                  <th className="px-4 py-3 text-right">% Ideal</th>
-                  <th className="px-4 py-3 text-right">Aportado</th>
-                  <th className="px-4 py-3 text-right">Aportar</th>
-                  <th className="px-4 py-3 text-right">Estratégico</th>
-                  <th className="px-4 py-3 text-right">% Carteira</th>
-                  <th className="px-4 py-3 text-right">% Diff</th>
-                  <th className="px-4 py-3 text-center">Sugestão</th>
+                  <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.idealPercentage}>% Ideal</LabelWithInfo></th>
+                  <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.contributed}>Aportado</LabelWithInfo></th>
+                  <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.toContribute}>Aportar</LabelWithInfo></th>
+                  <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.strategic}>Estratégico</LabelWithInfo></th>
+                  <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.portfolioPercentage}>% Carteira</LabelWithInfo></th>
+                  <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.diffPercentage}>% Diff</LabelWithInfo></th>
+                  <th className="px-4 py-3 text-center"><LabelWithInfo info={STRATEGY_HELP.suggestion}>Sugestão</LabelWithInfo></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-light">

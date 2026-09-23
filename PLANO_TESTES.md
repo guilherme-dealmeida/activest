@@ -512,3 +512,41 @@ Convenções: nomes de método em português descrevendo a regra
 (`vendaRetroativaQueDeixaVendaPosteriorADescoberto_recusa`), `@DisplayName` com a regra
 (`"Regra B — ..."`), valores monetários comparados com `isEqualByComparingTo` (nunca `equals` em `BigDecimal`),
 e nenhum id de catálogo fixo — sempre resolvido por `name`/`ticker`.
+
+---
+
+## 8. Conferência manual do front — avisos e (i) (23/09/2026)
+
+O front não tem teste automatizado; estes casos são conferidos na tela a cada
+mudança em `TransactionFormModal`, `InfoTooltip`, `ToastContext` ou nas telas
+de Carteira, Transações, Estratégia e Alocação.
+
+### 8.1 Avisos (toast, canto superior direito)
+
+| # | Ação | Esperado |
+|---|---|---|
+| T1 | Carteira › Comprar › Salvar | ✅ "Compra de {ticker} registrada." e modal fecha |
+| T2 | Carteira › Vender (CDB) › Salvar | ✅ "Venda de {ticker} registrada." |
+| T3 | Idem, com Liquidação total | ✅ "Resgate total de {ticker} registrado. A aplicação foi encerrada." |
+| T4 | Venda de Tesouro que consome 2+ títulos | ✅ venda registrada **e** ℹ️ "…foi dividida em N títulos…" |
+| T5 | Salvar com erro de regra (ex.: vender mais do que tem) | ❌ mensagem da API por 8s; modal **continua aberto** com o que foi digitado; nenhum aviso vermelho dentro do modal |
+| T6 | Transações › Editar › Salvar | ✅ "Transação de {ticker} atualizada." |
+| T7 | Transações › Excluir (linha simples / venda repartida) | ✅ "Transação de {ticker} excluída." / "Venda de {ticker} excluída, com os N títulos." |
+| T8 | Ideal Estratégico › Salvar com soma ≠ 100% | ❌ "A soma dos percentuais deve ser 100%. Hoje está em X%." — sem `alert` |
+| T9 | Ideal Estratégico › Salvar válido | ✅ "Estratégia salva." |
+| T10 | Estratégia Reserva › Salvar | ✅ "Estratégia de reserva de emergência salva." |
+| T11 | ↻ nas duas abas, com e sem alteração pendente | ℹ️ "Valores restaurados do banco." (+ "As alterações não salvas foram descartadas." quando havia) |
+
+### 8.2 Balões (i)
+
+| # | Onde | Esperado |
+|---|---|---|
+| I1 | Título do modal de venda de Tesouro (Carteira e Nova Transação) | (i) com a regra do FIFO; o parágrafo do rodapé não existe mais |
+| I2 | Editar venda repartida | (i) no título "Editar Transação" com "dividida em N títulos" |
+| I3 | Liquidação total | clicar no (i) **não** marca o checkbox |
+| I4 | DADOS DO TÍTULO | texto da posição (CDB pela carteira) ou do papel (Tesouro) |
+| I5 | Percentual do CDI / Taxa ao ano / Spread | exemplo no (i), nada embaixo do campo |
+| I6 | Operação (Renda Fixa em Nova Transação) e Total | (i) no lugar dos textos soltos |
+| I7 | Cabeçalhos da Carteira | clicar no (i) **não** ordena a coluna; balão não é cortado pela rolagem horizontal |
+| I8 | Alocação e Estratégia | (i) nos títulos dos gráficos, dos cards e nos cabeçalhos |
+| I9 | Qualquer (i) | abre no hover e no Tab do teclado; toque/clique fixa; Esc, clique fora ou rolar fecha; clicar no (i) dentro do formulário **não salva** |

@@ -1,6 +1,7 @@
 import React, { InputHTMLAttributes } from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { LabelWithInfo } from './InfoTooltip';
 
 export interface MaskedNumberInputProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> {
@@ -8,6 +9,8 @@ export interface MaskedNumberInputProps
   error?: string;
   /** Texto auxiliar abaixo do campo. Suprimido quando há erro. */
   hint?: string;
+  /** Explicação no (i) ao lado do rótulo, no lugar de texto solto na tela. */
+  info?: React.ReactNode;
   value: number | null | undefined;
   onChange: (value: number) => void;
   /** Casas decimais fixas da máscara. */
@@ -33,7 +36,7 @@ export interface MaskedNumberInputProps
  * máscara: se precisar de outra unidade, embrulhe este componente.
  */
 export const MaskedNumberInput = React.forwardRef<HTMLInputElement, MaskedNumberInputProps>(
-  ({ className, label, error, hint, value, onChange, decimals = 2, adornment, id, disabled, ...props }, ref) => {
+  ({ className, label, error, hint, info, value, onChange, decimals = 2, adornment, id, disabled, ...props }, ref) => {
     // O useId e chamado incondicionalmente: encurtar com `id || useId()` mudava
     // a quantidade de hooks conforme a prop, o que quebra a ordem entre renders.
     const generatedId = React.useId();
@@ -65,7 +68,7 @@ export const MaskedNumberInput = React.forwardRef<HTMLInputElement, MaskedNumber
       <div className="w-full">
         {label && (
           <label htmlFor={inputId} className="block text-sm font-medium text-gray-300 mb-1.5">
-            {label}
+            <LabelWithInfo info={info}>{label}</LabelWithInfo>
           </label>
         )}
         <div className="relative">

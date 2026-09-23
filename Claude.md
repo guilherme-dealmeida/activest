@@ -799,6 +799,29 @@ edição apagaria emissor, vencimento e taxa.
   o switch da reserva: uma ação que grava sem modal não tem onde pendurar o
   "deu certo", e até então só existia erro dentro do formulário que o causou.
   O provider fica no `main.tsx`, entre `ThemeProvider` e `AuthProvider`.
+  Desde 23/09/2026 **toda gravação avisa**: compra, venda, edição e exclusão de
+  transação (Carteira e Transações), Ideal Estratégico, Estratégia Reserva e o
+  ↻ Restaurar (informativo). Erro dura **8s** (o resto, 4s): as mensagens de
+  regra do backend são frases inteiras. O formulário de transação **não tem
+  mais aviso de erro dentro do modal** — o erro sai no toast e o modal fica
+  aberto para corrigir. Venda de Tesouro que o sistema repartiu entre títulos
+  (`groupParts > 1` na resposta) ganha um toast informativo além do sucesso.
+  `window.alert` saiu das telas; a leitura da mensagem da API é uma só, em
+  `utils/apiError.ts` (`apiMessage`).
+- **Explicações**: `InfoTooltip` (`components/ui/InfoTooltip.tsx`) — ícone (i)
+  com balão, no lugar de texto de instrução solto na tela (23/09/2026). Campos
+  recebem `info` (`Input`, `MaskedNumberInput` e derivados, `Select`); `Modal`,
+  `Card` e `AllocationPieChart` recebem `titleInfo`; colunas da Carteira têm
+  `info`; `LabelWithInfo` monta rótulo + (i) em cabeçalho avulso. Três cuidados
+  que o componente já resolve e que não devem ser desfeitos:
+  - o balão vai num **portal** no body com posição fixa — dentro do modal
+    (`overflow-y-auto`) ou da tabela (`overflow-x-auto`) ele seria recortado;
+  - o clique para no ícone (`stopPropagation` + `preventDefault`): o (i) mora
+    em `<th>` que ordena e em `<label>` de checkbox, que marcaria a caixa;
+  - é `type="button"`: dentro de `<form>`, botão sem tipo é submit.
+  Textos das colunas da Estratégia ficam juntos em
+  `components/strategy/strategyHelp.ts`, porque as mesmas colunas aparecem em
+  quatro tabelas.
 
 ---
 
@@ -931,7 +954,7 @@ faltavam **as duas** peças, o arquivo de config e o parser. O ESLint 9 abandono
 `.eslintrc`, e `typescript-eslint` não estava no `package.json` — sem ele o ESLint
 nem faz o parse de um `.tsx`. Entraram os dois.
 
-Hoje fecha em **0 erro e 35 avisos**. Os avisos são quase todos `any` nos clients de
+Hoje fecha em **0 erro e 32 avisos** (35 até 23/09/2026, quando os `catch` com `any` das telas de transação passaram a usar `apiMessage`). Os avisos são quase todos `any` nos clients de
 API e em blocos `catch`; `no-explicit-any` ficou como **aviso**, não erro, de
 propósito — subir a régua antes de tipar as respostas transformaria o lint numa
 parede que ninguém lê.
@@ -944,6 +967,23 @@ hooks do componente mudava conforme a prop, que é exatamente o que as regras de
 proíbem. Passou a chamar o `useId` incondicionalmente e escolher depois. Nunca chegou
 a se manifestar porque `id` é estável por instância, mas é o componente que sustenta
 `CurrencyInput`, `PercentInput` e a Quantidade do modal de transação.
+
+### `tsc -b` do front — corrigido em 23/09/2026
+`npm run build` é `tsc -b && vite build`, e o `tsc -b` falhava em
+`vite.config.ts` (`path`, `process`, `__dirname`): faltava `@types/node`. Isso
+quebrava também a imagem `runtime` do Dockerfile, que roda `npm run build`; o
+dev server nunca sentiu, porque o Vite transpila o config sem checar tipo.
+Entrou `@types/node` (^24, o Node da imagem) no `devDependencies`, com
+`"types": ["node"]` no `tsconfig.node.json`.
+
+Segundo problema do mesmo arquivo: sem `noEmit` (proibido em projeto
+referenciado, TS6310), o `tsc -b` **gravava `vite.config.js` e `.d.ts` ao lado
+do `.ts`** — e o Vite carrega o `.js` antes, então uma edição no `.ts` passaria
+a ser ignorada. Agora o `tsconfig.node.json` emite só declaração, em
+`node_modules/.tmp/`, e os dois `tsbuildinfo` foram para lá também. Depois de
+mudar dependência, o container precisa de `npm install` próprio
+(`docker exec primevest-web npm install`): o `node_modules` dele é um volume
+anônimo, não o do Windows.
 
 ### `GoogleOAuthProvider` vestigial em `main.tsx`
 `main.tsx` ainda envolve a app em `GoogleOAuthProvider` com

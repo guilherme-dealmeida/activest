@@ -13,6 +13,8 @@ import { formatCurrency, formatDate, formatShares, toLocalISODate } from '@/util
 import { TransactionResponse, TransactionType, AssetType } from '@/types';
 import { useSortable } from '@/hooks/useSortable';
 import { isFixedIncomeNote } from '@/utils/assetTypeRules';
+import { apiMessage } from '@/utils/apiError';
+import { useToast } from '@/context/ToastContext';
 
 /** Rótulo do tipo como a listagem o mostra — a mesma convenção dos DTOs. */
 const labelOfType = (type: AssetType) => type.description || type.name;
@@ -27,6 +29,7 @@ function getDateFromDaysAgo(days: number): string {
 
 export const TransactionsPage = () => {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<TransactionResponse | null>(null);
@@ -59,14 +62,23 @@ export const TransactionsPage = () => {
     queryFn: transactionsApi.list as any
   });
 
+  // Recebe a linha, e não só o id: o aviso diz o que foi excluído, e numa
+  // venda repartida diz que os títulos todos saíram juntos.
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => transactionsApi.delete(id),
-    onSuccess: () => {
+    mutationFn: (row: TransactionResponse) => transactionsApi.delete(row.id),
+    onSuccess: (_, row) => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['portfolio'] });
+      const partes = row.groupParts ?? 1;
+      showToast(
+        partes > 1
+          ? `Venda de ${row.ticker} excluída, com os ${partes} títulos.`
+          : `Transação de ${row.ticker} excluída.`,
+        'success'
+      );
     },
-    onError: (e: any) => {
-      window.alert(e?.response?.data?.message || 'Não foi possível excluir a transação.');
+    onError: (e: unknown) => {
+      showToast(apiMessage(e) ?? 'Não foi possível excluir a transação.', 'error');
     }
   });
 
@@ -171,7 +183,7 @@ export const TransactionsPage = () => {
       ? `Esta venda de ${row.ticker} está dividida em ${partes} títulos. Excluir a venda inteira?`
       : 'Tem certeza?';
     if (window.confirm(pergunta)) {
-      deleteMutation.mutate(row.id);
+      deleteMutation.mutate(row);
     }
   };
 

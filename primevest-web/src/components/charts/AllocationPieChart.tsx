@@ -1,5 +1,7 @@
+import type { ReactNode } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { formatCurrency, formatPercentage } from '@/utils/format';
+import { LabelWithInfo } from '@/components/ui/InfoTooltip';
 
 interface AllocationData {
   name: string;
@@ -12,6 +14,8 @@ interface AllocationPieChartProps {
   data: AllocationData[];
   totalValue: number;
   title?: string;
+  /** Explicação no (i) ao lado do título. */
+  titleInfo?: ReactNode;
 }
 
 const CustomTooltip = ({ active, payload }: any) => {
@@ -32,10 +36,14 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
-export const AllocationPieChart = ({ data, totalValue, title }: AllocationPieChartProps) => {
+export const AllocationPieChart = ({ data, totalValue, title, titleInfo }: AllocationPieChartProps) => {
   return (
     <div className="w-full h-full min-h-[300px] flex flex-col items-center">
-      {title && <h3 className="text-lg font-medium text-white mb-4 text-center">{title}</h3>}
+      {title && (
+        <h3 className="text-lg font-medium text-white mb-4 text-center">
+          <LabelWithInfo info={titleInfo}>{title}</LabelWithInfo>
+        </h3>
+      )}
       <div className="flex-1 w-full relative">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>

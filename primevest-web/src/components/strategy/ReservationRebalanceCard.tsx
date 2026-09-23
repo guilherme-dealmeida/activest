@@ -3,6 +3,8 @@ import { Card } from '@/components/ui/Card';
 import { ReservationRebalance } from '@/types';
 import { formatCurrency, formatPercentage } from '@/utils/format';
 import { RESERVATION_TYPE_LABELS } from '@/utils/reservation';
+import { LabelWithInfo } from '@/components/ui/InfoTooltip';
+import { STRATEGY_HELP } from './strategyHelp';
 
 const signColor = (n: number) => (n > 0 ? 'text-success' : n < 0 ? 'text-danger' : 'text-gray-400');
 
@@ -16,19 +18,19 @@ const signColor = (n: number) => (n > 0 ? 'text-success' : n < 0 ? 'text-danger'
  * Sugestão fica AGUARDAR, como na tabela por tipo.
  */
 export const ReservationRebalanceCard = ({ reservation }: { reservation: ReservationRebalance }) => (
-  <Card title="Rebalanceamento Reserva de Emergência">
+  <Card title="Rebalanceamento Reserva de Emergência" titleInfo={STRATEGY_HELP.reservationRebalance}>
     <div className="overflow-x-auto mt-4">
       <table className="w-full text-sm text-left">
         <thead className="text-xs text-gray-400 uppercase bg-surface-light border-b border-surface-light">
           <tr>
-            <th className="px-4 py-3">Tipo de Estratégia</th>
-            <th className="px-4 py-3 text-right">% Ideal</th>
-            <th className="px-4 py-3 text-right">Aportado</th>
-            <th className="px-4 py-3 text-right">Aportar</th>
-            <th className="px-4 py-3 text-right">Estratégico</th>
-            <th className="px-4 py-3 text-right">% Carteira</th>
-            <th className="px-4 py-3 text-right">% Diff</th>
-            <th className="px-4 py-3 text-center">Sugestão</th>
+            <th className="px-4 py-3"><LabelWithInfo info={STRATEGY_HELP.reservationType}>Tipo de Estratégia</LabelWithInfo></th>
+            <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.idealPercentage}>% Ideal</LabelWithInfo></th>
+            <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.contributed}>Aportado</LabelWithInfo></th>
+            <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.toContribute}>Aportar</LabelWithInfo></th>
+            <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.strategic}>Estratégico</LabelWithInfo></th>
+            <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.portfolioPercentage}>% Carteira</LabelWithInfo></th>
+            <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.diffPercentage}>% Diff</LabelWithInfo></th>
+            <th className="px-4 py-3 text-center"><LabelWithInfo info={STRATEGY_HELP.suggestion}>Sugestão</LabelWithInfo></th>
           </tr>
         </thead>
         <tbody>

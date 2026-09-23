@@ -8,6 +8,9 @@ import { Input } from '@/components/ui/Input';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { MaskedNumberInput } from '@/components/ui/MaskedNumberInput';
 import { Modal } from '@/components/ui/Modal';
+import { InfoTooltip, LabelWithInfo } from '@/components/ui/InfoTooltip';
+import { useToast } from '@/context/ToastContext';
+import { apiMessage } from '@/utils/apiError';
 import { AssetTypeSelect } from '@/components/forms/AssetTypeSelect';
 import { TickerAutocomplete } from '@/components/forms/TickerAutocomplete';
 import { FixedIncomeFields, FixedIncomeValues } from '@/components/forms/FixedIncomeFields';
@@ -85,6 +88,7 @@ interface Props {
  */
 export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTypes }: Props) => {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   const [selectedType, setSelectedType] = useState<AssetType | null>(null);
   const [matchedAsset, setMatchedAsset] = useState<Asset | null>(null);
@@ -92,7 +96,6 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [fixedIncome, setFixedIncome] = useState<FixedIncomeValues>(EMPTY_FIXED_INCOME);
   const [fullSettlement, setFullSettlement] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
   const [formData, setFormData] = useState<TransactionCreate>({
     ticker: '',
     type: TransactionType.BUY,
@@ -110,7 +113,6 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     setEditingNoteId(null);
     setFixedIncome(EMPTY_FIXED_INCOME);
     setFullSettlement(false);
-    setErro(null);
     setFormData({
       ticker: '', type: TransactionType.BUY, shares: 0,
       pricePerShare: 0, totalAmount: 0, brokerageFee: 0,
@@ -129,7 +131,6 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     if (!isOpen) return;
 
     if (editing) {
-      setErro(null);
       setTickerInput(editing.ticker);
       setSelectedType((assetTypes || []).find(t => t.id === editing.assetTypeId) ?? null);
       setMatchedAsset(null);
@@ -161,7 +162,6 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     }
 
     if (preset) {
-      setErro(null);
       setSelectedType(preset.assetType);
       setTickerInput(preset.ticker);
       setMatchedAsset(null);
@@ -220,16 +220,51 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     queryClient.invalidateQueries({ queryKey: ['portfolio'] });
   };
 
+  /**
+   * A venda de Tesouro que o sistema repartiu entre títulos merece um aviso a
+   * mais: o usuário lançou uma venda e o extrato vai mostrar várias linhas.
+   */
+  const avisarDivisao = (saved: TransactionResponse | undefined) => {
+    const partes = saved?.groupParts ?? 0;
+    if (partes > 1) {
+      showToast(
+        `A venda de ${saved!.ticker} foi dividida em ${partes} títulos, do mais antigo para o mais novo.`,
+        'info'
+      );
+    }
+  };
+
+  /**
+   * O erro sai no toast, e o modal continua aberto: o que foi digitado fica
+   * lá para ser corrigido.
+   */
   const createMutation = useMutation({
     mutationFn: (txData: TransactionCreate) => transactionsApi.create(txData),
-    onSuccess: () => { invalidate(); onClose(); },
-    onError: (e: any) => setErro(mensagemDeErro(e))
+    onSuccess: (saved: TransactionResponse | undefined, txData) => {
+      invalidate();
+      onClose();
+      const ticker = saved?.ticker ?? txData.ticker;
+      if (txData.type === TransactionType.BUY) {
+        showToast(`Compra de ${ticker} registrada.`, 'success');
+      } else if (txData.isFullSettlement) {
+        showToast(`Resgate total de ${ticker} registrado. A aplicação foi encerrada.`, 'success');
+      } else {
+        showToast(`Venda de ${ticker} registrada.`, 'success');
+      }
+      avisarDivisao(saved);
+    },
+    onError: (e: unknown) => showToast(apiMessage(e) ?? 'Não foi possível salvar a transação.', 'error')
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, txData }: { id: string; txData: TransactionCreate }) => transactionsApi.update(id, txData),
-    onSuccess: () => { invalidate(); onClose(); },
-    onError: (e: any) => setErro(mensagemDeErro(e))
+    onSuccess: (saved: TransactionResponse | undefined, { txData }) => {
+      invalidate();
+      onClose();
+      showToast(`Transação de ${saved?.ticker ?? txData.ticker} atualizada.`, 'success');
+      avisarDivisao(saved);
+    },
+    onError: (e: unknown) => showToast(apiMessage(e) ?? 'Não foi possível atualizar a transação.', 'error')
   });
 
   const travado = !!editing || !!preset;
@@ -322,7 +357,6 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setErro(null);
 
     // Renda Fixa manda o valor total e anula quantidade e preço; os demais
     // tipos mandam quantidade e preço e deixam o total para a API calcular.
@@ -368,11 +402,21 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       ? (preset.operation === TransactionType.SELL ? `Vender ${preset.ticker}` : `Comprar ${preset.ticker}`)
       : 'Nova Transação';
 
+  // O (i) do título explica a venda de Tesouro, que é do ativo e não de um
+  // título. Na edição de uma venda já repartida, o que importa é outra coisa:
+  // que se edita a venda inteira.
+  const modalTitleInfo = grupo
+    ? `Esta venda foi dividida em ${grupo} títulos pelo sistema, do mais antigo para o mais novo. O que você edita aqui é a venda inteira.`
+    : isTesouro && isVenda
+      ? 'A venda é do ativo, não de um título. As cotas saem dos títulos mais antigos primeiro, e o sistema divide a operação entre eles.'
+      : undefined;
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title={modalTitle}
+      titleInfo={modalTitleInfo}
       size="xl"
       footer={
         <div className="flex justify-end gap-3">
@@ -395,22 +439,17 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       >
         {/* Coluna da transação */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 content-start">
-          {erro && (
-            <div className="sm:col-span-2 rounded-md border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-              {erro}
-            </div>
-          )}
-
-          {grupo && (
-            <div className="sm:col-span-2 rounded-md border border-white/10 bg-surface-light/40 px-4 py-3 text-xs text-gray-400">
-              Esta venda foi dividida em {grupo} títulos pelo sistema, do mais antigo para o mais novo.
-              O que você edita aqui é a venda inteira.
-            </div>
-          )}
-
           {/* Toggle Compra/Venda */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">Operação</label>
+            <label className="block text-sm font-medium text-gray-300 mb-1.5">
+              <LabelWithInfo
+                info={vendaBloqueada
+                  ? 'A venda de Renda Fixa é feita pela Carteira, no ícone Vender da linha do título. Assim o sistema sabe de qual aplicação sai o resgate.'
+                  : undefined}
+              >
+                Operação
+              </LabelWithInfo>
+            </label>
             <div className={`flex bg-surface rounded-md border border-white/10 p-1 ${travado ? 'opacity-60 pointer-events-none' : ''}`}>
               <button
                 type="button"
@@ -429,7 +468,6 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
                 type="button"
                 disabled={travado || vendaBloqueada}
                 onClick={() => setFormData({ ...formData, type: TransactionType.SELL })}
-                title={vendaBloqueada ? 'A venda de Renda Fixa sai da carteira, pelo ícone da posição' : undefined}
                 className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded text-sm font-medium transition-all ${
                   formData.type === TransactionType.SELL
                     ? 'bg-danger/15 text-danger border border-danger/30 shadow-sm'
@@ -440,11 +478,6 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
                 Venda
               </button>
             </div>
-            {vendaBloqueada && (
-              <p className="mt-1 text-xs text-gray-500">
-                Renda Fixa: venda pela carteira, onde o título é a própria linha.
-              </p>
-            )}
           </div>
 
           {/* Tipo de Ativo — comanda o resto do formulário */}
@@ -478,19 +511,15 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
               {/* A liquidação total só existe na venda: ela diz que este resgate
                   encerra a aplicação, e é o que autoriza a posição a zerar. */}
               {isVenda && (
-                <label className="flex items-start gap-2 rounded-md border border-white/10 bg-surface-light/40 px-3 py-2 cursor-pointer">
+                <label className="flex h-10 items-center gap-2 rounded-md border border-white/10 bg-surface-light/40 px-3 cursor-pointer">
                   <input
                     type="checkbox"
-                    className="mt-0.5 accent-accent"
+                    className="accent-accent"
                     checked={fullSettlement}
                     onChange={(e) => setFullSettlement(e.target.checked)}
                   />
-                  <span className="text-sm text-gray-300">
-                    Liquidação total
-                    <span className="block text-xs text-gray-500">
-                      Encerra a aplicação e ajusta a valorização para o valor resgatado.
-                    </span>
-                  </span>
+                  <span className="text-sm text-gray-300">Liquidação total</span>
+                  <InfoTooltip content="Marque quando este resgate encerra a aplicação. A posição é zerada e a valorização é ajustada para o valor resgatado." />
                 </label>
               )}
             </div>
@@ -532,22 +561,18 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
               da altura de um input com rótulo e texto de apoio. */}
           <div className="sm:col-span-2 flex items-baseline justify-between gap-4 rounded-md border border-surface-light bg-surface-light/40 px-4 py-3">
             <span className="text-sm text-gray-400">
-              Total
-              {selectedType && !isValorTotal && (
-                <span className="text-gray-500"> — quantidade x preço unitário, sem as taxas</span>
-              )}
+              <LabelWithInfo
+                info={selectedType && !isValorTotal
+                  ? 'Quantidade × preço unitário. As taxas não entram no total.'
+                  : undefined}
+              >
+                Total
+              </LabelWithInfo>
             </span>
             <span className="text-lg font-semibold tabular-nums text-white">
               {formatCurrency(computedTotal)}
             </span>
           </div>
-
-          {isTesouro && isVenda && (
-            <p className="sm:col-span-2 text-xs text-gray-500">
-              A venda é do ativo: as cotas saem dos títulos mais antigos primeiro, e o sistema
-              divide a operação entre eles.
-            </p>
-          )}
         </div>
 
         {/* Coluna do título — só para tipos com remuneração contratada */}
@@ -566,10 +591,3 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     </Modal>
   );
 };
-
-/** A API devolve a regra violada em texto; é ela que o usuário precisa ler. */
-function mensagemDeErro(e: any): string {
-  return e?.response?.data?.message
-    || e?.response?.data?.error
-    || 'Não foi possível salvar a transação.';
-}

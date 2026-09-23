@@ -8,6 +8,7 @@ import { AllocationDetailedCharts } from '@/components/charts/AllocationDetailed
 import { clsx } from 'clsx';
 import { PortfolioAllocation, PortfolioAllocationDetailed, ReservationAllocation } from '@/types';
 import { INCOME_COLOR, RESERVATION_COLOR } from '@/utils/reservation';
+import { LabelWithInfo } from '@/components/ui/InfoTooltip';
 
 export const AllocationPage = () => {
   const [activeTab, setActiveTab] = useState<'geral' | 'detalhada'>('geral');
@@ -97,6 +98,7 @@ export const AllocationPage = () => {
                 data={chartData}
                 totalValue={totalValue}
                 title="Alocação da Carteira (Por Tipo de Ativo)"
+                titleInfo="Considera só a geração de renda. A reserva de emergência fica de fora e aparece no gráfico ao lado."
               />
             </div>
             <div className="h-[560px] lg:h-full">
@@ -104,6 +106,7 @@ export const AllocationPage = () => {
                 data={reservationChartData}
                 totalValue={reservationAllocation?.totalValue ?? 0}
                 title="Alocação da Reserva de Emergência"
+                titleInfo="Quanto da carteira está na reserva hoje, comparado com a geração de renda."
               />
             </div>
           </div>
@@ -112,7 +115,11 @@ export const AllocationPage = () => {
 
       {activeTab === 'detalhada' && detailedAllocation && (
         <div className="space-y-4">
-          <h3 className="text-lg font-medium text-white">Alocação por Categoria (Dentro de cada Tipo)</h3>
+          <h3 className="text-lg font-medium text-white">
+            <LabelWithInfo info="Distribuição dentro de cada tipo de ativo, sem a reserva de emergência.">
+              Alocação por Categoria (Dentro de cada Tipo)
+            </LabelWithInfo>
+          </h3>
           <AllocationDetailedCharts data={detailedAllocation} />
         </div>
       )}

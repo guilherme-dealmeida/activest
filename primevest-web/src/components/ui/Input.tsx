@@ -1,22 +1,25 @@
 import React, { InputHTMLAttributes } from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { LabelWithInfo } from './InfoTooltip';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   /** Texto auxiliar abaixo do campo. Suprimido quando há erro. */
   hint?: string;
+  /** Explicação no (i) ao lado do rótulo, no lugar de texto solto na tela. */
+  info?: React.ReactNode;
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, hint, id, ...props }, ref) => {
+  ({ className, label, error, hint, info, id, ...props }, ref) => {
     const inputId = id || Math.random().toString(36).substring(7);
     return (
       <div className="w-full">
         {label && (
           <label htmlFor={inputId} className="block text-sm font-medium text-gray-300 mb-1.5">
-            {label}
+            <LabelWithInfo info={info}>{label}</LabelWithInfo>
           </label>
         )}
         <input

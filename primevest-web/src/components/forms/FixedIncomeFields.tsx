@@ -2,6 +2,7 @@ import { Indexer, RateType } from '@/types';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { PercentInput } from '@/components/ui/PercentInput';
+import { LabelWithInfo } from '@/components/ui/InfoTooltip';
 
 export interface FixedIncomeValues {
   assetCategoryId: number | null;
@@ -63,11 +64,11 @@ function rateLabel(rateType: RateType | null, indexer: Indexer | null): { label:
     case 'PREFIXADO':
       return { label: 'Taxa ao ano', hint: 'Ex: 12,500 para 12,5% a.a.' };
     case 'POS_FIXADO':
-      return { label: `Percentual do ${indexer ?? 'índice'}`, hint: 'Ex: 110,000 para 110% do CDI' };
+      return { label: `Percentual do ${indexer ?? 'índice'}`, hint: 'Ex: 110,000 para 110% do CDI.' };
     case 'HIBRIDO':
       return { label: 'Spread ao ano', hint: `Ex: 6,000 para ${indexer ?? 'IPCA'} + 6% a.a.` };
     default:
-      return { label: 'Taxa', hint: 'Escolha antes como o título remunera' };
+      return { label: 'Taxa', hint: 'Escolha antes como o título remunera.' };
   }
 }
 
@@ -89,12 +90,20 @@ export const FixedIncomeFields = ({
   return (
     <div className="rounded-md border border-accent/20 bg-accent/5 p-4 space-y-4">
       <p className="text-xs uppercase tracking-wider text-accent/80 font-medium">
-        Dados do título
-        {readOnly ? (
-          <span className="text-gray-500 normal-case tracking-normal"> · da posição selecionada</span>
-        ) : lockedTerms && (
-          <span className="text-gray-500 normal-case tracking-normal"> · prazo e remuneração são do papel</span>
-        )}
+        <LabelWithInfo
+          // Papel com parâmetros públicos (Tesouro, o único tipo sem emissor)
+          // vem antes: na venda dele o quadro também é somente leitura, mas
+          // não há "o título selecionado" — a venda é do ativo, por FIFO.
+          info={lockedTerms && !showIssuer
+            ? 'Vencimento e forma de remuneração são do papel e valem para todos os investidores. A taxa é a do dia da sua compra.'
+            : readOnly
+              ? 'Dados do título selecionado na carteira. A operação é sobre ele, por isso não podem ser alterados aqui.'
+              : lockedTerms
+                ? 'Vencimento e forma de remuneração são do papel e valem para todos os investidores. A taxa é a do dia da sua compra.'
+                : undefined}
+        >
+          Dados do título
+        </LabelWithInfo>
       </p>
 
       {showIssuer && (
@@ -153,7 +162,7 @@ export const FixedIncomeFields = ({
         {showRate && (
           <PercentInput
             label={label}
-            hint={hint}
+            info={hint}
             decimals={3}
             value={values.indexerRate}
             disabled={readOnly || !values.rateType}
