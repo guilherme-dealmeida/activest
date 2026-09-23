@@ -124,6 +124,7 @@ public class PortfolioService {
                     pa.getAsset().getAssetCategory() != null ? pa.getAsset().getAssetCategory().getDisplayName() : null,
                     note != null ? note.getId() : null,
                     note != null ? note.getIssuer() : null,
+                    note != null ? note.getPurchaseDate() : null,
                     note != null ? note.getMaturityDate() : null,
                     note != null ? note.getRateType() : null,
                     note != null ? note.getIndexer() : null,

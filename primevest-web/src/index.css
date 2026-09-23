@@ -58,6 +58,48 @@
     background-color: rgba(0, 0, 0, 0.06);
   }
 
+  /*
+   * Variações com opacidade. O Tailwind gera uma classe por opacidade, e cada
+   * uma precisa da sua versão clara: sem estas, text-white/70 continuava
+   * branco a 70% sobre fundo branco — EMISSOR, APLICAÇÃO, VENCIMENTO,
+   * REMUNERAÇÃO e o nome do ativo sumiam na Carteira (23/09/2026). Ao usar uma
+   * cor com opacidade nova numa tela, acrescente a versão clara aqui.
+   */
+  html.light .text-white\/70 {
+    color: rgba(26, 26, 26, 0.7);
+  }
+
+  html.light .text-white\/50 {
+    color: rgba(26, 26, 26, 0.5);
+  }
+
+  html.light .text-gray-200 {
+    color: #333333;
+  }
+
+  /* hover:text-white virava branco no hover — o texto sumia sob o mouse. */
+  html.light .hover\:text-white:hover {
+    color: #1a1a1a;
+  }
+
+  /* Borda do Switch desligado: sem ela a chave some no fundo claro. */
+  html.light .border-white\/15 {
+    border-color: rgba(0, 0, 0, 0.15);
+  }
+
+  /* surface-light com opacidade é #2a2a2a translúcido: no claro vira um
+     cinza escuro sujo em vez do tom de superfície. */
+  html.light .bg-surface-light\/30,
+  html.light .hover\:bg-surface-light\/30:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+  }
+
+  html.light .bg-surface-light\/40,
+  html.light .bg-surface-light\/50,
+  html.light .hover\:bg-surface-light\/50:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+  }
+
   /* Custom Scrollbar - Dark */
   html.dark ::-webkit-scrollbar {
     width: 8px;

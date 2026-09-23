@@ -80,6 +80,9 @@ export interface PortfolioAssetDetail {
   // distingue. Nulos para renda variável.
   noteId: string | null;
   issuer: string | null;
+  // Data de compra do título. Só no Tesouro Direto, onde cada compra é um
+  // título novo e a venda consome do mais antigo para o mais novo.
+  purchaseDate: string | null;
   maturityDate: string | null;
   // Remuneração contratada na nota ("110% do CDI", "IPCA + 6%"). O sentido de
   // indexerRate depende de rateType. Nulos para renda variável.

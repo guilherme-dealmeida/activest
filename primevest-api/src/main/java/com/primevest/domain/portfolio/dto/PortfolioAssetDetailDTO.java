@@ -14,6 +14,11 @@ import java.util.UUID;
  * repetir ticker: duas aplicações em CDB são duas linhas, e sem o emissor e o
  * vencimento elas ficariam idênticas na tela. Nulos para renda variável.</p>
  *
+ * <p>purchaseDate é a data de compra do título, e só vem preenchida no
+ * Tesouro Direto: lá cada compra é um título novo (a taxa é do dia), e duas
+ * linhas do mesmo papel se distinguem pela data em que foram aplicadas. É
+ * também a ordem em que a venda consome os títulos (FIFO).</p>
+ *
  * <p>rateType, indexer e indexerRate são a remuneração contratada na nota
  * ("110% do CDI", "IPCA + 6%"). Também nulos para renda variável.</p>
  *
@@ -32,6 +37,7 @@ public record PortfolioAssetDetailDTO(
     String categoryName,
     UUID noteId,
     String issuer,
+    LocalDate purchaseDate,
     LocalDate maturityDate,
     RateType rateType,
     Indexer indexer,

@@ -13,7 +13,7 @@ import { TransactionFormModal, TransactionPreset } from '@/components/transactio
 import { useSortable } from '@/hooks/useSortable';
 import { AssetType, PortfolioAssetDetail, RateType, TransactionType } from '@/types';
 import { formatCurrency, formatDate, formatPercentage, formatShares, getReturnColor } from '@/utils/format';
-import { RENDA_FIXA, isFixedIncomeNote } from '@/utils/assetTypeRules';
+import { RENDA_FIXA, TESOURO_DIRETO, isFixedIncomeNote } from '@/utils/assetTypeRules';
 import { apiMessage } from '@/utils/apiError';
 
 /**
@@ -29,6 +29,9 @@ import { apiMessage } from '@/utils/apiError';
  */
 const showIssuer = isFixedIncomeNote;
 const showMaturity = (type: AssetType) => type.fixedIncome;
+// Só o Tesouro: cada compra é um título novo, e a data da aplicação é o que
+// separa duas linhas do mesmo papel (e a ordem em que a venda os consome).
+const showPurchaseDate = (type: AssetType) => type.name === TESOURO_DIRETO;
 const showDividends = (type: AssetType) => !type.fixedIncome;
 // Na renda fixa o ativo já é a categoria ("CDB — Certificado de Depósito
 // Bancário"), e os dados do título entram no lugar dela.
@@ -119,6 +122,14 @@ const COLUMNS: Column[] = [
     align: 'left',
     visible: showIssuer,
     render: (a) => <span className="text-white/70">{a.issuer || '—'}</span>,
+  },
+  {
+    key: 'purchaseDate',
+    label: 'APLICAÇÃO',
+    info: 'Data de compra do título. A venda consome os títulos da aplicação mais antiga para a mais nova.',
+    align: 'left',
+    visible: showPurchaseDate,
+    render: (a) => <span className="text-white/70">{a.purchaseDate ? formatDate(a.purchaseDate) : '—'}</span>,
   },
   {
     key: 'maturityDate',

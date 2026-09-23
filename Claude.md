@@ -627,6 +627,12 @@ A tabela repete ticker, porque a posição é por título. `key` da linha é
 `asset.id` (o id da posição), **não o ticker** — ticker deixou de ser único aqui.
 As colunas EMISSOR e VENCIMENTO são o que distingue duas linhas "CDB".
 
+**APLICAÇÃO** (23/09/2026): só na aba Tesouro Direto, à esquerda de
+VENCIMENTO — a `purchase_date` da nota, que chega em
+`PortfolioAssetDetailDTO.purchaseDate`. No Tesouro cada compra é um título
+novo, então é a data que separa duas linhas do mesmo papel, e é também a ordem
+em que a venda consome os títulos (FIFO).
+
 **Reserva de emergência** (19/09/2026): primeira coluna, um switch que grava
 `portfolio_assets.is_reservation` direto, sem modal. Aparece só onde
 `asset_types.fixed_income` é verdadeiro — Renda Fixa e Tesouro Direto hoje, e
@@ -791,6 +797,12 @@ edição apagaria emissor, vencimento e taxa.
 ## 📐 Padrão Visual
 
 - **Tema**: dark por padrão, claro disponível (`darkMode: 'class'`, `ThemeContext`)
+  O claro é feito por **override em `index.css`** (`html.light .text-white`
+  etc.), classe por classe — e o Tailwind gera uma classe por opacidade. Cor
+  com opacidade sem override no claro some: `text-white/70` ficava branco
+  sobre branco e apagava EMISSOR, APLICAÇÃO, VENCIMENTO e REMUNERAÇÃO na
+  Carteira até 23/09/2026. Usou `text-white/NN`, `bg-surface-light/NN`,
+  `hover:text-white` ou similar numa tela nova? Confira se o override existe.
 - **Background**: `#000000` (claro: `#f5f5f0`) · **Surfaces**: `#111111` (claro: `#ffffff`)
 - **Accent/Gold**: `#c9a84c` · **Success**: `#38a169` · **Danger**: `#e53e3e`
 - **Fonte**: Inter · **Idioma da UI**: Português (Brasil)
