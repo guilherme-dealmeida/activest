@@ -6,6 +6,19 @@ export interface User {
   createdAt?: string;
 }
 
+/** Corpo de POST /auth/login (LoginRequestDTO). */
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+/** Corpo de POST /auth/register (RegisterRequestDTO): senha com no mínimo 8 caracteres. */
+export interface RegisterRequest {
+  name: string;
+  email: string;
+  password: string;
+}
+
 export interface TokenResponse {
   accessToken: string;
   refreshToken: string;

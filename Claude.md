@@ -273,7 +273,7 @@ primevest/
         │   ├── forms/           # AssetTypeSelect, TickerAutocomplete, FixedIncomeFields
         │   ├── layout/
         │   └── ui/              # Modal, MaskedNumberInput, CurrencyInput, PercentInput...
-        ├── context/             # AuthContext, ThemeContext
+        ├── context/             # XContext.ts (contexto + hook) e XProvider.tsx: Auth, Theme, Toast
         ├── hooks/               # useSortable, useGoogleSignIn
         ├── pages/               # 10 páginas
         ├── types/               # interfaces TypeScript

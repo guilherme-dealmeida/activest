@@ -13,6 +13,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 import { ReservationStrategyTab } from '@/components/strategy/ReservationStrategyTab';
 import { ReservationRebalanceCard } from '@/components/strategy/ReservationRebalanceCard';
 import { STRATEGY_HELP, restoredMessage } from '@/components/strategy/strategyHelp';
+import { REBALANCE_TABLE_CLASS, RebalanceColGroup } from '@/components/strategy/rebalanceColumns';
 import { LabelWithInfo } from '@/components/ui/InfoTooltip';
 import { useToast } from '@/context/ToastContext';
 import { apiMessage } from '@/utils/apiError';
@@ -26,7 +27,18 @@ interface AssetType {
   colorHex: string;
 }
 
-const CustomTooltip = ({ active, payload }: any) => {
+// Fatia do gráfico de pizza, como vem no payload do Recharts.
+interface PieSlice {
+  name: string;
+  value: number;
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: { payload: PieSlice }[];
+}
+
+const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
@@ -384,8 +396,10 @@ export const StrategyPage = () => {
                     <Legend
                       verticalAlign="bottom"
                       height={36}
-                      formatter={(value, entry: any) => (
-                        <span className="text-gray-300 ml-1">{value} ({formatPercentage(entry.payload.value)})</span>
+                      formatter={(value: string, entry) => (
+                        <span className="text-gray-300 ml-1">
+                          {value} ({formatPercentage((entry.payload as unknown as PieSlice).value)})
+                        </span>
                       )}
                     />
                   </PieChart>
@@ -413,7 +427,8 @@ export const StrategyPage = () => {
         {rebalance?.reservation && <ReservationRebalanceCard reservation={rebalance.reservation} />}
         <Card title="Sugestão de Aporte (Rebalanceamento)" titleInfo={STRATEGY_HELP.typeRebalance}>
           <div className="overflow-x-auto mt-4">
-            <table className="w-full text-sm text-left">
+            <table className={REBALANCE_TABLE_CLASS}>
+              <RebalanceColGroup />
               <thead className="text-xs text-gray-400 uppercase bg-surface-light border-b border-surface-light">
                 <tr>
                   <th className="px-4 py-3">Tipo Ativo</th>

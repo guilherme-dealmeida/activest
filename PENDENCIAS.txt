@@ -436,15 +436,26 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
        componente sustenta CurrencyInput, PercentInput e a Quantidade do modal
        de transacao — as mascaras mexidas no mesmo dia.
 
-  12.3 PENDENTE: 35 avisos, quase todos @typescript-eslint/no-explicit-any.
-       Concentrados em src/api (respostas nao tipadas), nos blocos catch das
-       paginas e em DataTable/useSortable (accessor generico).
-       A regra ficou como AVISO de proposito: subir para erro antes de tipar as
-       respostas da API transformaria o lint numa parede que ninguem le.
-       Alvo natural quando alguem tipar os DTOs de resposta.
-       Sobram dois avisos de react-refresh/only-export-components, em
-       AuthContext e ThemeContext — os dois exportam hook junto com o provider.
-       Custo real: hot reload desses arquivos recarrega a pagina inteira.
+  12.3 RESOLVIDO em 23/09/2026 — npm run lint sem nenhum aviso (eram 35).
+       - src/api: respostas tipadas por generico do axios (get<T>, post<T>,
+         put<T>) em assets, transactions, goals, dividends e ceilingPrices;
+         auth ganhou LoginRequest e RegisterRequest em types/index.ts,
+         espelhando LoginRequestDTO e RegisterRequestDTO.
+       - Paginas: sairam os 'as any' de queryFn/mutationFn/mutate, que so
+         existiam porque a API devolvia any.
+       - catch (LoginPage, useGoogleSignIn): err: unknown, lendo so
+         response.data.message (nao o apiMessage, que tambem exibiria o
+         'error' do Spring, ex.: "Unauthorized").
+       - Tooltips/legendas do Recharts (StrategyPage, AllocationPieChart,
+         AllocationDetailedCharts): interfaces proprias da fatia.
+       - useSortable: acesso dinamico via Record<string, unknown>.
+       - DataTable.tsx removido: nenhuma tela o usava.
+       - react-refresh/only-export-components: cada contexto virou
+         XContext.ts (contexto, tipos e hook) + XProvider.tsx (componente).
+         Os imports de useAuth/useTheme/useToast nao mudaram; so o main.tsx
+         passou a importar os providers de ./context/XProvider.
+       Se o Vite do container reclamar de context/XContext.tsx inexistente,
+       e cache da resolucao antiga: docker restart primevest-web.
 
   12.4 Nao ha lint no backend. Nenhum Checkstyle, SpotBugs ou formatador no
        pom.xml. Decidir se vale, e se vale, antes ou depois do item 8.

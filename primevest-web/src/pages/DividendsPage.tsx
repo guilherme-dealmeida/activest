@@ -19,7 +19,7 @@ export const DividendsPage = () => {
 
   const { data: summary, isLoading } = useQuery<DividendSummary>({
     queryKey: ['dividends', 'summary'],
-    queryFn: dividendsApi.getSummary as any
+    queryFn: dividendsApi.getSummary
   });
 
   const recentData = summary?.recent || [];

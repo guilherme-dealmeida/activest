@@ -63,7 +63,19 @@ const generateGradient = (baseColor: string, count: number): string[] => {
   });
 };
 
-const CustomTooltip = ({ active, payload }: any) => {
+// Fatia do gráfico de uma categoria, como vem no payload do Recharts.
+interface AllocationSlice {
+  name: string;
+  value: number;
+  percentage: number;
+}
+
+interface SliceTooltipProps {
+  active?: boolean;
+  payload?: { payload: AllocationSlice }[];
+}
+
+const CustomTooltip = ({ active, payload }: SliceTooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (

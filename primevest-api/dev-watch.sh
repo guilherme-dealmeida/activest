@@ -22,11 +22,19 @@
 # mesmo motivo do CHOKIDAR_USEPOLLING no web.
 #
 # Limitação: arquivo APAGADO não altera data de nada, então sozinho não dispara
-# compilação. Salve qualquer outro arquivo ou reinicie o container.
+# compilação, e o que já estava em target/classes continua lá. Reinicie o
+# container: a subida limpa target/classes (ver abaixo).
 
 POLL_SECONDS="${POLL_SECONDS:-2}"
 MARKER=/tmp/.last-compile
 TRIGGER=target/classes/.reloadtrigger
+
+# Recompila do zero a cada subida. O target/ vive dentro do container (não é
+# montado) e o Maven só copia/atualiza resources, nunca apaga: uma migration
+# removida ou renomeada no src/ continuava em target/classes/db/migration e o
+# Flyway acusava versão duplicada ("Found more than one migration with version
+# 1"), derrubando a API. Custa alguns segundos de compilação na subida.
+rm -rf target/classes target/test-classes
 
 touch "$MARKER"
 

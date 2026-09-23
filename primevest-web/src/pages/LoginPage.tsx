@@ -25,8 +25,11 @@ export const LoginPage = () => {
     try {
       await login(email, password);
       navigate('/');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Email ou senha inválidos');
+    } catch (err: unknown) {
+      // Só a mensagem da API: o campo "error" do Spring ("Unauthorized") não
+      // serve ao usuário, então não se usa o apiMessage aqui.
+      const { response } = (err ?? {}) as { response?: { data?: { message?: string } } };
+      setError(response?.data?.message || 'Email ou senha inválidos');
     } finally {
       setIsLoading(false);
     }

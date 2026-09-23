@@ -21,11 +21,11 @@ export const GoalsPage = () => {
 
   const { data: goals, isLoading } = useQuery<GoalResponse[]>({
     queryKey: ['goals'],
-    queryFn: goalsApi.list as any
+    queryFn: goalsApi.list
   });
 
   const createMutation = useMutation({
-    mutationFn: goalsApi.create as any,
+    mutationFn: goalsApi.create,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
       setIsModalOpen(false);
@@ -34,7 +34,7 @@ export const GoalsPage = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: goalsApi.delete as any,
+    mutationFn: goalsApi.delete,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['goals'] })
   });
 
@@ -44,7 +44,7 @@ export const GoalsPage = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createMutation.mutate(formData as any);
+    createMutation.mutate(formData);
   };
 
   return (
@@ -70,7 +70,7 @@ export const GoalsPage = () => {
           return (
             <Card key={goal.id} className="relative group">
               <button 
-                onClick={() => { if(window.confirm('Excluir meta?')) deleteMutation.mutate(goal.id as any); }}
+                onClick={() => { if(window.confirm('Excluir meta?')) deleteMutation.mutate(goal.id); }}
                 className="absolute top-4 right-4 text-gray-500 hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity"
               >
                 <Trash2 className="w-4 h-4" />

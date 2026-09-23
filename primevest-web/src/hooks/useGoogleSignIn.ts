@@ -67,8 +67,9 @@ export function useGoogleSignIn({ onCredential }: Options) {
             setError('');
             setIsLoading(true);
             onCredentialRef.current(response.credential)
-              .catch((err: any) => {
-                setError(err?.response?.data?.message || 'Não foi possível entrar com o Google');
+              .catch((err: unknown) => {
+                const { response } = (err ?? {}) as { response?: { data?: { message?: string } } };
+                setError(response?.data?.message || 'Não foi possível entrar com o Google');
               })
               .finally(() => setIsLoading(false));
           },

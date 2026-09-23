@@ -149,6 +149,18 @@ class PortfolioServiceTest {
         }
 
         @Test
+        @DisplayName("Posicao sem custo fica fora do resumo, mesmo com valorizacao gravada")
+        void posicaoSemCustoForaDoResumo() {
+            posicao(rendaFixaTipo, "CDB", "0.00", "300.00", null, true);
+
+            PortfolioSummaryDTO resumo = service.getPortfolioSummary(userId);
+
+            assertThat(resumo.totalInvested()).isEqualByComparingTo("0");
+            assertThat(resumo.currentValue()).isEqualByComparingTo("0");
+            assertThat(resumo.totalReturn()).isEqualByComparingTo("0");
+        }
+
+        @Test
         @DisplayName("A listagem traz o tipo pela descricao e o titulo (emissor e vencimento) da renda fixa")
         void listagemDeAtivos() {
             posicao(acaoTipo, "PETR4", "1000.00", "200.00", "100", false);

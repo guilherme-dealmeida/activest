@@ -1,10 +1,10 @@
 import { apiClient } from './client';
-import { TransactionCreate } from '../types';
+import { TransactionCreate, TransactionResponse } from '../types';
 
 export const transactionsApi = {
-  list: async () => { const { data } = await apiClient.get('/transactions/'); return data; },
-  create: async (txData: TransactionCreate) => { const { data } = await apiClient.post('/transactions/', txData); return data; },
-  update: async (id: string, txData: TransactionCreate) => { const { data } = await apiClient.put(`/transactions/${id}`, txData); return data; },
-  getById: async (id: string) => { const { data } = await apiClient.get(`/transactions/${id}`); return data; },
+  list: async () => { const { data } = await apiClient.get<TransactionResponse[]>('/transactions/'); return data; },
+  create: async (txData: TransactionCreate) => { const { data } = await apiClient.post<TransactionResponse>('/transactions/', txData); return data; },
+  update: async (id: string, txData: TransactionCreate) => { const { data } = await apiClient.put<TransactionResponse>(`/transactions/${id}`, txData); return data; },
+  getById: async (id: string) => { const { data } = await apiClient.get<TransactionResponse>(`/transactions/${id}`); return data; },
   delete: async (id: string) => { await apiClient.delete(`/transactions/${id}`); },
 };

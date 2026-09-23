@@ -59,7 +59,10 @@ public class PortfolioService {
             // Proventos de posicao liquidada continuam contando: eles foram
             // recebidos, e some-los de repente reescreveria o passado.
             totalDividends = totalDividends.add(dividends.getOrDefault(pa.getId(), BigDecimal.ZERO));
-            if (pa.isSettled()) {
+            // Sem custo a posicao nunca comecou (ou teve todas as transacoes
+            // excluidas): fica fora, como na listagem e na alocacao. Sem isto
+            // uma valorizacao que sobrou gravada virava "valor atual" sozinha.
+            if (pa.isSettled() || !position.hasInvestment()) {
                 continue;
             }
             totalInvested = totalInvested.add(safe(position.totalInvested()));

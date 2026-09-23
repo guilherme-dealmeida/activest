@@ -5,6 +5,7 @@ import { formatCurrency, formatPercentage } from '@/utils/format';
 import { RESERVATION_TYPE_LABELS } from '@/utils/reservation';
 import { LabelWithInfo } from '@/components/ui/InfoTooltip';
 import { STRATEGY_HELP } from './strategyHelp';
+import { REBALANCE_TABLE_CLASS, RebalanceColGroup } from './rebalanceColumns';
 
 const signColor = (n: number) => (n > 0 ? 'text-success' : n < 0 ? 'text-danger' : 'text-gray-400');
 
@@ -20,7 +21,8 @@ const signColor = (n: number) => (n > 0 ? 'text-success' : n < 0 ? 'text-danger'
 export const ReservationRebalanceCard = ({ reservation }: { reservation: ReservationRebalance }) => (
   <Card title="Rebalanceamento Reserva de Emergência" titleInfo={STRATEGY_HELP.reservationRebalance}>
     <div className="overflow-x-auto mt-4">
-      <table className="w-full text-sm text-left">
+      <table className={REBALANCE_TABLE_CLASS}>
+        <RebalanceColGroup />
         <thead className="text-xs text-gray-400 uppercase bg-surface-light border-b border-surface-light">
           <tr>
             <th className="px-4 py-3"><LabelWithInfo info={STRATEGY_HELP.reservationType}>Tipo de Estratégia</LabelWithInfo></th>

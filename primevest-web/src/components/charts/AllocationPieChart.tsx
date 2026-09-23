@@ -18,7 +18,12 @@ interface AllocationPieChartProps {
   titleInfo?: ReactNode;
 }
 
-const CustomTooltip = ({ active, payload }: any) => {
+interface SliceTooltipProps {
+  active?: boolean;
+  payload?: { payload: AllocationData }[];
+}
+
+const CustomTooltip = ({ active, payload }: SliceTooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
@@ -65,8 +70,10 @@ export const AllocationPieChart = ({ data, totalValue, title, titleInfo }: Alloc
             <Legend 
               verticalAlign="bottom" 
               height={36} 
-              formatter={(value, entry: any) => (
-                <span className="text-gray-300 ml-1">{value} ({formatPercentage(entry.payload.percentage)})</span>
+              formatter={(value: string, entry) => (
+                <span className="text-gray-300 ml-1">
+                  {value} ({formatPercentage((entry.payload as unknown as AllocationData).percentage)})
+                </span>
               )}
             />
           </PieChart>

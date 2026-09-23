@@ -166,6 +166,17 @@ class FixedIncomeSettlementTest {
     }
 
     @Test
+    @DisplayName("Posicao sem nenhuma transacao zera a valorizacao que sobrou de uma venda excluida")
+    void semTransacaoZeraValorizacao() {
+        PortfolioAsset pa = posicao("300.00");
+
+        settlement.recompute(pa, List.of(), false);
+
+        assertThat(pa.getAppreciation()).isEqualByComparingTo("0.00");
+        assertThat(pa.isSettled()).isFalse();
+    }
+
+    @Test
     @DisplayName("Regra G — valorizacao negativa ja gravada e recusada em qualquer passagem")
     void regraG_valorizacaoNegativaGravada() {
         PortfolioAsset pa = posicao("-10.00");
