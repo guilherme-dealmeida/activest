@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { loginErrorMessage } from '@/utils/loginError';
 
 const GSI_SRC = 'https://accounts.google.com/gsi/client';
 
@@ -68,8 +69,10 @@ export function useGoogleSignIn({ onCredential }: Options) {
             setIsLoading(true);
             onCredentialRef.current(response.credential)
               .catch((err: unknown) => {
-                const { response } = (err ?? {}) as { response?: { data?: { message?: string } } };
-                setError(response?.data?.message || 'Não foi possível entrar com o Google');
+                setError(loginErrorMessage(err, {
+                  unauthorized: 'A conta Google não foi aceita pelo PrimeVest.',
+                  fallback: 'Não foi possível entrar com o Google.',
+                }));
               })
               .finally(() => setIsLoading(false));
           },

@@ -819,6 +819,12 @@ edição apagaria emissor, vencimento e taxa.
   o navegador são origens diferentes; até 23/09/2026 só `localhost` valia, e
   abrir a tela por `127.0.0.1` fazia o login falhar com 403 — exibido como
   "Email ou senha inválidos".
+- **Erros de entrada** (`utils/loginError.ts`, login e Google): o status decide
+  a frase — 401 credencial recusada; 400 email inválido; 403 origem recusada;
+  sem resposta, 502/503/504 ou **500 sem corpo** (é o proxy do Vite com a API
+  parada) = servidor fora do ar; 500 com mensagem = erro interno; 422 = texto
+  da regra. O interceptor do `api/client.ts` não trata 401 de `/auth/*` como
+  sessão vencida: antes, senha errada recarregava `/login` e apagava a mensagem.
 - **Background**: `#000000` (claro: `#f5f5f0`) · **Surfaces**: `#111111` (claro: `#ffffff`)
 - **Accent/Gold**: `#c9a84c` · **Success**: `#38a169` · **Danger**: `#e53e3e`
 - **Fonte**: Inter · **Idioma da UI**: Português (Brasil)
