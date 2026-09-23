@@ -809,6 +809,16 @@ edição apagaria emissor, vencimento e taxa.
   sobre branco e apagava EMISSOR, APLICAÇÃO, VENCIMENTO e REMUNERAÇÃO na
   Carteira até 23/09/2026. Usou `text-white/NN`, `bg-surface-light/NN`,
   `hover:text-white` ou similar numa tela nova? Confira se o override existe.
+- **Menu lateral** (23/09/2026, `Sidebar.tsx`): ordem Dashboard, Carteira,
+  Transações, Alocação, Estratégia, Dividendos, Preço Teto, Metas. Recolhível
+  pelo botão redondo sobre a borda direita, na altura do logo: 256px ↔ 72px.
+  Recolhido mostra só "PV", os ícones (nome no `title`/`aria-label`) e o rodapé
+  empilhado. A escolha fica em `localStorage` (`primevest-sidebar-collapsed`),
+  como o tema.
+- **CORS** (`CorsConfig`): `localhost` e `127.0.0.1`, portas 5173 e 3000. Para
+  o navegador são origens diferentes; até 23/09/2026 só `localhost` valia, e
+  abrir a tela por `127.0.0.1` fazia o login falhar com 403 — exibido como
+  "Email ou senha inválidos".
 - **Background**: `#000000` (claro: `#f5f5f0`) · **Surfaces**: `#111111` (claro: `#ffffff`)
 - **Accent/Gold**: `#c9a84c` · **Success**: `#38a169` · **Danger**: `#e53e3e`
 - **Fonte**: Inter · **Idioma da UI**: Português (Brasil)

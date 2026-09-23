@@ -1,154 +1,226 @@
+import { useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Briefcase, 
-  PieChart, 
-  Target, 
-  ArrowLeftRight, 
-  TrendingDown, 
-  DollarSign, 
+import {
+  LayoutDashboard,
+  Briefcase,
+  PieChart,
+  Target,
+  ArrowLeftRight,
+  TrendingDown,
+  DollarSign,
   Flag,
   LogOut,
   Settings,
   Sun,
-  Moon
+  Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
+// Ordem definida em 23/09/2026: o fluxo de uso (ver, lançar, analisar,
+// planejar) e depois as consultas de apoio.
 const navItems = [
   { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
   { name: 'Carteira', path: '/portfolio', icon: Briefcase },
+  { name: 'Transações', path: '/transactions', icon: ArrowLeftRight },
   { name: 'Alocação', path: '/allocation', icon: PieChart },
   { name: 'Estratégia', path: '/strategy', icon: Target },
-  { name: 'Transações', path: '/transactions', icon: ArrowLeftRight },
-  { name: 'Preço Teto', path: '/ceiling-prices', icon: TrendingDown },
   { name: 'Dividendos', path: '/dividends', icon: DollarSign },
+  { name: 'Preço Teto', path: '/ceiling-prices', icon: TrendingDown },
   { name: 'Metas', path: '/goals', icon: Flag },
 ];
+
+/**
+ * Menu recolhido ou expandido, lembrado entre recargas como o tema.
+ *
+ * O localStorage pode falhar (aba anônima, armazenamento bloqueado): aí o menu
+ * só não lembra a escolha, e abre expandido.
+ */
+const COLLAPSED_KEY = 'primevest-sidebar-collapsed';
+
+const readCollapsed = () => {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+};
 
 export const Sidebar = () => {
   const { user, logout } = useAuth();
   const { toggleTheme, isDark } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
+  const [collapsed, setCollapsed] = useState(readCollapsed);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLLAPSED_KEY, String(collapsed));
+    } catch {
+      // Sem armazenamento a escolha vale só para esta visita.
+    }
+  }, [collapsed]);
+
+  const userName = user?.name || 'Guilherme';
+
+  const footerButton = clsx(
+    'p-1.5 rounded-md transition-colors',
+    isDark
+      ? 'text-gray-400 hover:text-white hover:bg-white/5'
+      : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100'
+  );
 
   return (
     <div className={clsx(
-      "w-64 flex flex-col shrink-0 h-full border-r transition-colors duration-300",
-      isDark 
-        ? "bg-[#111111] border-white/10" 
-        : "bg-white border-gray-200"
+      'relative flex flex-col shrink-0 h-full border-r transition-[width,background-color,border-color] duration-300',
+      collapsed ? 'w-[72px]' : 'w-64',
+      isDark
+        ? 'bg-[#111111] border-white/10'
+        : 'bg-white border-gray-200'
     )}>
-      {/* Logo */}
+      {/* Recolher/expandir: sobre a borda direita, na altura do logo. Fica no
+          mesmo lugar nos dois estados, sem disputar os 72px com o "PV". */}
+      <button
+        type="button"
+        onClick={() => setCollapsed(c => !c)}
+        aria-expanded={!collapsed}
+        aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+        title={collapsed ? 'Expandir menu' : 'Recolher menu'}
+        className={clsx(
+          'absolute -right-3 top-[34px] z-20 h-6 w-6 rounded-full border flex items-center justify-center shadow-sm transition-colors',
+          isDark
+            ? 'bg-[#111111] border-white/15 text-gray-400 hover:text-accent hover:border-accent/50'
+            : 'bg-white border-gray-300 text-gray-500 hover:text-accent hover:border-accent/50'
+        )}
+      >
+        {collapsed ? <PanelLeftOpen className="h-3.5 w-3.5" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
+      </button>
+
+      {/* Logo: altura fixa, para os itens não pularem quando o slogan some. */}
       <div className={clsx(
-        "flex flex-col items-center justify-center px-4 py-5 border-b transition-colors duration-300",
-        isDark ? "border-white/10" : "border-gray-200"
+        'h-[92px] flex flex-col items-center justify-center px-4 border-b overflow-hidden transition-colors duration-300',
+        isDark ? 'border-white/10' : 'border-gray-200'
       )}>
-        <h1 className={clsx("text-2xl font-bold tracking-tight", isDark ? "text-white" : "text-gray-900")}>
-          Prime<span className="text-accent">Vest</span>
-        </h1>
-        <p className={clsx("text-[10px] uppercase tracking-[0.2em] mt-1", isDark ? "text-gray-500" : "text-gray-400")}>
-          Disciplina leva à liberdade
-        </p>
+        {collapsed ? (
+          <h1
+            className={clsx('text-2xl font-bold tracking-tight', isDark ? 'text-white' : 'text-gray-900')}
+            title="PrimeVest"
+          >
+            P<span className="text-accent">V</span>
+          </h1>
+        ) : (
+          <>
+            <h1 className={clsx('text-2xl font-bold tracking-tight whitespace-nowrap', isDark ? 'text-white' : 'text-gray-900')}>
+              Prime<span className="text-accent">Vest</span>
+            </h1>
+            <p className={clsx('text-[10px] uppercase tracking-[0.2em] mt-1 whitespace-nowrap', isDark ? 'text-gray-500' : 'text-gray-400')}>
+              Disciplina leva à liberdade
+            </p>
+          </>
+        )}
       </div>
 
-      <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+      <nav className={clsx('flex-1 py-6 space-y-1 overflow-y-auto overflow-x-hidden', collapsed ? 'px-3' : 'px-4')}>
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname.startsWith(item.path);
-          
+
           return (
             <NavLink
               key={item.path}
               to={item.path}
+              // Recolhido o nome não aparece: vira dica no mouse e rótulo para
+              // leitor de tela.
+              title={collapsed ? item.name : undefined}
+              aria-label={collapsed ? item.name : undefined}
               className={twMerge(
                 clsx(
-                  "group flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors",
+                  'group flex items-center py-2.5 text-sm font-medium rounded-md transition-colors whitespace-nowrap overflow-hidden',
+                  collapsed ? 'justify-center px-0' : 'px-3',
                   isActive
-                    ? isDark 
-                      ? "bg-white/10 text-accent" 
-                      : "bg-accent/10 text-accent"
+                    ? isDark
+                      ? 'bg-white/10 text-accent'
+                      : 'bg-accent/10 text-accent'
                     : isDark
-                      ? "text-gray-300 hover:bg-white/5 hover:text-white"
-                      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                      ? 'text-gray-300 hover:bg-white/5 hover:text-white'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                 )
               )}
             >
-              <Icon 
+              <Icon
                 className={clsx(
-                  "mr-3 flex-shrink-0 h-5 w-5", 
-                  isActive 
-                    ? "text-accent" 
-                    : isDark 
-                      ? "text-gray-400 group-hover:text-gray-300" 
-                      : "text-gray-400 group-hover:text-gray-600"
-                )} 
+                  'flex-shrink-0 h-5 w-5',
+                  !collapsed && 'mr-3',
+                  isActive
+                    ? 'text-accent'
+                    : isDark
+                      ? 'text-gray-400 group-hover:text-gray-300'
+                      : 'text-gray-400 group-hover:text-gray-600'
+                )}
               />
-              {item.name}
+              {!collapsed && item.name}
             </NavLink>
           );
         })}
       </nav>
 
       <div className={clsx(
-        "p-4 border-t transition-colors duration-300",
-        isDark ? "border-white/10" : "border-gray-200"
+        'p-4 border-t overflow-hidden transition-colors duration-300',
+        isDark ? 'border-white/10' : 'border-gray-200'
       )}>
-        <div className="flex items-center">
-          <div className="h-8 w-8 rounded-full bg-accent/20 flex items-center justify-center border border-accent/30 text-accent font-semibold text-sm">
+        <div className={clsx('flex items-center', collapsed && 'flex-col gap-2')}>
+          <div
+            className="h-8 w-8 shrink-0 rounded-full bg-accent/20 flex items-center justify-center border border-accent/30 text-accent font-semibold text-sm"
+            title={collapsed ? userName : undefined}
+          >
             {user?.name?.[0] || 'G'}
           </div>
-          <div className="ml-3 flex-1 min-w-0">
-            <p className={clsx(
-              "text-sm font-medium truncate",
-              isDark ? "text-white" : "text-gray-900"
-            )}>
-              {user?.name || 'Guilherme'}
-            </p>
-          </div>
-          
+          {!collapsed && (
+            <div className="ml-3 flex-1 min-w-0">
+              <p className={clsx(
+                'text-sm font-medium truncate',
+                isDark ? 'text-white' : 'text-gray-900'
+              )}>
+                {userName}
+              </p>
+            </div>
+          )}
+
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
             className={clsx(
-              "p-1.5 rounded-md transition-colors",
-              isDark 
-                ? "text-gray-400 hover:text-yellow-400 hover:bg-white/5" 
-                : "text-gray-400 hover:text-blue-600 hover:bg-gray-100"
+              'p-1.5 rounded-md transition-colors',
+              isDark
+                ? 'text-gray-400 hover:text-yellow-400 hover:bg-white/5'
+                : 'text-gray-400 hover:text-blue-600 hover:bg-gray-100'
             )}
             title={isDark ? 'Modo Claro' : 'Modo Escuro'}
+            aria-label={isDark ? 'Modo Claro' : 'Modo Escuro'}
           >
             {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
 
           {/* Settings */}
-          <button 
+          <button
             onClick={() => navigate('/settings')}
-            className={clsx(
-              "p-1.5 rounded-md transition-colors",
-              location.pathname === '/settings' ? "text-accent" : "",
-              isDark 
-                ? "text-gray-400 hover:text-white hover:bg-white/5" 
-                : "text-gray-400 hover:text-gray-900 hover:bg-gray-100"
-            )}
+            className={twMerge(footerButton, location.pathname === '/settings' && 'text-accent')}
             title="Configurações"
+            aria-label="Configurações"
           >
             <Settings className="h-4 w-4" />
           </button>
 
           {/* Logout */}
-          <button 
+          <button
             onClick={logout}
-            className={clsx(
-              "p-1.5 rounded-md transition-colors",
-              isDark 
-                ? "text-gray-400 hover:text-white hover:bg-white/5" 
-                : "text-gray-400 hover:text-gray-900 hover:bg-gray-100"
-            )}
+            className={footerButton}
             title="Sair"
+            aria-label="Sair"
           >
             <LogOut className="h-4 w-4" />
           </button>
