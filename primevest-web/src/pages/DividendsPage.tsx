@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/Card';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Pagination } from '@/components/ui/Pagination';
 import { formatCurrency, formatDate } from '@/utils/format';
-import { DividendType, DividendSummary } from '@/types';
+import { DIVIDEND_TYPE_LABELS, DividendSummary, DividendType } from '@/types';
 import { DollarSign } from 'lucide-react';
 import { useSortable } from '@/hooks/useSortable';
 
@@ -91,7 +91,7 @@ export const DividendsPage = () => {
                   <td className="px-4 py-3 text-white font-medium">{row.ticker}</td>
                   <td className="px-4 py-3">
                     <span className="text-gray-300">
-                      {row.type === DividendType.DIVIDENDO ? 'Dividendo' : row.type === DividendType.JCP ? 'JCP' : 'Rendimento'}
+                      {DIVIDEND_TYPE_LABELS[row.type as DividendType] ?? row.type}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">{formatCurrency(row.amountPerShare)}</td>

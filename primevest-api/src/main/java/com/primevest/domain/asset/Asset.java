@@ -72,4 +72,29 @@ public class Asset {
     @Builder.Default
     private boolean active = true;
 
+    /**
+     * Id do ativo no provedor de cotacao, quando difere do ticker. Hoje so
+     * cripto: o ticker e BTC, a CoinGecko entende {@code bitcoin} (V19).
+     */
+    @Column(name = "price_source_ref")
+    private String priceSourceRef;
+
+    /** ISIN do papel. A B3 devolve proventos por ISIN; preenchido pela rotina de proventos (V20). */
+    private String isin;
+
+    /** CNPJ do fundo (so FII): o FNET busca o historico de proventos por ele (V20). */
+    private String cnpj;
+
+    /** Quando o historico longo de proventos foi carregado. Nulo = nunca (V20). */
+    @Column(name = "cash_history_loaded_at")
+    private LocalDateTime cashHistoryLoadedAt;
+
+    /** Arquivo do logo em data/logos. Nulo = sem logo (V21). */
+    @Column(name = "logo_path")
+    private String logoPath;
+
+    /** Ultima procura do logo, achando ou nao. Nulo = nunca procurado (V21). */
+    @Column(name = "logo_checked_at")
+    private LocalDateTime logoCheckedAt;
+
 }

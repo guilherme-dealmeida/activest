@@ -5,7 +5,8 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 18/09/2026. A conferência arquivo a arquivo contra o
+> **Última revisão**: 24/09/2026 (integração BRAPI/B3 — ver `PLANO_BRAPI.md`).
+> Antes: 18/09/2026. A conferência arquivo a arquivo contra o
 > código é de 15/09/2026; o que entrou depois está datado no texto.
 > O que este documento afirma foi verificado; o que está pendente está em
 > `PENDENCIAS.txt`, na raiz do repositório.
@@ -204,10 +205,21 @@ $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";"
 
 ### Integrações externas
 
+Plano, decisões e achados da integração: **`PLANO_BRAPI.md`** (executado em
+24/09/2026). Rotinas (fuso de São Paulo, horários em `primevest.*` no
+`application.yml`): fechamento B3 19:00 seg–sex e cripto 19:00 todo dia
+(`ClosingPriceScheduler`, com recuperação na subida); proventos 20:00
+(`ProventosScheduler`, e sob demanda depois de cada transação); conferência do
+catálogo segunda 07:00 (`CatalogAuditScheduler`, só loga); logos dia 1 às 06:00
+e ativos novos na subida (`LogoScheduler`, arquivos em `data/logos/`). Disparo
+manual para admin: `POST /api/v1/admin/{closing|proventos|catalog-audit|logos}`.
+
 | API | Uso | Config |
 |-----|-----|--------|
-| **BrAPI** | Cotações da B3 (ações, FIIs, ETFs, BDRs) | `brapi.base-url`, `BRAPI_TOKEN` |
-| **CoinGecko** | Cotações de criptomoedas | `coingecko.base-url` |
+| **BrAPI** (plano gratuito) | Fechamento diário da B3 (OHLCV) dos ativos em carteira, lista oficial de tickers e renomes (conferência do catálogo), logos | `brapi.base-url`, `BRAPI_TOKEN` (no `.env`, header `Authorization: Bearer`) |
+| **Site da B3** (sem token, não documentado) | Proventos (~12 meses), desdobramentos/grupamentos/bonificações, ticker↔ISIN, histórico longo de empresa | `b3.base-url` |
+| **FNET** + **CVM dados abertos** | Proventos de FII além de 12 meses (avisos estruturados, por CNPJ; ISIN→CNPJ pelo informe mensal da CVM) | `fnet.base-url`, `cvm.fii-registry-url` |
+| **CoinGecko** | Preço de cripto (id em `assets.price_source_ref`) e logos das moedas | `coingecko.base-url` |
 | **Google Identity Services** | Login social (fluxo de ID token, sem client secret) | `VITE_GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_ID` |
 
 ---
@@ -250,16 +262,18 @@ primevest/
 │       │   ├── exception/       # BusinessException, ResourceNotFoundException,
 │       │   │                    # GlobalExceptionHandler, ErrorResponse
 │       │   ├── integration/
-│       │   │   ├── brapi/       # BrApiClient + DTOs
-│       │   │   └── coingecko/   # CoinGeckoClient + DTO
-│       │   └── scheduler/       # PriceUpdateScheduler, DividendSyncScheduler
+│       │   │   ├── b3/          # B3Client, FnetClient, CvmFundRegistry (proventos)
+│       │   │   ├── brapi/       # BrApiClient v2 + BrApiException + records
+│       │   │   └── coingecko/   # CoinGeckoClient (por price_source_ref)
+│       │   └── scheduler/       # ClosingPriceScheduler, ProventosScheduler,
+│       │                        # CatalogAuditScheduler, LogoScheduler
 │       ├── resources/
 │       │   ├── application.yml          # base
 │       │   ├── application-dev.yml      # local (Flyway OFF, ddl-auto none)
 │       │   ├── application-docker.yml   # containers (Flyway ON, ddl-auto validate)
 │       │   ├── application-prod.yml
-│       │   └── db/migration/            # V1 (schema) .. V12
-│       └── test/                        # 234 testes: support/, domain/, functional/
+│       │   └── db/migration/            # V1 (schema) .. V22
+│       └── test/                        # 319 testes: support/, domain/, integration/, functional/
 │
 └── primevest-web/
     ├── Dockerfile               # alvos: dev (vite) e runtime (nginx)
@@ -345,7 +359,7 @@ coluna.
 > usuário; `getName()` é para lógica interna. `AssetCategory.getDisplayName()`
 > encapsula o fallback description → name.
 
-### Flyway — V1 a V12
+### Flyway — V1 a V22
 
 O Flyway roda do zero no perfil `docker`. No perfil `dev` fica desligado, porque
 o banco local é gerenciado à mão.
@@ -359,7 +373,8 @@ Nada disso interessa a um banco novo, e cada passo intermediário era mais uma
 coisa que podia falhar numa subida limpa.
 
 O reset deixou **9 arquivos, 156 KB contra 340 KB**. Desde então entraram
-V10–V12 (20/09/2026), e o banco fica na **versão 12**.
+V10–V12 (20/09/2026) e V13–V22 (24/09/2026, integração BRAPI/B3), e o banco
+fica na **versão 22**.
 
 | Arquivo | Conteúdo |
 |---------|----------|
@@ -372,6 +387,15 @@ V10–V12 (20/09/2026), e o banco fica na **versão 12**.
 | V10 | Derruba `strategies.include_reservation`, com guarda (`RAISE EXCEPTION` se houver `true`) |
 | V11 | `strategy_reservations` |
 | V12 | Estratégia de reserva do usuário de desenvolvimento (percentual, 0,00%) |
+| V13 | Nomes das ações com acento, da BRAPI (98 linhas) |
+| V14 | 9 ativos inativos (deslistados e fundos fiscais), exceto com posição aberta |
+| V15 | 14 ações e 9 FIIs novos; INHF11 vira FII Híbrido |
+| V16–V17 | 12 categorias e 219 ETFs, com a cotação e o OHLCV de 23/09/2026 |
+| V18 | 22 categorias e 892 BDRs, com a cotação e o OHLCV de 23/09/2026 |
+| V19 | `assets.price_source_ref`, 15 categorias e 227 criptomoedas (sem cotação) |
+| V20 | Proventos em duas camadas: `asset_cash_events` e `asset_stock_events` (catálogo) + `dividends.cash_event_id/shares_on_date/origin`; `assets.isin/cnpj/cash_history_loaded_at` |
+| V21 | `assets.logo_path` e `logo_checked_at` |
+| V22 | `asset_cash_events.seq`: parcelas iguais do mesmo provento |
 
 **Como o reset foi verificado** — vale registrar, porque é o método a repetir se
 houver um terceiro. Construiu-se um banco `db_ref` aplicando as 30 migrations
@@ -758,7 +782,7 @@ Valor atual = custo + `appreciation`.
 
 - **Com cotação** (Ações, FIIs, ETFs, BDRs, Cripto): `AppreciationUpdater` grava
   cotas × cotação − custo (2 casas) quando um dos lados muda — ao fim de cada
-  rodada do `PriceUpdateScheduler`, em `AssetService.updateAssetPrice` e ao
+  rodada do fechamento (`ClosingPriceService`), em `AssetService.updateAssetPrice` e ao
   criar, editar ou excluir transação. Na subida da API (`ApplicationReadyEvent`)
   todas as posições com cotação são regravadas.
 - **Sem cotação** (Renda Fixa, Tesouro, tipos MANUAL): nada derivado de
@@ -936,15 +960,20 @@ consequências:
   a razão de não existir.
 
 **`portfolio_assets.updated_at` se move sozinha.** `AppreciationUpdater` grava
-`appreciation` a cada rodada do `PriceUpdateScheduler` e na subida da API, e
+`appreciation` a cada rodada do fechamento e na subida da API, e
 isso conta como alteração da linha. A coluna responde "quando esta linha mudou",
 não "quando o usuário mexeu nesta posição" — para a segunda pergunta, o que vale
 é `transactions.updated_at`.
 
 ### Testes — existem desde 22/09/2026
 
-`src/test` deixou de estar vazio. **234 testes**, verdes em `mvn clean verify`
-(~52s): 176 rapidos (`*Test`, Surefire) e 58 funcionais (`*IT`, Failsafe).
+`src/test` deixou de estar vazio. **319 testes** em 24/09/2026, verdes em
+`mvn clean verify` (~75s): 240 rapidos (`*Test`, Surefire) e 79 funcionais
+(`*IT`, Failsafe). A integração BRAPI/B3 trouxe `BrApiClientTest` (ExchangeFunction
+falsa), `CorporateActionApplierTest`, `PositionCalculatorEventosTest`,
+`DividendRecalculatorTest`, `B3RespostasReaisTest` (respostas reais da B3 e do
+FNET em `src/test/resources/b3`) e os funcionais `FechamentoIT`, `ProventosIT` e
+`EventosSocietariosIT`.
 
 | Camada | O que cobre |
 |--------|-------------|

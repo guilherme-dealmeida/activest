@@ -53,5 +53,10 @@ public record PortfolioAssetDetailDTO(
     BigDecimal valorization,
     BigDecimal returnPercentage,
     boolean isReservation,
-    boolean isSettled
+    boolean isSettled,
+    /**
+     * Logo guardado em data/logos (F7). Nulo nos tipos sem logo (renda fixa,
+     * Tesouro, fundos): a tela nao desenha nada. false = mostra as iniciais.
+     */
+    Boolean hasLogo
 ) {}

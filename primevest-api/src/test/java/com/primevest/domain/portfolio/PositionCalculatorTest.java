@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class PositionCalculatorTest {
 
-    private final PositionCalculator calculator = new PositionCalculator(null);
+    private final PositionCalculator calculator = new PositionCalculator(null, null, null);
 
     private static Transaction tx(TransactionType tipo, String data, String cotas, String preco, int ordem) {
         BigDecimal qtd = cotas == null ? null : new BigDecimal(cotas);

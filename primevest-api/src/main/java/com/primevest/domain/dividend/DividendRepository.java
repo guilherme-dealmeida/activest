@@ -6,6 +6,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -52,4 +53,26 @@ public interface DividendRepository extends JpaRepository<Dividend, Long> {
         GROUP BY pa.id
         """)
     List<PositionDividendTotal> sumTotalAmountByPosition(@Param("portfolioId") UUID portfolioId);
+
+    /** Proventos da posicao de certos tipos (devolucoes de capital, no calculo da posicao). */
+    List<Dividend> findByPortfolioAssetIdAndTypeIn(UUID portfolioAssetId, Collection<DividendType> types);
+
+    /** Proventos de certos tipos de todas as posicoes de uma carteira, numa consulta so. */
+    @Query("""
+        SELECT d FROM Dividend d
+        JOIN FETCH d.portfolioAsset pa
+        WHERE pa.portfolio.id = :portfolioId
+          AND d.type IN :types
+        """)
+    List<Dividend> findByPortfolioIdAndTypeIn(@Param("portfolioId") UUID portfolioId,
+                                              @Param("types") Collection<DividendType> types);
+
+    /** Proventos AUTO da posicao, com o evento do catalogo que os gerou. */
+    @Query("""
+        SELECT d FROM Dividend d
+        LEFT JOIN FETCH d.cashEvent
+        WHERE d.portfolioAsset.id = :portfolioAssetId
+          AND d.origin = com.primevest.domain.dividend.DividendOrigin.AUTO
+        """)
+    List<Dividend> findAutoByPortfolioAssetId(@Param("portfolioAssetId") UUID portfolioAssetId);
 }

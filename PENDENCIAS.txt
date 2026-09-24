@@ -1,7 +1,9 @@
 PRIMEVEST — PENDENCIAS EM ABERTO
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 18/09/2026 — itens 9.1 a 9.8, a secao 12 (lint) e o
+Ultima atualizacao: 24/09/2026 — execucao do PLANO_BRAPI.md: baixados 3.2,
+6.1, 6.2, 6.4, 11.3 e 11.4; 11.1 atualizado. Antes, no mesmo dia: secao 13
+(central de avisos, adiada do PLANO_BRAPI.md). Antes: 18/09/2026 — itens 9.1 a 9.8, a secao 12 (lint) e o
 segundo reset das migrations.
 
 
@@ -79,7 +81,8 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
 
 
 ================================================================================
-3. PROVENTOS — DividendSyncScheduler
+3. PROVENTOS — DividendSyncScheduler (substituido em 24/09/2026 pela rotina de
+   proventos da B3: ProventosSyncService + ProventosScheduler — PLANO_BRAPI F5)
 ================================================================================
 
   3.1  Linha 129: o total do provento e calculado com pa.getTotalShares(), a
@@ -90,9 +93,9 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
        — a mesma logica cronologica de PositionCalculator.
        (Ja feito: DividendRecalculator.sharesOn usa PositionCalculator.sharesOn.)
 
-  3.2  Confirmar o mapeamento do JSON da BrAPI. getLastDatePrior esta sendo lido
-       como data-com; conferir contra a resposta real da API se esse campo e a
-       data-com mesmo ou a data de anuncio.
+  3.2  FEITO em 24/09/2026 — lastDatePrior E a data-com (conferido na resposta
+       real; a data ex e o pregao seguinte). A fonte deixou de ser a BrAPI
+       (dividendos la sao pagos): e o site da B3, que usa o mesmo campo.
 
   3.3  Provento nao tem dono proprio. A tabela dividends nao tem user_id: o
        dono e alcancado pela posicao (portfolio_asset_id), e essa coluna e
@@ -157,25 +160,23 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
 6. CATALOGO DE ATIVOS
 ================================================================================
 
-  6.1  ETFs. Cerca de 245 na B3. Voce apagou o BRAX dizendo que o cadastro viria
-       depois. O tipo ETF ja existe em asset_types com price_source BRAPI;
-       faltam os ativos e as categorias.
+  6.1  FEITO em 24/09/2026 — V16 (12 categorias) e V17 (219 ETFs, com a cotacao
+       de 23/09/2026). BRAX ficou de fora de proposito (cadastro sujo na BRAPI).
+       Junto entraram os BDRs (V18, 892) e as criptomoedas (V19, 227).
 
-  6.2  Nomes de acao sem acento. Os 782 estao assim desde o seed original:
-       AALR3 e "ALLIANA SADE E PARTICIPAES S.A." em vez de "ALIANCA SAUDE E
-       PARTICIPACOES S.A.". Nenhum nome de acao tem acento; 136 nomes de FII
-       tem. A fonte das acoes perdeu os acentos na importacao.
-       Nao corrigi junto com o reset das migrations porque seriam 782 grafias
-       adivinhadas. Precisa da lista certa, de uma fonte com encoding correto.
+  6.2  FEITO em 24/09/2026 — V13 troca os nomes pelos da BRAPI (98 linhas; o
+       resto ja batia ou a BRAPI devolve o proprio ticker). AALR3 e
+       "ALLIANÇA SAÚDE E PARTICIPAÇÕES S.A.".
 
   6.3  O catalogo e global — assets nao tem user_id, de proposito: um ativo e o
        mesmo para todo mundo. Continua valendo. Mas quando entrar cadastro de
        ativo pelo usuario, essa decisao precisa ser revisitada, porque foi
        exatamente por essa porta que "CDB BTG 2027" virava ativo global.
 
-  6.4  Coluna active em assets. Voce pediu para manter por enquanto. Ela e lida
-       pelo PriceUpdateScheduler (findByActiveTrue), entao nao e coluna morta —
-       mas nada no sistema a escreve. Decidir quem a desliga.
+  6.4  FEITO em 24/09/2026 — quem desliga e migration, pelo criterio da secao
+       2.1 do PLANO_BRAPI (fora da lista oficial E cotacao 404): V14 desligou 9.
+       A conferencia semanal do catalogo (segunda 07:00) aponta no log os novos
+       candidatos; a decisao continua manual. Inativo sai da busca.
 
 
 ================================================================================
@@ -381,10 +382,10 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
 11. HISTORICO DE PRECO — asset_price_history
 ================================================================================
 
-  11.1 A tabela so escreve, nunca le. PriceUpdateScheduler.saveDailyPriceHistory()
-       roda as 18:30 de segunda a sexta, logo apos o update de precos da B3, e
-       insere uma linha por ativo ativo com cotacao. Ninguem consome essas
-       linhas. Sao ~1.264 por pregao.
+  11.1 A tabela so escreve, nunca le. ATUALIZADO em 24/09/2026: quem grava
+       agora e a rotina de fechamento (ClosingPriceService, 19:00), so para os
+       ativos EM CARTEIRA — nao mais o catalogo inteiro. Carga inicial de 3
+       meses por ativo novo em carteira. A leitura continua sem uso (11.2, 11.6).
 
   11.2 A leitura e um stub. AssetPriceHistoryService.getHistory() retorna
        List.of() — corpo vazio. E GET /api/v1/assets/{ticker}/history no
@@ -394,13 +395,11 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
        O frontend tambem nao chama: nao ha nenhuma referencia a history em
        primevest-web/src.
 
-  11.3 So close_price e gravado. As colunas open_price, high_price, low_price e
-       volume existem na entidade e ficam sempre nulas, porque a BrAPI e
-       consultada so pelo preco corrente. Se o grafico for de candle, a mudanca
-       comeca na chamada a BrAPI, nao no endpoint.
+  11.3 FEITO em 24/09/2026 — o fechamento usa o historico diario da BRAPI
+       (range=5d) e grava abertura, maxima, minima, fechamento e volume.
 
-  11.4 O scheduler de cripto (a cada 30 min) nao grava historico nenhum. So o
-       fechamento da B3 grava.
+  11.4 FEITO em 24/09/2026 — cripto uma vez ao dia, 19:00, todos os dias,
+       gravando o fechamento do dia (a rodada de 30 em 30 minutos saiu).
 
   11.5 Dos dois metodos do AssetPriceHistoryRepository, so
        findByAssetIdAndReferenceDate e usado — pelo proprio scheduler, para nao
@@ -459,6 +458,51 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
 
   12.4 Nao ha lint no backend. Nenhum Checkstyle, SpotBugs ou formatador no
        pom.xml. Decidir se vale, e se vale, antes ou depois do item 8.
+
+
+================================================================================
+13. CENTRAL DE AVISOS (adiada do PLANO_BRAPI.md em 24/09/2026)
+================================================================================
+
+Hoje o unico aviso do sistema e o toast (canto superior direito, some em 4-8s).
+Serve para responder a um clique, nao para algo que uma rotina da madrugada
+descobriu. O PLANO_BRAPI.md (secao F8) desenhou uma central de avisos; ficou
+para depois. Enquanto ela nao existir, as rotinas so escrevem no log.
+
+  13.1 Central de avisos
+       - Tabela notices: user_id (nulo = aviso do sistema), kind, severity
+         (INFO/ATENCAO), title, message, ref_type + ref_id (ativo, posicao ou
+         evento), status (ABERTO/RESOLVIDO/DISPENSADO), created_at,
+         resolved_at. Um aviso aberto por kind + referencia: a rotina nao
+         repete.
+       - API: GET /api/v1/notices?status=ABERTO e PATCH /api/v1/notices/{id}.
+       - Tela: sino no Header com o numero de abertos; painel lateral com a
+         lista; cada aviso com a acao que o resolve ("Ver ativo",
+         "Dispensar", "Informar custo").
+       - Quem vai usar: conferencia semanal do catalogo (ticker novo, sumido,
+         renomeado — PLANO_BRAPI B23), bonificacao sem custo (13.2), rotina
+         de proventos (rotulo desconhecido da B3, fonte fora do ar).
+
+  13.2 Bonificacao sem custo informado pela B3
+       DECIDIDO (24/09/2026): as acoes novas entram na hora com custo ZERO
+       PROVISORIO, para a quantidade ja ficar certa. Isso vale desde a F6 do
+       PLANO_BRAPI, com ou sem a central.
+       O que depende da central (13.1):
+       - aviso "PETR4 - bonificacao de 10% em 12/03/2027 sem custo atribuido.
+         Informe o valor por acao (esta no fato relevante da empresa)";
+       - icone de atencao ao lado do preco medio da posicao na Carteira, com o
+         mesmo texto no balao (i);
+       - "Informar custo": um campo; o valor vai para stock_event_costs
+         (posicao, evento, custo por acao) — dado digitado pelo usuario nao
+         vai para o catalogo global —, o preco medio e recalculado e o aviso
+         fecha sozinho.
+       Conferido em 24/09/2026 (A12): o campo remarks da B3 veio vazio em
+       todas as bonificacoes reais vistas (MGLU 2025, ITSA 2025, BBAS 1996) —
+       o custo atribuido nao vem da B3; asset_stock_events.assigned_cost fica
+       nulo ate a central existir.
+       FEITO em 24/09/2026: custo zero provisorio no calculo
+       (CorporateActionApplier) e WARN no log quando a rotina grava uma
+       bonificacao que pega alguma posicao.
 
 
 ================================================================================

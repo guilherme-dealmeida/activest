@@ -54,6 +54,8 @@ public class DividendService {
         byType.put("DIVIDENDO", BigDecimal.ZERO);
         byType.put("JCP", BigDecimal.ZERO);
         byType.put("RENDIMENTO", BigDecimal.ZERO);
+        byType.put("AMORTIZACAO", BigDecimal.ZERO);
+        byType.put("RESTITUICAO_CAPITAL", BigDecimal.ZERO);
         for (Dividend d : allDividends) {
             String typeName = d.getType().name();
             BigDecimal amount = d.getTotalAmount() != null ? d.getTotalAmount() : BigDecimal.ZERO;

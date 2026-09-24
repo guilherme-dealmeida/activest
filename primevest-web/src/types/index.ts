@@ -119,6 +119,11 @@ export interface PortfolioAssetDetail {
   isReservation: boolean;
   /** Posição encerrada: renda fixa liquidada ou título sem cotas. */
   isSettled: boolean;
+  /**
+   * Logo guardado pela rotina de logos (GET /assets/{ticker}/logo). null nos
+   * tipos sem logo (renda fixa, Tesouro, fundos); false mostra as iniciais.
+   */
+  hasLogo: boolean | null;
 }
 
 /** Resposta de PATCH /portfolio/assets/{id}/reservation. */
@@ -356,8 +361,20 @@ export interface CeilingPriceCreate {
 export enum DividendType {
   DIVIDENDO = 'DIVIDENDO',
   JCP = 'JCP',
-  RENDIMENTO = 'RENDIMENTO'
+  RENDIMENTO = 'RENDIMENTO',
+  // Devolvem capital: além de provento, reduzem o custo da posição (B13).
+  AMORTIZACAO = 'AMORTIZACAO',
+  RESTITUICAO_CAPITAL = 'RESTITUICAO_CAPITAL'
 }
+
+/** Rótulo de cada tipo de provento para a tela. */
+export const DIVIDEND_TYPE_LABELS: Record<DividendType, string> = {
+  [DividendType.DIVIDENDO]: 'Dividendo',
+  [DividendType.JCP]: 'JCP',
+  [DividendType.RENDIMENTO]: 'Rendimento',
+  [DividendType.AMORTIZACAO]: 'Amortização',
+  [DividendType.RESTITUICAO_CAPITAL]: 'Restituição de capital',
+};
 
 export interface DividendResponse {
   id: number;

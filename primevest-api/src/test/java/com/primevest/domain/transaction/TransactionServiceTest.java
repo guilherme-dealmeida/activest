@@ -72,6 +72,7 @@ class TransactionServiceTest {
     @Mock private AppreciationUpdater appreciationUpdater;
     @Mock private FixedIncomeSettlement fixedIncomeSettlement;
     @Mock private TreasuryAllocator treasuryAllocator;
+    @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     /** O guard entra de verdade: as regras A e B sao dele, e ja tem teste proprio. */
     private final PositionGuard positionGuard = new PositionGuard();
@@ -87,7 +88,7 @@ class TransactionServiceTest {
     void cenario() {
         service = new TransactionService(transactionRepository, portfolioRepository, portfolioAssetRepository,
             assetRepository, fixedIncomeNoteRepository, userRepository, dividendRecalculator, positionCalculator,
-            appreciationUpdater, positionGuard, fixedIncomeSettlement, treasuryAllocator);
+            appreciationUpdater, positionGuard, fixedIncomeSettlement, treasuryAllocator, eventPublisher);
 
         userId = UUID.randomUUID();
         carteira = Portfolio.builder().name("Minha Carteira").build();

@@ -49,6 +49,22 @@ public class Dividend {
     @Column(nullable = false)
     private DividendType type;
 
+    /**
+     * Evento do catalogo que gerou este provento. Nulo no MANUAL (V20).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cash_event_id")
+    private AssetCashEvent cashEvent;
+
+    /** Cotas da posicao na data-com, gravadas para conferencia (V20). */
+    @Column(name = "shares_on_date", precision = 18, scale = 8)
+    private BigDecimal sharesOnDate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private DividendOrigin origin = DividendOrigin.MANUAL;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

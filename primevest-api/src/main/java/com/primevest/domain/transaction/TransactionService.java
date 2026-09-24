@@ -17,6 +17,8 @@ import com.primevest.domain.portfolio.PortfolioAssetRepository;
 import com.primevest.domain.portfolio.PortfolioRepository;
 import com.primevest.domain.portfolio.Position;
 import com.primevest.domain.portfolio.PositionCalculator;
+import com.primevest.domain.portfolio.PositionEvents;
+import com.primevest.domain.corporateaction.StockEventStep;
 import com.primevest.domain.portfolio.PositionGuard;
 import com.primevest.domain.transaction.TreasuryAllocator.SaleIntent;
 import com.primevest.domain.transaction.dto.TransactionCreateDTO;
@@ -25,6 +27,7 @@ import com.primevest.domain.transaction.dto.TransactionResponseDTO;
 import com.primevest.exception.BusinessException;
 import com.primevest.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -79,6 +82,8 @@ public class TransactionService {
     private final PositionGuard positionGuard;
     private final FixedIncomeSettlement fixedIncomeSettlement;
     private final TreasuryAllocator treasuryAllocator;
+    /** Avisa quem depende da posicao (proventos sob demanda) depois do commit. */
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * Gets user transactions.
@@ -536,20 +541,31 @@ public class TransactionService {
         boolean valuedByTotal = isValuedByTotal(pa.getAsset());
         String label = label(pa);
 
+        List<StockEventStep> stockEvents = valuedByTotal ? List.of() : positionCalculator.stockEventsOf(pa.getAsset());
         if (valuedByTotal) {
             fixedIncomeSettlement.recompute(pa, chronological, vendaLancada);
         } else {
-            positionGuard.validateShareLedger(chronological, label);
-            Position porCota = positionCalculator.calculate(false, chronological);
-            pa.setSettled(!chronological.isEmpty() && porCota.shares().signum() <= 0);
+            // Regra B com os desdobramentos, grupamentos e bonificacoes do
+            // papel no meio da linha do tempo: o saldo que sobra e o de hoje.
+            BigDecimal saldo = positionGuard.validateShareLedger(chronological, stockEvents, label);
+            pa.setSettled(!chronological.isEmpty() && saldo.signum() <= 0);
         }
 
-        Position position = positionCalculator.calculate(valuedByTotal, chronological);
+        // Regra I sobre as transacoes e os eventos societarios (a venda de 200
+        // depois de um 1:2 so fecha com o evento), mas SEM as devolucoes de
+        // capital: uma amortizacao que zere o custo nao pode recusar uma
+        // edicao valida.
+        Position position = stockEvents.isEmpty()
+            ? positionCalculator.calculate(valuedByTotal, chronological)
+            : positionCalculator.calculate(valuedByTotal, chronological, PositionEvents.ofStockEvents(stockEvents));
         positionGuard.validateApplied(position, pa.isSettled(), !chronological.isEmpty(), label);
         portfolioAssetRepository.save(pa);
 
         dividendRecalculator.recalculate(pa, chronological);
         appreciationUpdater.refresh(pa);
+        // Compra retroativa pode precisar do historico longo de proventos: a
+        // busca externa roda depois do commit, fora desta transacao.
+        eventPublisher.publishEvent(new PositionChangedEvent(pa.getAsset().getId()));
     }
 
     // ------------------------------------------------------------------

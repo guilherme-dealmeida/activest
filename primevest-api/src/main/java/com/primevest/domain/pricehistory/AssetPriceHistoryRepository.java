@@ -11,4 +11,7 @@ import java.util.Optional;
 public interface AssetPriceHistoryRepository extends JpaRepository<AssetPriceHistory, Long> {
     List<AssetPriceHistory> findByAssetIdAndReferenceDateBetweenOrderByReferenceDateAsc(Long assetId, LocalDate start, LocalDate end);
     Optional<AssetPriceHistory> findByAssetIdAndReferenceDate(Long assetId, LocalDate referenceDate);
+
+    /** Ultimo pregao gravado do ativo. */
+    Optional<AssetPriceHistory> findTopByAssetIdOrderByReferenceDateDesc(Long assetId);
 }

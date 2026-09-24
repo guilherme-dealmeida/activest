@@ -1,5 +1,7 @@
 package com.primevest.domain.portfolio;
 
+import com.primevest.domain.asset.AssetLogoService;
+
 import com.primevest.domain.dividend.DividendRepository;
 import com.primevest.domain.dividend.PositionDividendTotal;
 import com.primevest.domain.portfolio.dto.*;
@@ -142,7 +144,9 @@ public class PortfolioService {
                     valorization,
                     returnPct,
                     pa.isReservation(),
-                    pa.isSettled()
+                    pa.isSettled(),
+                    AssetLogoService.typeHasLogo(pa.getAsset().getAssetType())
+                        ? pa.getAsset().getLogoPath() != null : null
                 );
             }).collect(Collectors.toList());
     }
