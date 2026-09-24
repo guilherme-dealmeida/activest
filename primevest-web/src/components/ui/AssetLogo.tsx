@@ -7,6 +7,8 @@ interface AssetLogoProps {
   hasLogo: boolean;
   /** Lado em px. Padrão 24. */
   size?: number;
+  /** Formato do ícone. Padrão 'circle'. */
+  shape?: 'circle' | 'square';
   className?: string;
 }
 
@@ -21,9 +23,10 @@ interface AssetLogoProps {
  * Sem logo, as iniciais do ticker nas cores do PrimeVest (dourado sobre
  * #111111). O mesmo vale se a imagem falhar ao carregar.
  */
-export const AssetLogo = ({ ticker, hasLogo, size = 24, className }: AssetLogoProps) => {
+export const AssetLogo = ({ ticker, hasLogo, size = 24, shape = 'circle', className }: AssetLogoProps) => {
   const [failed, setFailed] = useState(false);
   const style = { width: size, height: size };
+  const rounded = shape === 'square' ? 'rounded-none' : 'rounded-full';
 
   if (hasLogo && !failed) {
     return (
@@ -34,7 +37,7 @@ export const AssetLogo = ({ ticker, hasLogo, size = 24, className }: AssetLogoPr
         loading="lazy"
         onError={() => setFailed(true)}
         style={style}
-        className={clsx('shrink-0 rounded-full bg-white object-contain p-0.5', className)}
+        className={clsx('shrink-0 object-cover', rounded, className)}
       />
     );
   }
@@ -44,7 +47,8 @@ export const AssetLogo = ({ ticker, hasLogo, size = 24, className }: AssetLogoPr
       aria-hidden="true"
       style={{ ...style, fontSize: Math.max(8, Math.round(size * 0.36)) }}
       className={clsx(
-        'shrink-0 inline-flex items-center justify-center rounded-full',
+        'shrink-0 inline-flex items-center justify-center',
+        rounded,
         'bg-[#111111] text-[#c9a84c] border border-[#c9a84c]/40 font-semibold leading-none',
         className
       )}

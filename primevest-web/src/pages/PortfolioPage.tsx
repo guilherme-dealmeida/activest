@@ -102,13 +102,11 @@ const COLUMNS: Column[] = [
     label: 'ATIVO',
     align: 'left',
     render: (a) => (
-      <div className="flex items-center gap-2">
+      // Nome do ativo só no hover (tooltip nativo), não mais abaixo do ticker.
+      <div className="flex items-center gap-3" title={a.assetName || undefined}>
         {/* Logo à esquerda do ticker (B25). null = tipo sem logo (renda fixa, Tesouro). */}
-        {a.hasLogo !== null && a.hasLogo !== undefined && <AssetLogo ticker={a.ticker} hasLogo={a.hasLogo} />}
-        <div className="flex flex-col">
-          <span className="font-medium">{a.ticker}</span>
-          <span className="text-xs text-white/50">{a.assetName}</span>
-        </div>
+        {a.hasLogo !== null && a.hasLogo !== undefined && <AssetLogo ticker={a.ticker} hasLogo={a.hasLogo} size={38} shape="square" />}
+        <span className="font-medium">{a.ticker}</span>
       </div>
     ),
   },
