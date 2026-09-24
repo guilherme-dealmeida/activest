@@ -1,7 +1,9 @@
 PRIMEVEST — PENDENCIAS EM ABERTO
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 24/09/2026 — execucao do PLANO_BRAPI.md: baixados 3.2,
+Ultima atualizacao: 24/09/2026 — secao 14 (rotinas: proventos sob demanda
+travando as threads e fechamento no meio do pregao), vista na carga do
+extrato B3. Antes, no mesmo dia: execucao do PLANO_BRAPI.md: baixados 3.2,
 6.1, 6.2, 6.4, 11.3 e 11.4; 11.1 atualizado. Antes, no mesmo dia: secao 13
 (central de avisos, adiada do PLANO_BRAPI.md). Antes: 18/09/2026 — itens 9.1 a 9.8, a secao 12 (lint) e o
 segundo reset das migrations.
@@ -503,6 +505,53 @@ para depois. Enquanto ela nao existir, as rotinas so escrevem no log.
        FEITO em 24/09/2026: custo zero provisorio no calculo
        (CorporateActionApplier) e WARN no log quando a rotina grava uma
        bonificacao que pega alguma posicao.
+
+
+================================================================================
+14. ROTINAS EXTERNAS — achados da carga do extrato B3 (24/09/2026)
+================================================================================
+
+Os dois apareceram na carga de 88 transacoes pela API (scripts fora do repo,
+em E:\carga). Nenhum foi corrigido.
+
+  14.1 Rotinas travando: proventos sob demanda prendem as threads da API
+       Cada transacao dispara uma busca de proventos em paralelo, e essas
+       buscas esperam na fila sem liberar as threads da API. Com muitos
+       lancamentos seguidos, como nesta carga, outras rotinas param junto,
+       inclusive o fechamento.
+       - Onde: ProventosOnDemandListener abre um Thread.ofVirtual() por
+         PositionChangedEvent, e ProventosSyncService.syncAssetOnDemand entra
+         num synchronized (this). No Java 21 a thread virtual que espera um
+         monitor (ou que bloqueia dentro dele, como o Mono.block do
+         FnetClient) PRENDE a thread portadora. Com ~70 threads na fila,
+         todas as portadoras ficaram presas.
+       - Visto: POST /api/v1/admin/closing respondeu 202, mas a thread
+         "admin-fechamento" nunca chegou a rodar (dump de threads: sem pilha).
+         Precisou de docker compose restart api; o fechamento saiu pela
+         recuperacao na subida e os proventos por /admin/proventos
+         (23 emissores, 0 falhas, ~50 min por causa dos timeouts do FNET).
+       - Correcao possivel: fila unica com um executor de uma thread e
+         deduplicacao por emissor (varias transacoes do mesmo ativo viram uma
+         busca), em vez de uma thread por evento; ou trocar o synchronized por
+         ReentrantLock, que nao prende a portadora (resolve o travamento, mas
+         nao o acumulo). O JDK 24 (JEP 491) elimina o pinning do synchronized,
+         mas nao o acumulo de threads esperando.
+
+  14.2 Fechamento no meio do pregao grava o dia ainda aberto
+       Rodado durante o horario de negociacao, ele grava o pregao de hoje
+       ainda aberto e usa essa cotacao como preco atual.
+       - Onde: ClosingPriceService.runB3Closing -> saveCandles grava todos os
+         candles que a BRAPI devolve, inclusive o de hoje, e poe o ultimo em
+         assets.current_price. Nada filtra o dia corrente.
+       - Visto: recuperacao na subida as 11:18 de 24/09 gravou o pregao de
+         24/09 parcial nos 23 ativos da carteira (ex.: PETR4 50,04 contra
+         49,60 no fechamento de 23/09). A rodada das 19:00 regrava o dia com o
+         valor final, entao o erro dura ate la.
+       - Afeta as tres entradas: recuperacao na subida, POST /admin/closing e
+         qualquer rodada fora do horario.
+       - Correcao possivel: antes de CLOSING_TIME, descartar o candle de hoje
+         (mesma regra de lastExpectedClosing), tanto no historico quanto no
+         current_price.
 
 
 ================================================================================
