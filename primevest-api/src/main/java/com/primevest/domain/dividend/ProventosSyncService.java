@@ -559,6 +559,15 @@ public class ProventosSyncService {
                 boolean dirty = false;
                 if (existing.getPaymentDate() == null && d.paymentDate() != null) {
                     existing.setPaymentDate(d.paymentDate());
+                    existing.setPaymentDateSource(d.source() == CashEventSource.EXTRATO_B3
+                            ? PaymentDateSource.EXTRATO_B3 : null);
+                    dirty = true;
+                } else if (existing.getPaymentDateSource() != null && d.paymentDate() != null
+                        && d.source() != CashEventSource.EXTRATO_B3) {
+                    // A data veio do extrato ou foi deduzida; a fonte oficial
+                    // manda (V24).
+                    existing.setPaymentDate(d.paymentDate());
+                    existing.setPaymentDateSource(null);
                     dirty = true;
                 }
                 if (existing.getApprovedOn() == null && d.approvedOn() != null) {
@@ -584,6 +593,8 @@ public class ProventosSyncService {
                     .label(label.length() > 60 ? label.substring(0, 60) : label)
                     .dataCom(d.dataCom())
                     .paymentDate(d.paymentDate())
+                    .paymentDateSource(d.source() == CashEventSource.EXTRATO_B3 && d.paymentDate() != null
+                            ? PaymentDateSource.EXTRATO_B3 : null)
                     .valuePerShare(value)
                     .seq(d.seq())
                     .approvedOn(d.approvedOn())

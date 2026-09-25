@@ -381,16 +381,54 @@ export interface DividendResponse {
   ticker: string;
   assetName: string;
   amountPerShare: number;
+  /** Total BRUTO, truncado nos centavos. */
   totalAmount: number;
   exDate: string;
-  paymentDate: string;
-  type: string;
+  /** Nula quando a fonte não informa (histórico longo da B3 — PENDENCIAS.txt, 3.4). */
+  paymentDate: string | null;
+  type: DividendType;
+  /** Cotas da posição na data-com. Nula no provento MANUAL antigo. */
+  sharesOnDate: number | null;
+  // IR retido na fonte (PLANO_IR_PROVENTOS.md). Todos nulos = sem regra de IR
+  // para o tipo (ex.: ETF); aí o total que vale é o bruto (totalAmount).
+  /** Alíquota aplicada: 0.175 = 17,5%; 0 = isento. */
+  withholdingRate: number | null;
+  /** IR retido, truncado nos centavos. */
+  withholdingTax: number | null;
+  /** Líquido por cota, 8 casas — só exibição. */
+  netAmountPerShare: number | null;
+  /** TOTAL líquido = bruto − IR (conta da B3). */
+  netAmount: number | null;
+  /** Base legal da regra aplicada. */
+  withholdingLegalBasis: string | null;
+  /**
+   * Já recebido hoje (fuso da B3)? false = a receber. Calculado no backend
+   * (Dividend.isReceived): pagamento até hoje; sem data, conforme a origem.
+   */
+  received: boolean;
+  /** Fonte do evento: B3, B3_HISTORICO, FNET ou EXTRATO_B3 (data-com deduzida). */
+  cashEventSource: string | null;
+  /** Origem da data de pagamento quando não é a da fonte: EXTRATO_B3 ou DEDUZIDA. */
+  paymentDateSource: string | null;
+  assetTypeId: number | null;
+  /** Descrição do tipo de ativo (AssetType.getDescription). */
+  assetTypeDescription: string | null;
+  /** Mesma regra da carteira: null = tipo sem logo; false = iniciais. */
+  hasLogo: boolean | null;
 }
 
 export interface DividendSummary {
+  /** Total líquido RECEBIDO (bruto onde não há regra de IR). */
   totalDividends: number;
+  /** Líquido recebido por tipo. */
   byType: Record<string, number>;
   recent: DividendResponse[];
+  totalGross: number;
+  totalTax: number;
+  /** A receber: pagamento depois de hoje. */
+  totalToReceive: number;
+  toReceiveGross: number;
+  toReceiveTax: number;
 }
 
 export type GoalStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED';

@@ -1,7 +1,10 @@
 PRIMEVEST — PENDENCIAS EM ABERTO
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 24/09/2026 — secao 14 (rotinas: proventos sob demanda
+Ultima atualizacao: 25/09/2026 — itens 3.4 e 3.5 baixados (extrato de proventos
+da B3, V24). Antes: 24/09/2026 — itens 3.5 a 3.8 (IR retido nos proventos,
+PLANO_IR_PROVENTOS.md). Antes, no mesmo dia: item 3.4 (provento de acao sem
+data de pagamento) e secao 14 (rotinas: proventos sob demanda
 travando as threads e fechamento no meio do pregao), vista na carga do
 extrato B3. Antes, no mesmo dia: execucao do PLANO_BRAPI.md: baixados 3.2,
 6.1, 6.2, 6.4, 11.3 e 11.4; 11.1 atualizado. Antes, no mesmo dia: secao 13
@@ -112,6 +115,67 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
        provento e um fato do usuario, nao da posicao.
        Impacto hoje: nenhum, a base nao tem provento orfao. Mas a primeira
        exclusao de posicao cria um.
+
+  3.4  FEITO em 25/09/2026 — Provento de acao sem data de pagamento (24/09/2026)
+       Resolvido pelo extrato de proventos da Area do Investidor
+       (POST /admin/proventos/extrato, V24): 22 datas completadas com origem
+       EXTRATO_B3 e as 2as parcelas de JCP da CMIG4 (data-com 25/03/2025 e
+       23/06/2025) com pagamento DEDUZIDO em 30/12/2026, ainda a receber. A
+       origem fica em asset_cash_events.payment_date_source e aparece no hover;
+       fonte oficial que trouxer a data depois a substitui. Historico abaixo.
+       24 dos 203 proventos da carteira estao com payment_date nulo. Todos sao
+       de acao (BBAS3, CMIG4, SAPR4, CXSE3, BRBI11), com data-com entre
+       dez/2024 e ago/2025. FII nao tem o problema: o FNET traz o pagamento.
+       - Causa: esses eventos vieram so de B3_HISTORICO
+         (GetListedCashDividends), que nao tem campo de pagamento. A consulta
+         que traz o pagamento (GetListedSupplementCompany) cobre so ~12 meses;
+         o saveCashEvent completa a data quando outra fonte a traz, mas evento
+         com mais de um ano nunca volta nela. Ex.: asset_cash_events 266,
+         BBAS3 JCP data-com 11/12/2024 -> dividends 61.
+       - Impacto: so na tela (coluna PAGAMENTO vazia). O unico calculo que usa
+         a data e a reducao de custo de AMORTIZACAO/RESTITUICAO_CAPITAL, e
+         PositionCalculator ja cai para a data-com quando ela falta; nenhum dos
+         24 e desses tipos. Parcelas iguais sem pagamento (CMIG4) parecem
+         duplicadas, mas sao parcelas (seq 1 e 2, V22).
+       - Paliativo (escopo de filtros de dividendos): mostrar "—" com a
+         explicacao no hover.
+       - Solucao de verdade exige outra fonte: dividendos da BRAPI so em plano
+         pago (PLANO_BRAPI.md, D4) e o lancamento manual foi retirado
+         (proventos sao somente leitura). Nao estimar a data: sem fonte, fica
+         nula.
+
+  3.5  FEITO em 25/09/2026 (para o que esta no extrato) — IR retido:
+       rendimentos que a integracao nao traz (24/09/2026)
+       Os 3 rendimentos de PETR4 (data-com 22/12/2025, bruto 0,45, 0,45 e
+       0,26) entraram pelo extrato como eventos EXTRATO_B3, junto com 18
+       rendimentos de FII sem aviso no FNET. Rendimento futuro desse tipo so
+       entra com um extrato novo: a integracao continua sem essa fonte.
+       Historico abaixo.
+       O extrato da B3 mostra "Rendimento" (atualizacao pela Selic) de PETR4
+       em 20/02/2026 (R$ 0,35) e 20/03/2026 (R$ 0,35 e R$ 0,21) que nao
+       existem em asset_cash_events: a B3 nao os publica nos dados da
+       empresa. So existem no extrato do investidor.
+       Caminho: importar o Excel de Movimentacao da Area do Investidor
+       (PLANO_IR_PROVENTOS.md, secao 9) — escopo futuro.
+
+  3.6  IR retido: prazo real do "rendimento" de acoes (24/09/2026)
+       A atualizacao pela Selic segue a tabela regressiva de renda fixa, que
+       conta da data de inicio da correcao — dado que nao vem na fonte. A V23
+       usa 22,5% fixo (ate 180 dias). Erra se um dia o pagamento passar de
+       180 dias do inicio da correcao.
+
+  3.7  IR retido: 10% sobre dividendo > R$ 50 mil/mes (Lei 15.270/2025)
+       Retencao sobre o total do mes quando a mesma empresa paga mais de
+       R$ 50 mil a mesma PF; o aprovado ate 31/12/2025 segue isento. Exige
+       somar por empresa pagadora no mes. Hoje dividendo e isento sempre.
+
+  3.8  IR retido: fora das regras da V23 (24/09/2026)
+       - Perfil do investidor: tudo assume PF residente (PJ, isento e nao
+         residente tem outras aliquotas).
+       - ETF, BDR, Stock, REIT: sem regra (liquido nulo; somas usam o bruto)
+         ate existir provento desses tipos.
+       - IRPFM (imposto minimo acima de R$ 600 mil/ano): e da declaracao
+         anual, nao da fonte.
 
 
 ================================================================================

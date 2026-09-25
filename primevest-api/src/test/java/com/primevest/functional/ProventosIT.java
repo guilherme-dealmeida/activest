@@ -64,13 +64,13 @@ class ProventosIT extends FuncionalBase {
         return (List<Map<String, Object>>) resumo.get("recent");
     }
 
-    /** O que a B3 diz que PETR4 (ISIN PN) pagou com data-com a partir de uma data, x cotas. */
+    /** O BRUTO que a B3 diz que PETR4 (ISIN PN) pagou com data-com a partir de uma data, x cotas. */
     private BigDecimal esperadoPetr4(LocalDate desde, int cotas) {
         B3Supplement petr = B3Fixtures.client().companySupplement("PETR");
         return petr.cash().stream()
             .filter(d -> "BRPETRACNPR6".equals(d.isinCode()))
             .filter(d -> !B3Values.date(d.lastDatePrior()).isBefore(desde))
-            .map(d -> B3Values.decimal(d.rate()).multiply(BigDecimal.valueOf(cotas)).setScale(2, RoundingMode.HALF_UP))
+            .map(d -> B3Values.decimal(d.rate()).multiply(BigDecimal.valueOf(cotas)).setScale(2, RoundingMode.DOWN)) // bruto truncado, como a B3
             .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 

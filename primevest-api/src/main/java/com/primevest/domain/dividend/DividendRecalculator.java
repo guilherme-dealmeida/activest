@@ -37,6 +37,12 @@ import java.util.Set;
  * </ul>
  * <p>Os MANUAL nao sao tocados.</p>
  *
+ * <p>Cada provento AUTO sai daqui com o IR retido calculado
+ * ({@link WithholdingTaxCalculator}, regras em {@link WithholdingTaxRule}):
+ * bruto, aliquota, IR e liquido nascem juntos, em todo caminho — rotina diaria,
+ * rotina sob demanda, transacao lancada/editada/apagada (PLANO_IR_PROVENTOS.md,
+ * 4.5). Este e o unico lugar que grava ou apaga provento.</p>
+ *
  * <p>Chamado pelo TransactionService a cada criacao, edicao ou exclusao de
  * transacao, e pela rotina de proventos depois de gravar eventos novos. Como os
  * eventos ja estao no catalogo, uma compra retroativa passa a receber os
@@ -51,6 +57,7 @@ public class DividendRecalculator {
     private final PositionCalculator positionCalculator;
     private final DividendRepository dividendRepository;
     private final AssetCashEventRepository cashEventRepository;
+    private final WithholdingTaxRuleRepository withholdingTaxRuleRepository;
 
     /** Transacoes da posicao em ordem cronologica (data, depois criacao). */
     public List<Transaction> chronologicalTransactions(PortfolioAsset pa) {
@@ -69,8 +76,9 @@ public class DividendRecalculator {
         return positionCalculator.sharesOn(chronological, recordDate);
     }
 
+    /** Total bruto como a B3: truncado nos centavos (0,05968401166 x 125 = 7,46; 10,1972 -> 10,19). */
     public BigDecimal totalAmount(BigDecimal amountPerShare, BigDecimal shares) {
-        return amountPerShare.multiply(shares).setScale(2, RoundingMode.HALF_UP);
+        return WithholdingTaxCalculator.gross(amountPerShare, shares);
     }
 
     /**
@@ -90,6 +98,9 @@ public class DividendRecalculator {
         }
 
         List<StockEventStep> stockEvents = positionCalculator.stockEventsOf(pa.getAsset());
+        // Poucas linhas e raramente mudam: lidas uma vez por posicao.
+        List<WithholdingTaxRule> taxRules = withholdingTaxRuleRepository.findAll();
+        Long assetTypeId = pa.getAsset().getAssetType() != null ? pa.getAsset().getAssetType().getId() : null;
         Map<Long, Dividend> byEvent = new HashMap<>();
         for (Dividend d : autos) {
             if (d.getCashEvent() != null) {
@@ -111,9 +122,11 @@ public class DividendRecalculator {
             kept.add(event.getId());
 
             BigDecimal perShare = event.getValuePerShare().setScale(PER_SHARE_SCALE, RoundingMode.HALF_UP);
-            BigDecimal total = totalAmount(event.getValuePerShare(), shares);
+            WithholdingTaxCalculator.Result tax = WithholdingTaxCalculator.calculate(taxRules,
+                    new WithholdingTaxCalculator.Input(event.getType(), assetTypeId, event.getApprovedOn(),
+                            event.getDataCom(), event.getPaymentDate(), event.getValuePerShare(), shares));
             if (existing == null) {
-                dividendRepository.save(Dividend.builder()
+                Dividend d = Dividend.builder()
                         .portfolioAsset(pa)
                         .cashEvent(event)
                         .origin(DividendOrigin.AUTO)
@@ -122,16 +135,17 @@ public class DividendRecalculator {
                         .exDate(event.getDataCom())
                         .paymentDate(event.getPaymentDate())
                         .sharesOnDate(shares)
-                        .totalAmount(total)
-                        .build());
+                        .build();
+                d.applyTax(tax);
+                dividendRepository.save(d);
                 created++;
-            } else if (changed(existing, event, perShare, shares, total)) {
+            } else if (changed(existing, event, perShare, shares, tax)) {
                 existing.setType(event.getType());
                 existing.setAmountPerShare(perShare);
                 existing.setExDate(event.getDataCom());
                 existing.setPaymentDate(event.getPaymentDate());
                 existing.setSharesOnDate(shares);
-                existing.setTotalAmount(total);
+                existing.applyTax(tax);
                 dividendRepository.save(existing);
             }
         }
@@ -145,12 +159,31 @@ public class DividendRecalculator {
         return created;
     }
 
-    private static boolean changed(Dividend d, AssetCashEvent e, BigDecimal perShare, BigDecimal shares, BigDecimal total) {
-        return d.getType() != e.getType()
+    static boolean changed(Dividend d, AssetCashEvent e, BigDecimal perShare, BigDecimal shares,
+                           WithholdingTaxCalculator.Result tax) {
+        return d.getTaxCheckedAt() == null
+                || d.getType() != e.getType()
                 || !java.util.Objects.equals(d.getPaymentDate(), e.getPaymentDate())
                 || !d.getExDate().equals(e.getDataCom())
                 || d.getAmountPerShare().compareTo(perShare) != 0
                 || d.getSharesOnDate() == null || d.getSharesOnDate().compareTo(shares) != 0
-                || d.getTotalAmount() == null || d.getTotalAmount().compareTo(total) != 0;
+                || differs(d.getTotalAmount(), tax.gross())
+                || !java.util.Objects.equals(ruleId(d.getWithholdingRule()), ruleId(tax.rule()))
+                || differs(d.getWithholdingRate(), tax.rate())
+                || differs(d.getWithholdingTax(), tax.tax())
+                || differs(d.getNetAmountPerShare(), tax.netPerShare())
+                || differs(d.getNetAmount(), tax.net());
+    }
+
+    private static Long ruleId(WithholdingTaxRule r) {
+        return r != null ? r.getId() : null;
+    }
+
+    /** Diferentes, tratando nulo como valor (sem regra) e ignorando a escala. */
+    private static boolean differs(BigDecimal a, BigDecimal b) {
+        if (a == null || b == null) {
+            return a != b;
+        }
+        return a.compareTo(b) != 0;
     }
 }

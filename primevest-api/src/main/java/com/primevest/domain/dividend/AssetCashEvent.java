@@ -49,6 +49,14 @@ public class AssetCashEvent {
     @Column(name = "payment_date")
     private LocalDate paymentDate;
 
+    /**
+     * De onde veio a data de pagamento, quando nao da fonte do evento (V24):
+     * extrato da B3 ou deduzida. Nulo = oficial.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_date_source")
+    private PaymentDateSource paymentDateSource;
+
     @Column(name = "value_per_share", precision = 24, scale = 11, nullable = false)
     private BigDecimal valuePerShare;
 

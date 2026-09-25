@@ -5,6 +5,19 @@ export const formatCurrency = (value: number): string => {
   }).format(value);
 };
 
+/**
+ * Moeda com casas fixas — valor por cota de provento, que a B3 publica com 8+
+ * casas (R$ 0,47160378). Só exibição: a conta usa o valor exato.
+ */
+export const formatCurrencyPrecise = (value: number, digits = 8): string => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(value);
+};
+
 export const formatPercentage = (value: number): string => {
   return new Intl.NumberFormat('pt-BR', {
     style: 'percent',

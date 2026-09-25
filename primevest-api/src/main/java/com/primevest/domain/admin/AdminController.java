@@ -3,6 +3,7 @@ package com.primevest.domain.admin;
 import com.primevest.config.SecurityUtils;
 import com.primevest.domain.asset.AssetLogoService;
 import com.primevest.domain.asset.CatalogAuditService;
+import com.primevest.domain.dividend.ExtratoProventosImportService;
 import com.primevest.domain.dividend.ProventosSyncService;
 import com.primevest.domain.pricehistory.ClosingPriceService;
 import com.primevest.domain.user.User;
@@ -12,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -37,6 +39,7 @@ public class AdminController {
     private final AssetLogoService assetLogoService;
     private final ClosingPriceService closingPriceService;
     private final ProventosSyncService proventosSyncService;
+    private final ExtratoProventosImportService extratoProventosImportService;
 
     @PostMapping("/catalog-audit")
     public ResponseEntity<Map<String, String>> catalogAudit() {
@@ -61,12 +64,30 @@ public class AdminController {
         return start("proventos", () -> proventosSyncService.syncAll("sob demanda"));
     }
 
-    private ResponseEntity<Map<String, String>> start(String name, Runnable routine) {
+    /**
+     * Extrato de proventos da Area do Investidor da B3 para a carteira de quem
+     * chama (V24). Sincrono: a resposta traz a situacao de cada linha.
+     * {@code dryRun: true} confere tudo e desfaz — o script de carga roda
+     * assim primeiro (E:\\carga\\scripts\\carregar_proventos.mjs).
+     */
+    @PostMapping("/proventos/extrato")
+    public ResponseEntity<ExtratoProventosImportService.Result> proventosExtrato(
+            @RequestBody ExtratoProventosImportService.Request request) {
+        User user = requireAdmin();
+        return ResponseEntity.ok(extratoProventosImportService.importFor(user.getId(), request));
+    }
+
+    private User requireAdmin() {
         User user = userRepository.findById(SecurityUtils.getCurrentUserId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
         if (!user.isAdmin()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Somente administrador.");
         }
+        return user;
+    }
+
+    private ResponseEntity<Map<String, String>> start(String name, Runnable routine) {
+        requireAdmin();
         Thread.ofVirtual().name("admin-" + name.replace(' ', '-')).start(() -> {
             try {
                 routine.run();
