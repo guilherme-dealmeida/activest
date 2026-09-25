@@ -4,6 +4,7 @@ import com.primevest.domain.asset.Asset;
 import com.primevest.domain.asset.AssetCategory;
 import com.primevest.domain.asset.AssetType;
 import com.primevest.domain.asset.PriceSource;
+import com.primevest.domain.dividend.DividendCalendar;
 import com.primevest.domain.dividend.DividendRepository;
 import com.primevest.domain.dividend.PositionDividendTotal;
 import com.primevest.domain.portfolio.dto.PortfolioAllocationDTO;
@@ -48,8 +49,12 @@ class PortfolioServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private DividendRepository dividendRepository;
     @Mock private PositionCalculator positionCalculator;
+    @Mock private DividendCalendar dividendCalendar;
 
     @InjectMocks private PortfolioService service;
+
+    /** Proventos so entram depois de recebidos: a soma do banco recebe o hoje da B3. */
+    private static final java.time.LocalDate HOJE = java.time.LocalDate.of(2026, 9, 24);
 
     private UUID userId;
     private Portfolio carteira;
@@ -73,7 +78,8 @@ class PortfolioServiceTest {
         when(portfolioRepository.findFirstByUserId(userId)).thenReturn(Optional.of(carteira));
         when(portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(carteira.getId())).thenReturn(posicoes);
         when(positionCalculator.positionsOf(any(), any())).thenReturn(posicoesCalculadas);
-        when(dividendRepository.sumTotalAmountByPosition(carteira.getId())).thenReturn(List.of());
+        when(dividendCalendar.today()).thenReturn(HOJE);
+        when(dividendRepository.sumTotalAmountByPosition(carteira.getId(), HOJE)).thenReturn(List.of());
     }
 
     private static AssetType tipo(Long id, String name, String description, PriceSource source, boolean fixedIncome) {
@@ -111,7 +117,7 @@ class PortfolioServiceTest {
         @DisplayName("Valor atual e custo mais valorizacao; o retorno inclui proventos")
         void resumo() {
             PortfolioAsset petr = posicao(acaoTipo, "PETR4", "1000.00", "200.00", "100", false);
-            when(dividendRepository.sumTotalAmountByPosition(carteira.getId()))
+            when(dividendRepository.sumTotalAmountByPosition(carteira.getId(), HOJE))
                 .thenReturn(List.of(new PositionDividendTotal(petr.getId(), new BigDecimal("50.00"))));
 
             PortfolioSummaryDTO resumo = service.getPortfolioSummary(userId);
@@ -138,7 +144,7 @@ class PortfolioServiceTest {
         void posicaoLiquidada() {
             PortfolioAsset vendida = posicao(acaoTipo, "PETR4", "0.00", "300.00", "0", false);
             vendida.setSettled(true);
-            when(dividendRepository.sumTotalAmountByPosition(carteira.getId()))
+            when(dividendRepository.sumTotalAmountByPosition(carteira.getId(), HOJE))
                 .thenReturn(List.of(new PositionDividendTotal(vendida.getId(), new BigDecimal("40.00"))));
 
             PortfolioSummaryDTO resumo = service.getPortfolioSummary(userId);
@@ -146,6 +152,18 @@ class PortfolioServiceTest {
             assertThat(resumo.totalInvested()).isEqualByComparingTo("0");
             assertThat(resumo.currentValue()).isEqualByComparingTo("0");
             assertThat(resumo.totalDividends()).isEqualByComparingTo("40.00");
+        }
+
+        @Test
+        @DisplayName("Posicao sem custo fica fora do resumo, mesmo com valorizacao gravada")
+        void posicaoSemCustoForaDoResumo() {
+            posicao(rendaFixaTipo, "CDB", "0.00", "300.00", null, true);
+
+            PortfolioSummaryDTO resumo = service.getPortfolioSummary(userId);
+
+            assertThat(resumo.totalInvested()).isEqualByComparingTo("0");
+            assertThat(resumo.currentValue()).isEqualByComparingTo("0");
+            assertThat(resumo.totalReturn()).isEqualByComparingTo("0");
         }
 
         @Test

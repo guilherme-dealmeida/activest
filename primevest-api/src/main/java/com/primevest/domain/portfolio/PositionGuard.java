@@ -5,7 +5,12 @@ import com.primevest.domain.transaction.TransactionType;
 import com.primevest.exception.BusinessException;
 import org.springframework.stereotype.Component;
 
+import com.primevest.domain.corporateaction.CorporateActionApplier;
+import com.primevest.domain.corporateaction.StockEventStep;
+
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -36,13 +41,36 @@ public class PositionGuard {
      * @param chronological transacoes em ordem cronologica — de uma posicao
      *                      (renda variavel) ou de um ativo inteiro (Tesouro)
      * @param label         como o ativo aparece na mensagem de erro
+     * @return o saldo de cotas depois da ultima transacao
      */
-    public void validateShareLedger(List<Transaction> chronological, String label) {
+    public BigDecimal validateShareLedger(List<Transaction> chronological, String label) {
+        return validateShareLedger(chronological, List.of(), label);
+    }
+
+    /**
+     * Regra B com os eventos societarios do papel (PLANO_BRAPI.md, F6).
+     *
+     * <p>Depois de um desdobramento 1:2, quem tinha 100 cotas vende 200 — a
+     * nota de corretagem ja vem na quantidade nova. Sem o evento no meio da
+     * linha do tempo, essa venda seria recusada por falta de saldo. O evento
+     * vale a partir do dia seguinte a data-com, como no calculo da posicao, e
+     * com data-com no futuro ainda nao vale.</p>
+     *
+     * @return o saldo de cotas de hoje, ja com os eventos
+     */
+    public BigDecimal validateShareLedger(List<Transaction> chronological, List<StockEventStep> stockEvents,
+                                          String label) {
+        List<StockEventStep> events = stockEvents == null ? List.of()
+            : stockEvents.stream().sorted(java.util.Comparator.comparing(StockEventStep::dataCom)).toList();
+        int next = 0;
         BigDecimal saldo = BigDecimal.ZERO;
         for (Transaction tx : chronological) {
             BigDecimal qtd = tx.getShares();
             if (qtd == null) {
                 continue;
+            }
+            while (next < events.size() && events.get(next).dataCom().isBefore(tx.getTransactionDate())) {
+                saldo = afterEvent(saldo, events.get(next++));
             }
             saldo = tx.getType() == TransactionType.BUY ? saldo.add(qtd) : saldo.subtract(qtd);
             if (saldo.signum() < 0) {
@@ -52,6 +80,15 @@ public class PositionGuard {
                     + " Ajuste as compras do período antes de lançar esta venda.");
             }
         }
+        LocalDate hoje = LocalDate.now(ZoneId.of("America/Sao_Paulo"));
+        while (next < events.size() && events.get(next).dataCom().isBefore(hoje)) {
+            saldo = afterEvent(saldo, events.get(next++));
+        }
+        return saldo;
+    }
+
+    private static BigDecimal afterEvent(BigDecimal saldo, StockEventStep event) {
+        return CorporateActionApplier.apply(new CorporateActionApplier.Holding(saldo, BigDecimal.ZERO), event).shares();
     }
 
     /**

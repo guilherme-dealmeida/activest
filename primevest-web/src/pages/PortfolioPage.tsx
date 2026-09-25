@@ -5,6 +5,7 @@ import { clsx } from 'clsx';
 import { ArrowDownLeft, ArrowUpRight, List } from 'lucide-react';
 import { portfolioApi } from '@/api/portfolio';
 import { assetsApi } from '@/api/assets';
+import { AssetLogo } from '@/components/ui/AssetLogo';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Switch } from '@/components/ui/Switch';
 import { LabelWithInfo } from '@/components/ui/InfoTooltip';
@@ -101,9 +102,11 @@ const COLUMNS: Column[] = [
     label: 'ATIVO',
     align: 'left',
     render: (a) => (
-      <div className="flex flex-col">
+      // Nome do ativo só no hover (tooltip nativo), não mais abaixo do ticker.
+      <div className="flex items-center gap-3" title={a.assetName || undefined}>
+        {/* Logo à esquerda do ticker (B25). null = tipo sem logo (renda fixa, Tesouro). */}
+        {a.hasLogo !== null && a.hasLogo !== undefined && <AssetLogo ticker={a.ticker} hasLogo={a.hasLogo} size={38} shape="square" />}
         <span className="font-medium">{a.ticker}</span>
-        <span className="text-xs text-white/50">{a.assetName}</span>
       </div>
     ),
   },

@@ -21,7 +21,11 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // 401 numa rota de entrada é credencial recusada, não sessão vencida: não
+    // há token a limpar, e recarregar /login apagaria a mensagem de erro antes
+    // de o usuário lê-la.
+    const isAuthRequest = String(error.config?.url ?? '').startsWith('/auth/');
+    if (error.response?.status === 401 && !isAuthRequest) {
       localStorage.removeItem('primevest_token');
       window.location.href = '/login';
     }

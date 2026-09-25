@@ -90,4 +90,29 @@ class AssetRepositoryTest extends JpaTestBase {
 
         assertThat(resultado).extracting(Asset::getTicker).contains(CatalogIds.CDB);
     }
+
+    @Test
+    @DisplayName("Ativo inativo (deslistado, V14) nao aparece na busca; o novo da V15 aparece com nome da BRAPI")
+    void inativoForaDaBusca() {
+        assertThat(repository.searchByTickerOrName("AHEB3F", TETO)).isEmpty();
+        assertThat(repository.findByTicker("AHEB3F")).get().extracting(Asset::isActive).isEqualTo(false);
+        assertThat(repository.searchByTickerOrName("CEEB5", TETO)).extracting(Asset::getTicker).contains("CEEB5");
+    }
+
+    @Test
+    @DisplayName("V13: nome das acoes com acento, vindo da BRAPI (AALR3)")
+    void nomeComAcento() {
+        assertThat(repository.findByTicker("AALR3")).get().extracting(Asset::getName)
+            .isEqualTo("ALLIANÇA SAÚDE E PARTICIPAÇÕES S.A.");
+    }
+
+    @Test
+    @DisplayName("V15: INHF11 e FII hibrido; V17/V18/V19: ETF, BDR e cripto no catalogo")
+    void catalogoNovo() {
+        assertThat(repository.findByTicker("INHF11")).get().extracting(a -> a.getAssetType().getName()).isEqualTo("FII");
+        assertThat(repository.findByTicker("BOVA11")).get().extracting(a -> a.getAssetType().getName()).isEqualTo("ETF");
+        assertThat(repository.findByTicker("BOVA11").orElseThrow().getCurrentPrice()).isPositive();
+        assertThat(repository.findByTicker("AAPL34")).get().extracting(a -> a.getAssetType().getName()).isEqualTo("BDR");
+        assertThat(repository.findByTicker("BTC")).get().extracting(Asset::getPriceSourceRef).isEqualTo("bitcoin");
+    }
 }

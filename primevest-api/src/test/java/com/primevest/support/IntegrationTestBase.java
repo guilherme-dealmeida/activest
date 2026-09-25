@@ -39,7 +39,10 @@ public abstract class IntegrationTestBase {
     private static final String[] TABELAS_DO_USUARIO = {
         "dividends", "transactions", "portfolio_assets", "fixed_income_notes",
         "strategies", "strategy_reservations", "ceiling_prices", "goals",
-        "portfolios", "users"
+        "portfolios", "users",
+        // Eventos do papel (V20): sao catalogo, mas nenhuma migration os semeia
+        // — so os testes gravam, e um cenario nao pode herdar o do outro.
+        "asset_cash_events", "asset_stock_events"
     };
 
     @Autowired

@@ -5,7 +5,8 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 18/09/2026. A conferência arquivo a arquivo contra o
+> **Última revisão**: 24/09/2026 (integração BRAPI/B3 — ver `PLANO_BRAPI.md`).
+> Antes: 18/09/2026. A conferência arquivo a arquivo contra o
 > código é de 15/09/2026; o que entrou depois está datado no texto.
 > O que este documento afirma foi verificado; o que está pendente está em
 > `PENDENCIAS.txt`, na raiz do repositório.
@@ -204,10 +205,23 @@ $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";"
 
 ### Integrações externas
 
+Plano, decisões e achados da integração: **`PLANO_BRAPI.md`** (executado em
+24/09/2026). Rotinas (fuso de São Paulo, horários em `primevest.*` no
+`application.yml`): fechamento B3 19:00 seg–sex e cripto 19:00 todo dia
+(`ClosingPriceScheduler`, com recuperação na subida); proventos 20:00
+(`ProventosScheduler`, e sob demanda depois de cada transação); conferência do
+catálogo segunda 07:00 (`CatalogAuditScheduler`, só loga); logos dia 1 às 06:00
+e ativos novos na subida (`LogoScheduler`, arquivos em `data/logos/`). Disparo
+manual para admin: `POST /api/v1/admin/{closing|proventos|catalog-audit|logos}`.
+Importação do extrato de proventos da B3 (admin, síncrona):
+`POST /api/v1/admin/proventos/extrato` — ver "Extrato de proventos da B3".
+
 | API | Uso | Config |
 |-----|-----|--------|
-| **BrAPI** | Cotações da B3 (ações, FIIs, ETFs, BDRs) | `brapi.base-url`, `BRAPI_TOKEN` |
-| **CoinGecko** | Cotações de criptomoedas | `coingecko.base-url` |
+| **BrAPI** (plano gratuito) | Fechamento diário da B3 (OHLCV) dos ativos em carteira, lista oficial de tickers e renomes (conferência do catálogo), logos | `brapi.base-url`, `BRAPI_TOKEN` (no `.env`, header `Authorization: Bearer`) |
+| **Site da B3** (sem token, não documentado) | Proventos (~12 meses), desdobramentos/grupamentos/bonificações, ticker↔ISIN, histórico longo de empresa | `b3.base-url` |
+| **FNET** + **CVM dados abertos** | Proventos de FII além de 12 meses (avisos estruturados, por CNPJ; ISIN→CNPJ pelo informe mensal da CVM) | `fnet.base-url`, `cvm.fii-registry-url` |
+| **CoinGecko** | Preço de cripto (id em `assets.price_source_ref`) e logos das moedas | `coingecko.base-url` |
 | **Google Identity Services** | Login social (fluxo de ID token, sem client secret) | `VITE_GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_ID` |
 
 ---
@@ -250,16 +264,18 @@ primevest/
 │       │   ├── exception/       # BusinessException, ResourceNotFoundException,
 │       │   │                    # GlobalExceptionHandler, ErrorResponse
 │       │   ├── integration/
-│       │   │   ├── brapi/       # BrApiClient + DTOs
-│       │   │   └── coingecko/   # CoinGeckoClient + DTO
-│       │   └── scheduler/       # PriceUpdateScheduler, DividendSyncScheduler
+│       │   │   ├── b3/          # B3Client, FnetClient, CvmFundRegistry (proventos)
+│       │   │   ├── brapi/       # BrApiClient v2 + BrApiException + records
+│       │   │   └── coingecko/   # CoinGeckoClient (por price_source_ref)
+│       │   └── scheduler/       # ClosingPriceScheduler, ProventosScheduler,
+│       │                        # CatalogAuditScheduler, LogoScheduler
 │       ├── resources/
 │       │   ├── application.yml          # base
 │       │   ├── application-dev.yml      # local (Flyway OFF, ddl-auto none)
 │       │   ├── application-docker.yml   # containers (Flyway ON, ddl-auto validate)
 │       │   ├── application-prod.yml
-│       │   └── db/migration/            # V1 (schema) .. V12
-│       └── test/                        # 234 testes: support/, domain/, functional/
+│       │   └── db/migration/            # V1 (schema) .. V22
+│       └── test/                        # 319 testes: support/, domain/, integration/, functional/
 │
 └── primevest-web/
     ├── Dockerfile               # alvos: dev (vite) e runtime (nginx)
@@ -273,7 +289,7 @@ primevest/
         │   ├── forms/           # AssetTypeSelect, TickerAutocomplete, FixedIncomeFields
         │   ├── layout/
         │   └── ui/              # Modal, MaskedNumberInput, CurrencyInput, PercentInput...
-        ├── context/             # AuthContext, ThemeContext
+        ├── context/             # XContext.ts (contexto + hook) e XProvider.tsx: Auth, Theme, Toast
         ├── hooks/               # useSortable, useGoogleSignIn
         ├── pages/               # 10 páginas
         ├── types/               # interfaces TypeScript
@@ -295,7 +311,7 @@ primevest/
 Credenciais vêm de `DB_USERNAME` / `DB_PASSWORD`, com padrão `postgres`/`postgres`
 em desenvolvimento. **Não versione credenciais reais.**
 
-### Tabelas — 15
+### Tabelas — 16
 
 | Tabela | Descrição |
 |--------|-----------|
@@ -310,7 +326,8 @@ em desenvolvimento. **Não versione credenciais reais.**
 | `asset_categories` | 116 categorias. Uma categoria é o par `(name, segment)` dentro do tipo — a unicidade é `(asset_type_id, name, segment)` com `NULLS NOT DISTINCT`. FII: tipo de fundo › segmento; Ação: setor B3 › segmento B3; demais tipos: `segment` nulo |
 | `strategies` | % ideal por tipo — `unique(user_id, asset_type_id)`. É a **geração de renda**: posição de reserva nunca entra (`include_reservation` saiu na V10) |
 | `strategy_reservations` | Estratégia da reserva de emergência — **uma por usuário** (`unique(user_id)`), nunca apagada. `type_reservation` 1 = por percentual (`target_percentage`), 2 = por valor (`target_value`); a outra coluna fica nula, e `ck_strategy_reservations_target` confere |
-| `dividends` | Proventos. **Sem `user_id`** — ver Pontos de Atenção |
+| `dividends` | Proventos. **Sem `user_id`** — ver Pontos de Atenção. `total_amount` é o **bruto** (truncado nos centavos, como a B3); `net_amount` é o **líquido** depois do IR retido (V23) |
+| `withholding_tax_rules` | Alíquotas de IR retido na fonte por tipo de provento, tipo de ativo e vigência, com a base legal (V23). Lei nova = migration — ver "IR retido nos proventos" |
 | `ceiling_prices` | Preço teto por ativo — `unique(user_id, asset_id)` |
 | `goals` | Metas de investimento |
 | `asset_price_history` | Histórico de cotações |
@@ -345,7 +362,7 @@ coluna.
 > usuário; `getName()` é para lógica interna. `AssetCategory.getDisplayName()`
 > encapsula o fallback description → name.
 
-### Flyway — V1 a V12
+### Flyway — V1 a V24
 
 O Flyway roda do zero no perfil `docker`. No perfil `dev` fica desligado, porque
 o banco local é gerenciado à mão.
@@ -359,7 +376,9 @@ Nada disso interessa a um banco novo, e cada passo intermediário era mais uma
 coisa que podia falhar numa subida limpa.
 
 O reset deixou **9 arquivos, 156 KB contra 340 KB**. Desde então entraram
-V10–V12 (20/09/2026), e o banco fica na **versão 12**.
+V10–V12 (20/09/2026), V13–V22 (24/09/2026, integração BRAPI/B3) e V23
+(24/09/2026, IR retido nos proventos) e V24 (25/09/2026, extrato de proventos
+da B3), e o banco fica na **versão 24**.
 
 | Arquivo | Conteúdo |
 |---------|----------|
@@ -372,6 +391,17 @@ V10–V12 (20/09/2026), e o banco fica na **versão 12**.
 | V10 | Derruba `strategies.include_reservation`, com guarda (`RAISE EXCEPTION` se houver `true`) |
 | V11 | `strategy_reservations` |
 | V12 | Estratégia de reserva do usuário de desenvolvimento (percentual, 0,00%) |
+| V13 | Nomes das ações com acento, da BRAPI (98 linhas) |
+| V14 | 9 ativos inativos (deslistados e fundos fiscais), exceto com posição aberta |
+| V15 | 14 ações e 9 FIIs novos; INHF11 vira FII Híbrido |
+| V16–V17 | 12 categorias e 219 ETFs, com a cotação e o OHLCV de 23/09/2026 |
+| V18 | 22 categorias e 892 BDRs, com a cotação e o OHLCV de 23/09/2026 |
+| V19 | `assets.price_source_ref`, 15 categorias e 227 criptomoedas (sem cotação) |
+| V20 | Proventos em duas camadas: `asset_cash_events` e `asset_stock_events` (catálogo) + `dividends.cash_event_id/shares_on_date/origin`; `assets.isin/cnpj/cash_history_loaded_at` |
+| V21 | `assets.logo_path` e `logo_checked_at` |
+| V22 | `asset_cash_events.seq`: parcelas iguais do mesmo provento |
+| V23 | IR retido nos proventos: `withholding_tax_rules` (+ carga inicial) e `dividends.withholding_rule_id/withholding_rate/withholding_tax/net_amount_per_share/net_amount/tax_checked_at` |
+| V24 | Extrato de proventos da B3: fonte `EXTRATO_B3` em `asset_cash_events.source` e `asset_cash_events.payment_date_source` (`EXTRATO_B3` ou `DEDUZIDA`; nula = data da fonte oficial) |
 
 **Como o reset foi verificado** — vale registrar, porque é o método a repetir se
 houver um terceiro. Construiu-se um banco `db_ref` aplicando as 30 migrations
@@ -549,8 +579,7 @@ Falta criar o Client ID no Google Cloud Console.
 ### Dividends
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| GET | `/api/v1/dividends/` | Resumo de proventos |
-| POST | `/api/v1/dividends/` | Registrar |
+| GET | `/api/v1/dividends/` | Resumo de proventos: `totalDividends`, `byType`, `totalGross` e `totalTax` do **recebido** (líquidos); `totalToReceive`, `toReceiveGross`, `toReceiveTax` do **a receber**; cada provento com bruto, alíquota, IR, líquido e `received` |
 | GET | `/api/v1/dividends/asset/{ticker}` | Proventos de um ativo (escopado por usuário) |
 
 ### Ceiling Prices / Goals
@@ -657,6 +686,12 @@ a chave precisa avisar quem está de fora que o estado mudou. Por isso o
   O corte é no `@Query` com `ORDER BY` de relevância — cortar no cliente
   descartava linhas arbitrárias de um resultado sem ordem.
 - **Não é possível criar ativo pela transação.** Ticker fora do catálogo é erro.
+- **Regra K** (23/09/2026): excluída a última transação de uma posição, a
+  posição é apagada, qualquer que seja o tipo de ativo, com o título de renda
+  fixa e os proventos dela (`TransactionService.removeIfEmpty`). Antes só o
+  Tesouro fazia isso, e só sem provento; nos demais tipos a posição vazia
+  ficava, e a valorização de uma venda excluída continuava contando como
+  patrimônio.
 - Máscaras, todas sobre o mesmo `MaskedNumberInput` (dígitos lidos da direita
   para a esquerda, sem separador digitado): `CurrencyInput` (R$, 2 casas) em
   Valor, Preço Unitário e Taxas; **Quantidade com 2 casas**; e `PercentInput`
@@ -752,7 +787,7 @@ Valor atual = custo + `appreciation`.
 
 - **Com cotação** (Ações, FIIs, ETFs, BDRs, Cripto): `AppreciationUpdater` grava
   cotas × cotação − custo (2 casas) quando um dos lados muda — ao fim de cada
-  rodada do `PriceUpdateScheduler`, em `AssetService.updateAssetPrice` e ao
+  rodada do fechamento (`ClosingPriceService`), em `AssetService.updateAssetPrice` e ao
   criar, editar ou excluir transação. Na subida da API (`ApplicationReadyEvent`)
   todas as posições com cotação são regravadas.
 - **Sem cotação** (Renda Fixa, Tesouro, tipos MANUAL): nada derivado de
@@ -803,6 +838,22 @@ edição apagaria emissor, vencimento e taxa.
   sobre branco e apagava EMISSOR, APLICAÇÃO, VENCIMENTO e REMUNERAÇÃO na
   Carteira até 23/09/2026. Usou `text-white/NN`, `bg-surface-light/NN`,
   `hover:text-white` ou similar numa tela nova? Confira se o override existe.
+- **Menu lateral** (23/09/2026, `Sidebar.tsx`): ordem Dashboard, Carteira,
+  Transações, Alocação, Estratégia, Dividendos, Preço Teto, Metas. Recolhível
+  pelo botão redondo sobre a borda direita, na altura do logo: 256px ↔ 72px.
+  Recolhido mostra só "PV", os ícones (nome no `title`/`aria-label`) e o rodapé
+  empilhado. A escolha fica em `localStorage` (`primevest-sidebar-collapsed`),
+  como o tema.
+- **CORS** (`CorsConfig`): `localhost` e `127.0.0.1`, portas 5173 e 3000. Para
+  o navegador são origens diferentes; até 23/09/2026 só `localhost` valia, e
+  abrir a tela por `127.0.0.1` fazia o login falhar com 403 — exibido como
+  "Email ou senha inválidos".
+- **Erros de entrada** (`utils/loginError.ts`, login e Google): o status decide
+  a frase — 401 credencial recusada; 400 email inválido; 403 origem recusada;
+  sem resposta, 502/503/504 ou **500 sem corpo** (é o proxy do Vite com a API
+  parada) = servidor fora do ar; 500 com mensagem = erro interno; 422 = texto
+  da regra. O interceptor do `api/client.ts` não trata 401 de `/auth/*` como
+  sessão vencida: antes, senha errada recarregava `/login` e apagava a mensagem.
 - **Background**: `#000000` (claro: `#f5f5f0`) · **Surfaces**: `#111111` (claro: `#ffffff`)
 - **Accent/Gold**: `#c9a84c` · **Success**: `#38a169` · **Danger**: `#e53e3e`
 - **Fonte**: Inter · **Idioma da UI**: Português (Brasil)
@@ -836,6 +887,90 @@ edição apagaria emissor, vencimento e taxa.
   quatro tabelas.
 
 ---
+
+## 💸 IR retido nos proventos (24/09/2026)
+
+Plano completo e conferência contra o extrato da B3 em `PLANO_IR_PROVENTOS.md`.
+
+- **Bruto × líquido.** A integração traz o valor por ação declarado pela
+  empresa (bruto). O PrimeVest calcula o IR retido e mostra o líquido, com a
+  mesma conta da B3: **bruto = valor por cota × cotas, truncado nos centavos;
+  IR = bruto × alíquota, truncado nos centavos; líquido = bruto − IR.** O
+  líquido por cota (8 casas) é só exibição — multiplicá-lo pelas cotas erra 1
+  centavo.
+- **Regras no banco, cálculo no código.** `withholding_tax_rules` guarda
+  alíquota, vigência e base legal; `WithholdingTaxCalculator` guarda o método.
+  Carga inicial (PF residente): JCP 15% até 31/12/2025 e 17,5% desde 01/01/2026
+  **pela data do crédito** (aprovação); dividendo isento; "rendimento" de ação
+  (atualização pela Selic) 22,5%; rendimento de FII, amortização e restituição
+  de capital isentos. Tipo sem linha (ETF, BDR...) = sem regra: líquido nulo,
+  e as somas usam o bruto.
+- **Lei nova = migration**: fecha a vigência da linha antiga, insere a nova e
+  zera `dividends.tax_checked_at` dos proventos afetados. Nunca UPDATE na V23.
+- **Onde roda.** O `DividendRecalculator` é o único lugar que grava provento, e
+  calcula o IR junto — rotina, sob demanda e transação. O `DividendTaxVerifier`,
+  na subida, recalcula o que estiver com `tax_checked_at` nulo (carga inicial e
+  lei nova). Não há endpoint de recálculo.
+- **Carteira e Dashboard somam o líquido** (`COALESCE(net_amount, total_amount)`).
+
+## 📅 Proventos recebidos × a receber (24/09/2026)
+
+- **Regra** (`Dividend.isReceived(today)`): recebido = pagamento **até hoje,
+  contando o próprio dia (D0)**. Sem data de pagamento: recebido se o evento veio
+  só do histórico longo da B3 (`B3_HISTORICO`, que lista apenas o passado); a
+  receber se veio da fonte recente com pagamento "a definir"; MANUAL sem evento
+  conta como recebido. A mesma regra está nas somas do `DividendRepository`, e o
+  `DividendRepositoryTest` confere que as duas batem.
+- **"Hoje" é o de São Paulo**, vindo do bean `DividendCalendar` — nunca
+  `CURRENT_DATE` do banco: o PostgreSQL roda em UTC e, às 21h de São Paulo, já é
+  o dia seguinte. Nos testes, `@MockBean DividendCalendar` fixa a data.
+- **Nada é gravado**: o provento passa de "a receber" para "recebido" sozinho
+  quando chega o dia do pagamento.
+- **Carteira, Dashboard e rentabilidade** somam só o recebido
+  (`sumTotalAmountByPosition(portfolioId, today)`).
+- **`GET /dividends/`**: `totalDividends`, `byType`, `totalGross` e `totalTax` são
+  do recebido; `totalToReceive`, `toReceiveGross` e `toReceiveTax`, do a receber;
+  cada provento traz `received`.
+- **Tela de Dividendos**: cards Total Recebido | Recebido por Tipo | Total a
+  Receber (todos acompanham os filtros), filtro "Situação" e coluna SITUAÇÃO
+  (RECEBIDO verde, A RECEBER cinza — o selo da SUGESTÃO da Estratégia).
+
+## 🧾 Extrato de proventos da B3 (25/09/2026)
+
+Preenche o que as fontes oficiais não trazem: data de pagamento dos eventos que
+só existem no histórico longo (`B3_HISTORICO`), FII sem aviso no FNET e o
+"rendimento" (Selic) de ação, que a B3 não publica nos dados da empresa.
+
+- **Entrada**: `POST /api/v1/admin/proventos/extrato` (só admin; 403 para os
+  demais), corpo `{dryRun, lines[], deducedPayments[]}`. Com `dryRun: true`
+  tudo roda e é desfeito (`setRollbackOnly`). É repetível: rodar de novo dá
+  tudo `JA_EXISTE`. Serviço: `ExtratoProventosImportService`.
+- **Cada linha** (ativo, tipo, pagamento, cotas, líquido; opcionais bruto e
+  data-com) vira um status: `JA_EXISTE` (provento igual já está lá);
+  `DATA_COMPLETADA` (provento sem pagamento com as mesmas cotas e líquido —
+  recusa se os candidatos tiverem datas-com diferentes; parcelas iguais pela
+  menor `seq`); `EVENTO_CRIADO` (só com data-com e bruto: confere as cotas na
+  data-com, o valor por cota reproduz o bruto e o IR reproduz o líquido; grava
+  no catálogo com fonte `EXTRATO_B3`, na primeira `seq` livre); `RECUSADO`.
+  `deducedPayments` completa a data com origem `DEDUZIDA` (`DATA_DEDUZIDA`).
+- **Evento do extrato é do catálogo**, como os outros: o
+  `DividendRecalculator` gera o provento de cada posição. Nada é gravado direto
+  em `dividends`.
+- **Origem da data** (`asset_cash_events.payment_date_source`): nula = fonte
+  oficial; `EXTRATO_B3` ou `DEDUZIDA` = veio daqui. No `saveCashEvent`, a data
+  oficial substitui a do extrato/deduzida (e zera a origem); o extrato nunca
+  substitui data oficial.
+- **Tela**: DATA COM e PAGAMENTO com sublinhado pontilhado e hover quando o
+  evento é do extrato ou a data não é oficial (`cashEventSource` e
+  `paymentDateSource` no `DividendResponseDTO`).
+- **Carga real fica fora do projeto**: scripts em `E:\carga\scripts`
+  (`converter_proventos.mjs` lê os Excel da Área do Investidor e deduz a
+  data-com dos FIIs pelo padrão de cada fundo; `carregar_proventos.mjs` simula
+  por padrão e grava com `--gravar`).
+- **`GlobalExceptionHandler`** trata `ResponseStatusException` com o status e o
+  motivo da própria exceção. Antes ela caía no handler genérico e virava 500 —
+  inclusive o 403 dos endpoints de admin.
+- Testes: `ExtratoProventosIT` (10 cenários) e `PaymentDateSourceIT` (2).
 
 ## ⚠️ Pontos de Atenção
 
@@ -914,15 +1049,20 @@ consequências:
   a razão de não existir.
 
 **`portfolio_assets.updated_at` se move sozinha.** `AppreciationUpdater` grava
-`appreciation` a cada rodada do `PriceUpdateScheduler` e na subida da API, e
+`appreciation` a cada rodada do fechamento e na subida da API, e
 isso conta como alteração da linha. A coluna responde "quando esta linha mudou",
 não "quando o usuário mexeu nesta posição" — para a segunda pergunta, o que vale
 é `transactions.updated_at`.
 
 ### Testes — existem desde 22/09/2026
 
-`src/test` deixou de estar vazio. **234 testes**, verdes em `mvn clean verify`
-(~52s): 176 rapidos (`*Test`, Surefire) e 58 funcionais (`*IT`, Failsafe).
+`src/test` deixou de estar vazio. **319 testes** em 24/09/2026, verdes em
+`mvn clean verify` (~75s): 240 rapidos (`*Test`, Surefire) e 79 funcionais
+(`*IT`, Failsafe). A integração BRAPI/B3 trouxe `BrApiClientTest` (ExchangeFunction
+falsa), `CorporateActionApplierTest`, `PositionCalculatorEventosTest`,
+`DividendRecalculatorTest`, `B3RespostasReaisTest` (respostas reais da B3 e do
+FNET em `src/test/resources/b3`) e os funcionais `FechamentoIT`, `ProventosIT` e
+`EventosSocietariosIT`.
 
 | Camada | O que cobre |
 |--------|-------------|

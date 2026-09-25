@@ -78,4 +78,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
         """)
     List<Transaction> findByPortfolioIdAndAssetId(@Param("portfolioId") UUID portfolioId,
                                                   @Param("assetId") Long assetId);
+
+    /** Data da transacao mais antiga do ativo, de qualquer carteira. Nula = nenhuma. */
+    @Query("SELECT MIN(t.transactionDate) FROM Transaction t WHERE t.portfolioAsset.asset.id = :assetId")
+    java.time.LocalDate findEarliestDateByAssetId(@Param("assetId") Long assetId);
 }

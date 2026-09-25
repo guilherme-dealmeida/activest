@@ -28,21 +28,21 @@ export const CeilingPricesPage = () => {
 
   const { data: prices, isLoading } = useQuery<CeilingPrice[]>({
     queryKey: ['ceilingPrices'],
-    queryFn: ceilingPricesApi.list as any
+    queryFn: ceilingPricesApi.list
   });
 
   const mutationCreate = useMutation({
-    mutationFn: ceilingPricesApi.create as any,
+    mutationFn: ceilingPricesApi.create,
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['ceilingPrices'] }); closeModal(); }
   });
 
   const mutationUpdate = useMutation({
-    mutationFn: ({ id, data }: { id: string, data: CeilingPriceCreate }) => ceilingPricesApi.update(id, data as any) as any,
+    mutationFn: ({ id, data }: { id: string, data: CeilingPriceCreate }) => ceilingPricesApi.update(id, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['ceilingPrices'] }); closeModal(); }
   });
 
   const mutationDelete = useMutation({
-    mutationFn: ceilingPricesApi.delete as any,
+    mutationFn: ceilingPricesApi.delete,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ceilingPrices'] })
   });
 
@@ -74,7 +74,7 @@ export const CeilingPricesPage = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingId) mutationUpdate.mutate({ id: editingId, data: formData });
-    else mutationCreate.mutate(formData as any);
+    else mutationCreate.mutate(formData);
   };
 
   if (isLoading) {
@@ -148,7 +148,7 @@ export const CeilingPricesPage = () => {
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-2">
                       <button onClick={() => openModal(row)} className="text-gray-400 hover:text-white p-1"><Edit2 className="w-4 h-4" /></button>
-                      <button onClick={() => { if(window.confirm('Excluir?')) mutationDelete.mutate(row.id as any); }} className="text-gray-400 hover:text-danger p-1"><Trash2 className="w-4 h-4" /></button>
+                      <button onClick={() => { if(window.confirm('Excluir?')) mutationDelete.mutate(row.id); }} className="text-gray-400 hover:text-danger p-1"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </td>
                 </tr>

@@ -544,4 +544,94 @@ class TransacoesIT extends FuncionalBase {
                 .isEqualByComparingTo("5");
         }
     }
+
+    // ------------------------------------------------------------------
+    // Regra K
+    // ------------------------------------------------------------------
+
+    @Nested
+    @DisplayName("Regra K — posicao sem transacao deixa de existir")
+    class RegraK {
+
+        private long posicoes() {
+            return jdbc.queryForObject("SELECT COUNT(*) FROM portfolio_assets", Long.class);
+        }
+
+        private long titulos() {
+            return jdbc.queryForObject("SELECT COUNT(*) FROM fixed_income_notes", Long.class);
+        }
+
+        private void excluir(Object txId) {
+            assertThat(delete(dono, "/api/v1/transactions/" + txId).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        }
+
+        @Test
+        @DisplayName("Regra K — acao: a posicao fica enquanto houver transacao e sai com a ultima")
+        void regraK_acao() {
+            TransactionResponseDTO primeira = lancarComSucesso(dono, compra(CatalogIds.ACAO, "2026-09-01", "10", "30.00"));
+            TransactionResponseDTO segunda = lancarComSucesso(dono, compra(CatalogIds.ACAO, "2026-09-02", "5", "32.00"));
+
+            excluir(segunda.id());
+            assertThat(posicoes()).isEqualTo(1);
+
+            excluir(primeira.id());
+            assertThat(posicoes()).isZero();
+            assertThat(carteiraDe(dono)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("Regra K — renda fixa liquidada com ganho: excluidas venda e compra, posicao, titulo e valorizacao somem")
+        void regraK_rendaFixaLiquidada() {
+            TransactionResponseDTO aplicacao = lancarComSucesso(dono,
+                aplicacaoEmCdb(CatalogIds.CDB, "2026-01-10", "1000.00", "BTG"));
+            Map<String, Object> resgate = new HashMap<>();
+            resgate.put("ticker", CatalogIds.CDB);
+            resgate.put("type", "SELL");
+            resgate.put("transactionDate", "2026-09-10");
+            resgate.put("totalAmount", new BigDecimal("1300.00"));
+            resgate.put("noteId", aplicacao.noteId());
+            resgate.put("isFullSettlement", true);
+            TransactionResponseDTO venda = lancarComSucesso(dono, resgate);
+
+            excluir(venda.id());
+            excluir(aplicacao.id());
+
+            assertThat(posicoes()).isZero();
+            assertThat(titulos()).isZero();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> resumo = get(dono, "/api/v1/portfolio/", Map.class).getBody();
+            assertThat(numero(resumo.get("currentValue"))).isEqualByComparingTo("0");
+            assertThat(numero(resumo.get("totalReturn"))).isEqualByComparingTo("0");
+        }
+
+        @Test
+        @DisplayName("Regra K — posicao que teve provento tambem sai, levando o provento junto")
+        void regraK_comProvento() {
+            TransactionResponseDTO compra = lancarComSucesso(dono, compra(CatalogIds.FII, "2026-08-01", "10", "160.00"));
+            UUID posicaoId = jdbc.queryForObject("SELECT id FROM portfolio_assets", UUID.class);
+            jdbc.update("INSERT INTO dividends (portfolio_asset_id, amount_per_share, total_amount, ex_date, payment_date, type)"
+                + " VALUES (?, 1.10, 11.00, DATE '2026-08-29', DATE '2026-09-12', 'RENDIMENTO')", posicaoId);
+
+            excluir(compra.id());
+
+            assertThat(posicoes()).isZero();
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM dividends", Long.class)).isZero();
+        }
+
+        @Test
+        @DisplayName("Regra K — Tesouro: excluir a unica compra apaga o titulo e libera a data para a regra H")
+        void regraK_tesouro() {
+            Map<String, Object> compraTesouro = lancamento(CatalogIds.TESOURO_IPCA_2050, "BUY", "2026-09-01", "3", "830.07");
+            compraTesouro.put("issuer", "Tesouro Nacional");
+            compraTesouro.put("indexerRate", new BigDecimal("7.09"));
+            TransactionResponseDTO compra = lancarComSucesso(dono, compraTesouro);
+
+            excluir(compra.id());
+
+            assertThat(posicoes()).isZero();
+            assertThat(titulos()).isZero();
+            // A mesma compra, na mesma data, volta a ser aceita.
+            lancarComSucesso(dono, compraTesouro);
+        }
+    }
 }

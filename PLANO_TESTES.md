@@ -7,7 +7,7 @@
 > Fora do escopo agora: Autenticação, Preço Teto, Dividendos, Metas, Usuário, Rotinas com schedule.
 
 Objetivo: os testes passam a andar junto com as regras. Cada regra nomeada no código
-(A, B, C, E, F, G, H, I, J, Exemplos do escopo) ganha pelo menos um teste com o mesmo nome,
+(A, B, C, E, F, G, H, I, J, K, Exemplos do escopo) ganha pelo menos um teste com o mesmo nome,
 para que mudar a regra sem mudar o teste seja impossível.
 
 ---
@@ -182,6 +182,7 @@ JUnit 5 + Mockito, **sem Spring**. Ordem: primeiro os componentes de regra pura 
 - `findOwnedTransaction`: transação alheia → `ResourceNotFoundException` (404, não 403).
 - Roteamento Tesouro (compra/venda/edição/exclusão) e **regra H** (dois títulos do mesmo ativo na mesma data → erro; ignora a própria transação na edição).
 - `afterPositionChange`: ordem saldo → liquidação → regra I → proventos → valorização (verificar com `InOrder`).
+- **Regra K** (23/09/2026): excluída a última transação, a posição é apagada em qualquer tipo de ativo — com o título de renda fixa (depois da posição, pela FK) e com os proventos (cascade). Unitário em `TransactionServiceTest$RegraK` (ação, renda fixa, transação restante, Tesouro com provento); funcional em `TransacoesIT$RegraK` (ação, CDB liquidado com ganho, FII com provento, Tesouro liberando a data da regra H).
 
 > Observação: `TransactionService` tem 805 linhas e 12 dependências. O unitário cobre **decisão e roteamento**;
 > o efeito combinado (FIFO gravado, liquidação, valorização) fica para o funcional, onde é mais barato e mais fiel.

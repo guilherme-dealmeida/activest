@@ -1,7 +1,14 @@
 PRIMEVEST — PENDENCIAS EM ABERTO
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 18/09/2026 — itens 9.1 a 9.8, a secao 12 (lint) e o
+Ultima atualizacao: 25/09/2026 — itens 3.4 e 3.5 baixados (extrato de proventos
+da B3, V24). Antes: 24/09/2026 — itens 3.5 a 3.8 (IR retido nos proventos,
+PLANO_IR_PROVENTOS.md). Antes, no mesmo dia: item 3.4 (provento de acao sem
+data de pagamento) e secao 14 (rotinas: proventos sob demanda
+travando as threads e fechamento no meio do pregao), vista na carga do
+extrato B3. Antes, no mesmo dia: execucao do PLANO_BRAPI.md: baixados 3.2,
+6.1, 6.2, 6.4, 11.3 e 11.4; 11.1 atualizado. Antes, no mesmo dia: secao 13
+(central de avisos, adiada do PLANO_BRAPI.md). Antes: 18/09/2026 — itens 9.1 a 9.8, a secao 12 (lint) e o
 segundo reset das migrations.
 
 
@@ -79,7 +86,8 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
 
 
 ================================================================================
-3. PROVENTOS — DividendSyncScheduler
+3. PROVENTOS — DividendSyncScheduler (substituido em 24/09/2026 pela rotina de
+   proventos da B3: ProventosSyncService + ProventosScheduler — PLANO_BRAPI F5)
 ================================================================================
 
   3.1  Linha 129: o total do provento e calculado com pa.getTotalShares(), a
@@ -90,9 +98,9 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
        — a mesma logica cronologica de PositionCalculator.
        (Ja feito: DividendRecalculator.sharesOn usa PositionCalculator.sharesOn.)
 
-  3.2  Confirmar o mapeamento do JSON da BrAPI. getLastDatePrior esta sendo lido
-       como data-com; conferir contra a resposta real da API se esse campo e a
-       data-com mesmo ou a data de anuncio.
+  3.2  FEITO em 24/09/2026 — lastDatePrior E a data-com (conferido na resposta
+       real; a data ex e o pregao seguinte). A fonte deixou de ser a BrAPI
+       (dividendos la sao pagos): e o site da B3, que usa o mesmo campo.
 
   3.3  Provento nao tem dono proprio. A tabela dividends nao tem user_id: o
        dono e alcancado pela posicao (portfolio_asset_id), e essa coluna e
@@ -107,6 +115,67 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
        provento e um fato do usuario, nao da posicao.
        Impacto hoje: nenhum, a base nao tem provento orfao. Mas a primeira
        exclusao de posicao cria um.
+
+  3.4  FEITO em 25/09/2026 — Provento de acao sem data de pagamento (24/09/2026)
+       Resolvido pelo extrato de proventos da Area do Investidor
+       (POST /admin/proventos/extrato, V24): 22 datas completadas com origem
+       EXTRATO_B3 e as 2as parcelas de JCP da CMIG4 (data-com 25/03/2025 e
+       23/06/2025) com pagamento DEDUZIDO em 30/12/2026, ainda a receber. A
+       origem fica em asset_cash_events.payment_date_source e aparece no hover;
+       fonte oficial que trouxer a data depois a substitui. Historico abaixo.
+       24 dos 203 proventos da carteira estao com payment_date nulo. Todos sao
+       de acao (BBAS3, CMIG4, SAPR4, CXSE3, BRBI11), com data-com entre
+       dez/2024 e ago/2025. FII nao tem o problema: o FNET traz o pagamento.
+       - Causa: esses eventos vieram so de B3_HISTORICO
+         (GetListedCashDividends), que nao tem campo de pagamento. A consulta
+         que traz o pagamento (GetListedSupplementCompany) cobre so ~12 meses;
+         o saveCashEvent completa a data quando outra fonte a traz, mas evento
+         com mais de um ano nunca volta nela. Ex.: asset_cash_events 266,
+         BBAS3 JCP data-com 11/12/2024 -> dividends 61.
+       - Impacto: so na tela (coluna PAGAMENTO vazia). O unico calculo que usa
+         a data e a reducao de custo de AMORTIZACAO/RESTITUICAO_CAPITAL, e
+         PositionCalculator ja cai para a data-com quando ela falta; nenhum dos
+         24 e desses tipos. Parcelas iguais sem pagamento (CMIG4) parecem
+         duplicadas, mas sao parcelas (seq 1 e 2, V22).
+       - Paliativo (escopo de filtros de dividendos): mostrar "—" com a
+         explicacao no hover.
+       - Solucao de verdade exige outra fonte: dividendos da BRAPI so em plano
+         pago (PLANO_BRAPI.md, D4) e o lancamento manual foi retirado
+         (proventos sao somente leitura). Nao estimar a data: sem fonte, fica
+         nula.
+
+  3.5  FEITO em 25/09/2026 (para o que esta no extrato) — IR retido:
+       rendimentos que a integracao nao traz (24/09/2026)
+       Os 3 rendimentos de PETR4 (data-com 22/12/2025, bruto 0,45, 0,45 e
+       0,26) entraram pelo extrato como eventos EXTRATO_B3, junto com 18
+       rendimentos de FII sem aviso no FNET. Rendimento futuro desse tipo so
+       entra com um extrato novo: a integracao continua sem essa fonte.
+       Historico abaixo.
+       O extrato da B3 mostra "Rendimento" (atualizacao pela Selic) de PETR4
+       em 20/02/2026 (R$ 0,35) e 20/03/2026 (R$ 0,35 e R$ 0,21) que nao
+       existem em asset_cash_events: a B3 nao os publica nos dados da
+       empresa. So existem no extrato do investidor.
+       Caminho: importar o Excel de Movimentacao da Area do Investidor
+       (PLANO_IR_PROVENTOS.md, secao 9) — escopo futuro.
+
+  3.6  IR retido: prazo real do "rendimento" de acoes (24/09/2026)
+       A atualizacao pela Selic segue a tabela regressiva de renda fixa, que
+       conta da data de inicio da correcao — dado que nao vem na fonte. A V23
+       usa 22,5% fixo (ate 180 dias). Erra se um dia o pagamento passar de
+       180 dias do inicio da correcao.
+
+  3.7  IR retido: 10% sobre dividendo > R$ 50 mil/mes (Lei 15.270/2025)
+       Retencao sobre o total do mes quando a mesma empresa paga mais de
+       R$ 50 mil a mesma PF; o aprovado ate 31/12/2025 segue isento. Exige
+       somar por empresa pagadora no mes. Hoje dividendo e isento sempre.
+
+  3.8  IR retido: fora das regras da V23 (24/09/2026)
+       - Perfil do investidor: tudo assume PF residente (PJ, isento e nao
+         residente tem outras aliquotas).
+       - ETF, BDR, Stock, REIT: sem regra (liquido nulo; somas usam o bruto)
+         ate existir provento desses tipos.
+       - IRPFM (imposto minimo acima de R$ 600 mil/ano): e da declaracao
+         anual, nao da fonte.
 
 
 ================================================================================
@@ -157,25 +226,23 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
 6. CATALOGO DE ATIVOS
 ================================================================================
 
-  6.1  ETFs. Cerca de 245 na B3. Voce apagou o BRAX dizendo que o cadastro viria
-       depois. O tipo ETF ja existe em asset_types com price_source BRAPI;
-       faltam os ativos e as categorias.
+  6.1  FEITO em 24/09/2026 — V16 (12 categorias) e V17 (219 ETFs, com a cotacao
+       de 23/09/2026). BRAX ficou de fora de proposito (cadastro sujo na BRAPI).
+       Junto entraram os BDRs (V18, 892) e as criptomoedas (V19, 227).
 
-  6.2  Nomes de acao sem acento. Os 782 estao assim desde o seed original:
-       AALR3 e "ALLIANA SADE E PARTICIPAES S.A." em vez de "ALIANCA SAUDE E
-       PARTICIPACOES S.A.". Nenhum nome de acao tem acento; 136 nomes de FII
-       tem. A fonte das acoes perdeu os acentos na importacao.
-       Nao corrigi junto com o reset das migrations porque seriam 782 grafias
-       adivinhadas. Precisa da lista certa, de uma fonte com encoding correto.
+  6.2  FEITO em 24/09/2026 — V13 troca os nomes pelos da BRAPI (98 linhas; o
+       resto ja batia ou a BRAPI devolve o proprio ticker). AALR3 e
+       "ALLIANÇA SAÚDE E PARTICIPAÇÕES S.A.".
 
   6.3  O catalogo e global — assets nao tem user_id, de proposito: um ativo e o
        mesmo para todo mundo. Continua valendo. Mas quando entrar cadastro de
        ativo pelo usuario, essa decisao precisa ser revisitada, porque foi
        exatamente por essa porta que "CDB BTG 2027" virava ativo global.
 
-  6.4  Coluna active em assets. Voce pediu para manter por enquanto. Ela e lida
-       pelo PriceUpdateScheduler (findByActiveTrue), entao nao e coluna morta —
-       mas nada no sistema a escreve. Decidir quem a desliga.
+  6.4  FEITO em 24/09/2026 — quem desliga e migration, pelo criterio da secao
+       2.1 do PLANO_BRAPI (fora da lista oficial E cotacao 404): V14 desligou 9.
+       A conferencia semanal do catalogo (segunda 07:00) aponta no log os novos
+       candidatos; a decisao continua manual. Inativo sai da busca.
 
 
 ================================================================================
@@ -381,10 +448,10 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
 11. HISTORICO DE PRECO — asset_price_history
 ================================================================================
 
-  11.1 A tabela so escreve, nunca le. PriceUpdateScheduler.saveDailyPriceHistory()
-       roda as 18:30 de segunda a sexta, logo apos o update de precos da B3, e
-       insere uma linha por ativo ativo com cotacao. Ninguem consome essas
-       linhas. Sao ~1.264 por pregao.
+  11.1 A tabela so escreve, nunca le. ATUALIZADO em 24/09/2026: quem grava
+       agora e a rotina de fechamento (ClosingPriceService, 19:00), so para os
+       ativos EM CARTEIRA — nao mais o catalogo inteiro. Carga inicial de 3
+       meses por ativo novo em carteira. A leitura continua sem uso (11.2, 11.6).
 
   11.2 A leitura e um stub. AssetPriceHistoryService.getHistory() retorna
        List.of() — corpo vazio. E GET /api/v1/assets/{ticker}/history no
@@ -394,13 +461,11 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
        O frontend tambem nao chama: nao ha nenhuma referencia a history em
        primevest-web/src.
 
-  11.3 So close_price e gravado. As colunas open_price, high_price, low_price e
-       volume existem na entidade e ficam sempre nulas, porque a BrAPI e
-       consultada so pelo preco corrente. Se o grafico for de candle, a mudanca
-       comeca na chamada a BrAPI, nao no endpoint.
+  11.3 FEITO em 24/09/2026 — o fechamento usa o historico diario da BRAPI
+       (range=5d) e grava abertura, maxima, minima, fechamento e volume.
 
-  11.4 O scheduler de cripto (a cada 30 min) nao grava historico nenhum. So o
-       fechamento da B3 grava.
+  11.4 FEITO em 24/09/2026 — cripto uma vez ao dia, 19:00, todos os dias,
+       gravando o fechamento do dia (a rodada de 30 em 30 minutos saiu).
 
   11.5 Dos dois metodos do AssetPriceHistoryRepository, so
        findByAssetIdAndReferenceDate e usado — pelo proprio scheduler, para nao
@@ -436,18 +501,121 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
        componente sustenta CurrencyInput, PercentInput e a Quantidade do modal
        de transacao — as mascaras mexidas no mesmo dia.
 
-  12.3 PENDENTE: 35 avisos, quase todos @typescript-eslint/no-explicit-any.
-       Concentrados em src/api (respostas nao tipadas), nos blocos catch das
-       paginas e em DataTable/useSortable (accessor generico).
-       A regra ficou como AVISO de proposito: subir para erro antes de tipar as
-       respostas da API transformaria o lint numa parede que ninguem le.
-       Alvo natural quando alguem tipar os DTOs de resposta.
-       Sobram dois avisos de react-refresh/only-export-components, em
-       AuthContext e ThemeContext — os dois exportam hook junto com o provider.
-       Custo real: hot reload desses arquivos recarrega a pagina inteira.
+  12.3 RESOLVIDO em 23/09/2026 — npm run lint sem nenhum aviso (eram 35).
+       - src/api: respostas tipadas por generico do axios (get<T>, post<T>,
+         put<T>) em assets, transactions, goals, dividends e ceilingPrices;
+         auth ganhou LoginRequest e RegisterRequest em types/index.ts,
+         espelhando LoginRequestDTO e RegisterRequestDTO.
+       - Paginas: sairam os 'as any' de queryFn/mutationFn/mutate, que so
+         existiam porque a API devolvia any.
+       - catch (LoginPage, useGoogleSignIn): err: unknown, lendo so
+         response.data.message (nao o apiMessage, que tambem exibiria o
+         'error' do Spring, ex.: "Unauthorized").
+       - Tooltips/legendas do Recharts (StrategyPage, AllocationPieChart,
+         AllocationDetailedCharts): interfaces proprias da fatia.
+       - useSortable: acesso dinamico via Record<string, unknown>.
+       - DataTable.tsx removido: nenhuma tela o usava.
+       - react-refresh/only-export-components: cada contexto virou
+         XContext.ts (contexto, tipos e hook) + XProvider.tsx (componente).
+         Os imports de useAuth/useTheme/useToast nao mudaram; so o main.tsx
+         passou a importar os providers de ./context/XProvider.
+       Se o Vite do container reclamar de context/XContext.tsx inexistente,
+       e cache da resolucao antiga: docker restart primevest-web.
 
   12.4 Nao ha lint no backend. Nenhum Checkstyle, SpotBugs ou formatador no
        pom.xml. Decidir se vale, e se vale, antes ou depois do item 8.
+
+
+================================================================================
+13. CENTRAL DE AVISOS (adiada do PLANO_BRAPI.md em 24/09/2026)
+================================================================================
+
+Hoje o unico aviso do sistema e o toast (canto superior direito, some em 4-8s).
+Serve para responder a um clique, nao para algo que uma rotina da madrugada
+descobriu. O PLANO_BRAPI.md (secao F8) desenhou uma central de avisos; ficou
+para depois. Enquanto ela nao existir, as rotinas so escrevem no log.
+
+  13.1 Central de avisos
+       - Tabela notices: user_id (nulo = aviso do sistema), kind, severity
+         (INFO/ATENCAO), title, message, ref_type + ref_id (ativo, posicao ou
+         evento), status (ABERTO/RESOLVIDO/DISPENSADO), created_at,
+         resolved_at. Um aviso aberto por kind + referencia: a rotina nao
+         repete.
+       - API: GET /api/v1/notices?status=ABERTO e PATCH /api/v1/notices/{id}.
+       - Tela: sino no Header com o numero de abertos; painel lateral com a
+         lista; cada aviso com a acao que o resolve ("Ver ativo",
+         "Dispensar", "Informar custo").
+       - Quem vai usar: conferencia semanal do catalogo (ticker novo, sumido,
+         renomeado — PLANO_BRAPI B23), bonificacao sem custo (13.2), rotina
+         de proventos (rotulo desconhecido da B3, fonte fora do ar).
+
+  13.2 Bonificacao sem custo informado pela B3
+       DECIDIDO (24/09/2026): as acoes novas entram na hora com custo ZERO
+       PROVISORIO, para a quantidade ja ficar certa. Isso vale desde a F6 do
+       PLANO_BRAPI, com ou sem a central.
+       O que depende da central (13.1):
+       - aviso "PETR4 - bonificacao de 10% em 12/03/2027 sem custo atribuido.
+         Informe o valor por acao (esta no fato relevante da empresa)";
+       - icone de atencao ao lado do preco medio da posicao na Carteira, com o
+         mesmo texto no balao (i);
+       - "Informar custo": um campo; o valor vai para stock_event_costs
+         (posicao, evento, custo por acao) — dado digitado pelo usuario nao
+         vai para o catalogo global —, o preco medio e recalculado e o aviso
+         fecha sozinho.
+       Conferido em 24/09/2026 (A12): o campo remarks da B3 veio vazio em
+       todas as bonificacoes reais vistas (MGLU 2025, ITSA 2025, BBAS 1996) —
+       o custo atribuido nao vem da B3; asset_stock_events.assigned_cost fica
+       nulo ate a central existir.
+       FEITO em 24/09/2026: custo zero provisorio no calculo
+       (CorporateActionApplier) e WARN no log quando a rotina grava uma
+       bonificacao que pega alguma posicao.
+
+
+================================================================================
+14. ROTINAS EXTERNAS — achados da carga do extrato B3 (24/09/2026)
+================================================================================
+
+Os dois apareceram na carga de 88 transacoes pela API (scripts fora do repo,
+em E:\carga). Nenhum foi corrigido.
+
+  14.1 Rotinas travando: proventos sob demanda prendem as threads da API
+       Cada transacao dispara uma busca de proventos em paralelo, e essas
+       buscas esperam na fila sem liberar as threads da API. Com muitos
+       lancamentos seguidos, como nesta carga, outras rotinas param junto,
+       inclusive o fechamento.
+       - Onde: ProventosOnDemandListener abre um Thread.ofVirtual() por
+         PositionChangedEvent, e ProventosSyncService.syncAssetOnDemand entra
+         num synchronized (this). No Java 21 a thread virtual que espera um
+         monitor (ou que bloqueia dentro dele, como o Mono.block do
+         FnetClient) PRENDE a thread portadora. Com ~70 threads na fila,
+         todas as portadoras ficaram presas.
+       - Visto: POST /api/v1/admin/closing respondeu 202, mas a thread
+         "admin-fechamento" nunca chegou a rodar (dump de threads: sem pilha).
+         Precisou de docker compose restart api; o fechamento saiu pela
+         recuperacao na subida e os proventos por /admin/proventos
+         (23 emissores, 0 falhas, ~50 min por causa dos timeouts do FNET).
+       - Correcao possivel: fila unica com um executor de uma thread e
+         deduplicacao por emissor (varias transacoes do mesmo ativo viram uma
+         busca), em vez de uma thread por evento; ou trocar o synchronized por
+         ReentrantLock, que nao prende a portadora (resolve o travamento, mas
+         nao o acumulo). O JDK 24 (JEP 491) elimina o pinning do synchronized,
+         mas nao o acumulo de threads esperando.
+
+  14.2 Fechamento no meio do pregao grava o dia ainda aberto
+       Rodado durante o horario de negociacao, ele grava o pregao de hoje
+       ainda aberto e usa essa cotacao como preco atual.
+       - Onde: ClosingPriceService.runB3Closing -> saveCandles grava todos os
+         candles que a BRAPI devolve, inclusive o de hoje, e poe o ultimo em
+         assets.current_price. Nada filtra o dia corrente.
+       - Visto: recuperacao na subida as 11:18 de 24/09 gravou o pregao de
+         24/09 parcial nos 23 ativos da carteira (ex.: PETR4 50,04 contra
+         49,60 no fechamento de 23/09). A rodada das 19:00 regrava o dia com o
+         valor final, entao o erro dura ate la.
+       - Afeta as tres entradas: recuperacao na subida, POST /admin/closing e
+         qualquer rodada fora do horario.
+       - Correcao possivel: antes de CLOSING_TIME, descartar o candle de hoje
+         (mesma regra de lastExpectedClosing), tanto no historico quanto no
+         current_price.
 
 
 ================================================================================

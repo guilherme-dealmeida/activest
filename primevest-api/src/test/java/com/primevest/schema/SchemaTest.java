@@ -25,11 +25,11 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Flyway roda ate a V12 e o schema valida contra as entidades")
+    @DisplayName("Flyway roda ate a V24 e o schema valida contra as entidades")
     void migrationsAplicadas() {
         Number versao = (Number) em.createNativeQuery(
             "SELECT MAX(CAST(version AS NUMERIC)) FROM flyway_schema_history WHERE success").getSingleResult();
-        assertThat(versao.intValue()).isEqualTo(12);
+        assertThat(versao.intValue()).isEqualTo(24);
 
         Number falhas = (Number) em.createNativeQuery(
             "SELECT COUNT(*) FROM flyway_schema_history WHERE NOT success").getSingleResult();
@@ -40,9 +40,13 @@ class SchemaTest extends JpaTestBase {
     @DisplayName("O catalogo semeado tem os numeros esperados de uma subida limpa")
     void catalogoSemeado() {
         assertThat(count("asset_types")).isEqualTo(12);
-        assertThat(count("asset_categories")).isEqualTo(116);
-        assertThat(count("assets")).isEqualTo(1264);
+        // 116 + 12 de ETF (V16) + 22 de BDR (V18) + 15 de cripto (V19)
+        assertThat(count("asset_categories")).isEqualTo(165);
+        // 1264 + 23 novos da B3 (V15) + 219 ETFs (V17) + 892 BDRs (V18) + 227 criptos (V19)
+        assertThat(count("assets")).isEqualTo(2625);
         assertThat(count("asset_terms")).isEqualTo(130);
+        // Regras de IR retido nos proventos (V23)
+        assertThat(count("withholding_tax_rules")).isEqualTo(7);
     }
 
     @Test

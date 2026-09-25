@@ -23,8 +23,9 @@ export function useSortable<T>(data: T[], initialSort: SortConfig = { key: '', d
     if (!sortConfig.direction || !sortConfig.key) return data;
 
     return [...data].sort((a, b) => {
-      const aVal = (a as any)[sortConfig.key];
-      const bVal = (b as any)[sortConfig.key];
+      // A chave vem do cabeçalho clicado (string), então o acesso é dinâmico.
+      const aVal = (a as Record<string, unknown>)[sortConfig.key];
+      const bVal = (b as Record<string, unknown>)[sortConfig.key];
 
       if (aVal == null && bVal == null) return 0;
       if (aVal == null) return 1;

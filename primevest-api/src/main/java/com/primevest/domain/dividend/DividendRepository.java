@@ -6,12 +6,29 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
 @Repository
 public interface DividendRepository extends JpaRepository<Dividend, Long> {
-    List<Dividend> findByPortfolioAssetIdOrderByExDateDesc(UUID portfolioAssetId);
+    /**
+     * Proventos de todas as posicoes de uma carteira, com posicao, ativo e tipo
+     * do ativo ja carregados — a tela de proventos mostra os tres. Uma consulta
+     * so, no lugar de uma por posicao mais a carga preguicosa de cada provento.
+     */
+    @Query("""
+        SELECT d FROM Dividend d
+        JOIN FETCH d.portfolioAsset pa
+        JOIN FETCH pa.asset a
+        JOIN FETCH a.assetType
+        LEFT JOIN FETCH d.withholdingRule
+        LEFT JOIN FETCH d.cashEvent
+        WHERE pa.portfolio.id = :portfolioId
+        ORDER BY d.exDate DESC, d.id DESC
+        """)
+    List<Dividend> findByPortfolioIdWithAsset(@Param("portfolioId") UUID portfolioId);
 
     /**
      * Proventos de um ativo, restritos ao que o usuario recebeu.
@@ -33,8 +50,19 @@ public interface DividendRepository extends JpaRepository<Dividend, Long> {
         """)
     List<Dividend> findByAssetIdAndOwner(@Param("userId") UUID userId, @Param("assetId") Long assetId);
 
-    @Query("SELECT SUM(d.totalAmount) FROM Dividend d WHERE d.portfolioAsset.portfolio.id = :portfolioId")
-    BigDecimal sumTotalDividendsByPortfolioId(@Param("portfolioId") UUID portfolioId);
+    /**
+     * Soma LIQUIDA do que ja foi RECEBIDO ate {@code today} (bruto onde o tipo
+     * nao tem regra de IR). Mesma regra de {@link Dividend#isReceived}.
+     */
+    @Query("""
+        SELECT SUM(COALESCE(d.netAmount, d.totalAmount)) FROM Dividend d
+        LEFT JOIN d.cashEvent ce
+        WHERE d.portfolioAsset.portfolio.id = :portfolioId
+          AND (d.paymentDate <= :today
+               OR (d.paymentDate IS NULL
+                   AND (ce.id IS NULL OR ce.source = com.primevest.domain.dividend.CashEventSource.B3_HISTORICO)))
+        """)
+    BigDecimal sumTotalDividendsByPortfolioId(@Param("portfolioId") UUID portfolioId, @Param("today") LocalDate today);
 
     /**
      * Total de proventos por posicao de uma carteira, numa consulta so.
@@ -43,13 +71,55 @@ public interface DividendRepository extends JpaRepository<Dividend, Long> {
      * proventos da posicao, e grava-lo era uma segunda fonte que so ficava certa
      * enquanto todo caminho que cria ou apaga provento lembrasse de atualiza-la.
      * Posicao sem provento nao aparece no resultado.</p>
+     *
+     * <p>Soma o LIQUIDO (V23, PLANO_IR_PROVENTOS.md, D1): e o dinheiro que
+     * entrou. Tipo sem regra de IR entra pelo bruto, para nao sumir do retorno.</p>
+     *
+     * <p>So o que ja foi RECEBIDO ate {@code today}: provento a receber nao e
+     * dinheiro na conta e nao entra na Carteira, no Dashboard nem na
+     * rentabilidade. Mesma regra de {@link Dividend#isReceived}.</p>
      */
     @Query("""
-        SELECT new com.primevest.domain.dividend.PositionDividendTotal(pa.id, SUM(d.totalAmount))
+        SELECT new com.primevest.domain.dividend.PositionDividendTotal(pa.id, SUM(COALESCE(d.netAmount, d.totalAmount)))
         FROM Dividend d
         JOIN d.portfolioAsset pa
+        LEFT JOIN d.cashEvent ce
         WHERE pa.portfolio.id = :portfolioId
+          AND (d.paymentDate <= :today
+               OR (d.paymentDate IS NULL
+                   AND (ce.id IS NULL OR ce.source = com.primevest.domain.dividend.CashEventSource.B3_HISTORICO)))
         GROUP BY pa.id
         """)
-    List<PositionDividendTotal> sumTotalAmountByPosition(@Param("portfolioId") UUID portfolioId);
+    List<PositionDividendTotal> sumTotalAmountByPosition(@Param("portfolioId") UUID portfolioId,
+                                                         @Param("today") LocalDate today);
+
+    /** Proventos da posicao de certos tipos (devolucoes de capital, no calculo da posicao). */
+    List<Dividend> findByPortfolioAssetIdAndTypeIn(UUID portfolioAssetId, Collection<DividendType> types);
+
+    /** Proventos de certos tipos de todas as posicoes de uma carteira, numa consulta so. */
+    @Query("""
+        SELECT d FROM Dividend d
+        JOIN FETCH d.portfolioAsset pa
+        WHERE pa.portfolio.id = :portfolioId
+          AND d.type IN :types
+        """)
+    List<Dividend> findByPortfolioIdAndTypeIn(@Param("portfolioId") UUID portfolioId,
+                                              @Param("types") Collection<DividendType> types);
+
+    /** Proventos AUTO da posicao, com o evento do catalogo que os gerou. */
+    @Query("""
+        SELECT d FROM Dividend d
+        LEFT JOIN FETCH d.cashEvent
+        WHERE d.portfolioAsset.id = :portfolioAssetId
+          AND d.origin = com.primevest.domain.dividend.DividendOrigin.AUTO
+        """)
+    List<Dividend> findAutoByPortfolioAssetId(@Param("portfolioAssetId") UUID portfolioAssetId);
+
+    /** Posicoes com provento AUTO cujo IR ainda nao foi calculado (DividendTaxVerifier). */
+    @Query("""
+        SELECT DISTINCT d.portfolioAsset.id FROM Dividend d
+        WHERE d.taxCheckedAt IS NULL
+          AND d.origin = com.primevest.domain.dividend.DividendOrigin.AUTO
+        """)
+    List<UUID> findPositionIdsWithTaxPending();
 }

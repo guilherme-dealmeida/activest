@@ -54,12 +54,12 @@ export const TransactionsPage = () => {
   // na edicao, a partir do assetTypeId que a transacao carrega.
   const { data: assetTypes } = useQuery<AssetType[]>({
     queryKey: ['assetTypes'],
-    queryFn: assetsApi.getTypes as any
+    queryFn: assetsApi.getTypes
   });
 
   const { data: transactions, isLoading } = useQuery<TransactionResponse[]>({
     queryKey: ['transactions'],
-    queryFn: transactionsApi.list as any
+    queryFn: transactionsApi.list
   });
 
   // Recebe a linha, e não só o id: o aviso diz o que foi excluído, e numa

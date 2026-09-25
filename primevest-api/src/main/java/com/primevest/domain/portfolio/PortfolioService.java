@@ -1,5 +1,8 @@
 package com.primevest.domain.portfolio;
 
+import com.primevest.domain.asset.AssetLogoService;
+
+import com.primevest.domain.dividend.DividendCalendar;
 import com.primevest.domain.dividend.DividendRepository;
 import com.primevest.domain.dividend.PositionDividendTotal;
 import com.primevest.domain.portfolio.dto.*;
@@ -25,15 +28,17 @@ public class PortfolioService {
     private final UserRepository userRepository;
     private final DividendRepository dividendRepository;
     private final PositionCalculator positionCalculator;
+    private final DividendCalendar dividendCalendar;
 
     public PortfolioService(PortfolioRepository portfolioRepository, PortfolioAssetRepository portfolioAssetRepository,
                             UserRepository userRepository, DividendRepository dividendRepository,
-                            PositionCalculator positionCalculator) {
+                            PositionCalculator positionCalculator, DividendCalendar dividendCalendar) {
         this.portfolioRepository = portfolioRepository;
         this.portfolioAssetRepository = portfolioAssetRepository;
         this.userRepository = userRepository;
         this.dividendRepository = dividendRepository;
         this.positionCalculator = positionCalculator;
+        this.dividendCalendar = dividendCalendar;
     }
 
     /**
@@ -59,7 +64,10 @@ public class PortfolioService {
             // Proventos de posicao liquidada continuam contando: eles foram
             // recebidos, e some-los de repente reescreveria o passado.
             totalDividends = totalDividends.add(dividends.getOrDefault(pa.getId(), BigDecimal.ZERO));
-            if (pa.isSettled()) {
+            // Sem custo a posicao nunca comecou (ou teve todas as transacoes
+            // excluidas): fica fora, como na listagem e na alocacao. Sem isto
+            // uma valorizacao que sobrou gravada virava "valor atual" sozinha.
+            if (pa.isSettled() || !position.hasInvestment()) {
                 continue;
             }
             totalInvested = totalInvested.add(safe(position.totalInvested()));
@@ -139,7 +147,9 @@ public class PortfolioService {
                     valorization,
                     returnPct,
                     pa.isReservation(),
-                    pa.isSettled()
+                    pa.isSettled(),
+                    AssetLogoService.typeHasLogo(pa.getAsset().getAssetType())
+                        ? pa.getAsset().getLogoPath() != null : null
                 );
             }).collect(Collectors.toList());
     }
@@ -407,11 +417,13 @@ public class PortfolioService {
     }
 
     /**
-     * Proventos por posicao: a soma de dividends.total_amount de cada uma. Uma
-     * consulta para a carteira inteira, em vez de uma por posicao.
+     * Proventos por posicao: a soma LIQUIDA de dividends (net_amount; total_amount
+     * onde o tipo nao tem regra de IR — PLANO_IR_PROVENTOS.md, D1), so do que ja
+     * foi RECEBIDO: provento com pagamento depois de hoje (fuso da B3) fica de
+     * fora. Uma consulta para a carteira inteira, em vez de uma por posicao.
      */
     private Map<UUID, BigDecimal> dividendsByPosition(UUID portfolioId) {
-        return dividendRepository.sumTotalAmountByPosition(portfolioId).stream()
+        return dividendRepository.sumTotalAmountByPosition(portfolioId, dividendCalendar.today()).stream()
             .collect(Collectors.toMap(PositionDividendTotal::portfolioAssetId, t -> safe(t.total())));
     }
 

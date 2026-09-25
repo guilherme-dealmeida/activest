@@ -4,9 +4,13 @@ import com.primevest.domain.asset.dto.AssetCategoryResponseDTO;
 import com.primevest.domain.asset.dto.AssetResponseDTO;
 import com.primevest.domain.asset.dto.AssetTypeResponseDTO;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -15,9 +19,31 @@ import java.util.List;
 public class AssetController {
 
     private final AssetService assetService;
+    private final AssetLogoService assetLogoService;
 
-    public AssetController(AssetService assetService) {
+    public AssetController(AssetService assetService, AssetLogoService assetLogoService) {
         this.assetService = assetService;
+        this.assetLogoService = assetLogoService;
+    }
+
+    /**
+     * Logo do ativo, guardado em data/logos pela rotina de logos (F7).
+     *
+     * <p>Publico (sem token): a tela usa em {@code <img src>}, que nao envia o
+     * cabecalho Authorization, e e so a marca da empresa — nada do usuario.
+     * Cache longo no navegador: o arquivo so muda na atualizacao mensal.
+     * 404 = sem logo; a tela mostra as iniciais.</p>
+     */
+    @GetMapping("/{ticker}/logo")
+    public ResponseEntity<Resource> logo(@PathVariable String ticker) {
+        return assetLogoService.find(ticker)
+            .map(file -> ResponseEntity.ok()
+                .contentType(file.mediaType())
+                .cacheControl(CacheControl.maxAge(Duration.ofDays(7)).cachePublic())
+                .header("X-Content-Type-Options", "nosniff")
+                .header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+                .<Resource>body(new FileSystemResource(file.path())))
+            .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/")

@@ -34,6 +34,12 @@ spring:
 primevest:
   scheduling:
     enabled: false
+  # Proventos sob demanda (depois de cada transacao) tambem sairiam para a rede.
+  proventos:
+    enabled: false
+    pause-millis: 0
+  logos:
+    dir: ${java.io.tmpdir}/primevest-logos-test
 
 jwt:
   secret: chave-de-teste-com-pelo-menos-256-bits-para-hmac-sha256-primevest
@@ -47,6 +53,12 @@ brapi:
   token: ""
 coingecko:
   base-url: http://localhost:0
+b3:
+  base-url: http://localhost:0
+fnet:
+  base-url: http://localhost:0
+cvm:
+  fii-registry-url: http://localhost:0/%d.zip
 
 google:
   client-id: ""

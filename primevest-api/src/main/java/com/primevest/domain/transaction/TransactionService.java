@@ -17,6 +17,8 @@ import com.primevest.domain.portfolio.PortfolioAssetRepository;
 import com.primevest.domain.portfolio.PortfolioRepository;
 import com.primevest.domain.portfolio.Position;
 import com.primevest.domain.portfolio.PositionCalculator;
+import com.primevest.domain.portfolio.PositionEvents;
+import com.primevest.domain.corporateaction.StockEventStep;
 import com.primevest.domain.portfolio.PositionGuard;
 import com.primevest.domain.transaction.TreasuryAllocator.SaleIntent;
 import com.primevest.domain.transaction.dto.TransactionCreateDTO;
@@ -25,6 +27,7 @@ import com.primevest.domain.transaction.dto.TransactionResponseDTO;
 import com.primevest.exception.BusinessException;
 import com.primevest.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -79,6 +82,8 @@ public class TransactionService {
     private final PositionGuard positionGuard;
     private final FixedIncomeSettlement fixedIncomeSettlement;
     private final TreasuryAllocator treasuryAllocator;
+    /** Avisa quem depende da posicao (proventos sob demanda) depois do commit. */
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * Gets user transactions.
@@ -236,6 +241,10 @@ public class TransactionService {
      * <p>No Tesouro Direto, excluir uma linha de venda exclui a VENDA: as
      * partes sao a mesma operacao do usuario, e apagar uma delas deixaria a
      * outra sem sentido.</p>
+     *
+     * <p><b>Regra K</b> — posicao sem transacao deixa de existir, qualquer que
+     * seja o tipo de ativo. Excluida a ultima transacao, a posicao sai junto,
+     * com o titulo de renda fixa dela (ver {@link #removeIfEmpty}).</p>
      */
     @Transactional
     public void deleteTransaction(UUID userId, UUID txId) {
@@ -255,9 +264,43 @@ public class TransactionService {
 
         transactionRepository.delete(tx);
         transactionRepository.flush();
+        if (removeIfEmpty(pa)) {
+            return;
+        }
         // Exclusao nunca corrige valorizacao para cima: o resgate que provava o
         // valor deixou de existir, ou a compra que sustentava o resgate saiu.
         afterPositionChange(pa, false);
+    }
+
+    /**
+     * Regra K: posicao sem nenhuma transacao e apagada, com o titulo dela.
+     *
+     * <p>Tudo o que a posicao guarda deriva das transacoes: custo, cotas,
+     * liquidacao, valorizacao e o total de cada provento. Sem transacao nao
+     * sobra nada verdadeiro nela — sobrava, por exemplo, a valorizacao de uma
+     * venda excluida, contando como patrimonio numa carteira vazia.</p>
+     *
+     * <p>Os proventos saem junto (cascade da entidade e ON DELETE CASCADE no
+     * banco). Nao ha o que preservar: sem cotas em nenhuma data-com, o
+     * DividendRecalculator ja os apagaria.</p>
+     *
+     * <p>O titulo de renda fixa (fixed_income_notes) e o papel DAQUELA
+     * aplicacao: sem a posicao ele nao pertence a mais nada. Sai depois dela,
+     * por causa da FK portfolio_assets.note_id.</p>
+     *
+     * @return true se a posicao foi apagada
+     */
+    private boolean removeIfEmpty(PortfolioAsset pa) {
+        if (!transactionRepository.findByPortfolioAssetIdOrderByTransactionDateDesc(pa.getId()).isEmpty()) {
+            return false;
+        }
+        FixedIncomeNote note = pa.getNote();
+        portfolioAssetRepository.delete(pa);
+        portfolioAssetRepository.flush();
+        if (note != null) {
+            fixedIncomeNoteRepository.delete(note);
+        }
+        return true;
     }
 
     // ------------------------------------------------------------------
@@ -406,17 +449,9 @@ public class TransactionService {
         reallocate(portfolio, asset, null, null);
 
         // O titulo era aquela compra. Sem ela, nao sobrou titulo nenhum: deixar
-        // a posicao vazia manteria a data ocupada para a regra H.
-        List<Transaction> remaining = transactionRepository
-            .findByPortfolioAssetIdOrderByTransactionDateDesc(pa.getId());
-        if (remaining.isEmpty() && pa.getDividends().isEmpty()) {
-            FixedIncomeNote note = pa.getNote();
-            portfolioAssetRepository.delete(pa);
-            portfolioAssetRepository.flush();
-            if (note != null) {
-                fixedIncomeNoteRepository.delete(note);
-            }
-        }
+        // a posicao vazia manteria a data ocupada para a regra H. Regra K: sai
+        // mesmo que tenha tido provento.
+        removeIfEmpty(pa);
     }
 
     /**
@@ -506,20 +541,31 @@ public class TransactionService {
         boolean valuedByTotal = isValuedByTotal(pa.getAsset());
         String label = label(pa);
 
+        List<StockEventStep> stockEvents = valuedByTotal ? List.of() : positionCalculator.stockEventsOf(pa.getAsset());
         if (valuedByTotal) {
             fixedIncomeSettlement.recompute(pa, chronological, vendaLancada);
         } else {
-            positionGuard.validateShareLedger(chronological, label);
-            Position porCota = positionCalculator.calculate(false, chronological);
-            pa.setSettled(!chronological.isEmpty() && porCota.shares().signum() <= 0);
+            // Regra B com os desdobramentos, grupamentos e bonificacoes do
+            // papel no meio da linha do tempo: o saldo que sobra e o de hoje.
+            BigDecimal saldo = positionGuard.validateShareLedger(chronological, stockEvents, label);
+            pa.setSettled(!chronological.isEmpty() && saldo.signum() <= 0);
         }
 
-        Position position = positionCalculator.calculate(valuedByTotal, chronological);
+        // Regra I sobre as transacoes e os eventos societarios (a venda de 200
+        // depois de um 1:2 so fecha com o evento), mas SEM as devolucoes de
+        // capital: uma amortizacao que zere o custo nao pode recusar uma
+        // edicao valida.
+        Position position = stockEvents.isEmpty()
+            ? positionCalculator.calculate(valuedByTotal, chronological)
+            : positionCalculator.calculate(valuedByTotal, chronological, PositionEvents.ofStockEvents(stockEvents));
         positionGuard.validateApplied(position, pa.isSettled(), !chronological.isEmpty(), label);
         portfolioAssetRepository.save(pa);
 
         dividendRecalculator.recalculate(pa, chronological);
         appreciationUpdater.refresh(pa);
+        // Compra retroativa pode precisar do historico longo de proventos: a
+        // busca externa roda depois do commit, fora desta transacao.
+        eventPublisher.publishEvent(new PositionChangedEvent(pa.getAsset().getId()));
     }
 
     // ------------------------------------------------------------------

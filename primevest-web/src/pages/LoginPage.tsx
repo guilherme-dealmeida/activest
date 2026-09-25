@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useGoogleSignIn } from '@/hooks/useGoogleSignIn';
+import { loginErrorMessage } from '@/utils/loginError';
 
 export const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -25,8 +26,11 @@ export const LoginPage = () => {
     try {
       await login(email, password);
       navigate('/');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Email ou senha inválidos');
+    } catch (err: unknown) {
+      setError(loginErrorMessage(err, {
+        unauthorized: 'Email ou senha inválidos.',
+        fallback: 'Não foi possível entrar. Tente novamente.',
+      }));
     } finally {
       setIsLoading(false);
     }

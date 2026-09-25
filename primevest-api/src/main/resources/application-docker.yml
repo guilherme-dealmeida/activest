@@ -40,6 +40,11 @@ spring:
       poll-interval: 2s
       quiet-period: 1s
 
+# Logos: volume ./data/logos da raiz do projeto (docker-compose.yml).
+primevest:
+  logos:
+    dir: /app/data/logos
+
 logging:
   level:
     com.primevest: DEBUG

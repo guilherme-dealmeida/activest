@@ -50,6 +50,11 @@ import java.util.Locale;
  * A excecao e a exclusao de uma venda, que deixa a valorizacao ganha para tras
  * — por decisao do projeto, ela fica para a rotina assincrona de rentabilidade
  * de renda fixa corrigir.</p>
+ *
+ * <p>Com uma ressalva: posicao sem nenhuma transacao zera a valorizacao. Sem
+ * aplicacao nao ha o que valorizar, e a sobra ficaria contando como patrimonio
+ * — excluir todas as transacoes de um CDB liquidado com ganho de R$ 300 deixava
+ * R$ 300 de "valor atual" numa carteira vazia.</p>
  */
 @Component
 public class FixedIncomeSettlement {
@@ -119,6 +124,10 @@ public class FixedIncomeSettlement {
             // 3.1.2 — resgate parcial que alcanca o saldo: a posicao valia mais
             // do que estava registrado, e sobra o centavo que a regra F exige.
             valorizacao = resgatado.subtract(aplicado).add(RESIDUO);
+        } else if (chronological.isEmpty()) {
+            // Sem transacao nenhuma a posicao nao tem aplicado: a valorizacao
+            // que restou de uma venda excluida nao pertence a mais nada.
+            valorizacao = BigDecimal.ZERO.setScale(MONEY_SCALE);
         }
 
         // Regra G.

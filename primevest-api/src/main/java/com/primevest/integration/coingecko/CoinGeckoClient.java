@@ -1,172 +1,135 @@
 package com.primevest.integration.coingecko;
 
-import lombok.RequiredArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.math.BigDecimal;
 import java.time.Duration;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
- * Client para integração com a CoinGecko API – cotações de criptomoedas.
+ * Cliente da CoinGecko (API publica, sem chave) — criptomoedas.
  *
- * <p>A CoinGecko fornece cotações gratuitas de criptomoedas em múltiplas moedas.
- * Endpoint principal: GET /simple/price</p>
+ * <p>O ativo e identificado pelo id da CoinGecko ({@code bitcoin},
+ * {@code ethereum}), que mora em {@code assets.price_source_ref} (V19). Antes
+ * havia aqui um mapa fixo de 14 moedas, com um id vencido
+ * (MATIC → {@code matic-network}, parado desde 02/2026); moeda fora do mapa
+ * virava o ticker em minusculas e nunca tinha preco.</p>
  *
- * <p>Mapeamento de tickers do PrimeVest para CoinGecko IDs:</p>
- * <ul>
- *   <li>BTC → bitcoin</li>
- *   <li>ETH → ethereum</li>
- *   <li>SOL → solana</li>
- *   <li>ADA → cardano</li>
- *   <li>DOT → polkadot</li>
- * </ul>
+ * <p>Erro sobe como {@link CoinGeckoException} — o {@code catch} que devolvia
+ * mapa vazio escondia a falha do log (PLANO_BRAPI.md, 5.4).</p>
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class CoinGeckoClient {
 
-    @Value("${coingecko.base-url}")
-    private String baseUrl;
+    /** A CoinGecko aceita muitos ids por chamada; 100 mantem a URL curta. */
+    private static final int IDS_PER_REQUEST = 100;
 
-    private WebClient webClient;
+    private final WebClient webClient;
+    private final Duration timeout;
 
-    /**
-     * Mapeamento de ticker interno → CoinGecko ID.
-     */
-    private static final Map<String, String> TICKER_TO_COINGECKO_ID = Map.ofEntries(
-            Map.entry("BTC", "bitcoin"),
-            Map.entry("ETH", "ethereum"),
-            Map.entry("SOL", "solana"),
-            Map.entry("ADA", "cardano"),
-            Map.entry("DOT", "polkadot"),
-            Map.entry("AVAX", "avalanche-2"),
-            Map.entry("MATIC", "matic-network"),
-            Map.entry("LINK", "chainlink"),
-            Map.entry("UNI", "uniswap"),
-            Map.entry("ATOM", "cosmos"),
-            Map.entry("XRP", "ripple"),
-            Map.entry("DOGE", "dogecoin"),
-            Map.entry("LTC", "litecoin"),
-            Map.entry("BNB", "binancecoin")
-    );
-
-    private WebClient getWebClient() {
-        if (webClient == null) {
-            webClient = WebClient.builder()
-                    .baseUrl(baseUrl)
-                    .defaultHeader("Accept", "application/json")
-                    .build();
-        }
-        return webClient;
+    @Autowired
+    public CoinGeckoClient(WebClient.Builder builder,
+                           @Value("${coingecko.base-url}") String baseUrl,
+                           @Value("${coingecko.timeout-seconds:20}") long timeoutSeconds) {
+        this.webClient = builder.clone()
+                .baseUrl(baseUrl)
+                .defaultHeader(HttpHeaders.ACCEPT, "application/json")
+                .build();
+        this.timeout = Duration.ofSeconds(timeoutSeconds);
     }
 
     /**
-     * Converte ticker interno para CoinGecko ID.
+     * Preco em reais de cada moeda.
      *
-     * @param ticker ticker do ativo (ex: "BTC")
-     * @return CoinGecko ID (ex: "bitcoin")
+     * @param coinIds ids da CoinGecko
+     * @return id → preco em BRL; moeda sem preco na resposta fica de fora
      */
-    public String toCoingeckoId(String ticker) {
-        return TICKER_TO_COINGECKO_ID.getOrDefault(ticker.toUpperCase(), ticker.toLowerCase());
-    }
-
-    /**
-     * Busca cotação de criptomoedas em BRL.
-     *
-     * @param coinIds lista de CoinGecko IDs separados por vírgula (ex: "bitcoin,ethereum")
-     * @return mapa de coinId → preço em BRL
-     */
-    public Map<String, BigDecimal> getPricesInBrl(String coinIds) {
-        try {
-            log.debug("Fetching crypto prices from CoinGecko for: {}", coinIds);
-
-            Map<String, Map<String, Object>> response = getWebClient()
-                    .get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/simple/price")
-                            .queryParam("ids", coinIds)
+    public Map<String, BigDecimal> fetchPricesInBrl(Collection<String> coinIds) {
+        Map<String, BigDecimal> prices = new HashMap<>();
+        for (List<String> batch : partition(coinIds)) {
+            Map<String, Map<String, Object>> response = call(() -> webClient.get()
+                    .uri(uri -> uri.path("/simple/price")
+                            .queryParam("ids", String.join(",", batch))
                             .queryParam("vs_currencies", "brl")
-                            .queryParam("include_24hr_change", "true")
-                            .queryParam("include_market_cap", "true")
-                            .queryParam("include_last_updated_at", "true")
                             .build())
                     .retrieve()
                     .bodyToMono(new ParameterizedTypeReference<Map<String, Map<String, Object>>>() {})
-                    .timeout(Duration.ofSeconds(10))
-                    .block();
-
+                    .timeout(timeout)
+                    .block());
             if (response == null) {
-                return Collections.emptyMap();
+                continue;
             }
-
-            Map<String, BigDecimal> prices = new HashMap<>();
-            response.forEach((coinId, data) -> {
-                Object brlPrice = data.get("brl");
-                if (brlPrice != null) {
-                    prices.put(coinId, new BigDecimal(brlPrice.toString()));
+            response.forEach((id, data) -> {
+                Object brl = data != null ? data.get("brl") : null;
+                if (brl != null) {
+                    prices.put(id, new BigDecimal(brl.toString()));
                 }
             });
-
-            log.info("Successfully fetched {} crypto prices from CoinGecko", prices.size());
-            return prices;
-        } catch (Exception e) {
-            log.error("Error fetching crypto prices from CoinGecko: {}", e.getMessage());
-            return Collections.emptyMap();
         }
+        return prices;
     }
 
     /**
-     * Busca cotação de uma criptomoeda pelo ticker interno do PrimeVest.
-     *
-     * @param ticker ticker interno (ex: "BTC")
-     * @return preço em BRL, se encontrado
+     * Endereco da imagem (logo, tamanho "large") de cada moeda, para a rotina de
+     * logos baixar e guardar do nosso lado.
      */
-    @Cacheable(value = "quotes", key = "'crypto_' + #ticker")
-    public Optional<BigDecimal> getPriceByTicker(String ticker) {
-        String coinId = toCoingeckoId(ticker);
-        Map<String, BigDecimal> prices = getPricesInBrl(coinId);
-        return Optional.ofNullable(prices.get(coinId));
-    }
-
-    /**
-     * Busca cotações de múltiplas criptomoedas por tickers internos.
-     *
-     * @param tickers lista de tickers internos
-     * @return mapa de ticker → preço em BRL
-     */
-    public Map<String, BigDecimal> getBatchPricesByTicker(List<String> tickers) {
-        if (tickers == null || tickers.isEmpty()) {
-            return Collections.emptyMap();
-        }
-
-        List<String> coinIds = tickers.stream()
-                .map(this::toCoingeckoId)
-                .toList();
-
-        String coinIdString = String.join(",", coinIds);
-        Map<String, BigDecimal> coinIdPrices = getPricesInBrl(coinIdString);
-
-        // Mapear de volta de CoinGecko ID para ticker interno
-        Map<String, BigDecimal> tickerPrices = new HashMap<>();
-        for (String ticker : tickers) {
-            String coinId = toCoingeckoId(ticker);
-            BigDecimal price = coinIdPrices.get(coinId);
-            if (price != null) {
-                tickerPrices.put(ticker, price);
+    public Map<String, String> fetchImageUrls(Collection<String> coinIds) {
+        Map<String, String> images = new HashMap<>();
+        for (List<String> batch : partition(coinIds)) {
+            List<Market> markets = call(() -> webClient.get()
+                    .uri(uri -> uri.path("/coins/markets")
+                            .queryParam("vs_currency", "brl")
+                            .queryParam("ids", String.join(",", batch))
+                            .queryParam("per_page", 250)
+                            .build())
+                    .retrieve()
+                    .bodyToMono(new ParameterizedTypeReference<List<Market>>() {})
+                    .timeout(timeout)
+                    .block());
+            if (markets != null) {
+                markets.stream()
+                        .filter(m -> m.id() != null && m.image() != null)
+                        .forEach(m -> images.put(m.id(), m.image()));
             }
         }
+        return images;
+    }
 
-        return tickerPrices;
+    private <T> T call(java.util.function.Supplier<T> request) {
+        try {
+            return request.get();
+        } catch (WebClientResponseException e) {
+            throw new CoinGeckoException(e.getStatusCode().value(),
+                    "CoinGecko " + e.getStatusCode().value() + ": " + e.getResponseBodyAsString());
+        } catch (Exception e) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            throw new CoinGeckoException(0, "Falha de rede na CoinGecko: " + cause);
+        }
+    }
+
+    private static List<List<String>> partition(Collection<String> ids) {
+        List<String> list = ids.stream().filter(id -> id != null && !id.isBlank()).distinct().toList();
+        List<List<String>> parts = new ArrayList<>();
+        for (int i = 0; i < list.size(); i += IDS_PER_REQUEST) {
+            parts.add(list.subList(i, Math.min(i + IDS_PER_REQUEST, list.size())));
+        }
+        return parts;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Market(String id, String symbol, String image) {
     }
 }

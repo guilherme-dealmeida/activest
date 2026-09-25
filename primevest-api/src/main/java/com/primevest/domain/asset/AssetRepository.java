@@ -46,6 +46,10 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
      *      ainda existe, não a série liquidada em 2005
      *   3. ticker, para a ordem ser estável entre chamadas iguais
      *
+     * Ativo inativo (deslistado — V14) não aparece: a busca serve para lançar
+     * transação nova, e papel que saiu de negociação não recebe compra. A
+     * posição que já existe nele continua na carteira.
+     *
      * O vencimento agora vem de asset_terms. O LEFT JOIN FETCH serve às duas
      * coisas de uma vez: alimenta o critério 2 e evita o SELECT por linha na
      * hora de montar o DTO.
@@ -53,8 +57,9 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
     @Query("""
         SELECT a FROM Asset a
         LEFT JOIN FETCH a.terms t
-        WHERE LOWER(a.ticker) LIKE LOWER(CONCAT('%', :query, '%'))
-           OR LOWER(a.name)   LIKE LOWER(CONCAT('%', :query, '%'))
+        WHERE a.active = true
+          AND (LOWER(a.ticker) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(a.name)   LIKE LOWER(CONCAT('%', :query, '%')))
         ORDER BY
           CASE WHEN LOWER(a.ticker) = LOWER(:query)                  THEN 0
                WHEN LOWER(a.ticker) LIKE LOWER(CONCAT(:query, '%'))  THEN 1
@@ -70,6 +75,7 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
         SELECT a FROM Asset a
         LEFT JOIN FETCH a.terms t
         WHERE a.assetType.id = :typeId
+          AND a.active = true
           AND (LOWER(a.ticker) LIKE LOWER(CONCAT('%', :query, '%'))
             OR LOWER(a.name)   LIKE LOWER(CONCAT('%', :query, '%')))
         ORDER BY
@@ -81,4 +87,12 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
           a.ticker
         """)
     List<Asset> searchByTypeAndTickerOrName(@Param("typeId") Long typeId, @Param("query") String query, Pageable pageable);
+
+    /** Ativos ativos com o tipo carregado — base da conferencia do catalogo. */
+    @Query("SELECT a FROM Asset a JOIN FETCH a.assetType WHERE a.active = true")
+    List<Asset> findActiveWithType();
+
+    /** Todos os ativos com o tipo carregado — base da rotina de logos. */
+    @Query("SELECT a FROM Asset a JOIN FETCH a.assetType")
+    List<Asset> findAllWithType();
 }

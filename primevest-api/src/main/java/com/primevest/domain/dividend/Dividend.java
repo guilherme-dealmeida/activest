@@ -36,6 +36,7 @@ public class Dividend {
     @Column(name = "amount_per_share", precision = 18, scale = 8, nullable = false)
     private BigDecimal amountPerShare;
 
+    /** Total BRUTO: valor por cota x cotas, truncado nos centavos (conta da B3). */
     @Column(name = "total_amount", precision = 18, scale = 2)
     private BigDecimal totalAmount;
 
@@ -48,6 +49,90 @@ public class Dividend {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private DividendType type;
+
+    /**
+     * Evento do catalogo que gerou este provento. Nulo no MANUAL (V20).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cash_event_id")
+    private AssetCashEvent cashEvent;
+
+    /** Cotas da posicao na data-com, gravadas para conferencia (V20). */
+    @Column(name = "shares_on_date", precision = 18, scale = 8)
+    private BigDecimal sharesOnDate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private DividendOrigin origin = DividendOrigin.MANUAL;
+
+    // ------------------------------------------------------------------
+    // IR retido na fonte (V23, PLANO_IR_PROVENTOS.md). Com regra, os cinco
+    // andam juntos; sem regra para o tipo, todos nulos.
+    // ------------------------------------------------------------------
+
+    /** Regra que calculou o imposto; nula = sem regra para o tipo. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "withholding_rule_id")
+    private WithholdingTaxRule withholdingRule;
+
+    /** Copia da aliquota aplicada (0 = isento). */
+    @Column(name = "withholding_rate", precision = 6, scale = 4)
+    private BigDecimal withholdingRate;
+
+    /** IR retido, truncado nos centavos. */
+    @Column(name = "withholding_tax", precision = 18, scale = 2)
+    private BigDecimal withholdingTax;
+
+    /** Liquido por cota, 8 casas — so exibicao. */
+    @Column(name = "net_amount_per_share", precision = 18, scale = 8)
+    private BigDecimal netAmountPerShare;
+
+    /** TOTAL liquido = totalAmount - withholdingTax. */
+    @Column(name = "net_amount", precision = 18, scale = 2)
+    private BigDecimal netAmount;
+
+    /**
+     * Quando a regra foi aplicada. Nulo = ainda nao calculado (diferente de
+     * "sem regra"): o {@link DividendTaxVerifier} recalcula na subida.
+     */
+    @Column(name = "tax_checked_at")
+    private LocalDateTime taxCheckedAt;
+
+    /** Grava o resultado do calculo de IR e marca como conferido agora. */
+    public void applyTax(WithholdingTaxCalculator.Result tax) {
+        this.totalAmount = tax.gross();
+        this.withholdingRule = tax.rule();
+        this.withholdingRate = tax.rate();
+        this.withholdingTax = tax.tax();
+        this.netAmountPerShare = tax.netPerShare();
+        this.netAmount = tax.net();
+        this.taxCheckedAt = LocalDateTime.now();
+    }
+
+    /**
+     * Ja recebido em {@code today} (fuso da B3, {@link DividendCalendar}):
+     * pagamento ate hoje, contando o proprio dia (D0).
+     *
+     * <p>Sem data de pagamento: recebido se veio so do historico longo da B3
+     * ({@link CashEventSource#B3_HISTORICO}), que lista apenas proventos
+     * passados e nunca traz a data; a receber se veio da fonte recente com
+     * pagamento "a definir". MANUAL (sem evento) conta como recebido.</p>
+     *
+     * <p>A mesma regra esta nas somas do {@link DividendRepository} — o
+     * DividendRepositoryTest confere que as duas batem.</p>
+     */
+    public boolean isReceived(java.time.LocalDate today) {
+        if (paymentDate != null) {
+            return !paymentDate.isAfter(today);
+        }
+        return cashEvent == null || cashEvent.getSource() == CashEventSource.B3_HISTORICO;
+    }
+
+    /** Liquido quando ha regra; bruto quando nao ha (o dinheiro nao some da soma). */
+    public BigDecimal netOrGross() {
+        return netAmount != null ? netAmount : totalAmount;
+    }
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

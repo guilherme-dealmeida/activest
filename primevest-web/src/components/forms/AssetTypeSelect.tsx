@@ -17,7 +17,7 @@ interface Props {
 export const AssetTypeSelect = ({ value, onChange, disabled }: Props) => {
   const { data: types, isLoading } = useQuery<AssetType[]>({
     queryKey: ['assetTypes'],
-    queryFn: assetsApi.getTypes as any
+    queryFn: assetsApi.getTypes
   });
 
   return (

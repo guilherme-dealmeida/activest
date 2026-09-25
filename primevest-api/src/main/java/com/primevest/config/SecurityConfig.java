@@ -35,6 +35,9 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/**", "/api-docs/**", "/api-docs", "/v3/api-docs/**", "/v3/api-docs", "/swagger-ui/**", "/swagger-ui.html", "/actuator/**").permitAll()
+                // Logo do ativo: a tela carrega por <img src>, que nao manda o
+                // token. E a marca da empresa, dado publico do catalogo.
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/assets/*/logo").permitAll()
                 .anyRequest().authenticated()
             )
             // Sem token, ou com token vencido, a resposta e 401 — nao o 403 que o

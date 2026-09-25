@@ -68,6 +68,9 @@ services:
       - ./primevest-api/pom.xml:/app/pom.xml
       # Cache do Maven entre subidas — sem isso cada build rebaixa todas as dependências.
       - maven-repo:/root/.m2
+      # Logos dos ativos (PLANO_BRAPI.md, F7): pasta fora do banco, na raiz do
+      # projeto, ignorada pelo git. A rotina de logos grava aqui.
+      - ./data/logos:/app/data/logos
     depends_on:
       db:
         condition: service_healthy
