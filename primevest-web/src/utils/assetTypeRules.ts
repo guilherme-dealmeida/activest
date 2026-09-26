@@ -12,6 +12,18 @@ export const TESOURO_DIRETO = 'TESOURO_DIRETO';
 export const RENDA_FIXA = 'RENDA_FIXA';
 
 /**
+ * Criptomoeda: quantidade e preço unitário com até 8 casas, a escala que o
+ * banco guarda (NUMERIC(18,8)). Nas listagens a API já manda isCrypto em cada
+ * linha; o nome serve ao formulário, que parte do tipo escolhido.
+ */
+export const CRIPTO = 'CRIPTO';
+
+/** Casas decimais de quantidade e preço unitário de cripto. */
+export const CRYPTO_DECIMALS = 8;
+
+export const isCryptoType = (type: AssetType | null | undefined) => type?.name === CRIPTO;
+
+/**
  * Renda fixa com emissor (CDB, LCI, LCA, debênture...).
  *
  * Nesses tipos o ATIVO já é a categoria — "CDB — Certificado de Depósito

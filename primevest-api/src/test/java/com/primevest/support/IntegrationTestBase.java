@@ -57,6 +57,10 @@ public abstract class IntegrationTestBase {
     @MockBean
     protected CoinGeckoClient coinGeckoClient;
 
+    /** Binance mockada no cliente HTTP: conector, regras e API rodam de verdade. */
+    @MockBean
+    protected com.primevest.integration.binance.BinanceClient binanceClient;
+
     @Autowired
     protected UserRepository userRepository;
 

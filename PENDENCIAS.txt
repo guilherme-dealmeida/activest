@@ -1,7 +1,9 @@
 PRIMEVEST — PENDENCIAS EM ABERTO
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 25/09/2026 — itens 3.4 e 3.5 baixados (extrato de proventos
+Ultima atualizacao: 25/09/2026 — secao 16 (extrato da B3 pelo PrimeVest, saiu
+do plano de cripto). Antes, no mesmo dia: secao 15 (cripto sem valor em reais,
+PLANO_CRIPTO_BINANCE.md). Antes, no mesmo dia: itens 3.4 e 3.5 baixados (extrato de proventos
 da B3, V24). Antes: 24/09/2026 — itens 3.5 a 3.8 (IR retido nos proventos,
 PLANO_IR_PROVENTOS.md). Antes, no mesmo dia: item 3.4 (provento de acao sem
 data de pagamento) e secao 14 (rotinas: proventos sob demanda
@@ -617,6 +619,81 @@ em E:\carga). Nenhum foi corrigido.
          (mesma regra de lastExpectedClosing), tanto no historico quanto no
          current_price.
 
+
+================================================================================
+15. CRIPTO — OPERACOES SEM VALOR EM REAIS (PLANO_CRIPTO_BINANCE.md, D5, 25/09/2026)
+================================================================================
+
+A primeira versao da importacao de cripto so grava operacoes que trazem o valor
+em reais: compra ou venda contra BRL (par BTCBRL, Convert BRL -> BTC, "Comprar
+Cripto" com real). O PrimeVest guarda preco em reais, e essas operacoes ja
+trazem o numero pronto.
+
+Ficam de fora, listadas como "nao importadas" na pre-visualizacao e no
+historico da sincronizacao (import_run_items), sem serem descartadas:
+
+  15.1  Cripto contra cripto (pares como ETHBTC, Convert BTC -> ETH).
+        Precisa virar duas transacoes — venda de um, compra do outro — com o
+        valor em reais buscado no momento da troca (candle de 1 minuto do par
+        em BRL, /api/v3/klines).
+
+  15.2  Pares contra stablecoin (BTCUSDT, BTCUSDC). USDT e USDC sao cripto no
+        catalogo (Stablecoins, V19), entao e o mesmo caso do 15.1: venda da
+        stablecoin + compra do ativo, valoradas em reais.
+
+  15.3  Taxa cobrada em outro ativo (ex.: desconto pagando a taxa em BNB).
+        A quantidade liquida do ativo comprado nao muda, mas a taxa em reais
+        precisa do preco do BNB no momento. Regra R8 do plano.
+
+  15.4  Saldo sem movimento de origem (na conta de teste: resíduo de USDC).
+        Nao ha operacao para importar; a posicao no PrimeVest fica diferente do
+        saldo da corretora e o aviso de divergencia (D9) aponta isso.
+
+Quando tratar: depois da primeira versao estavel, ou quando aparecer um usuario
+(ou conta) que opere fora de BRL. O ponto comum dos tres primeiros itens e um
+servico de "valor em reais no instante T" — resolver uma vez, servir a todos.
+
+================================================================================
+16. IMPORTACAO DE EXTRATO DA B3 PELO PRIMEVEST (saiu do PLANO_CRIPTO_BINANCE.md, 25/09/2026)
+================================================================================
+
+Era a F7 do plano de cripto: um conector de arquivo, com o extrato da B3 como
+primeiro layout, para provar que o pipeline de importacao e generico. Saiu de
+la porque a B3 nao tem cripto e as regras da F2 (CryptoImportRules) sao de
+cripto — exigem ativo do tipo CRIPTO, cotacao em reais e taxa no proprio ativo.
+
+Vira escopo proprio, a planejar:
+
+  16.1  Importacao pelo PrimeVest, para qualquer usuario, do extrato de
+        negociacao/movimentacao que o investidor baixa da Area do Investidor.
+        Hoje isso existe so fora do projeto (E:\carga\scripts\converter.mjs e
+        carregar.mjs), para o usuario Guilherme.
+
+  16.2  Regras proprias por tipo: acoes/FIIs/ETFs/BDRs (por cota), Tesouro
+        (titulo por compra, venda FIFO), renda fixa (nota com emissor, taxa e
+        vencimento). Reaproveitar a infraestrutura do plano de cripto:
+        integration_runs, pre-visualizacao, origin/external_id em transactions.
+
+  16.3  Mesmo caminho para outras instituicoes sem API (um layout de arquivo
+        por instituicao).
+
+================================================================================
+17. INTEGRACAO CRIPTO — ENCERRADA ATE HAVER OUTRA CORRETORA (PLANO_CRIPTO_BINANCE.md, 26/09/2026)
+================================================================================
+
+  F1 a F6 concluidas. A integracao fica parada ate o usuario ter conta em
+  outra corretora de cripto para testar.
+
+  17.1  Conferir na pratica as partes da F6 que mudam dados. Sincronizar,
+        decidir duplicatas, restaurar e excluir uma importada (o aviso) so
+        foram testadas nos testes automatizados; na conta real nao rodaram.
+        O mais seguro para comecar: clicar em Sincronizar na tela de
+        Integracoes. Deve vir 0 novas, e a tela se atualiza sozinha ate
+        terminar.
+
+  17.2  F7 — segunda corretora cripto: a proxima etapa do plano. Valida se a
+        interface generica (SourceConnector, ImportedMovement, ImportPipeline)
+        aguenta uma fonte que nao foi desenhada junto.
 
 ================================================================================
 ORDEM SUGERIDA

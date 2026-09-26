@@ -25,11 +25,11 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Flyway roda ate a V24 e o schema valida contra as entidades")
+    @DisplayName("Flyway roda ate a V27 e o schema valida contra as entidades")
     void migrationsAplicadas() {
         Number versao = (Number) em.createNativeQuery(
             "SELECT MAX(CAST(version AS NUMERIC)) FROM flyway_schema_history WHERE success").getSingleResult();
-        assertThat(versao.intValue()).isEqualTo(24);
+        assertThat(versao.intValue()).isEqualTo(27);
 
         Number falhas = (Number) em.createNativeQuery(
             "SELECT COUNT(*) FROM flyway_schema_history WHERE NOT success").getSingleResult();
@@ -55,5 +55,16 @@ class SchemaTest extends JpaTestBase {
         assertThat(count("portfolio_assets")).isZero();
         assertThat(count("transactions")).isZero();
         assertThat(count("strategies")).isZero();
+    }
+
+    @Test
+    @DisplayName("Integracoes (V25) nascem vazias: nenhuma conexao, credencial ou exclusao semeada")
+    void integracoesVazias() {
+        assertThat(count("integration_connections")).isZero();
+        assertThat(count("integration_credentials")).isZero();
+        assertThat(count("integration_cursors")).isZero();
+        assertThat(count("integration_runs")).isZero();
+        assertThat(count("integration_run_items")).isZero();
+        assertThat(count("integration_crypto_exclusions")).isZero();
     }
 }

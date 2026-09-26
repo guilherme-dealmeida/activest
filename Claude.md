@@ -5,7 +5,8 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 24/09/2026 (integração BRAPI/B3 — ver `PLANO_BRAPI.md`).
+> **Última revisão**: 26/09/2026 (integrações com corretoras, F1–F6 — ver `PLANO_CRIPTO_BINANCE.md`).
+> Antes: 24/09/2026 (integração BRAPI/B3 — ver `PLANO_BRAPI.md`).
 > Antes: 18/09/2026. A conferência arquivo a arquivo contra o
 > código é de 15/09/2026; o que entrou depois está datado no texto.
 > O que este documento afirma foi verificado; o que está pendente está em
@@ -213,6 +214,8 @@ Plano, decisões e achados da integração: **`PLANO_BRAPI.md`** (executado em
 catálogo segunda 07:00 (`CatalogAuditScheduler`, só loga); logos dia 1 às 06:00
 e ativos novos na subida (`LogoScheduler`, arquivos em `data/logos/`). Disparo
 manual para admin: `POST /api/v1/admin/{closing|proventos|catalog-audit|logos}`.
+Integrações com corretoras: `IntegrationWorker` processa a fila de sincronizações (a cada 5 s) e
+`IntegrationSyncScheduler` enfileira as conexões ativas às 06:30 (`primevest.integrations.*`).
 Importação do extrato de proventos da B3 (admin, síncrona):
 `POST /api/v1/admin/proventos/extrato` — ver "Extrato de proventos da B3".
 
@@ -223,6 +226,14 @@ Importação do extrato de proventos da B3 (admin, síncrona):
 | **FNET** + **CVM dados abertos** | Proventos de FII além de 12 meses (avisos estruturados, por CNPJ; ISIN→CNPJ pelo informe mensal da CVM) | `fnet.base-url`, `cvm.fii-registry-url` |
 | **CoinGecko** | Preço de cripto (id em `assets.price_source_ref`) e logos das moedas | `coingecko.base-url` |
 | **Google Identity Services** | Login social (fluxo de ID token, sem client secret) | `VITE_GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_ID` |
+
+**Integrações com corretoras** (em construção — `PLANO_CRIPTO_BINANCE.md`). Cada usuário conecta a
+própria conta com uma chave **só de leitura**; a credencial é cifrada (AES-256-GCM) pelo
+`CredentialCipher` com a chave-mestra `PRIMEVEST_CREDENTIALS_KEY` do `.env` e só o `CredentialVault`
+grava, lê ou apaga. Sem a chave a API sobe e só as integrações ficam indisponíveis. **Perder a
+chave-mestra = perder as credenciais gravadas** (os usuários recadastram). Rotação: chave nova em
+`PRIMEVEST_CREDENTIALS_KEY`, a antiga em `PRIMEVEST_CREDENTIALS_PREVIOUS_KEYS` (`1:<base64>`) e
+`PRIMEVEST_CREDENTIALS_KEY_VERSION` incrementada.
 
 ---
 
@@ -291,7 +302,7 @@ primevest/
         │   └── ui/              # Modal, MaskedNumberInput, CurrencyInput, PercentInput...
         ├── context/             # XContext.ts (contexto + hook) e XProvider.tsx: Auth, Theme, Toast
         ├── hooks/               # useSortable, useGoogleSignIn
-        ├── pages/               # 10 páginas
+        ├── pages/               # 12 páginas
         ├── types/               # interfaces TypeScript
         └── utils/               # format.ts
 ```
@@ -311,7 +322,7 @@ primevest/
 Credenciais vêm de `DB_USERNAME` / `DB_PASSWORD`, com padrão `postgres`/`postgres`
 em desenvolvimento. **Não versione credenciais reais.**
 
-### Tabelas — 16
+### Tabelas — 16 + integrações (V25)
 
 | Tabela | Descrição |
 |--------|-----------|
@@ -331,6 +342,11 @@ em desenvolvimento. **Não versione credenciais reais.**
 | `ceiling_prices` | Preço teto por ativo — `unique(user_id, asset_id)` |
 | `goals` | Metas de investimento |
 | `asset_price_history` | Histórico de cotações |
+| `integration_connections` | Conexão do usuário com uma fonte externa (hoje só `BINANCE`); `label` único por usuário, `status`, `consent_accepted_at` (V25) |
+| `integration_credentials` | Credencial **cifrada**, 1:1 com a conexão (`ciphertext`, `iv`, `key_version`, `fingerprint`). Nunca sai na API; apagada na revogação |
+| `integration_cursors` | Onde cada fluxo da fonte parou (`stream`, `cursor_value`) — sincronização incremental |
+| `integration_runs` / `integration_run_items` | Cada sincronização e o que dela não virou transação (não mapeado, possível duplicata, recusado) |
+| `integration_crypto_exclusions` | Operação de cripto importada e excluída pelo usuário: a sincronização não recria (regra E2 do plano) |
 
 ### Asset Types — 12
 
@@ -362,7 +378,7 @@ coluna.
 > usuário; `getName()` é para lógica interna. `AssetCategory.getDisplayName()`
 > encapsula o fallback description → name.
 
-### Flyway — V1 a V24
+### Flyway — V1 a V27
 
 O Flyway roda do zero no perfil `docker`. No perfil `dev` fica desligado, porque
 o banco local é gerenciado à mão.
@@ -377,8 +393,8 @@ coisa que podia falhar numa subida limpa.
 
 O reset deixou **9 arquivos, 156 KB contra 340 KB**. Desde então entraram
 V10–V12 (20/09/2026), V13–V22 (24/09/2026, integração BRAPI/B3) e V23
-(24/09/2026, IR retido nos proventos) e V24 (25/09/2026, extrato de proventos
-da B3), e o banco fica na **versão 24**.
+(24/09/2026, IR retido nos proventos), V24 (25/09/2026, extrato de proventos
+da B3) V25 a V27 (25/09/2026, integrações com corretoras), e o banco fica na **versão 27**.
 
 | Arquivo | Conteúdo |
 |---------|----------|
@@ -402,6 +418,9 @@ da B3), e o banco fica na **versão 24**.
 | V22 | `asset_cash_events.seq`: parcelas iguais do mesmo provento |
 | V23 | IR retido nos proventos: `withholding_tax_rules` (+ carga inicial) e `dividends.withholding_rule_id/withholding_rate/withholding_tax/net_amount_per_share/net_amount/tax_checked_at` |
 | V24 | Extrato de proventos da B3: fonte `EXTRATO_B3` em `asset_cash_events.source` e `asset_cash_events.payment_date_source` (`EXTRATO_B3` ou `DEDUZIDA`; nula = data da fonte oficial) |
+| V25 | Integrações (F1 do `PLANO_CRIPTO_BINANCE.md`): as 6 tabelas `integration_*` e `transactions.origin` (`MANUAL`/`AUTO`), `external_id`, `connection_id`, `executed_at`, `edited_at`, `source_snapshot` (JSONB); `ck_transactions_origin` e índice único parcial `(connection_id, external_id)` |
+| V26 | Confirmação da importação (F4): `integration_run_items` guarda o lote inteiro (+ `duplicate_of`, `resolution`, `transaction_id`); `integration_runs.next_cursors`, `fiat_deposited` |
+| V27 | Fila das integrações (F5): `integration_runs.balances` (saldo da corretora, aviso de divergência) e índice `(status, created_at)` |
 
 **Como o reset foi verificado** — vale registrar, porque é o método a repetir se
 houver um terceiro. Construiu-se um banco `db_ref` aplicando as 30 migrations
@@ -464,6 +483,12 @@ descartados por decisão do usuário, com dump guardado fora do repositório.
   `DO UPDATE` é aceitável.
 - **Guarda antes de DROP destrutivo**: bloco `DO $$ ... RAISE EXCEPTION` que
   confere se a cópia dos dados deu certo antes de derrubar a coluna.
+- **Migration em edição com o compose no ar é aplicada na hora.** O `dev-watch`
+  reinicia o Spring a cada arquivo salvo, e o Flyway aplica a migration nova
+  ainda pela metade; a correção seguinte vira *checksum mismatch* (25/09/2026,
+  V25). Escreva a migration com a API parada, ou, se já aplicou uma versão
+  provisória **vazia**, desfaça os objetos dela, apague a linha em
+  `flyway_schema_history` e reinicie — nunca `down -v`, que apaga os dados.
 
 ---
 
@@ -623,6 +648,8 @@ Rotas em `App.tsx`; tudo abaixo de `/login` é protegido por `ProtectedRoute`.
 | `/ceiling-prices` | Preço Teto — CRUD |
 | `/dividends` | Dividendos |
 | `/goals` | Metas |
+| `/integrations` | Integrações com corretoras (hoje Binance): conectar, sincronizar, histórico, excluídas |
+| `/integrations/:id/runs/:runId` | Pré-visualização / resultado de uma sincronização (decidir duplicatas, confirmar) |
 | `/settings` | Configurações |
 | `/login` | Login (email/senha + Google) |
 
@@ -839,7 +866,8 @@ edição apagaria emissor, vencimento e taxa.
   Carteira até 23/09/2026. Usou `text-white/NN`, `bg-surface-light/NN`,
   `hover:text-white` ou similar numa tela nova? Confira se o override existe.
 - **Menu lateral** (23/09/2026, `Sidebar.tsx`): ordem Dashboard, Carteira,
-  Transações, Alocação, Estratégia, Dividendos, Preço Teto, Metas. Recolhível
+  Transações, Alocação, Estratégia, Dividendos, Preço Teto, Metas, Integrações
+  (26/09/2026, com marcador quando uma conexão pede atenção). Recolhível
   pelo botão redondo sobre a borda direita, na altura do logo: 256px ↔ 72px.
   Recolhido mostra só "PV", os ícones (nome no `title`/`aria-label`) e o rodapé
   empilhado. A escolha fica em `localStorage` (`primevest-sidebar-collapsed`),
@@ -1028,6 +1056,13 @@ truncaria dados.
 
 As **8 casas das quantidades existem por causa de cripto** — alinhar para 4
 truncaria fração de BTC.
+
+Desde 25/09/2026 (F1b do `PLANO_CRIPTO_BINANCE.md`) a aplicação acompanha: preço
+médio com 8 casas (`PositionCalculator.AVERAGE_PRICE_SCALE`); `isCrypto` nas linhas
+de transação e de carteira; na tela, cripto mostra quantidade com até 8 casas e
+preço com 2 a 8 (`formatQuantity`, `formatUnitPrice`), e no modal a quantidade de
+cripto e o preço unitário usam a mesma máscara com 8 casas (`decimals={8}`). Os
+demais tipos não mudaram.
 
 ### Auditoria de datas — quem tem e como é preenchida
 Desde a V30 (18/09/2026), `created_at` + `updated_at` existem em: `users`,

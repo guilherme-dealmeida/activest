@@ -40,6 +40,12 @@ public class TransactionController {
         return ResponseEntity.ok(transactionService.updateTransaction(SecurityUtils.getCurrentUserId(), id, dto));
     }
 
+    /** Regra E4: volta a importada aos valores da corretora. */
+    @PostMapping("/{id}/restore")
+    public ResponseEntity<TransactionResponseDTO> restoreFromSource(@PathVariable UUID id) {
+        return ResponseEntity.ok(transactionService.restoreFromSource(SecurityUtils.getCurrentUserId(), id));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTransaction(@PathVariable UUID id) {
         transactionService.deleteTransaction(SecurityUtils.getCurrentUserId(), id);

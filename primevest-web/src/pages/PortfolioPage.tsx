@@ -13,7 +13,7 @@ import { useToast } from '@/context/ToastContext';
 import { TransactionFormModal, TransactionPreset } from '@/components/transactions/TransactionFormModal';
 import { useSortable } from '@/hooks/useSortable';
 import { AssetType, PortfolioAssetDetail, RateType, TransactionType } from '@/types';
-import { formatCurrency, formatDate, formatPercentage, formatShares, getReturnColor } from '@/utils/format';
+import { formatCurrency, formatDate, formatPercentage, formatQuantity, formatUnitPrice, getReturnColor } from '@/utils/format';
 import { RENDA_FIXA, TESOURO_DIRETO, isFixedIncomeNote } from '@/utils/assetTypeRules';
 import { apiMessage } from '@/utils/apiError';
 
@@ -161,7 +161,7 @@ const COLUMNS: Column[] = [
     label: 'COTAS',
     align: 'right',
     visible: showShares,
-    render: (a) => formatShares(a.totalShares),
+    render: (a) => formatQuantity(a.totalShares, a.isCrypto),
   },
   {
     key: 'averagePrice',
@@ -169,14 +169,14 @@ const COLUMNS: Column[] = [
     info: 'Custo médio por cota, considerando todas as compras da posição.',
     align: 'right',
     visible: showAveragePrice,
-    render: (a) => formatCurrency(a.averagePrice),
+    render: (a) => formatUnitPrice(a.averagePrice, a.isCrypto),
   },
   {
     key: 'currentPrice',
     label: 'PREÇO ATUAL',
     align: 'right',
     visible: showCurrentPrice,
-    render: (a) => formatCurrency(a.currentPrice),
+    render: (a) => formatUnitPrice(a.currentPrice, a.isCrypto),
   },
   {
     key: 'totalInvested',

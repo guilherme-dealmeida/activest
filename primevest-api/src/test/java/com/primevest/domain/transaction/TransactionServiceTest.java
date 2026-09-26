@@ -73,6 +73,8 @@ class TransactionServiceTest {
     @Mock private FixedIncomeSettlement fixedIncomeSettlement;
     @Mock private TreasuryAllocator treasuryAllocator;
     @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
+    @Mock private com.primevest.domain.integration.IntegrationCryptoExclusionRepository cryptoExclusionRepository;
+    @Mock private com.primevest.domain.integration.source.MovementJson movementJson;
 
     /** O guard entra de verdade: as regras A e B sao dele, e ja tem teste proprio. */
     private final PositionGuard positionGuard = new PositionGuard();
@@ -88,7 +90,8 @@ class TransactionServiceTest {
     void cenario() {
         service = new TransactionService(transactionRepository, portfolioRepository, portfolioAssetRepository,
             assetRepository, fixedIncomeNoteRepository, userRepository, dividendRecalculator, positionCalculator,
-            appreciationUpdater, positionGuard, fixedIncomeSettlement, treasuryAllocator, eventPublisher);
+            appreciationUpdater, positionGuard, fixedIncomeSettlement, treasuryAllocator, eventPublisher,
+            cryptoExclusionRepository, movementJson);
 
         userId = UUID.randomUUID();
         carteira = Portfolio.builder().name("Minha Carteira").build();

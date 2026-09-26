@@ -11,6 +11,7 @@ const routeNames: Record<string, string> = {
   '/ceiling-prices': 'Preço Teto',
   '/dividends': 'Dividendos e Proventos',
   '/goals': 'Minhas Metas',
+  '/integrations': 'Integrações',
   '/settings': 'Configurações',
 };
 

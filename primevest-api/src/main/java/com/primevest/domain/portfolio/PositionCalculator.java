@@ -75,7 +75,12 @@ import java.util.stream.Collectors;
 @Component
 public class PositionCalculator {
 
-    private static final int AVERAGE_PRICE_SCALE = 4;
+    /**
+     * Escala do preco medio = escala de price_per_share no banco. Com 4 casas,
+     * uma cripto de fracao de centavo (R$ 0,00007123) ficava com preco medio de
+     * R$ 0,0001 — erro de 40%. A tela arredonda na exibicao (PLANO_CRIPTO_BINANCE.md, 6.12).
+     */
+    private static final int AVERAGE_PRICE_SCALE = 8;
     private static final int INTERMEDIATE_SCALE = 10;
     private static final int MONEY_SCALE = 2;
     private static final ZoneId B3_ZONE = ZoneId.of("America/Sao_Paulo");

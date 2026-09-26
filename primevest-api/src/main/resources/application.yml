@@ -92,6 +92,23 @@ coingecko:
   base-url: https://api.coingecko.com/api/v3
   timeout-seconds: 20
 
+# Binance (PLANO_CRIPTO_BINANCE.md, F3). So leitura, com a chave de cada
+# usuario (integration_credentials) — nenhuma credencial aqui.
+binance:
+  base-url: https://api.binance.com
+  timeout-seconds: 30
+  # Primeira busca: desde quando. O Convert tem janelas de 30 dias e peso alto
+  # (uma janela por ~1 s), por isso comeca mais tarde.
+  history-start: "2017-07-01"
+  convert-history-start: "2020-01-01"
+  convert-pause-millis: 1100
+  # Pares consultados no myTrades: moedas candidatas x moedas de cotacao.
+  quote-assets: BRL,USDT,USDC,FDUSD,BTC,ETH,BNB
+  probe-assets: BTC,ETH,BNB,SOL,XRP,USDT,USDC,ADA,DOGE
+  # Peso por IP no minuto (limite da Binance: 6000). Passando daqui, a proxima
+  # chamada espera o minuto virar — o orcamento e compartilhado por todos os usuarios.
+  weight-threshold: 4800
+
 # Site da B3 (proventos e eventos societarios), FNET e cadastro da CVM — sem token.
 b3:
   base-url: https://sistemaswebb3-listados.b3.com.br
@@ -123,6 +140,25 @@ primevest:
       BBSD,BOVA,BOVV,DIVO,ECOO,FIND,GOVE,ISUS,SCVB,XBOV,BDIF11,BIDB11,BINC11,BODB11,BODI11,CDII11,
       CPDI11,CPTI11,DIVS11,IFRA11,IFRI11,ISEN11,ISET11,ISNN11,ISNT11,ISTT11,KNDI11,PREE11,RBIF11,
       SNID11,XPID11,BTAL11,BTRA11,FNAM11,FNOR11,FSPE11,FSRF11,PSVM11
+  # Integracoes com corretoras (PLANO_CRIPTO_BINANCE.md, 6.3). A credencial de
+  # cada usuario e cifrada com AES-256-GCM por esta chave-mestra, que fica fora
+  # do banco (vem do .env). Vazia: a API sobe, mas conexoes ficam indisponiveis.
+  # Rotacao: gere uma chave nova, mova a atual para previous-keys ("1:<base64>")
+  # e incremente key-version. Ver CredentialCipher.
+  integrations:
+    credentials:
+      key: ${PRIMEVEST_CREDENTIALS_KEY:}
+      key-version: ${PRIMEVEST_CREDENTIALS_KEY_VERSION:1}
+      previous-keys: ${PRIMEVEST_CREDENTIALS_PREVIOUS_KEYS:}
+    # Sincronizacao em segundo plano (F5). O worker pega uma execucao da fila a
+    # cada worker-delay-ms; a rotina diaria enfileira todas as conexoes ativas.
+    worker-delay-ms: 5000
+    sync-cron: "0 30 6 * * *"
+    # Execucao RUNNING ha mais tempo que isto e tida como perdida (API caiu no meio).
+    stale-minutes: 30
+    # Rotina diaria confirma sozinha quando nao ha nada a decidir (nenhuma
+    # possivel duplicata) e a conexao ja teve uma importacao confirmada pelo usuario.
+    auto-confirm-scheduled: true
   logos:
     # Pasta fora do banco (B18). No Docker e o volume ./data/logos.
     dir: ${LOGOS_DIR:../data/logos}

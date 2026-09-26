@@ -117,15 +117,26 @@ class PositionCalculatorTest {
         }
 
         @Test
-        @DisplayName("Preco medio com 4 casas e custo com 2")
+        @DisplayName("Preco medio com 8 casas (a escala de price_per_share) e custo com 2")
         void escalas() {
             Position p = calculator.calculate(false, List.of(
                 tx(TransactionType.BUY, "2026-09-01", "3", "10.00", 1),
                 tx(TransactionType.BUY, "2026-09-02", "3", "10.01", 2)));
 
-            assertThat(p.averagePrice().scale()).isEqualTo(4);
+            assertThat(p.averagePrice().scale()).isEqualTo(8);
             assertThat(p.invested().scale()).isEqualTo(2);
             assertThat(p.averagePrice()).isEqualByComparingTo("10.0050");
+        }
+
+        @Test
+        @DisplayName("Cripto de fracao de centavo: o preco medio nao arredonda para R$ 0,0001")
+        void precoMedioDeFracaoDeCentavo() {
+            // Com 4 casas o medio abaixo virava 0.0001 — 40% acima do real.
+            Position p = calculator.calculate(false, List.of(
+                tx(TransactionType.BUY, "2026-09-01", "1000000", "0.00007000", 1),
+                tx(TransactionType.BUY, "2026-09-02", "1000000", "0.00007246", 2)));
+
+            assertThat(p.averagePrice()).isEqualByComparingTo("0.00007123");
         }
 
         @Test

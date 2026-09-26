@@ -42,6 +42,12 @@ export const MaskedNumberInput = React.forwardRef<HTMLInputElement, MaskedNumber
     const generatedId = React.useId();
     const inputId = id ?? generatedId;
 
+    // A máscara cresce pela direita, então o cursor só faz sentido no fim.
+    const caretToEnd = (e: React.FocusEvent<HTMLInputElement> | React.MouseEvent<HTMLInputElement>) => {
+      const el = e.currentTarget;
+      requestAnimationFrame(() => el.setSelectionRange(el.value.length, el.value.length));
+    };
+
     const display = value
       ? value.toLocaleString('pt-BR', {
           minimumFractionDigits: decimals,
@@ -51,14 +57,9 @@ export const MaskedNumberInput = React.forwardRef<HTMLInputElement, MaskedNumber
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       // 15 dígitos cobrem NUMERIC(18,2) com folga e evitam estourar o Number.
+      // Com 8 casas (quantidade de cripto) o teto é 9.999.999,99999999.
       const digits = e.target.value.replace(/\D/g, '').slice(0, 15);
       onChange(digits ? Number(digits) / 10 ** decimals : 0);
-    };
-
-    // A máscara cresce pela direita, então o cursor só faz sentido no fim.
-    const caretToEnd = (e: React.FocusEvent<HTMLInputElement> | React.MouseEvent<HTMLInputElement>) => {
-      const el = e.currentTarget;
-      requestAnimationFrame(() => el.setSelectionRange(el.value.length, el.value.length));
     };
 
     const left = adornment?.side === 'left';
