@@ -119,6 +119,8 @@ export interface PortfolioAssetDetail {
   isReservation: boolean;
   /** Posição encerrada: renda fixa liquidada ou título sem cotas. */
   isSettled: boolean;
+  /** Criptomoeda: quantidade e preços com até 8 casas. */
+  isCrypto: boolean;
   /**
    * Logo guardado pela rotina de logos (GET /assets/{ticker}/logo). null nos
    * tipos sem logo (renda fixa, Tesouro, fundos); false mostra as iniciais.
@@ -217,6 +219,16 @@ export interface TransactionResponse {
 
   /** Venda de Renda Fixa marcada como liquidação total. */
   isFullSettlement: boolean;
+  /** Criptomoeda: quantidade e preço com até 8 casas. */
+  isCrypto: boolean;
+  /** Digitada (MANUAL) ou importada de uma corretora (AUTO). */
+  origin: 'MANUAL' | 'AUTO';
+  /** Importada que o usuário editou; null = idêntica à corretora. */
+  editedAt: string | null;
+  /** Apelido da conexão de onde veio ("Binance principal"); null nas digitadas. */
+  connectionLabel: string | null;
+  /** Corretora da conexão ("BINANCE"); null nas digitadas. */
+  connectionProvider: string | null;
 
   // Do título. Nulos na renda variável.
   noteId: string | null;
@@ -465,4 +477,129 @@ export interface PriceHistory {
   high: number;
   low: number;
   volume: number;
+}
+
+// ---------------------------------------------------------------------------
+// Integrações com corretoras (PLANO_CRIPTO_BINANCE.md, F6)
+// ---------------------------------------------------------------------------
+
+export type IntegrationProvider = 'BINANCE';
+export type ConnectionStatus = 'ACTIVE' | 'INVALID_CREDENTIALS' | 'PERMISSION_TOO_BROAD' | 'REVOKED';
+export type RunStatus = 'QUEUED' | 'RUNNING' | 'AWAITING_CONFIRMATION' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED';
+export type RunTrigger = 'MANUAL' | 'SCHEDULED' | 'CONNECTION';
+export type PreviewOutcome = 'NEW' | 'EXISTING' | 'EXCLUDED' | 'UNMAPPED' | 'POSSIBLE_DUPLICATE';
+export type RunItemResolution = 'IMPORTED' | 'REPLACED' | 'KEPT_BOTH' | 'SKIPPED';
+export type MovementKind = 'TRADE' | 'CONVERT' | 'FIAT_DEPOSIT' | 'CRYPTO_DEPOSIT' | 'CRYPTO_WITHDRAW' | 'REWARD';
+export type DuplicateDecision = 'REPLACE' | 'KEEP_BOTH' | 'SKIP';
+
+export interface IntegrationConnection {
+  id: string;
+  provider: IntegrationProvider;
+  label: string;
+  status: ConnectionStatus;
+  /** Os 4 últimos caracteres da chave; o segredo nunca volta da API. */
+  fingerprint: string | null;
+  validatedAt: string | null;
+  lastSyncAt: string | null;
+  lastError: string | null;
+  createdAt: string;
+  lastRunId: string | null;
+  lastRunStatus: RunStatus | null;
+  /** Ativos que divergem da corretora na última sincronização concluída. */
+  divergenceCount: number;
+}
+
+export interface ConnectionCreate {
+  provider: IntegrationProvider;
+  label: string;
+  apiKey: string;
+  apiSecret: string;
+  consentAccepted: boolean;
+}
+
+export interface ProposedImport {
+  ticker: string;
+  type: 'BUY' | 'SELL';
+  shares: number;
+  pricePerShare: number;
+  totalAmount: number;
+  brokerageFee: number;
+  transactionDate: string;
+  roundingDifference: number;
+}
+
+export interface DuplicateCandidate {
+  transactionId: string;
+  transactionDate: string;
+  shares: number | null;
+  pricePerShare: number | null;
+}
+
+export interface ImportRunItem {
+  externalId: string;
+  kind: MovementKind;
+  outcome: PreviewOutcome;
+  reason: string | null;
+  executedAt: string;
+  asset: string | null;
+  side: 'BUY' | 'SELL' | null;
+  grossQuantity: number | null;
+  quoteAsset: string | null;
+  quoteAmount: number | null;
+  feeAmount: number | null;
+  feeAsset: string | null;
+  transaction: ProposedImport | null;
+  duplicateOf: DuplicateCandidate | null;
+  resolution: RunItemResolution | null;
+  transactionId: string | null;
+}
+
+export interface Divergence {
+  asset: string;
+  primevest: number;
+  exchange: number;
+  difference: number;
+}
+
+export interface ImportRun {
+  connectionId: string;
+  connectionLabel: string;
+  runId: string;
+  createdAt: string;
+  finishedAt: string | null;
+  status: RunStatus;
+  trigger: RunTrigger;
+  newCount: number;
+  existingCount: number;
+  excludedCount: number;
+  unmappedCount: number;
+  duplicateCount: number;
+  fiatDeposited: number | null;
+  error: string | null;
+  divergences: Divergence[];
+  items: ImportRunItem[];
+}
+
+export interface RunSummary {
+  runId: string;
+  status: RunStatus;
+  trigger: RunTrigger;
+  createdAt: string;
+  finishedAt: string | null;
+  importedCount: number;
+  existingCount: number;
+  unmappedCount: number;
+  duplicateCount: number;
+  error: string | null;
+}
+
+export interface CryptoExclusion {
+  id: string;
+  externalId: string;
+  ticker: string;
+  excludedAt: string;
+  executedAt: string | null;
+  side: 'BUY' | 'SELL' | null;
+  grossQuantity: number | null;
+  quoteAmount: number | null;
 }

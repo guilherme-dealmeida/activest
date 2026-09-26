@@ -57,6 +57,32 @@ export const formatShares = (value: number): string => {
   }).format(value);
 };
 
+/**
+ * Quantidade conforme o tipo: cripto com até 8 casas e sem zeros sobrando
+ * (0,00197802), os demais como sempre (até 4).
+ */
+export const formatQuantity = (value: number, crypto: boolean): string => {
+  if (!crypto) return formatShares(value);
+  return new Intl.NumberFormat('pt-BR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 8,
+  }).format(value);
+};
+
+/**
+ * Preço unitário conforme o tipo: cripto com 2 a 8 casas (R$ 503.233,00,
+ * R$ 0,00007123), os demais com 2. Só exibição: a conta usa o valor exato.
+ */
+export const formatUnitPrice = (value: number, crypto: boolean): string => {
+  if (!crypto) return formatCurrency(value);
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 8,
+  }).format(value);
+};
+
 export const getReturnColor = (value: number): string => {
   if (value > 0) return 'text-success';
   if (value < 0) return 'text-danger';

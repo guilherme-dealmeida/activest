@@ -15,12 +15,14 @@ import { AssetTypeSelect } from '@/components/forms/AssetTypeSelect';
 import { TickerAutocomplete } from '@/components/forms/TickerAutocomplete';
 import { FixedIncomeFields, FixedIncomeValues } from '@/components/forms/FixedIncomeFields';
 import { formatCurrency, toLocalISODate } from '@/utils/format';
+import { CRYPTO_DECIMALS, isCryptoType } from '@/utils/assetTypeRules';
 import {
   Asset, AssetType, Indexer, RateType, TransactionCreate, TransactionResponse, TransactionType
 } from '@/types';
 
 /**
- * Único ponto do front que compara o tipo por nome. No Tesouro Direto a família
+ * Tesouro e Renda Fixa são comparados por nome aqui (e cripto em
+ * utils/assetTypeRules). No Tesouro Direto a família
  * do papel já está no próprio nome do título, e o saldo é do ativo — não do
  * título —, o que muda o formulário inteiro. Se surgir outro tipo com a mesma
  * característica, o lugar certo é uma coluna em asset_types, como
@@ -270,6 +272,9 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
   const travado = !!editing || !!preset;
   const isTesouro = selectedType?.name === TESOURO_DIRETO;
   const isValorTotal = selectedType?.name === RENDA_FIXA;
+  // Cripto: quantidade e preço unitário com 8 casas, na mesma máscara dos
+  // demais tipos (PLANO_CRIPTO_BINANCE.md, 6.12).
+  const isCripto = isCryptoType(selectedType);
   const isVenda = formData.type === TransactionType.SELL;
 
   /**
@@ -527,16 +532,19 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
             <>
               {/* Quantidade usa a mesma máscara dos valores: duas casas fixas,
                   digitadas da direita para a esquerda. Sem ela, "1.5" digitado
-                  por quem está acostumado à vírgula virava quinze. */}
+                  por quem está acostumado à vírgula virava quinze.
+                  Cripto usa a mesma máscara, com 8 casas na quantidade
+                  (0,00197802 BTC) e no preço (R$ 525.297,05592977). */}
               <MaskedNumberInput
                 label="Quantidade"
-                decimals={2}
+                decimals={isCripto ? CRYPTO_DECIMALS : 2}
                 value={formData.shares ?? 0}
                 onChange={(v) => setFormData({ ...formData, shares: v })}
                 required
               />
               <CurrencyInput
                 label="Preço Unitário"
+                decimals={isCripto ? CRYPTO_DECIMALS : 2}
                 value={formData.pricePerShare ?? 0}
                 onChange={(v) => setFormData({ ...formData, pricePerShare: v })}
                 required

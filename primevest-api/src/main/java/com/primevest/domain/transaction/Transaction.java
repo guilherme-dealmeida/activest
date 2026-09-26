@@ -1,9 +1,12 @@
 package com.primevest.domain.transaction;
 
 import com.primevest.domain.fixedincome.FixedIncomeNote;
+import com.primevest.domain.integration.IntegrationConnection;
 import com.primevest.domain.portfolio.PortfolioAsset;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -89,6 +92,49 @@ public class Transaction {
     @Column(name = "is_full_settlement", nullable = false)
     @Builder.Default
     private boolean fullSettlement = false;
+
+    /**
+     * Digitada ou importada (V25). Importada carrega os quatro campos abaixo;
+     * o banco confere a combinacao (ck_transactions_origin).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    @Builder.Default
+    private TransactionOrigin origin = TransactionOrigin.MANUAL;
+
+    /**
+     * Id estavel da operacao na fonte (regra R5 do plano), unico por conexao:
+     * e o que torna a reimportacao idempotente.
+     */
+    @Column(name = "external_id", length = 200)
+    private String externalId;
+
+    /**
+     * Conexao de onde veio. Fica nula se a conexao for apagada e o usuario
+     * escolher manter as transacoes (ON DELETE SET NULL).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "connection_id")
+    private IntegrationConnection connection;
+
+    /**
+     * Instante exato da operacao na fonte. {@link #transactionDate} continua
+     * sendo a data de negocio, no fuso de Brasilia. Nulo nas manuais.
+     */
+    @Column(name = "executed_at")
+    private LocalDateTime executedAt;
+
+    /**
+     * O usuario editou uma importada: a sincronizacao nao toca mais nela
+     * (regra E1). Nulo = identica a fonte.
+     */
+    @Column(name = "edited_at")
+    private LocalDateTime editedAt;
+
+    /** Os valores como vieram da fonte, para "restaurar" (regra E4). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "source_snapshot", columnDefinition = "jsonb")
+    private String sourceSnapshot;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

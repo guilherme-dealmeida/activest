@@ -2,6 +2,7 @@ package com.primevest.domain.transaction.dto;
 
 import com.primevest.domain.asset.Indexer;
 import com.primevest.domain.asset.RateType;
+import com.primevest.domain.transaction.TransactionOrigin;
 import com.primevest.domain.transaction.TransactionType;
 
 import java.math.BigDecimal;
@@ -57,6 +58,18 @@ public record TransactionResponseDTO(
 
     /** Venda de Renda Fixa marcada como liquidação total. */
     boolean isFullSettlement,
+
+    /** Criptomoeda: a tela aceita e mostra quantidade e preco com ate 8 casas. */
+    boolean isCrypto,
+
+    /** Digitada (MANUAL) ou importada de uma corretora (AUTO) — o selo de origem da tela. */
+    TransactionOrigin origin,
+    /** Importada que o usuario editou (regra E1). Nulo = identica a corretora. */
+    LocalDateTime editedAt,
+    /** Apelido da conexao de onde veio ("Binance principal"). Nulo nas digitadas. */
+    String connectionLabel,
+    /** Corretora da conexao ("BINANCE"), para o selo de origem. Nulo nas digitadas. */
+    String connectionProvider,
 
     // ----- dados do titulo -----
     UUID noteId,

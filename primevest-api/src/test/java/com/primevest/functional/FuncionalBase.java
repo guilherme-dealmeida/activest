@@ -19,6 +19,24 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public abstract class FuncionalBase extends IntegrationTestBase {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    protected com.primevest.domain.integration.IntegrationService integrationService;
+
+    /**
+     * Pede a sincronizacao pela API (202, fila), roda o worker como a rotina
+     * faria e devolve a execucao como a tela a leria.
+     */
+    @SuppressWarnings("unchecked")
+    protected Map<String, Object> sincronizar(User user, Object conexao) {
+        ResponseEntity<Map> pedido = post(user, "/api/v1/integrations/connections/" + conexao + "/preview", null, Map.class);
+        assertThat(pedido.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        while (integrationService.processNext()) {
+            // esvazia a fila
+        }
+        return get(user, "/api/v1/integrations/connections/" + conexao + "/runs/" + pedido.getBody().get("runId"),
+            Map.class).getBody();
+    }
+
     protected Map<String, Object> compra(String ticker, String data, String cotas, String preco) {
         return lancamento(ticker, "BUY", data, cotas, preco);
     }

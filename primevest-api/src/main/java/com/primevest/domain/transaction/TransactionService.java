@@ -1,5 +1,10 @@
 package com.primevest.domain.transaction;
 
+import com.primevest.domain.integration.IntegrationCryptoExclusion;
+import com.primevest.domain.integration.IntegrationCryptoExclusionRepository;
+import com.primevest.domain.integration.pipeline.CryptoImportRules;
+import com.primevest.domain.integration.pipeline.ProposedTransaction;
+import com.primevest.domain.integration.source.MovementJson;
 import com.primevest.domain.asset.Asset;
 import com.primevest.domain.asset.AssetRepository;
 import com.primevest.domain.asset.AssetTerms;
@@ -84,6 +89,10 @@ public class TransactionService {
     private final TreasuryAllocator treasuryAllocator;
     /** Avisa quem depende da posicao (proventos sob demanda) depois do commit. */
     private final ApplicationEventPublisher eventPublisher;
+    /** Exclusao de importada vira exclusao registrada (regra E2 do PLANO_CRIPTO_BINANCE.md). */
+    private final IntegrationCryptoExclusionRepository cryptoExclusionRepository;
+    /** Movimento importado em JSON, para o "restaurar" (regra E4). */
+    private final MovementJson movementJson;
 
     /**
      * Gets user transactions.
@@ -114,6 +123,28 @@ public class TransactionService {
      */
     @Transactional
     public TransactionResponseDTO createTransaction(UUID userId, TransactionCreateDTO dto) {
+        return create(userId, dto, null);
+    }
+
+    /**
+     * Grava uma operacao importada de uma integracao (PLANO_CRIPTO_BINANCE.md,
+     * F4) pelas MESMAS regras do lancamento manual (P6): catalogo, regra A,
+     * reavaliacao da posicao, proventos e valorizacao. So cripto nesta versao.
+     */
+    @Transactional
+    public TransactionResponseDTO importTransaction(UUID userId, ProposedTransaction proposta, ImportOrigin origem) {
+        Asset asset = assetRepository.findByTicker(proposta.ticker())
+            .orElseThrow(() -> new BusinessException("Ativo não encontrado no catálogo: " + proposta.ticker()));
+        if (asset.getAssetType() == null || !asset.getAssetType().isCrypto()) {
+            throw new BusinessException("Importação só aceita criptomoedas: " + proposta.ticker());
+        }
+        TransactionCreateDTO dto = new TransactionCreateDTO(proposta.ticker(), proposta.type(), proposta.shares(),
+            proposta.pricePerShare(), null, proposta.brokerageFee(), proposta.transactionDate(), false, null,
+            null, null, null, null, null, null);
+        return create(userId, dto, origem);
+    }
+
+    private TransactionResponseDTO create(UUID userId, TransactionCreateDTO dto, ImportOrigin origem) {
         // O catálogo é a única origem de ativos. Ticker que não está lá não
         // vira ativo novo: vira erro. Antes, um erro de digitação criava um
         // ativo permanente e global, indistinguível de um cadastro legítimo.
@@ -173,11 +204,46 @@ public class TransactionService {
             .brokerageFee(fee(dto))
             .transactionDate(dto.transactionDate())
             .fullSettlement(isFullSettlement(asset, dto))
+            .origin(origem == null ? TransactionOrigin.MANUAL : TransactionOrigin.AUTO)
+            .connection(origem == null ? null : origem.connection())
+            .externalId(origem == null ? null : origem.externalId())
+            .executedAt(origem == null ? null : origem.executedAt())
+            .sourceSnapshot(origem == null ? null : origem.sourceSnapshot())
             .build();
 
         tx = transactionRepository.save(tx);
         transactionRepository.flush();
         afterPositionChange(pa, dto.type() == TransactionType.SELL);
+        return toResponseDTO(tx);
+    }
+
+    /**
+     * Regra E4: volta a transacao importada aos valores da fonte e tira a marca
+     * de editada. As regras de conversao sao reaplicadas sobre o movimento
+     * guardado — o resultado e o mesmo da importacao.
+     */
+    @Transactional
+    public TransactionResponseDTO restoreFromSource(UUID userId, UUID txId) {
+        Transaction tx = findOwnedTransaction(userId, txId);
+        if (tx.getOrigin() != TransactionOrigin.AUTO || tx.getSourceSnapshot() == null) {
+            throw new BusinessException("Só transações importadas podem ser restauradas da corretora.");
+        }
+        CryptoImportRules.Result r = CryptoImportRules.map(movementJson.read(tx.getSourceSnapshot()),
+            assetRepository::findByTicker);
+        if (!r.mapped()) {
+            throw new BusinessException("Não foi possível restaurar: " + r.reason());
+        }
+        ProposedTransaction p = r.transaction();
+        tx.setShares(p.shares());
+        tx.setPricePerShare(p.pricePerShare());
+        tx.setTotalAmount(p.shares().multiply(p.pricePerShare()));
+        tx.setBrokerageFee(p.brokerageFee());
+        tx.setTransactionDate(p.transactionDate());
+        tx.setEditedAt(null);
+        PortfolioAsset pa = tx.getPortfolioAsset();
+        tx = transactionRepository.save(tx);
+        transactionRepository.flush();
+        afterPositionChange(pa, tx.getType() == TransactionType.SELL);
         return toResponseDTO(tx);
     }
 
@@ -215,6 +281,10 @@ public class TransactionService {
         tx.setBrokerageFee(fee(dto));
         tx.setTransactionDate(dto.transactionDate());
         tx.setFullSettlement(isFullSettlement(asset, dto));
+        // Regra E1: importada editada ganha a marca, e a sincronizacao nao mexe mais nela.
+        if (tx.getOrigin() == TransactionOrigin.AUTO) {
+            tx.setEditedAt(java.time.LocalDateTime.now());
+        }
 
         // Emissor, vencimento e taxa sao do papel, nao da movimentacao: editar
         // a transacao de um titulo edita o titulo.
@@ -262,6 +332,7 @@ public class TransactionService {
             return;
         }
 
+        registrarExclusaoSeImportada(tx, asset);
         transactionRepository.delete(tx);
         transactionRepository.flush();
         if (removeIfEmpty(pa)) {
@@ -270,6 +341,22 @@ public class TransactionService {
         // Exclusao nunca corrige valorizacao para cima: o resgate que provava o
         // valor deixou de existir, ou a compra que sustentava o resgate saiu.
         afterPositionChange(pa, false);
+    }
+
+    /**
+     * Regra E2: excluir uma importada registra a exclusao, para a proxima
+     * sincronizacao nao recria-la. Restaurar e apagar esse registro.
+     */
+    private void registrarExclusaoSeImportada(Transaction tx, Asset asset) {
+        if (tx.getOrigin() != TransactionOrigin.AUTO || tx.getConnection() == null || tx.getExternalId() == null) {
+            return;
+        }
+        cryptoExclusionRepository.save(IntegrationCryptoExclusion.builder()
+            .connection(tx.getConnection())
+            .externalId(tx.getExternalId())
+            .asset(asset)
+            .sourceSnapshot(tx.getSourceSnapshot())
+            .build());
     }
 
     /**
@@ -852,6 +939,11 @@ public class TransactionService {
             group != null ? group.shares() : tx.getShares(),
             group != null ? group.fee()    : tx.getBrokerageFee(),
             tx.isFullSettlement(),
+            assetType != null && assetType.isCrypto(),
+            tx.getOrigin(),
+            tx.getEditedAt(),
+            tx.getConnection() != null ? tx.getConnection().getLabel() : null,
+            tx.getConnection() != null ? tx.getConnection().getProvider().name() : null,
             note != null ? note.getId()           : null,
             note != null ? note.getIssuer()       : null,
             note != null ? note.getMaturityDate() : null,

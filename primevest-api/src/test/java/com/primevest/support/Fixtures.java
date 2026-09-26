@@ -4,6 +4,8 @@ import com.primevest.domain.asset.Asset;
 import com.primevest.domain.asset.Indexer;
 import com.primevest.domain.asset.RateType;
 import com.primevest.domain.fixedincome.FixedIncomeNote;
+import com.primevest.domain.integration.IntegrationConnection;
+import com.primevest.domain.integration.IntegrationProvider;
 import com.primevest.domain.portfolio.Portfolio;
 import com.primevest.domain.portfolio.PortfolioAsset;
 import com.primevest.domain.strategy.ReservationType;
@@ -16,6 +18,7 @@ import com.primevest.domain.user.User;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -70,6 +73,16 @@ public final class Fixtures {
             .rateType(rateType)
             .indexer(indexer)
             .indexerRate(rate)
+            .build();
+    }
+
+    /** Conexao com a Binance, consentimento aceito agora. */
+    public static IntegrationConnection binance(User user, String label) {
+        return IntegrationConnection.builder()
+            .user(user)
+            .provider(IntegrationProvider.BINANCE)
+            .label(label)
+            .consentAcceptedAt(LocalDateTime.now())
             .build();
     }
 

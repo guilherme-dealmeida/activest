@@ -9,6 +9,7 @@ import {
   TrendingDown,
   DollarSign,
   Flag,
+  Plug,
   LogOut,
   Settings,
   Sun,
@@ -16,7 +17,10 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
+import { integrationsApi } from '@/api/integrations';
+import { needsAttention } from '@/utils/integrations';
 import { useTheme } from '@/context/ThemeContext';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -32,6 +36,7 @@ const navItems = [
   { name: 'Dividendos', path: '/dividends', icon: DollarSign },
   { name: 'Preço Teto', path: '/ceiling-prices', icon: TrendingDown },
   { name: 'Metas', path: '/goals', icon: Flag },
+  { name: 'Integrações', path: '/integrations', icon: Plug },
 ];
 
 /**
@@ -64,6 +69,15 @@ export const Sidebar = () => {
       // Sem armazenamento a escolha vale só para esta visita.
     }
   }, [collapsed]);
+
+  // Marcador em Integrações: pré-visualização esperando decisão, divergência
+  // de saldo ou chave com problema. Consulta leve, a cada minuto.
+  const { data: connections } = useQuery({
+    queryKey: ['integrations'],
+    queryFn: integrationsApi.list,
+    refetchInterval: 60_000,
+  });
+  const attention = (connections ?? []).filter(needsAttention).length;
 
   const userName = user?.name || 'Guilherme';
 
@@ -128,6 +142,8 @@ export const Sidebar = () => {
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname.startsWith(item.path);
+          const badge = item.path === '/integrations' && attention > 0;
+          const badgeTitle = `${attention} integraç${attention === 1 ? 'ão pede' : 'ões pedem'} atenção`;
 
           return (
             <NavLink
@@ -135,7 +151,7 @@ export const Sidebar = () => {
               to={item.path}
               // Recolhido o nome não aparece: vira dica no mouse e rótulo para
               // leitor de tela.
-              title={collapsed ? item.name : undefined}
+              title={collapsed ? (badge ? `${item.name} · ${badgeTitle}` : item.name) : undefined}
               aria-label={collapsed ? item.name : undefined}
               className={twMerge(
                 clsx(
@@ -151,10 +167,10 @@ export const Sidebar = () => {
                 )
               )}
             >
+              <span className={clsx('relative flex-shrink-0', !collapsed && 'mr-3')}>
               <Icon
                 className={clsx(
                   'flex-shrink-0 h-5 w-5',
-                  !collapsed && 'mr-3',
                   isActive
                     ? 'text-accent'
                     : isDark
@@ -162,7 +178,23 @@ export const Sidebar = () => {
                       : 'text-gray-400 group-hover:text-gray-600'
                 )}
               />
+              {badge && collapsed && (
+                <span
+                  className={clsx('absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-yellow-400 ring-2', isDark ? 'ring-[#111111]' : 'ring-white')}
+                  aria-hidden
+                />
+              )}
+              </span>
               {!collapsed && item.name}
+              {badge && !collapsed && (
+                <span
+                  className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-yellow-400/20 text-yellow-500 text-xs font-semibold flex items-center justify-center"
+                  title={badgeTitle}
+                  aria-label={badgeTitle}
+                >
+                  {attention}
+                </span>
+              )}
             </NavLink>
           );
         })}

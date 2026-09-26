@@ -65,7 +65,7 @@ class EventosSocietariosIT extends FuncionalBase {
         Map<String, Object> posicao = posicaoDe(dono, CatalogIds.ACAO);
         assertThat(numero(posicao.get("totalShares"))).isEqualByComparingTo("110");
         assertThat(numero(posicao.get("totalInvested"))).isEqualByComparingTo("2000.00");
-        assertThat(numero(posicao.get("averagePrice"))).isEqualByComparingTo("18.1818");
+        assertThat(numero(posicao.get("averagePrice"))).isEqualByComparingTo("18.18181818");
     }
 
     @Test

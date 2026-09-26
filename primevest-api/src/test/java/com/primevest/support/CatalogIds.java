@@ -19,6 +19,8 @@ public final class CatalogIds {
     public static final String FII = "HGLG11";
     public static final String TESOURO_IPCA_2050 = "Tesouro IPCA+ 2050";
     public static final String CDB = "CDB";
+    /** Cripto do seed V19. */
+    public static final String BTC = "BTC";
 
     private CatalogIds() {
     }

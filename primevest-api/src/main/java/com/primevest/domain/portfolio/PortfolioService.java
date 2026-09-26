@@ -111,7 +111,7 @@ public class PortfolioService {
                 } else {
                     // Sem cotacao (renda fixa e afins): preco implicito pelo valor atual
                     currentPrice = safe(position.totalShares()).compareTo(BigDecimal.ZERO) > 0
-                        ? currentValue.divide(position.totalShares(), 4, RoundingMode.HALF_UP)
+                        ? currentValue.divide(position.totalShares(), 8, RoundingMode.HALF_UP)
                         : safe(position.averagePrice());
                 }
                 BigDecimal returnPct = BigDecimal.ZERO;
@@ -148,6 +148,7 @@ public class PortfolioService {
                     returnPct,
                     pa.isReservation(),
                     pa.isSettled(),
+                    pa.getAsset().getAssetType().isCrypto(),
                     AssetLogoService.typeHasLogo(pa.getAsset().getAssetType())
                         ? pa.getAsset().getLogoPath() != null : null
                 );

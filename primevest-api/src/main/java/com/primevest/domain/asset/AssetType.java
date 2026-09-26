@@ -74,6 +74,16 @@ public class AssetType {
         return fixedIncome && !isTreasury();
     }
 
+    /**
+     * Criptomoeda: quantidade e preco com ate 8 casas (a escala de
+     * {@code numeric(18,8)} existe por causa dela). A tela usa para decidir a
+     * mascara e a exibicao; o calculo e o mesmo dos demais tipos por cota.
+     * Mesma ressalva do {@link #isValuedByTotal()} sobre comparar por nome.
+     */
+    public boolean isCrypto() {
+        return "CRIPTO".equals(name);
+    }
+
     @JsonIgnore
     @OneToMany(mappedBy = "assetType", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default

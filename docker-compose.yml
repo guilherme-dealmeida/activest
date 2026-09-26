@@ -60,6 +60,11 @@ services:
       # Não existe client secret aqui — o fluxo de ID token não usa.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       BRAPI_TOKEN: ${BRAPI_TOKEN:-}
+      # Chave-mestra das credenciais de integracao (corretoras). Vem do .env,
+      # nunca do repositorio. Vazia: conexoes com corretoras ficam indisponiveis.
+      PRIMEVEST_CREDENTIALS_KEY: ${PRIMEVEST_CREDENTIALS_KEY:-}
+      PRIMEVEST_CREDENTIALS_KEY_VERSION: ${PRIMEVEST_CREDENTIALS_KEY_VERSION:-1}
+      PRIMEVEST_CREDENTIALS_PREVIOUS_KEYS: ${PRIMEVEST_CREDENTIALS_PREVIOUS_KEYS:-}
     ports:
       - "0.0.0.0:${API_PORT:-8080}:8080"
     volumes:

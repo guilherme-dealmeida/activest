@@ -40,6 +40,12 @@ primevest:
     pause-millis: 0
   logos:
     dir: ${java.io.tmpdir}/primevest-logos-test
+  # Chave fixa de teste (32 bytes em base64). Nunca usada fora dos testes.
+  integrations:
+    credentials:
+      key: dGVzdGUtcHJpbWV2ZXN0LWNoYXZlLWRlLTMyLWJ5dGU=
+      key-version: 1
+      previous-keys: ""
 
 jwt:
   secret: chave-de-teste-com-pelo-menos-256-bits-para-hmac-sha256-primevest
@@ -55,6 +61,9 @@ coingecko:
   base-url: http://localhost:0
 b3:
   base-url: http://localhost:0
+binance:
+  base-url: http://localhost:0
+  convert-pause-millis: 0
 fnet:
   base-url: http://localhost:0
 cvm:

@@ -5,8 +5,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Repository
@@ -53,6 +55,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
         JOIN FETCH a.assetType
         LEFT JOIN FETCH a.assetCategory
         LEFT JOIN FETCH t.note
+        LEFT JOIN FETCH t.connection
         WHERE pa.portfolio.user.id = :userId
         """)
     List<Transaction> findAllTransactionsByUserId(@Param("userId") UUID userId);
@@ -80,6 +83,34 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
                                                   @Param("assetId") Long assetId);
 
     /** Data da transacao mais antiga do ativo, de qualquer carteira. Nula = nenhuma. */
+    /**
+     * Lancamentos MANUAIS do usuario que podem ser a mesma operacao de uma
+     * importada (PLANO_CRIPTO_BINANCE.md, 6.6): mesmos ativos, no intervalo de
+     * datas do lote. A comparacao fina (tipo, data, quantidade) e do pipeline.
+     */
+    @Query("""
+        SELECT t FROM Transaction t
+        JOIN FETCH t.portfolioAsset pa
+        JOIN FETCH pa.asset a
+        WHERE pa.portfolio.user.id = :userId
+          AND t.origin = :origin
+          AND a.id IN :assetIds
+          AND t.transactionDate BETWEEN :from AND :to
+        """)
+    List<Transaction> findByOriginForAssets(@Param("userId") UUID userId,
+                                            @Param("origin") TransactionOrigin origin,
+                                            @Param("assetIds") Collection<Long> assetIds,
+                                            @Param("from") java.time.LocalDate from,
+                                            @Param("to") java.time.LocalDate to);
+
+    /**
+     * Dos ids que a fonte devolveu, quais esta conexao ja importou (P4). Uma
+     * consulta por sincronizacao, em vez de uma por operacao.
+     */
+    @Query("SELECT t.externalId FROM Transaction t WHERE t.connection.id = :connectionId AND t.externalId IN :externalIds")
+    Set<String> findImportedIds(@Param("connectionId") UUID connectionId,
+                                @Param("externalIds") Collection<String> externalIds);
+
     @Query("SELECT MIN(t.transactionDate) FROM Transaction t WHERE t.portfolioAsset.asset.id = :assetId")
     java.time.LocalDate findEarliestDateByAssetId(@Param("assetId") Long assetId);
 }

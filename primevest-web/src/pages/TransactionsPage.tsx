@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Pencil, X } from 'lucide-react';
+import { Plus, Trash2, Pencil, X, RotateCcw } from 'lucide-react';
 import { transactionsApi } from '@/api/transactions';
 import { assetsApi } from '@/api/assets';
 import { Card } from '@/components/ui/Card';
@@ -9,12 +9,13 @@ import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Pagination } from '@/components/ui/Pagination';
 import { TransactionFormModal } from '@/components/transactions/TransactionFormModal';
-import { formatCurrency, formatDate, formatShares, toLocalISODate } from '@/utils/format';
+import { formatCurrency, formatDate, formatQuantity, formatUnitPrice, toLocalISODate } from '@/utils/format';
 import { TransactionResponse, TransactionType, AssetType } from '@/types';
 import { useSortable } from '@/hooks/useSortable';
 import { isFixedIncomeNote } from '@/utils/assetTypeRules';
 import { apiMessage } from '@/utils/apiError';
 import { useToast } from '@/context/ToastContext';
+import { providerName } from '@/utils/integrations';
 
 /** Rótulo do tipo como a listagem o mostra — a mesma convenção dos DTOs. */
 const labelOfType = (type: AssetType) => type.description || type.name;
@@ -39,6 +40,7 @@ export const TransactionsPage = () => {
   const [filterCategory, setFilterCategory] = useState('ALL');
   const [filterAsset, setFilterAsset] = useState('ALL');
   const [filterPeriod, setFilterPeriod] = useState('ALL');
+  const [filterOrigin, setFilterOrigin] = useState<'ALL' | 'MANUAL' | 'AUTO'>('ALL');
 
   /**
    * Filtro vindo da carteira, pelo ícone Listar.
@@ -79,6 +81,19 @@ export const TransactionsPage = () => {
     },
     onError: (e: unknown) => {
       showToast(apiMessage(e) ?? 'Não foi possível excluir a transação.', 'error');
+    }
+  });
+
+  // Volta a linha editada aos dados que a corretora mandou (regra E4).
+  const restoreMutation = useMutation({
+    mutationFn: (row: TransactionResponse) => transactionsApi.restore(row.id),
+    onSuccess: (_, row) => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['portfolio'] });
+      showToast(`Transação de ${row.ticker} voltou aos dados da corretora.`, 'success');
+    },
+    onError: (e: unknown) => {
+      showToast(apiMessage(e) ?? 'Não foi possível restaurar a transação.', 'error');
     }
   });
 
@@ -137,6 +152,7 @@ export const TransactionsPage = () => {
   const filtered = enriched.filter(row => {
     if (positionFilter && row.portfolioAssetId !== positionFilter) return false;
     if (filterType !== 'ALL' && row.assetType !== filterType) return false;
+    if (filterOrigin !== 'ALL' && row.origin !== filterOrigin) return false;
     if (filtrarPorAtivo) {
       if (filterAsset !== 'ALL' && row.ticker !== filterAsset) return false;
     } else if (filterCategory !== 'ALL' && row.assetCategoryName !== filterCategory) {
@@ -160,6 +176,13 @@ export const TransactionsPage = () => {
     setCurrentPage(1);
   };
 
+  const handleRestore = (row: TransactionResponse) => {
+    const corretora = providerName(row.connectionProvider) || 'da corretora';
+    if (window.confirm(`Desfazer suas alterações em ${row.ticker} e voltar aos dados de ${corretora}?`)) {
+      restoreMutation.mutate(row);
+    }
+  };
+
   const handleOpenModal = () => {
     setEditing(null);
     setIsModalOpen(true);
@@ -179,9 +202,13 @@ export const TransactionsPage = () => {
    */
   const handleDelete = (row: TransactionResponse & { assetType: string }) => {
     const partes = row.groupParts ?? 1;
+    const corretora = providerName(row.connectionProvider) || 'a corretora';
     const pergunta = partes > 1
       ? `Esta venda de ${row.ticker} está dividida em ${partes} títulos. Excluir a venda inteira?`
-      : 'Tem certeza?';
+      : row.origin === 'AUTO'
+        ? `Esta transação de ${row.ticker} veio de ${corretora}. Excluída, ela não volta nas próximas sincronizações; `
+          + 'dá para restaurar em Integrações › Excluídas. Excluir?'
+        : 'Tem certeza?';
     if (window.confirm(pergunta)) {
       deleteMutation.mutate(row);
     }
@@ -257,6 +284,19 @@ export const TransactionsPage = () => {
         )}
 
         <div>
+          <label className="block text-xs text-gray-400 mb-1">Origem</label>
+          <select
+            value={filterOrigin}
+            onChange={(e) => { setFilterOrigin(e.target.value as 'ALL' | 'MANUAL' | 'AUTO'); setCurrentPage(1); }}
+            className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2"
+          >
+            <option value="ALL">Todas</option>
+            <option value="MANUAL">Digitadas</option>
+            <option value="AUTO">Importadas</option>
+          </select>
+        </div>
+
+        <div>
           <label className="block text-xs text-gray-400 mb-1">Período</label>
           <select
             value={filterPeriod}
@@ -324,6 +364,18 @@ export const TransactionsPage = () => {
                         título {row.groupPart}/{row.groupParts}
                       </span>
                     )}
+                    {/* Veio de uma corretora: o selo diz de qual, e se o
+                        usuário mexeu depois (a sincronização não sobrescreve). */}
+                    {row.origin === 'AUTO' && (
+                      <span
+                        className="ml-2 rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-normal text-accent"
+                        title={row.editedAt
+                          ? `Importada de ${row.connectionLabel ?? providerName(row.connectionProvider)} e editada por você`
+                          : `Importada de ${row.connectionLabel ?? providerName(row.connectionProvider)}`}
+                      >
+                        {providerName(row.connectionProvider) || 'Importada'}{row.editedAt ? ' · editada' : ''}
+                      </span>
+                    )}
                     {row.isFullSettlement && (
                       <span className="ml-2 rounded bg-danger/15 px-1.5 py-0.5 text-[10px] font-normal text-danger">
                         liquidação total
@@ -335,8 +387,8 @@ export const TransactionsPage = () => {
                       {row.type === TransactionType.BUY ? 'Compra' : 'Venda'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">{row.shares != null ? formatShares(row.shares) : '—'}</td>
-                  <td className="px-4 py-3 text-right">{row.pricePerShare != null ? formatCurrency(row.pricePerShare) : '—'}</td>
+                  <td className="px-4 py-3 text-right">{row.shares != null ? formatQuantity(row.shares, row.isCrypto) : '—'}</td>
+                  <td className="px-4 py-3 text-right">{row.pricePerShare != null ? formatUnitPrice(row.pricePerShare, row.isCrypto) : '—'}</td>
                   <td className="px-4 py-3 text-right">{formatCurrency(row.brokerageFee)}</td>
                   <td className="px-4 py-3 text-right font-medium text-white">{formatCurrency(row.totalAmount)}</td>
                   <td className="px-4 py-3 text-center">
@@ -348,6 +400,17 @@ export const TransactionsPage = () => {
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
+                      {row.origin === 'AUTO' && row.editedAt && (
+                        <button
+                          onClick={() => handleRestore(row)}
+                          disabled={restoreMutation.isPending}
+                          className="text-gray-500 hover:text-accent transition-colors p-1 disabled:opacity-50"
+                          title="Restaurar dados da corretora"
+                          aria-label="Restaurar dados da corretora"
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
                         onClick={() => handleDelete(row)}
                         className="text-gray-500 hover:text-danger transition-colors p-1"

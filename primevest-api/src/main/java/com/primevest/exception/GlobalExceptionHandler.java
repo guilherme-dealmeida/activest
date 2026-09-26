@@ -1,5 +1,7 @@
 package com.primevest.exception;
 
+import com.primevest.domain.integration.credential.CredentialUnavailableException;
+import com.primevest.integration.binance.BinanceException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -113,6 +115,21 @@ public class GlobalExceptionHandler {
             status = HttpStatus.INTERNAL_SERVER_ERROR;
         }
         return resposta(status, ex.getReason() != null ? ex.getReason() : status.getReasonPhrase(), null);
+    }
+
+    /**
+     * A corretora respondeu com erro ou nao respondeu. 502: o PrimeVest esta de
+     * pe, quem falhou foi a fonte. A mensagem nunca traz chave nem assinatura.
+     */
+    @ExceptionHandler(BinanceException.class)
+    public ResponseEntity<ErrorResponse> handleBinance(BinanceException ex) {
+        return resposta(HttpStatus.BAD_GATEWAY, ex.getMessage(), null);
+    }
+
+    /** Chave-mestra ausente ou credencial que nao decifra: problema do servidor. */
+    @ExceptionHandler(CredentialUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleCredentialUnavailable(CredentialUnavailableException ex) {
+        return resposta(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), null);
     }
 
     @ExceptionHandler(Exception.class)
