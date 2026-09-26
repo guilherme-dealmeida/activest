@@ -678,6 +678,24 @@ Vira escopo proprio, a planejar:
         por instituicao).
 
 ================================================================================
+17. INTEGRACAO CRIPTO — ENCERRADA ATE HAVER OUTRA CORRETORA (PLANO_CRIPTO_BINANCE.md, 26/09/2026)
+================================================================================
+
+  F1 a F6 concluidas. A integracao fica parada ate o usuario ter conta em
+  outra corretora de cripto para testar.
+
+  17.1  Conferir na pratica as partes da F6 que mudam dados. Sincronizar,
+        decidir duplicatas, restaurar e excluir uma importada (o aviso) so
+        foram testadas nos testes automatizados; na conta real nao rodaram.
+        O mais seguro para comecar: clicar em Sincronizar na tela de
+        Integracoes. Deve vir 0 novas, e a tela se atualiza sozinha ate
+        terminar.
+
+  17.2  F7 — segunda corretora cripto: a proxima etapa do plano. Valida se a
+        interface generica (SourceConnector, ImportedMovement, ImportPipeline)
+        aguenta uma fonte que nao foi desenhada junto.
+
+================================================================================
 ORDEM SUGERIDA
 ================================================================================
 
