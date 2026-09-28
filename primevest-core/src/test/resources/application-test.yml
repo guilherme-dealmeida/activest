@@ -1,0 +1,90 @@
+# Perfil dos testes.
+#
+# O datasource NAO esta aqui: vem do container do PostgreSQL, por
+# @ServiceConnection (ver support/PostgresContainer).
+spring:
+  # Flyway ligado de proposito: o teste roda sobre o mesmo schema e os mesmos
+  # seeds que a aplicacao, e ddl-auto: validate faz de cada teste de integracao
+  # uma prova de que entidade e migration continuam batendo.
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+
+  # Sem Redis: 'none' desliga o cache de verdade porque o RedisConfig so entra
+  # quando o type e redis.
+  cache:
+    type: none
+
+  # O autoconfig do Redis nao chega a abrir conexao, mas fica de fora para nao
+  # deixar bean de conexao pendurado no contexto de teste.
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+# Rotinas agendadas desligadas: cotacao e proventos mexendo por fora do cenario
+# tornariam qualquer teste nao deterministico. Ver config/SchedulingConfig.
+primevest:
+  scheduling:
+    enabled: false
+  # Proventos sob demanda (depois de cada transacao) tambem sairiam para a rede.
+  proventos:
+    enabled: false
+    pause-millis: 0
+  # Sem Redis nos testes: mensagens entre adm-api e app-api so no log (core,
+  # MessagingFallbackConfig); os testes de ponta a ponta ligam os dois lados direto.
+  messaging:
+    enabled: false
+  logos:
+    dir: ${java.io.tmpdir}/primevest-logos-test
+  data:
+    dir: ${java.io.tmpdir}/primevest-data-test
+  issuers:
+    pause-millis: 0
+  # Chave fixa de teste (32 bytes em base64). Nunca usada fora dos testes.
+  integrations:
+    credentials:
+      key: dGVzdGUtcHJpbWV2ZXN0LWNoYXZlLWRlLTMyLWJ5dGU=
+      key-version: 1
+      previous-keys: ""
+
+jwt:
+  secret: chave-de-teste-com-pelo-menos-256-bits-para-hmac-sha256-primevest
+  expiration: 86400000
+  refresh-expiration: 604800000
+
+# Integracoes externas nunca sao chamadas nos testes (os clients sao mockados),
+# e a rede esta bloqueada de qualquer forma.
+brapi:
+  base-url: http://localhost:0
+  token: ""
+coingecko:
+  base-url: http://localhost:0
+b3:
+  base-url: http://localhost:0
+  cotahist-url: http://localhost:0
+binance:
+  base-url: http://localhost:0
+  convert-pause-millis: 0
+fnet:
+  base-url: http://localhost:0
+cvm:
+  fii-registry-url: http://localhost:0/%d.zip
+  base-url: http://localhost:0
+
+google:
+  client-id: ""
+
+logging:
+  level:
+    com.primevest: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+    org.testcontainers: INFO

@@ -39,8 +39,6 @@ export interface AssetCategory {
   id: number;
   name: string;
   description: string;
-  /** FII: segmento de atuação; Ação: segmento da B3; demais tipos: null. */
-  segment: string | null;
   assetTypeId: number;
   assetTypeName: string;
 }

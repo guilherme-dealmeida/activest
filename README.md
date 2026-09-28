@@ -8,7 +8,10 @@ Sistema completo de gestão de carteira de investimentos da B3, com acompanhamen
 
 ```
 primevest/
-├── primevest-api/       # Backend - Java 21 + Spring Boot 3.3
+├── pom.xml              # Backend: agregador Maven (Java 21 + Spring Boot 3.3)
+├── primevest-core/      # Backend: modelo, regras compartilhadas, migrations
+├── primevest-adm-api/   # Backend: rotinas de administrador — catálogo (porta 8081)
+├── primevest-app-api/   # Backend: API do usuário, a carteira (porta 8080)
 └── primevest-web/       # Frontend - React + TypeScript + Tailwind
 ```
 
@@ -90,9 +93,8 @@ export DB_USERNAME=postgres
 export DB_PASSWORD=postgres
 export GOOGLE_CLIENT_ID=seu-client-id        # opcional; sem ele o botão do Google some
 
-# Backend — porta 8080
-cd primevest-api
-mvn spring-boot:run
+# Backend — porta 8080, da raiz
+mvn -pl primevest-app-api -am -Drun.module=primevest-app-api spring-boot:run
 
 # Frontend — porta 5173, proxy /api -> localhost:8080
 cd primevest-web
