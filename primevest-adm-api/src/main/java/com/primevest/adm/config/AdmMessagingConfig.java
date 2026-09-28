@@ -2,6 +2,7 @@ package com.primevest.adm.config;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.primevest.adm.domain.asset.AssetLogoService;
 import com.primevest.adm.domain.dividend.ProventosCatalogService;
 import com.primevest.domain.catalog.CatalogMessaging;
 import com.primevest.domain.catalog.CatalogMessaging.CatalogChangePublisher;
@@ -21,7 +22,8 @@ import java.nio.charset.StandardCharsets;
  * Mensagens do catalogo com a app-api pelo Redis (PLANO_ADM_API.md, 10.3):
  * <ul>
  *   <li>publica "catalogo mudou" ao fim do fechamento e dos proventos;</li>
- *   <li>ouve "preciso do historico" (transacao na carteira) e busca os proventos do ativo.</li>
+ *   <li>ouve "preciso do historico" (transacao na carteira) e busca os proventos do ativo e,
+ *   se faltar, o logo.</li>
  * </ul>
  * Desligado com {@code primevest.messaging.enabled=false} (testes): o core poe no lugar um
  * publicador que so registra no log.
@@ -47,18 +49,24 @@ public class AdmMessagingConfig {
     /** {@code ObjectProvider}: o servico de proventos depende do publicador acima. */
     @Bean
     RedisMessageListenerContainer onDemandListener(RedisConnectionFactory connectionFactory,
-                                                   ObjectProvider<ProventosCatalogService> proventos) {
+                                                   ObjectProvider<ProventosCatalogService> proventos,
+                                                   ObjectProvider<AssetLogoService> logos) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
         container.addMessageListener((message, pattern) -> {
             String body = new String(message.getBody(), StandardCharsets.UTF_8).trim();
-            Thread.ofVirtual().name("proventos-sob-demanda").start(() -> {
-                try {
-                    proventos.getObject().syncAssetOnDemand(Long.valueOf(body));
-                } catch (RuntimeException e) {
-                    log.error("Proventos sob demanda ({}): {}", body, e.getMessage(), e);
-                }
-            });
+            // fila unica do servico (F8, PENDENCIAS 14.1): volta na hora, sem thread por pedido
+            try {
+                proventos.getObject().requestOnDemand(Long.valueOf(body));
+            } catch (RuntimeException e) {
+                log.error("Proventos sob demanda ({}): {}", body, e.getMessage(), e);
+            }
+            // ativo que entrou numa carteira e ainda nao tem logo (F10: sem busca na subida)
+            try {
+                logos.getObject().fetchIfMissing(Long.valueOf(body));
+            } catch (RuntimeException e) {
+                log.warn("Logo sob demanda ({}): {}", body, e.getMessage());
+            }
         }, new ChannelTopic(CatalogMessaging.ON_DEMAND_CHANNEL));
         return container;
     }

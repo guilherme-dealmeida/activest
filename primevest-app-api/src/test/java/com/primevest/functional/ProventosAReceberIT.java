@@ -5,7 +5,6 @@ import com.primevest.adm.domain.dividend.ProventosCatalogService;
 import com.primevest.domain.user.User;
 import com.primevest.adm.integration.b3.B3Client;
 import com.primevest.adm.integration.b3.B3Fixtures;
-import com.primevest.adm.integration.b3.CvmFundRegistry;
 import com.primevest.adm.integration.b3.FnetClient;
 import com.primevest.support.CatalogIds;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,7 +53,7 @@ class ProventosAReceberIT extends CatalogoE2EBase {
         when(b3Client.companyDetail(anyString())).thenAnswer(i -> real.companyDetail(i.getArgument(0)));
         when(b3Client.cashDividendsHistory(anyString(), anyInt(), anyInt()))
             .thenAnswer(i -> real.cashDividendsHistory(i.getArgument(0), i.getArgument(1), i.getArgument(2)));
-        jdbc.update("UPDATE assets SET isin = NULL, cnpj = NULL, cash_history_loaded_at = NULL");
+        jdbc.update("UPDATE assets SET isin = NULL");
     }
 
     // ------------------------------------------------------------------

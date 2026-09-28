@@ -22,20 +22,25 @@ import com.primevest.adm.integration.b3.B3CompanyDetail;
 import com.primevest.adm.integration.b3.B3HistoryPage;
 import com.primevest.adm.integration.b3.B3Supplement;
 import com.primevest.adm.integration.b3.B3Values;
-import com.primevest.adm.integration.b3.CvmFundRegistry;
 import com.primevest.adm.integration.b3.FnetClient;
+import com.primevest.adm.integration.b3.FnetNotice;
 import com.primevest.adm.integration.b3.FnetProvento;
 import lombok.extern.slf4j.Slf4j;
+import jakarta.annotation.PreDestroy;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -45,28 +50,47 @@ import java.util.List;
 import java.util.Map;
 
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.regex.Pattern;
 
 /**
  * Proventos e eventos societarios da B3 (PLANO_BRAPI.md, F5 e F6).
  *
- * <p><b>Rotina diaria</b> (20:00): para cada EMISSOR com posicao — PETR3 e
- * PETR4 sao uma chamada so —, busca na B3 os proventos dos ultimos ~12 meses e
- * os desdobramentos, grupamentos e bonificacoes, e grava no catalogo
- * ({@code asset_cash_events}, {@link AssetStockEvent}).</p>
+ * <p><b>Rotina diaria</b> (20:00): para cada EMISSOR do catalogo — todo ativo ligado a
+ * um emissor ({@code assets.issuer_id}) mais os que alguem ja teve em carteira (ETF,
+ * BDR), desde a F8 do PLANO_EMPRESAS_BALANCOS.md; PETR3 e PETR4 sao uma chamada so —,
+ * busca na B3 os proventos dos ultimos ~12 meses e os desdobramentos, grupamentos e
+ * bonificacoes, e grava no catalogo ({@code asset_cash_events}, {@link AssetStockEvent}).
+ * {@code primevest.proventos.scope=HELD} volta ao escopo antigo (so o que ja esteve em
+ * carteira) — e o dos testes de ponta a ponta.</p>
  *
  * <p><b>So catalogo</b> (PLANO_ADM_API.md, 10): era o {@code ProventosCatalogService},
  * que tambem refazia os proventos de cada posicao. Agora a rotina termina
  * publicando "catalogo mudou" ({@link CatalogChange}, origem PROVENTOS) com os
- * ativos sincronizados, e quem refaz a carteira e a app-api. Le as posicoes
- * ({@code OpenPositions}) so para saber o que buscar, ate a F8 cobrir todas as
- * empresas.</p>
+ * ativos sincronizados, e quem refaz a carteira e a app-api.</p>
  *
- * <p><b>Historico longo</b> — uma vez por ativo, quando alguma posicao comeca
- * antes do evento mais antigo guardado: empresa pelo historico da B3 (desde os
- * anos 90, sem data de pagamento); FII pelo FNET (2017 em diante, com
- * pagamento). ETF nao tem fonte alem dos 12 meses: o que faltar e lancamento
- * manual.</p>
+ * <p><b>Historico longo</b> — sem coluna de estado no catalogo (F10): empresa pelo
+ * historico da B3 (desde os anos 90, sem data de pagamento), buscado uma vez por emissor e
+ * guardado em {@code data/b3/proventos/{EMISSOR}.json}, aplicado ao ativo que ainda nao tem
+ * nenhum evento dele; FII pelo FNET (2016 em
+ * diante, com pagamento): os avisos do CNPJ que estao em {@code data/fnet} (indice local do
+ * {@link FnetClient}), sem perguntar ao FNET — a busca por fundo leva 3 a 10 s, trava com
+ * frequencia, e o cache ja tem o historico. Depois disso o dia a dia e so a B3 (12 meses,
+ * com pagamento); aviso novo do FNET fica para uma busca explicita (PENDENCIAS 18.10). O aviso e ligado pelo CNPJ
+ * do emissor, nao pelo ticker (renomeacoes); recibo de subscricao (final 12 a 19) e
+ * aviso com data-base depois do pagamento ficam de fora (1.5 do plano). ETF nao tem
+ * fonte alem dos 12 meses: o que faltar e lancamento manual. No escopo HELD o
+ * historico so e buscado quando uma posicao comeca antes do evento mais antigo
+ * guardado.</p>
+ *
+ * <p><b>Concorrencia</b> (PENDENCIAS 14.1): a rodada completa nao roda duas vezes ao
+ * mesmo tempo (a segunda desiste); o pedido sob demanda entra numa fila unica, com um
+ * executor e sem repetir o mesmo ativo; o mesmo emissor nunca e sincronizado por dois
+ * caminhos ao mesmo tempo. Nada de {@code synchronized} (prendia as threads virtuais).</p>
  *
  * <p><b>Falha</b> (B3 fora do ar, formato mudou): log ERROR e segue para o
  * proximo emissor. Nada ja gravado e apagado. A rotina diaria e a busca
@@ -85,6 +109,10 @@ public class ProventosCatalogService {
     private static final int HISTORY_PAGE_SIZE = 100;
     /** Sincronizacao disparada por transacao nao repete o mesmo emissor antes disso. */
     private static final long ON_DEMAND_COOLDOWN_SECONDS = 6 * 3600;
+    /** Recibo de subscricao e direito (PLAG13, APTO14...): o provento nao e da cota. */
+    private static final Pattern RECEIPT = Pattern.compile("[A-Z]{4}1[2-9]");
+    /** FNET e B3 escrevem o mesmo valor com casas diferentes (1.03999999900318 x 1.04). */
+    private static final BigDecimal SAME_VALUE_TOLERANCE = new BigDecimal("0.000001");
     /** Especie do historico longo → final do ticker. */
     private static final Map<String, String> SPECIES_SUFFIX = Map.of(
             "ON", "3", "PN", "4", "PNA", "5", "PNB", "6", "PNC", "7", "PND", "8", "UNT", "11");
@@ -97,19 +125,34 @@ public class ProventosCatalogService {
     private final CashEventWriter cashEventWriter;
     private final CatalogChangePublisher catalogPublisher;
     private final B3Client b3Client;
-    private final CvmFundRegistry cvmFundRegistry;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+    private final Path historyDir;
     private final FnetClient fnetClient;
+    private final JdbcTemplate jdbc;
     private final TransactionTemplate tx;
     private final long pauseMillis;
+    private final boolean catalogScope;
     private final Map<String, Instant> lastIssuerSync = new ConcurrentHashMap<>();
+    private final ReentrantLock fullRun = new ReentrantLock();
+    private final Map<String, ReentrantLock> groupLocks = new ConcurrentHashMap<>();
+    /** Fila unica do sob demanda: um executor, sem repetir ativo ja na fila. */
+    private final ExecutorService onDemand = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "proventos-sob-demanda");
+        t.setDaemon(true);
+        return t;
+    });
+    private final Set<Long> onDemandQueued = ConcurrentHashMap.newKeySet();
 
     public ProventosCatalogService(AssetRepository assetRepository, AssetCashEventRepository cashEventRepository,
                                 AssetStockEventRepository stockEventRepository,
                                 TransactionRepository transactionRepository, OpenPositions openPositions,
                                 CashEventWriter cashEventWriter, CatalogChangePublisher catalogPublisher,
-                                B3Client b3Client, CvmFundRegistry cvmFundRegistry, FnetClient fnetClient,
-                                PlatformTransactionManager transactionManager,
-                                @Value("${primevest.proventos.pause-millis:1000}") long pauseMillis) {
+                                B3Client b3Client, FnetClient fnetClient,
+                                com.fasterxml.jackson.databind.ObjectMapper objectMapper,
+                                JdbcTemplate jdbc, PlatformTransactionManager transactionManager,
+                                @Value("${primevest.proventos.pause-millis:1000}") long pauseMillis,
+                                @Value("${primevest.proventos.scope:ALL}") String scope,
+                                @Value("${primevest.data.dir:../data}") String dataDir) {
         this.assetRepository = assetRepository;
         this.cashEventRepository = cashEventRepository;
         this.stockEventRepository = stockEventRepository;
@@ -118,10 +161,18 @@ public class ProventosCatalogService {
         this.cashEventWriter = cashEventWriter;
         this.catalogPublisher = catalogPublisher;
         this.b3Client = b3Client;
-        this.cvmFundRegistry = cvmFundRegistry;
+        this.objectMapper = objectMapper;
+        this.historyDir = Path.of(dataDir, "b3", "proventos").toAbsolutePath().normalize();
         this.fnetClient = fnetClient;
+        this.jdbc = jdbc;
         this.tx = new TransactionTemplate(transactionManager);
         this.pauseMillis = pauseMillis;
+        this.catalogScope = !"HELD".equalsIgnoreCase(scope == null ? "" : scope.trim());
+    }
+
+    @PreDestroy
+    void shutdown() {
+        onDemand.shutdownNow();
     }
 
     /** Resultado de uma rodada. Os proventos das posicoes a app-api conta, ao recalcular. */
@@ -139,16 +190,32 @@ public class ProventosCatalogService {
     // Entradas
     // ------------------------------------------------------------------
 
-    /** Rodada completa: todos os emissores com posicao (aberta ou ja encerrada). */
-    public synchronized SyncResult syncAll(String reason) {
-        List<IssuerGroup> groups = groups(openPositions.assetsEverHeld());
-        log.info("Proventos ({}): {} emissores", reason, groups.size());
+    /**
+     * Rodada completa: todos os emissores do escopo (catalogo ligado + ja em carteira, ou so
+     * ja em carteira). Se outra rodada estiver rodando, desiste e devolve {@code null}.
+     */
+    public SyncResult syncAll(String reason) {
+        if (!fullRun.tryLock()) {
+            log.warn("Proventos ({}): ja existe uma rodada completa em andamento; nada feito", reason);
+            return null;
+        }
+        try {
+            return runAll(reason);
+        } finally {
+            fullRun.unlock();
+        }
+    }
+
+    private SyncResult runAll(String reason) {
+        List<IssuerGroup> groups = groups(scopeAssets());
+        log.info("Proventos ({}): {} emissores (escopo {})", reason, groups.size(),
+                catalogScope ? "catalogo" : "carteira");
         Counters total = new Counters();
         int failures = 0;
         List<Asset> synced = new ArrayList<>();
         for (IssuerGroup group : groups) {
             try {
-                total.add(syncGroup(group));
+                total.add(locked(group, () -> syncGroup(group)));
                 synced.addAll(group.assets());
                 // por emissor, nao no fim: o historico longo do FNET pode levar muito tempo e a
                 // carteira de quem tem os primeiros ja se acerta
@@ -164,9 +231,32 @@ public class ProventosCatalogService {
     }
 
     /**
-     * Depois de uma transacao: sincroniza o emissor do ativo, se nao foi
-     * sincronizado nas ultimas horas, e carrega o historico longo se a compra
-     * for anterior ao que esta guardado.
+     * Pedido da carteira ("preciso do historico", depois de uma transacao): entra na fila
+     * unica e volta na hora. Ativo que ja esta na fila nao entra de novo.
+     *
+     * <p>Revisto na F8: com o catalogo inteiro sincronizado todo dia, o pedido quase
+     * sempre termina sem chamada nenhuma (emissor sincronizado nas ultimas horas e
+     * historico ja carregado). Continua para o que a rotina nao cobre — ETF e BDR sem
+     * emissor na primeira compra, ativo novo no catalogo — e para a carteira nao esperar
+     * ate as 20:00.</p>
+     */
+    public void requestOnDemand(Long assetId) {
+        if (assetId == null || !onDemandQueued.add(assetId)) {
+            return;
+        }
+        onDemand.execute(() -> {
+            onDemandQueued.remove(assetId);
+            try {
+                syncAssetOnDemand(assetId);
+            } catch (RuntimeException e) {
+                log.error("Proventos sob demanda ({}): {}", assetId, e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * Sincroniza o emissor do ativo, se nao foi sincronizado nas ultimas horas, e
+     * carrega o historico longo se faltar. Chamado pela fila de {@link #requestOnDemand}.
      */
     public void syncAssetOnDemand(Long assetId) {
         Asset asset = tx.execute(s -> assetRepository.findById(assetId).map(a -> {
@@ -183,23 +273,65 @@ public class ProventosCatalogService {
         IssuerGroup single = groups.get(0);
         Instant last = lastIssuerSync.get(single.issuer());
         boolean recent = last != null && last.plusSeconds(ON_DEMAND_COOLDOWN_SECONDS).isAfter(Instant.now());
-        synchronized (this) {
-            try {
-                // O grupo inteiro do emissor (PETR3 e PETR4 juntos), nao so o ativo.
-                IssuerGroup full = groups(openPositions.assetsEverHeld()).stream()
-                        .filter(g -> g.issuer().equals(single.issuer()))
-                        .findFirst().orElse(single);
+        try {
+            // O grupo inteiro do emissor (PETR3 e PETR4 juntos), nao so o ativo.
+            List<Asset> scope = new ArrayList<>(scopeAssets());
+            if (scope.stream().noneMatch(a -> a.getId().equals(asset.getId()))) {
+                scope.add(asset);
+            }
+            IssuerGroup full = groups(scope).stream()
+                    .filter(g -> g.kind() == single.kind() && g.issuer().equals(single.issuer()))
+                    .findFirst().orElse(single);
+            locked(full, () -> {
                 if (recent) {
                     Counters c = new Counters();
                     loadLongHistoryIfNeeded(full, null, c);
-                } else {
-                    syncGroup(full);
+                    return c;
                 }
-                publishChange(full.assets());
-            } catch (RuntimeException e) {
-                log.error("Proventos sob demanda de {} falhou: {}", asset.getTicker(), e.getMessage());
+                return syncGroup(full);
+            });
+            publishChange(full.assets());
+        } catch (RuntimeException e) {
+            log.error("Proventos sob demanda de {} falhou: {}", asset.getTicker(), e.getMessage());
+        }
+    }
+
+    /** O mesmo emissor nunca e sincronizado por dois caminhos ao mesmo tempo. */
+    private Counters locked(IssuerGroup group, java.util.function.Supplier<Counters> work) {
+        ReentrantLock lock = groupLocks.computeIfAbsent(group.kind() + ":" + group.issuer(), k -> new ReentrantLock());
+        lock.lock();
+        try {
+            return work.get();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * Ativos do escopo, com o tipo carregado: todo ativo ativo ligado a um emissor mais os
+     * que alguem ja teve em carteira; no escopo HELD, so os ultimos.
+     */
+    private List<Asset> scopeAssets() {
+        Map<Long, Asset> assets = new LinkedHashMap<>();
+        openPositions.assetsEverHeld().forEach(a -> assets.putIfAbsent(a.getId(), a));
+        if (catalogScope) {
+            List<Long> ids = jdbc.queryForList(
+                    "SELECT id FROM assets WHERE issuer_id IS NOT NULL AND active ORDER BY ticker", Long.class);
+            List<Asset> linked = tx.execute(s -> {
+                List<Asset> found = assetRepository.findAllById(ids);
+                found.forEach(a -> {
+                    if (a.getAssetType() != null) {
+                        a.getAssetType().getName();
+                    }
+                });
+                return found;
+            });
+            if (linked != null) {
+                linked.stream().sorted(java.util.Comparator.comparing(Asset::getTicker))
+                        .forEach(a -> assets.putIfAbsent(a.getId(), a));
             }
         }
+        return new ArrayList<>(assets.values());
     }
 
     // ------------------------------------------------------------------
@@ -231,6 +363,10 @@ public class ProventosCatalogService {
         lastIssuerSync.put(group.issuer(), Instant.now());
         if (supplement == null) {
             log.warn("Proventos: a B3 nao encontrou o emissor {}", group.issuer());
+            if (group.kind() == IssuerKind.FUND) {
+                // o FNET nao depende da B3: o historico do FII segue pelo CNPJ
+                loadLongHistoryIfNeeded(group, null, c);
+            }
             return c;
         }
 
@@ -251,8 +387,10 @@ public class ProventosCatalogService {
             }
             for (Asset asset : targets) {
                 DividendType type = DividendType.fromSourceLabel(d.label());
+                // a mesma amortizacao ja gravada pelo FNET com outras casas: completa, nao duplica
+                BigDecimal v = type == null ? value : sameValue(asset, type, dataCom, value);
                 CashEventData data = new CashEventData(type, d.label(), dataCom,
-                        B3Values.date(d.paymentDate()), value, B3Values.date(d.approvedOn()),
+                        B3Values.date(d.paymentDate()), v, B3Values.date(d.approvedOn()),
                         B3Values.trim(d.relatedTo()), B3Values.trim(d.isinCode()), null, CashEventSource.B3, null,
                         installments.next(asset.getId(), type, d.label(), dataCom, value));
                 if (cashEventWriter.save(asset, data)) {
@@ -348,7 +486,7 @@ public class ProventosCatalogService {
     /**
      * Falha no historico longo nao derruba o resto: os eventos recentes ja
      * gravados seguem para o recalculo das posicoes, e o historico fica para a
-     * proxima rotina (so e marcado como carregado quando termina).
+     * proxima rotina (o que falta e reconhecido pelo que ja esta gravado e em disco).
      */
     private void loadLongHistoryIfNeeded(IssuerGroup group, B3Supplement supplement, Counters c) {
         try {
@@ -361,16 +499,17 @@ public class ProventosCatalogService {
     private void loadLongHistory(IssuerGroup group, B3Supplement supplement, Counters c) {
         List<Asset> needing = new ArrayList<>();
         for (Asset a : group.assets()) {
-            Asset fresh = tx.execute(s -> assetRepository.findById(a.getId()).orElse(null));
-            if (fresh == null || fresh.getCashHistoryLoadedAt() != null) {
+            if (catalogScope) {
+                // catalogo inteiro: todo ativo tem o historico longo
+                needing.add(a);
                 continue;
             }
             // Posicao que comeca antes da janela de ~12 meses da B3 precisa do
-            // historico longo, ate ele ser carregado por inteiro.
+            // historico longo, ate ele estar gravado.
             LocalDate firstTx = transactionRepository.findEarliestDateByAssetId(a.getId());
             LocalDate oldest = cashEventRepository.findOldestRecentDataCom(a.getId());
             if (firstTx != null && (oldest == null || firstTx.isBefore(oldest))) {
-                needing.add(fresh);
+                needing.add(a);
             }
         }
         if (needing.isEmpty()) {
@@ -378,160 +517,268 @@ public class ProventosCatalogService {
         }
         String type = group.assets().get(0).getAssetType().getName();
         if (group.kind() == IssuerKind.COMPANY) {
+            loadCompanyHistory(group, supplement, needing, c);
+        } else if ("FII".equals(type)) {
+            // barato: indice local do FNET x avisos ja gravados; nada a ler quando esta tudo gravado
+            loadFundHistory(needing, c);
+        } else {
+            log.debug("Proventos: {} ({}) nao tem fonte alem dos 12 meses da B3 — o que faltar e lancamento manual.",
+                    group.issuer(), type);
+        }
+    }
+
+    /**
+     * Historico da B3 para os ativos do grupo que ainda nao tem nenhum evento dele
+     * ({@code B3_HISTORICO}). A resposta inteira fica em
+     * {@code data/b3/proventos/{EMISSOR}.json} (F10: o arquivo e o estado, sem coluna no
+     * catalogo): com o arquivo em disco nada e pedido a B3 de novo — a acao que nunca pagou
+     * provento le o arquivo e segue sem eventos. Sem arquivo, as paginas sao buscadas (1
+     * chamada/s) e o arquivo so e gravado quando todas vieram.
+     */
+    private void loadCompanyHistory(IssuerGroup group, B3Supplement supplement, List<Asset> needing, Counters c) {
+        List<Asset> missing = needing.stream()
+                .filter(a -> !cashEventRepository.existsByAssetIdAndSource(a.getId(), CashEventSource.B3_HISTORICO))
+                .toList();
+        if (missing.isEmpty()) {
+            return;
+        }
+        Path file = companyHistoryFile(group.issuer());
+        List<B3HistoryPage.Item> items = readCompanyHistory(file);
+        if (items == null) {
             B3Supplement sup = supplement;
             if (sup == null) {
                 pause();
                 sup = b3Client.companySupplement(group.issuer());
             }
-            if (sup != null && sup.tradingName() != null) {
-                c.cash += loadCompanyHistory(sup.tradingName().trim(), group, needing);
-                needing.forEach(this::markHistoryLoaded);
+            if (sup == null || sup.tradingName() == null) {
+                return;
             }
-        } else if ("FII".equals(type)) {
-            for (Asset a : needing) {
-                if (loadFundHistory(a, c)) {
-                    markHistoryLoaded(a);
-                }
-            }
-        } else {
-            needing.forEach(a -> {
-                log.info("Proventos: {} ({}) nao tem fonte alem dos 12 meses da B3 — o que faltar e lancamento manual.",
-                        a.getTicker(), type);
-                markHistoryLoaded(a);
-            });
+            items = fetchCompanyHistory(sup.tradingName().trim());
+            writeCompanyHistory(file, items);
         }
+        c.cash += applyCompanyHistory(group, missing, items);
     }
 
-    private int loadCompanyHistory(String tradingName, IssuerGroup group, List<Asset> needing) {
+    private List<B3HistoryPage.Item> fetchCompanyHistory(String tradingName) {
+        List<B3HistoryPage.Item> items = new ArrayList<>();
+        for (int page = 1; page <= 100; page++) {
+            pause();
+            B3HistoryPage result = b3Client.cashDividendsHistory(tradingName, page, HISTORY_PAGE_SIZE);
+            items.addAll(result.items());
+            Integer totalPages = result.page() != null ? result.page().totalPages() : null;
+            if (result.items().isEmpty() || totalPages == null || page >= totalPages) {
+                break;
+            }
+        }
+        log.info("Proventos: historico longo de {} baixado da B3 — {} linhas", tradingName, items.size());
+        return items;
+    }
+
+    private int applyCompanyHistory(IssuerGroup group, List<Asset> needing, List<B3HistoryPage.Item> items) {
         boolean bdr = "BDR".equals(group.assets().get(0).getAssetType().getName());
         Map<String, List<Asset>> byTicker = new HashMap<>();
         needing.forEach(a -> byTicker.computeIfAbsent(baseTicker(a.getTicker()), k -> new ArrayList<>()).add(a));
         boolean singleBase = byTicker.size() == 1;
         Installments installments = new Installments();
         int saved = 0;
-        for (int page = 1; page <= 100; page++) {
-            pause();
-            B3HistoryPage result = b3Client.cashDividendsHistory(tradingName, page, HISTORY_PAGE_SIZE);
-            for (B3HistoryPage.Item item : result.items()) {
-                String suffix = SPECIES_SUFFIX.get(item.typeStock() == null ? "" : item.typeStock().trim().toUpperCase());
-                List<Asset> targets = suffix != null ? byTicker.get(group.issuer() + suffix) : null;
-                if (targets == null && singleBase && bdr) {
-                    // BDR: a especie nao segue ON/PN; o emissor tem um papel so.
-                    targets = byTicker.values().iterator().next();
-                }
-                if (targets == null) {
-                    continue;
-                }
-                BigDecimal cash = B3Values.decimal(item.valueCash());
-                BigDecimal lot = B3Values.decimal(item.quotedPerShares());
-                LocalDate dataCom = B3Values.date(item.lastDatePriorEx());
-                if (cash == null || cash.signum() <= 0 || dataCom == null) {
-                    continue;
-                }
-                BigDecimal perShare = lot != null && lot.compareTo(BigDecimal.ONE) > 0
-                        ? cash.divide(lot, VALUE_SCALE, RoundingMode.HALF_UP) : cash;
-                for (Asset asset : targets) {
-                    DividendType type = DividendType.fromSourceLabel(item.corporateAction());
-                    CashEventData data = new CashEventData(type,
-                            item.corporateAction(), dataCom, null, perShare, B3Values.date(item.dateApproval()),
-                            null, asset.getIsin(), null, CashEventSource.B3_HISTORICO, null,
-                            installments.next(asset.getId(), type, item.corporateAction(), dataCom, perShare));
-                    if (cashEventWriter.save(asset, data)) {
-                        saved++;
-                    }
-                }
+        for (B3HistoryPage.Item item : items) {
+            String suffix = SPECIES_SUFFIX.get(item.typeStock() == null ? "" : item.typeStock().trim().toUpperCase());
+            List<Asset> targets = suffix != null ? byTicker.get(group.issuer() + suffix) : null;
+            if (targets == null && singleBase && bdr) {
+                // BDR: a especie nao segue ON/PN; o emissor tem um papel so.
+                targets = byTicker.values().iterator().next();
             }
-            Integer totalPages = result.page() != null ? result.page().totalPages() : null;
-            if (result.items().isEmpty() || totalPages == null || page >= totalPages) {
-                break;
-            }
-        }
-        log.info("Proventos: historico longo de {} carregado — {} eventos novos", tradingName, saved);
-        return saved;
-    }
-
-    /**
-     * Historico de um FII pelo FNET. Devolve se leu todos os avisos — so entao
-     * o historico e marcado como carregado. Aviso que ja esta gravado (pelo id
-     * do documento) nao e baixado de novo, entao a nova tentativa so busca o
-     * que faltou.
-     */
-    private boolean loadFundHistory(Asset asset, Counters c) {
-        String cnpj = asset.getCnpj();
-        if (cnpj == null) {
-            cnpj = cvmFundRegistry.cnpjForIsin(asset.getIsin());
-            if (cnpj == null) {
-                log.warn("Proventos: CNPJ de {} (ISIN {}) nao encontrado no cadastro da CVM — sem historico alem de 12 meses.",
-                        asset.getTicker(), asset.getIsin());
-                return true;
-            }
-            final String found = cnpj;
-            tx.executeWithoutResult(s -> assetRepository.findById(asset.getId()).ifPresent(db -> {
-                db.setCnpj(found);
-                assetRepository.save(db);
-            }));
-        }
-        pause();
-        List<Long> ids = fnetClient.incomeNoticeIds(cnpj);
-        Set<String> known = cashEventRepository.findFnetRefs(asset.getId());
-        int saved = 0;
-        int skipped = 0;
-        int failuresInARow = 0;
-        for (Long id : ids) {
-            if (known.contains(String.valueOf(id))) {
+            if (targets == null) {
                 continue;
             }
-            List<FnetProvento> proventos = null;
-            for (int attempt = 1; attempt <= 2 && proventos == null; attempt++) {
-                pause();
-                try {
-                    proventos = fnetClient.incomeNotice(id);
-                } catch (RuntimeException e) {
-                    if (attempt == 2) {
-                        log.warn("Proventos: aviso {} do FNET ({}) nao lido — fica para a proxima rotina: {}",
-                                id, asset.getTicker(), e.getMessage());
-                    }
-                }
-            }
-            if (proventos == null) {
-                skipped++;
-                // O FNET as vezes trava para todo mundo. Tres avisos seguidos
-                // sem resposta: desiste agora; o que ja foi gravado fica.
-                if (++failuresInARow >= 3) {
-                    throw new B3Exception("FNET sem resposta ao carregar o historico de " + asset.getTicker()
-                            + " (" + saved + " eventos gravados ate aqui; nova tentativa na proxima rotina)");
-                }
+            BigDecimal cash = B3Values.decimal(item.valueCash());
+            BigDecimal lot = B3Values.decimal(item.quotedPerShares());
+            LocalDate dataCom = B3Values.date(item.lastDatePriorEx());
+            if (cash == null || cash.signum() <= 0 || dataCom == null) {
                 continue;
             }
-            failuresInARow = 0;
-            for (FnetProvento p : proventos) {
-                boolean mine = (p.isin() != null && p.isin().equalsIgnoreCase(asset.getIsin()))
-                        || (p.ticker() != null && p.ticker().equalsIgnoreCase(baseTicker(asset.getTicker())));
-                if (!mine) {
-                    continue;
-                }
-                DividendType type = p.amortization() ? DividendType.AMORTIZACAO : DividendType.RENDIMENTO;
-                CashEventData data = new CashEventData(type, type.name(), p.dataBase(), p.paymentDate(), p.value(),
-                        null, p.referencePeriod(), p.isin(), p.incomeTaxExempt(), CashEventSource.FNET, String.valueOf(id),
-                        // Cada aviso e um documento; o mesmo aviso republicado
-                        // (nova versao) e a mesma noticia: sempre parcela 1.
-                        (short) 1);
+            BigDecimal perShare = lot != null && lot.compareTo(BigDecimal.ONE) > 0
+                    ? cash.divide(lot, VALUE_SCALE, RoundingMode.HALF_UP) : cash;
+            for (Asset asset : targets) {
+                DividendType type = DividendType.fromSourceLabel(item.corporateAction());
+                CashEventData data = new CashEventData(type,
+                        item.corporateAction(), dataCom, null, perShare, B3Values.date(item.dateApproval()),
+                        null, asset.getIsin(), null, CashEventSource.B3_HISTORICO, null,
+                        installments.next(asset.getId(), type, item.corporateAction(), dataCom, perShare));
                 if (cashEventWriter.save(asset, data)) {
                     saved++;
                 }
             }
         }
-        c.cash += saved;
-        log.info("Proventos: historico do FNET de {} — {} avisos, {} eventos novos{}", asset.getTicker(), ids.size(), saved,
-                skipped > 0 ? ", " + skipped + " avisos nao lidos (nova tentativa na proxima rotina)" : "");
-        return skipped == 0;
+        log.info("Proventos: historico longo de {} gravado — {} eventos novos", group.issuer(), saved);
+        return saved;
     }
 
-    private void markHistoryLoaded(Asset asset) {
-        tx.executeWithoutResult(s -> assetRepository.findById(asset.getId()).ifPresent(db -> {
-            db.setCashHistoryLoadedAt(LocalDateTime.now());
-            assetRepository.save(db);
-        }));
+    /** {@code data/b3/proventos/{EMISSOR}.json}: todas as paginas do historico da B3. */
+    private Path companyHistoryFile(String issuer) {
+        return historyDir.resolve(issuer.toUpperCase().replaceAll("[^A-Z0-9]", "_") + ".json");
+    }
+
+    /** Nulo = sem arquivo (ou ilegivel: busca de novo). */
+    private List<B3HistoryPage.Item> readCompanyHistory(Path file) {
+        if (!Files.isRegularFile(file)) {
+            return null;
+        }
+        try {
+            return List.of(objectMapper.readValue(file.toFile(), B3HistoryPage.Item[].class));
+        } catch (IOException e) {
+            log.warn("Proventos: {} ilegivel ({}) — o historico sera buscado de novo", file, e.getMessage());
+            return null;
+        }
+    }
+
+    private void writeCompanyHistory(Path file, List<B3HistoryPage.Item> items) {
+        try {
+            Files.createDirectories(file.getParent());
+            Path temp = file.resolveSibling(file.getFileName() + ".tmp");
+            objectMapper.writeValue(temp.toFile(), items);
+            Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            // sem o arquivo, a proxima rodada busca de novo: nada se perde
+            log.warn("Proventos: historico de {} nao gravado em disco: {}", file.getFileName(), e.getMessage());
+        }
+    }
+
+    /**
+     * Historico de FII pelo FNET, para os ativos de um grupo (o mesmo fundo pode ter duas
+     * classes negociadas, TRPL11 e TRPL15). Busca pelo CNPJ do emissor ({@code issuers.cnpj}), le os avisos
+     * desse CNPJ que estao em {@code data/fnet} e ainda nao foram gravados. Devolve se nada ficou
+     * para tras (aviso que nao foi lido e tentado de novo na proxima rodada).
+     */
+    private boolean loadFundHistory(List<Asset> assets, Counters c) {
+        Map<String, List<Asset>> byCnpj = new TreeMap<>();
+        for (Asset asset : assets) {
+            String cnpj = fundCnpj(asset);
+            if (cnpj == null) {
+                log.warn("Proventos: CNPJ de {} (ISIN {}) nao encontrado — sem historico alem de 12 meses.",
+                        asset.getTicker(), asset.getIsin());
+                continue;
+            }
+            byCnpj.computeIfAbsent(cnpj, k -> new ArrayList<>()).add(asset);
+        }
+        boolean complete = true;
+        for (Map.Entry<String, List<Asset>> e : byCnpj.entrySet()) {
+            complete &= loadFund(e.getKey(), e.getValue(), c);
+        }
+        return complete;
+    }
+
+    private boolean loadFund(String cnpj, List<Asset> assets, Counters c) {
+        // so o que esta em disco (data/fnet): nenhuma chamada ao FNET
+        List<Long> ids = fnetClient.cachedNoticeIds(cnpj);
+        Set<String> known = new HashSet<>();
+        assets.forEach(a -> known.addAll(cashEventRepository.findFnetRefs(a.getId())));
+        List<Long> missing = ids.stream().filter(id -> !known.contains(String.valueOf(id))).sorted().toList();
+        if (missing.isEmpty()) {
+            return true;
+        }
+        FnetClient.Batch batch = fnetClient.incomeNotices(missing);
+        int saved = 0;
+        int otherFund = 0;
+        int invalid = 0;
+        for (Map.Entry<Long, FnetNotice> n : batch.notices().entrySet()) {
+            long id = n.getKey();
+            FnetNotice notice = n.getValue();
+            if (notice.fundCnpj() != null && !notice.fundCnpj().equals(cnpj)) {
+                otherFund++;
+                continue;
+            }
+            for (FnetProvento p : notice.proventos()) {
+                if (p.ticker() != null && RECEIPT.matcher(p.ticker()).matches()) {
+                    continue;
+                }
+                if (p.paymentDate() != null && p.dataBase().isAfter(p.paymentDate())) {
+                    invalid++;
+                    // relido do disco a cada rodada (F10, sem estado no catalogo): o resumo abaixo conta
+                    log.debug("Proventos: aviso {} do FNET ({}) com data-base {} depois do pagamento {} — fora; revisar na fonte",
+                            id, assets.get(0).getTicker(), p.dataBase(), p.paymentDate());
+                    continue;
+                }
+                Asset target = target(assets, p);
+                if (target == null) {
+                    continue;
+                }
+                DividendType type = p.amortization() ? DividendType.AMORTIZACAO : DividendType.RENDIMENTO;
+                CashEventData data = new CashEventData(type, type.name(), p.dataBase(), p.paymentDate(),
+                        sameValue(target, type, p.dataBase(), p.value()), null, p.referencePeriod(),
+                        p.isin() != null ? p.isin() : target.getIsin(), p.incomeTaxExempt(), CashEventSource.FNET,
+                        String.valueOf(id),
+                        // Cada aviso e um documento; o mesmo aviso republicado
+                        // (nova versao) e a mesma noticia: sempre parcela 1.
+                        (short) 1);
+                if (cashEventWriter.save(target, data)) {
+                    saved++;
+                }
+            }
+        }
+        c.cash += saved;
+        // sem estado no catalogo (F10), avisos que nao viram evento (recibo, data-base invalida, provento
+        // ja gravado pela B3) sao relidos do disco a cada rodada: so loga quando algo mudou
+        boolean news = saved > 0 || !batch.failed().isEmpty() || batch.downloaded() > 0;
+        String fmt = "Proventos: FNET de {} ({}) — {} avisos, {} lidos agora ({} baixados), {} eventos novos{}{}{}";
+        Object[] args = {
+                assets.get(0).getTicker(), cnpj, ids.size(), missing.size(), batch.downloaded(), saved,
+                batch.failed().isEmpty() ? "" : ", " + batch.failed().size() + " nao obtidos (nova tentativa na proxima rotina)",
+                otherFund == 0 ? "" : ", " + otherFund + " de outro CNPJ",
+                invalid == 0 ? "" : ", " + invalid + " com data-base invalida"};
+        if (news) {
+            log.info(fmt, args);
+        } else {
+            log.debug(fmt, args);
+        }
+        return batch.failed().isEmpty();
+    }
+
+    /**
+     * O ativo do provento: fundo com uma cota negociada leva tudo (o ticker do aviso pode
+     * ser o de antes da renomeacao); com mais de uma, pelo ISIN ou pelo ticker.
+     */
+    private static Asset target(List<Asset> assets, FnetProvento p) {
+        List<Asset> quotas = assets.stream().filter(a -> !a.getTicker().toUpperCase().endsWith("F")).toList();
+        if (quotas.size() == 1) {
+            return quotas.get(0);
+        }
+        for (Asset a : assets) {
+            if ((p.isin() != null && p.isin().equalsIgnoreCase(a.getIsin()))
+                    || (p.ticker() != null && p.ticker().equalsIgnoreCase(baseTicker(a.getTicker())))) {
+                return a;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * CNPJ do fundo: o do emissor ({@code issuers.cnpj}). FII sem emissor fica sem historico
+     * alem dos 12 meses da B3 ate ser ligado (F3: {@code POST /admin/issuers/link}) — o
+     * cadastro da CVM em memoria e o CNPJ no ativo sairam na F10.
+     */
+    private String fundCnpj(Asset asset) {
+        List<String> issuer = jdbc.queryForList("""
+                SELECT i.cnpj FROM assets a JOIN issuers i ON i.id = a.issuer_id WHERE a.id = ?""",
+                String.class, asset.getId());
+        return issuer.isEmpty() ? null : issuer.get(0);
+    }
+
+    /**
+     * O mesmo provento ja gravado por outra fonte com outras casas (FNET 1.03999999900318,
+     * B3 1.04): usa o valor gravado, para o {@link CashEventWriter} completar em vez de
+     * duplicar.
+     */
+    private BigDecimal sameValue(Asset asset, DividendType type, LocalDate dataCom, BigDecimal value) {
+        List<BigDecimal> existing = jdbc.queryForList("""
+                SELECT value_per_share FROM asset_cash_events WHERE asset_id = ? AND type = ? AND data_com = ?""",
+                BigDecimal.class, asset.getId(), type.name(), java.sql.Date.valueOf(dataCom));
+        for (BigDecimal v : existing) {
+            if (v.subtract(value).abs().compareTo(SAME_VALUE_TOLERANCE) <= 0) {
+                return v;
+            }
+        }
+        return value;
     }
 
     // ------------------------------------------------------------------

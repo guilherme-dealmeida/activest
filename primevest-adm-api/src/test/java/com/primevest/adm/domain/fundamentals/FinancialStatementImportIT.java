@@ -218,4 +218,43 @@ class FinancialStatementImportIT extends IntegrationTestBase {
         CompanyQuarterService.Result again = quarterService.rebuild("teste");
         assertThat(again.quarters()).isEqualTo(r.quarters());
     }
+
+    private long documento(long issuer, String ref, String received, long total, Integer factor, String status) {
+        Long id = jdbc.queryForObject("""
+                INSERT INTO cvm_documents (issuer_id, doc_type, reference_date, version, received_at, consolidated)
+                VALUES (?, 'ITR', CAST(? AS DATE), 1, CAST(? AS DATE), true) RETURNING id""",
+                Long.class, issuer, ref, received);
+        jdbc.update("""
+                INSERT INTO share_counts (document_id, source, total_shares, scale_factor, scale_status, scale_check)
+                VALUES (?, 'COMPOSICAO', ?, ?, ?, ?)""", id, total, factor, status, factor == null ? null : "FRE");
+        return id;
+    }
+
+    @Test
+    @DisplayName("Grupamento entre dois balancos: a quantidade em REVISAR fecha pelo evento registrado (ate a entrega)")
+    void grupamentoEntreBalancos() {
+        long vivara = jdbc.queryForObject("SELECT id FROM issuers WHERE cnpj = '33839910000111'", Long.class);
+        jdbc.update("UPDATE assets SET issuer_id = ? WHERE ticker = 'VIVA3'", vivara);
+        long assetId = jdbc.queryForObject("SELECT id FROM assets WHERE ticker = 'VIVA3'", Long.class);
+        documento(vivara, "2026-03-31", "2026-05-10", 48_800_409L, 1, "OK");
+        // grupamento 10:1 em 10/06: ITR de junho com 4,88 mi (Viver 2026, real)
+        long junho = documento(vivara, "2026-06-30", "2026-08-10", 4_880_040L, null, "REVISAR");
+        // grupamento 5:1 em 15/10, depois do fim do trimestre e antes da entrega: ja vem grupado
+        long setembro = documento(vivara, "2026-09-30", "2026-11-10", 976_008L, null, "REVISAR");
+        // numero que nenhum evento explica (erro na fonte): continua REVISAR
+        long dezembro = documento(vivara, "2026-12-31", "2027-03-10", 9_760_080L, null, "REVISAR");
+        jdbc.update("""
+                INSERT INTO asset_stock_events (asset_id, type, data_com, factor, source)
+                VALUES (?, 'GRUPAMENTO', DATE '2026-06-10', 0.1, 'B3'), (?, 'GRUPAMENTO', DATE '2026-10-15', 0.2, 'B3')""",
+                assetId, assetId);
+
+        assertThat(service.resolveByStockEvents()).isEqualTo(2);
+
+        assertThat(jdbc.queryForMap("SELECT scale_factor, scale_status, scale_check FROM share_counts WHERE document_id = ?",
+                junho)).containsEntry("scale_factor", 1).containsEntry("scale_status", "OK").containsEntry("scale_check", "EVENTO");
+        assertThat(jdbc.queryForObject("SELECT scale_check FROM share_counts WHERE document_id = ?", String.class, setembro))
+                .isEqualTo("EVENTO");
+        assertThat(jdbc.queryForObject("SELECT scale_status FROM share_counts WHERE document_id = ?", String.class, dezembro))
+                .isEqualTo("REVISAR");
+    }
 }

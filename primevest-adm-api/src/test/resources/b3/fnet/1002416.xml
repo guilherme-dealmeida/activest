@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<DadosEconomicoFinanceiros>
+	<DadosGerais>
+		<NomeFundo>VINCI SHOPPING CENTERS FII</NomeFundo>
+		<CNPJFundo>17554274000125</CNPJFundo>
+		<NomeAdministrador>BRL TRUST DTVM S.A.</NomeAdministrador>
+		<CNPJAdministrador>13486793000142</CNPJAdministrador>
+		<ResponsavelInformacao>Henrique Sant Ana</ResponsavelInformacao>
+		<TelefoneContato>37777600</TelefoneContato>
+		<DataInformacao>2025-09-30</DataInformacao>
+		<Ano>2025</Ano>
+	</DadosGerais>
+	<InformeRendimentos>
+		<Provento>
+			<CodISIN>BRVISCCTF005</CodISIN>
+			<CodNegociacao>VISC11</CodNegociacao>
+			<Rendimento>
+				<AtoSocietarioAprovacao/>
+				<DataBase>2025-09-30</DataBase>
+				<ValorProvento>0.81</ValorProvento>
+				<DataPagamento>2025-10-14</DataPagamento>
+				<PeriodoReferencia>setembro</PeriodoReferencia>
+				<RendimentoIsentoIR>Sim</RendimentoIsentoIR>
+			</Rendimento>
+		</Provento>
+	</InformeRendimentos>
+</DadosEconomicoFinanceiros>

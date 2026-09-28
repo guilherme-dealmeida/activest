@@ -38,6 +38,9 @@ primevest:
   proventos:
     enabled: false
     pause-millis: 0
+    # Os testes de ponta a ponta montam a carteira e conferem so ela: a rodada fica no
+    # que ja esteve em carteira. O escopo do catalogo tem teste proprio na adm-api.
+    scope: HELD
   # Sem Redis nos testes: mensagens entre adm-api e app-api so no log (core,
   # MessagingFallbackConfig); os testes de ponta a ponta ligam os dois lados direto.
   messaging:
@@ -75,8 +78,9 @@ binance:
   convert-pause-millis: 0
 fnet:
   base-url: http://localhost:0
+  attempts: 2
+  retry-base-millis: 0
 cvm:
-  fii-registry-url: http://localhost:0/%d.zip
   base-url: http://localhost:0
 
 google:

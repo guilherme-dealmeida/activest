@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<DadosEconomicoFinanceiros xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<DadosGerais>
+		<NomeFundo>VINCI SHOPPING CENTERS FUNDO DE INVESTIMENTO IMOBILIÁRIO</NomeFundo>
+		<CNPJFundo>17554274000125</CNPJFundo>
+		<NomeAdministrador>BRL TRUST DTVM S.A. </NomeAdministrador>
+		<CNPJAdministrador>13486793000142</CNPJAdministrador>
+		<ResponsavelInformacao>GUSTAVO FALCIN</ResponsavelInformacao>
+		<TelefoneContato>1131330354</TelefoneContato>
+		<CodISINCota>BRVISCCTF005</CodISINCota>
+		<CodNegociacaoCota>VISC11</CodNegociacaoCota>
+	</DadosGerais>
+	<InformeRendimentos>
+		<Rendimento>
+			<DataAprovacao>2017-11-30</DataAprovacao>
+			<DataBase>2017-11-30</DataBase>
+			<DataPagamento>2017-12-14</DataPagamento>
+			<ValorProventoCota>0.61</ValorProventoCota>
+			<PeriodoReferencia>NOVEMBRO</PeriodoReferencia>
+			<Ano>2017</Ano>
+			<RendimentoIsentoIR>true</RendimentoIsentoIR>
+		</Rendimento>
+		<Amortizacao tipo=""/>
+	</InformeRendimentos>
+</DadosEconomicoFinanceiros>

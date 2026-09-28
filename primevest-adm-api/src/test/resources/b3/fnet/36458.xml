@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<DadosEconomicoFinanceiros xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<DadosGerais>
+		<NomeFundo>VINCI SHOPPING CENTERS FUNDO DE INVESTIMENTO IMOBILIARIO </NomeFundo>
+		<CNPJFundo>17554274000125</CNPJFundo>
+		<NomeAdministrador>BRL TRUST DTVM S.A.</NomeAdministrador>
+		<CNPJAdministrador>13486793000142</CNPJAdministrador>
+		<ResponsavelInformacao>Karina Veras</ResponsavelInformacao>
+		<TelefoneContato>11 48712239</TelefoneContato>
+		<CodISINCota>BRVISCCTF005</CodISINCota>
+		<CodNegociacaoCota>VISC11</CodNegociacaoCota>
+	</DadosGerais>
+	<InformeRendimentos>
+		<Rendimento>
+			<DataAprovacao>2018-11-30</DataAprovacao>
+			<DataBase>2108-11-30</DataBase>
+			<DataPagamento>2018-12-14</DataPagamento>
+			<ValorProventoCota>0.6042</ValorProventoCota>
+			<PeriodoReferencia>novembro</PeriodoReferencia>
+			<Ano>2018</Ano>
+			<RendimentoIsentoIR>true</RendimentoIsentoIR>
+		</Rendimento>
+		<Amortizacao tipo=""/>
+	</InformeRendimentos>
+</DadosEconomicoFinanceiros>

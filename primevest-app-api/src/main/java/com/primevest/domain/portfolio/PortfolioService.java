@@ -29,10 +29,13 @@ public class PortfolioService {
     private final DividendRepository dividendRepository;
     private final PositionCalculator positionCalculator;
     private final DividendCalendar dividendCalendar;
+    private final AssetLogos assetLogos;
 
     public PortfolioService(PortfolioRepository portfolioRepository, PortfolioAssetRepository portfolioAssetRepository,
                             UserRepository userRepository, DividendRepository dividendRepository,
-                            PositionCalculator positionCalculator, DividendCalendar dividendCalendar) {
+                            PositionCalculator positionCalculator, DividendCalendar dividendCalendar,
+                            AssetLogos assetLogos) {
+        this.assetLogos = assetLogos;
         this.portfolioRepository = portfolioRepository;
         this.portfolioAssetRepository = portfolioAssetRepository;
         this.userRepository = userRepository;
@@ -149,8 +152,7 @@ public class PortfolioService {
                     pa.isReservation(),
                     pa.isSettled(),
                     pa.getAsset().getAssetType().isCrypto(),
-                    AssetLogos.typeHasLogo(pa.getAsset().getAssetType())
-                        ? pa.getAsset().getLogoPath() != null : null
+                    assetLogos.logoFlag(pa.getAsset())
                 );
             }).collect(Collectors.toList());
     }

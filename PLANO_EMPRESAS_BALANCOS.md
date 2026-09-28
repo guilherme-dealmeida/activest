@@ -183,6 +183,12 @@ vieram sem valor (variação antiga do XML) — tratar no parser.
 **O problema é o cliente atual, não a fonte** (PENDENCIAS 14.1): timeout de 60 s sem nova tentativa, chamada
 bloqueante dentro de `synchronized` numa thread virtual por evento, e nada é guardado.
 
+**Dois formatos de XML (achado da F8, 28/09):** 10.505 dos 22.910 avisos do cache (2016 a ~2019) são do formato
+antigo — `Rendimento`/`Amortizacao` direto em `InformeRendimentos`, valor em `ValorProventoCota`, ISIN e ticker da
+cota em `DadosGerais` (`CodISINCota`, `CodNegociacaoCota`, às vezes com um "B" no fim: `WPLZ11B`), isenção como
+`true`/`false`. O parser antigo só lia `Provento/…/ValorProvento`: eram esses os "avisos sem valor". O `FnetClient`
+refeito lê os dois.
+
 **Cache já disponível (27/09):** o script externo do Guilherme gravou **22.910 avisos em `data/fnet`** (90 MB),
 de 11/2016 a 09/2026, cobrindo **324 dos 345 CNPJs** de FII do catálogo. Pasta plana, `{id}.xml` — cada XML
 se descreve (`CNPJFundo`, `CodISIN`, `CodNegociacao`, `DataBase`, `ValorProvento`, `DataPagamento`), então não
@@ -196,8 +202,10 @@ precisa de subpasta por CNPJ. Regras de leitura levantadas nesse conjunto:
 - **Alguns XMLs vêm numa linha só**: exige parser de XML de verdade (o `FnetClient.parse` já é DOM).
 - **Data-base com erro de digitação na fonte**: aviso 36458 traz `2108-11-30` com pagamento em `2018-12-14`.
   Regra: data-base posterior ao pagamento é inválida → aviso fica de fora e vai para o log de revisão.
-- 22 tickers do catálogo não têm aviso estruturado (fundos novos como TRPL11/15, BSLT11, GSRF11, VVMR11, e
-  alguns sem aviso nesse formato: PABY11, FIVN11, RCFA11, HCST11…): para eles vale só a B3 (12 meses).
+- 23 tickers (22 fundos) do catálogo não têm aviso estruturado: APXR11, APXU11, BSLT11, EGDB11, FIVN11, GCDL11,
+  GSRF11, HCST11, HDOF11, HOMS11, IMMB11, INDE11, JPRD11, MMVE11, NMKS11, PABY11, RCFA11, STYI11, TRPL11/15,
+  VGRH11, VVMR11, YEES11. **Conferido pelo Guilherme em 28/09: nenhum distribuiu ainda** — quando distribuírem,
+  entram pela B3 na rotina diária. Não há histórico a buscar.
 
 ### 1.6 ISIN e CNPJ
 
@@ -329,11 +337,13 @@ company_quarters                      -- série trimestral derivada, recalculada
   equity, equity_parent, total_assets, cash, gross_debt NUMERIC               -- posição
   shares_total, shares_outstanding BIGINT (unidades; nulas em REVISAR), source_doc_id FK, computed_at TIMESTAMP
 
-fii_monthly                           -- informe mensal, cru
-  issuer_id FK, reference_month DATE, PK(issuer_id, reference_month)
-  net_assets, total_assets NUMERIC, shares_issued NUMERIC, nav_per_share NUMERIC
-  shareholders INTEGER, admin_fee_pct, dividend_yield_month_pct NUMERIC
-  real_estate_total, securities_total, cash_total, liabilities_total, income_to_distribute NUMERIC
+fii_monthly                           -- informe mensal, cru (V34, F7)
+  issuer_id FK, reference_month DATE (1º dia), PK(issuer_id, reference_month), version INTEGER
+  net_assets, total_assets, shares_issued, nav_per_share NUMERIC, shareholders INTEGER   -- complemento
+  admin_fee_month, dividend_yield_month, amortization_month NUMERIC  -- fração do mês (0,0068 = 0,68%)
+  liquidity_total, total_invested, real_estate_total, real_estate_companies,            -- ativo/passivo
+  receivables_total, fii_shares_total, liabilities_total, income_to_distribute NUMERIC
+  -- NUMERIC sem precisão: o informe é digitado e traz extremos (DY de 8,7e7 em 2022)
 
 asset_price_history (coluna nova)
   source VARCHAR(15) NOT NULL DEFAULT 'BRAPI'   -- BRAPI / B3_COTAHIST; a BRAPI não sobrescreve dia gravado pela B3
@@ -356,8 +366,10 @@ Pacotes: `domain/issuer` (Issuer, CompanyQuarter, FiiMonthly, IndicatorService) 
 | M4 | consolidação de `asset_categories` e remoção de `segment` (seção 4.2) | F4 |
 | M5 | **V32**: `cvm_documents`, `cvm_statement_values`, `share_counts` (sem `cvm_account_map`; `company_quarters` foi para a F6) | F5 |
 | M5b | **V33**: `company_quarters` | F6 |
-| M6 | `fii_monthly` | F7 |
-| M7 | remove `cnpj`, `cash_history_loaded_at`, `logo_checked_at`, `logo_path` de `assets` | F10 |
+| M6 | **V34**: `fii_monthly` | F7 |
+| — | **V35**: `AMORTIZACAO RF` da B3 → `AMORTIZACAO` sem duplicar o FNET (PENDENCIAS 18.11 d) | F9+ |
+| — | **V36**: `share_counts.scale_check` aceita `EVENTO` (PENDENCIAS 18.11 a) | F9+ |
+| M7 | **V37**: remove `cnpj`, `cash_history_loaded_at`, `logo_checked_at`, `logo_path` de `assets` | F10 |
 
 Numeração a partir de V28. Migrations antigas não são editadas (checksum do Flyway): num banco novo V3/V5/V15…
 rodam com `segment` ainda existindo, e M4 roda depois delas.
@@ -457,6 +469,11 @@ nulo — não estima).
 - **Série trimestral:** disponível no serviço.
 - **Média da empresa:** média simples dos pontos anuais **incluindo o Atual** (PETR4: 195,28 ÷ 11 = 17,75%);
   pontos nulos ficam fora.
+- **Sem provento não é sem dado (28/09, F8):** ativo sem nenhum evento no período — os 23 FIIs que ainda não
+  distribuíram (1.5), ação que não pagou no ano — tem **DY = 0** e proventos por cota = 0, não nulo; entra na média
+  da empresa como 0. Nulo fica para o que falta de fato: sem preço, sem informe mensal (VGRH11, sem informe até
+  08/2026 — VP por cota, P/VP e cotistas nulos com motivo), sem balanço. Nenhum cálculo pode dividir por um total
+  de proventos zero (payout usa lucro no denominador; DY usa preço). A F9 cobre isso com teste.
 - **Fora do escopo:** média do setor e remoção de anomalias.
 
 ```
@@ -486,6 +503,7 @@ PUT  /api/v1/admin/assets/{id}/issuer                         ligação manual
 POST /api/v1/admin/bootstrap                                  carga inicial (6.3)
 POST /api/v1/admin/cvm/import?from=&to=&force=                balanços DFP/ITR (F5); force reprocessa sem baixar
 POST /api/v1/admin/cvm/quarters                               recalcula company_quarters (F6; a carga já faz ao terminar)
+POST /api/v1/admin/cvm/fii-monthly?from=&to=&force=           informe mensal de FII 2016+ (F7)
 POST /api/v1/admin/b3/cotahist?years=                         reprocessar preços
 POST /api/v1/admin/proventos/all                              reprocessar proventos
 ```
@@ -515,25 +533,28 @@ POST /api/v1/admin/proventos/all                              reprocessar proven
 
 | Rotina | Quando |
 |---|---|
-| CVM (DFP, ITR, FCA, cadastro, informe FII) do ano corrente | diário, 07:30 |
+| CVM (DFP, ITR, FCA, cadastro, informe FII) do ano corrente e do anterior | diário, 07:30 (`CvmStatementsScheduler`; informe FII desde a F7) |
 | Preço diário | BRAPI, como hoje (19:00) |
 | Proventos: B3 12 meses de todos os emissores ligados + avisos FNET novos | diário, 20:00 (`ProventosScheduler`) |
 | Logos | mensal, só ativos sem arquivo |
 
 ### 6.3 Carga inicial num banco vazio (D13: manual)
 
-`POST /api/v1/admin/bootstrap` — roda em ordem, é retomável (o que já está em `data/` não é baixado de novo) e
-não dispara sozinho ao subir o compose.
+`POST /api/v1/admin/bootstrap` (`BootstrapService`, F11) — roda em ordem, é retomável (toda etapa é idempotente e
+o que já está em `data/` não é baixado de novo; etapa que falha é registrada e a seguinte roda assim mesmo) e não
+dispara sozinho ao subir o compose. Uma carga por vez.
 
-| Etapa | Com `data/` vazia | Com `data/` cheia |
+| Etapa (ordem de execução) | Com `data/` vazia | Com `data/` cheia |
 |---|---|---|
-| 1. CVM: cadastro, FCA, DFP/ITR 2010+, informe FII 2016+ | ~700 MB de download | só leitura local, minutos |
-| 2. COTAHIST 2010+ | ~1,3 GB | só leitura local |
-| 3. Proventos de ações (B3) | ~30 min (1 chamada/s) | idem — B3 não tem cache em arquivo |
-| 4. Avisos FNET | horas (~23 mil downloads) | só leitura local (22.910 já em `data/fnet`) |
-| 5. `company_quarters` | segundos | segundos |
+| 0. Emissores (cadastro, FCA e informe da CVM): completa o seed com as companhias e os FIIs negociados fora do catálogo; não mexe no segmento curado nem nas ligações | ~40 MB | só leitura local (+ classificação B3 das ~12 companhias que a B3 não responde) |
+| 1. COTAHIST 2010+ (preços e ISIN, que a etapa 2 usa) | ~1,3 GB de download | só leitura local |
+| 2. Proventos: 12 meses da B3 (1 chamada/s por emissor), eventos societários e histórico longo | + histórico de ações da B3 (~2 chamadas/emissor) e avisos do FNET (horas, ~23 mil downloads — hoje sem busca automática, 18.10 d) | histórico de ações de `data/b3/proventos` e do FII de `data/fnet`; só os 12 meses vão à B3 |
+| 3. Balanços DFP/ITR 2010+, FRE, escala (inclusive `EVENTO`, que usa os eventos da etapa 2) e `company_quarters` | ~700 MB | só leitura local |
+| 4. Informe mensal de FII 2016+ | ~40 MB | só leitura local |
 
-Emissores e ligações não passam pelo bootstrap: vêm do seed (M3).
+Ligações e units vêm do seed (M3). A etapa 0 (incluída em 28/09, depois do ensaio) deixa o banco novo com os mesmos
+emissores de quem já rodou a rotina de emissores — no ensaio, sem ela, eram 715 contra 1.198 (483 FIIs fora do catálogo)
+e o informe só dos fundos do catálogo (25.538 contra 42.815 meses). Passo a passo para outra máquina: `README.md`.
 
 ---
 
@@ -577,6 +598,17 @@ Emissores e ligações não passam pelo bootstrap: vêm do seed (M3).
 | F6 | **Implementada em 28/09/2026.** **V33** (`company_quarters`). `QuarterSeries` (regra pura, só datas e durações — serve ao exercício de março a fevereiro e ao primeiro exercício incompleto): trimestre isolado = período do documento que cabe num trimestre (coluna de 3 meses do ITR, ou o acumulado do 1T), senão acumulado − acumulado do documento do trimestre anterior (80 a 100 dias antes) com o mesmo início de exercício — daí o 4T (DFP − 9 meses), a DFC e a DVA; 12 meses = anual do DFP, senão soma dos 4 trimestres consecutivos, todos presentes; posição do próprio balanço; PL da controladora = PL − não controladores; DFP vale sobre ITR na mesma data. `CompanyQuarterService` recalcula tudo numa transação (lê os valores em uma consulta, companhia por companhia) ao fim de `cvm/import` e em `POST /api/v1/admin/cvm/quarters`. Entidade `CompanyQuarter` e repositório para a F9. Colunas a mais que o plano: `ebit`, `net_income` e `fco` também em 12 meses, `dividends_declared_q`, `shares_total`, `fiscal_year_start`. Endpoint de leitura `GET /issuers/{id}/quarters` fica na F9, com os outros. Testes: `QuarterSeriesTest` (ano civil, ITR faltando, Camil, posição), `FinancialStatementImportIT.serieTrimestral` (Petrobras 2025–2026 dos recortes) |
 | Separação em módulos (28/09) | Entre a F6 e a F7, o backend virou `primevest-core` + `primevest-app-api` (8080, a carteira) + `primevest-adm-api` (8081, o catálogo) — PLANO_ADM_API.md. Todo o código das F1–F6 (emissores, COTAHIST, balanços, série trimestral, `/admin/*`) está na adm-api; entidades (`Issuer`, `CompanyQuarter`...) e migrations no core. Sem mudança de regra nem de tabela: a bateria da F6 (374 + 158) passou igual, agora 376 + 161 com os testes das mensagens |
 | F6 — carga real (28/09) | **19.344 linhas** (19.349 documentos − 5 datas com DFP e ITR) das 369 companhias em **3,4 s**. Lucro da controladora do trimestre em 18.977 (98%): os 367 nulos são DFP sem o ITR de 9 meses — 249 de 2010 (o ITR começa em 2011) e 114 de companhia recém-listada; 4 com início de exercício diferente. 12 meses em 18.215 (94%); ações em 18.652. Petrobras (conferida com o divulgado): 2T24 −2,61 bi, 4T24 −17,04 bi, 2024 = 36,61 bi; 2025 = 110,13 bi. LPA do trimestre (lucro ÷ ações) × LPA de 3 meses informado no ITR: 81% dentro de 10% em 11.240 trimestres — mesma taxa do anual (F5). **Soma dos 4 trimestres × anual do DFP:** igual em 3.996 de 4.561 exercícios; nos 565 restantes o ITR seguinte reapresentou o trimestre (334 dentro de 5%) ou a fonte tem erro (Cemig 09/2021: lucro da controladora 0 e não controladores 1,1 mi num lucro de 2,8 bi — o 4T de 2021 sai com o ano inteiro). Por isso o 12 meses no DFP usa o anual, não a soma |
+| F7 | **Implementada em 28/09/2026 (adm-api).** **V34** (`fii_monthly`, no core, com `FiiMonthly` e repositório para a F9). `CvmFiiMonthly` lê as partes **complemento** (PL, ativo, cotas, VP por cota, cotistas, taxa de administração, DY e amortização do mês) e **ativo/passivo** (liquidez, total investido, imóveis, imóveis via SPE, recebíveis = CRI + CRI/CRA + LH + LCI + LCI/LCA + LIG, cotas de FII, passivo, rendimentos a distribuir) do mesmo zip do informe (`data/cvm/fii`), junta por CNPJ e mês e fica com a maior versão de cada parte. `FiiMonthlyImportService`: só fundos emissores, idempotente por versão, `force`. `POST /api/v1/admin/cvm/fii-monthly?from=&to=&force=`; rotina das 07:30 (`CvmStatementsScheduler`) roda balanços e informe, um não impede o outro. Diferenças do modelo: taxas como **fração do mês** (`*_month`, não `_pct`), `version`, e as colunas da carteira separadas (`real_estate_companies`, `receivables_total`, `fii_shares_total`, `liquidity_total`, `total_invested`) no lugar de `securities_total`/`cash_total` — a F9 compõe "imóveis × papel". `NUMERIC` sem precisão: o informe é digitado e traz extremos (DY de 8,7e7, cotas de 6,8e14). Testes: recorte real de 2026 (HGLG11 e 00.613.094/0001-74, parte ativo/passivo e complemento), `FiiMonthlyImportIT` (junção, versão, idempotência, reapresentação) |
+| F7 — carga real (28/09) | Download de 2016 a 2024 (2025 e 2026 já estavam em `data/cvm/fii`). **42.815 meses** de **828 fundos** em **10 s**; segunda rodada: 0 novos, 42.815 iguais. Os dados abertos começam em **09/2016** (1 fundo; 44 em 10/2016, 129 em 01/2017). Dos 346 FIIs do catálogo, **345 com informe** — falta só o VGRH11 (fundo novo, 1.6). HGLG11 08/2026: PL 7,57 bi, 45,6 mi de cotas, VP 165,95, 608.345 cotistas, DY do mês 0,70%, imóveis 7,06 bi, passivo 1,28 bi — iguais ao arquivo |
+| F8 | **Implementada em 28/09/2026 (adm-api).** **Escopo:** a rodada de proventos (20:00, `ProventosCatalogService`) cobre todo ativo ativo ligado a emissor + o que já esteve em carteira (654 emissores); `primevest.proventos.scope=HELD` volta ao escopo antigo (é o dos testes de ponta a ponta da carteira). **Histórico longo** uma vez por ativo, até completar: ações pelo `GetListedCashDividends` (1 chamada/s); FII **só pelo que está em `data/fnet`** — nenhuma chamada ao FNET (decisão de 28/09 com o Guilherme: os XMLs foram montados pelo FNET em 27/09 e não há aviso mais novo; a busca por fundo levava 3 a 10 s, travava e custou ~1 min por fundo na primeira tentativa de carga). **`FnetClient` refeito:** cache `data/fnet/{id}.xml` (lido do disco, nunca baixado de novo), download com timeout de 5 s, até 6 tentativas com espera crescente, 3 simultâneos num executor próprio; busca por CNPJ com timeout de 20 s e 3 tentativas; **índice local** `CNPJFundo` → avisos, montado da pasta `data/fnet` (`cachedNoticeIds`, `reindex`); **lê os dois formatos de XML** (1.5 — o antigo era ignorado). Regras de 1.5 no serviço: aviso ligado pelo CNPJ do emissor (`issuers.cnpj`; aviso de outro CNPJ fica de fora), recibo (final 12–19) fora, data-base depois do pagamento fora com log; fundo com uma cota leva o aviso mesmo com ticker antigo; valor igual ao de outra fonte com outras casas (B3 1,04 × FNET 1,03999999900318) completa o evento em vez de duplicar. **Concorrência (PENDENCIAS 14.1):** sem `synchronized`; rodada completa não roda duas vezes; pedido sob demanda numa fila única (um executor, sem repetir ativo); o mesmo emissor nunca por dois caminhos (`ReentrantLock` por grupo). **Sob demanda revisto:** mantido — quase sempre termina sem chamada (emissor sincronizado nas últimas 6 h, histórico carregado), mas cobre ETF/BDR sem emissor e ativo novo antes das 20:00. **Decisão:** depois do histórico o dia a dia do FII é só a B3 (12 meses, com pagamento). Aviso novo do FNET entra por busca explícita — endpoint por CNPJ ou rotina semanal, ainda não feitos (PENDENCIAS 18.10 d); o `FnetClient` já tem a busca e o download com cache. Testes: `FnetClientTest` (avisos reais nos dois formatos, CNPJ pontuado, `WPLZ11B`, recibo, data-base 2108, cache), `ProventosCatalogoIT` (catálogo sem posição, FNET pelo CNPJ só do disco — a busca não é chamada —, B3 fora, idempotência, sem duplicar B3 × FNET) |
+| F8 — carga real (28/09) | Primeira tentativa (12:04–12:50 BRT) com busca no FNET por fundo: parada — a busca respondeu mal no dia (3 a 10 s, timeouts, HTTP 520), ~1 min por fundo sem resposta. Rodada final, só com o disco para FII: 12:59–13:22 BRT, **654 emissores, 0 falhas**, 29.900 eventos em dinheiro e 545 societários novos, 1.133 ativos enviados para a carteira. Resultado: `asset_cash_events` **54.565** (B3_HISTORICO 31.618, FNET 17.500, B3 5.426, EXTRATO_B3 21) contra 1.153 antes; `asset_stock_events` 1.053 (antes 20); **histórico completo em 785 de 785 ações e 347 de 347 FIIs** ligados; índice do FNET com 22.911 avisos de 324 fundos, nenhum baixado; 61 avisos com data-base depois do pagamento descartados (log); 103 eventos com rótulo que o `DividendType` não mapeia (gravados, sem gerar provento — conferir na F9). Os 23 tickers sem aviso em disco não distribuíram ainda (1.5): zero eventos, sem falha |
+| F9 | **Implementada em 28/09/2026 (app-api).** `IndicatorRules` (fórmulas puras, 5.1–5.3), `IndicatorService` (lê `company_quarters`, `fii_monthly`, proventos, eventos societários e preços por SQL e calcula na leitura — nada gravado), `IndicatorController` (`GET /assets/{ticker}/indicators` e `/indicators/{indicador}/history?period=YEAR|QUARTER`), `IssuerController` (`GET /issuers/{id}`, `/quarters`, `/months`). Ação: LPA, VPA, P/L, P/VP, ROE (PL médio de início e fim — balanço de 12 meses antes, ±20 dias), payout (DVA), DY. FII: P/VP, DY, VP por cota, cotistas, imóveis (imóveis + via SPE) e papel (recebíveis) sobre o total investido, alavancagem (passivo ÷ ativo). **Atual:** último balanço/informe com `current_price` (senão o último fechamento); quantidade de ações ajustada pelos desdobramentos, grupamentos e bonificações posteriores ao balanço. **Ano:** DFP com o fechamento do último pregão até a data do balanço; FII, informe de dezembro a partir de **2017** (primeiro ano inteiro de informe e de FNET). **DY:** dividendo + JCP + rendimento do próprio ticker (sem amortização nem restituição de capital), provento anterior a desdobramento ajustado; **sem provento = 0**. Fracionário usa preço, eventos e proventos do lote padrão; unit multiplica LPA/VPA pela composição. Percentual em pontos (37,44), R$ com 4 casas, razão com 2. Decisões: a estimativa de rendimento do informe (1.2) **não é usada** — FNET e B3 cobrem 2016+ e fundo sem evento é fundo que não distribuiu (23 tickers conferidos); payout com dividendos negativos na DVA fica nulo com motivo (269 de ~9.700 trimestres, reapresentação na fonte — ex.: Klabin 06/2026); **sem cache Redis** por enquanto — 20 a 70 ms por chamada depois do aquecimento (a primeira, ~1,5 s), cache fica para quando houver tela de ranking. Testes: `IndicatorRulesTest` (Petrobras 2025 e HGLG11 08/2026 reais, nulos com motivo, zero, unit, desdobramento, média), `IndicadoresIT` (ponta a ponta, fracionário, FII sem informe, erros, emissor) |
+| Decisões pós-F9 (28/09) | Com o Guilherme. **Amortização da B3:** o rótulo `AMORTIZACAO RF` (a B3 nunca manda `AMORTIZACAO` puro) passa a ser amortização; a B3 usa o valor já gravado pelo FNET e completa em vez de duplicar. V35 nos 103 gravados: 87 eram a mesma amortização do FNET (saíram) e 16 só da B3 (RTEL16, VVMR11) ganharam o tipo. **Quantidade de ações em revisão:** terceira passada da escala, `EVENTO` (V36, `resolveByStockEvents`) — quantidade do balanço validado anterior × grupamentos/desdobramentos/bonificações registrados entre as datas, primeiro até o balanço e depois até a entrega do documento (a companhia informa já grupado quando o grupamento sai entre o fim do trimestre e a entrega); no indicador, sem evento no meio, vale a quantidade do último balanço conferido, com o motivo. Base real: 12 documentos resolvidos pelo evento (REVISAR 119 → 107); das 13 companhias, só AZEV4 e IFCM3 seguem sem LPA (evento no meio que não explica o número). Testes: `ProventosCatalogoIT.amortizacaoRf`, `FinancialStatementImportIT.grupamentoEntreBalancos`, `IndicadoresIT.quantidadeEmRevisao` |
+| F9 — conferência (28/09) | Com a base real: **PETR4 2025** LPA 8,5446, VPA 32,26, payout 37,44%, ROE 28,17% — iguais ao conferido (1.1); DY 2015–2017 = 0 (não pagou), 2022 = 68,4%. Atual (ITR 06/2026, R$ 47,99): P/L 4,64, P/VP 1,29, ROE 30,31%, DY 7,67%. **HGLG11** atual: P/VP 0,89, DY 9,02%, VP 165,95, 608.345 cotistas, imóveis 97,8%, alavancagem 14,5%; DY 2017–2025 entre 4,4% e 10,0%. **SBSP3** (desdobramento 1:5 em 04/2026) coerente: LPA 2,29, P/L 11,75. **APXR11** (não distribuiu): DY 0, demais pelo informe. **VGRH11**: DY 0, resto nulo "sem informe mensal". **13 de 307** companhias ligadas estão sem quantidade de ações no último balanço (escala em REVISAR, 18.7) — LPA/VPA/P/L/P/VP nulos com motivo; ex.: AZTE3 |
+| F10 | **Implementada em 28/09/2026.** **V37** (M7): `assets` sem `cnpj`, `cash_history_loaded_at`, `logo_path` e `logo_checked_at`. **Logos:** o arquivo `data/logos/{TICKER}.{ext}` é o estado — `AssetLogos` (core) indexa a pasta em memória (relê a cada 60 s: a app-api lê o que a adm-api grava) e dá o `hasLogo` dos DTOs (`logoFlag`); `AssetLogoService` busca só quem não tem arquivo (rotina mensal), tudo de novo em `POST /admin/logos`, e o ativo que entra numa carteira no pedido "preciso do histórico"; a subida da API não procura nada; busca sem resultado não apaga o arquivo que existe; troca de logo apaga o de outra extensão. **Histórico de proventos sem coluna:** ação — a resposta inteira da B3 fica em `data/b3/proventos/{EMISSOR}.json`, pedida uma vez por emissor e aplicada ao ativo que ainda não tem evento `B3_HISTORICO` (sem arquivo e sem evento → busca; com arquivo → só disco); FII — o índice de `data/fnet` contra os avisos gravados, lido do disco a cada rodada (aviso novo que cair na pasta entra sozinho). **CNPJ do fundo:** só `issuers.cnpj`; `CvmFundRegistry` removido (todo FII do catálogo tem emissor desde a F3). Testes: `AssetLogosTest`, `ProventosCatalogoIT.historicoDaEmpresaEmDisco` (baixa uma vez, relê do arquivo sem a B3), mocks da carteira sem o registro da CVM; bateria **392 + 180** verde |
+| F10 — base real (28/09) | V35–V37 aplicadas no banco de desenvolvimento. Logos: 1.451 arquivos, nome = ticker em 100% (nenhum `logo_path` divergente antes da V37); `hasLogo` dos 225 proventos da tela igual à presença do arquivo. Proventos (rodada completa): 654 emissores, 0 falhas, 0 eventos novos; os **52 emissores** sem nenhum `B3_HISTORICO` (ações que nunca pagaram, sobretudo) buscaram o histórico uma vez e ganharam o arquivo; na rodada seguinte (interrompida pelo hot reload em ~85% dos emissores) nenhum histórico pedido à B3, 0 falhas. Log do FNET só em INFO quando entra evento, baixa ou falha (a releitura diária do disco fica em DEBUG) |
+| F11 | **Implementada em 28/09/2026.** `BootstrapService` + `POST /api/v1/admin/bootstrap` (6.3): COTAHIST → proventos → balanços (com série trimestral e escala `EVENTO`) → informe de FII, em ordem; etapa que falha fica registrada e a seguinte roda; uma carga por vez; nunca dispara ao subir. Testes: `BootstrapServiceTest` (ordem, falha não para) |
+| F11 — ensaio de banco vazio (28/09) | Banco à parte (`primevest_ensaio`, mesmo PostgreSQL) com uma adm-api própria (porta 8091, sem rotinas agendadas e sem Redis, `data/` real), sem tocar o banco de desenvolvimento. Flyway V1–V37 em **2 s**; seed: 2.625 ativos, 715 emissores, 1.139 ligações, 36 linhas de unit. Carga: **47 min** — COTAHIST 9,5 min (2,23 mi de pregões), proventos 32 min (653 emissores; o histórico das ações ainda não estava em disco e foi baixado **uma vez**: `data/b3/proventos` com 307 arquivos, 3,8 MB — o próximo banco novo não pede histórico à B3), balanços 4,5 min (19.349 documentos, 202 quantidades pelo vizinho e 12 pelo evento), informe 6 s. 9 emissores com falha de rede na B3 — rodar a rotina de novo completou (0 falhas): **retomável** conferido. Contagens contra o banco de desenvolvimento: `cvm_documents` 19.349 = 19.349, `company_quarters` 19.344 = 19.344 (soma de lucro 12 meses e de ações idênticas), REVISAR 107 = 107, `asset_stock_events` 1.053 = 1.053, `fii_monthly` dos fundos do catálogo 25.538 = 25.538 (soma do VP por cota idêntica), `asset_cash_events` 54.469 × 54.478 (o de desenvolvimento tem 21 do extrato de usuário; a janela de 12 meses da B3 andou), preços 2.229.815 × 2.229.826 (11 fechamentos BRAPI/CoinGecko). Diferença esperada: o banco novo tem só os emissores do seed (715 × 1.198) e o informe só dos fundos do catálogo (25.538 × 42.815). Lição: processo longo lançado pela sessão remota morre quando a ligação cai — a instância do ensaio foi relançada desligada da sessão (`E:\carga\ensaio\subir.cmd`). Banco de ensaio apagado ao fim |
 
 Fora deste escopo: **telas** (página do emissor, "Histórico de Indicadores" — planejamento próprio) e **preço
 teto** (próximo escopo, consome a F9).

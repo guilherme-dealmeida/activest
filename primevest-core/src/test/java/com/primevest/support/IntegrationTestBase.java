@@ -46,7 +46,9 @@ public abstract class IntegrationTestBase {
         // Balancos da CVM (V32) e serie trimestral (V33): volume de arquivo e derivado,
         // nenhuma migration semeia. O CASCADE leva cvm_statement_values, share_counts
         // e company_quarters, e nao toca issuers.
-        "cvm_documents"
+        "cvm_documents",
+        // Informe mensal de FII (V34): idem; sai antes dos testes que apagam issuers.
+        "fii_monthly"
     };
 
     @Autowired
@@ -106,6 +108,25 @@ public abstract class IntegrationTestBase {
     void suportarPatch() {
         rest.getRestTemplate().setRequestFactory(
             new org.springframework.http.client.JdkClientHttpRequestFactory());
+    }
+
+    @org.springframework.beans.factory.annotation.Value("${primevest.data.dir}")
+    private String dataDir;
+
+    /**
+     * Historico de proventos da B3 em disco (F10: o arquivo e o estado): cada cenario comeca
+     * sem ele, senao a resposta mockada de um teste vira o historico do seguinte.
+     */
+    @BeforeEach
+    void limparHistoricoEmDisco() throws java.io.IOException {
+        java.nio.file.Path dir = java.nio.file.Path.of(dataDir, "b3", "proventos");
+        if (java.nio.file.Files.isDirectory(dir)) {
+            try (java.util.stream.Stream<java.nio.file.Path> files = java.nio.file.Files.list(dir)) {
+                for (java.nio.file.Path f : files.toList()) {
+                    java.nio.file.Files.deleteIfExists(f);
+                }
+            }
+        }
     }
 
     @BeforeEach

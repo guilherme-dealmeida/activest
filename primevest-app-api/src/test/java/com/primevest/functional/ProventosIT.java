@@ -7,7 +7,6 @@ import com.primevest.adm.integration.b3.B3Exception;
 import com.primevest.adm.integration.b3.B3Fixtures;
 import com.primevest.adm.integration.b3.B3Supplement;
 import com.primevest.adm.integration.b3.B3Values;
-import com.primevest.adm.integration.b3.CvmFundRegistry;
 import com.primevest.adm.integration.b3.FnetClient;
 import com.primevest.support.CatalogIds;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,7 +51,7 @@ class ProventosIT extends CatalogoE2EBase {
         when(b3Client.companyDetail(anyString())).thenAnswer(i -> real.companyDetail(i.getArgument(0)));
         when(b3Client.cashDividendsHistory(anyString(), anyInt(), anyInt()))
             .thenAnswer(i -> real.cashDividendsHistory(i.getArgument(0), i.getArgument(1), i.getArgument(2)));
-        jdbc.update("UPDATE assets SET isin = NULL, cnpj = NULL, cash_history_loaded_at = NULL");
+        jdbc.update("UPDATE assets SET isin = NULL");
     }
 
     @SuppressWarnings("unchecked")
@@ -151,5 +150,20 @@ class ProventosIT extends CatalogoE2EBase {
         lancarComSucesso(dono, compra(CatalogIds.ACAO, "2026-08-01", "100", "45.00"));
 
         assertThat(proventos()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("FII que ainda nao distribuiu (APXR11, resposta real da B3 sem proventos): rodada sem falha, carteira com zero")
+    void fundoSemDistribuicao() {
+        lancarComSucesso(dono, compra("APXR11", "2026-08-01", "10", "9.00"));
+
+        ProventosCatalogService.SyncResult r = proventosCatalogService.syncAll("teste");
+
+        assertThat(r.failures()).isZero();
+        assertThat(r.newCashEvents()).isZero();
+        assertThat(proventos()).isEmpty();
+        Map<String, Object> posicao = posicaoDe(dono, "APXR11");
+        assertThat(numero(posicao.get("totalShares"))).isEqualByComparingTo("10");
+        assertThat(numero(posicao.get("totalInvested"))).isEqualByComparingTo("90.00");
     }
 }

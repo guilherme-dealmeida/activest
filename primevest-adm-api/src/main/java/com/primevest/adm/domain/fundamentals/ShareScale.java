@@ -27,7 +27,12 @@ public final class ShareScale {
 
     public enum Status { OK, REVISAR, MANUAL }
 
-    public enum Check { FRE, LPA, VIZINHO }
+    /**
+     * EVENTO: quantidade do documento validado anterior ajustada pelos desdobramentos,
+     * grupamentos e bonificacoes registrados entre as duas datas
+     * (FinancialStatementImportService.resolveByStockEvents).
+     */
+    public enum Check { FRE, LPA, VIZINHO, EVENTO }
 
     public record Decision(Integer factor, Status status, Check check) {
         static Decision undecided() {

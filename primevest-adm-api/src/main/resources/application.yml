@@ -77,10 +77,17 @@ b3:
   timeout-seconds: 40
 fnet:
   base-url: https://fnet.bmfbovespa.com.br/fnet/publico
-  # Alguns avisos travam no FNET: melhor desistir cedo e tentar de novo depois.
-  timeout-seconds: 15
+  # Cada aviso responde em ~0,1 s ou trava: timeout curto e ate 6 tentativas com espera
+  # crescente (0,5 s, 1 s, 2 s...), no maximo 3 downloads ao mesmo tempo. Avisos ficam em
+  # ${primevest.data.dir}/fnet/{id}.xml e nunca sao baixados de novo (F8).
+  timeout-seconds: 5
+  attempts: 6
+  retry-base-millis: 500
+  parallel-downloads: 3
+  # A busca por CNPJ e mais lenta (3 a 10 s; as vezes trava ou responde 520).
+  search-timeout-seconds: 20
+  search-attempts: 3
 cvm:
-  fii-registry-url: https://dados.cvm.gov.br/dados/FII/DOC/INF_MENSAL/DADOS/inf_mensal_fii_%d.zip
   # Dados abertos (PLANO_EMPRESAS_BALANCOS.md): cadastro, FCA, DFP, ITR e informe
   # de FII, com cache em disco em ${primevest.data.dir}/cvm.
   base-url: https://dados.cvm.gov.br/dados
@@ -102,6 +109,9 @@ primevest:
   proventos:
     enabled: true
     cron: "0 0 20 * * *"
+    # ALL: todo ativo ligado a um emissor + o que ja esteve em carteira (F8);
+    # HELD: so o que ja esteve em carteira (como antes da F8).
+    scope: ALL
     # Pausa entre chamadas a B3/FNET: o site e publico e nao documentado.
     pause-millis: 1000
   cvm-statements:

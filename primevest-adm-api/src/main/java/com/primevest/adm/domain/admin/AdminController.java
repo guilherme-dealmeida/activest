@@ -5,6 +5,7 @@ import com.primevest.adm.domain.asset.AssetLogoService;
 import com.primevest.adm.domain.asset.CatalogAuditService;
 import com.primevest.adm.domain.dividend.ProventosCatalogService;
 import com.primevest.adm.domain.fundamentals.CompanyQuarterService;
+import com.primevest.adm.domain.fundamentals.FiiMonthlyImportService;
 import com.primevest.adm.domain.fundamentals.FinancialStatementImportService;
 import com.primevest.adm.domain.issuer.IssuerImportService;
 import com.primevest.adm.domain.issuer.IssuerLinkService;
@@ -56,6 +57,8 @@ public class AdminController {
     private final HistoricalQuotesImportService historicalQuotesImportService;
     private final FinancialStatementImportService financialStatementImportService;
     private final CompanyQuarterService companyQuarterService;
+    private final FiiMonthlyImportService fiiMonthlyImportService;
+    private final BootstrapService bootstrapService;
 
     @PostMapping("/catalog-audit")
     public ResponseEntity<Map<String, String>> catalogAudit() {
@@ -174,6 +177,32 @@ public class AdminController {
     @PostMapping("/cvm/quarters")
     public ResponseEntity<Map<String, String>> cvmQuarters() {
         return start("serie trimestral", () -> companyQuarterService.rebuild("sob demanda"));
+    }
+
+    /**
+     * Informe mensal de FII da CVM em fii_monthly, de {@code from} (padrao 2016) a {@code to} (padrao: ano
+     * corrente). Mes ja gravado na mesma versao e pulado; {@code force=true} regrava a partir de data/cvm/fii.
+     * PLANO_EMPRESAS_BALANCOS.md, F7.
+     */
+    @PostMapping("/cvm/fii-monthly")
+    public ResponseEntity<Map<String, String>> fiiMonthly(
+            @RequestParam(defaultValue = "" + FiiMonthlyImportService.FIRST_YEAR) int from,
+            @RequestParam(required = false) Integer to,
+            @RequestParam(defaultValue = "false") boolean force) {
+        int last = to != null ? to : java.time.LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo")).getYear();
+        if (from < FiiMonthlyImportService.FIRST_YEAR || last < from) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Periodo invalido: " + from + " a " + last);
+        }
+        return start("informe FII", () -> fiiMonthlyImportService.importYears(from, last, force, "sob demanda"));
+    }
+
+    /**
+     * Carga inicial num banco vazio (PLANO_EMPRESAS_BALANCOS.md, 6.3, F11): emissores, COTAHIST, proventos, balancos
+     * e informe de FII, em ordem. Retomavel; nunca dispara sozinha ao subir.
+     */
+    @PostMapping("/bootstrap")
+    public ResponseEntity<Map<String, String>> bootstrap() {
+        return start("carga inicial", () -> bootstrapService.run("sob demanda"));
     }
 
     @PostMapping("/proventos")

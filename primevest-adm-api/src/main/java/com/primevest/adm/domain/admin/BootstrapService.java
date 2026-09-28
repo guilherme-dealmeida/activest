@@ -1,0 +1,124 @@
+package com.primevest.adm.domain.admin;
+
+import com.primevest.adm.domain.dividend.ProventosCatalogService;
+import com.primevest.adm.domain.fundamentals.FiiMonthlyImportService;
+import com.primevest.adm.domain.fundamentals.FinancialStatementImportService;
+import com.primevest.adm.domain.issuer.IssuerImportService;
+import com.primevest.adm.domain.pricehistory.HistoricalQuotesImportService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.time.Clock;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
+
+/**
+ * Carga inicial num banco vazio (PLANO_EMPRESAS_BALANCOS.md, 6.3 e F11; D13: manual, nunca na subida).
+ *
+ * <p>Emissores do catalogo, ligacoes e units vem do seed (V30); aqui entra o volume, em ordem:</p>
+ * <ol>
+ *   <li><b>emissores</b> — cadastro, FCA e informe da CVM: completa o seed com as companhias e os FIIs
+ *   negociados que nao estao no catalogo (o banco novo fica igual ao de quem ja rodou a rotina de
+ *   emissores); nunca sobrescreve o segmento curado nem as ligacoes;</li>
+ *   <li><b>COTAHIST</b> 2010+ — precos e o ISIN de cada ativo (a rotina de proventos casa a B3 pelo ISIN);</li>
+ *   <li><b>proventos</b> — rodada completa do catalogo: 12 meses da B3, eventos societarios e o historico
+ *   longo (acoes de {@code data/b3/proventos}, FII de {@code data/fnet});</li>
+ *   <li><b>balancos</b> DFP/ITR 2010+ e a serie trimestral — depois dos proventos, porque a passada
+ *   {@code EVENTO} da escala usa os grupamentos e desdobramentos gravados;</li>
+ *   <li><b>informe mensal de FII</b> 2016+.</li>
+ * </ol>
+ *
+ * <p><b>Retomavel:</b> toda etapa e idempotente e o que ja esta em {@code data/} nao e baixado de novo
+ * (o arquivo e o estado). Etapa que falha e registrada e a seguinte roda assim mesmo; rodar de novo
+ * completa o que faltou. Uma carga por vez.</p>
+ */
+@Slf4j
+@Service
+public class BootstrapService {
+
+    private static final ZoneId ZONE = ZoneId.of("America/Sao_Paulo");
+
+    private final IssuerImportService issuers;
+    private final HistoricalQuotesImportService quotes;
+    private final ProventosCatalogService proventos;
+    private final FinancialStatementImportService statements;
+    private final FiiMonthlyImportService fiiMonthly;
+    private final Clock clock;
+    private final AtomicBoolean running = new AtomicBoolean();
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public BootstrapService(IssuerImportService issuers, HistoricalQuotesImportService quotes,
+                            ProventosCatalogService proventos, FinancialStatementImportService statements,
+                            FiiMonthlyImportService fiiMonthly) {
+        this(issuers, quotes, proventos, statements, fiiMonthly, Clock.system(ZONE));
+    }
+
+    BootstrapService(IssuerImportService issuers, HistoricalQuotesImportService quotes,
+                     ProventosCatalogService proventos, FinancialStatementImportService statements,
+                     FiiMonthlyImportService fiiMonthly, Clock clock) {
+        this.issuers = issuers;
+        this.quotes = quotes;
+        this.proventos = proventos;
+        this.statements = statements;
+        this.fiiMonthly = fiiMonthly;
+        this.clock = clock;
+    }
+
+    /** Uma etapa: nome, se terminou sem excecao, segundos, resumo (ou o erro). */
+    public record Step(String name, boolean ok, long seconds, String summary) {
+    }
+
+    public record Result(List<Step> steps, long seconds) {
+        public boolean ok() {
+            return steps.stream().allMatch(Step::ok);
+        }
+    }
+
+    /** Se ja ha uma carga rodando, nao faz nada e devolve {@code null}. */
+    public Result run(String trigger) {
+        if (!running.compareAndSet(false, true)) {
+            log.warn("Carga inicial ({}): ja existe uma em andamento; nada feito", trigger);
+            return null;
+        }
+        try {
+            long started = System.currentTimeMillis();
+            int year = LocalDate.now(clock).getYear();
+            String reason = "carga inicial " + trigger;
+            List<Step> steps = new ArrayList<>();
+            log.info("Carga inicial ({}): emissores, COTAHIST, proventos, balancos e informe de FII", trigger);
+            steps.add(step("emissores", () -> issuers.importAll(reason)));
+            steps.add(step("COTAHIST " + HistoricalQuotesImportService.FIRST_YEAR + "-" + year,
+                    () -> quotes.importYears(HistoricalQuotesImportService.FIRST_YEAR, year, reason)));
+            steps.add(step("proventos", () -> proventos.syncAll(reason)));
+            steps.add(step("balancos " + FinancialStatementImportService.FIRST_YEAR + "-" + year,
+                    () -> statements.importYears(FinancialStatementImportService.FIRST_YEAR, year, false, reason)));
+            steps.add(step("informe FII " + FiiMonthlyImportService.FIRST_YEAR + "-" + year,
+                    () -> fiiMonthly.importYears(FiiMonthlyImportService.FIRST_YEAR, year, false, reason)));
+            Result r = new Result(steps, (System.currentTimeMillis() - started) / 1000);
+            log.info("Carga inicial ({}) concluida em {}s{}", trigger, r.seconds(),
+                    r.ok() ? "" : " COM FALHA — rode de novo: o que ja entrou e pulado");
+            steps.forEach(s -> log.info("Carga inicial: {} — {} em {}s: {}", s.name(), s.ok() ? "ok" : "FALHOU",
+                    s.seconds(), s.summary()));
+            return r;
+        } finally {
+            running.set(false);
+        }
+    }
+
+    private Step step(String name, Supplier<Object> work) {
+        long t = System.currentTimeMillis();
+        log.info("Carga inicial: {}...", name);
+        try {
+            Object result = work.get();
+            return new Step(name, result != null, (System.currentTimeMillis() - t) / 1000,
+                    result != null ? String.valueOf(result) : "nao rodou (outra execucao em andamento)");
+        } catch (RuntimeException e) {
+            log.error("Carga inicial: {} falhou: {}", name, e.getMessage(), e);
+            return new Step(name, false, (System.currentTimeMillis() - t) / 1000, e.getMessage());
+        }
+    }
+}

@@ -3,7 +3,6 @@ package com.primevest.functional;
 import com.primevest.adm.domain.dividend.ProventosCatalogService;
 import com.primevest.adm.domain.pricehistory.ClosingPriceService;
 import com.primevest.adm.integration.b3.B3Client;
-import com.primevest.adm.integration.b3.CvmFundRegistry;
 import com.primevest.adm.integration.b3.FnetClient;
 import com.primevest.adm.integration.brapi.BrApiClient;
 import com.primevest.adm.integration.coingecko.CoinGeckoClient;
@@ -29,7 +28,6 @@ import org.springframework.context.annotation.Primary;
 public abstract class CatalogoE2EBase extends FuncionalBase {
 
     @MockBean protected B3Client b3Client;
-    @MockBean protected CvmFundRegistry cvmFundRegistry;
     @MockBean protected FnetClient fnetClient;
     @MockBean protected BrApiClient brApiClient;
     @MockBean protected CoinGeckoClient coinGeckoClient;

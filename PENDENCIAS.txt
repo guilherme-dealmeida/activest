@@ -1,7 +1,8 @@
 PRIMEVEST — PENDENCIAS EM ABERTO
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 27/09/2026 — secao 18 (PLANO_EMPRESAS_BALANCOS.md:
+Ultima atualizacao: 28/09/2026 — itens 14.1 (resolvido), 18.9 b e 18.10
+(F7 e F8). Antes: 27/09/2026 — secao 18 (PLANO_EMPRESAS_BALANCOS.md:
 emissores, balancos e indicadores); itens 11.1, 11.2, 11.6 e 14.1 encaminhados
 para o plano. Antes: 25/09/2026 — secao 16 (extrato da B3 pelo PrimeVest, saiu
 do plano de cripto). Antes, no mesmo dia: secao 15 (cripto sem valor em reais,
@@ -619,6 +620,11 @@ em E:\carga). Nenhum foi corrigido.
          100 avisos obtidos, inclusive os 9 meses (12/2024 a 08/2025) que
          tinham sido completados pelo extrato — o FNET tinha o dado, o cliente
          e que falhava.
+       - RESOLVIDO em 28/09/2026 (F8): sem synchronized; pedido sob demanda
+         numa fila unica (um executor, sem repetir ativo) no lugar de uma
+         thread virtual por evento; ReentrantLock por emissor; FnetClient com
+         cache em data/fnet (indice local por CNPJ; a carga nao chama o
+         FNET), download com timeout de 5 s, 6 tentativas, 3 simultaneos. Ver PLANO_EMPRESAS_BALANCOS.md, 7.1 (F8).
 
   14.2 Fechamento no meio do pregao grava o dia ainda aberto
        Rodado durante o horario de negociacao, ele grava o pregao de hoje
@@ -776,8 +782,9 @@ preco teto", que vira o proximo e consome este. Fases F1 a F11 no plano.
            usuarios, trocar por algo incremental (ex.: fila persistente ou
            created_at em asset_cash_events para recalcular so o que mudou).
         b) Proventos sob demanda (transacao -> adm-api busca o historico):
-           rever na F8 — com todas as empresas carregadas desde 2010 deve
-           deixar de ser necessario.
+           REVISTO na F8 (28/09/2026) e mantido: com o catalogo sincronizado
+           todo dia quase sempre termina sem chamada, mas cobre ETF/BDR sem
+           emissor e ativo novo antes das 20:00. Agora entra numa fila unica.
         c) O publicador da app-api ("preciso do historico") nao tem teste com
            Redis de verdade: os testes rodam com as mensagens desligadas. O
            caminho foi conferido no ambiente publicando no canal pelo
@@ -786,6 +793,62 @@ preco teto", que vira o proximo e consome este. Fases F1 a F11 no plano.
         d) Classe do core alterada recompila e reinicia os dois conteineres
            (~30-50 s); a app-api compila tambem a adm-api (dependencia so de
            teste, entra no -am).
+
+  18.10 Proventos do catalogo (F8, 28/09/2026):
+        a) FNET instavel: a busca por CNPJ leva 3 a 10 s e, no dia da carga,
+           deu timeout e HTTP 520 em varios fundos. Decisao (28/09): a carga
+           de FII usa so data/fnet (indice local pelo CNPJFundo), sem chamar o
+           FNET. 23 tickers (22 fundos) do catalogo nao tem aviso em disco:
+           conferido pelo Guilherme em 28/09 — nenhum distribuiu ainda. Nao e
+           pendencia: quando distribuirem, entram pela B3 na rotina diaria.
+        b) Aviso com data-base depois do pagamento fica de fora (21 na
+           primeira carga; ex.: 36458 VISC11 com 2108-11-30, 20789 VISC11
+           28/12/2017 x pagamento 15/12/2017). Sem tela de revisao: so o log.
+        c) Recarga de desenvolvimento: o hot reload (devtools) reinicia a
+           adm-api mas nao para a thread da rodada em curso — ela segue ate o
+           fim falhando cada emissor ("Could not open JPA EntityManager").
+           Inofensivo (nao grava nada), mas polui o log. So em dev.
+        d) Depois do historico, o FII fica so com a B3 (12 meses). Aviso novo
+           do FNET (depois de 27/09/2026) precisa de busca explicita: endpoint
+           POST /api/v1/admin/proventos/fnet?cnpj= ou rotina semanal. Nao
+           feito — o FnetClient ja tem a busca (incomeNoticeIds) e o download
+           com cache (incomeNotices); falta so o disparo. Conferido com o
+           Guilherme em 28/09. A F10 tirou cash_history_loaded_at de assets: o
+           historico do FII e lido do disco toda rodada (so o que falta), entao
+           um aviso novo baixado para data/fnet entra sozinho na rodada seguinte.
+
+  18.11 Indicadores (F9, 28/09/2026):
+        a) RESOLVIDO em 28/09 (decisao do Guilherme): 13 de 307 companhias
+           ligadas ficavam sem LPA, VPA, P/L e P/VP no Atual (quantidade em
+           REVISAR no ultimo balanco). Duas regras:
+           - escala: terceira passada, EVENTO (V36) — quantidade do balanco
+             validado anterior x grupamentos/desdobramentos/bonificacoes
+             registrados entre as datas (ate o balanco; se nao fechar, ate a
+             entrega do documento). Na base real: 12 documentos (119 -> 107
+             REVISAR), entre eles Viver, Espacolaser, AZ Energia e AgroGalaxy;
+           - indicador: sem evento no meio, vale a quantidade do ultimo balanco
+             conferido, com o motivo "quantidade de acoes do balanco de ...".
+           Continuam nulos (evento no meio que nao explica o numero): AZEV4 e
+           IFCM3. Raizen, CIABRASF, IMC e Revee usam o balanco anterior — o
+           numero novo pode ser aumento de capital real; conferir se entrarem na
+           carteira. Correcao manual (MANUAL) segue sem endpoint.
+        b) 18.8 revisto: o trimestral usa o 12 meses da serie como esta; erro
+           da fonte passa para o ponto do trimestre. Sem conferencia extra.
+        c) Payout com dividendos negativos na DVA (269 trimestres, ex.: Klabin
+           06/2026 -191 mi): nulo com motivo. Vem da serie trimestral (F6) —
+           reapresentacao entre documentos.
+        d) RESOLVIDO em 28/09 (decisao do Guilherme): "AMORTIZACAO RF" e o
+           rotulo da B3 para amortizacao de cota de fundo — a B3 nunca manda
+           "AMORTIZACAO" puro, entao sem o mapeamento toda amortizacao nova do
+           dia a dia se perdia. Mapeado para AMORTIZACAO; a B3 usa o valor ja
+           gravado pelo FNET (tolerancia 1e-6) e completa em vez de duplicar.
+           V35 nos 103 gravados: 87 linhas eram a mesma amortizacao do FNET
+           (sairam, pagamento/aprovacao completados no FNET) e 16 so da B3
+           (RTEL16 e VVMR11) ganharam o tipo. Nenhuma posicao tinha esses fundos.
+           Visto junto: RTEL16 tem o rendimento de 0,45 de 02/04/2026 duas vezes
+           (seq 1 e 2, mesmo related_to) — repetido na propria B3, mantido.
+        e) Sem cache Redis nos indicadores: 20 a 70 ms por chamada. O cache do
+           plano (5) fica para a tela de ranking.
 
 ================================================================================
 ORDEM SUGERIDA

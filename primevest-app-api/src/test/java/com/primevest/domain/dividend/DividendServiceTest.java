@@ -34,6 +34,7 @@ class DividendServiceTest {
     @Mock private PortfolioRepository portfolioRepository;
     @Mock private AssetRepository assetRepository;
     @Mock private DividendCalendar dividendCalendar;
+    @Mock private com.primevest.domain.asset.AssetLogos assetLogos;
     @InjectMocks private DividendService service;
 
     private static final WithholdingTaxRule JCP = WithholdingTaxRule.builder().id(2L).dividendType(DividendType.JCP)

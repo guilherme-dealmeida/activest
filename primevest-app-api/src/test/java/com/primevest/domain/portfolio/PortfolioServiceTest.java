@@ -50,6 +50,7 @@ class PortfolioServiceTest {
     @Mock private DividendRepository dividendRepository;
     @Mock private PositionCalculator positionCalculator;
     @Mock private DividendCalendar dividendCalendar;
+    @Mock private com.primevest.domain.asset.AssetLogos assetLogos;
 
     @InjectMocks private PortfolioService service;
 

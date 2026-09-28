@@ -34,7 +34,9 @@ public enum DividendType {
             case "DIVIDENDO", "DIVIDENDOS" -> DIVIDENDO;
             case "JRS CAP PROPRIO", "JUROS SOBRE CAPITAL PROPRIO", "JCP" -> JCP;
             case "RENDIMENTO", "RENDIMENTOS" -> RENDIMENTO;
-            case "AMORTIZACAO", "AMORTIZACOES" -> AMORTIZACAO;
+            // "AMORTIZACAO RF": rotulo da B3 para a amortizacao de cota de fundo (a B3
+            // nao manda "AMORTIZACAO" puro); a mesma do FNET, completada, nao duplicada.
+            case "AMORTIZACAO", "AMORTIZACOES", "AMORTIZACAO RF" -> AMORTIZACAO;
             case "RESTITUICAO DE CAPITAL", "RESTITUICAO CAPITAL", "REST CAP DIN" -> RESTITUICAO_CAPITAL;
             default -> null;
         };

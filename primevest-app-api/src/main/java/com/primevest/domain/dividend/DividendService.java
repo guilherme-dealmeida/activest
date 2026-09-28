@@ -27,6 +27,7 @@ public class DividendService {
     private final PortfolioRepository portfolioRepository;
     private final AssetRepository assetRepository;
     private final DividendCalendar dividendCalendar;
+    private final AssetLogos assetLogos;
 
     /**
      * Gets dividend summary for the user.
@@ -117,7 +118,7 @@ public class DividendService {
             assetType != null ? assetType.getId() : null,
             assetType != null ? assetType.getDescription() : null,
             // Mesma regra de PortfolioService: null = tipo sem logo.
-            AssetLogos.typeHasLogo(assetType) ? asset.getLogoPath() != null : null,
+            assetLogos.logoFlag(asset),
             d.isReceived(today),
             d.getCashEvent() != null ? d.getCashEvent().getSource().name() : null,
             d.getCashEvent() != null && d.getCashEvent().getPaymentDateSource() != null

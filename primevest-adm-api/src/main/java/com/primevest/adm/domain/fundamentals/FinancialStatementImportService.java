@@ -157,6 +157,12 @@ public class FinancialStatementImportService {
                     e.getValue().layout().name(), e.getKey(), e.getValue().layout().name());
         }
         int byNeighbor = resolveByNeighbors();
+        int byEvent = resolveByStockEvents();
+        if (byEvent > 0) {
+            // um documento resolvido pelo evento pode ser o vizinho do seguinte
+            byNeighbor += resolveByNeighbors();
+        }
+        byNeighbor += byEvent;
         Integer pending = jdbc.queryForObject("SELECT COUNT(*) FROM share_counts WHERE scale_status = 'REVISAR'",
                 Integer.class);
         CompanyQuarterService.Result series = quarters.rebuild(trigger);
@@ -320,6 +326,72 @@ public class FinancialStatementImportService {
         }
         if (resolved > 0) {
             log.info("Balancos CVM: {} quantidades de acoes resolvidas pelo documento vizinho", resolved);
+        }
+        return resolved;
+    }
+
+    /**
+     * Terceira passada da escala (F9, PENDENCIAS 18.11): grupamento ou desdobramento
+     * entre dois balancos. A quantidade que ficou em {@code REVISAR} e comparada com a do
+     * documento validado anterior da mesma companhia multiplicada pelos eventos
+     * societarios registrados ({@code asset_stock_events} dos ativos do emissor) entre as
+     * duas datas — grupamento pelo fator, desdobramento e bonificacao por 1 + fator/100.
+     * Mesma janela de {@link ShareScale} (razao entre 0,5 e 2, um so candidato). Primeiro
+     * com os eventos ate a data do balanco; o que sobrar, com os eventos ate a entrega do
+     * documento — a companhia costuma informar a quantidade ja grupada quando o grupamento
+     * sai entre o fim do trimestre e a entrega (Azevedo & Travassos Energia 06/2026).
+     * Depende dos eventos da rotina de proventos: o que nao fechar hoje fecha na rodada
+     * seguinte dos balancos.
+     *
+     * @return quantos foram resolvidos
+     */
+    public int resolveByStockEvents() {
+        int resolved = 0;
+        for (boolean untilDelivery : new boolean[]{false, true}) {
+            resolved += jdbc.update("""
+                    WITH pending AS (
+                        SELECT s.document_id, d.issuer_id, d.reference_date, s.total_shares::numeric AS raw,
+                               CASE WHEN ? THEN COALESCE(d.received_at::date, d.reference_date + 90)
+                                    ELSE d.reference_date END AS until_date
+                        FROM share_counts s JOIN cvm_documents d ON d.id = s.document_id
+                        WHERE s.scale_status = 'REVISAR' AND s.total_shares > 0),
+                    prev AS (
+                        SELECT p.*, v.count AS prev_count, v.reference_date AS prev_date
+                        FROM pending p JOIN LATERAL (
+                            SELECT s2.total_shares::numeric * s2.scale_factor AS count, d2.reference_date
+                            FROM share_counts s2 JOIN cvm_documents d2 ON d2.id = s2.document_id
+                            WHERE d2.issuer_id = p.issuer_id AND s2.scale_factor IS NOT NULL
+                              AND d2.reference_date < p.reference_date
+                            ORDER BY d2.reference_date DESC LIMIT 1) v ON true
+                        WHERE v.count > 0),
+                    events AS (
+                        SELECT p.document_id,
+                               exp(sum(ln(CASE e.type WHEN 'GRUPAMENTO' THEN e.factor ELSE 1 + e.factor / 100 END)))
+                                   AS ratio
+                        FROM prev p JOIN LATERAL (
+                            SELECT DISTINCT ev.type, ev.data_com, ev.factor
+                            FROM asset_stock_events ev JOIN assets a ON a.id = ev.asset_id
+                            WHERE a.issuer_id = p.issuer_id AND ev.factor > 0
+                              AND ev.data_com > p.prev_date AND ev.data_com <= p.until_date) e ON true
+                        GROUP BY p.document_id),
+                    expected AS (
+                        SELECT p.document_id, p.raw, p.prev_count * ev.ratio AS count
+                        FROM prev p JOIN events ev ON ev.document_id = p.document_id),
+                    decided AS (
+                        SELECT document_id,
+                               CASE WHEN raw / count BETWEEN 0.5 AND 2
+                                         AND NOT raw * 1000 / count BETWEEN 0.5 AND 2 THEN 1
+                                    WHEN raw * 1000 / count BETWEEN 0.5 AND 2
+                                         AND NOT raw / count BETWEEN 0.5 AND 2 THEN 1000
+                               END AS factor
+                        FROM expected WHERE count > 0)
+                    UPDATE share_counts s
+                    SET scale_factor = decided.factor, scale_status = 'OK', scale_check = 'EVENTO'
+                    FROM decided WHERE s.document_id = decided.document_id AND decided.factor IS NOT NULL""",
+                    untilDelivery);
+        }
+        if (resolved > 0) {
+            log.info("Balancos CVM: {} quantidades de acoes resolvidas por grupamento/desdobramento registrado", resolved);
         }
         return resolved;
     }

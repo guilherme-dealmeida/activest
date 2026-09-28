@@ -54,4 +54,7 @@ public interface AssetCashEventRepository extends JpaRepository<AssetCashEvent, 
           AND e.sourceRef IS NOT NULL
         """)
     java.util.Set<String> findFnetRefs(@Param("assetId") Long assetId);
+
+    /** O ativo ja tem algum evento desta fonte (historico longo da B3 gravado, F10). */
+    boolean existsByAssetIdAndSource(Long assetId, CashEventSource source);
 }
