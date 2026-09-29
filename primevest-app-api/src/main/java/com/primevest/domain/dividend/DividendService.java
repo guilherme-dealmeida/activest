@@ -122,7 +122,8 @@ public class DividendService {
             d.isReceived(today),
             d.getCashEvent() != null ? d.getCashEvent().getSource().name() : null,
             d.getCashEvent() != null && d.getCashEvent().getPaymentDateSource() != null
-                ? d.getCashEvent().getPaymentDateSource().name() : null
+                ? d.getCashEvent().getPaymentDateSource().name() : null,
+            asset != null && asset.getIssuer() != null ? asset.getIssuer().getId() : null
         );
     }
 }

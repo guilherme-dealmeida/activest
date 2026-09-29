@@ -5,7 +5,8 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 27/09/2026 (emissores e série histórica da B3, F1–F2 — ver `PLANO_EMPRESAS_BALANCOS.md`).
+> **Última revisão**: 28/09/2026 (tela de Emissoras, T1–T7 — ver `PLANO_TELA_EMISSORES.md`).
+> Antes: 27/09/2026 (emissores e série histórica da B3, F1–F2 — ver `PLANO_EMPRESAS_BALANCOS.md`).
 > Antes: 26/09/2026 (integrações com corretoras, F1–F6 — ver `PLANO_CRIPTO_BINANCE.md`).
 > Antes: 24/09/2026 (integração BRAPI/B3 — ver `PLANO_BRAPI.md`).
 > Antes: 18/09/2026. A conferência arquivo a arquivo contra o
@@ -680,18 +681,19 @@ Falta criar o Client ID no Google Cloud Console.
 ### Assets
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| GET | `/api/v1/assets/` | Listar — params `typeId`, `query` (autocomplete, teto 50) |
+| GET | `/api/v1/assets/` | Listar — params `typeId`, `query` (autocomplete, teto 50), `withIssuer=true` (com `query`: só ações e FIIs ligados a emissor — busca da tela de Emissoras) |
 | GET | `/api/v1/assets/{ticker}` | Buscar por ticker |
 | GET | `/api/v1/assets/types` | Tipos de ativo |
 | GET | `/api/v1/assets/categories` | Categorias — param `typeId` |
-| GET | `/api/v1/assets/{ticker}/history` | Histórico de cotações |
+| GET | `/api/v1/assets/{ticker}/prices` | Cotação histórica (28/09/2026, `AssetPriceHistoryService`/`PriceSeries`): `?range=1D\|7D\|1M\|6M\|YTD\|1A\|5A\|MAX` (padrão 1A) ou `?from=&to=`. **Ajustada** por desdobramento, grupamento e bonificação (preço até a data-com ÷ razão do evento; sem ajuste por proventos). Densidade: diário até ~1 ano, semanal até ~5, mensal acima; 1D = fechamento anterior → último (`closeOnly`; `INTRADAY` reservado para o futuro). Fracionário usa o lote padrão (`priceTicker`). Traz `firstDate`/`lastDate`, variação, mín/máx. Substitui o antigo esboço `/history`, que devolvia vazio |
 | GET | `/api/v1/assets/{ticker}/indicators` | Indicadores atuais (F9): último balanço (ação) ou último informe (FII) com o preço atual. Ação: `LPA`, `VPA`, `PL`, `PVP`, `ROE`, `PAYOUT`, `DY`; FII: `PVP`, `DY`, `VP_COTA`, `COTISTAS`, `IMOVEIS`, `PAPEL`, `ALAVANCAGEM`. Cada um com `unit` (`PERCENT` em pontos, `RATIO`, `BRL`, `COUNT`), `value` e, quando nulo, `note` com o motivo. Ativo sem emissor (ETF, BDR…): 404 |
+| GET | `/api/v1/assets/{ticker}/indicators/history` | Todos os históricos do ticker numa chamada (`List<IndicatorHistoryDTO>`, ordem do enum; lê a série uma vez) — sparklines da tela de Emissoras |
 | GET | `/api/v1/assets/{ticker}/indicators/{indicador}/history` | `IndicatorHistoryDTO`: `current` (Atual), `companyAverage` (média dos anos + Atual; nulos fora, zeros dentro) e `points`; `?period=YEAR` (padrão) ou `QUARTER`. Indicador que não se aplica ao tipo: 400 |
 
 ### Issuers (F9)
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| GET | `/api/v1/issuers/{id}` | Cadastro do emissor e tickers ligados (o `issuerId` vem em `/assets/{ticker}/indicators`) |
+| GET | `/api/v1/issuers/{id}` | Cadastro do emissor (com `registrationStatus` e `website`) e tickers ligados com `hasLogo` (o `issuerId` vem em `/assets/{ticker}/indicators`) |
 | GET | `/api/v1/issuers/{id}/quarters?from=` | Série trimestral da companhia (`company_quarters`); FII: 400 |
 | GET | `/api/v1/issuers/{id}/months?from=` | Informe mensal do FII (`fii_monthly`); companhia: 400 |
 
@@ -740,6 +742,7 @@ Rotas em `App.tsx`; tudo abaixo de `/login` é protegido por `ProtectedRoute`.
 | `/strategy` | Abas "Ideal Estratégico" e "Rebalanceamento" |
 | `/transactions` | CRUD completo |
 | `/ceiling-prices` | Preço Teto — CRUD |
+| `/emissoras`, `/emissoras/:ticker` | Emissoras (28/09/2026, `PLANO_TELA_EMISSORES.md`): busca, cabeçalho com os outros tickers do emissor, cotação (atalhos + de/até, período na URL `?periodo=` / `?de=&ate=`), cartões de indicadores com sparkline e histórico em modal (Anual/Trimestral, média, ‹ ›), cadastro e demonstrativos. O ticker é link para cá em Carteira, Dividendos e Preço Teto quando o ativo tem emissor (`issuerId` nos DTOs dessas telas — não confundir com `issuer` da carteira, que é o emissor da nota de renda fixa) |
 | `/dividends` | Dividendos |
 | `/goals` | Metas |
 | `/integrations` | Integrações com corretoras (hoje Binance): conectar, sincronizar, histórico, excluídas |

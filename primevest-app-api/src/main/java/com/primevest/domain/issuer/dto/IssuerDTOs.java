@@ -17,18 +17,21 @@ public final class IssuerDTOs {
 
     /** Cadastro do emissor e os tickers ligados. */
     public record IssuerDTO(Long id, IssuerKind kind, String cnpj, Integer cvmCode, String legalName,
-                            String tradeName, String b3Sector, String b3Subsector, String b3Segment,
+                            String tradeName, String registrationStatus, String website,
+                            String b3Sector, String b3Subsector, String b3Segment,
                             String segment, String listingSegment, Short fiscalYearEndMonth,
                             String administratorName, List<Ticker> tickers) {
 
         public static IssuerDTO of(Issuer i, List<Ticker> tickers) {
             return new IssuerDTO(i.getId(), i.getKind(), i.getCnpj(), i.getCvmCode(), i.getLegalName(),
-                    i.getTradeName(), i.getB3Sector(), i.getB3Subsector(), i.getB3Segment(), i.getSegment(),
-                    i.getListingSegment(), i.getFiscalYearEndMonth(), i.getAdministratorName(), tickers);
+                    i.getTradeName(), i.getRegistrationStatus(), i.getWebsite(), i.getB3Sector(), i.getB3Subsector(),
+                    i.getB3Segment(), i.getSegment(), i.getListingSegment(), i.getFiscalYearEndMonth(),
+                    i.getAdministratorName(), tickers);
         }
     }
 
-    public record Ticker(String ticker, String shareClass, boolean active) {
+    /** Ticker ligado ao emissor; {@code hasLogo}: existe arquivo em data/logos (tela de emissoras, B1). */
+    public record Ticker(String ticker, String shareClass, boolean active, boolean hasLogo) {
     }
 
     /** Uma linha da serie trimestral ({@code company_quarters}): _q trimestre, _ttm 12 meses. */

@@ -3,6 +3,8 @@ package com.primevest.domain.asset;
 import com.primevest.domain.asset.dto.AssetCategoryResponseDTO;
 import com.primevest.domain.asset.dto.AssetResponseDTO;
 import com.primevest.domain.asset.dto.AssetTypeResponseDTO;
+import com.primevest.domain.pricehistory.AssetPriceHistoryService;
+import com.primevest.domain.pricehistory.dto.PriceHistoryDTO;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -20,10 +22,12 @@ public class AssetController {
 
     private final AssetService assetService;
     private final AssetLogos assetLogos;
+    private final AssetPriceHistoryService priceHistory;
 
-    public AssetController(AssetService assetService, AssetLogos assetLogos) {
+    public AssetController(AssetService assetService, AssetLogos assetLogos, AssetPriceHistoryService priceHistory) {
         this.assetService = assetService;
         this.assetLogos = assetLogos;
+        this.priceHistory = priceHistory;
     }
 
     /**
@@ -49,7 +53,12 @@ public class AssetController {
     @GetMapping("/")
     public ResponseEntity<List<AssetResponseDTO>> listAssets(
             @RequestParam(required = false) Long typeId,
-            @RequestParam(required = false) String query) {
+            @RequestParam(required = false) String query,
+            @RequestParam(defaultValue = "false") boolean withIssuer) {
+        if (query != null && !query.isEmpty() && withIssuer) {
+            // tela de emissoras: so acoes e FIIs ligados a emissor
+            return ResponseEntity.ok(assetService.searchAssetsWithIssuer(query));
+        }
         if (query != null && !query.isEmpty()) {
             // typeId junto com query restringe o autocomplete ao tipo escolhido
             return ResponseEntity.ok(assetService.searchAssets(query, typeId));
@@ -77,12 +86,17 @@ public class AssetController {
         return ResponseEntity.ok(List.of()); // Or all categories if supported
     }
 
-    @GetMapping("/{ticker}/history")
-    public ResponseEntity<Object> getPriceHistory(
+    /**
+     * Cotacao historica para o grafico da tela de emissoras (PLANO_TELA_EMISSORES.md, B5):
+     * {@code range} = 1D, 7D, 1M, 6M, YTD, 1A (padrao), 5A ou MAX, ou o periodo {@code from}/{@code to}.
+     * Ajustada por desdobramento, grupamento e bonificacao (D9).
+     */
+    @GetMapping("/{ticker}/prices")
+    public ResponseEntity<PriceHistoryDTO> prices(
             @PathVariable String ticker,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        // Handled by pricehistory module, would call AssetPriceHistoryService here or redirect
-        return ResponseEntity.ok().build();
+            @RequestParam(required = false) String range,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(priceHistory.history(ticker, range, from, to));
     }
 }

@@ -36,5 +36,7 @@ public record DividendResponseDTO(
     /** Fonte do evento do catalogo (B3, B3_HISTORICO, FNET, EXTRATO_B3). EXTRATO_B3 = data-com deduzida. */
     String cashEventSource,
     /** Origem da data de pagamento quando nao e a da fonte: EXTRATO_B3 ou DEDUZIDA (V24). Nulo = oficial. */
-    String paymentDateSource
+    String paymentDateSource,
+    /** Emissor do catalogo (assets.issuer_id), para o link da tela de emissoras. Nulo sem emissor. */
+    Long issuerId
 ) {}

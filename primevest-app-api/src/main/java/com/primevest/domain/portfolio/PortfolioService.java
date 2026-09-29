@@ -152,7 +152,8 @@ public class PortfolioService {
                     pa.isReservation(),
                     pa.isSettled(),
                     pa.getAsset().getAssetType().isCrypto(),
-                    assetLogos.logoFlag(pa.getAsset())
+                    assetLogos.logoFlag(pa.getAsset()),
+                    pa.getAsset().getIssuer() != null ? pa.getAsset().getIssuer().getId() : null
                 );
             }).collect(Collectors.toList());
     }

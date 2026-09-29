@@ -60,5 +60,11 @@ public record PortfolioAssetDetailDTO(
      * Logo guardado em data/logos (F7). Nulo nos tipos sem logo (renda fixa,
      * Tesouro, fundos): a tela nao desenha nada. false = mostra as iniciais.
      */
-    Boolean hasLogo
+    Boolean hasLogo,
+    /**
+     * Emissor do CATALOGO ({@code assets.issuer_id}: companhia ou FII), para o link da tela
+     * de emissoras. Nulo sem emissor. Nao confundir com {@code issuer}, o emissor da nota de
+     * renda fixa (o banco do CDB).
+     */
+    Long issuerId
 ) {}

@@ -12,5 +12,7 @@ public record CeilingPriceDTO(
     BigDecimal currentPrice,
     BigDecimal diffPercentage,
     boolean alertEnabled,
-    boolean belowCeiling
+    boolean belowCeiling,
+    /** Emissor do catalogo (assets.issuer_id), para o link da tela de emissoras. Nulo sem emissor. */
+    Long issuerId
 ) {}

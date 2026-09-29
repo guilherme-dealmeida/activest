@@ -6,6 +6,7 @@ import com.primevest.domain.indicator.IndicatorRules.Value;
 import com.primevest.domain.indicator.dto.AssetIndicatorsDTO;
 import com.primevest.domain.indicator.dto.IndicatorHistoryDTO;
 import com.primevest.domain.indicator.dto.IndicatorPointDTO;
+import com.primevest.domain.corporateaction.StockEventType;
 import com.primevest.domain.issuer.IssuerKind;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -54,7 +55,6 @@ public class IndicatorService {
     /** Fechamento mais antigo que isso antes da data do ponto nao vale como preco da data. */
     private static final int MAX_PRICE_GAP_DAYS = 15;
     private static final int FIRST_FUND_YEAR = 2017;
-    private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
     private static final java.time.format.DateTimeFormatter BR = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     public enum Period { YEAR, QUARTER }
@@ -109,17 +109,50 @@ public class IndicatorService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     indicator + " nao se aplica a " + (ctx.asset.kind == IssuerKind.FII ? "FII" : "acao"));
         }
+        return history(ctx, new Rows(ctx), indicator, period);
+    }
+
+    /**
+     * Historico de todos os indicadores do ticker, na ordem do {@link Indicator}
+     * (PLANO_TELA_EMISSORES.md, B4 — sparklines). Le trimestres/informes, precos e proventos
+     * uma vez so; cada item e igual ao de {@link #history(String, Indicator, Period)}.
+     */
+    public List<IndicatorHistoryDTO> historyAll(String ticker, Period period) {
+        Context ctx = context(ticker);
+        Rows rows = new Rows(ctx);
+        List<IndicatorHistoryDTO> out = new ArrayList<>();
+        for (Indicator i : Indicator.values()) {
+            if (i.appliesTo(ctx.asset.kind)) {
+                out.add(history(ctx, rows, i, period));
+            }
+        }
+        return out;
+    }
+
+    /** Serie do emissor lida uma vez por requisicao: trimestres (companhia) ou informes (FII). */
+    private final class Rows {
+        final List<QuarterRow> quarters;
+        final List<MonthRow> months;
+
+        Rows(Context ctx) {
+            boolean company = ctx.asset.kind == IssuerKind.COMPANY;
+            this.quarters = company ? quarters(ctx.asset.issuerId) : List.of();
+            this.months = company ? List.of() : months(ctx.asset.issuerId);
+        }
+    }
+
+    private IndicatorHistoryDTO history(Context ctx, Rows rows, Indicator indicator, Period period) {
         IndicatorPointDTO current;
         List<IndicatorPointDTO> annual;
         List<IndicatorPointDTO> points;
         if (ctx.asset.kind == IssuerKind.COMPANY) {
-            List<QuarterRow> quarters = quarters(ctx.asset.issuerId);
+            List<QuarterRow> quarters = rows.quarters;
             current = point("Atual", currentCompany(ctx, quarters).value(indicator),
                     quarters.isEmpty() ? null : quarters.get(quarters.size() - 1).periodEnd);
             annual = companyPoints(ctx, quarters, indicator, Period.YEAR);
             points = period == Period.YEAR ? annual : companyPoints(ctx, quarters, indicator, Period.QUARTER);
         } else {
-            List<MonthRow> months = months(ctx.asset.issuerId);
+            List<MonthRow> months = rows.months;
             FundBasis basis = currentFund(ctx, months);
             current = point("Atual", IndicatorRules.fund(indicator, basis),
                     basis.month() == null ? null : basis.month().plusMonths(1).minusDays(1));
@@ -314,11 +347,10 @@ public class IndicatorService {
         BigDecimal ratio(LocalDate from, LocalDate to) {
             BigDecimal r = BigDecimal.ONE;
             for (StockEvent e : stockEvents) {
-                if (e.dataCom.isAfter(from) && !e.dataCom.isAfter(to) && e.factor != null && e.factor.signum() > 0) {
-                    r = r.multiply(switch (e.type) {
-                        case "GRUPAMENTO" -> e.factor;
-                        default -> BigDecimal.ONE.add(e.factor.divide(HUNDRED, MC)); // desdobramento, bonificacao
-                    }, MC);
+                    BigDecimal q = e.dataCom.isAfter(from) && !e.dataCom.isAfter(to)
+                        ? StockEventType.valueOf(e.type).quantityRatio(e.factor) : null;
+                if (q != null) {
+                    r = r.multiply(q, MC);
                 }
             }
             return r;

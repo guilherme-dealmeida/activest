@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -31,6 +32,13 @@ public class IndicatorController {
     @GetMapping("/{ticker}/indicators")
     public ResponseEntity<AssetIndicatorsDTO> current(@PathVariable String ticker) {
         return ResponseEntity.ok(service.current(ticker));
+    }
+
+    /** Historico de todos os indicadores do ticker numa chamada (sparklines da tela de emissoras, B4). */
+    @GetMapping("/{ticker}/indicators/history")
+    public ResponseEntity<List<IndicatorHistoryDTO>> historyAll(@PathVariable String ticker,
+                                                                @RequestParam(defaultValue = "YEAR") String period) {
+        return ResponseEntity.ok(service.historyAll(ticker, parse(IndicatorService.Period.class, period, "Periodo")));
     }
 
     /** Historico de um indicador: pontos anuais ({@code period=YEAR}, padrao) ou trimestrais, Atual e media. */

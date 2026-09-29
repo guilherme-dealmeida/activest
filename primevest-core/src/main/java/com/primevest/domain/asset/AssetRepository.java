@@ -88,6 +88,23 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
         """)
     List<Asset> searchByTypeAndTickerOrName(@Param("typeId") Long typeId, @Param("query") String query, Pageable pageable);
 
+    /** Autocomplete da tela de emissoras: so ativos ligados a um emissor (acoes e FIIs). */
+    @Query("""
+        SELECT a FROM Asset a
+        LEFT JOIN FETCH a.terms t
+        WHERE a.issuer IS NOT NULL
+          AND a.active = true
+          AND (LOWER(a.ticker) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(a.name)   LIKE LOWER(CONCAT('%', :query, '%')))
+        ORDER BY
+          CASE WHEN LOWER(a.ticker) = LOWER(:query)                  THEN 0
+               WHEN LOWER(a.ticker) LIKE LOWER(CONCAT(:query, '%'))  THEN 1
+               WHEN LOWER(a.name)   LIKE LOWER(CONCAT(:query, '%'))  THEN 2
+               ELSE 3 END,
+          a.ticker
+        """)
+    List<Asset> searchWithIssuerByTickerOrName(@Param("query") String query, Pageable pageable);
+
     /** Ativos ativos com o tipo carregado — base da conferencia do catalogo. */
     @Query("SELECT a FROM Asset a JOIN FETCH a.assetType WHERE a.active = true")
     List<Asset> findActiveWithType();

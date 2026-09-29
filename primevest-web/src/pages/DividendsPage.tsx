@@ -10,6 +10,7 @@ import { DIVIDEND_TYPE_LABELS, DividendResponse, DividendSummary, DividendType }
 import { CalendarClock, DollarSign } from 'lucide-react';
 import { useSortable } from '@/hooks/useSortable';
 import { Badge } from '@/components/ui/Badge';
+import { TickerLink } from '@/components/issuer/TickerLink';
 
 /**
  * Rótulo de cada tipo no filtro e no card "Por Tipo" (plural: é um grupo).
@@ -307,7 +308,7 @@ export const DividendsPage = () => {
                       {row.hasLogo !== null && row.hasLogo !== undefined && (
                         <AssetLogo ticker={row.ticker} hasLogo={row.hasLogo} size={38} shape="square" />
                       )}
-                      <span className="font-medium">{row.ticker}</span>
+                      <TickerLink ticker={row.ticker} issuerId={row.issuerId} />
                     </div>
                   </td>
                   <td className="px-4 py-3">

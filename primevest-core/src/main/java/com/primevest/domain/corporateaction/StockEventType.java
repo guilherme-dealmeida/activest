@@ -1,5 +1,8 @@
 package com.primevest.domain.corporateaction;
 
+import java.math.BigDecimal;
+import java.math.MathContext;
+
 /**
  * Evento societario que muda a quantidade de cotas (V20).
  *
@@ -17,6 +20,22 @@ public enum StockEventType {
     DESDOBRAMENTO,
     GRUPAMENTO,
     BONIFICACAO;
+
+    private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
+
+    /**
+     * Quantas cotas cada cota vira no evento: desdobramento 300 -> 4, grupamento 0,1 -> 0,1,
+     * bonificacao 5 -> 1,05. Nulo com fator ausente ou nao positivo (o evento nao muda nada).
+     *
+     * <p>Serve a quantidade de acoes dos indicadores e o ajuste da cotacao historica
+     * (PLANO_TELA_EMISSORES.md, D9): o preco anterior ao evento e dividido por essa razao.</p>
+     */
+    public BigDecimal quantityRatio(BigDecimal factor) {
+        if (factor == null || factor.signum() <= 0) {
+            return null;
+        }
+        return this == GRUPAMENTO ? factor : BigDecimal.ONE.add(factor.divide(HUNDRED, MathContext.DECIMAL64));
+    }
 
     /** Rotulo da B3 para o nosso tipo. Nulo = evento que nao mexe na quantidade (ou desconhecido). */
     public static StockEventType fromSourceLabel(String label) {

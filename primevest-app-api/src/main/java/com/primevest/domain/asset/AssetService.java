@@ -108,6 +108,13 @@ public class AssetService {
         return found.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
+    /** Busca so entre ativos ligados a emissor (tela de emissoras, B3). */
+    @Transactional(readOnly = true)
+    public List<AssetResponseDTO> searchAssetsWithIssuer(String query) {
+        return assetRepository.searchWithIssuerByTickerOrName(query, PageRequest.of(0, LIMITE_BUSCA))
+            .stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
     /**
      * Updates asset price.
      */

@@ -124,6 +124,12 @@ export interface PortfolioAssetDetail {
    * tipos sem logo (renda fixa, Tesouro, fundos); false mostra as iniciais.
    */
   hasLogo: boolean | null;
+  /**
+   * Emissor do catálogo (companhia ou FII) — link para /emissoras/{ticker}.
+   * null = sem emissor (renda fixa, ETF, BDR, cripto). Não confundir com
+   * `issuer` da carteira, que é o emissor da NOTA de renda fixa.
+   */
+  issuerId: number | null;
 }
 
 /** Resposta de PATCH /portfolio/assets/{id}/reservation. */
@@ -360,6 +366,12 @@ export interface CeilingPrice {
   diffPercentage: number;
   alertEnabled: boolean;
   belowCeiling: boolean;
+  /**
+   * Emissor do catálogo (companhia ou FII) — link para /emissoras/{ticker}.
+   * null = sem emissor (renda fixa, ETF, BDR, cripto). Não confundir com
+   * `issuer` da carteira, que é o emissor da NOTA de renda fixa.
+   */
+  issuerId: number | null;
 }
 
 export interface CeilingPriceCreate {
@@ -425,6 +437,12 @@ export interface DividendResponse {
   assetTypeDescription: string | null;
   /** Mesma regra da carteira: null = tipo sem logo; false = iniciais. */
   hasLogo: boolean | null;
+  /**
+   * Emissor do catálogo (companhia ou FII) — link para /emissoras/{ticker}.
+   * null = sem emissor (renda fixa, ETF, BDR, cripto). Não confundir com
+   * `issuer` da carteira, que é o emissor da NOTA de renda fixa.
+   */
+  issuerId: number | null;
 }
 
 export interface DividendSummary {
@@ -600,4 +618,159 @@ export interface CryptoExclusion {
   side: 'BUY' | 'SELL' | null;
   grossQuantity: number | null;
   quoteAmount: number | null;
+}
+
+// ---------------------------------------------------------------------------
+// Tela de emissoras (PLANO_TELA_EMISSORES.md)
+// ---------------------------------------------------------------------------
+
+export type IssuerKind = 'COMPANY' | 'FII';
+
+export type IndicatorCode =
+  | 'LPA' | 'VPA' | 'PL' | 'PVP' | 'ROE' | 'PAYOUT' | 'DY'
+  | 'VP_COTA' | 'COTISTAS' | 'IMOVEIS' | 'PAPEL' | 'ALAVANCAGEM';
+
+/** PERCENT em pontos (37.44 = 37,44%); BRL e RATIO numéricos; COUNT inteiro. */
+export type IndicatorUnit = 'PERCENT' | 'RATIO' | 'BRL' | 'COUNT';
+
+export type IndicatorPeriod = 'YEAR' | 'QUARTER';
+
+/** Um indicador atual. value null = não se aplica, com o motivo em note. */
+export interface IndicatorItem {
+  indicator: IndicatorCode;
+  unit: IndicatorUnit;
+  value: number | null;
+  note: string | null;
+}
+
+/** GET /assets/{ticker}/indicators */
+export interface AssetIndicators {
+  ticker: string;
+  issuerId: number;
+  kind: IssuerKind;
+  price: number | null;
+  /** Data do balanço (ação) ou fim do mês do informe (FII) usado no Atual. */
+  basePeriodEnd: string | null;
+  indicators: IndicatorItem[];
+}
+
+export interface IndicatorPoint {
+  /** "2025", "2T26" ou "Atual". */
+  label: string;
+  periodEnd: string | null;
+  value: number | null;
+  note: string | null;
+}
+
+/** GET /assets/{ticker}/indicators/{indicador}/history e /indicators/history (lista). */
+export interface IndicatorHistory {
+  ticker: string;
+  indicator: IndicatorCode;
+  unit: IndicatorUnit;
+  period: IndicatorPeriod;
+  current: IndicatorPoint;
+  /** Média dos pontos anuais + Atual (nulos fora, zeros dentro). */
+  companyAverage: number | null;
+  points: IndicatorPoint[];
+}
+
+export interface IssuerTicker {
+  ticker: string;
+  shareClass: string | null;
+  active: boolean;
+  hasLogo: boolean;
+}
+
+/** GET /issuers/{id} */
+export interface Issuer {
+  id: number;
+  kind: IssuerKind;
+  cnpj: string;
+  cvmCode: number | null;
+  legalName: string | null;
+  tradeName: string | null;
+  /** ATIVO / CANCELADA (CVM). */
+  registrationStatus: string | null;
+  website: string | null;
+  b3Sector: string | null;
+  b3Subsector: string | null;
+  b3Segment: string | null;
+  /** Segmento curado (FII). */
+  segment: string | null;
+  listingSegment: string | null;
+  fiscalYearEndMonth: number | null;
+  administratorName: string | null;
+  tickers: IssuerTicker[];
+}
+
+/** GET /issuers/{id}/quarters — _q trimestre isolado, _ttm 12 meses; o resto é posição. */
+export interface CompanyQuarter {
+  periodEnd: string;
+  fiscalYearStart: string | null;
+  revenueQ: number | null;
+  ebitQ: number | null;
+  netIncomeQ: number | null;
+  netIncomeParentQ: number | null;
+  fcoQ: number | null;
+  dividendsDeclaredQ: number | null;
+  revenueTtm: number | null;
+  ebitTtm: number | null;
+  netIncomeTtm: number | null;
+  netIncomeParentTtm: number | null;
+  fcoTtm: number | null;
+  dividendsDeclaredTtm: number | null;
+  equity: number | null;
+  equityParent: number | null;
+  totalAssets: number | null;
+  cash: number | null;
+  grossDebt: number | null;
+  sharesTotal: number | null;
+  sharesOutstanding: number | null;
+}
+
+/** GET /issuers/{id}/months — taxas em fração do mês (0.0068 = 0,68%). */
+export interface FiiMonth {
+  referenceMonth: string;
+  version: number | null;
+  netAssets: number | null;
+  totalAssets: number | null;
+  sharesIssued: number | null;
+  navPerShare: number | null;
+  shareholders: number | null;
+  adminFeeMonth: number | null;
+  dividendYieldMonth: number | null;
+  amortizationMonth: number | null;
+  liquidityTotal: number | null;
+  totalInvested: number | null;
+  realEstateTotal: number | null;
+  realEstateCompanies: number | null;
+  receivablesTotal: number | null;
+  fiiSharesTotal: number | null;
+  liabilitiesTotal: number | null;
+  incomeToDistribute: number | null;
+}
+
+/** Atalhos do gráfico de cotação; 1A é o padrão. */
+export type PriceRange = '1D' | '7D' | '1M' | '6M' | 'YTD' | '1A' | '5A' | 'MAX';
+
+/** GET /assets/{ticker}/prices — ajustada por desdobramento, grupamento e bonificação. */
+export interface PriceSeries {
+  ticker: string;
+  /** Ticker de onde vem o preço (o lote padrão, no fracionário). */
+  priceTicker: string;
+  firstDate: string | null;
+  lastDate: string | null;
+  from: string | null;
+  to: string | null;
+  range: PriceRange | 'CUSTOM';
+  interval: 'INTRADAY' | 'DAY' | 'WEEK' | 'MONTH';
+  adjusted: boolean;
+  /** Só fechamento diário (sem preço durante o pregão). */
+  closeOnly: boolean;
+  change: number | null;
+  /** Em pontos (1.03 = 1,03%). */
+  changePct: number | null;
+  min: number | null;
+  max: number | null;
+  points: { time: string; close: number }[];
 }

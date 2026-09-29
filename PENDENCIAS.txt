@@ -1,8 +1,9 @@
 PRIMEVEST — PENDENCIAS EM ABERTO
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 28/09/2026 — itens 14.1 (resolvido), 18.9 b e 18.10
-(F7 e F8). Antes: 27/09/2026 — secao 18 (PLANO_EMPRESAS_BALANCOS.md:
+Ultima atualizacao: 28/09/2026 (noite) — 11.6 resolvido e secao 19 (tela de
+Emissoras, PLANO_TELA_EMISSORES.md). Antes, no mesmo dia: itens 14.1
+(resolvido), 18.9 b e 18.10 (F7 e F8). Antes: 27/09/2026 — secao 18 (PLANO_EMPRESAS_BALANCOS.md:
 emissores, balancos e indicadores); itens 11.1, 11.2, 11.6 e 14.1 encaminhados
 para o plano. Antes: 25/09/2026 — secao 16 (extrato da B3 pelo PrimeVest, saiu
 do plano de cripto). Antes, no mesmo dia: secao 15 (cripto sem valor em reais,
@@ -489,6 +490,11 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
        da B3, F2) e o IndicatorService le o fechamento de cada data de balanco
        (F9). 11.1, 11.2 e 11.5 se resolvem na execucao do plano; o grafico de
        cotacao na tela do ativo fica para o planejamento de telas.
+       RESOLVIDO em 28/09/2026 (PLANO_TELA_EMISSORES.md, B5): leitura ligada em
+       GET /api/v1/assets/{ticker}/prices (AssetPriceHistoryService, JdbcTemplate;
+       o esboco /history e o PriceHistoryDTO antigo foram substituidos), com o
+       grafico de cotacao da tela de Emissoras. Os metodos orfaos do
+       AssetPriceHistoryRepository (11.5) seguem sem uso — o servico le por SQL.
 
 
 ================================================================================
@@ -849,6 +855,28 @@ preco teto", que vira o proximo e consome este. Fases F1 a F11 no plano.
            (seq 1 e 2, mesmo related_to) — repetido na propria B3, mantido.
         e) Sem cache Redis nos indicadores: 20 a 70 ms por chamada. O cache do
            plano (5) fica para a tela de ranking.
+
+================================================================================
+19. TELA DE EMISSORAS (PLANO_TELA_EMISSORES.md, 28/09/2026)
+================================================================================
+
+  19.1  Historico de proventos da B3 faltando em 17 acoes com provento recente
+        (achado na conferencia da tela, 28/09): ABEV3, ALPK3, AUAU3, CURY3,
+        ENJU3, EQMA3B, HBRE3, KLBN3, KLBN4, KLBN11, MRSA3B/5B/6B, OFSA3, OPCT3,
+        RENT4, WEST3 — so tem eventos "B3" (12 meses), nenhum "B3_HISTORICO".
+        data/b3/proventos/KLBN.json tem 2 bytes ("[]"): a B3 respondeu vazio
+        para o emissor e, pela regra da F10 (arquivo = estado), a busca nao se
+        repete. Efeito: DY historico = 0 nesses anos (KLBN4: 0 de 2010 a 2024,
+        media 0,74%), o que e falso. Investigar o pedido ao
+        GetListedCashDividends desses emissores (nome de pregao? codigo?) e
+        tratar resposta vazia como "tentar de novo", nao como historico vazio.
+        Escopo do catalogo (adm-api), fora da tela.
+  19.2  Layout em celular: o menu lateral fica sempre aberto e espreme o
+        conteudo em 375 px (vale para todas as telas, nao so Emissoras). A tela
+        de Emissoras em si nao estoura a largura (sem rolagem horizontal da
+        pagina; tabelas e grafico trimestral rolam por dentro).
+  19.3  Link do ticker so em Carteira, Dividendos e Preco Teto (D5). Outras
+        telas com ticker (Transacoes, Estrategia) ficaram de fora do escopo.
 
 ================================================================================
 ORDEM SUGERIDA

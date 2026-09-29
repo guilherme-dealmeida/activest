@@ -1,5 +1,6 @@
 package com.primevest.domain.issuer;
 
+import com.primevest.domain.asset.AssetLogos;
 import com.primevest.domain.issuer.dto.IssuerDTOs.IssuerDTO;
 import com.primevest.domain.issuer.dto.IssuerDTOs.MonthDTO;
 import com.primevest.domain.issuer.dto.IssuerDTOs.QuarterDTO;
@@ -33,13 +34,15 @@ public class IssuerController {
     private final CompanyQuarterRepository quarters;
     private final FiiMonthlyRepository months;
     private final JdbcTemplate jdbc;
+    private final AssetLogos logos;
 
     public IssuerController(IssuerRepository issuers, CompanyQuarterRepository quarters, FiiMonthlyRepository months,
-                            JdbcTemplate jdbc) {
+                            JdbcTemplate jdbc, AssetLogos logos) {
         this.issuers = issuers;
         this.quarters = quarters;
         this.months = months;
         this.jdbc = jdbc;
+        this.logos = logos;
     }
 
     @GetMapping("/{id}")
@@ -48,7 +51,8 @@ public class IssuerController {
         Issuer issuer = find(id);
         List<Ticker> tickers = jdbc.query(
                 "SELECT ticker, share_class, active FROM assets WHERE issuer_id = ? ORDER BY ticker",
-                (rs, i) -> new Ticker(rs.getString("ticker"), rs.getString("share_class"), rs.getBoolean("active")),
+                (rs, i) -> new Ticker(rs.getString("ticker"), rs.getString("share_class"), rs.getBoolean("active"),
+                        logos.hasLogo(rs.getString("ticker"))),
                 id);
         return ResponseEntity.ok(IssuerDTO.of(issuer, tickers));
     }

@@ -126,7 +126,8 @@ public class CeilingPriceService {
             currentPrice,
             diffPct,
             cp.isAlertEnabled(),
-            belowCeiling
+            belowCeiling,
+            cp.getAsset().getIssuer() != null ? cp.getAsset().getIssuer().getId() : null
         );
     }
 }
