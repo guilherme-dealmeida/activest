@@ -1,5 +1,6 @@
 package com.primevest.adm.domain.admin;
 
+import com.primevest.adm.domain.dividend.CvmPaymentDateService;
 import com.primevest.adm.domain.dividend.ProventosCatalogService;
 import com.primevest.adm.domain.fundamentals.FiiMonthlyImportService;
 import com.primevest.adm.domain.fundamentals.FinancialStatementImportService;
@@ -25,8 +26,11 @@ import java.util.function.Supplier;
  *   negociados que nao estao no catalogo (o banco novo fica igual ao de quem ja rodou a rotina de
  *   emissores); nunca sobrescreve o segmento curado nem as ligacoes;</li>
  *   <li><b>COTAHIST</b> 2010+ — precos e o ISIN de cada ativo (a rotina de proventos casa a B3 pelo ISIN);</li>
- *   <li><b>proventos</b> — rodada completa do catalogo: 12 meses da B3, eventos societarios e o historico
- *   longo (acoes de {@code data/b3/proventos}, FII de {@code data/fnet});</li>
+ *   <li><b>proventos</b> — rodada completa do catalogo: 12 meses da B3 (com o acumulado de
+ *   {@code data/b3/proventos-12m}), eventos societarios e o historico longo (acoes de
+ *   {@code data/b3/proventos}, FII de {@code data/fnet});</li>
+ *   <li><b>datas de pagamento</b> 2022+ — relatorios de proventos da CVM ({@code data/cvm/ipe},
+ *   {@code data/cvm/proventos}) completam a data que o historico da B3 nao traz (PLANO_CARGA_INICIAL.md, 5.2);</li>
  *   <li><b>balancos</b> DFP/ITR 2010+ e a serie trimestral — depois dos proventos, porque a passada
  *   {@code EVENTO} da escala usa os grupamentos e desdobramentos gravados;</li>
  *   <li><b>informe mensal de FII</b> 2016+.</li>
@@ -47,24 +51,26 @@ public class BootstrapService {
     private final ProventosCatalogService proventos;
     private final FinancialStatementImportService statements;
     private final FiiMonthlyImportService fiiMonthly;
+    private final CvmPaymentDateService paymentDates;
     private final Clock clock;
     private final AtomicBoolean running = new AtomicBoolean();
 
     @org.springframework.beans.factory.annotation.Autowired
     public BootstrapService(IssuerImportService issuers, HistoricalQuotesImportService quotes,
                             ProventosCatalogService proventos, FinancialStatementImportService statements,
-                            FiiMonthlyImportService fiiMonthly) {
-        this(issuers, quotes, proventos, statements, fiiMonthly, Clock.system(ZONE));
+                            FiiMonthlyImportService fiiMonthly, CvmPaymentDateService paymentDates) {
+        this(issuers, quotes, proventos, statements, fiiMonthly, paymentDates, Clock.system(ZONE));
     }
 
     BootstrapService(IssuerImportService issuers, HistoricalQuotesImportService quotes,
                      ProventosCatalogService proventos, FinancialStatementImportService statements,
-                     FiiMonthlyImportService fiiMonthly, Clock clock) {
+                     FiiMonthlyImportService fiiMonthly, CvmPaymentDateService paymentDates, Clock clock) {
         this.issuers = issuers;
         this.quotes = quotes;
         this.proventos = proventos;
         this.statements = statements;
         this.fiiMonthly = fiiMonthly;
+        this.paymentDates = paymentDates;
         this.clock = clock;
     }
 
@@ -89,11 +95,13 @@ public class BootstrapService {
             int year = LocalDate.now(clock).getYear();
             String reason = "carga inicial " + trigger;
             List<Step> steps = new ArrayList<>();
-            log.info("Carga inicial ({}): emissores, COTAHIST, proventos, balancos e informe de FII", trigger);
+            log.info("Carga inicial ({}): emissores, COTAHIST, proventos, datas de pagamento, balancos e informe de FII", trigger);
             steps.add(step("emissores", () -> issuers.importAll(reason)));
             steps.add(step("COTAHIST " + HistoricalQuotesImportService.FIRST_YEAR + "-" + year,
                     () -> quotes.importYears(HistoricalQuotesImportService.FIRST_YEAR, year, reason)));
             steps.add(step("proventos", () -> proventos.syncAll(reason)));
+            steps.add(step("datas de pagamento CVM " + CvmPaymentDateService.FIRST_YEAR + "-" + year,
+                    () -> paymentDates.run(CvmPaymentDateService.FIRST_YEAR, year, reason)));
             steps.add(step("balancos " + FinancialStatementImportService.FIRST_YEAR + "-" + year,
                     () -> statements.importYears(FinancialStatementImportService.FIRST_YEAR, year, false, reason)));
             steps.add(step("informe FII " + FiiMonthlyImportService.FIRST_YEAR + "-" + year,

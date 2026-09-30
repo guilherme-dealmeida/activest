@@ -11,7 +11,12 @@ public enum CvmDataset {
     ITR("CIA_ABERTA/DOC/ITR/DADOS/itr_cia_aberta_%d.zip", "itr"),
     /** Formulario de Referencia: o historico do capital social da a quantidade de acoes antes de 2020. */
     FRE("CIA_ABERTA/DOC/FRE/DADOS/fre_cia_aberta_%d.zip", "fre"),
-    FII_MONTHLY("FII/DOC/INF_MENSAL/DADOS/inf_mensal_fii_%d.zip", "fii");
+    FII_MONTHLY("FII/DOC/INF_MENSAL/DADOS/inf_mensal_fii_%d.zip", "fii"),
+    /**
+     * Indice dos documentos eventuais (IPE): de 2022 em diante traz o "Relatorio Proventos", com a
+     * data de pagamento que o historico longo da B3 nao tem (PLANO_CARGA_INICIAL.md, 5.2 — P3).
+     */
+    IPE("CIA_ABERTA/DOC/IPE/DADOS/ipe_cia_aberta_%d.zip", "ipe");
 
     private final String pathPattern;
     private final String folder;

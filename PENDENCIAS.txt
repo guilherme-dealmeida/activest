@@ -1,8 +1,9 @@
 PRIMEVEST — PENDENCIAS EM ABERTO
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 28/09/2026 (noite) — 11.6 resolvido e secao 19 (tela de
-Emissoras, PLANO_TELA_EMISSORES.md). Antes, no mesmo dia: itens 14.1
+Ultima atualizacao: 29/09/2026 — secao 20 (ambiente de carga inicial,
+PLANO_CARGA_INICIAL.md) e 18.10 d resolvido. Antes: 28/09/2026 (noite) — 11.6
+resolvido e secao 19 (tela de Emissoras, PLANO_TELA_EMISSORES.md). Antes, no mesmo dia: itens 14.1
 (resolvido), 18.9 b e 18.10 (F7 e F8). Antes: 27/09/2026 — secao 18 (PLANO_EMPRESAS_BALANCOS.md:
 emissores, balancos e indicadores); itens 11.1, 11.2, 11.6 e 14.1 encaminhados
 para o plano. Antes: 25/09/2026 — secao 16 (extrato da B3 pelo PrimeVest, saiu
@@ -814,7 +815,11 @@ preco teto", que vira o proximo e consome este. Fases F1 a F11 no plano.
            adm-api mas nao para a thread da rodada em curso — ela segue ate o
            fim falhando cada emissor ("Could not open JPA EntityManager").
            Inofensivo (nao grava nada), mas polui o log. So em dev.
-        d) Depois do historico, o FII fica so com a B3 (12 meses). Aviso novo
+        d) [RESOLVIDO 29/09/2026 — PLANO_CARGA_INICIAL.md, D15/P4] FNET e a
+           fonte principal de FII e a busca por CNPJ roda na rotina de proventos
+           quando a B3 mostra provento mais novo que o ultimo aviso gravado (no
+           maximo uma vez por dia por fundo). Texto original:
+           Depois do historico, o FII fica so com a B3 (12 meses). Aviso novo
            do FNET (depois de 27/09/2026) precisa de busca explicita: endpoint
            POST /api/v1/admin/proventos/fnet?cnpj= ou rotina semanal. Nao
            feito — o FnetClient ja tem a busca (incomeNoticeIds) e o download
@@ -877,6 +882,41 @@ preco teto", que vira o proximo e consome este. Fases F1 a F11 no plano.
         pagina; tabelas e grafico trimestral rolam por dentro).
   19.3  Link do ticker so em Carteira, Dividendos e Preco Teto (D5). Outras
         telas com ticker (Transacoes, Estrategia) ficaram de fora do escopo.
+
+================================================================================
+20. AMBIENTE DE CARGA INICIAL (PLANO_CARGA_INICIAL.md, 29/09/2026)
+================================================================================
+
+  20.1  Data de pagamento de acao antes de 2022 (D14). O historico longo da B3
+        nao traz o campo; os relatorios de proventos da CVM so existem de 2022
+        em diante; o resto da CVM e texto livre (Aviso aos Acionistas, PDF). A
+        decidir depois da medicao (scripts/sql/datas_pagamento.sql): ler os
+        avisos em texto livre (amostra primeiro) ou a BRAPI Startup
+        (R$ 119,99/mes; o plano gratuito recusa dividendos).
+        Medicao de 30/09/2026 (banco de desenvolvimento, depois da carga da CVM):
+        acoes sem data de pagamento — 2010 a 2021: ~17 mil eventos (0 a 0,6% com
+        data); 2022: 1.363 de 1.808 (o relatorio da CVM so comeca no fim de
+        2022); 2023: 416 de 1.793; 2024: 466 de 1.870; 2025: 402 de 2.257;
+        2026: 22 de 1.185. FII: ~100% em todos os anos (FNET).
+  20.2  Relatorio de proventos parcelado com parcela "a definir": fica sem data
+        ate a B3 (12 meses) ou uma reapresentacao do relatorio trazer.
+  20.3  Historico de preco de cripto (CoinGecko) nao e refeito num ambiente
+        novo: o grafico comeca na data da carga. Fora do escopo da carga.
+  20.4  Bucket: o push e manual (docker compose --profile carga run --rm data
+        push) na maquina de quem tem a chave de escrita. Se ficar esquecido, o
+        que so a origem tinha (avisos novos do FNET, 12 meses da B3, relatorios
+        da CVM) fica so na data/ local ate o proximo push.
+  20.5  Importacao de extrato: desde a V38 so confere (JA_EXISTE, SEM_DATA,
+        SEM_EVENTO). Importar a carteira por arquivo continua na secao 16.
+  20.6  Relatorios de proventos da CVM (2022+) que nao completaram data: ~400
+        eventos de acao por ano de 2023 a 2025 seguem sem data, e 113 dos 3.412
+        relatorios nao foram lidos (formato fora do padrao). A olhar caso a caso:
+        valor da B3 diferente do relatorio (arredondamento, JCP bruto x liquido),
+        ISIN do evento diferente, parcelas "a definir", empresa que nao entregou
+        o relatorio.
+  20.7  Testes de integracao da adm-api gravam na data/ real do projeto
+        (primevest.data.dir padrao ../data): o ProventosCatalogoIT passou a usar
+        target/it-data-proventos; os demais ITs ainda usam a data/ real.
 
 ================================================================================
 ORDEM SUGERIDA

@@ -29,7 +29,9 @@ import static org.mockito.Mockito.verify;
  *
  * <p>A B3 nao responde (mock sem resposta): o FNET segue sozinho, como deve.</p>
  */
-@TestPropertySource(properties = "primevest.proventos.scope=ALL")
+// data propria: a rotina grava em data/ (b3/proventos, b3/proventos-12m, fnet) e o teste nao pode
+// sujar a data/ real do projeto (PLANO_CARGA_INICIAL.md)
+@TestPropertySource(properties = {"primevest.proventos.scope=ALL", "primevest.data.dir=target/it-data-proventos"})
 class ProventosCatalogoIT extends IntegrationTestBase {
 
     static final String VISC = "17554274000125";
@@ -55,6 +57,16 @@ class ProventosCatalogoIT extends IntegrationTestBase {
                     UPDATE assets SET issuer_id = (SELECT id FROM issuers WHERE cnpj = ?)
                     WHERE ticker = ?""", f[0], f[1]);
         }
+        // cada teste parte sem os 12 meses acumulados e sem busca recente no FNET (P1, D15); a busca
+        // de verdade nunca sai para a rede aqui
+        Path acumulado = fnet.cacheDir().getParent().resolve("b3/proventos-12m");
+        if (Files.exists(acumulado)) {
+            try (var files = Files.walk(acumulado)) {
+                files.sorted(java.util.Comparator.reverseOrder()).forEach(f -> f.toFile().delete());
+            }
+        }
+        ((Map<?, ?>) org.springframework.test.util.ReflectionTestUtils.getField(service, "lastFnetSearch")).clear();
+        org.mockito.Mockito.doReturn(List.of()).when(fnet).incomeNoticeIds(anyString());
         Path dir = fnet.cacheDir();
         Files.createDirectories(dir);
         for (long id : new long[]{1002416, 19693, 20789, 36458, 1002663, 7078}) {
@@ -91,6 +103,28 @@ class ProventosCatalogoIT extends IntegrationTestBase {
                 .satisfies(e -> assertThat(e.get("data_com").toString()).isEqualTo("2016-12-07"));
         // so disco: a busca no FNET nao e chamada
         verify(fnet, never()).incomeNoticeIds(anyString());
+    }
+
+    @Test
+    @DisplayName("D15: B3 com provento mais novo que o FNET — busca no FNET uma vez; sem aviso novo, a B3 fica de reserva")
+    void fnetPrincipalBuscaQuandoB3TemNovidade() {
+        jdbc.update("UPDATE assets SET isin = 'BRVISCCTF003' WHERE ticker = 'VISC11'");
+        org.mockito.Mockito.when(b3.fundSupplement("VISC")).thenReturn(new com.primevest.adm.integration.b3.B3Supplement(
+                "FII VINCI SC", "VISC", null, List.of(
+                new com.primevest.adm.integration.b3.B3Supplement.CashDividend("BRVISCCTF003", "13/02/2026",
+                        "0,82000000000", "Janeiro/2026", "30/01/2026", "BRVISCCTF003", "RENDIMENTO", "30/01/2026", "")),
+                List.of()));
+        org.mockito.Mockito.doReturn(List.of(1002416L, 20789L)).when(fnet).incomeNoticeIds(VISC);
+
+        service.syncAll("teste");
+        service.syncAll("teste");
+
+        assertThat(eventos("VISC11")).extracting(e -> e.get("data_com").toString() + "/" + e.get("source"))
+                .containsExactly("2017-11-30/FNET", "2025-09-30/FNET", "2026-01-30/B3");
+        // uma busca so: a segunda rodada esta dentro do intervalo de um dia
+        verify(fnet, org.mockito.Mockito.times(1)).incomeNoticeIds(VISC);
+        // a resposta da B3 ficou em data/b3/proventos-12m (P1)
+        assertThat(fnet.cacheDir().getParent().resolve("b3/proventos-12m/fundos/VISC.json")).exists();
     }
 
     @Test

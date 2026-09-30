@@ -27,13 +27,12 @@ const TYPE_ORDER = Object.values(DividendType);
 
 // Proventos de ação vindos só do histórico longo da B3 não têm data de
 // pagamento: a fonte não traz o campo (PENDENCIAS.txt, 3.4).
-/** Hover da data de pagamento que não veio da fonte oficial (V24). */
+// A partir de 2022 a data vem do relatório de proventos que a empresa entrega à CVM
+// (PLANO_CARGA_INICIAL.md, 5.2).
+/** Hover da data de pagamento que não veio da própria fonte do evento (V38). */
 const PAYMENT_DATE_SOURCE_HINT: Record<string, string> = {
-  EXTRATO_B3: 'Data do extrato de proventos da B3 (Área do Investidor).',
-  DEDUZIDA: 'Data deduzida do padrão de pagamento da empresa — ainda sem confirmação.',
+  CVM: 'Data do relatório de proventos que a empresa entregou à CVM.',
 };
-const DEDUCED_DATA_COM_HINT =
-  'Provento lançado a partir do extrato da B3: a data-com não veio de fonte oficial (nos FIIs, deduzida do padrão de pagamento do fundo).';
 
 const NO_PAYMENT_DATE_HINT =
   'A B3 não informa a data de pagamento deste provento: o histórico longo de proventos de ações não traz esse campo.';
@@ -312,9 +311,7 @@ export const DividendsPage = () => {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    {row.cashEventSource === 'EXTRATO_B3'
-                      ? <span className="cursor-help underline decoration-dotted decoration-gray-500" title={DEDUCED_DATA_COM_HINT}>{formatDate(row.exDate)}</span>
-                      : formatDate(row.exDate)}
+                    {formatDate(row.exDate)}
                   </td>
                   <td className="px-4 py-3">
                     {row.paymentDate

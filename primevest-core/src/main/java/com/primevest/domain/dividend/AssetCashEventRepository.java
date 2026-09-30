@@ -55,6 +55,13 @@ public interface AssetCashEventRepository extends JpaRepository<AssetCashEvent, 
         """)
     java.util.Set<String> findFnetRefs(@Param("assetId") Long assetId);
 
+    /** Data-com mais recente do ativo gravada por esta fonte; nula sem evento dela. */
+    @Query("""
+        SELECT MAX(e.dataCom) FROM AssetCashEvent e
+        WHERE e.asset.id = :assetId AND e.source = :source
+        """)
+    LocalDate findLatestDataComBySource(@Param("assetId") Long assetId, @Param("source") CashEventSource source);
+
     /** O ativo ja tem algum evento desta fonte (historico longo da B3 gravado, F10). */
     boolean existsByAssetIdAndSource(Long assetId, CashEventSource source);
 }

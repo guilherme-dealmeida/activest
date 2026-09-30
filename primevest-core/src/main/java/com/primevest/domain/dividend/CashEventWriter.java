@@ -14,10 +14,14 @@ import java.time.format.DateTimeFormatter;
 
 /**
  * Grava um evento de provento no catalogo ({@link AssetCashEvent}), ou completa o que ja
- * existe — a mesma noticia vinda de outra fonte (V22, V24). Usado pela rotina de proventos da
- * adm-api (B3, historico, FNET) e pelo extrato da B3 na app-api: as duas gravam com a mesma
- * unicidade e a mesma precedencia (a fonte oficial manda na data de pagamento que veio do
- * extrato ou foi deduzida). Estava no {@code ProventosSyncService} (PLANO_ADM_API.md, 10.2).
+ * existe — a mesma noticia vinda de outra fonte (V22). So a rotina de proventos da adm-api
+ * (B3, historico, FNET) grava aqui: evento do catalogo vem de integracao, nunca de importacao
+ * (PLANO_CARGA_INICIAL.md, regra C — o extrato da B3 nao grava mais no catalogo).
+ *
+ * <p>Precedencia na mesma noticia: a data de pagamento que veio de outra fonte
+ * ({@link PaymentDateSource}, ex.: relatorio de proventos da CVM) cede a data da propria fonte do
+ * evento; e, para FII, o <b>FNET substitui a B3</b> (D15): o evento gravado pela B3 como reserva
+ * passa a ser do FNET quando o aviso chega.</p>
  */
 @Slf4j
 @Component
@@ -53,15 +57,32 @@ public class CashEventWriter {
                     .orElse(null);
             if (existing != null) {
                 boolean dirty = false;
+                if (existing.getSource() == CashEventSource.B3 && d.source() == CashEventSource.FNET) {
+                    // D15: FNET e a fonte principal de FII; a B3 era reserva
+                    existing.setSource(CashEventSource.FNET);
+                    existing.setSourceRef(d.sourceRef());
+                    if (d.paymentDate() != null) {
+                        existing.setPaymentDate(d.paymentDate());
+                        existing.setPaymentDateSource(null);
+                    }
+                    if (d.incomeTaxExempt() != null) {
+                        existing.setIncomeTaxExempt(d.incomeTaxExempt());
+                    }
+                    dirty = true;
+                } else if (existing.getSource() == CashEventSource.FNET && d.source() == CashEventSource.FNET
+                        && d.sourceRef() != null && !d.sourceRef().equals(existing.getSourceRef())
+                        && (existing.getSourceRef() == null || !existing.getSourceRef().matches("\\d+"))) {
+                    // evento do FNET sem o id do aviso (reclassificado pela V38, que deixou a referencia
+                    // da linha do extrato): guarda o aviso
+                    existing.setSourceRef(d.sourceRef());
+                    dirty = true;
+                }
                 if (existing.getPaymentDate() == null && d.paymentDate() != null) {
                     existing.setPaymentDate(d.paymentDate());
-                    existing.setPaymentDateSource(d.source() == CashEventSource.EXTRATO_B3
-                            ? PaymentDateSource.EXTRATO_B3 : null);
+                    existing.setPaymentDateSource(null);
                     dirty = true;
-                } else if (existing.getPaymentDateSource() != null && d.paymentDate() != null
-                        && d.source() != CashEventSource.EXTRATO_B3) {
-                    // A data veio do extrato ou foi deduzida; a fonte oficial
-                    // manda (V24).
+                } else if (existing.getPaymentDateSource() != null && d.paymentDate() != null) {
+                    // a data veio de outra fonte (CVM); a da fonte do evento manda
                     existing.setPaymentDate(d.paymentDate());
                     existing.setPaymentDateSource(null);
                     dirty = true;
@@ -89,8 +110,6 @@ public class CashEventWriter {
                     .label(label.length() > 60 ? label.substring(0, 60) : label)
                     .dataCom(d.dataCom())
                     .paymentDate(d.paymentDate())
-                    .paymentDateSource(d.source() == CashEventSource.EXTRATO_B3 && d.paymentDate() != null
-                            ? PaymentDateSource.EXTRATO_B3 : null)
                     .valuePerShare(value)
                     .seq(d.seq())
                     .approvedOn(d.approvedOn())

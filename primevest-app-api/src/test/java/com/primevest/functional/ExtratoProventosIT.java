@@ -20,9 +20,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 /**
- * Importacao do extrato de proventos da B3 (V24): POST /admin/proventos/extrato.
- * Cada linha do extrato ja existe, completa a data de um provento sem
- * pagamento ou vira evento novo — e nada duplica.
+ * Conferencia do extrato de proventos da B3: POST /admin/proventos/extrato. So le — nada vai
+ * para o catalogo nem para a carteira (PLANO_CARGA_INICIAL.md, D13): cada linha ja existe, existe
+ * sem data de pagamento no catalogo, nao tem evento no catalogo, ou e recusada.
  *
  * <p>Hoje fixo em 24/09/2026 (recebido x a receber).</p>
  */
@@ -59,26 +59,10 @@ class ExtratoProventosIT extends FuncionalBase {
         return l;
     }
 
-    private static Map<String, Object> deduzido(String ticker, String tipo, String dataCom, String cotas,
-                                                String liquido, String pagamento) {
-        Map<String, Object> d = new HashMap<>();
-        d.put("ref", "deduzido");
-        d.put("ticker", ticker);
-        d.put("type", tipo);
-        d.put("dataCom", dataCom);
-        d.put("shares", new BigDecimal(cotas));
-        d.put("netAmount", new BigDecimal(liquido));
-        d.put("paymentDate", pagamento);
-        return d;
-    }
-
     @SuppressWarnings("unchecked")
-    private Map<String, Object> importar(boolean simular, List<Map<String, Object>> linhas,
-                                         List<Map<String, Object>> deduzidos) {
+    private Map<String, Object> importar(List<Map<String, Object>> linhas) {
         Map<String, Object> corpo = new HashMap<>();
-        corpo.put("dryRun", simular);
         corpo.put("lines", linhas);
-        corpo.put("deducedPayments", deduzidos);
         ResponseEntity<Map> r = post(dono, URL, corpo, Map.class);
         assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);
         return r.getBody();
@@ -121,124 +105,48 @@ class ExtratoProventosIT extends FuncionalBase {
     // ------------------------------------------------------------------
 
     @Test
-    @DisplayName("Evento novo: rendimento de FII sem nada no PrimeVest vira evento EXTRATO_B3 e provento recebido")
-    void eventoNovo() {
+    @DisplayName("Ja existe: o provento da carteira tem o mesmo pagamento, cotas e liquido")
+    void jaExiste() {
+        evento("HGLG11", "RENDIMENTO", "FNET", "2024-12-30", "2025-01-15", "1.10", 1);
         lancarComSucesso(dono, compra("HGLG11", "2024-12-16", "10", "160.00"));
 
-        Map<String, Object> r = importar(false,
-            List.of(linha("L1", "HGLG11", "RENDIMENTO", "2025-01-15", "10", "11.00", "11.00", "2024-12-30")), List.of());
+        Map<String, Object> r = importar(
+            List.of(linha("L1", "HGLG11", "RENDIMENTO", "2025-01-15", "10", "11.00", "11.00", "2024-12-30")));
 
-        assertThat(situacoes(r)).containsExactly("EVENTO_CRIADO");
-        assertThat(proventos()).singleElement().satisfies(p -> {
-            assertThat(p.get("exDate")).isEqualTo("2024-12-30");
-            assertThat(p.get("paymentDate")).isEqualTo("2025-01-15");
-            assertThat(numero(p.get("netAmount"))).isEqualByComparingTo("11.00");
-            assertThat(numero(p.get("amountPerShare"))).isEqualByComparingTo("1.10");
-            assertThat(p.get("cashEventSource")).isEqualTo("EXTRATO_B3");
-            assertThat(p.get("paymentDateSource")).isEqualTo("EXTRATO_B3");
-            assertThat(p.get("received")).isEqualTo(true);
-        });
-    }
-
-    @Test
-    @DisplayName("Repetivel: a segunda importacao do mesmo extrato encontra tudo e nao duplica")
-    void repetivel() {
-        lancarComSucesso(dono, compra("HGLG11", "2024-12-16", "10", "160.00"));
-        List<Map<String, Object>> linhas =
-            List.of(linha("L1", "HGLG11", "RENDIMENTO", "2025-01-15", "10", "11.00", "11.00", "2024-12-30"));
-
-        importar(false, linhas, List.of());
-        Map<String, Object> segunda = importar(false, linhas, List.of());
-
-        assertThat(situacoes(segunda)).containsExactly("JA_EXISTE");
-        assertThat(proventos()).hasSize(1);
+        assertThat(situacoes(r)).containsExactly("JA_EXISTE");
         assertThat(eventos("HGLG11")).isEqualTo(1);
     }
 
     @Test
-    @DisplayName("Simulacao: relata o que faria e nao grava nada")
-    void simulacao() {
-        lancarComSucesso(dono, compra("HGLG11", "2024-12-16", "10", "160.00"));
-
-        Map<String, Object> r = importar(true,
-            List.of(linha("L1", "HGLG11", "RENDIMENTO", "2025-01-15", "10", "11.00", "11.00", "2024-12-30")), List.of());
-
-        assertThat(r.get("dryRun")).isEqualTo(true);
-        assertThat(situacoes(r)).containsExactly("EVENTO_CRIADO");
-        assertThat(proventos()).isEmpty();
-        assertThat(eventos("HGLG11")).isZero();
-    }
-
-    @Test
-    @DisplayName("Completa a data: provento do historico longo sem pagamento recebe a data do extrato")
-    void completaData() {
+    @DisplayName("Sem data: o provento existe, mas o evento do catalogo nao tem pagamento — nada e gravado")
+    void semData() {
         evento("BBAS3", "JCP", "B3_HISTORICO", "2024-12-11", null, "0.17649109403", 1);
         lancarComSucesso(dono, compra("BBAS3", "2024-12-02", "19", "28.00"));
 
-        Map<String, Object> r = importar(false,
-            List.of(linha("L1", "BBAS3", "JCP", "2024-12-27", "19", "2.85", null, null)), List.of());
+        Map<String, Object> r = importar(List.of(linha("L1", "BBAS3", "JCP", "2024-12-27", "19", "2.85", null, null)));
 
-        assertThat(situacoes(r)).containsExactly("DATA_COMPLETADA");
-        assertThat(proventos()).singleElement().satisfies(p -> {
-            assertThat(p.get("paymentDate")).isEqualTo("2024-12-27");
-            assertThat(p.get("paymentDateSource")).isEqualTo("EXTRATO_B3");
-            assertThat(p.get("cashEventSource")).isEqualTo("B3_HISTORICO");
-            assertThat(numero(p.get("netAmount"))).isEqualByComparingTo("2.85");
-        });
+        assertThat(situacoes(r)).containsExactly("SEM_DATA");
+        assertThat(proventos()).singleElement().satisfies(p -> assertThat(p.get("paymentDate")).isNull());
+        assertThat(jdbc.queryForObject("""
+            SELECT COUNT(*) FROM asset_cash_events e JOIN assets a ON a.id = e.asset_id
+            WHERE a.ticker = 'BBAS3' AND e.payment_date IS NOT NULL""", Integer.class)).isZero();
     }
 
     @Test
-    @DisplayName("Parcelas: a paga em junho vai para a parcela 1; a de dezembro, deduzida, para a 2 — e fica a receber")
-    void parcelasEDeduzida() {
-        evento("CMIG4", "JCP", "B3_HISTORICO", "2025-03-25", null, "0.09455892373", 1);
-        evento("CMIG4", "JCP", "B3_HISTORICO", "2025-03-25", null, "0.09455892373", 2);
-        lancarComSucesso(dono, compra("CMIG4", "2025-03-03", "100", "11.00"));
-
-        Map<String, Object> r = importar(false,
-            List.of(linha("L1", "CMIG4", "JCP", "2026-06-30", "100", "8.04", null, null)),
-            List.of(deduzido("CMIG4", "JCP", "2025-03-25", "100", "8.04", "2026-12-30")));
-
-        assertThat(situacoes(r)).containsExactly("DATA_COMPLETADA", "DATA_DEDUZIDA");
-        Map<Object, Object> porParcela = new HashMap<>();
-        jdbc.queryForList("""
-            SELECT e.seq, e.payment_date, e.payment_date_source FROM asset_cash_events e
-            JOIN assets a ON a.id = e.asset_id WHERE a.ticker = 'CMIG4'""")
-            .forEach(m -> porParcela.put(((Number) m.get("seq")).intValue(),
-                m.get("payment_date") + "/" + m.get("payment_date_source")));
-        assertThat(porParcela).containsEntry(1, "2026-06-30/EXTRATO_B3").containsEntry(2, "2026-12-30/DEDUZIDA");
-        assertThat(proventos()).extracting(p -> p.get("received")).containsExactlyInAnyOrder(true, false);
-    }
-
-    @Test
-    @DisplayName("Recusa: cotas na data-com deduzida nao batem com o extrato — nada e criado")
-    void cotasNaoBatem() {
+    @DisplayName("Sem evento: nada no PrimeVest — o extrato nao cria evento no catalogo")
+    void semEvento() {
         lancarComSucesso(dono, compra("HGLG11", "2024-12-16", "10", "160.00"));
 
-        Map<String, Object> r = importar(false,
-            List.of(linha("L1", "HGLG11", "RENDIMENTO", "2025-01-15", "20", "22.00", "22.00", "2024-12-30")), List.of());
+        Map<String, Object> r = importar(
+            List.of(linha("L1", "HGLG11", "RENDIMENTO", "2025-01-15", "10", "11.00", "11.00", "2024-12-30")));
 
-        assertThat(situacoes(r)).containsExactly("RECUSADO");
-        assertThat(mensagem(r, 0)).contains("10 cotas").contains("20");
+        assertThat(situacoes(r)).containsExactly("SEM_EVENTO");
         assertThat(eventos("HGLG11")).isZero();
+        assertThat(proventos()).isEmpty();
     }
 
     @Test
-    @DisplayName("Recusa: mais de um provento sem data (datas-com diferentes) se encaixa")
-    void ambiguo() {
-        evento("CMIG4", "JCP", "B3_HISTORICO", "2025-03-25", null, "0.10", 1);
-        evento("CMIG4", "JCP", "B3_HISTORICO", "2025-06-23", null, "0.10", 1);
-        lancarComSucesso(dono, compra("CMIG4", "2025-03-03", "100", "11.00"));
-
-        Map<String, Object> r = importar(false,
-            List.of(linha("L1", "CMIG4", "JCP", "2026-06-30", "100", "8.50", null, null)), List.of());
-
-        assertThat(situacoes(r)).containsExactly("RECUSADO");
-        assertThat(mensagem(r, 0)).contains("Mais de um provento");
-        assertThat(proventos()).allSatisfy(p -> assertThat(p.get("paymentDate")).isNull());
-    }
-
-    @Test
-    @DisplayName("Tres linhas iguais no mesmo dia (ISAE4) que ja existem: tres JA_EXISTE, nada duplica")
+    @DisplayName("Tres linhas iguais no mesmo dia (ISAE4) que ja existem: tres JA_EXISTE")
     void tresLinhasIguaisJaExistentes() {
         evento("ISAE4", "DIVIDENDO", "B3", "2026-03-12", "2026-04-29", "0.14131100000", 1);
         evento("ISAE4", "DIVIDENDO", "B3", "2026-04-02", "2026-04-29", "0.14131100000", 1);
@@ -246,30 +154,23 @@ class ExtratoProventosIT extends FuncionalBase {
         lancarComSucesso(dono, compra("ISAE4", "2026-03-02", "20", "24.00"));
         Map<String, Object> l = linha("L", "ISAE4", "DIVIDENDO", "2026-04-29", "20", "2.82", null, null);
 
-        Map<String, Object> r = importar(false, List.of(l, l, l), List.of());
+        Map<String, Object> r = importar(List.of(l, l, l));
 
         assertThat(situacoes(r)).containsExactly("JA_EXISTE", "JA_EXISTE", "JA_EXISTE");
-        assertThat(proventos()).hasSize(3);
         assertThat(eventos("ISAE4")).isEqualTo(3);
     }
 
     @Test
-    @DisplayName("Rendimento de acao: 22,5% confere o liquido; o mesmo valor pago de novo vira parcela 2; bruto errado e recusado")
-    void rendimentoDeAcao() {
-        lancarComSucesso(dono, compra("PETR4", "2025-12-01", "50", "35.00"));
+    @DisplayName("Recusa: ativo fora do catalogo e linha incompleta")
+    void recusa() {
+        Map<String, Object> incompleta = linha("L2", "HGLG11", "RENDIMENTO", "2025-01-15", "10", "11.00", null, null);
+        incompleta.put("paymentDate", null);
 
-        Map<String, Object> r = importar(false, List.of(
-            linha("L1", "PETR4", "RENDIMENTO", "2026-02-20", "50", "0.35", "0.45", "2025-12-22"),
-            linha("L2", "PETR4", "RENDIMENTO", "2026-03-20", "50", "0.35", "0.45", "2025-12-22"),
-            linha("L3", "PETR4", "RENDIMENTO", "2026-03-20", "50", "0.21", "0.26", "2025-12-22"),
-            linha("L4", "PETR4", "RENDIMENTO", "2026-04-20", "50", "0.35", "0.46", "2025-12-22")), List.of());
+        Map<String, Object> r = importar(List.of(
+            linha("L1", "XXXX11", "RENDIMENTO", "2025-01-15", "10", "11.00", null, null), incompleta));
 
-        assertThat(situacoes(r)).containsExactly("EVENTO_CRIADO", "EVENTO_CRIADO", "EVENTO_CRIADO", "RECUSADO");
-        assertThat(mensagem(r, 1)).contains("Parcela 2");
-        assertThat(mensagem(r, 3)).contains("Liquido calculado 0.36");
-        assertThat(proventos()).extracting(p -> numero(p.get("netAmount")).toPlainString())
-            .containsExactlyInAnyOrder("0.35", "0.35", "0.21");
-        assertThat(proventos()).allSatisfy(p -> assertThat(numero(p.get("withholdingRate"))).isEqualByComparingTo("0.225"));
+        assertThat(situacoes(r)).containsExactly("RECUSADO", "RECUSADO");
+        assertThat(mensagem(r, 0)).contains("fora do catalogo");
     }
 
     @Test
@@ -277,7 +178,6 @@ class ExtratoProventosIT extends FuncionalBase {
     void soAdministrador() {
         User outro = usuarioComCarteira("comum@primevest.test");
         Map<String, Object> corpo = new HashMap<>();
-        corpo.put("dryRun", true);
         corpo.put("lines", List.of());
 
         assertThat(post(outro, URL, corpo, String.class).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);

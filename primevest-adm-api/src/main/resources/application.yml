@@ -135,4 +135,6 @@ primevest:
 logging:
   level:
     com.primevest: INFO
+    # PDFBox avisa a troca de fonte em cada relatorio de proventos da CVM (so leitura de texto)
+    org.apache.pdfbox: ERROR
     org.springframework.security: INFO

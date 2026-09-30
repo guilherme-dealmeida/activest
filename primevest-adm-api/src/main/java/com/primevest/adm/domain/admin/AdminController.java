@@ -3,6 +3,7 @@ package com.primevest.adm.domain.admin;
 import com.primevest.config.SecurityUtils;
 import com.primevest.adm.domain.asset.AssetLogoService;
 import com.primevest.adm.domain.asset.CatalogAuditService;
+import com.primevest.adm.domain.dividend.CvmPaymentDateService;
 import com.primevest.adm.domain.dividend.ProventosCatalogService;
 import com.primevest.adm.domain.fundamentals.CompanyQuarterService;
 import com.primevest.adm.domain.fundamentals.FiiMonthlyImportService;
@@ -59,6 +60,7 @@ public class AdminController {
     private final CompanyQuarterService companyQuarterService;
     private final FiiMonthlyImportService fiiMonthlyImportService;
     private final BootstrapService bootstrapService;
+    private final CvmPaymentDateService cvmPaymentDateService;
 
     @PostMapping("/catalog-audit")
     public ResponseEntity<Map<String, String>> catalogAudit() {
@@ -203,6 +205,21 @@ public class AdminController {
     @PostMapping("/bootstrap")
     public ResponseEntity<Map<String, String>> bootstrap() {
         return start("carga inicial", () -> bootstrapService.run("sob demanda"));
+    }
+
+    /**
+     * Datas de pagamento pelos relatorios de proventos da CVM (PLANO_CARGA_INICIAL.md, 5.2 — P3):
+     * {@code from}/{@code to} em anos, de 2022 em diante.
+     */
+    @PostMapping("/cvm/proventos")
+    public ResponseEntity<Map<String, String>> cvmProventos(
+            @RequestParam(defaultValue = "" + CvmPaymentDateService.FIRST_YEAR) int from,
+            @RequestParam(required = false) Integer to) {
+        int last = to != null ? to : java.time.LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo")).getYear();
+        if (from < CvmPaymentDateService.FIRST_YEAR || last < from) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Periodo invalido: " + from + " a " + last);
+        }
+        return start("datas de pagamento CVM", () -> cvmPaymentDateService.run(from, last, "sob demanda"));
     }
 
     @PostMapping("/proventos")

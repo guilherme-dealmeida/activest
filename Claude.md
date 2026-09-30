@@ -259,13 +259,14 @@ Plano, decisões e achados da integração: **`PLANO_BRAPI.md`** (executado em
 | Recálculo de proventos e valorização de todas as posições — `PositionRefreshScheduler` | 21:00 | app-api |
 | Fila das integrações com corretoras — `IntegrationSyncScheduler` (06:30) e `IntegrationWorker` (5 s) | — | app-api |
 
-Disparo manual para admin, **na adm-api (8081)**: `POST /api/v1/admin/{closing|proventos|catalog-audit|logos|issuers/import|issuers/link|b3/cotahist|cvm/import|cvm/quarters|cvm/fii-monthly|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, balanços e informe de FII, em ordem — PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
+Disparo manual para admin, **na adm-api (8081)**: `POST /api/v1/admin/{closing|proventos|catalog-audit|logos|issuers/import|issuers/link|b3/cotahist|cvm/import|cvm/quarters|cvm/fii-monthly|cvm/proventos|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, datas de pagamento da CVM, balanços e informe de FII, em ordem — PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
 (`b3/cotahist?from=2010&to=2026`, padrão 2010 até o ano corrente; `cvm/import?from=2010&to=2026&force=false` —
 documento na mesma versão é pulado, `force=true` reprocessa a partir de `data/cvm` sem baixar; ao terminar recalcula
 a série trimestral, que `cvm/quarters` recalcula sozinha; `cvm/fii-monthly?from=2016&to=2026&force=false` — informe
 mensal de FII em `fii_monthly`, mês na mesma versão é pulado). Na **app-api (8080)** só
-`POST /api/v1/admin/proventos/extrato` (importação da carteira). Script: `E:\carga\scripts\admin.mjs <rotina> [--json corpo.json]` —
-login na 8080 com a `PRIMEVEST_SENHA` do `.env` e disparo na 8081 (ou na 8080, para o extrato).
+`POST /api/v1/admin/proventos/extrato` (importação da carteira). Script: `node scripts/admin.mjs <rotina> [--json corpo.json]`
+(ou `docker compose --profile carga run --rm tools node scripts/admin.mjs <rotina>`) — login na app-api com a
+`PRIMEVEST_SENHA` do `.env` e disparo na adm-api (ou na app-api, para o extrato); portas do `.env` (`API_PORT`, `ADM_API_PORT`).
 Curadoria dos emissores (F3): `POST /api/v1/admin/issuers/fii-cnpjs` (lista `[{ticker, cnpj}]`, liga FII como `MANUAL`,
 síncrono) e `PUT /api/v1/admin/assets/{id}/issuer` (`{issuerId | cnpj, shareClass}`; CNPJ que não é emissor vem do
 cadastro da CVM; `shareClass` nula para o que não é ação; sem `issuerId` e sem `cnpj` desfaz) e
@@ -280,7 +281,9 @@ Todas as fontes abaixo, menos o Google, são da **adm-api** (config em `primeves
 |-----|-----|--------|
 | **BrAPI** (plano gratuito) | Fechamento diário da B3 (OHLCV) dos ativos em carteira, lista oficial de tickers e renomes (conferência do catálogo), logos | `brapi.base-url`, `BRAPI_TOKEN` (no `.env`, header `Authorization: Bearer`) |
 | **Site da B3** (sem token, não documentado) | Proventos (~12 meses), desdobramentos/grupamentos/bonificações, ticker↔ISIN, histórico longo de empresa | `b3.base-url` |
-| **FNET** (`FnetClient`, refeito na F8) | Proventos de FII além de 12 meses (avisos estruturados). O histórico sai **só de `data/fnet/{id}.xml`**, por um índice local `CNPJFundo` → avisos (a carga não chama o FNET; aviso novo depois de 27/09/2026 precisa de busca explícita, ainda não feita — PENDENCIAS 18.10 d). A busca por CNPJ e o download ficam no client: aviso baixado vai para `data/fnet` e nunca é baixado de novo; download com timeout de 5 s, até 6 tentativas com espera crescente e no máximo 3 simultâneos; lê os dois formatos de XML (o antigo, 2016–2019, com `ValorProventoCota`). Aviso ligado pelo CNPJ, sem recibo (final 12–19) e sem data-base depois do pagamento | `fnet.*`, `primevest.data.dir` |
+| **B3 — 12 meses acumulados** (`B3SupplementStore`) | A resposta de ~12 meses (a única com data de pagamento de ação) somada a `data/b3/proventos-12m/{acoes,fundos}/{EMISSOR}.json`: o que sai da janela continua valendo, e um banco novo recebe as datas do arquivo (PLANO_CARGA_INICIAL.md, P1). O export inicial saiu do banco de desenvolvimento em 29/09/2026 (4.327 proventos, 503 emissores) | `primevest.data.dir` |
+| **CVM — Relatório Proventos** (`CvmProventosReport`, `CvmPaymentDateService`) | Data de pagamento de 2022 em diante para o que o histórico da B3 não traz: índice IPE anual (`data/cvm/ipe`), PDF de cada relatório do RAD (`data/cvm/proventos/{protocolo}_{versao}.pdf`, lido com PDFBox), casado por ISIN, data-com (último dia com direitos) e valor; grava `payment_date_source = 'CVM'`. Na carga inicial e às 20:00 (ano corrente e anterior); `POST /api/v1/admin/cvm/proventos?from=2022&to=` | `cvm.base-url`, `cvm.rad-parallel-downloads` |
+| **FNET** (`FnetClient`, refeito na F8) | Proventos de FII além de 12 meses (avisos estruturados). O histórico sai **só de `data/fnet/{id}.xml`**, por um índice local `CNPJFundo` → avisos (a carga não chama o FNET). **Fonte principal de FII** (D15 do PLANO_CARGA_INICIAL.md): aplicado antes da B3, e o evento que a B3 gravou como reserva passa a ser do FNET quando o aviso chega; quando a B3 mostra um provento mais novo que o último aviso gravado do fundo, o FNET é consultado pelo CNPJ (no máximo uma vez por dia por fundo) e o aviso novo é baixado (PENDENCIAS 18.10 d). A busca por CNPJ e o download ficam no client: aviso baixado vai para `data/fnet` e nunca é baixado de novo; download com timeout de 5 s, até 6 tentativas com espera crescente e no máximo 3 simultâneos; lê os dois formatos de XML (o antigo, 2016–2019, com `ValorProventoCota`). Aviso ligado pelo CNPJ, sem recibo (final 12–19) e sem data-base depois do pagamento | `fnet.*`, `primevest.data.dir` |
 | **Série histórica da B3 — COTAHIST** (`B3HistoricalQuotesClient`) | Preço diário não ajustado de ações (lote padrão e fracionário) e FIIs desde 2010, e o ISIN de cada ticker do catálogo. Zip por ano em `data/b3/cotahist`. Dia gravado pela B3 não é sobrescrito pela BRAPI (`asset_price_history.source`, V29) | `b3.cotahist-url` |
 | **CVM dados abertos** (`CvmOpenDataClient`) | Emissores (cadastro de companhias, FCA, informe mensal de FII); informe mensal de FII 2016+ em `fii_monthly` (`CvmFiiMonthly`, partes complemento e ativo/passivo, F7); balanços DFP (2010+) e ITR (2011+) (`CvmStatements`); histórico de capital do Formulário de Referência (`CvmFreCapital`, quantidade de ações antes de 2020 e régua da escala depois). Cache em `data/cvm/{cad,fca,fii,dfp,itr,fre}` — o arquivo é o estado (`PLANO_EMPRESAS_BALANCOS.md`) | `cvm.base-url`, `primevest.data.dir` |
 | **CoinGecko** | Preço de cripto (id em `assets.price_source_ref`) e logos das moedas | `coingecko.base-url` |
@@ -306,9 +309,8 @@ primevest/
 ├── Claude.md                    # este arquivo — referência operacional
 ├── PENDENCIAS.txt               # o que ficou por fazer, com o porquê
 ├── .claude/                     # ponte de execução: build.ps1 + logs/ (ver README de lá)
-├── generate_assets_sql.py       # geradores auxiliares, usados uma vez
-├── generate_classes.py          #   para montar seeds; não fazem parte do build
-├── generate_seeds.js            #
+├── scripts/                     # carga e manutenção (PLANO_CARGA_INICIAL.md): admin.mjs, get.mjs,
+│                                # gerar_seed_emissores.mjs, data/ (rclone ↔ bucket R2), sql/ (conferência)
 │
 ├── pom.xml                      # agregador Maven (PLANO_ADM_API.md): versões, compilador, testes
 ├── Dockerfile                   # backend, contexto na raiz; alvos dev e runtime; ARG MODULE
@@ -324,7 +326,7 @@ primevest/
 │       │   ├── domain/auth/     # JwtTokenProvider, JwtAuthFilter, UserDetailsServiceImpl
 │       │   ├── config/          # SecurityUtils
 │       │   └── exception/       # GlobalExceptionHandler, BusinessException...
-│       ├── main/resources/db/migration/   # V1 .. V37 (as duas aplicações rodam o Flyway)
+│       ├── main/resources/db/migration/   # V1 .. V38 (as duas aplicações rodam o Flyway)
 │       └── test/                # test-jar: IntegrationTestBase, JpaTestBase, PostgresContainer,
 │                                # Fixtures, CatalogIds, Tokens, application-test.yml; SchemaTest
 │
@@ -453,7 +455,7 @@ coluna.
 > usuário; `getName()` é para lógica interna. `AssetCategory.getDisplayName()`
 > encapsula o fallback description → name.
 
-### Flyway — V1 a V37
+### Flyway — V1 a V38
 
 O Flyway roda do zero no perfil `docker`. No perfil `dev` fica desligado, porque
 o banco local é gerenciado à mão.
@@ -470,7 +472,7 @@ O reset deixou **9 arquivos, 156 KB contra 340 KB**. Desde então entraram
 V10–V12 (20/09/2026), V13–V22 (24/09/2026, integração BRAPI/B3) e V23
 (24/09/2026, IR retido nos proventos), V24 (25/09/2026, extrato de proventos
 da B3) V25 a V27 (25/09/2026, integrações com corretoras) V28 e V29 (27/09/2026, emissores e origem do preço histórico), V30 e V31 (27/09/2026, seed dos emissores e
-categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, série trimestral), V34 (28/09/2026, informe mensal de FII), V35 a V37 (28/09/2026, amortização da B3, escala por evento e `assets` sem estado — F10), e o banco fica na **versão 37**.
+categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, série trimestral), V34 (28/09/2026, informe mensal de FII), V35 a V37 (28/09/2026, amortização da B3, escala por evento e `assets` sem estado — F10), V38 (29/09/2026, catálogo sem o extrato), e o banco fica na **versão 38**.
 
 | Arquivo | Conteúdo |
 |---------|----------|
@@ -493,7 +495,7 @@ categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, s
 | V21 | `assets.logo_path` e `logo_checked_at` (saíram na V37) |
 | V22 | `asset_cash_events.seq`: parcelas iguais do mesmo provento |
 | V23 | IR retido nos proventos: `withholding_tax_rules` (+ carga inicial) e `dividends.withholding_rule_id/withholding_rate/withholding_tax/net_amount_per_share/net_amount/tax_checked_at` |
-| V24 | Extrato de proventos da B3: fonte `EXTRATO_B3` em `asset_cash_events.source` e `asset_cash_events.payment_date_source` (`EXTRATO_B3` ou `DEDUZIDA`; nula = data da fonte oficial) |
+| V24 | Extrato de proventos da B3: fonte `EXTRATO_B3` em `asset_cash_events.source` e `asset_cash_events.payment_date_source` (`EXTRATO_B3` ou `DEDUZIDA`; nula = data da fonte oficial) — desfeita na V38 |
 | V25 | Integrações (F1 do `PLANO_CRIPTO_BINANCE.md`): as 6 tabelas `integration_*` e `transactions.origin` (`MANUAL`/`AUTO`), `external_id`, `connection_id`, `executed_at`, `edited_at`, `source_snapshot` (JSONB); `ck_transactions_origin` e índice único parcial `(connection_id, external_id)` |
 | V26 | Confirmação da importação (F4): `integration_run_items` guarda o lote inteiro (+ `duplicate_of`, `resolution`, `transaction_id`); `integration_runs.next_cursors`, `fiat_deposited` |
 | V27 | Fila das integrações (F5): `integration_runs.balances` (saldo da corretora, aviso de divergência) e índice `(status, created_at)` |
@@ -506,6 +508,7 @@ categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, s
 | V34 | Informe mensal de FII (F7/M6): `fii_monthly`, um mês por fundo emissor, cru (PL, cotas, VP por cota, cotistas, taxas do mês, carteira e passivo); nasce vazia e é preenchida por `POST /api/v1/admin/cvm/fii-monthly` e pela rotina das 07:30 |
 | V35 | `AMORTIZACAO RF` da B3 vira `AMORTIZACAO`: a linha que repete a do FNET sai (completando pagamento e aprovação), a que só a B3 tem recebe o tipo |
 | V36 | `share_counts.scale_check` aceita `EVENTO` |
+| V38 | PLANO_CARGA_INICIAL.md (D13): catálogo sem o extrato — eventos `EXTRATO_B3` de FII viram `FNET`, os demais saem (proventos do usuário ficam `MANUAL`), datas `EXTRATO_B3`/`DEDUZIDA` apagadas; `source` só `B3`, `B3_HISTORICO`, `FNET`; `payment_date_source` só `CVM` |
 | V37 | M7/F10: `assets` sem `cnpj` (é do emissor), `cash_history_loaded_at` (histórico se reconhece pelo gravado e por `data/b3/proventos`, `data/fnet`), `logo_path` e `logo_checked_at` (o arquivo em `data/logos` é o estado) |
 
 **Como o reset foi verificado** — vale registrar, porque é o método a repetir se
@@ -1060,42 +1063,31 @@ Plano completo e conferência contra o extrato da B3 em `PLANO_IR_PROVENTOS.md`.
   Receber (todos acompanham os filtros), filtro "Situação" e coluna SITUAÇÃO
   (RECEBIDO verde, A RECEBER cinza — o selo da SUGESTÃO da Estratégia).
 
-## 🧾 Extrato de proventos da B3 (25/09/2026)
+## 🧾 Extrato de proventos da B3 (25/09/2026; só conferência desde 29/09/2026)
 
-Preenche o que as fontes oficiais não trazem: data de pagamento dos eventos que
-só existem no histórico longo (`B3_HISTORICO`), FII sem aviso no FNET e o
-"rendimento" (Selic) de ação, que a B3 não publica nos dados da empresa.
+**Desde 29/09/2026 o extrato não grava nada** (`PLANO_CARGA_INICIAL.md`, regra C e D13; V38):
+evento do catálogo vem de integração — FNET, B3 e relatórios de proventos da CVM. O que só o
+extrato de um usuário tem é dado dele. A fonte `EXTRATO_B3` e as origens de data `EXTRATO_B3` e
+`DEDUZIDA` saíram do catálogo; a V38 passou os 18 eventos de FII para `FNET` (os avisos estavam em
+`data/fnet`), tirou do catálogo os 3 de PETR4 (os proventos do usuário ficaram como `MANUAL`) e
+apagou as datas que vinham do extrato.
 
-- **Entrada**: `POST /api/v1/admin/proventos/extrato` (só admin; 403 para os
-  demais), corpo `{dryRun, lines[], deducedPayments[]}`. Com `dryRun: true`
-  tudo roda e é desfeito (`setRollbackOnly`). É repetível: rodar de novo dá
-  tudo `JA_EXISTE`. Serviço: `ExtratoProventosImportService`.
-- **Cada linha** (ativo, tipo, pagamento, cotas, líquido; opcionais bruto e
-  data-com) vira um status: `JA_EXISTE` (provento igual já está lá);
-  `DATA_COMPLETADA` (provento sem pagamento com as mesmas cotas e líquido —
-  recusa se os candidatos tiverem datas-com diferentes; parcelas iguais pela
-  menor `seq`); `EVENTO_CRIADO` (só com data-com e bruto: confere as cotas na
-  data-com, o valor por cota reproduz o bruto e o IR reproduz o líquido; grava
-  no catálogo com fonte `EXTRATO_B3`, na primeira `seq` livre); `RECUSADO`.
-  `deducedPayments` completa a data com origem `DEDUZIDA` (`DATA_DEDUZIDA`).
-- **Evento do extrato é do catálogo**, como os outros: o
-  `DividendRecalculator` gera o provento de cada posição. Nada é gravado direto
-  em `dividends`.
-- **Origem da data** (`asset_cash_events.payment_date_source`): nula = fonte
-  oficial; `EXTRATO_B3` ou `DEDUZIDA` = veio daqui. No `saveCashEvent`, a data
-  oficial substitui a do extrato/deduzida (e zera a origem); o extrato nunca
-  substitui data oficial.
-- **Tela**: DATA COM e PAGAMENTO com sublinhado pontilhado e hover quando o
-  evento é do extrato ou a data não é oficial (`cashEventSource` e
-  `paymentDateSource` no `DividendResponseDTO`).
-- **Carga real fica fora do projeto**: scripts em `E:\carga\scripts`
-  (`converter_proventos.mjs` lê os Excel da Área do Investidor e deduz a
-  data-com dos FIIs pelo padrão de cada fundo; `carregar_proventos.mjs` simula
-  por padrão e grava com `--gravar`).
+- **Entrada**: `POST /api/v1/admin/proventos/extrato` (só admin, app-api), corpo `{lines[]}`
+  (ativo, tipo, pagamento, cotas, líquido; opcionais bruto e data-com). Serviço:
+  `ExtratoProventosImportService`, `@Transactional(readOnly = true)`.
+- **Cada linha** vira um status: `JA_EXISTE` (provento da carteira com o mesmo pagamento, cotas e
+  líquido); `SEM_DATA` (o provento existe, mas o evento do catálogo está sem data de pagamento — a
+  integração ainda não trouxe); `SEM_EVENTO` (o catálogo não tem o provento); `RECUSADO`.
+- **Origem da data** (`asset_cash_events.payment_date_source`): nula = da fonte do evento; `CVM`
+  = relatório de proventos da CVM. A data da fonte do evento substitui a da CVM (`CashEventWriter`).
+- **Tela**: PAGAMENTO com sublinhado pontilhado e hover quando a data veio da CVM
+  (`paymentDateSource` no `DividendResponseDTO`).
+- A importação da carteira por arquivo é escopo próprio (PENDENCIAS 16); os scripts pessoais do
+  Guilherme continuam fora do projeto (`E:\carga`) e não são necessários para subir o PrimeVest.
 - **`GlobalExceptionHandler`** trata `ResponseStatusException` com o status e o
   motivo da própria exceção. Antes ela caía no handler genérico e virava 500 —
   inclusive o 403 dos endpoints de admin.
-- Testes: `ExtratoProventosIT` (10 cenários) e `PaymentDateSourceIT` (2).
+- Testes: `ExtratoProventosIT` (6 cenários) e `PaymentDateSourceIT` (2: CVM cede à B3; FNET assume a reserva da B3).
 
 ## ⚠️ Pontos de Atenção
 

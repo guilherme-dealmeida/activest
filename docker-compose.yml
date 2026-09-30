@@ -5,6 +5,12 @@
 #   docker compose down -v          para tudo e APAGA o banco (recria do zero na próxima subida)
 #
 # Copie .env.example para .env se quiser sobrescrever qualquer valor.
+#
+# Carga e bucket (profile "carga", não sobe no `up`):
+#   docker compose --profile carga run --rm data pull [--minimo]   bucket R2 -> data/ (máquina nova)
+#   docker compose --profile carga run --rm data push              data/ -> bucket + manifests (produtor)
+#   docker compose --profile carga run --rm data status            data/ x bucket
+#   docker compose --profile carga run --rm tools node scripts/admin.mjs bootstrap
 
 services:
   db:
@@ -161,6 +167,45 @@ services:
     depends_on:
       - app-api
     restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Profile "carga" (PLANO_CARGA_INICIAL.md): não sobem no `docker compose up`.
+  # ---------------------------------------------------------------------------
+
+  # data/ <-> bucket R2 (rclone). A aplicação lê só a data/ local; o bucket é a cópia de
+  # referência: a máquina nova baixa uma vez (pull, token só leitura) e o produtor sobe o
+  # que as rotinas gravaram (push, chave de escrita). O push nunca apaga nada no bucket.
+  data:
+    image: rclone/rclone:1.75.1
+    profiles: ["carga"]
+    entrypoint: ["sh", "/scripts/data.sh"]
+    command: ["status"]
+    environment:
+      DATA_STORAGE: ${DATA_STORAGE:-local}
+      S3_BUCKET: ${S3_BUCKET:-primevest-data}
+      RCLONE_CONFIG_R2_TYPE: s3
+      RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+      RCLONE_CONFIG_R2_ENDPOINT: ${S3_ENDPOINT:-}
+      RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-}
+      RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-}
+      # token só leitura não pode (nem precisa) conferir/criar o bucket
+      RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
+    volumes:
+      - ./data:/data
+      - ./scripts/data:/scripts:ro
+
+  # Scripts Node do projeto (scripts/*.mjs) sem Node na máquina: falam com as APIs pela
+  # rede do compose.
+  tools:
+    image: node:22-alpine
+    profiles: ["carga"]
+    working_dir: /work
+    environment:
+      PRIMEVEST_API_URL: http://app-api:8080
+      PRIMEVEST_ADM_URL: http://adm-api:8081
+      PRIMEVEST_SENHA: ${PRIMEVEST_SENHA:-}
+    volumes:
+      - ./scripts:/work/scripts:ro
 
 volumes:
   pgdata:

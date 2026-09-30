@@ -1,5 +1,6 @@
 package com.primevest.adm.scheduler;
 
+import com.primevest.adm.domain.dividend.CvmPaymentDateService;
 import com.primevest.adm.domain.dividend.ProventosCatalogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Component;
 public class ProventosScheduler {
 
     private final ProventosCatalogService proventosCatalogService;
+    private final CvmPaymentDateService cvmPaymentDateService;
 
     @Value("${primevest.proventos.enabled:true}")
     private boolean enabled;
@@ -33,5 +35,9 @@ public class ProventosScheduler {
             return;
         }
         proventosCatalogService.syncAll("20:00");
+        // data de pagamento que so o relatorio de proventos da CVM tem (PLANO_CARGA_INICIAL.md, 5.2):
+        // ano corrente e anterior — o indice IPE so e baixado de novo se mudou
+        int year = java.time.LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo")).getYear();
+        cvmPaymentDateService.run(year - 1, year, "20:00");
     }
 }

@@ -112,4 +112,4 @@ if ($doDocker) {
 }
 
 Write-Host ""
-Write-Host "Pronto. Diga no chat: 'olha o log' — o Claude le .claude\logs\ sozinho."
+Write-Host "Pronto. Diga no chat: 'olha o log' - o Claude le .claude\logs\ sozinho."

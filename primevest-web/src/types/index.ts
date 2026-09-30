@@ -428,9 +428,9 @@ export interface DividendResponse {
    * (Dividend.isReceived): pagamento até hoje; sem data, conforme a origem.
    */
   received: boolean;
-  /** Fonte do evento: B3, B3_HISTORICO, FNET ou EXTRATO_B3 (data-com deduzida). */
+  /** Fonte do evento: B3, B3_HISTORICO ou FNET. */
   cashEventSource: string | null;
-  /** Origem da data de pagamento quando não é a da fonte: EXTRATO_B3 ou DEDUZIDA. */
+  /** Origem da data de pagamento quando não é a da fonte: CVM (relatório de proventos). */
   paymentDateSource: string | null;
   assetTypeId: number | null;
   /** Descrição do tipo de ativo (AssetType.getDescription). */

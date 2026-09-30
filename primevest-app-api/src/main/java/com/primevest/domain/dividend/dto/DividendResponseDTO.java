@@ -33,9 +33,9 @@ public record DividendResponseDTO(
     Boolean hasLogo,
     /** Ja recebido hoje (fuso da B3)? false = a receber. Dividend.isReceived. */
     boolean received,
-    /** Fonte do evento do catalogo (B3, B3_HISTORICO, FNET, EXTRATO_B3). EXTRATO_B3 = data-com deduzida. */
+    /** Fonte do evento do catalogo (B3, B3_HISTORICO, FNET). */
     String cashEventSource,
-    /** Origem da data de pagamento quando nao e a da fonte: EXTRATO_B3 ou DEDUZIDA (V24). Nulo = oficial. */
+    /** Origem da data de pagamento quando nao e a da fonte do evento: CVM (V38). Nulo = da fonte. */
     String paymentDateSource,
     /** Emissor do catalogo (assets.issuer_id), para o link da tela de emissoras. Nulo sem emissor. */
     Long issuerId

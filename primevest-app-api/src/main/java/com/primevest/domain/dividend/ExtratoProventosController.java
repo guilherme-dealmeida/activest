@@ -16,12 +16,11 @@ import org.springframework.web.server.ResponseStatusException;
  * Extrato de proventos da Area do Investidor da B3 para a carteira de quem chama (V24).
  *
  * <p>Continua na app-api quando o resto do {@code /api/v1/admin} foi para a adm-api
- * (PLANO_ADM_API.md, 10.2 e decisao A3): casa o extrato com os proventos do usuario e
- * recalcula a carteira dele na mesma transacao — e importacao da carteira, nao rotina de
- * catalogo. Rota e exigencia de admin mantidas ate virar tela (escopo de importacoes).</p>
+ * (PLANO_ADM_API.md, 10.2 e decisao A3): confere o extrato contra os proventos do usuario —
+ * e da carteira, nao rotina de catalogo. Rota e exigencia de admin mantidas ate virar tela (escopo de importacoes).</p>
  *
- * <p>Sincrono: a resposta traz a situacao de cada linha. {@code dryRun: true} confere tudo e
- * desfaz — o script de carga roda assim primeiro (E:\\carga\\scripts\\carregar_proventos.mjs).</p>
+ * <p>Sincrono e <b>so conferencia</b> desde 29/09/2026 (PLANO_CARGA_INICIAL.md, D13): a resposta traz
+ * a situacao de cada linha e nada e gravado — evento do catalogo vem de integracao.</p>
  */
 @RestController
 @RequestMapping("/api/v1/admin/proventos")

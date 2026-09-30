@@ -114,44 +114,45 @@ conhecidas — estão em `Claude.md`. O que ficou por fazer está em `PENDENCIAS
 
 As migrations criam o schema e o catálogo semeado (ativos, categorias, emissores, ligação
 ativo → emissor, composição das units e o usuário administrador). O histórico — preços desde
-2010, proventos, balanços da CVM, série trimestral e informe mensal de FII — entra pela
-**carga inicial**, disparada à mão na adm-api (porta 8081). Ela não roda sozinha ao subir.
+2010, proventos (com data de pagamento), balanços da CVM, série trimestral e informe mensal de
+FII — entra pela **carga inicial**, disparada à mão na adm-api. Ela não roda sozinha ao subir.
+Nada depende de pasta fora do projeto (`PLANO_CARGA_INICIAL.md`).
 
 **Antes:**
 
-1. **Pasta `data/`** na raiz do projeto (fora do git, ~2 GB): `cvm/`, `b3/cotahist/`,
-   `b3/proventos/`, `fnet/` e `logos/`, copiada de quem já tem o banco. Com ela a carga lê
-   quase tudo do disco; sem ela baixa ~2 GB da CVM e da B3, e os proventos de FII ficam só com
-   os últimos 12 meses (os avisos antigos do FNET não são baixados automaticamente).
-2. **`.env`** a partir do `.env.example` (banco e `JWT_SECRET`; o `BRAPI_TOKEN` só é preciso
-   para o fechamento diário, não para a carga).
+1. **`.env`** a partir do `.env.example`: `PRIMEVEST_SENHA` (senha do administrador semeado,
+   `guilhermeunatec@gmail.com`, migration V9 — peça a quem mantém o projeto) e o **token só
+   leitura** do bucket R2 (`S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`).
+2. **Pasta `data/`** (fora do git, ~1,4 GB) baixada do bucket `primevest-data` (Cloudflare R2):
+   `cvm/`, `b3/cotahist/`, `b3/proventos/`, `b3/proventos-12m/`, `fnet/` e `logos/`. Com ela a
+   carga lê quase tudo do disco; sem ela baixa ~2 GB da CVM e da B3, e perde o que as fontes não
+   devolvem mais (avisos antigos do FNET e datas de pagamento que já saíram da janela da B3).
 3. **Internet:** mesmo com `data/` cheia, os proventos dos últimos 12 meses de cada emissor vêm
    da B3 (uma chamada por segundo).
-4. **Senha do administrador semeado** (`guilhermeunatec@gmail.com`, migration V9) — peça a quem
-   mantém o projeto.
 
-**Rodar:**
+**Rodar** (só Docker; os scripts rodam pelos contêineres do profile `carga`):
 
 ```bash
-docker compose up -d --build        # as migrations rodam ao subir as APIs
-
-# login na app-api (8080) e disparo na adm-api (8081)
-TOKEN=$(curl -s http://localhost:8080/api/v1/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"guilhermeunatec@gmail.com","password":"<senha>"}' | sed 's/.*"accessToken":"\([^"]*\)".*/\1/')
-curl -X POST http://localhost:8081/api/v1/admin/bootstrap -H "Authorization: Bearer $TOKEN"
-
+docker compose --profile carga run --rm data pull           # bucket -> data/ (--minimo: só o essencial)
+docker compose up -d --build                                # as migrations rodam ao subir as APIs
+docker compose --profile carga run --rm tools node scripts/admin.mjs bootstrap
 docker compose logs -f adm-api      # acompanhar; termina em "Carga inicial (...) concluida"
 ```
 
 A carga roda, em ordem: emissores (completa o seed com as companhias e os FIIs negociados que não
-estão no catálogo), COTAHIST, proventos, balanços com a série trimestral, e informe mensal de FII.
-Com `data/` cheia leva **~50 min**. É retomável: se uma etapa falhar (a B3 às vezes cai), rode de
-novo — o que já entrou é pulado.
+estão no catálogo), COTAHIST, proventos (FII pelo FNET, ações pela B3), datas de pagamento pelos
+relatórios de proventos da CVM (2022+), balanços com a série trimestral, e informe mensal de FII.
+Com `data/` cheia leva **~1 h**. É retomável: se uma etapa falhar (a B3 às vezes cai), rode de
+novo — o que já entrou é pulado. Conferência: `scripts/sql/contagens.sql` e
+`scripts/sql/datas_pagamento.sql` (ver `scripts/README.md`).
 
 **Depois:** o preço atual dos ativos vem do fechamento diário (19:00, ou na subida da adm-api se
 estiver atrasado), que usa a BRAPI (`BRAPI_TOKEN`). Até lá, os indicadores usam o último
 fechamento do COTAHIST. Carteiras e transações são de cada usuário e não fazem parte da carga.
+
+**Quem mantém o bucket** (chave de escrita no `.env`): as rotinas gravam o que chega das fontes em
+`data/`; `docker compose --profile carga run --rm data push` sobe o que é novo (nunca apaga) e
+regrava os manifests. `data status` compara `data/` com o bucket.
 
 ## 🔌 APIs Externas
 

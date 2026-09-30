@@ -21,6 +21,7 @@ import com.primevest.adm.integration.b3.B3Exception;
 import com.primevest.adm.integration.b3.B3CompanyDetail;
 import com.primevest.adm.integration.b3.B3HistoryPage;
 import com.primevest.adm.integration.b3.B3Supplement;
+import com.primevest.adm.integration.b3.B3SupplementStore;
 import com.primevest.adm.integration.b3.B3Values;
 import com.primevest.adm.integration.b3.FnetClient;
 import com.primevest.adm.integration.b3.FnetNotice;
@@ -79,8 +80,15 @@ import java.util.regex.Pattern;
  * nenhum evento dele; FII pelo FNET (2016 em
  * diante, com pagamento): os avisos do CNPJ que estao em {@code data/fnet} (indice local do
  * {@link FnetClient}), sem perguntar ao FNET — a busca por fundo leva 3 a 10 s, trava com
- * frequencia, e o cache ja tem o historico. Depois disso o dia a dia e so a B3 (12 meses,
- * com pagamento); aviso novo do FNET fica para uma busca explicita (PENDENCIAS 18.10). O aviso e ligado pelo CNPJ
+ * frequencia, e o cache ja tem o historico.</p>
+ *
+ * <p><b>PLANO_CARGA_INICIAL.md (5.2):</b> a resposta de ~12 meses da B3 e somada a
+ * {@code data/b3/proventos-12m} ({@link B3SupplementStore}) e a rotina aplica o arquivo inteiro —
+ * a data de pagamento nao se perde quando o evento sai da janela, e um banco novo a recebe do
+ * arquivo. Para FII o <b>FNET e a fonte principal</b> (D15): os avisos em disco sao aplicados
+ * antes da B3, e quando a B3 mostra um provento mais novo que o ultimo aviso gravado o FNET e
+ * consultado pelo CNPJ (no maximo uma vez por dia por fundo) e o aviso novo e baixado; a B3 fica
+ * de reserva para o fundo sem aviso. O aviso e ligado pelo CNPJ
  * do emissor, nao pelo ticker (renomeacoes); recibo de subscricao (final 12 a 19) e
  * aviso com data-base depois do pagamento ficam de fora (1.5 do plano). ETF nao tem
  * fonte alem dos 12 meses: o que faltar e lancamento manual. No escopo HELD o
@@ -125,6 +133,7 @@ public class ProventosCatalogService {
     private final CashEventWriter cashEventWriter;
     private final CatalogChangePublisher catalogPublisher;
     private final B3Client b3Client;
+    private final B3SupplementStore supplementStore;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final Path historyDir;
     private final FnetClient fnetClient;
@@ -133,6 +142,9 @@ public class ProventosCatalogService {
     private final long pauseMillis;
     private final boolean catalogScope;
     private final Map<String, Instant> lastIssuerSync = new ConcurrentHashMap<>();
+    /** Busca no FNET por CNPJ: no maximo uma por dia por fundo (a busca leva 3 a 10 s). */
+    private final Map<String, Instant> lastFnetSearch = new ConcurrentHashMap<>();
+    private static final long FNET_SEARCH_COOLDOWN_SECONDS = 20 * 3600;
     private final ReentrantLock fullRun = new ReentrantLock();
     private final Map<String, ReentrantLock> groupLocks = new ConcurrentHashMap<>();
     /** Fila unica do sob demanda: um executor, sem repetir ativo ja na fila. */
@@ -147,7 +159,7 @@ public class ProventosCatalogService {
                                 AssetStockEventRepository stockEventRepository,
                                 TransactionRepository transactionRepository, OpenPositions openPositions,
                                 CashEventWriter cashEventWriter, CatalogChangePublisher catalogPublisher,
-                                B3Client b3Client, FnetClient fnetClient,
+                                B3Client b3Client, B3SupplementStore supplementStore, FnetClient fnetClient,
                                 com.fasterxml.jackson.databind.ObjectMapper objectMapper,
                                 JdbcTemplate jdbc, PlatformTransactionManager transactionManager,
                                 @Value("${primevest.proventos.pause-millis:1000}") long pauseMillis,
@@ -161,6 +173,7 @@ public class ProventosCatalogService {
         this.cashEventWriter = cashEventWriter;
         this.catalogPublisher = catalogPublisher;
         this.b3Client = b3Client;
+        this.supplementStore = supplementStore;
         this.objectMapper = objectMapper;
         this.historyDir = Path.of(dataDir, "b3", "proventos").toAbsolutePath().normalize();
         this.fnetClient = fnetClient;
@@ -357,17 +370,38 @@ public class ProventosCatalogService {
     private Counters syncGroup(IssuerGroup group) {
         Counters c = new Counters();
         pause();
-        B3Supplement supplement = group.kind() == IssuerKind.COMPANY
-                ? b3Client.companySupplement(group.issuer())
-                : b3Client.fundSupplement(group.issuer());
+        boolean fund = group.kind() == IssuerKind.FUND;
+        B3Supplement fresh;
+        B3Exception b3Down = null;
+        try {
+            fresh = fund ? b3Client.fundSupplement(group.issuer()) : b3Client.companySupplement(group.issuer());
+            if (fresh == null) {
+                log.warn("Proventos: a B3 nao encontrou o emissor {}", group.issuer());
+            }
+        } catch (B3Exception e) {
+            // a B3 caiu: segue com o que ja esta em data/b3/proventos-12m
+            log.warn("Proventos: B3 sem resposta para {} ({}) — usando o arquivo em disco", group.issuer(), e.getMessage());
+            fresh = null;
+            b3Down = e;
+        }
         lastIssuerSync.put(group.issuer(), Instant.now());
+        // resposta somada ao arquivo: o que saiu da janela de 12 meses continua valendo (P1)
+        B3Supplement supplement = supplementStore.merge(fund, group.issuer(), fresh);
+        boolean fii = "FII".equals(group.assets().get(0).getAssetType().getName());
         if (supplement == null) {
-            log.warn("Proventos: a B3 nao encontrou o emissor {}", group.issuer());
-            if (group.kind() == IssuerKind.FUND) {
+            if (fund) {
                 // o FNET nao depende da B3: o historico do FII segue pelo CNPJ
                 loadLongHistoryIfNeeded(group, null, c);
             }
+            if (b3Down != null) {
+                throw b3Down;
+            }
             return c;
+        }
+        if (fii) {
+            // D15: FNET primeiro (fonte principal, sempre com pagamento); a B3 so completa ou
+            // cobre o que o FNET nao tem
+            loadLongHistoryIfNeeded(group, supplement, c);
         }
 
         Map<String, List<Asset>> byIsin = isinMap(group, supplement);
@@ -421,7 +455,13 @@ public class ProventosCatalogService {
             }
         }
 
-        loadLongHistoryIfNeeded(group, supplement, c);
+        if (!fii) {
+            loadLongHistoryIfNeeded(group, supplement, c);
+        }
+        if (b3Down != null) {
+            // o que estava em disco foi aplicado; a rodada ainda conta o emissor como falha
+            throw b3Down;
+        }
         return c;
     }
 
@@ -519,8 +559,9 @@ public class ProventosCatalogService {
         if (group.kind() == IssuerKind.COMPANY) {
             loadCompanyHistory(group, supplement, needing, c);
         } else if ("FII".equals(type)) {
-            // barato: indice local do FNET x avisos ja gravados; nada a ler quando esta tudo gravado
-            loadFundHistory(needing, c);
+            // barato: indice local do FNET x avisos ja gravados; nada a ler quando esta tudo gravado.
+            // A B3 so e usada para saber se ha aviso novo a buscar no FNET.
+            loadFundHistory(needing, latestB3DataCom(supplement), c);
         } else {
             log.debug("Proventos: {} ({}) nao tem fonte alem dos 12 meses da B3 — o que faltar e lancamento manual.",
                     group.issuer(), type);
@@ -650,7 +691,7 @@ public class ProventosCatalogService {
      * desse CNPJ que estao em {@code data/fnet} e ainda nao foram gravados. Devolve se nada ficou
      * para tras (aviso que nao foi lido e tentado de novo na proxima rodada).
      */
-    private boolean loadFundHistory(List<Asset> assets, Counters c) {
+    private boolean loadFundHistory(List<Asset> assets, LocalDate latestB3, Counters c) {
         Map<String, List<Asset>> byCnpj = new TreeMap<>();
         for (Asset asset : assets) {
             String cnpj = fundCnpj(asset);
@@ -664,6 +705,7 @@ public class ProventosCatalogService {
         boolean complete = true;
         for (Map.Entry<String, List<Asset>> e : byCnpj.entrySet()) {
             complete &= loadFund(e.getKey(), e.getValue(), c);
+            complete &= searchNewNotices(e.getKey(), e.getValue(), latestB3, c);
         }
         return complete;
     }
@@ -732,6 +774,57 @@ public class ProventosCatalogService {
             log.debug(fmt, args);
         }
         return batch.failed().isEmpty();
+    }
+
+    /**
+     * Aviso novo no FNET (PENDENCIAS 18.10 d): quando a B3 ja mostra um provento com data-com
+     * depois do ultimo aviso gravado do fundo, busca os avisos do CNPJ no FNET, baixa os que nao
+     * estao em {@code data/fnet} e aplica. No maximo uma busca por dia por fundo; FNET fora do ar
+     * nao derruba nada — a B3 grava o provento como reserva e a busca volta no dia seguinte.
+     */
+    private boolean searchNewNotices(String cnpj, List<Asset> assets, LocalDate latestB3, Counters c) {
+        if (latestB3 == null) {
+            return true;
+        }
+        LocalDate latestFnet = assets.stream()
+                .map(a -> cashEventRepository.findLatestDataComBySource(a.getId(), CashEventSource.FNET))
+                .filter(java.util.Objects::nonNull).max(LocalDate::compareTo).orElse(null);
+        if (latestFnet != null && !latestFnet.isBefore(latestB3)) {
+            return true;
+        }
+        Instant last = lastFnetSearch.get(cnpj);
+        if (last != null && last.plusSeconds(FNET_SEARCH_COOLDOWN_SECONDS).isAfter(Instant.now())) {
+            return true;
+        }
+        lastFnetSearch.put(cnpj, Instant.now());
+        List<Long> found;
+        try {
+            found = fnetClient.incomeNoticeIds(cnpj);
+        } catch (RuntimeException e) {
+            log.warn("Proventos: busca no FNET de {} ({}) falhou — B3 fica de reserva: {}",
+                    assets.get(0).getTicker(), cnpj, e.getMessage());
+            return false;
+        }
+        Set<Long> cached = new HashSet<>(fnetClient.cachedNoticeIds(cnpj));
+        long news = found.stream().filter(id -> !cached.contains(id)).count();
+        if (news == 0) {
+            log.debug("Proventos: FNET de {} ({}) sem aviso novo; B3 em {} fica de reserva",
+                    assets.get(0).getTicker(), cnpj, latestB3);
+            return true;
+        }
+        log.info("Proventos: FNET de {} ({}) — {} aviso(s) novo(s) a baixar", assets.get(0).getTicker(), cnpj, news);
+        // o download entra no indice local; loadFund aplica o que ainda nao foi gravado
+        fnetClient.incomeNotices(found.stream().filter(id -> !cached.contains(id)).toList());
+        return loadFund(cnpj, assets, c);
+    }
+
+    /** Data-com mais recente que a B3 (resposta + arquivo) mostra para o grupo. */
+    private static LocalDate latestB3DataCom(B3Supplement supplement) {
+        if (supplement == null) {
+            return null;
+        }
+        return supplement.cash().stream().map(d -> B3Values.date(d.lastDatePrior()))
+                .filter(java.util.Objects::nonNull).max(LocalDate::compareTo).orElse(null);
     }
 
     /**

@@ -64,6 +64,20 @@ public class CvmOpenDataClient {
                 .orElseThrow(() -> new CvmException("Cadastro de companhias da CVM indisponivel e sem copia em disco"));
     }
 
+    /**
+     * PDF de um documento do RAD (link do indice IPE), em {@code data/cvm/proventos/{protocolo}_{versao}.pdf}.
+     * Documento entregue nao muda (reapresentacao e outra versao): com o arquivo em disco, nao vai a
+     * rede. Vazio quando o RAD responde 404.
+     */
+    public Optional<Path> radDocument(String link, long protocol, int version) {
+        Path target = dir.resolve("proventos").resolve(protocol + "_" + version + ".pdf");
+        try {
+            return files.fetch(URI.create(link), target, false);
+        } catch (PublicFileCache.UnavailableException e) {
+            throw new CvmException("RAD indisponivel para o protocolo " + protocol + ": " + e.getMessage(), e);
+        }
+    }
+
     /** Zip anual de um conjunto. Vazio quando o ano nao existe na CVM e nao ha copia em disco. */
     public Optional<Path> yearly(CvmDataset dataset, int year) {
         Path target = dir.resolve(dataset.folder()).resolve(dataset.fileName(year));
