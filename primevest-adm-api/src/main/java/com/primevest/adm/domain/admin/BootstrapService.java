@@ -1,6 +1,7 @@
 package com.primevest.adm.domain.admin;
 
 import com.primevest.adm.domain.dividend.CvmPaymentDateService;
+import com.primevest.adm.domain.dividend.PaymentDateSurveyService;
 import com.primevest.adm.domain.dividend.ProventosCatalogService;
 import com.primevest.adm.domain.fundamentals.FiiMonthlyImportService;
 import com.primevest.adm.domain.fundamentals.FinancialStatementImportService;
@@ -31,6 +32,8 @@ import java.util.function.Supplier;
  *   {@code data/b3/proventos}, FII de {@code data/fnet});</li>
  *   <li><b>datas de pagamento</b> 2022+ — relatorios de proventos da CVM ({@code data/cvm/ipe},
  *   {@code data/cvm/proventos}) completam a data que o historico da B3 nao traz (PLANO_CARGA_INICIAL.md, 5.2);</li>
+ *   <li><b>datas de pagamento do levantamento</b> 2010-2026 ({@code data/levantamento/datas-pagamento.json})
+ *   completam o que ainda falta, sem passar por cima da B3, do FNET nem da CVM (PLANO_CARGA_INICIAL.md, 11);</li>
  *   <li><b>balancos</b> DFP/ITR 2010+ e a serie trimestral — depois dos proventos, porque a passada
  *   {@code EVENTO} da escala usa os grupamentos e desdobramentos gravados;</li>
  *   <li><b>informe mensal de FII</b> 2016+.</li>
@@ -52,25 +55,29 @@ public class BootstrapService {
     private final FinancialStatementImportService statements;
     private final FiiMonthlyImportService fiiMonthly;
     private final CvmPaymentDateService paymentDates;
+    private final PaymentDateSurveyService surveyDates;
     private final Clock clock;
     private final AtomicBoolean running = new AtomicBoolean();
 
     @org.springframework.beans.factory.annotation.Autowired
     public BootstrapService(IssuerImportService issuers, HistoricalQuotesImportService quotes,
                             ProventosCatalogService proventos, FinancialStatementImportService statements,
-                            FiiMonthlyImportService fiiMonthly, CvmPaymentDateService paymentDates) {
-        this(issuers, quotes, proventos, statements, fiiMonthly, paymentDates, Clock.system(ZONE));
+                            FiiMonthlyImportService fiiMonthly, CvmPaymentDateService paymentDates,
+                            PaymentDateSurveyService surveyDates) {
+        this(issuers, quotes, proventos, statements, fiiMonthly, paymentDates, surveyDates, Clock.system(ZONE));
     }
 
     BootstrapService(IssuerImportService issuers, HistoricalQuotesImportService quotes,
                      ProventosCatalogService proventos, FinancialStatementImportService statements,
-                     FiiMonthlyImportService fiiMonthly, CvmPaymentDateService paymentDates, Clock clock) {
+                     FiiMonthlyImportService fiiMonthly, CvmPaymentDateService paymentDates,
+                     PaymentDateSurveyService surveyDates, Clock clock) {
         this.issuers = issuers;
         this.quotes = quotes;
         this.proventos = proventos;
         this.statements = statements;
         this.fiiMonthly = fiiMonthly;
         this.paymentDates = paymentDates;
+        this.surveyDates = surveyDates;
         this.clock = clock;
     }
 
@@ -102,6 +109,7 @@ public class BootstrapService {
             steps.add(step("proventos", () -> proventos.syncAll(reason)));
             steps.add(step("datas de pagamento CVM " + CvmPaymentDateService.FIRST_YEAR + "-" + year,
                     () -> paymentDates.run(CvmPaymentDateService.FIRST_YEAR, year, reason)));
+            steps.add(step("datas de pagamento do levantamento", () -> surveyDates.run(reason)));
             steps.add(step("balancos " + FinancialStatementImportService.FIRST_YEAR + "-" + year,
                     () -> statements.importYears(FinancialStatementImportService.FIRST_YEAR, year, false, reason)));
             steps.add(step("informe FII " + FiiMonthlyImportService.FIRST_YEAR + "-" + year,

@@ -5,7 +5,7 @@
 #   docker compose --profile carga run --rm data status            data/ x bucket, por dataset (tamanho)
 #
 # A aplicacao le so a data/ local. pull e push copiam o que falta ou mudou e NUNCA apagam
-# nada do outro lado. Datasets = as pastas de primeiro nivel (b3, cvm, fnet, logos);
+# nada do outro lado. Datasets = as pastas de primeiro nivel (b3, cvm, fnet, levantamento, logos);
 # manifests/ e so do bucket. rclone configurado por variavel (RCLONE_CONFIG_R2_*, do .env).
 set -eu
 # sem expansao de * nas opcoes (--exclude *.part)
@@ -17,7 +17,7 @@ BUCKET="r2:${S3_BUCKET:-primevest-data}"
 DATA=/data
 # o minimo para uma carga completa sem rebaixar o que a origem nao devolve mais ou devolve devagar:
 # avisos do FNET, historico e 12 meses de proventos da B3, relatorios de proventos da CVM
-MINIMO="fnet b3/proventos b3/proventos-12m cvm/ipe cvm/proventos"
+MINIMO="fnet b3/proventos b3/proventos-12m cvm/ipe cvm/proventos levantamento"
 # --checksum: compara pelo hash (ETag do R2 x md5 local), sem um HEAD por objeto para ler a data
 OPCOES="--checksum --transfers 32 --checkers 64 --fast-list --exclude *.part --exclude *.tmp --stats 30s --stats-one-line"
 

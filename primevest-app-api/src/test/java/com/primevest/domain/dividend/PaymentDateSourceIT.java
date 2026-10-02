@@ -50,6 +50,19 @@ class PaymentDateSourceIT extends com.primevest.functional.FuncionalBase {
     }
 
     @Test
+    @DisplayName("Data do levantamento (V39) tambem cede a data da B3")
+    void oficialSubstituiLevantamento() {
+        Asset cmig = assetRepository.findByTicker("CMIG4").orElseThrow();
+        cashEventWriter.save(cmig, dado(CashEventSource.B3_HISTORICO, null));
+        jdbc.update("UPDATE asset_cash_events SET payment_date = DATE '2026-12-30', payment_date_source = 'LEVANTAMENTO'");
+
+        cashEventWriter.save(cmig, dado(CashEventSource.B3, "2026-12-28"));
+
+        assertThat(evento("CMIG4")).containsEntry("payment_date", java.sql.Date.valueOf("2026-12-28"))
+            .containsEntry("payment_date_source", null);
+    }
+
+    @Test
     @DisplayName("FII: o aviso do FNET assume o provento gravado pela B3 como reserva (fonte, aviso e data)")
     void fnetAssumeReservaDaB3() {
         Asset hglg = assetRepository.findByTicker("HGLG11").orElseThrow();

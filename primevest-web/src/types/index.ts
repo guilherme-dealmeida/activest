@@ -430,7 +430,7 @@ export interface DividendResponse {
   received: boolean;
   /** Fonte do evento: B3, B3_HISTORICO ou FNET. */
   cashEventSource: string | null;
-  /** Origem da data de pagamento quando não é a da fonte: CVM (relatório de proventos). */
+  /** Origem da data de pagamento quando não é a da fonte: CVM (relatório de proventos) ou LEVANTAMENTO. */
   paymentDateSource: string | null;
   assetTypeId: number | null;
   /** Descrição do tipo de ativo (AssetType.getDescription). */

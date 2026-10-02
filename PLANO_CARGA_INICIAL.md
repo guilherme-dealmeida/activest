@@ -15,6 +15,8 @@
 > - **v5 (29–30/09): executado** — o que foi feito e os números na seção 10.
 - **v6 (30/09): pilha `primevest-test` removida** (contêineres, volumes, `.env.test`, `data-test/`, parametrização do
   compose). O plano fica só com **bucket + primevest**; a prova numa máquina nova é do Guilherme, em outra máquina, depois.
+- **v7 (02/10): D14 decidida** — levantamento das datas de pagamento 2010–2026 concluído pelo Guilherme
+  (`proventos_datas_pagamento_2010_2026.xlsx`); entra na carga como arquivo em `data/` (seção 11). Nada implementado ainda.
 
 **Regras do escopo**
 
@@ -242,12 +244,12 @@ com o número na mão — (c) primeiro em amostra, (a) se o acerto for baixo.
 | D12 | Cripto | não tem proventos — a pergunta era outra: o **histórico de preço** de cripto (CoinGecko) não é refeito num ambiente novo; o gráfico começa na data da carga. Fica anotada no PENDENCIAS, fora deste escopo |
 | D13 | `EXTRATO_B3` | **deixa de existir** (seção 6) |
 | D11 | `curadoria/` | **apagar da `data/` e do bucket** (fase E1) |
-| D14 | Data de pagamento de ações 2010–2021 | **depois da medição da E10** (é a parte de D10 que sobra para antes de 2022) |
+| D14 | Data de pagamento de ações 2010–2021 | **levantamento manual** (Investidor10, Status Invest, Fundamentus, Brapi, RI) gravado em `data/levantamento/`; o que ficou sem data é **A DEFINIR** (seção 11) |
 
 | D10 | Data de pagamento das **ações** | **sim** — (1) 12 meses da B3 guardados em arquivo, (2) datas do banco de dev salvas hoje, (3) relatórios de proventos da CVM 2022+ (5.2) |
 | D15 | Proventos de **FII** | **FNET como fonte principal**, B3 só de reserva (11 FIIs sem aviso no FNET), **com a busca de avisos novos (P4)** |
 
-**Pendentes:** nenhuma decisão. **D14** (ações 2010–2021) fica para depois da medição da E10; a fase **E3** (token só leitura) é do Guilherme.
+**Pendentes:** nenhuma decisão (D16 e D17 decididas em 02/10, seção 11.6).
 
 > O FNET é só de fundos (FII, Fiagro); **ação não publica no FNET** — por isso não dá para usar só o FNET para tudo.
 
@@ -294,10 +296,10 @@ Download ou espera longa ficam com o Guilherme; o Claude só confere o resultado
 
 | Passo | Quem |
 |---|---|
-| Referência do aviso nos 18 eventos de FII da V38 | a rotina das 20:00 do dev |
+| Referência do aviso nos 18 eventos de FII da V38 | ✅ conferido em 02/10: os 20.848 eventos de FII com fonte FNET têm o número do aviso |
 | `data push` periódico | Guilherme |
 | Prova numa máquina nova (seção 4) | Guilherme, em outra máquina |
-| D14 | decisão do Guilherme |
+| D14 | ✅ decidida (seção 11) |
 
 ### 10.3 Achados durante a execução
 
@@ -311,3 +313,107 @@ Download ou espera longa ficam com o Guilherme; o Claude só confere o resultado
 - Alguns relatórios da CVM usam 01/01/0001, 31/12/2998 ou 31/12/9999 como data de pagamento ("a definir"): 8 eventos (16
   linhas com o fracionário) receberam essas datas. O leitor passou a aceitar só data entre a data-com e 10 anos depois
   (a CEB pagou em 2024 dividendos de 2019) — teste `dataInvalida`; as 16 linhas do dev voltaram a ficar sem data.
+
+---
+
+## 11. Datas de pagamento levantadas (D14 — decidida em 02/10/2026)
+
+### 11.1 O que foi levantado
+
+`proventos_datas_pagamento_2010_2026.xlsx` (Guilherme): os **8.933** proventos de ações que estavam sem data de
+pagamento no dev (data-com 2010–2026; cada linha cobre também o ticker fracionário).
+
+| STATUS GERAL | Linhas | Data de pagamento |
+|---|---|---|
+| CONFIRMADO | 8.723 | sim — 2+ fontes, 1 fonte, regra aprovada ou preenchimento manual |
+| ACEITE NA ÚLTIMA REVISÃO | 48 | sim — sugestão adotada na última revisão |
+| A DEFINIR | 162 | não |
+
+Conferência do arquivo: nenhuma data antes da data-com; 31 em fim de semana (prazos como 31/12, aceitos na revisão).
+
+### 11.2 Regra para o A DEFINIR (Guilherme)
+
+- **a) recentes** (2025–2026): recebimento normal; a data entra quando for informada — B3 12 meses (P1) e relatório da
+  CVM (P3) já fazem isso nas rotinas; nada novo.
+- **b) antigos** (2010–2022): ficam sem data até existir **fonte oficial paga** (B3 Up2Data e/ou BRAPI) — D17.
+
+### 11.3 Como entra no fluxo (proposta — implementação só com ordem)
+
+| # | Peça | O que é |
+|---|---|---|
+| L1 | **Arquivo** `data/levantamento/datas-pagamento.json` | gerado da planilha; vai para o bucket como os demais (`data push`) e entra no `--minimo` do `data pull`. A planilha fica junto (`data/levantamento/origem/…xlsx`) como evidência |
+| L2 | **Chave natural**, não `id_evento` | o id só existe no banco de dev e muda num reset. Chave: `ticker` (+ `ticker_fracionario`; sem ele, tenta também `ticker`+`F`), `tipo`, `data_com`, `parcela` (`seq`) e `valor_por_acao` — valor exato primeiro, senão o mais próximo dentro de 0,000001 (há pares no banco que diferem na 9ª casa, ex. AZEV3 11/12/2015); cada evento é usado uma vez |
+| L3 | **Campos por linha** | chave + `data_pagamento` (nula no A DEFINIR) + `status` (`CONFIRMADO` / `ACEITE_ULTIMA_REVISAO` / `A_DEFINIR`) + `fonte` + `regra` |
+| L4 | **Conversão** `scripts/levantamento/xlsx_para_json.py` | lê a planilha e grava o JSON (ordenado, sem hash de dev); rodado pelo Guilherme quando a planilha mudar; depois `data push` |
+| L5 | **Fonte da data** `PaymentDateSource.LEVANTAMENTO` + migração **V39** | o CHECK `ck_asset_cash_events_payment_date_source` passa a aceitar `LEVANTAMENTO` (com `payment_date` não nula) |
+| L6 | **Serviço** `PaymentDateSurveyService` (adm-api) | aplica o arquivo **só em evento sem data**; grava `payment_date_source = LEVANTAMENTO`; publica `CatalogChange` (recalcula os proventos do usuário). Relatório: aplicados, já tinham data (iguais / diferentes), sem evento correspondente, A DEFINIR |
+| L7 | **Precedência** | data da própria fonte do evento (B3 12 meses, FNET) > CVM > LEVANTAMENTO. Mesmo comportamento da CVM hoje: o `CashEventWriter` troca a data de uma `PaymentDateSource` pela da fonte quando ela chega |
+| L8 | **Bootstrap** | nova etapa **depois** de "datas de pagamento CVM": "datas de pagamento do levantamento". Endpoint `POST /admin/proventos/levantamento` para rodar à parte (ex.: aplicar no dev sem reset) |
+| L9 | **Rotina** | não entra no agendador — o arquivo é estático; o bootstrap e o endpoint bastam |
+| L10 | **Testes** | leitura do JSON e casamento pela chave (inclui fracionário e parcela); precedência (B3 e CVM vencem, LEVANTAMENTO não sobrescreve); `SchemaTest` V39 |
+| L11 | **Docs** | `Claude.md` (tabela de fontes), `scripts/README.md`, `PENDENCIAS.txt` (A DEFINIR antigo, D17), README (dataset `levantamento`) |
+
+### 11.4 Cobertura esperada depois da L8
+
+Das 8.933 linhas levantadas, **8.771 (98%)** ganham data. Ficam sem data **145 antigas** (2010–2022, D17) e
+**17 recentes** (2025–2026, entram pelas rotinas da B3/CVM quando anunciadas).
+
+### 11.5 Fases
+
+| Fase | Entrega | Quem |
+|---|---|---|
+| L-a | L1–L4: JSON gerado e conferido (contagens da 11.1), `data push` | Claude gera; Guilherme roda o push |
+| L-b | L5–L10: V39, enum, serviço, etapa do bootstrap, endpoint, testes | Claude |
+| L-c | aplicar no dev pelo endpoint; `datas_pagamento.sql` antes × depois | Claude confere; Guilherme roda a bateria |
+| L-d | L11 | Claude |
+
+### 11.6 Decisões em aberto
+
+| # | Pergunta | Decisão (02/10) |
+|---|---|---|
+| D16 | Provento sem data: como aparece para o usuário | **"data não informada" em toda situação sem data** (antigo ou recente). Entra na L-b; conferir antes o comportamento atual com data nula (recebidos, gráfico mensal, IR) |
+| D17 | Fonte oficial paga para os A DEFINIR antigos | **A DEFINIR antigos ficam sem prazo** até haver fonte paga (B3 Up2Data e/ou BRAPI) — PENDENCIAS 20.8 |
+
+### 11.7 Execução (02/10/2026)
+
+| Fase | Situação | O que ficou |
+|---|---|---|
+| L-a | ✅ | planilha em `data/levantamento/origem/proventos_datas_pagamento_2010_2026.xlsx`; `scripts/levantamento/xlsx_para_json.py` (valida status × data, pagamento antes da data-com, chave repetida — nada é gravado se houver erro) gerou `data/levantamento/datas-pagamento.json` com **8.933 linhas** (CONFIRMADO 8.723, ACEITE_ULTIMA_REVISAO 48, A_DEFINIR 162); `levantamento` entrou no `MINIMO` do `data.sh`. `data push` feito em 02/10 (bucket: levantamento 2 arquivos; `data status` sem diferença) |
+| L-b | ✅ | `PaymentDateSource.LEVANTAMENTO` + **V39** (CHECK aceita `LEVANTAMENTO`); `PaymentDateSurveyService` (adm-api: lê o JSON, casa pela chave da L2, grava só em evento sem data, publica `CatalogChange`); etapa **"datas de pagamento do levantamento"** no bootstrap, depois da CVM; `POST /admin/proventos/levantamento` (`node scripts/admin.mjs proventos/levantamento`); D16 na tela de Dividendos ("Data não informada" + hover da origem `LEVANTAMENTO`). Testes: `PaymentDateSurveyServiceTest` (5), `PaymentDateSurveyIT` (2), `PaymentDateSourceIT` (+1: B3 substitui LEVANTAMENTO), `BootstrapServiceTest` (7 etapas), `SchemaTest` (V39) |
+| L-c | ✅ | aplicado no dev pelo endpoint (02/10): 8.933 linhas, 17.520 eventos casados — **17.209 datas gravadas**, 12 já tinham a mesma data (CVM), 0 divergentes, 299 A DEFINIR, 0 linhas sem evento; app-api recalculou a carteira (623 ativos); proventos do usuário com evento: 229 de 229 com a data do evento. Antes × depois em `.claude/logs/levantamento_{antes,depois}_datas_pagamento.txt` |
+| L-d | ✅ | `Claude.md` (fonte `LEVANTAMENTO`, V39, tela), `PENDENCIAS.txt` (20.1 resolvido, 20.8 e 20.9), `scripts/README.md` (conversão) e `README.md` (dataset `levantamento` e etapa da carga) |
+
+Datas em fim de semana aceitas no levantamento (31 linhas; em geral prazo "até 31/12" ou fim de mês). **Em 02/10 o
+Guilherme decidiu recuar cada uma para o dia útil anterior** (ex.: 31/12/2017 → 29/12/2017; 01/04/2017 → 31/03/2017);
+a planilha em `data/levantamento/origem/` e o JSON já estão ajustados (nota em OBSERVACAO de cada linha). Datas originais:
+
+| Ticker | Data-com | id_evento (dev) | Pagamento |
+|---|---|---|---|
+| AFLT3 | 20/09/2017 | 5180 | 31/12/2017 (dom) |
+| ALUP4 | 25/04/2017 | 5999 | 31/12/2017 (dom) |
+| AMAR3 | 19/04/2012 | 6241 | 15/09/2012 (sáb) |
+| BALM3 | 30/04/2015 | 7499, 7501, 7503, 7505 | 29/05/2016 (dom) |
+| BBDC3 | 01/03/2017 | 8335 | 01/04/2017 (sáb) |
+| CEEB3 | 23/03/2016 | 16065 | 31/12/2016 (sáb) |
+| CEEB3 | 04/08/2016 | 16063 | 31/12/2016 (sáb) |
+| CEEB3 | 20/12/2016 | 16061 | 31/12/2017 (dom) |
+| CEEB5 | 04/08/2016 | 16269 | 31/12/2016 (sáb) |
+| CEEB5 | 20/12/2016 | 16267 | 31/12/2017 (dom) |
+| FIGE3F | 29/04/2016 | 24001 | 31/12/2016 (sáb) |
+| FIGE3F | 28/04/2017 | 24000 | 31/12/2017 (dom) |
+| GEPA3 | 26/10/2016 | 26338 | 31/12/2016 (sáb) |
+| GEPA4 | 26/10/2016 | 26450 | 31/12/2016 (sáb) |
+| GEPA4 | 27/04/2018 | 26440 | 30/06/2018 (sáb) |
+| HBTS5 | 28/04/2020 | 28106 | 27/06/2020 (sáb) |
+| ITUB4 | 13/08/2014 | 31985 | 24/08/2014 (dom) |
+| MILS3 | 28/12/2010 | 36365 | 30/04/2011 (sáb) |
+| MILS3 | 21/06/2013 | 36351 | 14/06/2014 (sáb) |
+| MILS3 | 23/12/2013 | 36349 | 14/06/2014 (sáb) |
+| ODER4 | 05/05/2021 | 37890 | 30/05/2021 (dom) |
+| PASS3 | 27/09/2022 | 38157 | 31/12/2022 (sáb) |
+| POSI3 | 28/04/2023 | 40374 | 30/09/2023 (sáb) |
+| RADL3 | 26/09/2019 | 41149 | 31/05/2020 (dom) |
+| RADL3 | 11/12/2019 | 41147 | 31/05/2020 (dom) |
+| TRIS3 | 14/04/2014 | 49198, 49200 | 31/05/2014 (sáb) |
+| TUPY3 | 07/11/2016 | 49520 | 31/12/2016 (sáb) |
+

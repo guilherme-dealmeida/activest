@@ -124,9 +124,10 @@ Nada depende de pasta fora do projeto (`PLANO_CARGA_INICIAL.md`).
    `guilhermeunatec@gmail.com`, migration V9 — peça a quem mantém o projeto) e o **token só
    leitura** do bucket R2 (`S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`).
 2. **Pasta `data/`** (fora do git, ~1,4 GB) baixada do bucket `primevest-data` (Cloudflare R2):
-   `cvm/`, `b3/cotahist/`, `b3/proventos/`, `b3/proventos-12m/`, `fnet/` e `logos/`. Com ela a
+   `cvm/`, `b3/cotahist/`, `b3/proventos/`, `b3/proventos-12m/`, `fnet/`, `levantamento/` e `logos/`. Com ela a
    carga lê quase tudo do disco; sem ela baixa ~2 GB da CVM e da B3, e perde o que as fontes não
-   devolvem mais (avisos antigos do FNET e datas de pagamento que já saíram da janela da B3).
+   devolvem mais (avisos antigos do FNET, datas de pagamento que já saíram da janela da B3 e as
+   datas levantadas de 2010–2026, que só existem em `levantamento/`).
 3. **Internet:** mesmo com `data/` cheia, os proventos dos últimos 12 meses de cada emissor vêm
    da B3 (uma chamada por segundo).
 
@@ -141,7 +142,9 @@ docker compose logs -f adm-api      # acompanhar; termina em "Carga inicial (...
 
 A carga roda, em ordem: emissores (completa o seed com as companhias e os FIIs negociados que não
 estão no catálogo), COTAHIST, proventos (FII pelo FNET, ações pela B3), datas de pagamento pelos
-relatórios de proventos da CVM (2022+), balanços com a série trimestral, e informe mensal de FII.
+relatórios de proventos da CVM (2022+), datas de pagamento do levantamento 2010–2026
+(`data/levantamento/datas-pagamento.json`, só onde ainda falta data), balanços com a série
+trimestral, e informe mensal de FII.
 Com `data/` cheia leva **~1 h**. É retomável: se uma etapa falhar (a B3 às vezes cai), rode de
 novo — o que já entrou é pulado. Conferência: `scripts/sql/contagens.sql` e
 `scripts/sql/datas_pagamento.sql` (ver `scripts/README.md`).

@@ -28,14 +28,17 @@ const TYPE_ORDER = Object.values(DividendType);
 // Proventos de ação vindos só do histórico longo da B3 não têm data de
 // pagamento: a fonte não traz o campo (PENDENCIAS.txt, 3.4).
 // A partir de 2022 a data vem do relatório de proventos que a empresa entrega à CVM
-// (PLANO_CARGA_INICIAL.md, 5.2).
-/** Hover da data de pagamento que não veio da própria fonte do evento (V38). */
+// (PLANO_CARGA_INICIAL.md, 5.2); o que ainda falta, do levantamento 2010–2026 (seção 11).
+/** Hover da data de pagamento que não veio da própria fonte do evento (V38, V39). */
 const PAYMENT_DATE_SOURCE_HINT: Record<string, string> = {
   CVM: 'Data do relatório de proventos que a empresa entregou à CVM.',
+  LEVANTAMENTO: 'Data do levantamento de datas de pagamento (fontes públicas), na falta de uma fonte oficial.',
 };
 
+/** D16: provento sem data de pagamento, em qualquer situação (antigo ou ainda não anunciado). */
+const NO_PAYMENT_DATE_LABEL = 'Data não informada';
 const NO_PAYMENT_DATE_HINT =
-  'A B3 não informa a data de pagamento deste provento: o histórico longo de proventos de ações não traz esse campo.';
+  'Nenhuma fonte informa a data de pagamento deste provento. Proventos recentes ganham a data quando a empresa a divulgar.';
 
 const ALL = 'ALL';
 
@@ -318,7 +321,7 @@ export const DividendsPage = () => {
                       ? (row.paymentDateSource && PAYMENT_DATE_SOURCE_HINT[row.paymentDateSource]
                           ? <span className="cursor-help underline decoration-dotted decoration-gray-500" title={PAYMENT_DATE_SOURCE_HINT[row.paymentDateSource]}>{formatDate(row.paymentDate)}</span>
                           : formatDate(row.paymentDate))
-                      : <span className="text-gray-500 cursor-help" title={NO_PAYMENT_DATE_HINT}>—</span>}
+                      : <span className="text-gray-500 cursor-help whitespace-nowrap" title={NO_PAYMENT_DATE_HINT}>{NO_PAYMENT_DATE_LABEL}</span>}
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-gray-300">

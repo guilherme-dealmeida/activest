@@ -82,7 +82,7 @@ public class CashEventWriter {
                     existing.setPaymentDateSource(null);
                     dirty = true;
                 } else if (existing.getPaymentDateSource() != null && d.paymentDate() != null) {
-                    // a data veio de outra fonte (CVM); a da fonte do evento manda
+                    // a data veio de outra fonte (CVM, levantamento); a da fonte do evento manda
                     existing.setPaymentDate(d.paymentDate());
                     existing.setPaymentDateSource(null);
                     dirty = true;

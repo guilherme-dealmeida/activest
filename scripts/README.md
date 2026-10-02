@@ -40,3 +40,15 @@ A aplicação lê só a pasta `data/`. O bucket `primevest-data` (Cloudflare R2)
   (CVM, COTAHIST, histórico e 12 meses de proventos da B3, avisos do FNET, relatórios de proventos
   da CVM, logos) e o `data push` sobe o que é novo — nunca apaga nada no bucket — e regrava
   `manifests/` (lista de arquivos com tamanho e hash, por dataset, e o resumo `manifest.json`).
+
+## levantamento/xlsx_para_json.py
+
+Gera `data/levantamento/datas-pagamento.json` (datas de pagamento levantadas, PLANO_CARGA_INICIAL.md seção 11)
+a partir da planilha em `data/levantamento/origem/`. Precisa de Python com `openpyxl`; roda na máquina produtora:
+
+```
+python scripts/levantamento/xlsx_para_json.py
+docker compose --profile carga run --rm data push
+```
+
+Valida a planilha (status × data, pagamento antes da data-com, chave repetida) e não grava nada se houver erro.

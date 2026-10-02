@@ -4,6 +4,7 @@ import com.primevest.config.SecurityUtils;
 import com.primevest.adm.domain.asset.AssetLogoService;
 import com.primevest.adm.domain.asset.CatalogAuditService;
 import com.primevest.adm.domain.dividend.CvmPaymentDateService;
+import com.primevest.adm.domain.dividend.PaymentDateSurveyService;
 import com.primevest.adm.domain.dividend.ProventosCatalogService;
 import com.primevest.adm.domain.fundamentals.CompanyQuarterService;
 import com.primevest.adm.domain.fundamentals.FiiMonthlyImportService;
@@ -61,6 +62,7 @@ public class AdminController {
     private final FiiMonthlyImportService fiiMonthlyImportService;
     private final BootstrapService bootstrapService;
     private final CvmPaymentDateService cvmPaymentDateService;
+    private final PaymentDateSurveyService paymentDateSurveyService;
 
     @PostMapping("/catalog-audit")
     public ResponseEntity<Map<String, String>> catalogAudit() {
@@ -220,6 +222,16 @@ public class AdminController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Periodo invalido: " + from + " a " + last);
         }
         return start("datas de pagamento CVM", () -> cvmPaymentDateService.run(from, last, "sob demanda"));
+    }
+
+    /**
+     * Datas de pagamento do levantamento ({@code data/levantamento/datas-pagamento.json},
+     * PLANO_CARGA_INICIAL.md secao 11): completa so os proventos sem data, sem passar por cima de
+     * nenhuma outra fonte. Mesma etapa do bootstrap, para aplicar num banco que ja existe.
+     */
+    @PostMapping("/proventos/levantamento")
+    public ResponseEntity<Map<String, String>> proventosLevantamento() {
+        return start("datas de pagamento do levantamento", () -> paymentDateSurveyService.run("sob demanda"));
     }
 
     @PostMapping("/proventos")

@@ -887,7 +887,9 @@ preco teto", que vira o proximo e consome este. Fases F1 a F11 no plano.
 20. AMBIENTE DE CARGA INICIAL (PLANO_CARGA_INICIAL.md, 29/09/2026)
 ================================================================================
 
-  20.1  Data de pagamento de acao antes de 2022 (D14). O historico longo da B3
+  20.1  [RESOLVIDO 02/10/2026 - D14, PLANO secao 11] Levantamento manual em
+        data/levantamento/datas-pagamento.json (8.933 linhas, 98% com data).
+        Texto original: Data de pagamento de acao antes de 2022 (D14). O historico longo da B3
         nao traz o campo; os relatorios de proventos da CVM so existem de 2022
         em diante; o resto da CVM e texto livre (Aviso aos Acionistas, PDF). A
         decidir depois da medicao (scripts/sql/datas_pagamento.sql): ler os
@@ -917,6 +919,14 @@ preco teto", que vira o proximo e consome este. Fases F1 a F11 no plano.
   20.7  Testes de integracao da adm-api gravam na data/ real do projeto
         (primevest.data.dir padrao ../data): o ProventosCatalogoIT passou a usar
         target/it-data-proventos; os demais ITs ainda usam a data/ real.
+  20.8  Proventos de acao A DEFINIR antigos (D17, decidido em 02/10/2026): 145
+        linhas do levantamento (data-com 2010 a 2022) sem data de pagamento em
+        nenhuma fonte gratuita. Ficam sem data, SEM PRAZO, ate existir fonte
+        oficial paga (B3 Up2Data e/ou BRAPI). Os A DEFINIR recentes (17 linhas,
+        2025-2026) nao entram aqui: a B3 12 meses e a CVM preenchem nas rotinas.
+  20.9  Provento sem data de pagamento (D16, decidido em 02/10/2026): em toda
+        situacao aparece como "data nao informada" para o usuario. [FEITO
+        02/10/2026 na tela de Dividendos, junto da L-b do PLANO, secao 11]
 
 ================================================================================
 ORDEM SUGERIDA
