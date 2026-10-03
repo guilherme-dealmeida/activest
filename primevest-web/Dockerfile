@@ -41,7 +41,7 @@ RUN printf 'server {\n\
   listen 80;\n\
   root /usr/share/nginx/html;\n\
   index index.html;\n\
-  location /api/ { proxy_pass http://api:8080; proxy_set_header Host $host; }\n\
+  location /api/ { proxy_pass http://app-api:8080; proxy_set_header Host $host; }\n\
   location / { try_files $uri $uri/ /index.html; }\n\
 }\n' > /etc/nginx/conf.d/default.conf
 EXPOSE 80

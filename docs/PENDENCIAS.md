@@ -2,7 +2,8 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 29/09/2026 — secao 20 (ambiente de carga inicial,
+Ultima atualizacao: 03/10/2026 — secao 21 (pilha de teste primevest-teste,
+docs/planos/PLANO_PRIMEVEST_TESTE.md). Antes: 29/09/2026 — secao 20 (ambiente de carga inicial,
 docs/planos/PLANO_CARGA_INICIAL.md) e 18.10 d resolvido. Antes: 28/09/2026 (noite) — 11.6
 resolvido e secao 19 (tela de Emissoras, docs/planos/PLANO_TELA_EMISSORES.md). Antes, no mesmo dia: itens 14.1
 (resolvido), 18.9 b e 18.10 (F7 e F8). Antes: 27/09/2026 — secao 18 (docs/planos/PLANO_EMPRESAS_BALANCOS.md:
@@ -872,6 +873,22 @@ preco teto", que vira o proximo e consome este. Fases F1 a F11 no plano.
 **20.9** Provento sem data de pagamento (D16, decidido em 02/10/2026): em toda
  situacao aparece como "data nao informada" para o usuario. [FEITO
  02/10/2026 na tela de Dividendos, junto da L-b do PLANO, secao 11]
+
+## 21. PILHA DE TESTE (docs/planos/PLANO_PRIMEVEST_TESTE.md, 03/10/2026)
+
+Achados da primeira carga inicial completa num banco novo (primevest-teste), comparada com o dev.
+
+**21.1** Emissor que o bootstrap nao recria: o FII BFC (CNPJ 31.145.875/0001-05)
+ existe no dev (created_at 27/09/2026, 95 meses em fii_monthly, nenhum ativo
+ ligado) e nao no banco novo — issuers 1.197 x 1.198 e fii_monthly 42.720 x
+ 42.815. A descobrir por qual caminho ele entrou no dev (importacao de
+ emissores de 27/09 com outro criterio, curadoria manual) e se deve existir.
+**21.2** Etapa de emissores do bootstrap: classified=0,
+ classificationFailures=12 (classificacao setorial pela B3). Nao comparado com
+ o dev; conferir quais 12 e se o setor/segmento B3 deles ficou vazio.
+**21.3** Busca de avisos no FNET por CNPJ sem resposta (timeout de 20 s, 3
+ tentativas) para CXRI11 e VILG11 durante a carga: a B3 ficou de reserva
+ para os dois. A rotina de proventos tenta de novo quando ligada.
 
 ## ORDEM SUGERIDA
 

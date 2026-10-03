@@ -13,6 +13,7 @@
 .claude/
 # dados carregados (GBs) e o front: nunca vao para a imagem
 carga/data/
+carga/data-teste/
 carga/scripts/
 primevest-web/
 docs/

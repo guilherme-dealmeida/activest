@@ -26,6 +26,7 @@ Thumbs.db
 
 # Environment
 .env
+.env.teste
 .env.local
 .env.*.local
 
@@ -44,6 +45,9 @@ dump.rdb
 # Arquivos baixados pelas rotinas da API (logos, CVM, B3, FNET) — docs/planos/PLANO_BRAPI.md F7,
 # docs/planos/PLANO_EMPRESAS_BALANCOS.md secao 2. Reconstruiveis pela carga inicial.
 /carga/data/
+
+# Dados da carga da pilha primevest-teste (docs/planos/PLANO_PRIMEVEST_TESTE.md); o .env.teste esta em Environment
+/carga/data-teste/
 
 # Ponte de execucao do Claude (ver .claude/README.md)
 # Os scripts e o README sao versionados; os logs, nao.

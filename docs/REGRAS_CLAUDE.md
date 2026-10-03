@@ -93,6 +93,9 @@ administrador são disparadas por script (`carga/scripts/admin.mjs`) sem pedir a
 
 **5.6** Bloqueio de rede da política da organização (403/000 do proxy) é negação de política: não se contorna.
 
+**5.7** A regra 5.3 não vale para a conta Claude do **Gabriel** (03/10/2026): nas sessões dele, o próprio Claude
+executa os downloads demorados e as esperas longas (ex.: `data pull`, `bootstrap`) e confere o resultado.
+
 ## 6. Arquivos, pastas e dados
 
 **6.1** Repositório local: `E:\repos\primevest`. O projeto roda por Docker Desktop no Windows (`docker compose up` na
