@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * O cliente da BRAPI contra respostas gravadas — sem rede e sem dependencia
- * nova: o WebClient recebe uma {@link ExchangeFunction} falsa (PLANO_BRAPI.md, F9).
+ * nova: o WebClient recebe uma {@link ExchangeFunction} falsa (docs/planos/PLANO_BRAPI.md, F9).
  *
  * <p>Os corpos sao os que a BRAPI devolveu em 24/09/2026.</p>
  */

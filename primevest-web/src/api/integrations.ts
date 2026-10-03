@@ -7,7 +7,7 @@ import {
 const BASE = '/integrations/connections';
 
 /**
- * Integrações com corretoras (PLANO_CRIPTO_BINANCE.md, 6.7).
+ * Integrações com corretoras (docs/planos/PLANO_CRIPTO_BINANCE.md, 6.7).
  *
  * A chave e o segredo só passam por connect(): nada aqui os guarda, e nenhuma
  * resposta os devolve — da chave volta só o fingerprint (4 últimos caracteres).

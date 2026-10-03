@@ -15,7 +15,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Fila, worker, rotina diaria e aviso de divergencia (PLANO_CRIPTO_BINANCE.md,
+ * Fila, worker, rotina diaria e aviso de divergencia (docs/planos/PLANO_CRIPTO_BINANCE.md,
  * F5) — com a conta ficticia do {@link BinanceFake}.
  */
 @SuppressWarnings({"unchecked", "rawtypes"})

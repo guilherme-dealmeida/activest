@@ -7,10 +7,10 @@
 # Copie .env.example para .env se quiser sobrescrever qualquer valor.
 #
 # Carga e bucket (profile "carga", não sobe no `up`):
-#   docker compose --profile carga run --rm data pull [--minimo]   bucket R2 -> data/ (máquina nova)
-#   docker compose --profile carga run --rm data push              data/ -> bucket + manifests (produtor)
-#   docker compose --profile carga run --rm data status            data/ x bucket
-#   docker compose --profile carga run --rm tools node scripts/admin.mjs bootstrap
+#   docker compose --profile carga run --rm data pull [--minimo]   bucket R2 -> carga/data/ (máquina nova)
+#   docker compose --profile carga run --rm data push              carga/data/ -> bucket + manifests (produtor)
+#   docker compose --profile carga run --rm data status            carga/data/ x bucket
+#   docker compose --profile carga run --rm tools node carga/scripts/admin.mjs bootstrap
 
 services:
   db:
@@ -45,7 +45,7 @@ services:
       retries: 20
     restart: unless-stopped
 
-  # API do usuario — a carteira (PLANO_ADM_API.md). Build da raiz: o Maven e
+  # API do usuario — a carteira (docs/planos/PLANO_ADM_API.md). Build da raiz: o Maven e
   # multi-modulo (pom.xml da raiz, primevest-core, primevest-adm-api, primevest-app-api).
   app-api:
     build:
@@ -90,7 +90,7 @@ services:
       # Cache do Maven entre subidas — sem isso cada build rebaixa todas as dependências.
       - maven-repo:/root/.m2
       # Logos baixados pela adm-api: aqui so leitura, para a tela.
-      - ./data/logos:/app/data/logos:ro
+      - ./carga/data/logos:/app/data/logos:ro
     depends_on:
       db:
         condition: service_healthy
@@ -98,7 +98,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # Rotinas de administrador — o catalogo (PLANO_ADM_API.md, secao 10): emissores, balancos,
+  # Rotinas de administrador — o catalogo (docs/planos/PLANO_ADM_API.md, secao 10): emissores, balancos,
   # COTAHIST, fechamento, proventos da B3/FNET, logos e /api/v1/admin/*. Mesmo banco, Redis e
   # JWT da app-api; grava so catalogo e avisa a carteira pelo Redis. O front nao chama esta API.
   adm-api:
@@ -129,10 +129,10 @@ services:
       - ./primevest-adm-api/src:/app/primevest-adm-api/src
       - ./primevest-app-api/pom.xml:/app/primevest-app-api/pom.xml
       - maven-repo:/root/.m2
-      # Arquivos baixados pelas rotinas (ignorados pelo git): logos (PLANO_BRAPI.md,
-      # F7) e o cache das fontes publicas — CVM, B3, FNET (PLANO_EMPRESAS_BALANCOS.md,
+      # Arquivos baixados pelas rotinas (ignorados pelo git): logos (docs/planos/PLANO_BRAPI.md,
+      # F7) e o cache das fontes publicas — CVM, B3, FNET (docs/planos/PLANO_EMPRESAS_BALANCOS.md,
       # secao 2). O arquivo em disco e o estado: apagar so obriga a baixar de novo.
-      - ./data:/app/data
+      - ./carga/data:/app/data
     depends_on:
       db:
         condition: service_healthy
@@ -169,10 +169,10 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # Profile "carga" (PLANO_CARGA_INICIAL.md): não sobem no `docker compose up`.
+  # Profile "carga" (docs/planos/PLANO_CARGA_INICIAL.md): não sobem no `docker compose up`.
   # ---------------------------------------------------------------------------
 
-  # data/ <-> bucket R2 (rclone). A aplicação lê só a data/ local; o bucket é a cópia de
+  # carga/data/ <-> bucket R2 (rclone). A aplicação lê só a carga/data/ local; o bucket é a cópia de
   # referência: a máquina nova baixa uma vez (pull, token só leitura) e o produtor sobe o
   # que as rotinas gravaram (push, chave de escrita). O push nunca apaga nada no bucket.
   data:
@@ -191,10 +191,10 @@ services:
       # token só leitura não pode (nem precisa) conferir/criar o bucket
       RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
     volumes:
-      - ./data:/data
-      - ./scripts/data:/scripts:ro
+      - ./carga/data:/data
+      - ./carga/scripts/data:/scripts:ro
 
-  # Scripts Node do projeto (scripts/*.mjs) sem Node na máquina: falam com as APIs pela
+  # Scripts Node do projeto (carga/scripts/*.mjs) sem Node na máquina: falam com as APIs pela
   # rede do compose.
   tools:
     image: node:22-alpine
@@ -205,7 +205,7 @@ services:
       PRIMEVEST_ADM_URL: http://adm-api:8081
       PRIMEVEST_SENHA: ${PRIMEVEST_SENHA:-}
     volumes:
-      - ./scripts:/work/scripts:ro
+      - ./carga/scripts:/work/carga/scripts:ro
 
 volumes:
   pgdata:

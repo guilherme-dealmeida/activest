@@ -10,7 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Proventos e eventos societarios da B3, uma vez ao dia (PLANO_BRAPI.md, F5).
+ * Proventos e eventos societarios da B3, uma vez ao dia (docs/planos/PLANO_BRAPI.md, F5).
  *
  * <p>Substitui o DividendSyncScheduler, que pedia dividendos a BRAPI — recurso
  * pago (403 no plano gratuito), com range fora do plano (400) e um DTO que nao
@@ -35,7 +35,7 @@ public class ProventosScheduler {
             return;
         }
         proventosCatalogService.syncAll("20:00");
-        // data de pagamento que so o relatorio de proventos da CVM tem (PLANO_CARGA_INICIAL.md, 5.2):
+        // data de pagamento que so o relatorio de proventos da CVM tem (docs/planos/PLANO_CARGA_INICIAL.md, 5.2):
         // ano corrente e anterior — o indice IPE so e baixado de novo se mudou
         int year = java.time.LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo")).getYear();
         cvmPaymentDateService.run(year - 1, year, "20:00");

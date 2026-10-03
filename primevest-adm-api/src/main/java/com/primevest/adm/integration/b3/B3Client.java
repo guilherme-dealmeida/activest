@@ -15,7 +15,7 @@ import java.util.Base64;
 
 /**
  * Cliente do site da B3 ({@code sistemaswebb3-listados.b3.com.br}) — proventos
- * e eventos societarios, sem token (PLANO_BRAPI.md, F5).
+ * e eventos societarios, sem token (docs/planos/PLANO_BRAPI.md, F5).
  *
  * <p>O parametro de cada chamada e um JSON em base64 no fim da URL, como o
  * proprio site da B3 faz. Quatro endpoints, testados em 24/09/2026:</p>

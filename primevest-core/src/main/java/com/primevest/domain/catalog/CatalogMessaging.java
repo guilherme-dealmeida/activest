@@ -1,7 +1,7 @@
 package com.primevest.domain.catalog;
 
 /**
- * Contrato das mensagens entre a adm-api e a app-api (PLANO_ADM_API.md, 10.3). Redis pub/sub:
+ * Contrato das mensagens entre a adm-api e a app-api (docs/planos/PLANO_ADM_API.md, 10.3). Redis pub/sub:
  * sem garantia de entrega — a app-api recalcula todas as posicoes uma vez por dia, e isso cobre
  * mensagem perdida.
  *

@@ -22,7 +22,7 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/** F11 do PLANO_EMPRESAS_BALANCOS.md: a carga inicial roda as etapas em ordem e segue depois de uma falha. */
+/** F11 do docs/planos/PLANO_EMPRESAS_BALANCOS.md: a carga inicial roda as etapas em ordem e segue depois de uma falha. */
 class BootstrapServiceTest {
 
     private final IssuerImportService issuers = mock(IssuerImportService.class);

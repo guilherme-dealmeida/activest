@@ -33,10 +33,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Disparo manual das rotinas externas (PLANO_BRAPI.md: "semanal e sob
+ * Disparo manual das rotinas externas (docs/planos/PLANO_BRAPI.md: "semanal e sob
  * demanda"). So para usuario com {@code is_admin}.
  *
- * <p>adm-api (PLANO_ADM_API.md, 10): so rotinas de catalogo. O extrato de
+ * <p>adm-api (docs/planos/PLANO_ADM_API.md, 10): so rotinas de catalogo. O extrato de
  * proventos ({@code /proventos/extrato}) e importacao da carteira e ficou na
  * app-api ({@code ExtratoProventosController}).</p>
  *
@@ -84,14 +84,14 @@ public class AdminController {
 
     /**
      * Emissores: companhias (cadastro + FCA da CVM), FIIs (informe mensal) e a
-     * classificacao setorial da B3 (PLANO_EMPRESAS_BALANCOS.md, F1).
+     * classificacao setorial da B3 (docs/planos/PLANO_EMPRESAS_BALANCOS.md, F1).
      */
     @PostMapping("/issuers/import")
     public ResponseEntity<Map<String, String>> issuersImport() {
         return start("emissores", () -> issuerImportService.importAll("sob demanda"));
     }
 
-    /** Ligacao ativo -> emissor: acoes (FCA, raiz, B3) e FIIs (ISIN). PLANO_EMPRESAS_BALANCOS.md, F3. */
+    /** Ligacao ativo -> emissor: acoes (FCA, raiz, B3) e FIIs (ISIN). docs/planos/PLANO_EMPRESAS_BALANCOS.md, F3. */
     @PostMapping("/issuers/link")
     public ResponseEntity<Map<String, String>> issuersLink() {
         return start("ligacao de emissores", () -> issuerLinkService.linkAll("sob demanda"));
@@ -144,7 +144,7 @@ public class AdminController {
 
     /**
      * Serie historica da B3 (COTAHIST) em asset_price_history, de {@code from}
-     * (padrao 2010) a {@code to} (padrao: ano corrente). PLANO_EMPRESAS_BALANCOS.md, F2.
+     * (padrao 2010) a {@code to} (padrao: ano corrente). docs/planos/PLANO_EMPRESAS_BALANCOS.md, F2.
      */
     @PostMapping("/b3/cotahist")
     public ResponseEntity<Map<String, String>> cotahist(
@@ -160,7 +160,7 @@ public class AdminController {
     /**
      * Balancos da CVM (DFP e ITR) de {@code from} (padrao 2010) a {@code to} (padrao: ano corrente).
      * Documento ja gravado na mesma versao e pulado; {@code force=true} reprocessa a partir de
-     * data/cvm, sem baixar de novo (regra nova). PLANO_EMPRESAS_BALANCOS.md, F5.
+     * carga/data/cvm, sem baixar de novo (regra nova). docs/planos/PLANO_EMPRESAS_BALANCOS.md, F5.
      */
     @PostMapping("/cvm/import")
     public ResponseEntity<Map<String, String>> cvmImport(
@@ -185,8 +185,8 @@ public class AdminController {
 
     /**
      * Informe mensal de FII da CVM em fii_monthly, de {@code from} (padrao 2016) a {@code to} (padrao: ano
-     * corrente). Mes ja gravado na mesma versao e pulado; {@code force=true} regrava a partir de data/cvm/fii.
-     * PLANO_EMPRESAS_BALANCOS.md, F7.
+     * corrente). Mes ja gravado na mesma versao e pulado; {@code force=true} regrava a partir de carga/data/cvm/fii.
+     * docs/planos/PLANO_EMPRESAS_BALANCOS.md, F7.
      */
     @PostMapping("/cvm/fii-monthly")
     public ResponseEntity<Map<String, String>> fiiMonthly(
@@ -201,7 +201,7 @@ public class AdminController {
     }
 
     /**
-     * Carga inicial num banco vazio (PLANO_EMPRESAS_BALANCOS.md, 6.3, F11): emissores, COTAHIST, proventos, balancos
+     * Carga inicial num banco vazio (docs/planos/PLANO_EMPRESAS_BALANCOS.md, 6.3, F11): emissores, COTAHIST, proventos, balancos
      * e informe de FII, em ordem. Retomavel; nunca dispara sozinha ao subir.
      */
     @PostMapping("/bootstrap")
@@ -210,7 +210,7 @@ public class AdminController {
     }
 
     /**
-     * Datas de pagamento pelos relatorios de proventos da CVM (PLANO_CARGA_INICIAL.md, 5.2 — P3):
+     * Datas de pagamento pelos relatorios de proventos da CVM (docs/planos/PLANO_CARGA_INICIAL.md, 5.2 — P3):
      * {@code from}/{@code to} em anos, de 2022 em diante.
      */
     @PostMapping("/cvm/proventos")
@@ -225,8 +225,8 @@ public class AdminController {
     }
 
     /**
-     * Datas de pagamento do levantamento ({@code data/levantamento/datas-pagamento.json},
-     * PLANO_CARGA_INICIAL.md secao 11): completa so os proventos sem data, sem passar por cima de
+     * Datas de pagamento do levantamento ({@code carga/data/levantamento/datas-pagamento.json},
+     * docs/planos/PLANO_CARGA_INICIAL.md secao 11): completa so os proventos sem data, sem passar por cima de
      * nenhuma outra fonte. Mesma etapa do bootstrap, para aplicar num banco que ja existe.
      */
     @PostMapping("/proventos/levantamento")

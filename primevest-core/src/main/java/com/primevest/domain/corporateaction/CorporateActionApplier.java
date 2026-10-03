@@ -5,7 +5,7 @@ import java.math.RoundingMode;
 
 /**
  * A regra de um evento societario sobre uma posicao — funcao pura: sem banco,
- * sem Spring (PLANO_BRAPI.md, F6).
+ * sem Spring (docs/planos/PLANO_BRAPI.md, F6).
  *
  * <table>
  *   <caption>Efeito de cada evento</caption>

@@ -89,7 +89,7 @@ public class TransactionService {
     private final TreasuryAllocator treasuryAllocator;
     /** Avisa quem depende da posicao (proventos sob demanda) depois do commit. */
     private final ApplicationEventPublisher eventPublisher;
-    /** Exclusao de importada vira exclusao registrada (regra E2 do PLANO_CRIPTO_BINANCE.md). */
+    /** Exclusao de importada vira exclusao registrada (regra E2 do docs/planos/PLANO_CRIPTO_BINANCE.md). */
     private final IntegrationCryptoExclusionRepository cryptoExclusionRepository;
     /** Movimento importado em JSON, para o "restaurar" (regra E4). */
     private final MovementJson movementJson;
@@ -127,7 +127,7 @@ public class TransactionService {
     }
 
     /**
-     * Grava uma operacao importada de uma integracao (PLANO_CRIPTO_BINANCE.md,
+     * Grava uma operacao importada de uma integracao (docs/planos/PLANO_CRIPTO_BINANCE.md,
      * F4) pelas MESMAS regras do lancamento manual (P6): catalogo, regra A,
      * reavaliacao da posicao, proventos e valorizacao. So cripto nesta versao.
      */

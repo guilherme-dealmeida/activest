@@ -66,7 +66,7 @@ class TransactionControllerTest extends MvcTestBase {
 
         mvc.perform(post("/api/v1/transactions/").contentType(MediaType.APPLICATION_JSON).content(COMPRA_VALIDA))
             // Hoje o POST responde 200, e nao 201. Registrado como F12 no
-            // PLANO_TESTES.md: mudar o status e decisao de contrato de API.
+            // docs/planos/PLANO_TESTES.md: mudar o status e decisao de contrato de API.
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.ticker").value("PETR4"))
             .andExpect(jsonPath("$.assetTypeName").value("Ações"));

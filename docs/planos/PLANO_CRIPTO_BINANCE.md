@@ -16,7 +16,7 @@ banco para a fase 2 (o serviço Java) importar sem duplicar.
 **Os dados da Binance explicam a carteira inteira, e cabem no modelo de hoje como compras (`BUY`).**
 A conciliação bateu ao satoshi no BTC e ao centavo no saldo em reais. Para a importação ser
 automática e repetível, faltam as mesmas colunas de origem e idempotência já previstas no
-`PLANO_OPEN_FINANCE.md` (seção 4.1).
+`docs/planos/PLANO_OPEN_FINANCE.md` (seção 4.1).
 
 ---
 
@@ -138,7 +138,7 @@ lançada ainda).
 
 ### 5.1 Obrigatório para importar sem duplicar
 
-São os itens 1 e 4 do `PLANO_OPEN_FINANCE.md` (4.1). **Fazer uma vez só, servindo às duas integrações.**
+São os itens 1 e 4 do `docs/planos/PLANO_OPEN_FINANCE.md` (4.1). **Fazer uma vez só, servindo às duas integrações.**
 
 | # | Onde | Campo | Por quê |
 |---|---|---|---|
@@ -206,7 +206,7 @@ custaria mais do que já nascer assim.
 
 ### 6.3 Dados
 
-Substitui o item 1 de 5.1 e o item 1 da seção 4.1 do `PLANO_OPEN_FINANCE.md` — as duas integrações usam as mesmas tabelas.
+Substitui o item 1 de 5.1 e o item 1 da seção 4.1 do `docs/planos/PLANO_OPEN_FINANCE.md` — as duas integrações usam as mesmas tabelas.
 
 | Tabela | Campos principais | Observação |
 |---|---|---|
@@ -272,8 +272,8 @@ duplicata). Na carteira, selo de origem nas transações importadas (editáveis 
 |---|---|---|
 | Corretoras cripto com chave de API (Binance, Mercado Bitcoin, Foxbit, OKX, Bybit…) | ✅ | Um conector por corretora |
 | Open Finance (caixinhas, CDBs de banco) | ⚠️ com custo | O Meu Pluggy é só para uso pessoal. Para vários usuários, contratar agregador regulado (Pluggy, Belvo ou similar) — cobrança por conexão/mês, a confirmar |
-| B3 | ⚠️ fora deste plano | Sem cripto. Importação do extrato da B3 pelo PrimeVest virou escopo próprio (`PENDENCIAS.txt`, seção 16) |
-| Qualquer instituição sem API | ⚠️ fora deste plano | Importação por arquivo: escopo próprio, junto com a B3 (`PENDENCIAS.txt`, 16) |
+| B3 | ⚠️ fora deste plano | Sem cripto. Importação do extrato da B3 pelo PrimeVest virou escopo próprio (`docs/PENDENCIAS.md`, seção 16) |
+| Qualquer instituição sem API | ⚠️ fora deste plano | Importação por arquivo: escopo próprio, junto com a B3 (`docs/PENDENCIAS.md`, 16) |
 
 ### 6.9 Ordem de entrega sugerida
 
@@ -290,7 +290,7 @@ duplicata). Na carteira, selo de origem nas transações importadas (editáveis 
 
 > A F7 original (importação por arquivo, primeiro layout o extrato da B3) saiu deste plano em
 > 25/09/2026 — a B3 não tem cripto, e as regras da F2 são de cripto. Virou escopo próprio em
-> `PENDENCIAS.txt`, seção 16. A antiga F8 passou a ser a F7.
+> `docs/PENDENCIAS.md`, seção 16. A antiga F8 passou a ser a F7.
 
 A fase 3 (o MCP chamando o PrimeVest) deixa de ser necessária para o usuário final: a importação é
 pela tela. O MCP continua como ferramenta de levantamento para cada fonte nova.
@@ -512,7 +512,7 @@ Respostas do Guilherme em 25/09/2026.
 | D2 | Agrupar fills da mesma ordem numa transação (R1) | ✅ **Decidido.** Agrupar: uma ordem = uma transação, com preço médio ponderado |
 | D3 | BRL e stablecoins | ✅ **Decidido.** BRL fica fora: é dinheiro, não posição. **USDC e USDT são cripto** (Stablecoins, V19) e são tratados como qualquer outra. O resíduo de USDC da conta de teste não tem operação de origem, então não há o que importar (PENDENCIAS 15.4) |
 | D4 | Carregar as 7 operações antes da fase 2 | ✅ **Decidido.** Esperar a fase 2 |
-| D5 | Operações sem valor em reais | ✅ **Decidido.** Fora da primeira versão; aparecem como não importadas. Registrado em `PENDENCIAS.txt`, seção 15 |
+| D5 | Operações sem valor em reais | ✅ **Decidido.** Fora da primeira versão; aparecem como não importadas. Registrado em `docs/PENDENCIAS.md`, seção 15 |
 | D6 | Transferências entre carteiras | ✅ **Decidido.** Fora da primeira versão |
 | D7 | Próximas corretoras | ✅ **Decidido.** Um planejamento por corretora (como este). Serviço de integração com **interfaces genéricas** (`SourceConnector`, `ImportedMovement`, `ImportPipeline` — 6.2); a Binance é a primeira implementação delas |
 | D8 | Produção / IP fixo | ✅ **Decidido.** Fora de escopo — o projeto está em DEV. A restrição de IP (6.4) fica como orientação opcional até existir produção |

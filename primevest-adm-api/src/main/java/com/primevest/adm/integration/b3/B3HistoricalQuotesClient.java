@@ -15,7 +15,7 @@ import java.util.Optional;
 
 /**
  * Serie historica de cotacoes da B3 (COTAHIST), um zip por ano, com cache em
- * {@code data/b3/cotahist} (PLANO_EMPRESAS_BALANCOS.md, F2).
+ * {@code carga/data/b3/cotahist} (docs/planos/PLANO_EMPRESAS_BALANCOS.md, F2).
  *
  * <p>Ano fechado em disco: sem rede. Ano corrente e anterior: pergunta se mudou
  * (o zip do ano corrente cresce a cada pregao).</p>
@@ -31,7 +31,7 @@ public class B3HistoricalQuotesClient {
     @Autowired
     public B3HistoricalQuotesClient(
             @Value("${b3.cotahist-url:https://bvmf.bmfbovespa.com.br/InstDados/SerHist}") String baseUrl,
-            @Value("${primevest.data.dir:../data}") String dataDir,
+            @Value("${primevest.data.dir:../carga/data}") String dataDir,
             @Value("${b3.cotahist-timeout-seconds:300}") long timeoutSeconds) {
         this(baseUrl, Path.of(dataDir, "b3", "cotahist"), Duration.ofSeconds(timeoutSeconds),
                 Clock.system(ZoneId.of("America/Sao_Paulo")));

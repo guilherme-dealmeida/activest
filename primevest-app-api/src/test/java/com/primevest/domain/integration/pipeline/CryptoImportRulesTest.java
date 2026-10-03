@@ -23,7 +23,7 @@ import static com.primevest.support.ContaSintetica.trade;
 import static com.primevest.support.ContaSintetica.tradeContra;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Regras R2 a R8 sobre dados sinteticos (PLANO_CRIPTO_BINANCE.md, 4.4). */
+/** Regras R2 a R8 sobre dados sinteticos (docs/planos/PLANO_CRIPTO_BINANCE.md, 4.4). */
 class CryptoImportRulesTest {
 
     private static final AssetType CRIPTO = AssetType.builder().id(1L).name("CRIPTO").build();

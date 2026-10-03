@@ -34,7 +34,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
 /**
- * F1 do PLANO_EMPRESAS_BALANCOS.md: emissores a partir dos recortes reais da CVM
+ * F1 do docs/planos/PLANO_EMPRESAS_BALANCOS.md: emissores a partir dos recortes reais da CVM
  * (Petrobras, Itau, Klabin, Taesa, HGLG11), com o PostgreSQL de verdade.
  */
 class IssuerImportIT extends IntegrationTestBase {

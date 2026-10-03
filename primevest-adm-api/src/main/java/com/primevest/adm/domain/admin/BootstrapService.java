@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
 /**
- * Carga inicial num banco vazio (PLANO_EMPRESAS_BALANCOS.md, 6.3 e F11; D13: manual, nunca na subida).
+ * Carga inicial num banco vazio (docs/planos/PLANO_EMPRESAS_BALANCOS.md, 6.3 e F11; D13: manual, nunca na subida).
  *
  * <p>Emissores do catalogo, ligacoes e units vem do seed (V30); aqui entra o volume, em ordem:</p>
  * <ol>
@@ -28,18 +28,18 @@ import java.util.function.Supplier;
  *   emissores); nunca sobrescreve o segmento curado nem as ligacoes;</li>
  *   <li><b>COTAHIST</b> 2010+ — precos e o ISIN de cada ativo (a rotina de proventos casa a B3 pelo ISIN);</li>
  *   <li><b>proventos</b> — rodada completa do catalogo: 12 meses da B3 (com o acumulado de
- *   {@code data/b3/proventos-12m}), eventos societarios e o historico longo (acoes de
- *   {@code data/b3/proventos}, FII de {@code data/fnet});</li>
- *   <li><b>datas de pagamento</b> 2022+ — relatorios de proventos da CVM ({@code data/cvm/ipe},
- *   {@code data/cvm/proventos}) completam a data que o historico da B3 nao traz (PLANO_CARGA_INICIAL.md, 5.2);</li>
- *   <li><b>datas de pagamento do levantamento</b> 2010-2026 ({@code data/levantamento/datas-pagamento.json})
- *   completam o que ainda falta, sem passar por cima da B3, do FNET nem da CVM (PLANO_CARGA_INICIAL.md, 11);</li>
+ *   {@code carga/data/b3/proventos-12m}), eventos societarios e o historico longo (acoes de
+ *   {@code carga/data/b3/proventos}, FII de {@code carga/data/fnet});</li>
+ *   <li><b>datas de pagamento</b> 2022+ — relatorios de proventos da CVM ({@code carga/data/cvm/ipe},
+ *   {@code carga/data/cvm/proventos}) completam a data que o historico da B3 nao traz (docs/planos/PLANO_CARGA_INICIAL.md, 5.2);</li>
+ *   <li><b>datas de pagamento do levantamento</b> 2010-2026 ({@code carga/data/levantamento/datas-pagamento.json})
+ *   completam o que ainda falta, sem passar por cima da B3, do FNET nem da CVM (docs/planos/PLANO_CARGA_INICIAL.md, 11);</li>
  *   <li><b>balancos</b> DFP/ITR 2010+ e a serie trimestral — depois dos proventos, porque a passada
  *   {@code EVENTO} da escala usa os grupamentos e desdobramentos gravados;</li>
  *   <li><b>informe mensal de FII</b> 2016+.</li>
  * </ol>
  *
- * <p><b>Retomavel:</b> toda etapa e idempotente e o que ja esta em {@code data/} nao e baixado de novo
+ * <p><b>Retomavel:</b> toda etapa e idempotente e o que ja esta em {@code carga/data/} nao e baixado de novo
  * (o arquivo e o estado). Etapa que falha e registrada e a seguinte roda assim mesmo; rodar de novo
  * completa o que faltou. Uma carga por vez.</p>
  */

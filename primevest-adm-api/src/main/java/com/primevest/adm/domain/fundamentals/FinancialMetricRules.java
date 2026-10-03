@@ -28,7 +28,7 @@ import java.util.TreeMap;
  * 3.01, ativo total 1, FCO 6.01, caixa e divida do layout comercial) fica por
  * codigo.</p>
  *
- * <p>Metrica nova = regra nova aqui + reprocessar {@code data/cvm} (sem rede).</p>
+ * <p>Metrica nova = regra nova aqui + reprocessar {@code carga/data/cvm} (sem rede).</p>
  */
 public final class FinancialMetricRules {
 

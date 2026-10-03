@@ -13,7 +13,7 @@ import java.util.List;
  * <p>Cada FRE lista os eventos de capital aprovados (emitido, subscrito,
  * integralizado, autorizado) com a quantidade de acoes ON, PN e total, em
  * unidades. Aqui fica so o <b>capital integralizado</b>: e o que corresponde as
- * acoes existentes. Serve a duas coisas (PLANO_EMPRESAS_BALANCOS.md, F5):
+ * acoes existentes. Serve a duas coisas (docs/planos/PLANO_EMPRESAS_BALANCOS.md, F5):
  * quantidade de acoes antes de 2020, quando o DFP/ITR nao tinha a composicao do
  * capital, e regua da escala da composicao a partir de 2020.</p>
  */

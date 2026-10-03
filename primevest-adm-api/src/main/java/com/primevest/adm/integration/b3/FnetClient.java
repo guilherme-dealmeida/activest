@@ -41,15 +41,15 @@ import java.util.function.Function;
 
 /**
  * Fundos.NET (FNET) — os avisos de rendimentos e amortizacoes publicados pelo
- * administrador de cada FII (PLANO_BRAPI.md, 5.9 e B15; refeito na F8 do
- * PLANO_EMPRESAS_BALANCOS.md, 1.5 e 6.1 — resolve PENDENCIAS 14.1).
+ * administrador de cada FII (docs/planos/PLANO_BRAPI.md, 5.9 e B15; refeito na F8 do
+ * docs/planos/PLANO_EMPRESAS_BALANCOS.md, 1.5 e 6.1 — resolve PENDENCIAS 14.1).
  *
  * <p>E a fonte dos proventos de FII alem dos 12 meses que a B3 devolve: o
  * "Aviso aos Cotistas - Estruturado" (categoria 14, tipo 41) e um XML com
  * CNPJ do fundo, ISIN, ticker, data-base (a data-com), valor por cota, data de
  * pagamento, periodo de referencia e se e isento de IR. Existe de 2016 em diante.</p>
  *
- * <p><b>Cache em disco:</b> cada aviso fica em {@code data/fnet/{id}.xml} e nunca e
+ * <p><b>Cache em disco:</b> cada aviso fica em {@code carga/data/fnet/{id}.xml} e nunca e
  * baixado de novo (o aviso e um documento; reapresentacao sai com outro id).
  * <b>Download:</b> o FNET responde em ~0,1 s ou trava — timeout curto (5 s) e ate 6
  * tentativas com espera crescente, no maximo 3 downloads ao mesmo tempo, num executor
@@ -58,7 +58,7 @@ import java.util.function.Function;
  * 20 s e 3 tentativas.</p>
  *
  * <p><b>Indice local</b> ({@link #cachedNoticeIds}): cada XML traz o {@code CNPJFundo}, entao
- * a pasta {@code data/fnet} ja responde "quais avisos sao deste fundo" sem perguntar ao FNET.
+ * a pasta {@code carga/data/fnet} ja responde "quais avisos sao deste fundo" sem perguntar ao FNET.
  * E o que a carga do historico usa; a busca no FNET ({@link #incomeNoticeIds}) fica para
  * trazer avisos novos.</p>
  *
@@ -97,7 +97,7 @@ public class FnetClient {
                       @Value("${fnet.parallel-downloads:3}") int parallel,
                       @Value("${fnet.search-timeout-seconds:20}") long searchTimeoutSeconds,
                       @Value("${fnet.search-attempts:3}") int searchAttempts,
-                      @Value("${primevest.data.dir:../data}") String dataDir,
+                      @Value("${primevest.data.dir:../carga/data}") String dataDir,
                       ObjectMapper objectMapper) {
         this.webClient = builder.clone()
                 .baseUrl(baseUrl)
@@ -124,7 +124,7 @@ public class FnetClient {
         downloads.shutdownNow();
     }
 
-    /** Pasta do cache ({@code data/fnet}). */
+    /** Pasta do cache ({@code carga/data/fnet}). */
     public Path cacheDir() {
         return cacheDir;
     }
@@ -173,7 +173,7 @@ public class FnetClient {
     }
 
     /**
-     * Ids dos avisos de um fundo que estao em {@code data/fnet}, em ordem, sem ir ao FNET.
+     * Ids dos avisos de um fundo que estao em {@code carga/data/fnet}, em ordem, sem ir ao FNET.
      * Vazio quando nao ha aviso do CNPJ em disco.
      */
     public List<Long> cachedNoticeIds(String cnpj) {
@@ -181,7 +181,7 @@ public class FnetClient {
         return ids == null ? List.of() : ids.stream().sorted().toList();
     }
 
-    /** Relê a pasta {@code data/fnet} (arquivos copiados por fora da aplicacao). */
+    /** Relê a pasta {@code carga/data/fnet} (arquivos copiados por fora da aplicacao). */
     public synchronized int reindex() {
         Map<String, Set<Long>> built = new ConcurrentHashMap<>();
         int files = 0;
@@ -227,7 +227,7 @@ public class FnetClient {
     }
 
     /**
-     * Os avisos pedidos: o que esta em {@code data/fnet} e lido do disco; o resto e
+     * Os avisos pedidos: o que esta em {@code carga/data/fnet} e lido do disco; o resto e
      * baixado, no maximo {@code fnet.parallel-downloads} ao mesmo tempo, e gravado.
      */
     public Batch incomeNotices(Collection<Long> ids) {

@@ -18,7 +18,7 @@ interface Props {
 }
 
 /**
- * Conectar uma conta da Binance (PLANO_CRIPTO_BINANCE.md, 6.4 e 6.7).
+ * Conectar uma conta da Binance (docs/planos/PLANO_CRIPTO_BINANCE.md, 6.4 e 6.7).
  *
  * Chave e segredo vivem só no estado deste formulário: não vão para o
  * localStorage, e fechar o modal limpa tudo. A API confere a chave na Binance

@@ -31,7 +31,7 @@ public class AssetController {
     }
 
     /**
-     * Logo do ativo, guardado em data/logos pela rotina de logos (F7).
+     * Logo do ativo, guardado em carga/data/logos pela rotina de logos (F7).
      *
      * <p>Publico (sem token): a tela usa em {@code <img src>}, que nao envia o
      * cabecalho Authorization, e e so a marca da empresa — nada do usuario.
@@ -87,7 +87,7 @@ public class AssetController {
     }
 
     /**
-     * Cotacao historica para o grafico da tela de emissoras (PLANO_TELA_EMISSORES.md, B5):
+     * Cotacao historica para o grafico da tela de emissoras (docs/planos/PLANO_TELA_EMISSORES.md, B5):
      * {@code range} = 1D, 7D, 1M, 6M, YTD, 1A (padrao), 5A ou MAX, ou o periodo {@code from}/{@code to}.
      * Ajustada por desdobramento, grupamento e bonificacao (D9).
      */

@@ -59,31 +59,31 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
 
 /**
- * Proventos e eventos societarios da B3 (PLANO_BRAPI.md, F5 e F6).
+ * Proventos e eventos societarios da B3 (docs/planos/PLANO_BRAPI.md, F5 e F6).
  *
  * <p><b>Rotina diaria</b> (20:00): para cada EMISSOR do catalogo — todo ativo ligado a
  * um emissor ({@code assets.issuer_id}) mais os que alguem ja teve em carteira (ETF,
- * BDR), desde a F8 do PLANO_EMPRESAS_BALANCOS.md; PETR3 e PETR4 sao uma chamada so —,
+ * BDR), desde a F8 do docs/planos/PLANO_EMPRESAS_BALANCOS.md; PETR3 e PETR4 sao uma chamada so —,
  * busca na B3 os proventos dos ultimos ~12 meses e os desdobramentos, grupamentos e
  * bonificacoes, e grava no catalogo ({@code asset_cash_events}, {@link AssetStockEvent}).
  * {@code primevest.proventos.scope=HELD} volta ao escopo antigo (so o que ja esteve em
  * carteira) — e o dos testes de ponta a ponta.</p>
  *
- * <p><b>So catalogo</b> (PLANO_ADM_API.md, 10): era o {@code ProventosCatalogService},
+ * <p><b>So catalogo</b> (docs/planos/PLANO_ADM_API.md, 10): era o {@code ProventosCatalogService},
  * que tambem refazia os proventos de cada posicao. Agora a rotina termina
  * publicando "catalogo mudou" ({@link CatalogChange}, origem PROVENTOS) com os
  * ativos sincronizados, e quem refaz a carteira e a app-api.</p>
  *
  * <p><b>Historico longo</b> — sem coluna de estado no catalogo (F10): empresa pelo
  * historico da B3 (desde os anos 90, sem data de pagamento), buscado uma vez por emissor e
- * guardado em {@code data/b3/proventos/{EMISSOR}.json}, aplicado ao ativo que ainda nao tem
+ * guardado em {@code carga/data/b3/proventos/{EMISSOR}.json}, aplicado ao ativo que ainda nao tem
  * nenhum evento dele; FII pelo FNET (2016 em
- * diante, com pagamento): os avisos do CNPJ que estao em {@code data/fnet} (indice local do
+ * diante, com pagamento): os avisos do CNPJ que estao em {@code carga/data/fnet} (indice local do
  * {@link FnetClient}), sem perguntar ao FNET — a busca por fundo leva 3 a 10 s, trava com
  * frequencia, e o cache ja tem o historico.</p>
  *
- * <p><b>PLANO_CARGA_INICIAL.md (5.2):</b> a resposta de ~12 meses da B3 e somada a
- * {@code data/b3/proventos-12m} ({@link B3SupplementStore}) e a rotina aplica o arquivo inteiro —
+ * <p><b>docs/planos/PLANO_CARGA_INICIAL.md (5.2):</b> a resposta de ~12 meses da B3 e somada a
+ * {@code carga/data/b3/proventos-12m} ({@link B3SupplementStore}) e a rotina aplica o arquivo inteiro —
  * a data de pagamento nao se perde quando o evento sai da janela, e um banco novo a recebe do
  * arquivo. Para FII o <b>FNET e a fonte principal</b> (D15): os avisos em disco sao aplicados
  * antes da B3, e quando a B3 mostra um provento mais novo que o ultimo aviso gravado o FNET e
@@ -164,7 +164,7 @@ public class ProventosCatalogService {
                                 JdbcTemplate jdbc, PlatformTransactionManager transactionManager,
                                 @Value("${primevest.proventos.pause-millis:1000}") long pauseMillis,
                                 @Value("${primevest.proventos.scope:ALL}") String scope,
-                                @Value("${primevest.data.dir:../data}") String dataDir) {
+                                @Value("${primevest.data.dir:../carga/data}") String dataDir) {
         this.assetRepository = assetRepository;
         this.cashEventRepository = cashEventRepository;
         this.stockEventRepository = stockEventRepository;
@@ -379,7 +379,7 @@ public class ProventosCatalogService {
                 log.warn("Proventos: a B3 nao encontrou o emissor {}", group.issuer());
             }
         } catch (B3Exception e) {
-            // a B3 caiu: segue com o que ja esta em data/b3/proventos-12m
+            // a B3 caiu: segue com o que ja esta em carga/data/b3/proventos-12m
             log.warn("Proventos: B3 sem resposta para {} ({}) — usando o arquivo em disco", group.issuer(), e.getMessage());
             fresh = null;
             b3Down = e;
@@ -571,7 +571,7 @@ public class ProventosCatalogService {
     /**
      * Historico da B3 para os ativos do grupo que ainda nao tem nenhum evento dele
      * ({@code B3_HISTORICO}). A resposta inteira fica em
-     * {@code data/b3/proventos/{EMISSOR}.json} (F10: o arquivo e o estado, sem coluna no
+     * {@code carga/data/b3/proventos/{EMISSOR}.json} (F10: o arquivo e o estado, sem coluna no
      * catalogo): com o arquivo em disco nada e pedido a B3 de novo — a acao que nunca pagou
      * provento le o arquivo e segue sem eventos. Sem arquivo, as paginas sao buscadas (1
      * chamada/s) e o arquivo so e gravado quando todas vieram.
@@ -655,7 +655,7 @@ public class ProventosCatalogService {
         return saved;
     }
 
-    /** {@code data/b3/proventos/{EMISSOR}.json}: todas as paginas do historico da B3. */
+    /** {@code carga/data/b3/proventos/{EMISSOR}.json}: todas as paginas do historico da B3. */
     private Path companyHistoryFile(String issuer) {
         return historyDir.resolve(issuer.toUpperCase().replaceAll("[^A-Z0-9]", "_") + ".json");
     }
@@ -688,7 +688,7 @@ public class ProventosCatalogService {
     /**
      * Historico de FII pelo FNET, para os ativos de um grupo (o mesmo fundo pode ter duas
      * classes negociadas, TRPL11 e TRPL15). Busca pelo CNPJ do emissor ({@code issuers.cnpj}), le os avisos
-     * desse CNPJ que estao em {@code data/fnet} e ainda nao foram gravados. Devolve se nada ficou
+     * desse CNPJ que estao em {@code carga/data/fnet} e ainda nao foram gravados. Devolve se nada ficou
      * para tras (aviso que nao foi lido e tentado de novo na proxima rodada).
      */
     private boolean loadFundHistory(List<Asset> assets, LocalDate latestB3, Counters c) {
@@ -711,7 +711,7 @@ public class ProventosCatalogService {
     }
 
     private boolean loadFund(String cnpj, List<Asset> assets, Counters c) {
-        // so o que esta em disco (data/fnet): nenhuma chamada ao FNET
+        // so o que esta em disco (carga/data/fnet): nenhuma chamada ao FNET
         List<Long> ids = fnetClient.cachedNoticeIds(cnpj);
         Set<String> known = new HashSet<>();
         assets.forEach(a -> known.addAll(cashEventRepository.findFnetRefs(a.getId())));
@@ -779,7 +779,7 @@ public class ProventosCatalogService {
     /**
      * Aviso novo no FNET (PENDENCIAS 18.10 d): quando a B3 ja mostra um provento com data-com
      * depois do ultimo aviso gravado do fundo, busca os avisos do CNPJ no FNET, baixa os que nao
-     * estao em {@code data/fnet} e aplica. No maximo uma busca por dia por fundo; FNET fora do ar
+     * estao em {@code carga/data/fnet} e aplica. No maximo uma busca por dia por fundo; FNET fora do ar
      * nao derruba nada — a B3 grava o provento como reserva e a busca volta no dia seguinte.
      */
     private boolean searchNewNotices(String cnpj, List<Asset> assets, LocalDate latestB3, Counters c) {

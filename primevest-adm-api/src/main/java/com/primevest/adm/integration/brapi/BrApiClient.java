@@ -23,7 +23,7 @@ import java.util.function.Function;
 /**
  * Cliente da BRAPI (brapi.dev) — endpoints v2, plano gratuito.
  *
- * <p>O que o plano gratuito permite (PLANO_BRAPI.md, secao 1) e o que este
+ * <p>O que o plano gratuito permite (docs/planos/PLANO_BRAPI.md, secao 1) e o que este
  * cliente usa:</p>
  * <ul>
  *   <li>{@code GET /v2/stocks/quote?symbols=X} — cotacao, 1 ativo por chamada;</li>

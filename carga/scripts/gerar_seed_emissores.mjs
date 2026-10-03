@@ -1,8 +1,8 @@
-// Gera a migration de seed dos emissores (F4 / M3 do PLANO_EMPRESAS_BALANCOS.md)
+// Gera a migration de seed dos emissores (F4 / M3 do docs/planos/PLANO_EMPRESAS_BALANCOS.md)
 // a partir do banco de desenvolvimento, depois da curadoria conferida.
 //
-// Uso: node scripts/gerar_seed_emissores.mjs <arquivo.sql>
-//   ex.: node scripts/gerar_seed_emissores.mjs primevest-core/src/main/resources/db/migration/V99__seed_issuers.sql
+// Uso: node carga/scripts/gerar_seed_emissores.mjs <arquivo.sql>
+//   ex.: node carga/scripts/gerar_seed_emissores.mjs primevest-core/src/main/resources/db/migration/V99__seed_issuers.sql
 // Le do conteiner do banco (primevest-db): issuers (todas as companhias + FIIs
 // ligados), ligacoes de ACAO e FII, composicao das units e o segmento curado do FII
 // (issuers.segment, desde a V31).
@@ -53,10 +53,10 @@ const cols = ['kind', 'cnpj', 'cvm_code', 'legal_name', 'trade_name', 'registrat
   'b3_sector', 'b3_subsector', 'b3_segment', 'registration_category', 'listing_segment', 'fiscal_year_end_month',
   'segment', 'cvm_segment', 'administrator_name', 'administrator_cnpj', 'management_type'];
 
-let sql = `-- Emissores (F4 / M3 do PLANO_EMPRESAS_BALANCOS.md) — ${companies} companhias e ${funds} FIIs,
+let sql = `-- Emissores (F4 / M3 do docs/planos/PLANO_EMPRESAS_BALANCOS.md) — ${companies} companhias e ${funds} FIIs,
 -- ${links.length} ligacoes ativo -> emissor e ${units.length} linhas de composicao de units.
 --
--- Gerado do banco de desenvolvimento em ${hoje} (scripts/gerar_seed_emissores.mjs), depois da
+-- Gerado do banco de desenvolvimento em ${hoje} (carga/scripts/gerar_seed_emissores.mjs), depois da
 -- carga das rotinas de emissores (F1), da serie historica da B3 (F2, ISIN) e da ligacao (F3), e da
 -- curadoria conferida pelo Guilherme (docs/emissores/Curadoria_Emissores_2026-09-27_corrigida.xlsx).
 -- Este arquivo e o estado conferido, nao o caminho: num banco novo, emissores e ligacoes nascem daqui,

@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
- * Conectar uma conta de corretora (PLANO_CRIPTO_BINANCE.md, 6.7).
+ * Conectar uma conta de corretora (docs/planos/PLANO_CRIPTO_BINANCE.md, 6.7).
  *
  * <p>{@code apiSecret} so existe nesta requisicao: vai cifrado para o banco e
  * nenhuma resposta o devolve. O {@code toString} e mascarado pelo mesmo motivo.</p>

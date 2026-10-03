@@ -24,7 +24,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 
 /**
- * F7 do PLANO_EMPRESAS_BALANCOS.md: informe mensal de FII com o recorte real de 2026
+ * F7 do docs/planos/PLANO_EMPRESAS_BALANCOS.md: informe mensal de FII com o recorte real de 2026
  * (HGLG11 e o fundo 00.613.094/0001-74, jan a ago; os dois sao emissores no seed). O complemento traz, alem das linhas
  * reais, uma linha a mais do HGLG11 em 08/2026 com versao 1 e valores 1 — a CVM so
  * publica a versao mais recente, e a linha simula a reapresentacao chegando junto.

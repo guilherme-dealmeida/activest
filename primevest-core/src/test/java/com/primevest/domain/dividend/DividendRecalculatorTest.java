@@ -33,9 +33,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Proventos AUTO a partir dos eventos do catalogo (PLANO_BRAPI.md, F5): valor
+ * Proventos AUTO a partir dos eventos do catalogo (docs/planos/PLANO_BRAPI.md, F5): valor
  * por cota x cotas na data-com, com os desdobramentos no meio — e o IR retido
- * calculado junto (PLANO_IR_PROVENTOS.md, 4.4).
+ * calculado junto (docs/planos/PLANO_IR_PROVENTOS.md, 4.4).
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)

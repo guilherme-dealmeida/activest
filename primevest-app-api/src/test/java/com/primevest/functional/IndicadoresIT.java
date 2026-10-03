@@ -17,7 +17,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * F9 do PLANO_EMPRESAS_BALANCOS.md de ponta a ponta: balancos ({@code company_quarters}),
+ * F9 do docs/planos/PLANO_EMPRESAS_BALANCOS.md de ponta a ponta: balancos ({@code company_quarters}),
  * informe de FII ({@code fii_monthly}), proventos e precos no banco → endpoints da app-api.
  * Numeros da Petrobras dos DFP 2024 e 2025 reais (lucro e PL da controladora, acoes, DVA).
  */

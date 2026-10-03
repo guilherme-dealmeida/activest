@@ -6,7 +6,7 @@ import java.util.Objects;
 
 /**
  * Um movimento da fonte no formato comum a todos os conectores
- * (PLANO_CRIPTO_BINANCE.md, 6.2 e 6.13).
+ * (docs/planos/PLANO_CRIPTO_BINANCE.md, 6.2 e 6.13).
  *
  * <p>O conector entrega a operacao do jeito que a pessoa a fez: uma ordem
  * executada em varios pedacos ja chega somada (R1). O pipeline nao sabe de

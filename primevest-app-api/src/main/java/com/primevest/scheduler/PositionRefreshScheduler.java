@@ -7,7 +7,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Rede de seguranca da carteira (PLANO_ADM_API.md, 10.3): uma vez por dia, depois do
+ * Rede de seguranca da carteira (docs/planos/PLANO_ADM_API.md, 10.3): uma vez por dia, depois do
  * fechamento (19:00) e dos proventos (20:00) da adm-api, recalcula proventos e valorizacao de
  * todas as posicoes. Cobre o "catalogo mudou" que se perdeu (Redis ou app-api fora do ar).
  */

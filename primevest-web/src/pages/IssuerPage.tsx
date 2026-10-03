@@ -17,7 +17,7 @@ const status = (error: unknown): number | undefined =>
   (error as { response?: { status?: number } } | null)?.response?.status;
 
 /**
- * Tela de Emissoras (PLANO_TELA_EMISSORES.md): a partir de um ticker, o
+ * Tela de Emissoras (docs/planos/PLANO_TELA_EMISSORES.md): a partir de um ticker, o
  * emissor (companhia ou FII), a cotação, os indicadores com histórico, o
  * cadastro e os demonstrativos. A URL é o estado: /emissoras/PETR4?periodo=5A.
  */

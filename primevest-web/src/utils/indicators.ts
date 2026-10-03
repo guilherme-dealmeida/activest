@@ -1,8 +1,8 @@
 import { IndicatorCode, IndicatorUnit, IssuerKind } from '@/types';
 
 /**
- * Metadados dos indicadores da tela de emissoras (PLANO_TELA_EMISSORES.md, 2.4).
- * As fórmulas são as do PLANO_EMPRESAS_BALANCOS.md, 5.1 e 5.2 — o cálculo é do
+ * Metadados dos indicadores da tela de emissoras (docs/planos/PLANO_TELA_EMISSORES.md, 2.4).
+ * As fórmulas são as do docs/planos/PLANO_EMPRESAS_BALANCOS.md, 5.1 e 5.2 — o cálculo é do
  * backend; aqui é só rótulo e explicação.
  */
 export interface IndicatorMeta {

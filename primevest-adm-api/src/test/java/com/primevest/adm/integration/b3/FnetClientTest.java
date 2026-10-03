@@ -15,8 +15,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * FNET refeito na F8 (PLANO_EMPRESAS_BALANCOS.md, 1.5): avisos reais do cache
- * {@code data/fnet} nos dois formatos de XML, e o cache em disco no lugar do download.
+ * FNET refeito na F8 (docs/planos/PLANO_EMPRESAS_BALANCOS.md, 1.5): avisos reais do cache
+ * {@code carga/data/fnet} nos dois formatos de XML, e o cache em disco no lugar do download.
  */
 class FnetClientTest {
 
@@ -86,7 +86,7 @@ class FnetClientTest {
     }
 
     @Test
-    @DisplayName("Cache: aviso em data/fnet e lido do disco; sem arquivo e sem rede, fica para a proxima")
+    @DisplayName("Cache: aviso em carga/data/fnet e lido do disco; sem arquivo e sem rede, fica para a proxima")
     void cache() throws Exception {
         FnetClient client = new FnetClient(WebClient.builder(), "http://localhost:0", 1, 2, 0, 2, 1, 1,
                 tmp.toString(), new ObjectMapper());

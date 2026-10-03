@@ -46,7 +46,7 @@ import java.util.stream.Collectors;
 
 /**
  * Conexoes do usuario com corretoras: conectar, listar, desconectar e
- * pre-visualizar a importacao (PLANO_CRIPTO_BINANCE.md, 6.7).
+ * pre-visualizar a importacao (docs/planos/PLANO_CRIPTO_BINANCE.md, 6.7).
  *
  * <p>Tudo escopado pelo dono: conexao de outro usuario responde "nao
  * encontrada", como no resto do projeto.</p>

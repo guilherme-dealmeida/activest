@@ -15,7 +15,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Eventos do papel no calculo da posicao (PLANO_BRAPI.md, F5 e F6): o evento e
+ * Eventos do papel no calculo da posicao (docs/planos/PLANO_BRAPI.md, F5 e F6): o evento e
  * um passo a mais na linha do tempo, logo depois das transacoes da data-com, e
  * nenhuma transacao e reescrita.
  */

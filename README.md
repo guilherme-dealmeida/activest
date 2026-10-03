@@ -29,7 +29,7 @@ primevest/
 
 > Ainda **não há testes automatizados**: `src/test` está vazio e o build roda com
 > `-Dmaven.test.skip=true`. O plano, quando a suíte nascer, é Testcontainers com
-> PostgreSQL — metade do que importa aqui é comportamento de banco. Ver `PENDENCIAS.txt`.
+> PostgreSQL — metade do que importa aqui é comportamento de banco. Ver `docs/PENDENCIAS.md`.
 
 ### Frontend
 - **React 18** + **TypeScript**
@@ -46,7 +46,7 @@ primevest/
 ### Módulo Gestão de Carteira B3
 - ✅ Catálogo de ativos já populado (Ações, FIIs, Tesouro, Renda Fixa, ETFs, BDRs, Cripto) — a transação seleciona do catálogo, não cria ativo novo
 - ✅ Registro de compras e vendas com cálculo de preço médio
-- ✅ Cálculo de rentabilidade por ativo e da carteira total — **renda variável apenas**; renda fixa ainda marca zero, por falta do cálculo de curva (ver `PENDENCIAS.txt`, item 2.1)
+- ✅ Cálculo de rentabilidade por ativo e da carteira total — **renda variável apenas**; renda fixa ainda marca zero, por falta do cálculo de curva (ver `docs/PENDENCIAS.md`, item 2.1)
 - ✅ Gráficos de alocação (pizza por tipo e por categoria)
 - ✅ Estratégia de alocação com % ideal e sugestão de rebalanceamento
 - ✅ Preço teto por ativo definido pelo usuário
@@ -108,7 +108,7 @@ npm run lint     # ESLint 9; hoje fecha em 0 erro
 > Identity Services, que dispensa client secret.
 
 Detalhes operacionais — schema, migrations, decisões de modelagem e armadilhas
-conhecidas — estão em `Claude.md`. O que ficou por fazer está em `PENDENCIAS.txt`.
+conhecidas — estão em `Claude.md`. O que ficou por fazer está em `docs/PENDENCIAS.md`.
 
 ### Carga do catálogo num banco novo
 
@@ -116,46 +116,46 @@ As migrations criam o schema e o catálogo semeado (ativos, categorias, emissore
 ativo → emissor, composição das units e o usuário administrador). O histórico — preços desde
 2010, proventos (com data de pagamento), balanços da CVM, série trimestral e informe mensal de
 FII — entra pela **carga inicial**, disparada à mão na adm-api. Ela não roda sozinha ao subir.
-Nada depende de pasta fora do projeto (`PLANO_CARGA_INICIAL.md`).
+Nada depende de pasta fora do projeto (`docs/planos/PLANO_CARGA_INICIAL.md`).
 
 **Antes:**
 
 1. **`.env`** a partir do `.env.example`: `PRIMEVEST_SENHA` (senha do administrador semeado,
    `guilhermeunatec@gmail.com`, migration V9 — peça a quem mantém o projeto) e o **token só
    leitura** do bucket R2 (`S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`).
-2. **Pasta `data/`** (fora do git, ~1,4 GB) baixada do bucket `primevest-data` (Cloudflare R2):
+2. **Pasta `carga/data/`** (fora do git, ~1,4 GB) baixada do bucket `primevest-data` (Cloudflare R2):
    `cvm/`, `b3/cotahist/`, `b3/proventos/`, `b3/proventos-12m/`, `fnet/`, `levantamento/` e `logos/`. Com ela a
    carga lê quase tudo do disco; sem ela baixa ~2 GB da CVM e da B3, e perde o que as fontes não
    devolvem mais (avisos antigos do FNET, datas de pagamento que já saíram da janela da B3 e as
    datas levantadas de 2010–2026, que só existem em `levantamento/`).
-3. **Internet:** mesmo com `data/` cheia, os proventos dos últimos 12 meses de cada emissor vêm
+3. **Internet:** mesmo com `carga/data/` cheia, os proventos dos últimos 12 meses de cada emissor vêm
    da B3 (uma chamada por segundo).
 
 **Rodar** (só Docker; os scripts rodam pelos contêineres do profile `carga`):
 
 ```bash
-docker compose --profile carga run --rm data pull           # bucket -> data/ (--minimo: só o essencial)
+docker compose --profile carga run --rm data pull           # bucket -> carga/data/ (--minimo: só o essencial)
 docker compose up -d --build                                # as migrations rodam ao subir as APIs
-docker compose --profile carga run --rm tools node scripts/admin.mjs bootstrap
+docker compose --profile carga run --rm tools node carga/scripts/admin.mjs bootstrap
 docker compose logs -f adm-api      # acompanhar; termina em "Carga inicial (...) concluida"
 ```
 
 A carga roda, em ordem: emissores (completa o seed com as companhias e os FIIs negociados que não
 estão no catálogo), COTAHIST, proventos (FII pelo FNET, ações pela B3), datas de pagamento pelos
 relatórios de proventos da CVM (2022+), datas de pagamento do levantamento 2010–2026
-(`data/levantamento/datas-pagamento.json`, só onde ainda falta data), balanços com a série
+(`carga/data/levantamento/datas-pagamento.json`, só onde ainda falta data), balanços com a série
 trimestral, e informe mensal de FII.
-Com `data/` cheia leva **~1 h**. É retomável: se uma etapa falhar (a B3 às vezes cai), rode de
-novo — o que já entrou é pulado. Conferência: `scripts/sql/contagens.sql` e
-`scripts/sql/datas_pagamento.sql` (ver `scripts/README.md`).
+Com `carga/data/` cheia leva **~1 h**. É retomável: se uma etapa falhar (a B3 às vezes cai), rode de
+novo — o que já entrou é pulado. Conferência: `carga/scripts/sql/contagens.sql` e
+`carga/scripts/sql/datas_pagamento.sql` (ver `carga/scripts/README.md`).
 
 **Depois:** o preço atual dos ativos vem do fechamento diário (19:00, ou na subida da adm-api se
 estiver atrasado), que usa a BRAPI (`BRAPI_TOKEN`). Até lá, os indicadores usam o último
 fechamento do COTAHIST. Carteiras e transações são de cada usuário e não fazem parte da carga.
 
 **Quem mantém o bucket** (chave de escrita no `.env`): as rotinas gravam o que chega das fontes em
-`data/`; `docker compose --profile carga run --rm data push` sobe o que é novo (nunca apaga) e
-regrava os manifests. `data status` compara `data/` com o bucket.
+`carga/data/`; `docker compose --profile carga run --rm data push` sobe o que é novo (nunca apaga) e
+regrava os manifests. `data status` compara `carga/data/` com o bucket.
 
 ## 🔌 APIs Externas
 

@@ -10,7 +10,7 @@ import { IndicatorHistoryModal } from './IndicatorHistoryModal';
 
 /**
  * Cartões de indicadores com sparkline e botão de histórico
- * (PLANO_TELA_EMISSORES.md, 2.4, D1–D3). Os cartões aparecem com os valores
+ * (docs/planos/PLANO_TELA_EMISSORES.md, 2.4, D1–D3). Os cartões aparecem com os valores
  * atuais; as sparklines chegam depois, numa chamada só (B4).
  */
 export const IndicatorGrid = ({ current }: { current: AssetIndicators }) => {

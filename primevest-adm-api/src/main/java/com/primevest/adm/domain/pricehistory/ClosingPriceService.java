@@ -36,7 +36,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Rotina de fechamento: preco de fechamento e historico diario (PLANO_BRAPI.md,
+ * Rotina de fechamento: preco de fechamento e historico diario (docs/planos/PLANO_BRAPI.md,
  * secao 3, F2 e F4).
  *
  * <p><b>B3 (BRAPI).</b> So os ativos em carteira, 1 por chamada, em sequencia.

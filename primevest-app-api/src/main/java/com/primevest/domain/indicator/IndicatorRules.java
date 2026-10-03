@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * As formulas da F9 (PLANO_EMPRESAS_BALANCOS.md, 5.1 a 5.3) — funcao pura: sem banco, sem
+ * As formulas da F9 (docs/planos/PLANO_EMPRESAS_BALANCOS.md, 5.1 a 5.3) — funcao pura: sem banco, sem
  * Spring. O {@link IndicatorService} monta a base de cada ponto e chama aqui.
  *
  * <p><b>Nulo x zero</b> (5.3, 28/09): sem provento no periodo o DY e <b>0</b>; nulo fica para

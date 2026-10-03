@@ -2,7 +2,7 @@
 
 > **ESCOPO:** separar a ingestão de dados de mercado (CVM, B3, FNET, BRAPI, CoinGecko) e as rotinas de
 > administração num serviço próprio, `primevest-adm-api`, antes que as fases F7–F11 do
-> PLANO_EMPRESAS_BALANCOS.md acrescentem mais código a elas.
+> docs/planos/PLANO_EMPRESAS_BALANCOS.md acrescentem mais código a elas.
 > **ETAPA:** Planejamento (28/09/2026). Nada foi alterado no código.
 > **Decisões (28/09/2026):** as recomendações da seção 7 foram aceitas, e o módulo `primevest-api` passa a se
 > chamar **`primevest-app-api`** (A7).
@@ -227,7 +227,7 @@ dois serviços.
 | **S1** | Renomear `primevest-api` → `primevest-app-api` (pasta e `artifactId`; pacotes Java iguais) + `pom.xml` raiz + `primevest-core` com o inventário 3.1 (movido) + `primevest-app-api` dependendo dele. Extrair `AssetLogos`, `CashEventWriter`, `AdminGuard`. `test-jar` do core com `support/*`. Nenhum serviço novo ainda: tudo sobe como hoje. **Bateria completa verde.** |
 | **S2** | `primevest-adm-api` com o inventário 3.2 (movido da app-api) e sua `SecurityConfig`; testes de 3.4 redistribuídos; Redis sob demanda (4.1). **Bateria completa verde nos três módulos, mesma contagem.** |
 | **S3** | Dockerfile na raiz, `dev-watch.sh` multi-módulo, compose com os dois serviços (`app-api` e `adm-api`; `VITE_API_TARGET` do web aponta para `app-api`); `admin.mjs` com a URL da adm-api. Subir o ambiente, conferir: login na 8080, `node admin.mjs cvm/quarters` na 8081 com o mesmo resultado de hoje (19.344 linhas), lançar uma transação e ver a mensagem sob demanda chegar na adm-api, hot reload alterando uma classe do core e uma de cada módulo. |
-| **S4** | `Claude.md` (estrutura, portas, comandos, rotinas), `PLANO_EMPRESAS_BALANCOS.md` (F7–F11 na adm-api; F9 na app-api), `PENDENCIAS.txt`, README se houver. |
+| **S4** | `Claude.md` (estrutura, portas, comandos, rotinas), `docs/planos/PLANO_EMPRESAS_BALANCOS.md` (F7–F11 na adm-api; F9 na app-api), `docs/PENDENCIAS.md`, README se houver. |
 
 Estimativa: S1 e S2 são quase só movimentação de arquivos (~180 classes e ~50 testes); o trabalho real está
 em S1 (dependências que o compilador revelar entre `core` e o resto) e em S3 (hot reload multi-módulo).
@@ -388,7 +388,7 @@ Diferenças da S2 em relação a 10.5:
 | Etapa | Estado |
 |---|---|
 | S3 | **Feita em 28/09/2026** (compose e Dockerfile já vinham da S1/S2). Conferido com os dois contêineres no ar: classe do core alterada → os dois recompilam e reiniciam sozinhos (adm-api ~35 s, app-api ~55 s); "preciso do histórico" publicado no canal pelo `redis-cli` → a adm-api busca e a app-api recalcula ("catálogo mudou (PROVENTOS)"); `node admin.mjs closing` na 8081 → "catálogo mudou (FECHAMENTO)" na app-api; logo servido pela 8080 da pasta montada só para leitura; 401 sem token na 8081 e Swagger das duas. Imagem de produção dos dois módulos (`docker build --target runtime --build-arg MODULE=...`) gerada e subindo até o Tomcat |
-| S4 | **Feita em 28/09/2026.** `Claude.md`: seção nova "Dois serviços: carteira × administração" (módulos, regra de escrita, mensagens, onde mexer), serviços e portas, rotinas por serviço, hot reload dos dois contêineres, árvore do repositório, testes por módulo. `PLANO_EMPRESAS_BALANCOS.md`: onde cada fase é feita (F7, F8, F10, F11 na adm-api; F9 na app-api; entidades e migrations no core), portas das rotas (5.4) e linha da separação no andamento. `PENDENCIAS.txt` 18.9 (rede de segurança a rever com muitos usuários, sob demanda a rever na F8, publicador da app-api sem teste com Redis real, recompilação dos dois contêineres). `README.md` e `admin.mjs` já vinham da S2 |
+| S4 | **Feita em 28/09/2026.** `Claude.md`: seção nova "Dois serviços: carteira × administração" (módulos, regra de escrita, mensagens, onde mexer), serviços e portas, rotinas por serviço, hot reload dos dois contêineres, árvore do repositório, testes por módulo. `docs/planos/PLANO_EMPRESAS_BALANCOS.md`: onde cada fase é feita (F7, F8, F10, F11 na adm-api; F9 na app-api; entidades e migrations no core), portas das rotas (5.4) e linha da separação no andamento. `docs/PENDENCIAS.md` 18.9 (rede de segurança a rever com muitos usuários, sob demanda a rever na F8, publicador da app-api sem teste com Redis real, recompilação dos dois contêineres). `README.md` e `admin.mjs` já vinham da S2 |
 
 Bateria final: **376 unitários + 161 de integração, todos verdes** (a última `mvn clean verify`, depois da última
 mudança de código).

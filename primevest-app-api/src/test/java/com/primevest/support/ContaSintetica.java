@@ -11,7 +11,7 @@ import java.util.List;
 /**
  * Uma conta de corretora INVENTADA, ja no formato normalizado do conector.
  *
- * <p>Nenhum id, data ou valor vem de conta real (PLANO_CRIPTO_BINANCE.md,
+ * <p>Nenhum id, data ou valor vem de conta real (docs/planos/PLANO_CRIPTO_BINANCE.md,
  * 6.13). A conta foi montada para fechar: depositos em reais, compras, uma
  * conversao e uma venda, com o saldo final que a "corretora" mostraria — e e
  * contra ele que o teste de conciliacao confere as regras.</p>

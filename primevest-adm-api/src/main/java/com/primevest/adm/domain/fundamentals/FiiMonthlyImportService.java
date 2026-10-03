@@ -27,7 +27,7 @@ import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Informe mensal de FII da CVM em {@code fii_monthly} (PLANO_EMPRESAS_BALANCOS.md, F7).
+ * Informe mensal de FII da CVM em {@code fii_monthly} (docs/planos/PLANO_EMPRESAS_BALANCOS.md, F7).
  *
  * <p>So os fundos que sao emissores ({@code issuers.kind = 'FII'}), ligados pelo CNPJ;
  * o resto do arquivo e descartado na leitura. Catalogo puro: nao mexe em carteira e
@@ -35,7 +35,7 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <p><b>Idempotente.</b> Mes ja gravado com versao igual ou maior e pulado; versao nova
  * (reapresentacao) substitui a linha. {@code force} regrava tudo a partir de
- * {@code data/cvm/fii}, sem baixar de novo.</p>
+ * {@code carga/data/cvm/fii}, sem baixar de novo.</p>
  */
 @Slf4j
 @Service

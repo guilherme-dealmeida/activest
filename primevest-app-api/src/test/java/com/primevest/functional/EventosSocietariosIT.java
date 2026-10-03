@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Desdobramento, grupamento e bonificacao pela API, do jeito que a tela ve
- * (PLANO_BRAPI.md, F6). O evento e gravado no catalogo; as transacoes do
+ * (docs/planos/PLANO_BRAPI.md, F6). O evento e gravado no catalogo; as transacoes do
  * usuario nunca sao reescritas.
  */
 class EventosSocietariosIT extends FuncionalBase {

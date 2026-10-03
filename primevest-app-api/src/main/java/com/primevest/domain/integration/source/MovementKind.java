@@ -2,7 +2,7 @@ package com.primevest.domain.integration.source;
 
 /**
  * O que aconteceu na fonte, ja normalizado pelo conector
- * (PLANO_CRIPTO_BINANCE.md, 6.13).
+ * (docs/planos/PLANO_CRIPTO_BINANCE.md, 6.13).
  *
  * <p>So TRADE e CONVERT viram transacao na primeira versao. Os demais existem
  * para o conector nao ter de escolher o que descartar: o pipeline decide, e o

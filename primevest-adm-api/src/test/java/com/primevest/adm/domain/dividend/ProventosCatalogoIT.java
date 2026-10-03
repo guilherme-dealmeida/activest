@@ -23,14 +23,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 /**
- * F8 do PLANO_EMPRESAS_BALANCOS.md: a rodada de proventos cobre o catalogo (ativos ligados a
+ * F8 do docs/planos/PLANO_EMPRESAS_BALANCOS.md: a rodada de proventos cobre o catalogo (ativos ligados a
  * emissor, sem ninguem ter posicao) e le o historico de FII do FNET pelo CNPJ, so do
- * cache {@code data/fnet} — avisos reais de VISC11, PLAG11 e MAXR11, nos dois formatos.
+ * cache {@code carga/data/fnet} — avisos reais de VISC11, PLAG11 e MAXR11, nos dois formatos.
  *
  * <p>A B3 nao responde (mock sem resposta): o FNET segue sozinho, como deve.</p>
  */
-// data propria: a rotina grava em data/ (b3/proventos, b3/proventos-12m, fnet) e o teste nao pode
-// sujar a data/ real do projeto (PLANO_CARGA_INICIAL.md)
+// data propria: a rotina grava em carga/data/ (b3/proventos, b3/proventos-12m, fnet) e o teste nao pode
+// sujar a carga/data/ real do projeto (docs/planos/PLANO_CARGA_INICIAL.md)
 @TestPropertySource(properties = {"primevest.proventos.scope=ALL", "primevest.data.dir=target/it-data-proventos"})
 class ProventosCatalogoIT extends IntegrationTestBase {
 
@@ -123,7 +123,7 @@ class ProventosCatalogoIT extends IntegrationTestBase {
                 .containsExactly("2017-11-30/FNET", "2025-09-30/FNET", "2026-01-30/B3");
         // uma busca so: a segunda rodada esta dentro do intervalo de um dia
         verify(fnet, org.mockito.Mockito.times(1)).incomeNoticeIds(VISC);
-        // a resposta da B3 ficou em data/b3/proventos-12m (P1)
+        // a resposta da B3 ficou em carga/data/b3/proventos-12m (P1)
         assertThat(fnet.cacheDir().getParent().resolve("b3/proventos-12m/fundos/VISC.json")).exists();
     }
 

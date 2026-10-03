@@ -21,7 +21,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * Conferencia do extrato de proventos da B3: POST /admin/proventos/extrato. So le — nada vai
- * para o catalogo nem para a carteira (PLANO_CARGA_INICIAL.md, D13): cada linha ja existe, existe
+ * para o catalogo nem para a carteira (docs/planos/PLANO_CARGA_INICIAL.md, D13): cada linha ja existe, existe
  * sem data de pagamento no catalogo, nao tem evento no catalogo, ou e recusada.
  *
  * <p>Hoje fixo em 24/09/2026 (recebido x a receber).</p>

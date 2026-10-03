@@ -9,7 +9,7 @@ import java.time.LocalDate;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Leitura do "Relatorio Proventos" da CVM (PLANO_CARGA_INICIAL.md, 5.2 — P3). Textos como o PDFBox
+ * Leitura do "Relatorio Proventos" da CVM (docs/planos/PLANO_CARGA_INICIAL.md, 5.2 — P3). Textos como o PDFBox
  * extrai dos PDFs reais do RAD (Petrobras 11/12/2025, Cemig 18/12/2025, Taesa 11/11/2025).
  */
 class CvmProventosReportTest {

@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 
 /**
  * Transforma os movimentos de uma fonte na pre-visualizacao da importacao
- * (PLANO_CRIPTO_BINANCE.md, 6.2 e 6.13). Nao grava nada: a gravacao, pelo
+ * (docs/planos/PLANO_CRIPTO_BINANCE.md, 6.2 e 6.13). Nao grava nada: a gravacao, pelo
  * TransactionService e com a deteccao de duplicata com lancamentos manuais,
  * e a F4.
  *

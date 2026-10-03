@@ -48,7 +48,7 @@ public class PositionGuard {
     }
 
     /**
-     * Regra B com os eventos societarios do papel (PLANO_BRAPI.md, F6).
+     * Regra B com os eventos societarios do papel (docs/planos/PLANO_BRAPI.md, F6).
      *
      * <p>Depois de um desdobramento 1:2, quem tinha 100 cotas vende 200 — a
      * nota de corretagem ja vem na quantidade nova. Sem o evento no meio da

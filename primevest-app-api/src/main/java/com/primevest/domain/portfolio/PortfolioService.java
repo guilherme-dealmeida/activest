@@ -422,7 +422,7 @@ public class PortfolioService {
 
     /**
      * Proventos por posicao: a soma LIQUIDA de dividends (net_amount; total_amount
-     * onde o tipo nao tem regra de IR — PLANO_IR_PROVENTOS.md, D1), so do que ja
+     * onde o tipo nao tem regra de IR — docs/planos/PLANO_IR_PROVENTOS.md, D1), so do que ja
      * foi RECEBIDO: provento com pagamento depois de hoje (fuso da B3) fica de
      * fora. Uma consulta para a carteira inteira, em vez de uma por posicao.
      */

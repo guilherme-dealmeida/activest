@@ -15,7 +15,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Backend da tela de emissoras (PLANO_TELA_EMISSORES.md, B1–B6): historico de todos os
+ * Backend da tela de emissoras (docs/planos/PLANO_TELA_EMISSORES.md, B1–B6): historico de todos os
  * indicadores numa chamada, emissor com logo/site/situacao, busca so com emissor, cotacao
  * historica ajustada e o issuerId nas telas que linkam.
  */

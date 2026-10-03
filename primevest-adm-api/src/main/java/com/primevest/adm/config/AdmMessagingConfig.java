@@ -19,7 +19,7 @@ import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Mensagens do catalogo com a app-api pelo Redis (PLANO_ADM_API.md, 10.3):
+ * Mensagens do catalogo com a app-api pelo Redis (docs/planos/PLANO_ADM_API.md, 10.3):
  * <ul>
  *   <li>publica "catalogo mudou" ao fim do fechamento e dos proventos;</li>
  *   <li>ouve "preciso do historico" (transacao na carteira) e busca os proventos do ativo e,

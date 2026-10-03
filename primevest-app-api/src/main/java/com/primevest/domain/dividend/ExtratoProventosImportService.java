@@ -27,7 +27,7 @@ import java.util.UUID;
  * de quem chama. <b>So le</b>: nao grava nada no catalogo nem na carteira.
  *
  * <p>Ate 29/09/2026 esta importacao criava eventos no catalogo com fonte {@code EXTRATO_B3} e
- * completava datas de pagamento (V24). Isso saiu (PLANO_CARGA_INICIAL.md, regra C e D13; V38):
+ * completava datas de pagamento (V24). Isso saiu (docs/planos/PLANO_CARGA_INICIAL.md, regra C e D13; V38):
  * evento do catalogo vem de integracao — FNET, B3 e os relatorios de proventos da CVM — e o que so
  * o extrato do usuario tem nao entra no catalogo. A conferencia fica como ferramenta para achar o
  * que a integracao ainda nao cobre; a importacao da carteira por arquivo e escopo proprio

@@ -10,12 +10,12 @@ package com.primevest.domain.dividend;
 public enum PaymentDateSource {
     /**
      * "Relatorio Proventos" da CVM (IPE, 2022 em diante): completa a data de pagamento do
-     * historico longo da B3, que nao a traz (PLANO_CARGA_INICIAL.md, 5.2 — P3).
+     * historico longo da B3, que nao a traz (docs/planos/PLANO_CARGA_INICIAL.md, 5.2 — P3).
      */
     CVM,
     /**
-     * Levantamento das datas de pagamento 2010–2026 ({@code data/levantamento/datas-pagamento.json},
-     * PLANO_CARGA_INICIAL.md secao 11 — D14): completa o que a B3, o FNET e a CVM nao trazem.
+     * Levantamento das datas de pagamento 2010–2026 ({@code carga/data/levantamento/datas-pagamento.json},
+     * docs/planos/PLANO_CARGA_INICIAL.md secao 11 — D14): completa o que a B3, o FNET e a CVM nao trazem.
      */
     LEVANTAMENTO
 }

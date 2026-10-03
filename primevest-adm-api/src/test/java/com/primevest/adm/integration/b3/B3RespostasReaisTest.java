@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * O formato das respostas reais da B3 e do FNET (PLANO_BRAPI.md, F5 e A12).
+ * O formato das respostas reais da B3 e do FNET (docs/planos/PLANO_BRAPI.md, F5 e A12).
  */
 class B3RespostasReaisTest {
 

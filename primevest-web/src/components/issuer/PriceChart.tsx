@@ -38,7 +38,7 @@ const PriceTooltip = ({ active, payload }: TooltipPayload) => {
 };
 
 /**
- * Gráfico de cotação (PLANO_TELA_EMISSORES.md, 2.3, D7, D9): atalhos 1D…MAX
+ * Gráfico de cotação (docs/planos/PLANO_TELA_EMISSORES.md, 2.3, D7, D9): atalhos 1D…MAX
  * (1A padrão), período específico de/até, período guardado na URL. Preço
  * ajustado por desdobramento, grupamento e bonificação; densidade decidida
  * pelo servidor.

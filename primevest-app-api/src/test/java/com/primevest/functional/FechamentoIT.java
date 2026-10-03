@@ -28,7 +28,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Rotina de fechamento (PLANO_BRAPI.md, secao 3, F2 e F4): so ativos em
+ * Rotina de fechamento (docs/planos/PLANO_BRAPI.md, secao 3, F2 e F4): so ativos em
  * carteira, 1 por chamada, OHLCV no historico e ultimo fechamento no preco.
  */
 class FechamentoIT extends CatalogoE2EBase {

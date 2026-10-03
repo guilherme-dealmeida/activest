@@ -8,7 +8,7 @@ import java.time.LocalDate;
 
 /**
  * Aliquota de IR retido na fonte de um tipo de provento, num tipo de ativo,
- * numa vigencia (V23, PLANO_IR_PROVENTOS.md).
+ * numa vigencia (V23, docs/planos/PLANO_IR_PROVENTOS.md).
  *
  * <p>O que a lei muda mora aqui, no banco; o jeito de calcular mora no
  * {@link WithholdingTaxCalculator}. Lei nova = migration que fecha a vigencia

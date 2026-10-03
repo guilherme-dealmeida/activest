@@ -25,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Cache em disco dos arquivos da CVM: o arquivo e o estado
- * (PLANO_EMPRESAS_BALANCOS.md, secao 2). Servidor HTTP local no lugar da CVM.
+ * (docs/planos/PLANO_EMPRESAS_BALANCOS.md, secao 2). Servidor HTTP local no lugar da CVM.
  */
 class CvmOpenDataClientTest {
 

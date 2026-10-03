@@ -13,7 +13,7 @@ import java.util.Arrays;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Formulas da F9 (PLANO_EMPRESAS_BALANCOS.md, 5.1 a 5.3). Numeros da Petrobras 2025 do DFP
+ * Formulas da F9 (docs/planos/PLANO_EMPRESAS_BALANCOS.md, 5.1 a 5.3). Numeros da Petrobras 2025 do DFP
  * real (conferidos no plano, 1.1: LPA 8,54, VPA 32,26, payout 37,4%) e do HGLG11 08/2026.
  */
 class IndicatorRulesTest {

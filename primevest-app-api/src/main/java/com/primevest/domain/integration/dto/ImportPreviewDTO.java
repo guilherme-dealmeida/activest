@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Uma execucao da importacao (PLANO_CRIPTO_BINANCE.md, F4): a pre-visualizacao
+ * Uma execucao da importacao (docs/planos/PLANO_CRIPTO_BINANCE.md, F4): a pre-visualizacao
  * guardada e, depois de confirmada, o que aconteceu com cada item.
  *
  * @param runId         o que se confirma ({@code POST .../runs/{runId}/confirm})

@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Resumo dos proventos. Os totais sao LIQUIDOS (PLANO_IR_PROVENTOS.md, D3):
+ * Resumo dos proventos. Os totais sao LIQUIDOS (docs/planos/PLANO_IR_PROVENTOS.md, D3):
  * o que entrou na conta; tipo sem regra de IR entra pelo bruto.
  *
  * <p>Separados por situacao ({@link com.primevest.domain.dividend.Dividend#isReceived}):

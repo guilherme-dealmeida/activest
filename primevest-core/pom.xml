@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    Nucleo compartilhado pelas aplicacoes (PLANO_ADM_API.md, 3.1): todas as entidades
+    Nucleo compartilhado pelas aplicacoes (docs/planos/PLANO_ADM_API.md, 3.1): todas as entidades
     JPA e repositorios, as regras de posicao e de proventos usadas dos dois lados, as
     migrations do Flyway, a validacao do JWT e o tratamento de erro. Biblioteca: sem
     main, sem spring-boot-maven-plugin.

@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Balancos da CVM e informe mensal de FII do ano corrente e do anterior, uma vez
- * ao dia (PLANO_EMPRESAS_BALANCOS.md, 6.2; informe desde a F7). Um nao impede o
+ * ao dia (docs/planos/PLANO_EMPRESAS_BALANCOS.md, 6.2; informe desde a F7). Um nao impede o
  * outro. A CVM atualiza os arquivos de madrugada; so baixa o que mudou
  * ({@code If-Modified-Since}) e so grava documento ou mes novo ou reapresentado.
  */

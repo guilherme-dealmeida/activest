@@ -5,7 +5,7 @@ import java.time.LocalDate;
 
 /**
  * Devolucao de capital recebida pela posicao: amortizacao de FII ou
- * restituicao de capital de empresa (PLANO_BRAPI.md, B13).
+ * restituicao de capital de empresa (docs/planos/PLANO_BRAPI.md, B13).
  *
  * <p>Sai do custo da posicao na data de pagamento. A quantidade de cotas nao
  * muda; o preco medio cai. O custo nunca fica negativo — o que passar do custo

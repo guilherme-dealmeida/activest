@@ -9,7 +9,7 @@ import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** F10 do PLANO_EMPRESAS_BALANCOS.md: o arquivo em data/logos e o estado — sem coluna no catalogo. */
+/** F10 do docs/planos/PLANO_EMPRESAS_BALANCOS.md: o arquivo em carga/data/logos e o estado — sem coluna no catalogo. */
 class AssetLogosTest {
 
     @TempDir

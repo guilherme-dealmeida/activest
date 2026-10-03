@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * Um ponto de um indicador (PLANO_EMPRESAS_BALANCOS.md, 5.3).
+ * Um ponto de um indicador (docs/planos/PLANO_EMPRESAS_BALANCOS.md, 5.3).
  *
  * @param label     "2025", "2T26" ou "Atual"
  * @param periodEnd data do balanco (acao) ou ultimo dia do mes do informe (FII)

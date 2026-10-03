@@ -57,7 +57,7 @@ public record PortfolioAssetDetailDTO(
     /** Criptomoeda: a tela mostra quantidade e precos com ate 8 casas. */
     boolean isCrypto,
     /**
-     * Logo guardado em data/logos (F7). Nulo nos tipos sem logo (renda fixa,
+     * Logo guardado em carga/data/logos (F7). Nulo nos tipos sem logo (renda fixa,
      * Tesouro, fundos): a tela nao desenha nada. false = mostra as iniciais.
      */
     Boolean hasLogo,

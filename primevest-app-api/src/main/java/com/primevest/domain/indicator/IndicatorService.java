@@ -25,7 +25,7 @@ import java.util.NavigableMap;
 import java.util.TreeMap;
 
 /**
- * Indicadores de acoes e FIIs (PLANO_EMPRESAS_BALANCOS.md, 5 e F9). <b>Nada e gravado:</b> le
+ * Indicadores de acoes e FIIs (docs/planos/PLANO_EMPRESAS_BALANCOS.md, 5 e F9). <b>Nada e gravado:</b> le
  * {@code company_quarters}, {@code fii_monthly}, proventos e precos do catalogo e calcula na
  * leitura; as formulas estao em {@link IndicatorRules}.
  *
@@ -114,7 +114,7 @@ public class IndicatorService {
 
     /**
      * Historico de todos os indicadores do ticker, na ordem do {@link Indicator}
-     * (PLANO_TELA_EMISSORES.md, B4 — sparklines). Le trimestres/informes, precos e proventos
+     * (docs/planos/PLANO_TELA_EMISSORES.md, B4 — sparklines). Le trimestres/informes, precos e proventos
      * uma vez so; cada item e igual ao de {@link #history(String, Indicator, Period)}.
      */
     public List<IndicatorHistoryDTO> historyAll(String ticker, Period period) {

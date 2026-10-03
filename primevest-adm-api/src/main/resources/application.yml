@@ -1,4 +1,4 @@
-# primevest-adm-api — rotinas de administrador: o catalogo (PLANO_ADM_API.md, secao 10).
+# primevest-adm-api — rotinas de administrador: o catalogo (docs/planos/PLANO_ADM_API.md, secao 10).
 # Mesmo banco, mesmo Redis e mesmo JWT da app-api. Grava so catalogo; a carteira de cada
 # usuario e a app-api quem recalcula, avisada pelo Redis ("catalogo mudou").
 spring:
@@ -56,7 +56,7 @@ springdoc:
     path: /swagger-ui.html
     operations-sorter: method
 
-# BrAPI Integration (PLANO_BRAPI.md)
+# BrAPI Integration (docs/planos/PLANO_BRAPI.md)
 #
 # Plano gratuito: 15.000 requisicoes/mes, 1 ativo por chamada, 1 chamada por
 # vez. Endpoints v2, token no cabecalho Authorization: Bearer — nunca na URL.
@@ -88,7 +88,7 @@ fnet:
   search-timeout-seconds: 20
   search-attempts: 3
 cvm:
-  # Dados abertos (PLANO_EMPRESAS_BALANCOS.md): cadastro, FCA, DFP, ITR e informe
+  # Dados abertos (docs/planos/PLANO_EMPRESAS_BALANCOS.md): cadastro, FCA, DFP, ITR e informe
   # de FII, com cache em disco em ${primevest.data.dir}/cvm.
   base-url: https://dados.cvm.gov.br/dados
   timeout-seconds: 120
@@ -96,9 +96,9 @@ cvm:
 # Rotinas (fuso America/Sao_Paulo). Cron do Spring: segundo minuto hora dia mes dia-da-semana.
 primevest:
   # Cache das fontes publicas (CVM, B3, FNET) e logos. No Docker: /app/data,
-  # volume ./data da raiz do projeto (PLANO_EMPRESAS_BALANCOS.md, secao 2).
+  # volume ./data da raiz do projeto (docs/planos/PLANO_EMPRESAS_BALANCOS.md, secao 2).
   data:
-    dir: ${DATA_DIR:../data}
+    dir: ${DATA_DIR:../carga/data}
   issuers:
     # Pausa entre chamadas ao GetDetail da B3 (classificacao setorial).
     pause-millis: 1000
@@ -129,7 +129,7 @@ primevest:
       SNID11,XPID11,BTAL11,BTRA11,FNAM11,FNOR11,FSPE11,FSRF11,PSVM11
   logos:
     # Pasta fora do banco (B18). No Docker e o volume ./data/logos.
-    dir: ${LOGOS_DIR:../data/logos}
+    dir: ${LOGOS_DIR:../carga/data/logos}
     cron: "0 0 6 1 * *"
 
 logging:

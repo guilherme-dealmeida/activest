@@ -1,10 +1,10 @@
 """
-Gera data/levantamento/datas-pagamento.json a partir da planilha do levantamento
-(PLANO_CARGA_INICIAL.md, secao 11 - L1 a L4).
+Gera carga/data/levantamento/datas-pagamento.json a partir da planilha do levantamento
+(docs/planos/PLANO_CARGA_INICIAL.md, secao 11 - L1 a L4).
 
 Uso (na raiz do repositorio; precisa de openpyxl):
-    python scripts/levantamento/xlsx_para_json.py
-    python scripts/levantamento/xlsx_para_json.py data/levantamento/origem/outra_planilha.xlsx
+    python carga/scripts/levantamento/xlsx_para_json.py
+    python carga/scripts/levantamento/xlsx_para_json.py carga/data/levantamento/origem/outra_planilha.xlsx
 
 Chave natural de cada linha: ticker (+ ticker_fracionario), tipo, data_com, valor_por_acao e parcela.
 O id_evento da planilha NAO vai para o arquivo: so existe no banco em que a planilha foi gerada.
@@ -18,9 +18,9 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
-ROOT = Path(__file__).resolve().parents[2]
-ORIGEM = ROOT / "data" / "levantamento" / "origem"
-SAIDA = ROOT / "data" / "levantamento" / "datas-pagamento.json"
+ROOT = Path(__file__).resolve().parents[3]
+ORIGEM = ROOT / "carga" / "data" / "levantamento" / "origem"
+SAIDA = ROOT / "carga" / "data" / "levantamento" / "datas-pagamento.json"
 STATUS = {"CONFIRMADO": "CONFIRMADO", "ACEITE NA ÚLTIMA REVISÃO": "ACEITE_ULTIMA_REVISAO", "A DEFINIR": "A_DEFINIR"}
 TIPOS = {"DIVIDENDO", "JCP", "RENDIMENTO", "RESTITUICAO_CAPITAL", "AMORTIZACAO"}
 
@@ -108,7 +108,7 @@ def main():
         sys.exit(f"{len(erros)} erro(s); nada foi gravado.")
     saida.sort(key=lambda x: (x["ticker"], x["data_com"], x["tipo"], x["parcela"], x["valor_por_acao"]))
     doc = {"origem": origem.name, "descricao": "Datas de pagamento levantadas para proventos de acoes sem data "
-           "(PLANO_CARGA_INICIAL.md secao 11). status A_DEFINIR = sem data conhecida.", "linhas": saida}
+           "(docs/planos/PLANO_CARGA_INICIAL.md secao 11). status A_DEFINIR = sem data conhecida.", "linhas": saida}
     SAIDA.parent.mkdir(parents=True, exist_ok=True)
     SAIDA.write_text(json.dumps(doc, ensure_ascii=False, indent=1) + "\n", encoding="utf-8", newline="\n")
     cont = {}

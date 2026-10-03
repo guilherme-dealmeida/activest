@@ -1,5 +1,5 @@
 // GET autenticado na app-api do PrimeVest, para conferencia.
-// Uso: node scripts/get.mjs /api/v1/assets/PETR4/indicators [/outro/caminho ...] [--api URL]
+// Uso: node carga/scripts/get.mjs /api/v1/assets/PETR4/indicators [/outro/caminho ...] [--api URL]
 // Senha: PRIMEVEST_SENHA do ambiente ou do .env do projeto.
 import { apiUrls, loadEnv, option } from './lib/env.mjs';
 

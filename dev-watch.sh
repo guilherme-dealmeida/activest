@@ -25,7 +25,7 @@
 # compilação, e o que já estava em target/classes continua lá. Reinicie o
 # container: a subida limpa target/classes (ver abaixo).
 #
-# Multi-módulo (PLANO_ADM_API.md): o contêiner roda um módulo ($MODULE, ex.:
+# Multi-módulo (docs/planos/PLANO_ADM_API.md): o contêiner roda um módulo ($MODULE, ex.:
 # primevest-app-api) e observa também o primevest-core. O Maven roda da raiz com
 # -pl $MODULE -am: o reator compila o core junto e resolve a dependência para
 # primevest-core/target/classes — uma pasta, não um jar, então o DevTools põe o

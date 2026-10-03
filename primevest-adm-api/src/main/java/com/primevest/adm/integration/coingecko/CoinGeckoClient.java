@@ -28,7 +28,7 @@ import java.util.Map;
  * virava o ticker em minusculas e nunca tinha preco.</p>
  *
  * <p>Erro sobe como {@link CoinGeckoException} — o {@code catch} que devolvia
- * mapa vazio escondia a falha do log (PLANO_BRAPI.md, 5.4).</p>
+ * mapa vazio escondia a falha do log (docs/planos/PLANO_BRAPI.md, 5.4).</p>
  */
 @Slf4j
 @Component

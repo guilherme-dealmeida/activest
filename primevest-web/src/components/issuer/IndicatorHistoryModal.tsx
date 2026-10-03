@@ -42,7 +42,7 @@ const BarTooltip = ({ active, payload, unit }: {
 };
 
 /**
- * Histórico de um indicador em modal (PLANO_TELA_EMISSORES.md, 2.4, D1):
+ * Histórico de um indicador em modal (docs/planos/PLANO_TELA_EMISSORES.md, 2.4, D1):
  * Anual | Trimestral, barras com o Atual em dourado e a média da empresa
  * tracejada, tabela embaixo, ‹ › (e ← →) para o indicador vizinho.
  */

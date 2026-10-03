@@ -16,7 +16,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Leitura do arquivo e casamento pela chave natural (PLANO_CARGA_INICIAL.md, 11 — L2). */
+/** Leitura do arquivo e casamento pela chave natural (docs/planos/PLANO_CARGA_INICIAL.md, 11 — L2). */
 class PaymentDateSurveyServiceTest {
 
     private static final LocalDate COM = LocalDate.of(2015, 12, 11);

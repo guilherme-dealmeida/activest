@@ -83,7 +83,7 @@ quando conectar cada banco — o desenho não muda.
   Caixinha mais antiga não tem o custo reconstituível pela API → a importação precisa de uma
   **transação de saldo inicial** (compra sintética datada no início da janela, marcada como tal).
 - **Dado D-1.** A posição vem com `referenceDateTime`; pelo Meu Pluggy, atualização diária.
-- **Ganho colateral grande:** a `PENDENCIAS.txt` item 2 ("valorização de renda fixa dá sempre
+- **Ganho colateral grande:** a `docs/PENDENCIAS.md` item 2 ("valorização de renda fixa dá sempre
   zero") **se resolve sozinha para os títulos importados** — a API entrega o saldo bruto atual, e
   `appreciation = saldo bruto − (aplicado − resgatado)`, sem precisar da curva do CDI.
 - **Venda de renda fixa bloqueada (PENDENCIAS 4.2)** não atrapalha: o bloqueio é por falta do
@@ -231,7 +231,7 @@ acompanhar Caixinha por Caixinha — decisão sua antes de seguir.
 | F3 | `OpenFinanceImportService`: upsert de notas, transações, saldo inicial, appreciation |
 | F4 | Scheduler diário + endpoint "Sincronizar agora" |
 | F5 | Front: tela de conexões, apelido editável, selo de origem na carteira, `is_reservation` |
-| F6 | Atualizar `Claude.md` e `PENDENCIAS.txt`; subir o compose e conferir |
+| F6 | Atualizar `Claude.md` e `docs/PENDENCIAS.md`; subir o compose e conferir |
 
 ---
 

@@ -40,7 +40,7 @@ import java.util.Set;
  * <p>Cada provento AUTO sai daqui com o IR retido calculado
  * ({@link WithholdingTaxCalculator}, regras em {@link WithholdingTaxRule}):
  * bruto, aliquota, IR e liquido nascem juntos, em todo caminho — rotina diaria,
- * rotina sob demanda, transacao lancada/editada/apagada (PLANO_IR_PROVENTOS.md,
+ * rotina sob demanda, transacao lancada/editada/apagada (docs/planos/PLANO_IR_PROVENTOS.md,
  * 4.5). Este e o unico lugar que grava ou apaga provento.</p>
  *
  * <p>Chamado pelo TransactionService a cada criacao, edicao ou exclusao de

@@ -20,7 +20,7 @@ import java.util.NavigableMap;
 import java.util.TreeMap;
 
 /**
- * Cotacao historica para o grafico da tela de emissoras (PLANO_TELA_EMISSORES.md, 2.3, B5, D9).
+ * Cotacao historica para o grafico da tela de emissoras (docs/planos/PLANO_TELA_EMISSORES.md, 2.3, B5, D9).
  *
  * <p>Le {@code asset_price_history} (COTAHIST desde 2010 + fechamento diario da BRAPI) e
  * {@code asset_stock_events}; ajusta por desdobramento, grupamento e bonificacao e entrega os

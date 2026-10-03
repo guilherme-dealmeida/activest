@@ -15,7 +15,7 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * As regras R2 a R8 do PLANO_CRIPTO_BINANCE.md (4.4), aplicadas a um movimento.
+ * As regras R2 a R8 do docs/planos/PLANO_CRIPTO_BINANCE.md (4.4), aplicadas a um movimento.
  * R1 (agrupar os pedacos de uma ordem) e R5 (externalId) sao do conector.
  *
  * <p>Pura: nao consulta banco nem relogio. O catalogo entra como funcao, e o

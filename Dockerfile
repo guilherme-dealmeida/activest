@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 #
-# Backend multi-módulo (PLANO_ADM_API.md): contexto de build = raiz do repositório,
+# Backend multi-módulo (docs/planos/PLANO_ADM_API.md): contexto de build = raiz do repositório,
 # um serviço por módulo escolhido em MODULE (primevest-app-api ou primevest-adm-api).
 
 # ---------------------------------------------------------------------------

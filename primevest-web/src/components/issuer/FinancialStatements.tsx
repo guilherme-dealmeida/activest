@@ -119,7 +119,7 @@ const Toggle = ({ options, value, onChange, label }: {
 );
 
 /**
- * Demonstrativos (PLANO_TELA_EMISSORES.md, 2.6, D4): série trimestral da
+ * Demonstrativos (docs/planos/PLANO_TELA_EMISSORES.md, 2.6, D4): série trimestral da
  * companhia (trimestre | 12 meses) ou informe mensal do FII. Mais recente à
  * esquerda; padrão 8 trimestres / 12 meses, com "ver todos".
  */

@@ -21,7 +21,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 
 /**
- * F2 do PLANO_EMPRESAS_BALANCOS.md: serie historica da B3 em asset_price_history,
+ * F2 do docs/planos/PLANO_EMPRESAS_BALANCOS.md: serie historica da B3 em asset_price_history,
  * com linhas reais de PETR4, PETR4F, HGLG11 e KLBN11.
  */
 class HistoricalQuotesImportIT extends IntegrationTestBase {

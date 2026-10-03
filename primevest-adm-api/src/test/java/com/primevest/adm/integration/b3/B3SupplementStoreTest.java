@@ -11,7 +11,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** P1 do PLANO_CARGA_INICIAL.md: os 12 meses da B3 acumulam em disco e a data de pagamento nao se perde. */
+/** P1 do docs/planos/PLANO_CARGA_INICIAL.md: os 12 meses da B3 acumulam em disco e a data de pagamento nao se perde. */
 class B3SupplementStoreTest {
 
     private static B3Supplement.CashDividend cash(String dataCom, String pagamento, String valor) {
@@ -50,7 +50,7 @@ class B3SupplementStoreTest {
     }
 
     @Test
-    @DisplayName("Grava em data/b3/proventos-12m/{acoes|fundos}; sem resposta da B3 devolve o arquivo")
+    @DisplayName("Grava em carga/data/b3/proventos-12m/{acoes|fundos}; sem resposta da B3 devolve o arquivo")
     void disco(@TempDir Path dir) {
         B3SupplementStore store = new B3SupplementStore(new ObjectMapper(), dir);
 
