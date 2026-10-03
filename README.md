@@ -27,9 +27,9 @@ primevest/
 - **SpringDoc OpenAPI** (Swagger)
 - **Maven**
 
-> Ainda **não há testes automatizados**: `src/test` está vazio e o build roda com
-> `-Dmaven.test.skip=true`. O plano, quando a suíte nascer, é Testcontainers com
-> PostgreSQL — metade do que importa aqui é comportamento de banco. Ver `docs/PENDENCIAS.md`.
+> **Testes**: JUnit 5, Mockito, AssertJ e Testcontainers (PostgreSQL 17), nos três módulos — unitários
+> (`*Test`, Surefire) e de integração (`*IT`, Failsafe). `mvn clean test` roda os unitários;
+> `mvn clean verify` roda tudo e precisa do Docker Desktop. Detalhes em `Claude.md` (Pontos de Atenção → Testes).
 
 ### Frontend
 - **React 18** + **TypeScript**
@@ -156,6 +156,22 @@ fechamento do COTAHIST. Carteiras e transações são de cada usuário e não fa
 **Quem mantém o bucket** (chave de escrita no `.env`): as rotinas gravam o que chega das fontes em
 `carga/data/`; `docker compose --profile carga run --rm data push` sobe o que é novo (nunca apaga) e
 regrava os manifests. `data status` compara `carga/data/` com o bucket.
+
+### Pilha de teste (`primevest-teste`)
+
+Para provar a carga do zero na mesma máquina, sem tocar no ambiente de desenvolvimento: os mesmos serviços, com
+banco, Redis, rede e pasta de dados (`carga/data-teste/`) próprios e rotinas agendadas desligadas. Precisa do
+`.env.teste` (cópia do `.env.example` com as portas do teste e a `PRIMEVEST_SENHA`; fora do git).
+
+```powershell
+function pvt { docker compose -p primevest-teste --env-file .env.teste -f docker-compose.yml -f docker-compose.teste.yml @args }
+pvt --profile carga run --rm data pull
+pvt up -d --build
+pvt --profile carga run --rm tools node carga/scripts/admin.mjs bootstrap
+```
+
+Frontend em http://localhost:5174, APIs em 8082 e 8083, PostgreSQL em localhost:5434, Redis em 6380.
+Detalhes em `Claude.md` e `docs/planos/PLANO_PRIMEVEST_TESTE.md`.
 
 ## 🔌 APIs Externas
 

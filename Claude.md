@@ -5,8 +5,9 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 03/10/2026 (organização: planos em `docs/planos/`, pendências em `docs/PENDENCIAS.md`,
-> documentos de `docs/` em Markdown, carga em `carga/data` e `carga/scripts`).
+> **Última revisão**: 03/10/2026 (pilha de teste `primevest-teste` com a carga inicial completa — ver
+> `docs/planos/PLANO_PRIMEVEST_TESTE.md`). No mesmo dia: organização (planos em `docs/planos/`, pendências em
+> `docs/PENDENCIAS.md`, documentos de `docs/` em Markdown, carga em `carga/data` e `carga/scripts`).
 > Antes: 28/09/2026 (tela de Emissoras, T1–T7 — ver `docs/planos/PLANO_TELA_EMISSORES.md`).
 > Antes: 27/09/2026 (emissores e série histórica da B3, F1–F2 — ver `docs/planos/PLANO_EMPRESAS_BALANCOS.md`).
 > Antes: 26/09/2026 (integrações com corretoras, F1–F6 — ver `docs/planos/PLANO_CRIPTO_BINANCE.md`).
@@ -201,6 +202,41 @@ estágio `runtime` e nos containers de banco e cache.
 `ddl-auto: validate` compara entidades com o schema: se o Java mudar sem a
 migration, ou o contrário, a API não sobe.
 
+### Pilha de teste — `primevest-teste` (03/10/2026)
+
+Segunda pilha com os mesmos 5 serviços, em portas próprias, para provar a carga inicial do zero sem tocar no dev
+(`docs/planos/PLANO_PRIMEVEST_TESTE.md`). O `docker-compose.yml` não muda: a pilha é ele + o override
+`docker-compose.teste.yml` + o `.env.teste` (fora do git; cópia do `.env.example` com as portas abaixo).
+
+```powershell
+# na raiz; sem -p e --env-file o comando atinge a pilha do DEV (down -v apagaria o banco do dev)
+function pvt { docker compose -p primevest-teste --env-file .env.teste -f docker-compose.yml -f docker-compose.teste.yml @args }
+pvt --profile carga run --rm data pull     # bucket R2 -> carga/data-teste/ (token só leitura do .env.example)
+pvt up -d --build
+pvt --profile carga run --rm tools node carga/scripts/admin.mjs bootstrap
+docker logs -f primevest-teste-adm-api     # termina em "Carga inicial (...) concluida" (~50 min)
+pvt stop                                   # para sem apagar; pvt start volta
+```
+
+| Serviço | Dev | Teste |
+|---|---|---|
+| db | 5433 | 5434 |
+| redis | 6379 | 6380 |
+| web | 5173 | 5174 |
+| app-api | 8080 | 8082 |
+| adm-api | 8081 | 8083 |
+
+- **Isolamento:** projeto Compose próprio (rede `primevest-teste_default`, volumes `primevest-teste_pgdata` e
+  `primevest-teste_maven-repo`), contêineres `primevest-teste-*` e pasta de dados `carga/data-teste/` (no
+  `.gitignore` e no `.dockerignore`) no lugar de `carga/data/`.
+- **Rotinas agendadas desligadas** (`PRIMEVEST_SCHEDULING_ENABLED=false` no override): nada roda sozinho, nem a
+  recuperação do fechamento na subida. O `bootstrap` não depende delas.
+- **Mesmo código do dev** (bind mount + `dev-watch`): salvar um `.java` do core ou da adm-api reinicia a adm-api
+  do teste e interrompe uma carga em andamento — ela é retomável, basta disparar de novo.
+- **Primeira execução (03/10/2026):** `data pull` em ~7,5 min (~2,2 GB), `bootstrap` em 2.949 s, todas as etapas
+  ok; contagens iguais às do dev, salvo o que a janela de 12 meses da B3 e os fechamentos explicam e um emissor
+  só do dev (PENDENCIAS 21.1). Números no andamento do plano.
+
 ### Opção 2 — Local, sem Docker
 
 Exige Java 21, Maven 3.9+, Node 24 e PostgreSQL 17 com o banco `db_primevest` criado.
@@ -307,6 +343,7 @@ chave-mestra = perder as credenciais gravadas** (os usuários recadastram). Rota
 ```
 primevest/
 ├── docker-compose.yml           # banco + redis + app-api (8080) + adm-api (8081) + web
+├── docker-compose.teste.yml     # override da pilha primevest-teste (com .env.teste, fora do git)
 ├── .env.example                 # variáveis (copiar para .env)
 ├── README.md                    # visão geral do produto
 ├── Claude.md                    # este arquivo — referência operacional
