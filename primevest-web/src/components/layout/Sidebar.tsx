@@ -10,6 +10,7 @@ import {
   DollarSign,
   Flag,
   Plug,
+  Building2,
   LogOut,
   Settings,
   Sun,
@@ -35,6 +36,7 @@ const navItems = [
   { name: 'Estratégia', path: '/strategy', icon: Target },
   { name: 'Dividendos', path: '/dividends', icon: DollarSign },
   { name: 'Preço Teto', path: '/ceiling-prices', icon: TrendingDown },
+  { name: 'Emissoras', path: '/emissoras', icon: Building2 },
   { name: 'Metas', path: '/goals', icon: Flag },
   { name: 'Integrações', path: '/integrations', icon: Plug },
 ];

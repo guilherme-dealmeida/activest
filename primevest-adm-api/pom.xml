@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Rotinas de administrador (PLANO_ADM_API.md, secao 10): tudo o que busca dado de fora
+    e grava o CATALOGO — emissores, balancos, serie trimestral, COTAHIST, fechamento diario,
+    eventos de proventos (B3/FNET), logos, conferencia do catalogo — e o /api/v1/admin/*.
+    Nao grava dado de usuario: avisa a app-api pelo Redis ("catalogo mudou").
+
+    Pacote proprio, com.primevest.adm.*, para a app-api poder te-la no classpath de teste
+    (testes de ponta a ponta de proventos e fechamento) sem varre-la.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.primevest</groupId>
+        <artifactId>primevest-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>primevest-adm-api</artifactId>
+    <name>PrimeVest Adm API</name>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.primevest</groupId>
+            <artifactId>primevest-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <!-- WebClient das fontes externas (B3, FNET, CVM, BRAPI, CoinGecko) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
+        <!-- mensagens com a app-api (catalogo mudou / sob demanda) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <!-- texto dos relatorios de proventos da CVM (PDF do RAD) — PLANO_CARGA_INICIAL.md, 5.2 -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.primevest</groupId>
+            <artifactId>primevest-core</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+                classifier exec: o jar executavel sai como primevest-adm-api-*-exec.jar e o jar
+                comum continua sendo o artefato do modulo — e o que a app-api usa nos testes.
+            -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <classifier>exec</classifier>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+            <!-- test-jar: fixtures reais da B3 e da CVM para os testes de ponta a ponta da app-api -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+    <!--
+        spring-boot:run so neste modulo com -Drun.module=primevest-adm-api (dev-watch.sh). Sem isso o
+        -am da app-api, que traz a adm-api (dependencia de teste), subiria as duas aplicacoes.
+    -->
+    <profiles>
+        <profile>
+            <id>run</id>
+            <activation>
+                <property>
+                    <name>run.module</name>
+                    <value>primevest-adm-api</value>
+                </property>
+            </activation>
+            <properties>
+                <spring-boot.run.skip>false</spring-boot.run.skip>
+            </properties>
+        </profile>
+    </profiles>
+
+</project>

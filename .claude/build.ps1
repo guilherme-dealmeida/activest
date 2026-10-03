@@ -53,7 +53,7 @@ if ($doApi) {
   $out = Join-Path $logs 'build-api.log'
   $cmd = 'mvn -B compile'
   Write-Host "[api] $cmd"
-  Push-Location (Join-Path $root 'primevest-api')
+  Push-Location $root  # pom.xml da raiz: core + app-api
   Write-Header $out $cmd
   & mvn -B compile *>&1 | Add-Content -Path $out -Encoding utf8
   Write-Footer $out $LASTEXITCODE
@@ -68,7 +68,7 @@ if ($doTest) {
   $out = Join-Path $logs 'test-api.log'
   $cmd = 'mvn -B clean test'
   Write-Host "[test] $cmd"
-  Push-Location (Join-Path $root 'primevest-api')
+  Push-Location $root  # pom.xml da raiz: core + app-api
   Write-Header $out $cmd
   & mvn -B clean test *>&1 | Add-Content -Path $out -Encoding utf8
   Write-Footer $out $LASTEXITCODE
@@ -82,7 +82,7 @@ if ($doVerify) {
   $out = Join-Path $logs 'verify-api.log'
   $cmd = 'mvn -B clean verify'
   Write-Host "[verify] $cmd"
-  Push-Location (Join-Path $root 'primevest-api')
+  Push-Location $root  # pom.xml da raiz: core + app-api
   Write-Header $out $cmd
   & mvn -B clean verify *>&1 | Add-Content -Path $out -Encoding utf8
   Write-Footer $out $LASTEXITCODE
@@ -112,4 +112,4 @@ if ($doDocker) {
 }
 
 Write-Host ""
-Write-Host "Pronto. Diga no chat: 'olha o log' — o Claude le .claude\logs\ sozinho."
+Write-Host "Pronto. Diga no chat: 'olha o log' - o Claude le .claude\logs\ sozinho."

@@ -1,7 +1,12 @@
 PRIMEVEST — PENDENCIAS EM ABERTO
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 25/09/2026 — secao 16 (extrato da B3 pelo PrimeVest, saiu
+Ultima atualizacao: 29/09/2026 — secao 20 (ambiente de carga inicial,
+PLANO_CARGA_INICIAL.md) e 18.10 d resolvido. Antes: 28/09/2026 (noite) — 11.6
+resolvido e secao 19 (tela de Emissoras, PLANO_TELA_EMISSORES.md). Antes, no mesmo dia: itens 14.1
+(resolvido), 18.9 b e 18.10 (F7 e F8). Antes: 27/09/2026 — secao 18 (PLANO_EMPRESAS_BALANCOS.md:
+emissores, balancos e indicadores); itens 11.1, 11.2, 11.6 e 14.1 encaminhados
+para o plano. Antes: 25/09/2026 — secao 16 (extrato da B3 pelo PrimeVest, saiu
 do plano de cripto). Antes, no mesmo dia: secao 15 (cripto sem valor em reais,
 PLANO_CRIPTO_BINANCE.md). Antes, no mesmo dia: itens 3.4 e 3.5 baixados (extrato de proventos
 da B3, V24). Antes: 24/09/2026 — itens 3.5 a 3.8 (IR retido nos proventos,
@@ -478,6 +483,19 @@ depois de carregar. A linha de outro usuario nao chega a sair do banco.
        de gravar. Hoje e custo sem retorno. Nao confundir com o item 5, que e
        serie historica de INDICES (CDI, SELIC, IPCA) e serve para valorizar
        renda fixa — sao coisas diferentes.
+       ATUALIZADO em 27/09/2026 (F2 do plano): a tabela tem a serie diaria
+       da B3 desde 2010 (2.228.704 pregoes de acoes e FIIs, coluna source,
+       V29); a BRAPI so grava o dia e nao sobrescreve pregao da B3.
+       ENCAMINHADO em 27/09/2026: decidido LIGAR a leitura. O
+       PLANO_EMPRESAS_BALANCOS.md grava o historico diario desde 2010 (COTAHIST
+       da B3, F2) e o IndicatorService le o fechamento de cada data de balanco
+       (F9). 11.1, 11.2 e 11.5 se resolvem na execucao do plano; o grafico de
+       cotacao na tela do ativo fica para o planejamento de telas.
+       RESOLVIDO em 28/09/2026 (PLANO_TELA_EMISSORES.md, B5): leitura ligada em
+       GET /api/v1/assets/{ticker}/prices (AssetPriceHistoryService, JdbcTemplate;
+       o esboco /history e o PriceHistoryDTO antigo foram substituidos), com o
+       grafico de cotacao da tela de Emissoras. Os metodos orfaos do
+       AssetPriceHistoryRepository (11.5) seguem sem uso — o servico le por SQL.
 
 
 ================================================================================
@@ -602,6 +620,18 @@ em E:\carga). Nenhum foi corrigido.
          ReentrantLock, que nao prende a portadora (resolve o travamento, mas
          nao o acumulo). O JDK 24 (JEP 491) elimina o pinning do synchronized,
          mas nao o acumulo de threads esperando.
+       - ENCAMINHADO em 27/09/2026 para o PLANO_EMPRESAS_BALANCOS.md, F8:
+         fila unica com um executor, deduplicada por fundo, sem synchronized;
+         FNET com timeout de 5 s e ate 6 tentativas; avisos gravados em
+         data/fnet e nunca baixados de novo. Teste de 27/09 com HGLG11: 100 de
+         100 avisos obtidos, inclusive os 9 meses (12/2024 a 08/2025) que
+         tinham sido completados pelo extrato — o FNET tinha o dado, o cliente
+         e que falhava.
+       - RESOLVIDO em 28/09/2026 (F8): sem synchronized; pedido sob demanda
+         numa fila unica (um executor, sem repetir ativo) no lugar de uma
+         thread virtual por evento; ReentrantLock por emissor; FnetClient com
+         cache em data/fnet (indice local por CNPJ; a carga nao chama o
+         FNET), download com timeout de 5 s, 6 tentativas, 3 simultaneos. Ver PLANO_EMPRESAS_BALANCOS.md, 7.1 (F8).
 
   14.2 Fechamento no meio do pregao grava o dia ainda aberto
        Rodado durante o horario de negociacao, ele grava o pregao de hoje
@@ -696,6 +726,209 @@ Vira escopo proprio, a planejar:
         aguenta uma fonte que nao foi desenhada junto.
 
 ================================================================================
+18. EMISSORES, BALANCOS E INDICADORES (PLANO_EMPRESAS_BALANCOS.md, 27/09/2026)
+================================================================================
+
+Planejamento concluido, nada implementado. Substitui o escopo "preco medio /
+preco teto", que vira o proximo e consome este. Fases F1 a F11 no plano.
+
+  18.1  Remocoes de assets que entraram no escopo (F10, migration M7):
+        cnpj (vai para issuers.cnpj), cash_history_loaded_at, logo_checked_at
+        e logo_path. Motivo comum: estado de processo gravado no catalogo. O
+        estado passa a ser o arquivo (data/fnet, data/logos). O logo passa a
+        ser servido por um indice em memoria de data/logos.
+
+  18.2  FEITO em 27/09/2026 (V31): asset_categories sem a coluna segment; as
+        linhas duplicadas por (tipo, nome) consolidadas e os ativos
+        reapontados (165 -> 80 categorias, contagem de ativos por categoria
+        identica antes e depois). O segmento curado de FII foi para
+        issuers.segment no seed V30.
+
+  18.3  Principio de carga decidido: ou migration de seed (referencia e
+        curadoria), ou arquivo em data/ (volume de fonte oficial). Sem tabela
+        auxiliar de seed, sem coluna de controle de processo.
+
+  18.4  FEITO em 27/09/2026: 22.910 avisos do FNET em data/fnet (90 MB,
+        11/2016 a 09/2026, 324 dos 345 CNPJs de FII). /data/ inteira no
+        .gitignore desde 27/09/2026.
+
+  18.5  CNPJ dos FIIs: planilha fiis_com_isin.csv (27/09/2026) conferida e
+        adotada para o seed (plano, 1.6); VGRH11 corrigido para
+        67.624.043/0001-19. Curadoria conferida (planilha corrigida de
+        27/09/2026) e gravada no seed V30: 369 companhias, 346 FIIs, 1.139
+        ligacoes, 36 linhas de composicao de units.
+
+  18.6  Relacao com a secao 16 (extrato da B3): os proventos de FII com mais
+        de 12 meses passam a vir da integracao (FNET refeito). O extrato deixa
+        de ser necessario para isso e fica so para o escopo de importacoes.
+
+  18.7  Balancos (F5, 28/09/2026): quantidade de acoes sem escala conferida
+        (share_counts.scale_status = 'REVISAR') em 119 de 19.349 documentos —
+        erro na propria fonte (Grupo Mateus 06/2022 com um digito a mais; Azul
+        03/2026 com 54 trilhoes) e grupamento no meio (Alphaville, CBA). O
+        indicador nao usa essas linhas. Correcao manual prevista no modelo
+        (scale_status MANUAL), sem tela nem endpoint ainda: decidir na F9 se
+        vale, olhando quantos ativos do catalogo ficam sem indicador por isso.
+        Antes de 2020 a quantidade vem do FRE sem tesouraria (1-3% a mais de
+        acoes no LPA/VPA historico dessas datas).
+
+  18.8  Serie trimestral (F6, 28/09/2026): erro de preenchimento na fonte
+        passa para o trimestre derivado. Ex.: Cemig ITR 09/2021 com lucro da
+        controladora 0 (o total foi para nao controladores) -> 3T21 zero e
+        4T21 = ano inteiro. Em 565 de 4.561 exercicios a soma dos 4
+        trimestres difere do anual do DFP (a maioria reapresentacao, 334
+        dentro de 5%). O 12 meses no fim do exercicio usa o anual; nos
+        outros trimestres, a soma. Sem correcao: decidir na F9 se o
+        indicador trimestral precisa de conferencia (ex.: LPA informado).
+
+  18.9  Separacao em modulos (PLANO_ADM_API.md, 28/09/2026): app-api (8080,
+        carteira) e adm-api (8081, catalogo) conversam pelo Redis pub/sub
+        ("catalogo mudou" e "preciso do historico"), sem garantia de entrega.
+        a) A rede de seguranca e o recalculo de TODAS as posicoes as 21:00
+           (PositionRefreshScheduler). Barato hoje (um usuario); com muitos
+           usuarios, trocar por algo incremental (ex.: fila persistente ou
+           created_at em asset_cash_events para recalcular so o que mudou).
+        b) Proventos sob demanda (transacao -> adm-api busca o historico):
+           REVISTO na F8 (28/09/2026) e mantido: com o catalogo sincronizado
+           todo dia quase sempre termina sem chamada, mas cobre ETF/BDR sem
+           emissor e ativo novo antes das 20:00. Agora entra numa fila unica.
+        c) O publicador da app-api ("preciso do historico") nao tem teste com
+           Redis de verdade: os testes rodam com as mensagens desligadas. O
+           caminho foi conferido no ambiente publicando no canal pelo
+           redis-cli; o disparo a partir de uma transacao real nao foi testado
+           no ambiente (mexeria na carteira do Guilherme).
+        d) Classe do core alterada recompila e reinicia os dois conteineres
+           (~30-50 s); a app-api compila tambem a adm-api (dependencia so de
+           teste, entra no -am).
+
+  18.10 Proventos do catalogo (F8, 28/09/2026):
+        a) FNET instavel: a busca por CNPJ leva 3 a 10 s e, no dia da carga,
+           deu timeout e HTTP 520 em varios fundos. Decisao (28/09): a carga
+           de FII usa so data/fnet (indice local pelo CNPJFundo), sem chamar o
+           FNET. 23 tickers (22 fundos) do catalogo nao tem aviso em disco:
+           conferido pelo Guilherme em 28/09 — nenhum distribuiu ainda. Nao e
+           pendencia: quando distribuirem, entram pela B3 na rotina diaria.
+        b) Aviso com data-base depois do pagamento fica de fora (21 na
+           primeira carga; ex.: 36458 VISC11 com 2108-11-30, 20789 VISC11
+           28/12/2017 x pagamento 15/12/2017). Sem tela de revisao: so o log.
+        c) Recarga de desenvolvimento: o hot reload (devtools) reinicia a
+           adm-api mas nao para a thread da rodada em curso — ela segue ate o
+           fim falhando cada emissor ("Could not open JPA EntityManager").
+           Inofensivo (nao grava nada), mas polui o log. So em dev.
+        d) [RESOLVIDO 29/09/2026 — PLANO_CARGA_INICIAL.md, D15/P4] FNET e a
+           fonte principal de FII e a busca por CNPJ roda na rotina de proventos
+           quando a B3 mostra provento mais novo que o ultimo aviso gravado (no
+           maximo uma vez por dia por fundo). Texto original:
+           Depois do historico, o FII fica so com a B3 (12 meses). Aviso novo
+           do FNET (depois de 27/09/2026) precisa de busca explicita: endpoint
+           POST /api/v1/admin/proventos/fnet?cnpj= ou rotina semanal. Nao
+           feito — o FnetClient ja tem a busca (incomeNoticeIds) e o download
+           com cache (incomeNotices); falta so o disparo. Conferido com o
+           Guilherme em 28/09. A F10 tirou cash_history_loaded_at de assets: o
+           historico do FII e lido do disco toda rodada (so o que falta), entao
+           um aviso novo baixado para data/fnet entra sozinho na rodada seguinte.
+
+  18.11 Indicadores (F9, 28/09/2026):
+        a) RESOLVIDO em 28/09 (decisao do Guilherme): 13 de 307 companhias
+           ligadas ficavam sem LPA, VPA, P/L e P/VP no Atual (quantidade em
+           REVISAR no ultimo balanco). Duas regras:
+           - escala: terceira passada, EVENTO (V36) — quantidade do balanco
+             validado anterior x grupamentos/desdobramentos/bonificacoes
+             registrados entre as datas (ate o balanco; se nao fechar, ate a
+             entrega do documento). Na base real: 12 documentos (119 -> 107
+             REVISAR), entre eles Viver, Espacolaser, AZ Energia e AgroGalaxy;
+           - indicador: sem evento no meio, vale a quantidade do ultimo balanco
+             conferido, com o motivo "quantidade de acoes do balanco de ...".
+           Continuam nulos (evento no meio que nao explica o numero): AZEV4 e
+           IFCM3. Raizen, CIABRASF, IMC e Revee usam o balanco anterior — o
+           numero novo pode ser aumento de capital real; conferir se entrarem na
+           carteira. Correcao manual (MANUAL) segue sem endpoint.
+        b) 18.8 revisto: o trimestral usa o 12 meses da serie como esta; erro
+           da fonte passa para o ponto do trimestre. Sem conferencia extra.
+        c) Payout com dividendos negativos na DVA (269 trimestres, ex.: Klabin
+           06/2026 -191 mi): nulo com motivo. Vem da serie trimestral (F6) —
+           reapresentacao entre documentos.
+        d) RESOLVIDO em 28/09 (decisao do Guilherme): "AMORTIZACAO RF" e o
+           rotulo da B3 para amortizacao de cota de fundo — a B3 nunca manda
+           "AMORTIZACAO" puro, entao sem o mapeamento toda amortizacao nova do
+           dia a dia se perdia. Mapeado para AMORTIZACAO; a B3 usa o valor ja
+           gravado pelo FNET (tolerancia 1e-6) e completa em vez de duplicar.
+           V35 nos 103 gravados: 87 linhas eram a mesma amortizacao do FNET
+           (sairam, pagamento/aprovacao completados no FNET) e 16 so da B3
+           (RTEL16 e VVMR11) ganharam o tipo. Nenhuma posicao tinha esses fundos.
+           Visto junto: RTEL16 tem o rendimento de 0,45 de 02/04/2026 duas vezes
+           (seq 1 e 2, mesmo related_to) — repetido na propria B3, mantido.
+        e) Sem cache Redis nos indicadores: 20 a 70 ms por chamada. O cache do
+           plano (5) fica para a tela de ranking.
+
+================================================================================
+19. TELA DE EMISSORAS (PLANO_TELA_EMISSORES.md, 28/09/2026)
+================================================================================
+
+  19.1  Historico de proventos da B3 faltando em 17 acoes com provento recente
+        (achado na conferencia da tela, 28/09): ABEV3, ALPK3, AUAU3, CURY3,
+        ENJU3, EQMA3B, HBRE3, KLBN3, KLBN4, KLBN11, MRSA3B/5B/6B, OFSA3, OPCT3,
+        RENT4, WEST3 — so tem eventos "B3" (12 meses), nenhum "B3_HISTORICO".
+        data/b3/proventos/KLBN.json tem 2 bytes ("[]"): a B3 respondeu vazio
+        para o emissor e, pela regra da F10 (arquivo = estado), a busca nao se
+        repete. Efeito: DY historico = 0 nesses anos (KLBN4: 0 de 2010 a 2024,
+        media 0,74%), o que e falso. Investigar o pedido ao
+        GetListedCashDividends desses emissores (nome de pregao? codigo?) e
+        tratar resposta vazia como "tentar de novo", nao como historico vazio.
+        Escopo do catalogo (adm-api), fora da tela.
+  19.2  Layout em celular: o menu lateral fica sempre aberto e espreme o
+        conteudo em 375 px (vale para todas as telas, nao so Emissoras). A tela
+        de Emissoras em si nao estoura a largura (sem rolagem horizontal da
+        pagina; tabelas e grafico trimestral rolam por dentro).
+  19.3  Link do ticker so em Carteira, Dividendos e Preco Teto (D5). Outras
+        telas com ticker (Transacoes, Estrategia) ficaram de fora do escopo.
+
+================================================================================
+20. AMBIENTE DE CARGA INICIAL (PLANO_CARGA_INICIAL.md, 29/09/2026)
+================================================================================
+
+  20.1  [RESOLVIDO 02/10/2026 - D14, PLANO secao 11] Levantamento manual em
+        data/levantamento/datas-pagamento.json (8.933 linhas, 98% com data).
+        Texto original: Data de pagamento de acao antes de 2022 (D14). O historico longo da B3
+        nao traz o campo; os relatorios de proventos da CVM so existem de 2022
+        em diante; o resto da CVM e texto livre (Aviso aos Acionistas, PDF). A
+        decidir depois da medicao (scripts/sql/datas_pagamento.sql): ler os
+        avisos em texto livre (amostra primeiro) ou a BRAPI Startup
+        (R$ 119,99/mes; o plano gratuito recusa dividendos).
+        Medicao de 30/09/2026 (banco de desenvolvimento, depois da carga da CVM):
+        acoes sem data de pagamento — 2010 a 2021: ~17 mil eventos (0 a 0,6% com
+        data); 2022: 1.363 de 1.808 (o relatorio da CVM so comeca no fim de
+        2022); 2023: 416 de 1.793; 2024: 466 de 1.870; 2025: 402 de 2.257;
+        2026: 22 de 1.185. FII: ~100% em todos os anos (FNET).
+  20.2  Relatorio de proventos parcelado com parcela "a definir": fica sem data
+        ate a B3 (12 meses) ou uma reapresentacao do relatorio trazer.
+  20.3  Historico de preco de cripto (CoinGecko) nao e refeito num ambiente
+        novo: o grafico comeca na data da carga. Fora do escopo da carga.
+  20.4  Bucket: o push e manual (docker compose --profile carga run --rm data
+        push) na maquina de quem tem a chave de escrita. Se ficar esquecido, o
+        que so a origem tinha (avisos novos do FNET, 12 meses da B3, relatorios
+        da CVM) fica so na data/ local ate o proximo push.
+  20.5  Importacao de extrato: desde a V38 so confere (JA_EXISTE, SEM_DATA,
+        SEM_EVENTO). Importar a carteira por arquivo continua na secao 16.
+  20.6  Relatorios de proventos da CVM (2022+) que nao completaram data: ~400
+        eventos de acao por ano de 2023 a 2025 seguem sem data, e 113 dos 3.412
+        relatorios nao foram lidos (formato fora do padrao). A olhar caso a caso:
+        valor da B3 diferente do relatorio (arredondamento, JCP bruto x liquido),
+        ISIN do evento diferente, parcelas "a definir", empresa que nao entregou
+        o relatorio.
+  20.7  Testes de integracao da adm-api gravam na data/ real do projeto
+        (primevest.data.dir padrao ../data): o ProventosCatalogoIT passou a usar
+        target/it-data-proventos; os demais ITs ainda usam a data/ real.
+  20.8  Proventos de acao A DEFINIR antigos (D17, decidido em 02/10/2026): 145
+        linhas do levantamento (data-com 2010 a 2022) sem data de pagamento em
+        nenhuma fonte gratuita. Ficam sem data, SEM PRAZO, ate existir fonte
+        oficial paga (B3 Up2Data e/ou BRAPI). Os A DEFINIR recentes (17 linhas,
+        2025-2026) nao entram aqui: a B3 12 meses e a CVM preenchem nas rotinas.
+  20.9  Provento sem data de pagamento (D16, decidido em 02/10/2026): em toda
+        situacao aparece como "data nao informada" para o usuario. [FEITO
+        02/10/2026 na tela de Dividendos, junto da L-b do PLANO, secao 11]
+
+================================================================================
 ORDEM SUGERIDA
 ================================================================================
 
@@ -709,7 +942,7 @@ O 3.1 pode esperar ate ter provento de verdade cadastrado.
 
 O 8 nao tem hora certa, mas cada item acima fica mais barato se vier depois dele.
 
-O 11 e barato de decidir e caro de adiar: cada pregao acumula ~1.264 linhas que
+O 11 foi decidido em 27/09/2026 (ligar a leitura, secao 18). Texto original: o 11 e barato de decidir e caro de adiar: cada pregao acumula ~1.264 linhas que
 ninguem le. Decidir entre ligar a leitura e parar de gravar vale mais que a
 implementacao em si.
 

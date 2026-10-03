@@ -16,6 +16,7 @@ import { AssetType, PortfolioAssetDetail, RateType, TransactionType } from '@/ty
 import { formatCurrency, formatDate, formatPercentage, formatQuantity, formatUnitPrice, getReturnColor } from '@/utils/format';
 import { RENDA_FIXA, TESOURO_DIRETO, isFixedIncomeNote } from '@/utils/assetTypeRules';
 import { apiMessage } from '@/utils/apiError';
+import { TickerLink } from '@/components/issuer/TickerLink';
 
 /**
  * Colunas que só fazem sentido para alguns tipos de ativo.
@@ -106,7 +107,7 @@ const COLUMNS: Column[] = [
       <div className="flex items-center gap-3" title={a.assetName || undefined}>
         {/* Logo à esquerda do ticker (B25). null = tipo sem logo (renda fixa, Tesouro). */}
         {a.hasLogo !== null && a.hasLogo !== undefined && <AssetLogo ticker={a.ticker} hasLogo={a.hasLogo} size={38} shape="square" />}
-        <span className="font-medium">{a.ticker}</span>
+        <TickerLink ticker={a.ticker} issuerId={a.issuerId} />
       </div>
     ),
   },

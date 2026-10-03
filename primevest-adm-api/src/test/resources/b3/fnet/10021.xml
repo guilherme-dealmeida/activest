@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<DadosEconomicoFinanceiros xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<DadosGerais>
+		<NomeFundo>FII Shopping West Plaza</NomeFundo>
+		<CNPJFundo>09326861000139</CNPJFundo>
+		<NomeAdministrador>BTG Pactual Serviços Financeiros S.A. DTVM</NomeAdministrador>
+		<CNPJAdministrador>59281253000123</CNPJAdministrador>
+		<ResponsavelInformacao>Heloiso Rodrigues</ResponsavelInformacao>
+		<TelefoneContato>(11) 3383-3441</TelefoneContato>
+		<CodISINCota>BRWPLZCTF004</CodISINCota>
+		<CodNegociacaoCota>WPLZ11B</CodNegociacaoCota>
+	</DadosGerais>
+	<InformeRendimentos>
+		<Rendimento>
+			<DataAprovacao>2017-03-13</DataAprovacao>
+			<DataBase>2017-03-13</DataBase>
+			<DataPagamento>2017-03-20</DataPagamento>
+			<ValorProventoCota>0.30323276450236</ValorProventoCota>
+			<PeriodoReferencia>Janeiro/2017</PeriodoReferencia>
+			<Ano>2017</Ano>
+			<RendimentoIsentoIR>true</RendimentoIsentoIR>
+		</Rendimento>
+		<Amortizacao tipo=""/>
+	</InformeRendimentos>
+</DadosEconomicoFinanceiros>

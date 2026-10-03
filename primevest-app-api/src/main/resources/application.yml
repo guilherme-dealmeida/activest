@@ -1,0 +1,137 @@
+spring:
+  application:
+    name: primevest-app-api
+
+  profiles:
+    active: dev
+
+  # JPA
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # Flyway
+  #
+  # 'baseline-version: 18' foi removido daqui. Ele fazia o Flyway marcar um banco
+  # vazio como se já estivesse na versão 18, pulando a criação das tabelas (V1-V11)
+  # e todos os seeds (V12-V18) — só a V19 rodava. Na prática o projeto não subia do
+  # zero, dependia de um banco criado à mão antes disso.
+  # Cada perfil decide se o Flyway roda: dev deixa desligado (banco local já pronto),
+  # docker liga (banco nasce vazio e é construído pela cadeia completa).
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+
+  # Jackson
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+
+  # Redis Cache
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 300000
+
+# Login pelo Google
+#
+# Só o client id, e ele não é segredo: vai no bundle do front, visível a quem
+# abrir o DevTools. O que protege a aplicação é o Google só emitir ID token com
+# esta audience para as origens autorizadas no console, e o backend conferir
+# assinatura e audience (ver GoogleTokenVerifier).
+#
+# Client SECRET não aparece em lugar nenhum: o fluxo de ID token não usa.
+# Vazio ou 'dummy' desliga o login pelo Google e some com o botão na tela.
+google:
+  client-id: ${GOOGLE_CLIENT_ID:}
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:primevest-default-secret-key-change-in-production-minimum-256-bits-long}
+  expiration: 86400000       # 24 hours
+  refresh-expiration: 604800000  # 7 days
+
+# Server
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+# Springdoc OpenAPI
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+
+# Fontes do catalogo (BRAPI, CoinGecko, B3, FNET, CVM) e as rotinas delas estao na adm-api
+# (primevest-adm-api/src/main/resources/application.yml, PLANO_ADM_API.md).
+
+# Binance (PLANO_CRIPTO_BINANCE.md, F3). So leitura, com a chave de cada
+# usuario (integration_credentials) — nenhuma credencial aqui.
+binance:
+  base-url: https://api.binance.com
+  timeout-seconds: 30
+  # Primeira busca: desde quando. O Convert tem janelas de 30 dias e peso alto
+  # (uma janela por ~1 s), por isso comeca mais tarde.
+  history-start: "2017-07-01"
+  convert-history-start: "2020-01-01"
+  convert-pause-millis: 1100
+  # Pares consultados no myTrades: moedas candidatas x moedas de cotacao.
+  quote-assets: BRL,USDT,USDC,FDUSD,BTC,ETH,BNB
+  probe-assets: BTC,ETH,BNB,SOL,XRP,USDT,USDC,ADA,DOGE
+  # Peso por IP no minuto (limite da Binance: 6000). Passando daqui, a proxima
+  # chamada espera o minuto virar — o orcamento e compartilhado por todos os usuarios.
+  weight-threshold: 4800
+
+# Rotinas (fuso America/Sao_Paulo). Cron do Spring: segundo minuto hora dia mes dia-da-semana.
+primevest:
+  # Proventos sob demanda: a transacao pede o historico do ativo a adm-api (Redis).
+  proventos:
+    enabled: true
+  # Carteira: recalcula proventos e valorizacao de todas as posicoes uma vez por dia,
+  # depois do fechamento e dos proventos da adm-api (rede de seguranca das mensagens).
+  positions:
+    refresh-cron: "0 0 21 * * *"
+  # Integracoes com corretoras (PLANO_CRIPTO_BINANCE.md, 6.3). A credencial de
+  # cada usuario e cifrada com AES-256-GCM por esta chave-mestra, que fica fora
+  # do banco (vem do .env). Vazia: a API sobe, mas conexoes ficam indisponiveis.
+  # Rotacao: gere uma chave nova, mova a atual para previous-keys ("1:<base64>")
+  # e incremente key-version. Ver CredentialCipher.
+  integrations:
+    credentials:
+      key: ${PRIMEVEST_CREDENTIALS_KEY:}
+      key-version: ${PRIMEVEST_CREDENTIALS_KEY_VERSION:1}
+      previous-keys: ${PRIMEVEST_CREDENTIALS_PREVIOUS_KEYS:}
+    # Sincronizacao em segundo plano (F5). O worker pega uma execucao da fila a
+    # cada worker-delay-ms; a rotina diaria enfileira todas as conexoes ativas.
+    worker-delay-ms: 5000
+    sync-cron: "0 30 6 * * *"
+    # Execucao RUNNING ha mais tempo que isto e tida como perdida (API caiu no meio).
+    stale-minutes: 30
+    # Rotina diaria confirma sozinha quando nao ha nada a decidir (nenhuma
+    # possivel duplicata) e a conexao ja teve uma importacao confirmada pelo usuario.
+    auto-confirm-scheduled: true
+  logos:
+    # Pasta fora do banco (B18), so leitura aqui; quem baixa e a adm-api. No Docker: ./data/logos.
+    dir: ${LOGOS_DIR:../data/logos}
+
+# Logging
+logging:
+  level:
+    com.primevest: INFO
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG

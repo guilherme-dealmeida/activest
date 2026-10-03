@@ -5,7 +5,9 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 26/09/2026 (integrações com corretoras, F1–F6 — ver `PLANO_CRIPTO_BINANCE.md`).
+> **Última revisão**: 28/09/2026 (tela de Emissoras, T1–T7 — ver `PLANO_TELA_EMISSORES.md`).
+> Antes: 27/09/2026 (emissores e série histórica da B3, F1–F2 — ver `PLANO_EMPRESAS_BALANCOS.md`).
+> Antes: 26/09/2026 (integrações com corretoras, F1–F6 — ver `PLANO_CRIPTO_BINANCE.md`).
 > Antes: 24/09/2026 (integração BRAPI/B3 — ver `PLANO_BRAPI.md`).
 > Antes: 18/09/2026. A conferência arquivo a arquivo contra o
 > código é de 15/09/2026; o que entrou depois está datado no texto.
@@ -96,6 +98,39 @@ Consequências que aparecem em vários pontos do sistema:
 
 ---
 
+## 🧱 Dois serviços: carteira × administração (28/09/2026)
+
+Plano e histórico: **`PLANO_ADM_API.md`**. O backend é um Maven multi-módulo com um `pom.xml` na raiz:
+
+| Módulo | Porta | O que é |
+|---|---|---|
+| `primevest-core` | — | Biblioteca: **todas** as entidades JPA e repositórios, as regras de posição e de proventos usadas pelos dois lados (`PositionCalculator`, `DividendRecalculator`, `AppreciationUpdater`, `CashEventWriter`…), as migrations do Flyway, a validação do JWT, o tratamento de erro e o contrato das mensagens (`CatalogChange`, `CatalogMessaging`) |
+| `primevest-app-api` | 8080 | **A carteira**: login, transações, carteira, proventos do usuário, estratégia, metas, preço teto, integrações com corretoras. O front só fala com ela |
+| `primevest-adm-api` | 8081 | **Rotinas de administrador — o catálogo**: emissores, balanços e série trimestral da CVM, COTAHIST, fechamento diário (BRAPI/CoinGecko), eventos de proventos (B3/FNET), logos, conferência do catálogo, todo o `/api/v1/admin/*` (exceto o extrato). Classes em `com.primevest.adm.*` |
+
+**A regra:** a adm-api grava **só catálogo** (`asset_cash_events`, `asset_stock_events`, `asset_price_history`, `assets`, `issuers`, balanços, `company_quarters`, `fii_monthly`);
+a app-api é a **única que grava dado de usuário** (`dividends`, valorização em `portfolio_assets`, transações…). Mesmo
+banco, mesmo Redis, mesmo JWT (o login é na 8080; a 8081 só valida o token). Os dois rodam o Flyway ao subir — ele
+trava o banco enquanto migra, a ordem de subida não importa.
+
+**Mensagens (Redis pub/sub):**
+
+| Canal | Sentido | Quem reage |
+|---|---|---|
+| `primevest:catalogo:ativos` | adm → app: "catálogo mudou" `{origin: PROVENTOS|FECHAMENTO, assetIds}` | `PositionRefreshService` refaz proventos e valorização (PROVENTOS) ou só valorização (FECHAMENTO) das posições desses ativos |
+| `primevest:proventos:sob-demanda` | app → adm: "preciso do histórico" (id do ativo), depois de cada transação | `ProventosCatalogService.syncAssetOnDemand`, que responde com "catálogo mudou" |
+
+Sem garantia de entrega: se um dos dois estiver fora, a mensagem se perde e a **rede de segurança** acerta — a app-api
+recalcula todas as posições às 21:00 (`PositionRefreshScheduler`). Nos testes as mensagens ficam desligadas
+(`primevest.messaging.enabled=false`, só log) e os testes de ponta a ponta ligam os dois lados direto
+(`CatalogoE2EBase`).
+
+**Onde mexer:** regra que os dois usam (ou entidade/migration) → core; tela, API do usuário, cálculo da carteira →
+app-api; fonte externa, carga, rotina agendada de catálogo → adm-api. A app-api **nunca** chama fonte externa de
+catálogo; a adm-api **nunca** grava `dividends` nem `portfolio_assets`.
+
+---
+
 ## 🚀 Como rodar
 
 ### Opção 1 — Docker (recomendada)
@@ -110,8 +145,9 @@ docker compose up -d --build
 | Serviço | URL / Porta |
 |---------|-------------|
 | Frontend (Vite, hot reload) | http://localhost:5173 |
-| API | http://localhost:8080 |
-| Swagger UI | http://localhost:8080/swagger-ui.html |
+| API do usuário (app-api) | http://localhost:8080 |
+| Rotinas de administrador (adm-api) | http://localhost:8081 |
+| Swagger UI | http://localhost:8080/swagger-ui.html e http://localhost:8081/swagger-ui.html |
 | PostgreSQL | localhost:**5433** |
 | Redis | localhost:6379 |
 
@@ -124,7 +160,8 @@ Comandos do dia a dia:
 docker compose up -d --build   # sobe tudo
 docker compose down            # para tudo, mantém o banco
 docker compose down -v         # para tudo e APAGA o banco (recria do zero)
-docker compose logs -f api     # logs do backend
+docker compose logs -f app-api # logs da carteira (8080)
+docker compose logs -f adm-api # logs das rotinas de catálogo (8081)
 docker compose exec db psql -U postgres -d db_primevest   # psql no container
 ```
 
@@ -133,15 +170,17 @@ Docker publica em dual-stack enquanto o Vite escuta em uma pilha só, e
 `localhost:5173` fica pendurado sem erro. Se alguém "limpar" esse prefixo, o
 front para de abrir — já aconteceu.
 
-**Hot reload**: `primevest-api/src` e `primevest-web/` entram por bind mount.
-Alterar um `.tsx` recarrega o Vite. No backend, o `dev-watch.sh` (CMD do estágio
-`dev`) verifica `src/` a cada 2 s, roda `mvn compile` quando algo mudou e, se
+**Hot reload**: os poms e os `src` dos módulos e `primevest-web/` entram por bind mount (os `target/` ficam
+dentro de cada contêiner). Alterar um `.tsx` recarrega o Vite. No backend, cada contêiner roda o `dev-watch.sh`
+(raiz; CMD do estágio `dev`, com `MODULE` do compose): verifica `primevest-core/src` e o `src` do próprio módulo
+a cada 2 s, roda `mvn -pl <módulo> -am compile` quando algo mudou (classe do core recompila e reinicia **os
+dois** contêineres, ~30–50 s; o `-am` da app-api inclui a adm-api, dependência só de teste) e, se
 compilar, toca o gatilho do DevTools, que reinicia o Spring — migration nova
 entra junto. Compilação com erro aparece no log do container e mantém a versão
 anterior no ar. Arquivo apagado não dispara sozinho: salve outro ou reinicie.
 
 > Mexeu no `Dockerfile` ou no `dev-watch.sh`? Precisa rebuild:
-> `docker compose up -d --build api`.
+> `docker compose up -d --build app-api adm-api`.
 
 **O compile incremental já deixou passar arquivo alterado** (19/09/2026): um
 controller modificado no Windows foi compilado pelo `dev-watch` sem que o
@@ -149,7 +188,7 @@ controller modificado no Windows foi compilado pelo `dev-watch` sem que o
 `NoResourceFoundException` (que aparece como 500 ou 404, não como 405). Se um
 endpoint recém-escrito "não existe" para o Spring, confira o `.class` antes de
 procurar erro no código:
-`docker compose exec api sh -c "grep -ac <trecho> target/classes/<...>.class"`.
+`docker compose exec app-api sh -c "grep -ac <trecho> primevest-app-api/target/classes/<...>.class"`.
 A saída é `touch` no `.java` e `mvn -o compile` dentro do container.
 
 **A imagem do front é `node:24` (Debian), não `node:24-alpine`** — ver "Imagem
@@ -165,9 +204,10 @@ migration, ou o contrário, a API não sobe.
 Exige Java 21, Maven 3.9+, Node 24 e PostgreSQL 17 com o banco `db_primevest` criado.
 
 ```powershell
-# Backend — porta 8080
-cd primevest-api
-mvn spring-boot:run "-Dmaven.test.skip=true"
+# Backend — porta 8080, da raiz (o core compila junto)
+mvn -pl primevest-app-api -am -Drun.module=primevest-app-api spring-boot:run "-Dmaven.test.skip=true"
+# Rotinas de administrador — porta 8081 (PLANO_ADM_API.md)
+mvn -pl primevest-adm-api -am -Drun.module=primevest-adm-api spring-boot:run "-Dmaven.test.skip=true"
 
 # Frontend — porta 5173, proxy /api -> localhost:8080
 cd primevest-web
@@ -207,23 +247,46 @@ $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";"
 ### Integrações externas
 
 Plano, decisões e achados da integração: **`PLANO_BRAPI.md`** (executado em
-24/09/2026). Rotinas (fuso de São Paulo, horários em `primevest.*` no
-`application.yml`): fechamento B3 19:00 seg–sex e cripto 19:00 todo dia
-(`ClosingPriceScheduler`, com recuperação na subida); proventos 20:00
-(`ProventosScheduler`, e sob demanda depois de cada transação); conferência do
-catálogo segunda 07:00 (`CatalogAuditScheduler`, só loga); logos dia 1 às 06:00
-e ativos novos na subida (`LogoScheduler`, arquivos em `data/logos/`). Disparo
-manual para admin: `POST /api/v1/admin/{closing|proventos|catalog-audit|logos}`.
-Integrações com corretoras: `IntegrationWorker` processa a fila de sincronizações (a cada 5 s) e
-`IntegrationSyncScheduler` enfileira as conexões ativas às 06:30 (`primevest.integrations.*`).
-Importação do extrato de proventos da B3 (admin, síncrona):
+24/09/2026). Rotinas (fuso de São Paulo, horários em `primevest.*` no `application.yml` de cada serviço):
+
+| Rotina | Quando | Serviço |
+|---|---|---|
+| Fechamento B3 (seg–sex) e cripto (todo dia), com recuperação na subida — `ClosingPriceScheduler` | 19:00 | adm-api → "catálogo mudou" (FECHAMENTO) |
+| Eventos de proventos da B3/FNET de **todo o catálogo** ligado a emissor + o que já esteve em carteira (F8; `primevest.proventos.scope`) — `ProventosScheduler` | 20:00 | adm-api → "catálogo mudou" (PROVENTOS), por emissor |
+| Balanços da CVM (DFP/ITR do ano corrente e do anterior) + série trimestral + informe mensal de FII (F7) — `CvmStatementsScheduler` | 07:30 | adm-api |
+| Conferência do catálogo (só loga) — `CatalogAuditScheduler` | seg 07:00 | adm-api |
+| Logos (arquivos em `data/logos/{TICKER}.{ext}` — o arquivo é o estado; só quem não tem arquivo; a subida não procura nada, o ativo novo é procurado no pedido "preciso do histórico") — `LogoScheduler` | dia 1, 06:00 | adm-api (a app-api só lê a pasta, `AssetLogos`) |
+| Recálculo de proventos e valorização de todas as posições — `PositionRefreshScheduler` | 21:00 | app-api |
+| Fila das integrações com corretoras — `IntegrationSyncScheduler` (06:30) e `IntegrationWorker` (5 s) | — | app-api |
+
+Disparo manual para admin, **na adm-api (8081)**: `POST /api/v1/admin/{closing|proventos|catalog-audit|logos|issuers/import|issuers/link|b3/cotahist|cvm/import|cvm/quarters|cvm/fii-monthly|cvm/proventos|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, datas de pagamento da CVM, balanços e informe de FII, em ordem — PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
+(`b3/cotahist?from=2010&to=2026`, padrão 2010 até o ano corrente; `cvm/import?from=2010&to=2026&force=false` —
+documento na mesma versão é pulado, `force=true` reprocessa a partir de `data/cvm` sem baixar; ao terminar recalcula
+a série trimestral, que `cvm/quarters` recalcula sozinha; `cvm/fii-monthly?from=2016&to=2026&force=false` — informe
+mensal de FII em `fii_monthly`, mês na mesma versão é pulado). Na **app-api (8080)** só
+`POST /api/v1/admin/proventos/extrato` (importação da carteira). Script: `node scripts/admin.mjs <rotina> [--json corpo.json]`
+(ou `docker compose --profile carga run --rm tools node scripts/admin.mjs <rotina>`) — login na app-api com a
+`PRIMEVEST_SENHA` do `.env` e disparo na adm-api (ou na app-api, para o extrato); portas do `.env` (`API_PORT`, `ADM_API_PORT`).
+Curadoria dos emissores (F3): `POST /api/v1/admin/issuers/fii-cnpjs` (lista `[{ticker, cnpj}]`, liga FII como `MANUAL`,
+síncrono) e `PUT /api/v1/admin/assets/{id}/issuer` (`{issuerId | cnpj, shareClass}`; CNPJ que não é emissor vem do
+cadastro da CVM; `shareClass` nula para o que não é ação; sem `issuerId` e sem `cnpj` desfaz) e
+`PUT /api/v1/admin/assets/{id}/unit-composition` (`{"ON":1,"PNA":2}`; só ativo ligado como UNIT). Ambos gravam
+`MANUAL`, que a rotina de ligação nunca sobrescreve. `admin.mjs` aceita `--method PUT --body '<json>'`.
+Importação do extrato de proventos da B3 (admin, síncrona, app-api):
 `POST /api/v1/admin/proventos/extrato` — ver "Extrato de proventos da B3".
+
+Todas as fontes abaixo, menos o Google, são da **adm-api** (config em `primevest-adm-api/src/main/resources/application.yml`).
 
 | API | Uso | Config |
 |-----|-----|--------|
 | **BrAPI** (plano gratuito) | Fechamento diário da B3 (OHLCV) dos ativos em carteira, lista oficial de tickers e renomes (conferência do catálogo), logos | `brapi.base-url`, `BRAPI_TOKEN` (no `.env`, header `Authorization: Bearer`) |
 | **Site da B3** (sem token, não documentado) | Proventos (~12 meses), desdobramentos/grupamentos/bonificações, ticker↔ISIN, histórico longo de empresa | `b3.base-url` |
-| **FNET** + **CVM dados abertos** | Proventos de FII além de 12 meses (avisos estruturados, por CNPJ; ISIN→CNPJ pelo informe mensal da CVM) | `fnet.base-url`, `cvm.fii-registry-url` |
+| **B3 — 12 meses acumulados** (`B3SupplementStore`) | A resposta de ~12 meses (a única com data de pagamento de ação) somada a `data/b3/proventos-12m/{acoes,fundos}/{EMISSOR}.json`: o que sai da janela continua valendo, e um banco novo recebe as datas do arquivo (PLANO_CARGA_INICIAL.md, P1). O export inicial saiu do banco de desenvolvimento em 29/09/2026 (4.327 proventos, 503 emissores) | `primevest.data.dir` |
+| **CVM — Relatório Proventos** (`CvmProventosReport`, `CvmPaymentDateService`) | Data de pagamento de 2022 em diante para o que o histórico da B3 não traz: índice IPE anual (`data/cvm/ipe`), PDF de cada relatório do RAD (`data/cvm/proventos/{protocolo}_{versao}.pdf`, lido com PDFBox), casado por ISIN, data-com (último dia com direitos) e valor; grava `payment_date_source = 'CVM'`. Na carga inicial e às 20:00 (ano corrente e anterior); `POST /api/v1/admin/cvm/proventos?from=2022&to=` | `cvm.base-url`, `cvm.rad-parallel-downloads` |
+| **Levantamento de datas de pagamento** (`PaymentDateSurveyService`) | Datas de pagamento de proventos de ação 2010–2026 que nenhuma fonte oficial gratuita traz, levantadas em sites públicos (Investidor10, Status Invest, Fundamentus, Brapi, RI) e revisadas pelo Guilherme: `data/levantamento/datas-pagamento.json`, gerado de `data/levantamento/origem/*.xlsx` por `scripts/levantamento/xlsx_para_json.py`. Casa por ticker (+ fracionário), tipo, data-com, parcela e valor; grava só em evento sem data, `payment_date_source = 'LEVANTAMENTO'`; linha `A_DEFINIR` não grava. Na carga inicial (depois da CVM) e `POST /api/v1/admin/proventos/levantamento` (PLANO_CARGA_INICIAL.md, 11) | `primevest.data.dir` |
+| **FNET** (`FnetClient`, refeito na F8) | Proventos de FII além de 12 meses (avisos estruturados). O histórico sai **só de `data/fnet/{id}.xml`**, por um índice local `CNPJFundo` → avisos (a carga não chama o FNET). **Fonte principal de FII** (D15 do PLANO_CARGA_INICIAL.md): aplicado antes da B3, e o evento que a B3 gravou como reserva passa a ser do FNET quando o aviso chega; quando a B3 mostra um provento mais novo que o último aviso gravado do fundo, o FNET é consultado pelo CNPJ (no máximo uma vez por dia por fundo) e o aviso novo é baixado (PENDENCIAS 18.10 d). A busca por CNPJ e o download ficam no client: aviso baixado vai para `data/fnet` e nunca é baixado de novo; download com timeout de 5 s, até 6 tentativas com espera crescente e no máximo 3 simultâneos; lê os dois formatos de XML (o antigo, 2016–2019, com `ValorProventoCota`). Aviso ligado pelo CNPJ, sem recibo (final 12–19) e sem data-base depois do pagamento | `fnet.*`, `primevest.data.dir` |
+| **Série histórica da B3 — COTAHIST** (`B3HistoricalQuotesClient`) | Preço diário não ajustado de ações (lote padrão e fracionário) e FIIs desde 2010, e o ISIN de cada ticker do catálogo. Zip por ano em `data/b3/cotahist`. Dia gravado pela B3 não é sobrescrito pela BRAPI (`asset_price_history.source`, V29) | `b3.cotahist-url` |
+| **CVM dados abertos** (`CvmOpenDataClient`) | Emissores (cadastro de companhias, FCA, informe mensal de FII); informe mensal de FII 2016+ em `fii_monthly` (`CvmFiiMonthly`, partes complemento e ativo/passivo, F7); balanços DFP (2010+) e ITR (2011+) (`CvmStatements`); histórico de capital do Formulário de Referência (`CvmFreCapital`, quantidade de ações antes de 2020 e régua da escala depois). Cache em `data/cvm/{cad,fca,fii,dfp,itr,fre}` — o arquivo é o estado (`PLANO_EMPRESAS_BALANCOS.md`) | `cvm.base-url`, `primevest.data.dir` |
 | **CoinGecko** | Preço de cripto (id em `assets.price_source_ref`) e logos das moedas | `coingecko.base-url` |
 | **Google Identity Services** | Login social (fluxo de ID token, sem client secret) | `VITE_GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_ID` |
 
@@ -241,52 +304,60 @@ chave-mestra = perder as credenciais gravadas** (os usuários recadastram). Rota
 
 ```
 primevest/
-├── docker-compose.yml           # banco + redis + api + web
+├── docker-compose.yml           # banco + redis + app-api (8080) + adm-api (8081) + web
 ├── .env.example                 # variáveis (copiar para .env)
 ├── README.md                    # visão geral do produto
 ├── Claude.md                    # este arquivo — referência operacional
 ├── PENDENCIAS.txt               # o que ficou por fazer, com o porquê
 ├── .claude/                     # ponte de execução: build.ps1 + logs/ (ver README de lá)
-├── generate_assets_sql.py       # geradores auxiliares, usados uma vez
-├── generate_classes.py          #   para montar seeds; não fazem parte do build
-├── generate_seeds.js            #
+├── scripts/                     # carga e manutenção (PLANO_CARGA_INICIAL.md): admin.mjs, get.mjs,
+│                                # gerar_seed_emissores.mjs, data/ (rclone ↔ bucket R2), sql/ (conferência)
 │
-├── primevest-api/
-│   ├── Dockerfile               # alvos: dev (spring-boot:run) e runtime (jar)
-│   ├── pom.xml
-│   └── src/main/
-│       ├── java/com/primevest/
-│       │   ├── config/          # SecurityConfig, CorsConfig, RedisConfig,
-│       │   │                    # SwaggerConfig, SecurityUtils, PasswordEncoderConfig
-│       │   ├── domain/
-│       │   │   ├── asset/       # Asset, AssetTerms, AssetType, AssetCategory,
-│       │   │   │                # RateType, Indexer, PriceSource, service
-│       │   │   ├── auth/        # AuthController/Service, JwtTokenProvider,
-│       │   │   │                # JwtAuthFilter, GoogleTokenVerifier
-│       │   │   ├── ceilingprice/# CeilingPrice + service
-│       │   │   ├── dividend/    # Dividend, DividendType, service
-│       │   │   ├── fixedincome/ # FixedIncomeNote + repository  ← o papel do usuário
-│       │   │   ├── goal/        # Goal, GoalStatus, service
-│       │   │   ├── portfolio/   # Portfolio, PortfolioAsset, service
-│       │   │   ├── pricehistory/# AssetPriceHistory + service
-│       │   │   ├── strategy/    # Strategy, service (ideal + rebalanceamento)
-│       │   │   ├── transaction/ # Transaction, TransactionType, service
-│       │   │   └── user/        # User + service
-│       │   ├── exception/       # BusinessException, ResourceNotFoundException,
-│       │   │                    # GlobalExceptionHandler, ErrorResponse
-│       │   ├── integration/
-│       │   │   ├── b3/          # B3Client, FnetClient, CvmFundRegistry (proventos)
-│       │   │   ├── brapi/       # BrApiClient v2 + BrApiException + records
-│       │   │   └── coingecko/   # CoinGeckoClient (por price_source_ref)
-│       │   └── scheduler/       # ClosingPriceScheduler, ProventosScheduler,
-│       │                        # CatalogAuditScheduler, LogoScheduler
-│       ├── resources/
-│       │   ├── application.yml          # base
-│       │   ├── application-dev.yml      # local (Flyway OFF, ddl-auto none)
-│       │   ├── application-docker.yml   # containers (Flyway ON, ddl-auto validate)
-│       │   ├── application-prod.yml
-│       │   └── db/migration/            # V1 (schema) .. V22
-│       └── test/                        # 319 testes: support/, domain/, integration/, functional/
+├── pom.xml                      # agregador Maven (PLANO_ADM_API.md): versões, compilador, testes
+├── Dockerfile                   # backend, contexto na raiz; alvos dev e runtime; ARG MODULE
+├── dev-watch.sh                 # hot reload do backend (core + módulo do contêiner)
+│
+├── primevest-core/              # biblioteca compartilhada
+│   └── src/
+│       ├── main/java/com/primevest/
+│       │   ├── domain/          # TODAS as entidades e repositórios (asset, dividend, portfolio,
+│       │   │                    # transaction, issuer, strategy, goal, user...) + regras dos dois
+│       │   │                    # lados: PositionCalculator, DividendRecalculator, AppreciationUpdater,
+│       │   │                    # CashEventWriter, AssetLogos (leitura), catalog/ (mensagens)
+│       │   ├── domain/auth/     # JwtTokenProvider, JwtAuthFilter, UserDetailsServiceImpl
+│       │   ├── config/          # SecurityUtils
+│       │   └── exception/       # GlobalExceptionHandler, BusinessException...
+│       ├── main/resources/db/migration/   # V1 .. V38 (as duas aplicações rodam o Flyway)
+│       └── test/                # test-jar: IntegrationTestBase, JpaTestBase, PostgresContainer,
+│                                # Fixtures, CatalogIds, Tokens, application-test.yml; SchemaTest
+│
+├── primevest-adm-api/           # rotinas de administrador — o catálogo (porta 8081)
+│   └── src/
+│       ├── main/java/com/primevest/adm/
+│       │   ├── PrimevestAdmApplication.java
+│       │   ├── config/          # AdmSecurityConfig, AdmSchedulingConfig, AdmSwaggerConfig,
+│       │   │                    # AdmMessagingConfig (publica "catálogo mudou", ouve "sob demanda")
+│       │   ├── domain/admin/    # AdminController (/api/v1/admin/*)
+│       │   ├── domain/          # dividend/ProventosCatalogService, pricehistory/ClosingPriceService e
+│       │   │                    # HistoricalQuotesImportService, issuer/ (import e ligação),
+│       │   │                    # fundamentals/ (balanços, série trimestral), asset/ (logos, conferência)
+│       │   ├── integration/     # b3/ (B3, FNET, COTAHIST), cvm/, brapi/, coingecko/, PublicFileCache
+│       │   └── scheduler/       # fechamento, proventos, balanços, logos, conferência
+│       └── test/                # recortes reais da B3 e da CVM (test-jar, usados pela app-api)
+│
+├── primevest-app-api/           # a carteira (porta 8080) — o antigo primevest-api
+│   └── src/
+│       ├── main/java/com/primevest/
+│       │   ├── PrimevestApplication.java   # varredura exclui com.primevest.adm
+│       │   ├── config/          # SecurityConfig, CorsConfig, RedisConfig, SwaggerConfig,
+│       │   │                    # PasswordEncoderConfig, SchedulingConfig, CatalogMessagingConfig
+│       │   ├── domain/          # controllers, serviços e DTOs de auth, user, asset, portfolio
+│       │   │                    # (PositionRefreshService), transaction, dividend (extrato),
+│       │   │                    # strategy, goal, ceilingprice, integration (corretoras)
+│       │   ├── integration/binance/
+│       │   └── scheduler/       # IntegrationSyncScheduler, PositionRefreshScheduler
+│       ├── main/resources/      # application.yml, -dev, -docker, -prod
+│       └── test/                # functional/ (CatalogoE2EBase: adm-api só no classpath de teste)
 │
 └── primevest-web/
     ├── Dockerfile               # alvos: dev (vite) e runtime (nginx)
@@ -334,18 +405,25 @@ em desenvolvimento. **Não versione credenciais reais.**
 | `asset_terms` | Parâmetros públicos do papel, PK = `asset_id`. Só Tesouro Direto hoje |
 | `fixed_income_notes` | **O papel do usuário**: `issuer`, `maturity_date`, `rate_type`, `indexer`, `indexer_rate` |
 | `asset_types` | 12 tipos |
-| `asset_categories` | 116 categorias. Uma categoria é o par `(name, segment)` dentro do tipo — a unicidade é `(asset_type_id, name, segment)` com `NULLS NOT DISTINCT`. FII: tipo de fundo › segmento; Ação: setor B3 › segmento B3; demais tipos: `segment` nulo |
+| `asset_categories` | 80 categorias, **um nível só**: unicidade `(asset_type_id, name)` (V31). Ação: setor B3; FII: tipo de fundo (TIJOLO, PAPEL, FOF, HIBRIDO, OUTROS). O segundo nível está no emissor: segmento B3 da ação em `issuers.b3_segment`, segmento de atuação do FII em `issuers.segment` |
 | `strategies` | % ideal por tipo — `unique(user_id, asset_type_id)`. É a **geração de renda**: posição de reserva nunca entra (`include_reservation` saiu na V10) |
 | `strategy_reservations` | Estratégia da reserva de emergência — **uma por usuário** (`unique(user_id)`), nunca apagada. `type_reservation` 1 = por percentual (`target_percentage`), 2 = por valor (`target_value`); a outra coluna fica nula, e `ck_strategy_reservations_target` confere |
 | `dividends` | Proventos. **Sem `user_id`** — ver Pontos de Atenção. `total_amount` é o **bruto** (truncado nos centavos, como a B3); `net_amount` é o **líquido** depois do IR retido (V23) |
 | `withholding_tax_rules` | Alíquotas de IR retido na fonte por tipo de provento, tipo de ativo e vigência, com a base legal (V23). Lei nova = migration — ver "IR retido nos proventos" |
 | `ceiling_prices` | Preço teto por ativo — `unique(user_id, asset_id)` |
 | `goals` | Metas de investimento |
-| `asset_price_history` | Histórico de cotações |
+| `asset_price_history` | Histórico de cotações. `source` (V29): `BRAPI`, `COINGECKO` ou `B3_COTAHIST` — a série da B3 vence e a BRAPI não a sobrescreve |
 | `integration_connections` | Conexão do usuário com uma fonte externa (hoje só `BINANCE`); `label` único por usuário, `status`, `consent_accepted_at` (V25) |
 | `integration_credentials` | Credencial **cifrada**, 1:1 com a conexão (`ciphertext`, `iv`, `key_version`, `fingerprint`). Nunca sai na API; apagada na revogação |
 | `integration_cursors` | Onde cada fluxo da fonte parou (`stream`, `cursor_value`) — sincronização incremental |
 | `integration_runs` / `integration_run_items` | Cada sincronização e o que dela não virou transação (não mapeado, possível duplicata, recusado) |
+| `issuers` | Emissores (V28): companhia aberta ou FII, 1 por CNPJ. `kind`, `cvm_code`, setor CVM e B3, segmento de listagem; no FII, `segment` curado (só seed, a importação não toca) e `cvm_segment` informativo. `assets.issuer_id`, `share_class`, `issuer_link_source` fazem a ligação (F3). Semeado pela V30 (369 companhias, 346 FIIs, 1.139 ligações) |
+| `unit_compositions` | Composição das units, `(asset_id, share_class) → quantity` (V28) |
+| `cvm_documents` | Um DFP ou ITR entregue por emissor (V32): `doc_type`, `reference_date`, `version` (reapresentação substitui), `consolidated` (D6). Volume de arquivo — nenhuma migration semeia |
+| `cvm_statement_values` | Métricas de cada documento (`FinancialMetric`: receita, EBIT, lucro, lucro da controladora, ativo, caixa, dívida bruta, PL, PL de não controladores, FCO, JCP e dividendos declarados, LPA por classe), em reais, por período (`period_start` nulo = posição do balanço; o DRE do ITR tem o trimestre e o acumulado) |
+| `share_counts` | Quantidade de ações de cada documento, como veio: `COMPOSICAO` (DFP/ITR 2020+, com tesouraria, `scale_factor` 1 ou 1.000 conferido pelo FRE ou pelo LPA — `ShareScale` —, o que sobrar pelo documento validado mais próximo, `VIZINHO`, e depois pelo anterior ajustado pelos grupamentos/desdobramentos registrados entre as datas, `EVENTO`, V36) ou `FRE` (antes de 2020, capital integralizado do Formulário de Referência, sem tesouraria). `REVISAR` = nenhuma conferência fechou, sem fator |
+| `company_quarters` | Série trimestral derivada (V33, F6), uma linha por `(issuer_id, period_end)` de cada DFP/ITR: `*_q` trimestre isolado (3 meses do ITR, ou acumulado menos o trimestre anterior — 4T = DFP − 9 meses), `*_ttm` 12 meses (anual do DFP ou soma de 4 trimestres consecutivos; faltando um, nulo), posição (PL, PL da controladora, ativo, caixa, dívida) e ações em unidades (nulas em `REVISAR`). Recalculada inteira por `CompanyQuarterService` (regras em `QuarterSeries`) ao fim de cada carga de balanços; nada próprio nela |
+| `fii_monthly` | Informe mensal de FII da CVM (V34, F7), cru, uma linha por `(issuer_id, reference_month)` (primeiro dia do mês), 09/2016 em diante, só fundos emissores; `version` é a maior recebida (reapresentação substitui). Do complemento: PL, ativo, cotas, VP por cota, cotistas, taxa de administração, DY e amortização do mês (frações: 0,0068 = 0,68%). Do ativo/passivo: liquidez, total investido, imóveis, imóveis via SPE, recebíveis (CRI/CRA, LCI/LCA, LH, LIG), cotas de FII, passivo e rendimentos a distribuir (÷ cotas = rendimento estimado, **só indicador**, nunca vira `asset_cash_events`). Gravada por `FiiMonthlyImportService` (adm-api) |
 | `integration_crypto_exclusions` | Operação de cripto importada e excluída pelo usuário: a sincronização não recria (regra E2 do plano) |
 
 ### Asset Types — 12
@@ -378,7 +456,7 @@ coluna.
 > usuário; `getName()` é para lógica interna. `AssetCategory.getDisplayName()`
 > encapsula o fallback description → name.
 
-### Flyway — V1 a V27
+### Flyway — V1 a V38
 
 O Flyway roda do zero no perfil `docker`. No perfil `dev` fica desligado, porque
 o banco local é gerenciado à mão.
@@ -394,13 +472,14 @@ coisa que podia falhar numa subida limpa.
 O reset deixou **9 arquivos, 156 KB contra 340 KB**. Desde então entraram
 V10–V12 (20/09/2026), V13–V22 (24/09/2026, integração BRAPI/B3) e V23
 (24/09/2026, IR retido nos proventos), V24 (25/09/2026, extrato de proventos
-da B3) V25 a V27 (25/09/2026, integrações com corretoras), e o banco fica na **versão 27**.
+da B3) V25 a V27 (25/09/2026, integrações com corretoras) V28 e V29 (27/09/2026, emissores e origem do preço histórico), V30 e V31 (27/09/2026, seed dos emissores e
+categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, série trimestral), V34 (28/09/2026, informe mensal de FII), V35 a V37 (28/09/2026, amortização da B3, escala por evento e `assets` sem estado — F10), V38 (29/09/2026, catálogo sem o extrato), e o banco fica na **versão 38**.
 
 | Arquivo | Conteúdo |
 |---------|----------|
 | V1 | **Schema completo**: as 14 tabelas na ordem das FKs, com constraints e índices |
 | V2 | Seed dos 12 tipos |
-| V3 | Seed das 116 categorias, já com `segment` |
+| V3 | Seed das 116 categorias, já com `segment` (a V31 consolida e tira a coluna) |
 | V4–V7 | Seed dos ativos: 782 ações, 337 FIIs, 130 Tesouro, 15 renda fixa |
 | V8 | Seed dos 130 `asset_terms` |
 | V9 | Usuário de desenvolvimento + carteira |
@@ -414,13 +493,25 @@ da B3) V25 a V27 (25/09/2026, integrações com corretoras), e o banco fica na *
 | V18 | 22 categorias e 892 BDRs, com a cotação e o OHLCV de 23/09/2026 |
 | V19 | `assets.price_source_ref`, 15 categorias e 227 criptomoedas (sem cotação) |
 | V20 | Proventos em duas camadas: `asset_cash_events` e `asset_stock_events` (catálogo) + `dividends.cash_event_id/shares_on_date/origin`; `assets.isin/cnpj/cash_history_loaded_at` |
-| V21 | `assets.logo_path` e `logo_checked_at` |
+| V21 | `assets.logo_path` e `logo_checked_at` (saíram na V37) |
 | V22 | `asset_cash_events.seq`: parcelas iguais do mesmo provento |
 | V23 | IR retido nos proventos: `withholding_tax_rules` (+ carga inicial) e `dividends.withholding_rule_id/withholding_rate/withholding_tax/net_amount_per_share/net_amount/tax_checked_at` |
-| V24 | Extrato de proventos da B3: fonte `EXTRATO_B3` em `asset_cash_events.source` e `asset_cash_events.payment_date_source` (`EXTRATO_B3` ou `DEDUZIDA`; nula = data da fonte oficial) |
+| V24 | Extrato de proventos da B3: fonte `EXTRATO_B3` em `asset_cash_events.source` e `asset_cash_events.payment_date_source` (`EXTRATO_B3` ou `DEDUZIDA`; nula = data da fonte oficial) — desfeita na V38 |
 | V25 | Integrações (F1 do `PLANO_CRIPTO_BINANCE.md`): as 6 tabelas `integration_*` e `transactions.origin` (`MANUAL`/`AUTO`), `external_id`, `connection_id`, `executed_at`, `edited_at`, `source_snapshot` (JSONB); `ck_transactions_origin` e índice único parcial `(connection_id, external_id)` |
 | V26 | Confirmação da importação (F4): `integration_run_items` guarda o lote inteiro (+ `duplicate_of`, `resolution`, `transaction_id`); `integration_runs.next_cursors`, `fiat_deposited` |
 | V27 | Fila das integrações (F5): `integration_runs.balances` (saldo da corretora, aviso de divergência) e índice `(status, created_at)` |
+| V28 | Emissores (F1 do `PLANO_EMPRESAS_BALANCOS.md`): `issuers`, `unit_compositions` e `assets.issuer_id/share_class/issuer_link_source` |
+| V29 | `asset_price_history.source` (`BRAPI`/`COINGECKO`/`B3_COTAHIST`), com as linhas de cripto marcadas `COINGECKO` (F2) |
+| V30 | Seed dos emissores (F4/M3): 369 companhias e 346 FIIs (CNPJ literal, segmento curado do FII), 1.139 ligações ativo → emissor com classe, origem e ISIN, 36 linhas de composição de units. Gerado do banco por `E:\carga\scripts\gerar_seed_emissores.mjs`; chave natural (CNPJ, ticker), `ON CONFLICT` preserva o que veio da fonte |
+| V31 | Categoria sem segmento (F4/M4, D11): uma linha por `(tipo, name)` — os ativos das duplicadas vão para a de menor id —, `segment` sai, unicidade `(asset_type_id, name)`. 165 → 80 |
+| V32 | Balanços da CVM (F5/M5): `cvm_documents`, `cvm_statement_values` (unicidade com `NULLS NOT DISTINCT` no `period_start`) e `share_counts`. Sem `cvm_account_map`: as métricas são achadas pela descrição da conta (`FinancialMetricRules`) |
+| V33 | Série trimestral (F6): `company_quarters`, derivada de `cvm_statement_values` e `share_counts`; nasce vazia e é preenchida pela carga de balanços (ou `POST /api/v1/admin/cvm/quarters`) |
+| V34 | Informe mensal de FII (F7/M6): `fii_monthly`, um mês por fundo emissor, cru (PL, cotas, VP por cota, cotistas, taxas do mês, carteira e passivo); nasce vazia e é preenchida por `POST /api/v1/admin/cvm/fii-monthly` e pela rotina das 07:30 |
+| V35 | `AMORTIZACAO RF` da B3 vira `AMORTIZACAO`: a linha que repete a do FNET sai (completando pagamento e aprovação), a que só a B3 tem recebe o tipo |
+| V36 | `share_counts.scale_check` aceita `EVENTO` |
+| V38 | PLANO_CARGA_INICIAL.md (D13): catálogo sem o extrato — eventos `EXTRATO_B3` de FII viram `FNET`, os demais saem (proventos do usuário ficam `MANUAL`), datas `EXTRATO_B3`/`DEDUZIDA` apagadas; `source` só `B3`, `B3_HISTORICO`, `FNET`; `payment_date_source` só `CVM` |
+| V39 | PLANO_CARGA_INICIAL.md (D14, seção 11): `payment_date_source` aceita também `LEVANTAMENTO` (datas de pagamento levantadas, `data/levantamento`) |
+| V37 | M7/F10: `assets` sem `cnpj` (é do emissor), `cash_history_loaded_at` (histórico se reconhece pelo gravado e por `data/b3/proventos`, `data/fnet`), `logo_path` e `logo_checked_at` (o arquivo em `data/logos` é o estado) |
 
 **Como o reset foi verificado** — vale registrar, porque é o método a repetir se
 houver um terceiro. Construiu-se um banco `db_ref` aplicando as 30 migrations
@@ -456,7 +547,7 @@ Estado após uma subida limpa:
 |--------|--------|
 | assets | 1.264 |
 | asset_terms | 130 |
-| asset_categories | 116 |
+| asset_categories | 116 (80 depois da V31) |
 | asset_types | 12 |
 | users | 1 |
 | portfolios | 1 |
@@ -595,11 +686,21 @@ Falta criar o Client ID no Google Cloud Console.
 ### Assets
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| GET | `/api/v1/assets/` | Listar — params `typeId`, `query` (autocomplete, teto 50) |
+| GET | `/api/v1/assets/` | Listar — params `typeId`, `query` (autocomplete, teto 50), `withIssuer=true` (com `query`: só ações e FIIs ligados a emissor — busca da tela de Emissoras) |
 | GET | `/api/v1/assets/{ticker}` | Buscar por ticker |
 | GET | `/api/v1/assets/types` | Tipos de ativo |
 | GET | `/api/v1/assets/categories` | Categorias — param `typeId` |
-| GET | `/api/v1/assets/{ticker}/history` | Histórico de cotações |
+| GET | `/api/v1/assets/{ticker}/prices` | Cotação histórica (28/09/2026, `AssetPriceHistoryService`/`PriceSeries`): `?range=1D\|7D\|1M\|6M\|YTD\|1A\|5A\|MAX` (padrão 1A) ou `?from=&to=`. **Ajustada** por desdobramento, grupamento e bonificação (preço até a data-com ÷ razão do evento; sem ajuste por proventos). Densidade: diário até ~1 ano, semanal até ~5, mensal acima; 1D = fechamento anterior → último (`closeOnly`; `INTRADAY` reservado para o futuro). Fracionário usa o lote padrão (`priceTicker`). Traz `firstDate`/`lastDate`, variação, mín/máx. Substitui o antigo esboço `/history`, que devolvia vazio |
+| GET | `/api/v1/assets/{ticker}/indicators` | Indicadores atuais (F9): último balanço (ação) ou último informe (FII) com o preço atual. Ação: `LPA`, `VPA`, `PL`, `PVP`, `ROE`, `PAYOUT`, `DY`; FII: `PVP`, `DY`, `VP_COTA`, `COTISTAS`, `IMOVEIS`, `PAPEL`, `ALAVANCAGEM`. Cada um com `unit` (`PERCENT` em pontos, `RATIO`, `BRL`, `COUNT`), `value` e, quando nulo, `note` com o motivo. Ativo sem emissor (ETF, BDR…): 404 |
+| GET | `/api/v1/assets/{ticker}/indicators/history` | Todos os históricos do ticker numa chamada (`List<IndicatorHistoryDTO>`, ordem do enum; lê a série uma vez) — sparklines da tela de Emissoras |
+| GET | `/api/v1/assets/{ticker}/indicators/{indicador}/history` | `IndicatorHistoryDTO`: `current` (Atual), `companyAverage` (média dos anos + Atual; nulos fora, zeros dentro) e `points`; `?period=YEAR` (padrão) ou `QUARTER`. Indicador que não se aplica ao tipo: 400 |
+
+### Issuers (F9)
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/api/v1/issuers/{id}` | Cadastro do emissor (com `registrationStatus` e `website`) e tickers ligados com `hasLogo` (o `issuerId` vem em `/assets/{ticker}/indicators`) |
+| GET | `/api/v1/issuers/{id}/quarters?from=` | Série trimestral da companhia (`company_quarters`); FII: 400 |
+| GET | `/api/v1/issuers/{id}/months?from=` | Informe mensal do FII (`fii_monthly`); companhia: 400 |
 
 ### Dividends
 | Método | Endpoint | Descrição |
@@ -646,6 +747,7 @@ Rotas em `App.tsx`; tudo abaixo de `/login` é protegido por `ProtectedRoute`.
 | `/strategy` | Abas "Ideal Estratégico" e "Rebalanceamento" |
 | `/transactions` | CRUD completo |
 | `/ceiling-prices` | Preço Teto — CRUD |
+| `/emissoras`, `/emissoras/:ticker` | Emissoras (28/09/2026, `PLANO_TELA_EMISSORES.md`): busca, cabeçalho com os outros tickers do emissor, cotação (atalhos + de/até, período na URL `?periodo=` / `?de=&ate=`), cartões de indicadores com sparkline e histórico em modal (Anual/Trimestral, média, ‹ ›), cadastro e demonstrativos. O ticker é link para cá em Carteira, Dividendos e Preço Teto quando o ativo tem emissor (`issuerId` nos DTOs dessas telas — não confundir com `issuer` da carteira, que é o emissor da nota de renda fixa) |
 | `/dividends` | Dividendos |
 | `/goals` | Metas |
 | `/integrations` | Integrações com corretoras (hoje Binance): conectar, sincronizar, histórico, excluídas |
@@ -963,42 +1065,32 @@ Plano completo e conferência contra o extrato da B3 em `PLANO_IR_PROVENTOS.md`.
   Receber (todos acompanham os filtros), filtro "Situação" e coluna SITUAÇÃO
   (RECEBIDO verde, A RECEBER cinza — o selo da SUGESTÃO da Estratégia).
 
-## 🧾 Extrato de proventos da B3 (25/09/2026)
+## 🧾 Extrato de proventos da B3 (25/09/2026; só conferência desde 29/09/2026)
 
-Preenche o que as fontes oficiais não trazem: data de pagamento dos eventos que
-só existem no histórico longo (`B3_HISTORICO`), FII sem aviso no FNET e o
-"rendimento" (Selic) de ação, que a B3 não publica nos dados da empresa.
+**Desde 29/09/2026 o extrato não grava nada** (`PLANO_CARGA_INICIAL.md`, regra C e D13; V38):
+evento do catálogo vem de integração — FNET, B3 e relatórios de proventos da CVM. O que só o
+extrato de um usuário tem é dado dele. A fonte `EXTRATO_B3` e as origens de data `EXTRATO_B3` e
+`DEDUZIDA` saíram do catálogo; a V38 passou os 18 eventos de FII para `FNET` (os avisos estavam em
+`data/fnet`), tirou do catálogo os 3 de PETR4 (os proventos do usuário ficaram como `MANUAL`) e
+apagou as datas que vinham do extrato.
 
-- **Entrada**: `POST /api/v1/admin/proventos/extrato` (só admin; 403 para os
-  demais), corpo `{dryRun, lines[], deducedPayments[]}`. Com `dryRun: true`
-  tudo roda e é desfeito (`setRollbackOnly`). É repetível: rodar de novo dá
-  tudo `JA_EXISTE`. Serviço: `ExtratoProventosImportService`.
-- **Cada linha** (ativo, tipo, pagamento, cotas, líquido; opcionais bruto e
-  data-com) vira um status: `JA_EXISTE` (provento igual já está lá);
-  `DATA_COMPLETADA` (provento sem pagamento com as mesmas cotas e líquido —
-  recusa se os candidatos tiverem datas-com diferentes; parcelas iguais pela
-  menor `seq`); `EVENTO_CRIADO` (só com data-com e bruto: confere as cotas na
-  data-com, o valor por cota reproduz o bruto e o IR reproduz o líquido; grava
-  no catálogo com fonte `EXTRATO_B3`, na primeira `seq` livre); `RECUSADO`.
-  `deducedPayments` completa a data com origem `DEDUZIDA` (`DATA_DEDUZIDA`).
-- **Evento do extrato é do catálogo**, como os outros: o
-  `DividendRecalculator` gera o provento de cada posição. Nada é gravado direto
-  em `dividends`.
-- **Origem da data** (`asset_cash_events.payment_date_source`): nula = fonte
-  oficial; `EXTRATO_B3` ou `DEDUZIDA` = veio daqui. No `saveCashEvent`, a data
-  oficial substitui a do extrato/deduzida (e zera a origem); o extrato nunca
-  substitui data oficial.
-- **Tela**: DATA COM e PAGAMENTO com sublinhado pontilhado e hover quando o
-  evento é do extrato ou a data não é oficial (`cashEventSource` e
-  `paymentDateSource` no `DividendResponseDTO`).
-- **Carga real fica fora do projeto**: scripts em `E:\carga\scripts`
-  (`converter_proventos.mjs` lê os Excel da Área do Investidor e deduz a
-  data-com dos FIIs pelo padrão de cada fundo; `carregar_proventos.mjs` simula
-  por padrão e grava com `--gravar`).
+- **Entrada**: `POST /api/v1/admin/proventos/extrato` (só admin, app-api), corpo `{lines[]}`
+  (ativo, tipo, pagamento, cotas, líquido; opcionais bruto e data-com). Serviço:
+  `ExtratoProventosImportService`, `@Transactional(readOnly = true)`.
+- **Cada linha** vira um status: `JA_EXISTE` (provento da carteira com o mesmo pagamento, cotas e
+  líquido); `SEM_DATA` (o provento existe, mas o evento do catálogo está sem data de pagamento — a
+  integração ainda não trouxe); `SEM_EVENTO` (o catálogo não tem o provento); `RECUSADO`.
+- **Origem da data** (`asset_cash_events.payment_date_source`): nula = da fonte do evento; `CVM`
+  = relatório de proventos da CVM; `LEVANTAMENTO` = levantamento 2010–2026 (`data/levantamento`). A data da
+  fonte do evento substitui as duas (`CashEventWriter`); a CVM roda antes do levantamento na carga.
+- **Tela**: PAGAMENTO com sublinhado pontilhado e hover quando a data veio da CVM ou do levantamento
+  (`paymentDateSource` no `DividendResponseDTO`); sem data, "Data não informada" (D16).
+- A importação da carteira por arquivo é escopo próprio (PENDENCIAS 16); os scripts pessoais do
+  Guilherme continuam fora do projeto (`E:\carga`) e não são necessários para subir o PrimeVest.
 - **`GlobalExceptionHandler`** trata `ResponseStatusException` com o status e o
   motivo da própria exceção. Antes ela caía no handler genérico e virava 500 —
   inclusive o 403 dos endpoints de admin.
-- Testes: `ExtratoProventosIT` (10 cenários) e `PaymentDateSourceIT` (2).
+- Testes: `ExtratoProventosIT` (6 cenários) e `PaymentDateSourceIT` (2: CVM cede à B3; FNET assume a reserva da B3).
 
 ## ⚠️ Pontos de Atenção
 
@@ -1091,6 +1183,12 @@ não "quando o usuário mexeu nesta posição" — para a segunda pergunta, o qu
 
 ### Testes — existem desde 22/09/2026
 
+**Desde a F11 (28/09/2026): 394 unitários + 180 de integração**, por módulo: core 138; adm-api 65 + 25;
+app-api 191 + 155. O suporte comum (container do PostgreSQL, bases, fixtures, `application-test.yml`) vem do
+test-jar do core. A app-api tem a adm-api **só no classpath de teste**, para os testes de ponta a ponta de
+proventos e fechamento (`CatalogoE2EBase`: fonte mockada → catálogo pela adm-api → recálculo pela app-api →
+API do usuário). O histórico abaixo é de antes da separação.
+
 `src/test` deixou de estar vazio. **319 testes** em 24/09/2026, verdes em
 `mvn clean verify` (~75s): 240 rapidos (`*Test`, Surefire) e 79 funcionais
 (`*IT`, Failsafe). A integração BRAPI/B3 trouxe `BrApiClientTest` (ExchangeFunction
@@ -1119,8 +1217,9 @@ venda sem cotas na data (5) e a compra retroativa que refaz a repartição (6).
 Como rodar:
 
 ```powershell
-mvn clean test      # rapido, sem os funcionais
+mvn clean test      # rapido, sem os funcionais (da raiz: os três módulos)
 mvn clean verify    # tudo (precisa do Docker Desktop)
+mvn -pl primevest-adm-api -am verify   # um módulo (e o que ele usa)
 .\.claude\build.ps1 -Verify   # o mesmo, com log em .claude\logs\
 ```
 
@@ -1132,8 +1231,9 @@ mvn clean verify    # tudo (precisa do Docker Desktop)
 > de API que o Docker 29 recusa, e o erro é enganoso: "Could not find a valid
 > Docker environment", com o Docker Desktop rodando normalmente.
 
-O perfil `test` (`src/test/resources/application-test.yml`) desliga Redis e as
-rotinas agendadas, e mocka BrAPI e CoinGecko: nenhum teste depende de rede.
+O perfil `test` (`primevest-core/src/test/resources/application-test.yml`) desliga Redis, as mensagens e as
+rotinas agendadas; as fontes externas são mockadas nos testes (Binance no `FuncionalBase`, B3/FNET/BRAPI/
+CoinGecko no `CatalogoE2EBase` e nos testes da adm-api): nenhum teste depende de rede.
 
 ### O lint do front passou a existir em 18/09/2026
 `npm run lint` falhava desde sempre com *couldn't find an eslint.config.(js|mjs|cjs)*:
@@ -1225,7 +1325,7 @@ net stop winnat; net start winnat                         # como administrador
 ```
 
 Se voltar a cada reboot, a saída definitiva é `API_PORT=8081` num `.env` na
-raiz — o compose já lê a variável, e o front fala com a API por `api:8080` na
+raiz — o compose já lê a variável, e o front fala com a API por `app-api:8080` na
 rede interna, então nada mais muda.
 
 ### Egress bloqueado

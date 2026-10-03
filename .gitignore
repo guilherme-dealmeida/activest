@@ -41,8 +41,9 @@ build/
 # Redis dump
 dump.rdb
 
-# Logos dos ativos, baixados pela rotina da API (PLANO_BRAPI.md, F7)
-data/logos/
+# Arquivos baixados pelas rotinas da API (logos, CVM, B3, FNET) — PLANO_BRAPI.md F7,
+# PLANO_EMPRESAS_BALANCOS.md secao 2. Reconstruiveis pela carga inicial.
+/data/
 
 # Ponte de execucao do Claude (ver .claude/README.md)
 # Os scripts e o README sao versionados; os logs, nao.

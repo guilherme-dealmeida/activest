@@ -5,6 +5,12 @@
 #   docker compose down -v          para tudo e APAGA o banco (recria do zero na próxima subida)
 #
 # Copie .env.example para .env se quiser sobrescrever qualquer valor.
+#
+# Carga e bucket (profile "carga", não sobe no `up`):
+#   docker compose --profile carga run --rm data pull [--minimo]   bucket R2 -> data/ (máquina nova)
+#   docker compose --profile carga run --rm data push              data/ -> bucket + manifests (produtor)
+#   docker compose --profile carga run --rm data status            data/ x bucket
+#   docker compose --profile carga run --rm tools node scripts/admin.mjs bootstrap
 
 services:
   db:
@@ -39,11 +45,15 @@ services:
       retries: 20
     restart: unless-stopped
 
-  api:
+  # API do usuario — a carteira (PLANO_ADM_API.md). Build da raiz: o Maven e
+  # multi-modulo (pom.xml da raiz, primevest-core, primevest-adm-api, primevest-app-api).
+  app-api:
     build:
-      context: ./primevest-api
+      context: .
       target: dev
-    container_name: primevest-api
+      args:
+        MODULE: primevest-app-api
+    container_name: primevest-app-api
     environment:
       SPRING_PROFILES_ACTIVE: docker
       DB_HOST: db
@@ -59,7 +69,6 @@ services:
       # só aceita token emitido para ela. Vazio desliga o login pelo Google.
       # Não existe client secret aqui — o fluxo de ID token não usa.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      BRAPI_TOKEN: ${BRAPI_TOKEN:-}
       # Chave-mestra das credenciais de integracao (corretoras). Vem do .env,
       # nunca do repositorio. Vazia: conexoes com corretoras ficam indisponiveis.
       PRIMEVEST_CREDENTIALS_KEY: ${PRIMEVEST_CREDENTIALS_KEY:-}
@@ -69,13 +78,61 @@ services:
       - "0.0.0.0:${API_PORT:-8080}:8080"
     volumes:
       # Hot reload: o código-fonte vem da máquina, o Spring DevTools reinicia sozinho.
-      - ./primevest-api/src:/app/src
-      - ./primevest-api/pom.xml:/app/pom.xml
+      # So poms e src entram; os target/ ficam dentro do container.
+      - ./pom.xml:/app/pom.xml
+      - ./primevest-core/pom.xml:/app/primevest-core/pom.xml
+      - ./primevest-core/src:/app/primevest-core/src
+      # o reator exige o pom de todos os modulos, e a app-api usa a adm-api nos testes
+      - ./primevest-adm-api/pom.xml:/app/primevest-adm-api/pom.xml
+      - ./primevest-adm-api/src:/app/primevest-adm-api/src
+      - ./primevest-app-api/pom.xml:/app/primevest-app-api/pom.xml
+      - ./primevest-app-api/src:/app/primevest-app-api/src
       # Cache do Maven entre subidas — sem isso cada build rebaixa todas as dependências.
       - maven-repo:/root/.m2
-      # Logos dos ativos (PLANO_BRAPI.md, F7): pasta fora do banco, na raiz do
-      # projeto, ignorada pelo git. A rotina de logos grava aqui.
-      - ./data/logos:/app/data/logos
+      # Logos baixados pela adm-api: aqui so leitura, para a tela.
+      - ./data/logos:/app/data/logos:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Rotinas de administrador — o catalogo (PLANO_ADM_API.md, secao 10): emissores, balancos,
+  # COTAHIST, fechamento, proventos da B3/FNET, logos e /api/v1/admin/*. Mesmo banco, Redis e
+  # JWT da app-api; grava so catalogo e avisa a carteira pelo Redis. O front nao chama esta API.
+  adm-api:
+    build:
+      context: .
+      target: dev
+      args:
+        MODULE: primevest-adm-api
+    container_name: primevest-adm-api
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_HOST: db
+      DB_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-db_primevest}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-primevest-default-secret-key-change-in-production-minimum-256-bits-long}
+      BRAPI_TOKEN: ${BRAPI_TOKEN:-}
+    ports:
+      - "0.0.0.0:${ADM_API_PORT:-8081}:8081"
+    volumes:
+      - ./pom.xml:/app/pom.xml
+      - ./primevest-core/pom.xml:/app/primevest-core/pom.xml
+      - ./primevest-core/src:/app/primevest-core/src
+      - ./primevest-adm-api/pom.xml:/app/primevest-adm-api/pom.xml
+      - ./primevest-adm-api/src:/app/primevest-adm-api/src
+      - ./primevest-app-api/pom.xml:/app/primevest-app-api/pom.xml
+      - maven-repo:/root/.m2
+      # Arquivos baixados pelas rotinas (ignorados pelo git): logos (PLANO_BRAPI.md,
+      # F7) e o cache das fontes publicas — CVM, B3, FNET (PLANO_EMPRESAS_BALANCOS.md,
+      # secao 2). O arquivo em disco e o estado: apagar so obriga a baixar de novo.
+      - ./data:/app/data
     depends_on:
       db:
         condition: service_healthy
@@ -90,10 +147,10 @@ services:
     container_name: primevest-web
     environment:
       # O proxy do Vite precisa apontar para o container da API, não para localhost.
-      VITE_API_TARGET: http://api:8080
+      VITE_API_TARGET: http://app-api:8080
       # Bind mount no Windows não propaga eventos de arquivo: polling é necessário para o hot reload.
       CHOKIDAR_USEPOLLING: "true"
-      # Mesma variável do .env que vai para a api, para não haver dois valores
+      # Mesma variável do .env que vai para a app-api, para não haver dois valores
       # para a mesma coisa. O Vite embute isso no bundle: é público por natureza.
       VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     ports:
@@ -108,8 +165,47 @@ services:
       # evitando que o node_modules do Windows sobrescreva binários nativos.
       - /app/node_modules
     depends_on:
-      - api
+      - app-api
     restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Profile "carga" (PLANO_CARGA_INICIAL.md): não sobem no `docker compose up`.
+  # ---------------------------------------------------------------------------
+
+  # data/ <-> bucket R2 (rclone). A aplicação lê só a data/ local; o bucket é a cópia de
+  # referência: a máquina nova baixa uma vez (pull, token só leitura) e o produtor sobe o
+  # que as rotinas gravaram (push, chave de escrita). O push nunca apaga nada no bucket.
+  data:
+    image: rclone/rclone:1.75.1
+    profiles: ["carga"]
+    entrypoint: ["sh", "/scripts/data.sh"]
+    command: ["status"]
+    environment:
+      DATA_STORAGE: ${DATA_STORAGE:-local}
+      S3_BUCKET: ${S3_BUCKET:-primevest-data}
+      RCLONE_CONFIG_R2_TYPE: s3
+      RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+      RCLONE_CONFIG_R2_ENDPOINT: ${S3_ENDPOINT:-}
+      RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-}
+      RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-}
+      # token só leitura não pode (nem precisa) conferir/criar o bucket
+      RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
+    volumes:
+      - ./data:/data
+      - ./scripts/data:/scripts:ro
+
+  # Scripts Node do projeto (scripts/*.mjs) sem Node na máquina: falam com as APIs pela
+  # rede do compose.
+  tools:
+    image: node:22-alpine
+    profiles: ["carga"]
+    working_dir: /work
+    environment:
+      PRIMEVEST_API_URL: http://app-api:8080
+      PRIMEVEST_ADM_URL: http://adm-api:8081
+      PRIMEVEST_SENHA: ${PRIMEVEST_SENHA:-}
+    volumes:
+      - ./scripts:/work/scripts:ro
 
 volumes:
   pgdata:

@@ -12,6 +12,7 @@ import { formatCurrency, formatPercentage } from '@/utils/format';
 import { CeilingPrice, CeilingPriceCreate } from '@/types';
 import { Plus, Trash2, Edit2 } from 'lucide-react';
 import { useSortable } from '@/hooks/useSortable';
+import { TickerLink } from '@/components/issuer/TickerLink';
 
 export const CeilingPricesPage = () => {
   const queryClient = useQueryClient();
@@ -134,7 +135,7 @@ export const CeilingPricesPage = () => {
               {paginated.map((row) => (
                 <tr key={row.id} className="hover:bg-white/5 transition-colors">
                   <td className="px-4 py-3 text-gray-400">{row.assetTypeName}</td>
-                  <td className="px-4 py-3 font-medium text-white">{row.ticker}</td>
+                  <td className="px-4 py-3 font-medium text-white"><TickerLink ticker={row.ticker} issuerId={row.issuerId} /></td>
                   <td className="px-4 py-3 text-right">{formatCurrency(row.currentPrice)}</td>
                   <td className="px-4 py-3 text-right">{formatCurrency(row.maxPrice)}</td>
                   <td className="px-4 py-3 text-right">

@@ -1,0 +1,19 @@
+# Contexto do build do backend = raiz do repositorio (Dockerfile na raiz, PLANO_ADM_API.md).
+# Entra so o que o Maven precisa: poms e src dos modulos Java.
+**/target/
+**/node_modules/
+.idea/
+.vscode/
+*.iml
+*.log
+.env
+.env.*
+.git
+.gitignore
+.claude/
+# dados carregados (GBs) e o front: nunca vao para a imagem
+data/
+scripts/
+primevest-web/
+docs/
+Claude outputs/

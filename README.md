@@ -8,7 +8,10 @@ Sistema completo de gestão de carteira de investimentos da B3, com acompanhamen
 
 ```
 primevest/
-├── primevest-api/       # Backend - Java 21 + Spring Boot 3.3
+├── pom.xml              # Backend: agregador Maven (Java 21 + Spring Boot 3.3)
+├── primevest-core/      # Backend: modelo, regras compartilhadas, migrations
+├── primevest-adm-api/   # Backend: rotinas de administrador — catálogo (porta 8081)
+├── primevest-app-api/   # Backend: API do usuário, a carteira (porta 8080)
 └── primevest-web/       # Frontend - React + TypeScript + Tailwind
 ```
 
@@ -71,6 +74,7 @@ docker compose up -d --build
 |---------|-----|
 | Frontend (Vite, hot reload) | http://localhost:5173 |
 | API | http://localhost:8080 |
+| adm-api (rotinas do catálogo) | http://localhost:8081 |
 | Swagger UI | http://localhost:8080/swagger-ui.html |
 | PostgreSQL | localhost:**5433** |
 | Redis | localhost:6379 |
@@ -90,9 +94,8 @@ export DB_USERNAME=postgres
 export DB_PASSWORD=postgres
 export GOOGLE_CLIENT_ID=seu-client-id        # opcional; sem ele o botão do Google some
 
-# Backend — porta 8080
-cd primevest-api
-mvn spring-boot:run
+# Backend — porta 8080, da raiz
+mvn -pl primevest-app-api -am -Drun.module=primevest-app-api spring-boot:run
 
 # Frontend — porta 5173, proxy /api -> localhost:8080
 cd primevest-web
@@ -106,6 +109,53 @@ npm run lint     # ESLint 9; hoje fecha em 0 erro
 
 Detalhes operacionais — schema, migrations, decisões de modelagem e armadilhas
 conhecidas — estão em `Claude.md`. O que ficou por fazer está em `PENDENCIAS.txt`.
+
+### Carga do catálogo num banco novo
+
+As migrations criam o schema e o catálogo semeado (ativos, categorias, emissores, ligação
+ativo → emissor, composição das units e o usuário administrador). O histórico — preços desde
+2010, proventos (com data de pagamento), balanços da CVM, série trimestral e informe mensal de
+FII — entra pela **carga inicial**, disparada à mão na adm-api. Ela não roda sozinha ao subir.
+Nada depende de pasta fora do projeto (`PLANO_CARGA_INICIAL.md`).
+
+**Antes:**
+
+1. **`.env`** a partir do `.env.example`: `PRIMEVEST_SENHA` (senha do administrador semeado,
+   `guilhermeunatec@gmail.com`, migration V9 — peça a quem mantém o projeto) e o **token só
+   leitura** do bucket R2 (`S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`).
+2. **Pasta `data/`** (fora do git, ~1,4 GB) baixada do bucket `primevest-data` (Cloudflare R2):
+   `cvm/`, `b3/cotahist/`, `b3/proventos/`, `b3/proventos-12m/`, `fnet/`, `levantamento/` e `logos/`. Com ela a
+   carga lê quase tudo do disco; sem ela baixa ~2 GB da CVM e da B3, e perde o que as fontes não
+   devolvem mais (avisos antigos do FNET, datas de pagamento que já saíram da janela da B3 e as
+   datas levantadas de 2010–2026, que só existem em `levantamento/`).
+3. **Internet:** mesmo com `data/` cheia, os proventos dos últimos 12 meses de cada emissor vêm
+   da B3 (uma chamada por segundo).
+
+**Rodar** (só Docker; os scripts rodam pelos contêineres do profile `carga`):
+
+```bash
+docker compose --profile carga run --rm data pull           # bucket -> data/ (--minimo: só o essencial)
+docker compose up -d --build                                # as migrations rodam ao subir as APIs
+docker compose --profile carga run --rm tools node scripts/admin.mjs bootstrap
+docker compose logs -f adm-api      # acompanhar; termina em "Carga inicial (...) concluida"
+```
+
+A carga roda, em ordem: emissores (completa o seed com as companhias e os FIIs negociados que não
+estão no catálogo), COTAHIST, proventos (FII pelo FNET, ações pela B3), datas de pagamento pelos
+relatórios de proventos da CVM (2022+), datas de pagamento do levantamento 2010–2026
+(`data/levantamento/datas-pagamento.json`, só onde ainda falta data), balanços com a série
+trimestral, e informe mensal de FII.
+Com `data/` cheia leva **~1 h**. É retomável: se uma etapa falhar (a B3 às vezes cai), rode de
+novo — o que já entrou é pulado. Conferência: `scripts/sql/contagens.sql` e
+`scripts/sql/datas_pagamento.sql` (ver `scripts/README.md`).
+
+**Depois:** o preço atual dos ativos vem do fechamento diário (19:00, ou na subida da adm-api se
+estiver atrasado), que usa a BRAPI (`BRAPI_TOKEN`). Até lá, os indicadores usam o último
+fechamento do COTAHIST. Carteiras e transações são de cada usuário e não fazem parte da carga.
+
+**Quem mantém o bucket** (chave de escrita no `.env`): as rotinas gravam o que chega das fontes em
+`data/`; `docker compose --profile carga run --rm data push` sobe o que é novo (nunca apaga) e
+regrava os manifests. `data status` compara `data/` com o bucket.
 
 ## 🔌 APIs Externas
 
