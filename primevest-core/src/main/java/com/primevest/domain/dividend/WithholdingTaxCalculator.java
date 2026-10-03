@@ -7,7 +7,7 @@ import java.util.List;
 
 /**
  * O jeito de calcular o IR retido de um provento — o que nao muda com a lei
- * (PLANO_IR_PROVENTOS.md). As aliquotas vem de {@link WithholdingTaxRule}.
+ * (docs/planos/PLANO_IR_PROVENTOS.md). As aliquotas vem de {@link WithholdingTaxRule}.
  *
  * <p>A conta e a da B3, conferida centavo a centavo no extrato:</p>
  * <ol>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    Agregador do backend (PLANO_ADM_API.md).
+    Agregador do backend (docs/planos/PLANO_ADM_API.md).
 
       primevest-core     modelo JPA, repositorios, regras de posicao e proventos, migrations,
                          validacao do JWT e tratamento de erro — biblioteca, sem main

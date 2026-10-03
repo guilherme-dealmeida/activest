@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Indicadores de acoes e FIIs (PLANO_EMPRESAS_BALANCOS.md, 5.4 — F9). Leitura do catalogo,
+ * Indicadores de acoes e FIIs (docs/planos/PLANO_EMPRESAS_BALANCOS.md, 5.4 — F9). Leitura do catalogo,
  * para qualquer usuario autenticado.
  */
 @RestController

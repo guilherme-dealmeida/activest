@@ -9,8 +9,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Logos (PLANO_BRAPI.md, B25; PLANO_EMPRESAS_BALANCOS.md, F10): uma vez por mes (dia 1,
- * 06:00), so os ativos sem arquivo em {@code data/logos}. A subida da API nao procura nada;
+ * Logos (docs/planos/PLANO_BRAPI.md, B25; docs/planos/PLANO_EMPRESAS_BALANCOS.md, F10): uma vez por mes (dia 1,
+ * 06:00), so os ativos sem arquivo em {@code carga/data/logos}. A subida da API nao procura nada;
  * o ativo novo que entra numa carteira e procurado no pedido da carteira
  * ({@code AdmMessagingConfig}).
  */

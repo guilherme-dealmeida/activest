@@ -1,6 +1,6 @@
 -- Contagens do catalogo, para comparar um banco novo (bootstrap) com o de desenvolvimento.
--- Uso: docker exec -i primevest-db psql -U postgres -d db_primevest < scripts/sql/contagens.sql
--- Referencia do ensaio de 28/09 (PLANO_EMPRESAS_BALANCOS.md, F11) e aceite do PLANO_CARGA_INICIAL.md, secao 4.
+-- Uso: docker exec -i primevest-db psql -U postgres -d db_primevest < carga/scripts/sql/contagens.sql
+-- Referencia do ensaio de 28/09 (docs/planos/PLANO_EMPRESAS_BALANCOS.md, F11) e aceite do docs/planos/PLANO_CARGA_INICIAL.md, secao 4.
 select 'assets' as tabela, count(*) from assets union all
 select 'issuers', count(*) from issuers union all
 select 'ligados', count(*) from assets where issuer_id is not null union all

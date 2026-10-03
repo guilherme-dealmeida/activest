@@ -25,7 +25,7 @@ const Field = ({ label, children }: { label: string; children: ReactNode }) => (
 );
 
 /**
- * Cadastro do emissor (PLANO_TELA_EMISSORES.md, 2.5). Campo nulo não aparece.
+ * Cadastro do emissor (docs/planos/PLANO_TELA_EMISSORES.md, 2.5). Campo nulo não aparece.
  */
 export const IssuerRegistry = ({ issuer }: { issuer: Issuer }) => {
   const site = siteUrl(issuer.website);

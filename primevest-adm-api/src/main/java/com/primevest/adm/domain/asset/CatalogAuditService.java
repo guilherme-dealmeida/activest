@@ -23,7 +23,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Conferencia do catalogo contra a lista oficial da BRAPI (PLANO_BRAPI.md, B23).
+ * Conferencia do catalogo contra a lista oficial da BRAPI (docs/planos/PLANO_BRAPI.md, B23).
  *
  * <p><b>Nao grava nada no catalogo.</b> Cada diferenca vira uma linha de log
  * (WARN) — a central de avisos, onde elas deveriam aparecer, foi adiada para a

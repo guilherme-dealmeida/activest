@@ -8,7 +8,7 @@ interface Props {
 }
 
 /**
- * Ticker clicável para /emissoras/{ticker} (PLANO_TELA_EMISSORES.md, 2.8, B6).
+ * Ticker clicável para /emissoras/{ticker} (docs/planos/PLANO_TELA_EMISSORES.md, 2.8, B6).
  * Sem emissor (renda fixa, ETF, BDR, cripto), fica como texto. O clique não
  * sobe para a linha da tabela.
  */

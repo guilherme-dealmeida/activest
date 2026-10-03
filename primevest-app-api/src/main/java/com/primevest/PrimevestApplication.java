@@ -10,7 +10,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 
 /**
- * API do usuario — a carteira (PLANO_ADM_API.md).
+ * API do usuario — a carteira (docs/planos/PLANO_ADM_API.md).
  *
  * <p>Equivale a {@code @SpringBootApplication}, com um filtro a mais na varredura:
  * {@code com.primevest.adm} fica de fora. A adm-api so aparece no classpath dos testes de

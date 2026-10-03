@@ -20,7 +20,7 @@ import java.util.UUID;
 
 /**
  * Cifragem das credenciais de integracao: AES-256-GCM, com a chave-mestra
- * fora do banco (PLANO_CRIPTO_BINANCE.md, 6.3).
+ * fora do banco (docs/planos/PLANO_CRIPTO_BINANCE.md, 6.3).
  *
  * <p>Tres garantias, cada uma com um porque:</p>
  * <ul>

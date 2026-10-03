@@ -6,7 +6,7 @@ package com.primevest.domain.dividend;
  * <p>AMORTIZACAO (FII) e RESTITUICAO_CAPITAL (empresa) sao provento como os
  * outros — aparecem na lista e somam no total recebido — e, alem disso,
  * devolvem parte do capital: reduzem o custo da posicao a partir da data de
- * pagamento (PLANO_BRAPI.md, B13). Ver {@link #returnsCapital()}.</p>
+ * pagamento (docs/planos/PLANO_BRAPI.md, B13). Ver {@link #returnsCapital()}.</p>
  */
 public enum DividendType {
     DIVIDENDO,

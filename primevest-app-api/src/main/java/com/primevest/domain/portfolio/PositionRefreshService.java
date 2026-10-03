@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * A carteira reage ao catalogo (PLANO_ADM_API.md, 10): quando a adm-api avisa que o catalogo
+ * A carteira reage ao catalogo (docs/planos/PLANO_ADM_API.md, 10): quando a adm-api avisa que o catalogo
  * mudou, refaz os proventos e a valorizacao das posicoes dos ativos envolvidos. So a app-api
  * grava dado de usuario — a adm-api grava eventos e precos e publica {@link CatalogChange}.
  *

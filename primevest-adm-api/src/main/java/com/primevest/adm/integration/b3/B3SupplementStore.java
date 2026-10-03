@@ -22,15 +22,15 @@ import java.util.function.Function;
 
 /**
  * Os ~12 meses de proventos da B3 guardados em disco, acumulando
- * (PLANO_CARGA_INICIAL.md, 5.2 — P1).
+ * (docs/planos/PLANO_CARGA_INICIAL.md, 5.2 — P1).
  *
  * <p>A resposta da B3 ({@code GetListedSupplementCompany} / {@code GetListedSupplementFunds}) e a
  * unica fonte com <b>data de pagamento</b> para acao, mas so cobre ~12 meses: o evento que sai da
  * janela perde a data em qualquer banco novo. Aqui cada resposta e somada ao arquivo
- * {@code data/b3/proventos-12m/{acoes|fundos}/{EMISSOR}.json} (o mesmo formato da resposta): o
+ * {@code carga/data/b3/proventos-12m/{acoes|fundos}/{EMISSOR}.json} (o mesmo formato da resposta): o
  * que a B3 devolve agora substitui a mesma linha do arquivo, e o que ja saiu da janela fica. O
  * arquivo e o estado (sem tabela nem coluna de controle) e vai para o bucket com o resto da
- * {@code data/}.</p>
+ * {@code carga/data/}.</p>
  *
  * <p><b>Mesma linha</b> = mesmo ISIN, rotulo, data-com, valor e aprovacao — sem a data de
  * pagamento, para que uma correcao da B3 na data substitua a anterior em vez de virar parcela. As
@@ -44,7 +44,7 @@ public class B3SupplementStore {
     private final Path dir;
 
     @Autowired
-    public B3SupplementStore(ObjectMapper objectMapper, @Value("${primevest.data.dir:../data}") String dataDir) {
+    public B3SupplementStore(ObjectMapper objectMapper, @Value("${primevest.data.dir:../carga/data}") String dataDir) {
         this(objectMapper, Path.of(dataDir, "b3", "proventos-12m"));
     }
 

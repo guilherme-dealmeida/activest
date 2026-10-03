@@ -18,7 +18,7 @@ import java.util.UUID;
  * <p>Fora daqui o segredo so existe em memoria, dentro de um
  * {@link ApiKeyCredentials}, pelo tempo de uma chamada a corretora. Nenhum DTO
  * carrega a credencial de volta: a API expoe so o {@code fingerprint}
- * (PLANO_CRIPTO_BINANCE.md, 6.4 — "segredo nunca volta").</p>
+ * (docs/planos/PLANO_CRIPTO_BINANCE.md, 6.4 — "segredo nunca volta").</p>
  */
 @Service
 public class CredentialVault {

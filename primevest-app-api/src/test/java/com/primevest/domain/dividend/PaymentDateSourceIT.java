@@ -15,7 +15,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Precedencia no {@link CashEventWriter} (PLANO_CARGA_INICIAL.md): a data de pagamento que veio
+ * Precedencia no {@link CashEventWriter} (docs/planos/PLANO_CARGA_INICIAL.md): a data de pagamento que veio
  * de outra fonte (relatorio de proventos da CVM) cede a data da propria fonte do evento; e o FNET
  * substitui a B3 como fonte do provento de FII (D15).
  */

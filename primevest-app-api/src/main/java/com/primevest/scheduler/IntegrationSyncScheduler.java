@@ -8,7 +8,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Sincronizacao diaria das conexoes com corretoras (PLANO_CRIPTO_BINANCE.md,
+ * Sincronizacao diaria das conexoes com corretoras (docs/planos/PLANO_CRIPTO_BINANCE.md,
  * F5). So enfileira; quem busca e o IntegrationWorker. A execucao agendada se
  * confirma sozinha quando nao ha nada a decidir e a conexao ja teve uma
  * importacao confirmada pelo usuario.

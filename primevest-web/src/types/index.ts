@@ -406,12 +406,12 @@ export interface DividendResponse {
   /** Total BRUTO, truncado nos centavos. */
   totalAmount: number;
   exDate: string;
-  /** Nula quando a fonte não informa (histórico longo da B3 — PENDENCIAS.txt, 3.4). */
+  /** Nula quando a fonte não informa (histórico longo da B3 — docs/PENDENCIAS.md, 3.4). */
   paymentDate: string | null;
   type: DividendType;
   /** Cotas da posição na data-com. Nula no provento MANUAL antigo. */
   sharesOnDate: number | null;
-  // IR retido na fonte (PLANO_IR_PROVENTOS.md). Todos nulos = sem regra de IR
+  // IR retido na fonte (docs/planos/PLANO_IR_PROVENTOS.md). Todos nulos = sem regra de IR
   // para o tipo (ex.: ETF); aí o total que vale é o bruto (totalAmount).
   /** Alíquota aplicada: 0.175 = 17,5%; 0 = isento. */
   withholdingRate: number | null;
@@ -496,7 +496,7 @@ export interface PriceHistory {
 }
 
 // ---------------------------------------------------------------------------
-// Integrações com corretoras (PLANO_CRIPTO_BINANCE.md, F6)
+// Integrações com corretoras (docs/planos/PLANO_CRIPTO_BINANCE.md, F6)
 // ---------------------------------------------------------------------------
 
 export type IntegrationProvider = 'BINANCE';
@@ -621,7 +621,7 @@ export interface CryptoExclusion {
 }
 
 // ---------------------------------------------------------------------------
-// Tela de emissoras (PLANO_TELA_EMISSORES.md)
+// Tela de emissoras (docs/planos/PLANO_TELA_EMISSORES.md)
 // ---------------------------------------------------------------------------
 
 export type IssuerKind = 'COMPANY' | 'FII';

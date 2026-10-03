@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * {@code company_quarters} (PLANO_EMPRESAS_BALANCOS.md, F6): serie trimestral de todas as companhias,
+ * {@code company_quarters} (docs/planos/PLANO_EMPRESAS_BALANCOS.md, F6): serie trimestral de todas as companhias,
  * recalculada inteira a partir de {@code cvm_statement_values} e {@code share_counts} pelas regras de
  * {@link QuarterSeries}. Roda ao fim de cada carga de balancos e sob demanda; leva segundos.
  */

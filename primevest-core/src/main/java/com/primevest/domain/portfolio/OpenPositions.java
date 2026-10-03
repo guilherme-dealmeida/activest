@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 /**
  * Quais ativos estao em carteira hoje — de qualquer usuario.
  *
- * <p>As rotinas externas trabalham so com eles (PLANO_BRAPI.md, F2): o plano
+ * <p>As rotinas externas trabalham so com eles (docs/planos/PLANO_BRAPI.md, F2): o plano
  * gratuito da BRAPI da 15.000 requisicoes por mes, 1 ativo por chamada, e
  * varrer o catalogo inteiro (mais de 2.000 ativos) todo dia nao cabe. Com ~23
  * ativos em carteira a rotina de fechamento gasta ~506 requisicoes por mes.</p>

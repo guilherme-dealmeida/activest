@@ -14,7 +14,7 @@ interface AssetLogoProps {
 
 /**
  * Logo do ativo, redondo, à esquerda do ticker nas listagens da carteira
- * (PLANO_BRAPI.md, F7 e B25).
+ * (docs/planos/PLANO_BRAPI.md, F7 e B25).
  *
  * A imagem vem da própria API (GET /api/v1/assets/{ticker}/logo), que serve o
  * arquivo guardado pela rotina de logos — nunca do site de terceiros, onde

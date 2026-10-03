@@ -67,7 +67,7 @@ public class Dividend {
     private DividendOrigin origin = DividendOrigin.MANUAL;
 
     // ------------------------------------------------------------------
-    // IR retido na fonte (V23, PLANO_IR_PROVENTOS.md). Com regra, os cinco
+    // IR retido na fonte (V23, docs/planos/PLANO_IR_PROVENTOS.md). Com regra, os cinco
     // andam juntos; sem regra para o tipo, todos nulos.
     // ------------------------------------------------------------------
 

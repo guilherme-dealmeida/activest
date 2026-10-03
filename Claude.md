@@ -5,14 +5,16 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 28/09/2026 (tela de Emissoras, T1–T7 — ver `PLANO_TELA_EMISSORES.md`).
-> Antes: 27/09/2026 (emissores e série histórica da B3, F1–F2 — ver `PLANO_EMPRESAS_BALANCOS.md`).
-> Antes: 26/09/2026 (integrações com corretoras, F1–F6 — ver `PLANO_CRIPTO_BINANCE.md`).
-> Antes: 24/09/2026 (integração BRAPI/B3 — ver `PLANO_BRAPI.md`).
+> **Última revisão**: 03/10/2026 (organização: planos em `docs/planos/`, pendências em `docs/PENDENCIAS.md`,
+> documentos de `docs/` em Markdown, carga em `carga/data` e `carga/scripts`).
+> Antes: 28/09/2026 (tela de Emissoras, T1–T7 — ver `docs/planos/PLANO_TELA_EMISSORES.md`).
+> Antes: 27/09/2026 (emissores e série histórica da B3, F1–F2 — ver `docs/planos/PLANO_EMPRESAS_BALANCOS.md`).
+> Antes: 26/09/2026 (integrações com corretoras, F1–F6 — ver `docs/planos/PLANO_CRIPTO_BINANCE.md`).
+> Antes: 24/09/2026 (integração BRAPI/B3 — ver `docs/planos/PLANO_BRAPI.md`).
 > Antes: 18/09/2026. A conferência arquivo a arquivo contra o
 > código é de 15/09/2026; o que entrou depois está datado no texto.
 > O que este documento afirma foi verificado; o que está pendente está em
-> `PENDENCIAS.txt`, na raiz do repositório.
+> `docs/PENDENCIAS.md`. Os planos de cada escopo ficam em `docs/planos/`.
 
 ---
 
@@ -100,7 +102,7 @@ Consequências que aparecem em vários pontos do sistema:
 
 ## 🧱 Dois serviços: carteira × administração (28/09/2026)
 
-Plano e histórico: **`PLANO_ADM_API.md`**. O backend é um Maven multi-módulo com um `pom.xml` na raiz:
+Plano e histórico: **`docs/planos/PLANO_ADM_API.md`**. O backend é um Maven multi-módulo com um `pom.xml` na raiz:
 
 | Módulo | Porta | O que é |
 |---|---|---|
@@ -206,7 +208,7 @@ Exige Java 21, Maven 3.9+, Node 24 e PostgreSQL 17 com o banco `db_primevest` cr
 ```powershell
 # Backend — porta 8080, da raiz (o core compila junto)
 mvn -pl primevest-app-api -am -Drun.module=primevest-app-api spring-boot:run "-Dmaven.test.skip=true"
-# Rotinas de administrador — porta 8081 (PLANO_ADM_API.md)
+# Rotinas de administrador — porta 8081 (docs/planos/PLANO_ADM_API.md)
 mvn -pl primevest-adm-api -am -Drun.module=primevest-adm-api spring-boot:run "-Dmaven.test.skip=true"
 
 # Frontend — porta 5173, proxy /api -> localhost:8080
@@ -246,7 +248,7 @@ $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";"
 
 ### Integrações externas
 
-Plano, decisões e achados da integração: **`PLANO_BRAPI.md`** (executado em
+Plano, decisões e achados da integração: **`docs/planos/PLANO_BRAPI.md`** (executado em
 24/09/2026). Rotinas (fuso de São Paulo, horários em `primevest.*` no `application.yml` de cada serviço):
 
 | Rotina | Quando | Serviço |
@@ -255,17 +257,17 @@ Plano, decisões e achados da integração: **`PLANO_BRAPI.md`** (executado em
 | Eventos de proventos da B3/FNET de **todo o catálogo** ligado a emissor + o que já esteve em carteira (F8; `primevest.proventos.scope`) — `ProventosScheduler` | 20:00 | adm-api → "catálogo mudou" (PROVENTOS), por emissor |
 | Balanços da CVM (DFP/ITR do ano corrente e do anterior) + série trimestral + informe mensal de FII (F7) — `CvmStatementsScheduler` | 07:30 | adm-api |
 | Conferência do catálogo (só loga) — `CatalogAuditScheduler` | seg 07:00 | adm-api |
-| Logos (arquivos em `data/logos/{TICKER}.{ext}` — o arquivo é o estado; só quem não tem arquivo; a subida não procura nada, o ativo novo é procurado no pedido "preciso do histórico") — `LogoScheduler` | dia 1, 06:00 | adm-api (a app-api só lê a pasta, `AssetLogos`) |
+| Logos (arquivos em `carga/data/logos/{TICKER}.{ext}` — o arquivo é o estado; só quem não tem arquivo; a subida não procura nada, o ativo novo é procurado no pedido "preciso do histórico") — `LogoScheduler` | dia 1, 06:00 | adm-api (a app-api só lê a pasta, `AssetLogos`) |
 | Recálculo de proventos e valorização de todas as posições — `PositionRefreshScheduler` | 21:00 | app-api |
 | Fila das integrações com corretoras — `IntegrationSyncScheduler` (06:30) e `IntegrationWorker` (5 s) | — | app-api |
 
-Disparo manual para admin, **na adm-api (8081)**: `POST /api/v1/admin/{closing|proventos|catalog-audit|logos|issuers/import|issuers/link|b3/cotahist|cvm/import|cvm/quarters|cvm/fii-monthly|cvm/proventos|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, datas de pagamento da CVM, balanços e informe de FII, em ordem — PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
+Disparo manual para admin, **na adm-api (8081)**: `POST /api/v1/admin/{closing|proventos|catalog-audit|logos|issuers/import|issuers/link|b3/cotahist|cvm/import|cvm/quarters|cvm/fii-monthly|cvm/proventos|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, datas de pagamento da CVM, balanços e informe de FII, em ordem — docs/planos/PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
 (`b3/cotahist?from=2010&to=2026`, padrão 2010 até o ano corrente; `cvm/import?from=2010&to=2026&force=false` —
-documento na mesma versão é pulado, `force=true` reprocessa a partir de `data/cvm` sem baixar; ao terminar recalcula
+documento na mesma versão é pulado, `force=true` reprocessa a partir de `carga/data/cvm` sem baixar; ao terminar recalcula
 a série trimestral, que `cvm/quarters` recalcula sozinha; `cvm/fii-monthly?from=2016&to=2026&force=false` — informe
 mensal de FII em `fii_monthly`, mês na mesma versão é pulado). Na **app-api (8080)** só
-`POST /api/v1/admin/proventos/extrato` (importação da carteira). Script: `node scripts/admin.mjs <rotina> [--json corpo.json]`
-(ou `docker compose --profile carga run --rm tools node scripts/admin.mjs <rotina>`) — login na app-api com a
+`POST /api/v1/admin/proventos/extrato` (importação da carteira). Script: `node carga/scripts/admin.mjs <rotina> [--json corpo.json]`
+(ou `docker compose --profile carga run --rm tools node carga/scripts/admin.mjs <rotina>`) — login na app-api com a
 `PRIMEVEST_SENHA` do `.env` e disparo na adm-api (ou na app-api, para o extrato); portas do `.env` (`API_PORT`, `ADM_API_PORT`).
 Curadoria dos emissores (F3): `POST /api/v1/admin/issuers/fii-cnpjs` (lista `[{ticker, cnpj}]`, liga FII como `MANUAL`,
 síncrono) e `PUT /api/v1/admin/assets/{id}/issuer` (`{issuerId | cnpj, shareClass}`; CNPJ que não é emissor vem do
@@ -281,16 +283,16 @@ Todas as fontes abaixo, menos o Google, são da **adm-api** (config em `primeves
 |-----|-----|--------|
 | **BrAPI** (plano gratuito) | Fechamento diário da B3 (OHLCV) dos ativos em carteira, lista oficial de tickers e renomes (conferência do catálogo), logos | `brapi.base-url`, `BRAPI_TOKEN` (no `.env`, header `Authorization: Bearer`) |
 | **Site da B3** (sem token, não documentado) | Proventos (~12 meses), desdobramentos/grupamentos/bonificações, ticker↔ISIN, histórico longo de empresa | `b3.base-url` |
-| **B3 — 12 meses acumulados** (`B3SupplementStore`) | A resposta de ~12 meses (a única com data de pagamento de ação) somada a `data/b3/proventos-12m/{acoes,fundos}/{EMISSOR}.json`: o que sai da janela continua valendo, e um banco novo recebe as datas do arquivo (PLANO_CARGA_INICIAL.md, P1). O export inicial saiu do banco de desenvolvimento em 29/09/2026 (4.327 proventos, 503 emissores) | `primevest.data.dir` |
-| **CVM — Relatório Proventos** (`CvmProventosReport`, `CvmPaymentDateService`) | Data de pagamento de 2022 em diante para o que o histórico da B3 não traz: índice IPE anual (`data/cvm/ipe`), PDF de cada relatório do RAD (`data/cvm/proventos/{protocolo}_{versao}.pdf`, lido com PDFBox), casado por ISIN, data-com (último dia com direitos) e valor; grava `payment_date_source = 'CVM'`. Na carga inicial e às 20:00 (ano corrente e anterior); `POST /api/v1/admin/cvm/proventos?from=2022&to=` | `cvm.base-url`, `cvm.rad-parallel-downloads` |
-| **Levantamento de datas de pagamento** (`PaymentDateSurveyService`) | Datas de pagamento de proventos de ação 2010–2026 que nenhuma fonte oficial gratuita traz, levantadas em sites públicos (Investidor10, Status Invest, Fundamentus, Brapi, RI) e revisadas pelo Guilherme: `data/levantamento/datas-pagamento.json`, gerado de `data/levantamento/origem/*.xlsx` por `scripts/levantamento/xlsx_para_json.py`. Casa por ticker (+ fracionário), tipo, data-com, parcela e valor; grava só em evento sem data, `payment_date_source = 'LEVANTAMENTO'`; linha `A_DEFINIR` não grava. Na carga inicial (depois da CVM) e `POST /api/v1/admin/proventos/levantamento` (PLANO_CARGA_INICIAL.md, 11) | `primevest.data.dir` |
-| **FNET** (`FnetClient`, refeito na F8) | Proventos de FII além de 12 meses (avisos estruturados). O histórico sai **só de `data/fnet/{id}.xml`**, por um índice local `CNPJFundo` → avisos (a carga não chama o FNET). **Fonte principal de FII** (D15 do PLANO_CARGA_INICIAL.md): aplicado antes da B3, e o evento que a B3 gravou como reserva passa a ser do FNET quando o aviso chega; quando a B3 mostra um provento mais novo que o último aviso gravado do fundo, o FNET é consultado pelo CNPJ (no máximo uma vez por dia por fundo) e o aviso novo é baixado (PENDENCIAS 18.10 d). A busca por CNPJ e o download ficam no client: aviso baixado vai para `data/fnet` e nunca é baixado de novo; download com timeout de 5 s, até 6 tentativas com espera crescente e no máximo 3 simultâneos; lê os dois formatos de XML (o antigo, 2016–2019, com `ValorProventoCota`). Aviso ligado pelo CNPJ, sem recibo (final 12–19) e sem data-base depois do pagamento | `fnet.*`, `primevest.data.dir` |
-| **Série histórica da B3 — COTAHIST** (`B3HistoricalQuotesClient`) | Preço diário não ajustado de ações (lote padrão e fracionário) e FIIs desde 2010, e o ISIN de cada ticker do catálogo. Zip por ano em `data/b3/cotahist`. Dia gravado pela B3 não é sobrescrito pela BRAPI (`asset_price_history.source`, V29) | `b3.cotahist-url` |
-| **CVM dados abertos** (`CvmOpenDataClient`) | Emissores (cadastro de companhias, FCA, informe mensal de FII); informe mensal de FII 2016+ em `fii_monthly` (`CvmFiiMonthly`, partes complemento e ativo/passivo, F7); balanços DFP (2010+) e ITR (2011+) (`CvmStatements`); histórico de capital do Formulário de Referência (`CvmFreCapital`, quantidade de ações antes de 2020 e régua da escala depois). Cache em `data/cvm/{cad,fca,fii,dfp,itr,fre}` — o arquivo é o estado (`PLANO_EMPRESAS_BALANCOS.md`) | `cvm.base-url`, `primevest.data.dir` |
+| **B3 — 12 meses acumulados** (`B3SupplementStore`) | A resposta de ~12 meses (a única com data de pagamento de ação) somada a `carga/data/b3/proventos-12m/{acoes,fundos}/{EMISSOR}.json`: o que sai da janela continua valendo, e um banco novo recebe as datas do arquivo (docs/planos/PLANO_CARGA_INICIAL.md, P1). O export inicial saiu do banco de desenvolvimento em 29/09/2026 (4.327 proventos, 503 emissores) | `primevest.data.dir` |
+| **CVM — Relatório Proventos** (`CvmProventosReport`, `CvmPaymentDateService`) | Data de pagamento de 2022 em diante para o que o histórico da B3 não traz: índice IPE anual (`carga/data/cvm/ipe`), PDF de cada relatório do RAD (`carga/data/cvm/proventos/{protocolo}_{versao}.pdf`, lido com PDFBox), casado por ISIN, data-com (último dia com direitos) e valor; grava `payment_date_source = 'CVM'`. Na carga inicial e às 20:00 (ano corrente e anterior); `POST /api/v1/admin/cvm/proventos?from=2022&to=` | `cvm.base-url`, `cvm.rad-parallel-downloads` |
+| **Levantamento de datas de pagamento** (`PaymentDateSurveyService`) | Datas de pagamento de proventos de ação 2010–2026 que nenhuma fonte oficial gratuita traz, levantadas em sites públicos (Investidor10, Status Invest, Fundamentus, Brapi, RI) e revisadas pelo Guilherme: `carga/data/levantamento/datas-pagamento.json`, gerado de `carga/data/levantamento/origem/*.xlsx` por `carga/scripts/levantamento/xlsx_para_json.py`. Casa por ticker (+ fracionário), tipo, data-com, parcela e valor; grava só em evento sem data, `payment_date_source = 'LEVANTAMENTO'`; linha `A_DEFINIR` não grava. Na carga inicial (depois da CVM) e `POST /api/v1/admin/proventos/levantamento` (docs/planos/PLANO_CARGA_INICIAL.md, 11) | `primevest.data.dir` |
+| **FNET** (`FnetClient`, refeito na F8) | Proventos de FII além de 12 meses (avisos estruturados). O histórico sai **só de `carga/data/fnet/{id}.xml`**, por um índice local `CNPJFundo` → avisos (a carga não chama o FNET). **Fonte principal de FII** (D15 do docs/planos/PLANO_CARGA_INICIAL.md): aplicado antes da B3, e o evento que a B3 gravou como reserva passa a ser do FNET quando o aviso chega; quando a B3 mostra um provento mais novo que o último aviso gravado do fundo, o FNET é consultado pelo CNPJ (no máximo uma vez por dia por fundo) e o aviso novo é baixado (PENDENCIAS 18.10 d). A busca por CNPJ e o download ficam no client: aviso baixado vai para `carga/data/fnet` e nunca é baixado de novo; download com timeout de 5 s, até 6 tentativas com espera crescente e no máximo 3 simultâneos; lê os dois formatos de XML (o antigo, 2016–2019, com `ValorProventoCota`). Aviso ligado pelo CNPJ, sem recibo (final 12–19) e sem data-base depois do pagamento | `fnet.*`, `primevest.data.dir` |
+| **Série histórica da B3 — COTAHIST** (`B3HistoricalQuotesClient`) | Preço diário não ajustado de ações (lote padrão e fracionário) e FIIs desde 2010, e o ISIN de cada ticker do catálogo. Zip por ano em `carga/data/b3/cotahist`. Dia gravado pela B3 não é sobrescrito pela BRAPI (`asset_price_history.source`, V29) | `b3.cotahist-url` |
+| **CVM dados abertos** (`CvmOpenDataClient`) | Emissores (cadastro de companhias, FCA, informe mensal de FII); informe mensal de FII 2016+ em `fii_monthly` (`CvmFiiMonthly`, partes complemento e ativo/passivo, F7); balanços DFP (2010+) e ITR (2011+) (`CvmStatements`); histórico de capital do Formulário de Referência (`CvmFreCapital`, quantidade de ações antes de 2020 e régua da escala depois). Cache em `carga/data/cvm/{cad,fca,fii,dfp,itr,fre}` — o arquivo é o estado (`docs/planos/PLANO_EMPRESAS_BALANCOS.md`) | `cvm.base-url`, `primevest.data.dir` |
 | **CoinGecko** | Preço de cripto (id em `assets.price_source_ref`) e logos das moedas | `coingecko.base-url` |
 | **Google Identity Services** | Login social (fluxo de ID token, sem client secret) | `VITE_GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_ID` |
 
-**Integrações com corretoras** (em construção — `PLANO_CRIPTO_BINANCE.md`). Cada usuário conecta a
+**Integrações com corretoras** (em construção — `docs/planos/PLANO_CRIPTO_BINANCE.md`). Cada usuário conecta a
 própria conta com uma chave **só de leitura**; a credencial é cifrada (AES-256-GCM) pelo
 `CredentialCipher` com a chave-mestra `PRIMEVEST_CREDENTIALS_KEY` do `.env` e só o `CredentialVault`
 grava, lê ou apaga. Sem a chave a API sobe e só as integrações ficam indisponíveis. **Perder a
@@ -308,12 +310,19 @@ primevest/
 ├── .env.example                 # variáveis (copiar para .env)
 ├── README.md                    # visão geral do produto
 ├── Claude.md                    # este arquivo — referência operacional
-├── PENDENCIAS.txt               # o que ficou por fazer, com o porquê
+├── docs/
+│   ├── PENDENCIAS.md            # o que ficou por fazer, com o porquê
+│   ├── planos/                  # um PLANO_<ASSUNTO>.md por escopo (planos novos nascem aqui)
+│   ├── REGRAS_CLAUDE.md, SCHEDULE_TASKS.md, ADM_TASKS.md, TESTES_FUNCIONAIS.md,
+│   │   PRIMEVEST_DB.md, USE_CASES.md   # organização: regras de trabalho, rotinas, admin, testes, banco
+│   └── brapi/, emissores/       # planilhas de apoio dos seeds
 ├── .claude/                     # ponte de execução: build.ps1 + logs/ (ver README de lá)
-├── scripts/                     # carga e manutenção (PLANO_CARGA_INICIAL.md): admin.mjs, get.mjs,
-│                                # gerar_seed_emissores.mjs, data/ (rclone ↔ bucket R2), sql/ (conferência)
+├── carga/                       # carga inicial (docs/planos/PLANO_CARGA_INICIAL.md)
+│   ├── data/                    # cache das fontes e dados da carga (ignorado pelo git; cópia no bucket R2)
+│   └── scripts/                 # admin.mjs, get.mjs, gerar_seed_emissores.mjs, data/ (rclone ↔ bucket R2),
+│                                # levantamento/, sql/ (conferência)
 │
-├── pom.xml                      # agregador Maven (PLANO_ADM_API.md): versões, compilador, testes
+├── pom.xml                      # agregador Maven (docs/planos/PLANO_ADM_API.md): versões, compilador, testes
 ├── Dockerfile                   # backend, contexto na raiz; alvos dev e runtime; ARG MODULE
 ├── dev-watch.sh                 # hot reload do backend (core + módulo do contêiner)
 │
@@ -327,7 +336,7 @@ primevest/
 │       │   ├── domain/auth/     # JwtTokenProvider, JwtAuthFilter, UserDetailsServiceImpl
 │       │   ├── config/          # SecurityUtils
 │       │   └── exception/       # GlobalExceptionHandler, BusinessException...
-│       ├── main/resources/db/migration/   # V1 .. V38 (as duas aplicações rodam o Flyway)
+│       ├── main/resources/db/migration/   # V1 .. V39 (as duas aplicações rodam o Flyway)
 │       └── test/                # test-jar: IntegrationTestBase, JpaTestBase, PostgresContainer,
 │                                # Fixtures, CatalogIds, Tokens, application-test.yml; SchemaTest
 │
@@ -456,7 +465,7 @@ coluna.
 > usuário; `getName()` é para lógica interna. `AssetCategory.getDisplayName()`
 > encapsula o fallback description → name.
 
-### Flyway — V1 a V38
+### Flyway — V1 a V39
 
 O Flyway roda do zero no perfil `docker`. No perfil `dev` fica desligado, porque
 o banco local é gerenciado à mão.
@@ -473,7 +482,7 @@ O reset deixou **9 arquivos, 156 KB contra 340 KB**. Desde então entraram
 V10–V12 (20/09/2026), V13–V22 (24/09/2026, integração BRAPI/B3) e V23
 (24/09/2026, IR retido nos proventos), V24 (25/09/2026, extrato de proventos
 da B3) V25 a V27 (25/09/2026, integrações com corretoras) V28 e V29 (27/09/2026, emissores e origem do preço histórico), V30 e V31 (27/09/2026, seed dos emissores e
-categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, série trimestral), V34 (28/09/2026, informe mensal de FII), V35 a V37 (28/09/2026, amortização da B3, escala por evento e `assets` sem estado — F10), V38 (29/09/2026, catálogo sem o extrato), e o banco fica na **versão 38**.
+categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, série trimestral), V34 (28/09/2026, informe mensal de FII), V35 a V37 (28/09/2026, amortização da B3, escala por evento e `assets` sem estado — F10), V38 (29/09/2026, catálogo sem o extrato), V39 (02/10/2026, datas de pagamento do levantamento), e o banco fica na **versão 39**.
 
 | Arquivo | Conteúdo |
 |---------|----------|
@@ -497,10 +506,10 @@ categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, s
 | V22 | `asset_cash_events.seq`: parcelas iguais do mesmo provento |
 | V23 | IR retido nos proventos: `withholding_tax_rules` (+ carga inicial) e `dividends.withholding_rule_id/withholding_rate/withholding_tax/net_amount_per_share/net_amount/tax_checked_at` |
 | V24 | Extrato de proventos da B3: fonte `EXTRATO_B3` em `asset_cash_events.source` e `asset_cash_events.payment_date_source` (`EXTRATO_B3` ou `DEDUZIDA`; nula = data da fonte oficial) — desfeita na V38 |
-| V25 | Integrações (F1 do `PLANO_CRIPTO_BINANCE.md`): as 6 tabelas `integration_*` e `transactions.origin` (`MANUAL`/`AUTO`), `external_id`, `connection_id`, `executed_at`, `edited_at`, `source_snapshot` (JSONB); `ck_transactions_origin` e índice único parcial `(connection_id, external_id)` |
+| V25 | Integrações (F1 do `docs/planos/PLANO_CRIPTO_BINANCE.md`): as 6 tabelas `integration_*` e `transactions.origin` (`MANUAL`/`AUTO`), `external_id`, `connection_id`, `executed_at`, `edited_at`, `source_snapshot` (JSONB); `ck_transactions_origin` e índice único parcial `(connection_id, external_id)` |
 | V26 | Confirmação da importação (F4): `integration_run_items` guarda o lote inteiro (+ `duplicate_of`, `resolution`, `transaction_id`); `integration_runs.next_cursors`, `fiat_deposited` |
 | V27 | Fila das integrações (F5): `integration_runs.balances` (saldo da corretora, aviso de divergência) e índice `(status, created_at)` |
-| V28 | Emissores (F1 do `PLANO_EMPRESAS_BALANCOS.md`): `issuers`, `unit_compositions` e `assets.issuer_id/share_class/issuer_link_source` |
+| V28 | Emissores (F1 do `docs/planos/PLANO_EMPRESAS_BALANCOS.md`): `issuers`, `unit_compositions` e `assets.issuer_id/share_class/issuer_link_source` |
 | V29 | `asset_price_history.source` (`BRAPI`/`COINGECKO`/`B3_COTAHIST`), com as linhas de cripto marcadas `COINGECKO` (F2) |
 | V30 | Seed dos emissores (F4/M3): 369 companhias e 346 FIIs (CNPJ literal, segmento curado do FII), 1.139 ligações ativo → emissor com classe, origem e ISIN, 36 linhas de composição de units. Gerado do banco por `E:\carga\scripts\gerar_seed_emissores.mjs`; chave natural (CNPJ, ticker), `ON CONFLICT` preserva o que veio da fonte |
 | V31 | Categoria sem segmento (F4/M4, D11): uma linha por `(tipo, name)` — os ativos das duplicadas vão para a de menor id —, `segment` sai, unicidade `(asset_type_id, name)`. 165 → 80 |
@@ -509,9 +518,9 @@ categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, s
 | V34 | Informe mensal de FII (F7/M6): `fii_monthly`, um mês por fundo emissor, cru (PL, cotas, VP por cota, cotistas, taxas do mês, carteira e passivo); nasce vazia e é preenchida por `POST /api/v1/admin/cvm/fii-monthly` e pela rotina das 07:30 |
 | V35 | `AMORTIZACAO RF` da B3 vira `AMORTIZACAO`: a linha que repete a do FNET sai (completando pagamento e aprovação), a que só a B3 tem recebe o tipo |
 | V36 | `share_counts.scale_check` aceita `EVENTO` |
-| V38 | PLANO_CARGA_INICIAL.md (D13): catálogo sem o extrato — eventos `EXTRATO_B3` de FII viram `FNET`, os demais saem (proventos do usuário ficam `MANUAL`), datas `EXTRATO_B3`/`DEDUZIDA` apagadas; `source` só `B3`, `B3_HISTORICO`, `FNET`; `payment_date_source` só `CVM` |
-| V39 | PLANO_CARGA_INICIAL.md (D14, seção 11): `payment_date_source` aceita também `LEVANTAMENTO` (datas de pagamento levantadas, `data/levantamento`) |
-| V37 | M7/F10: `assets` sem `cnpj` (é do emissor), `cash_history_loaded_at` (histórico se reconhece pelo gravado e por `data/b3/proventos`, `data/fnet`), `logo_path` e `logo_checked_at` (o arquivo em `data/logos` é o estado) |
+| V37 | M7/F10: `assets` sem `cnpj` (é do emissor), `cash_history_loaded_at` (histórico se reconhece pelo gravado e por `carga/data/b3/proventos`, `carga/data/fnet`), `logo_path` e `logo_checked_at` (o arquivo em `carga/data/logos` é o estado) |
+| V38 | docs/planos/PLANO_CARGA_INICIAL.md (D13): catálogo sem o extrato — eventos `EXTRATO_B3` de FII viram `FNET`, os demais saem (proventos do usuário ficam `MANUAL`), datas `EXTRATO_B3`/`DEDUZIDA` apagadas; `source` só `B3`, `B3_HISTORICO`, `FNET`; `payment_date_source` só `CVM` |
+| V39 | docs/planos/PLANO_CARGA_INICIAL.md (D14, seção 11): `payment_date_source` aceita também `LEVANTAMENTO` (datas de pagamento levantadas, `carga/data/levantamento`) |
 
 **Como o reset foi verificado** — vale registrar, porque é o método a repetir se
 houver um terceiro. Construiu-se um banco `db_ref` aplicando as 30 migrations
@@ -747,7 +756,7 @@ Rotas em `App.tsx`; tudo abaixo de `/login` é protegido por `ProtectedRoute`.
 | `/strategy` | Abas "Ideal Estratégico" e "Rebalanceamento" |
 | `/transactions` | CRUD completo |
 | `/ceiling-prices` | Preço Teto — CRUD |
-| `/emissoras`, `/emissoras/:ticker` | Emissoras (28/09/2026, `PLANO_TELA_EMISSORES.md`): busca, cabeçalho com os outros tickers do emissor, cotação (atalhos + de/até, período na URL `?periodo=` / `?de=&ate=`), cartões de indicadores com sparkline e histórico em modal (Anual/Trimestral, média, ‹ ›), cadastro e demonstrativos. O ticker é link para cá em Carteira, Dividendos e Preço Teto quando o ativo tem emissor (`issuerId` nos DTOs dessas telas — não confundir com `issuer` da carteira, que é o emissor da nota de renda fixa) |
+| `/emissoras`, `/emissoras/:ticker` | Emissoras (28/09/2026, `docs/planos/PLANO_TELA_EMISSORES.md`): busca, cabeçalho com os outros tickers do emissor, cotação (atalhos + de/até, período na URL `?periodo=` / `?de=&ate=`), cartões de indicadores com sparkline e histórico em modal (Anual/Trimestral, média, ‹ ›), cadastro e demonstrativos. O ticker é link para cá em Carteira, Dividendos e Preço Teto quando o ativo tem emissor (`issuerId` nos DTOs dessas telas — não confundir com `issuer` da carteira, que é o emissor da nota de renda fixa) |
 | `/dividends` | Dividendos |
 | `/goals` | Metas |
 | `/integrations` | Integrações com corretoras (hoje Binance): conectar, sincronizar, histórico, excluídas |
@@ -1020,7 +1029,7 @@ edição apagaria emissor, vencimento e taxa.
 
 ## 💸 IR retido nos proventos (24/09/2026)
 
-Plano completo e conferência contra o extrato da B3 em `PLANO_IR_PROVENTOS.md`.
+Plano completo e conferência contra o extrato da B3 em `docs/planos/PLANO_IR_PROVENTOS.md`.
 
 - **Bruto × líquido.** A integração traz o valor por ação declarado pela
   empresa (bruto). O PrimeVest calcula o IR retido e mostra o líquido, com a
@@ -1067,11 +1076,11 @@ Plano completo e conferência contra o extrato da B3 em `PLANO_IR_PROVENTOS.md`.
 
 ## 🧾 Extrato de proventos da B3 (25/09/2026; só conferência desde 29/09/2026)
 
-**Desde 29/09/2026 o extrato não grava nada** (`PLANO_CARGA_INICIAL.md`, regra C e D13; V38):
+**Desde 29/09/2026 o extrato não grava nada** (`docs/planos/PLANO_CARGA_INICIAL.md`, regra C e D13; V38):
 evento do catálogo vem de integração — FNET, B3 e relatórios de proventos da CVM. O que só o
 extrato de um usuário tem é dado dele. A fonte `EXTRATO_B3` e as origens de data `EXTRATO_B3` e
 `DEDUZIDA` saíram do catálogo; a V38 passou os 18 eventos de FII para `FNET` (os avisos estavam em
-`data/fnet`), tirou do catálogo os 3 de PETR4 (os proventos do usuário ficaram como `MANUAL`) e
+`carga/data/fnet`), tirou do catálogo os 3 de PETR4 (os proventos do usuário ficaram como `MANUAL`) e
 apagou as datas que vinham do extrato.
 
 - **Entrada**: `POST /api/v1/admin/proventos/extrato` (só admin, app-api), corpo `{lines[]}`
@@ -1081,7 +1090,7 @@ apagou as datas que vinham do extrato.
   líquido); `SEM_DATA` (o provento existe, mas o evento do catálogo está sem data de pagamento — a
   integração ainda não trouxe); `SEM_EVENTO` (o catálogo não tem o provento); `RECUSADO`.
 - **Origem da data** (`asset_cash_events.payment_date_source`): nula = da fonte do evento; `CVM`
-  = relatório de proventos da CVM; `LEVANTAMENTO` = levantamento 2010–2026 (`data/levantamento`). A data da
+  = relatório de proventos da CVM; `LEVANTAMENTO` = levantamento 2010–2026 (`carga/data/levantamento`). A data da
   fonte do evento substitui as duas (`CashEventWriter`); a CVM roda antes do levantamento na carga.
 - **Tela**: PAGAMENTO com sublinhado pontilhado e hover quando a data veio da CVM ou do levantamento
   (`paymentDateSource` no `DividendResponseDTO`); sem data, "Data não informada" (D16).
@@ -1104,14 +1113,23 @@ consciente: erro claro em vez de dado errado.
 ### Valorização de renda fixa dá sempre zero
 Sem cotação, o valor atual é custo + `appreciation`, e nada preenche
 `appreciation` ainda, então `currentValue == totalInvested`. Não é arredondamento — é a ausência do cálculo
-de curva. Depende da série histórica dos índices. Detalhes em `PENDENCIAS.txt`.
+de curva. Depende da série histórica dos índices. Detalhes em `docs/PENDENCIAS.md`.
 
 ### `dividends` não tem dono próprio
-O dono vem de `portfolio_asset_id`, que é **opcional** (FK `ON DELETE SET NULL`,
-para registrar provento de ativo que saiu da carteira). Provento com posição
-nula não pertence a ninguém: a consulta escopada o exclui — mostrá-lo seria
-mostrá-lo a todos —, mas ele fica invisível também para o dono legítimo. Hoje
-não há nenhum órfão; a primeira exclusão de posição cria um.
+O dono vem de `portfolio_asset_id`, que é **obrigatório** (`NOT NULL`) e
+**cascateia** (FK `ON DELETE CASCADE`), desde o segundo reset das migrations
+(V1, 18/09/2026). Não existe provento órfão: apagar a posição apaga os
+proventos dela — é o que a regra K faz quando a última transação sai.
+
+A tabela também não tem `asset_id`: o ativo é alcançado pela posição
+(`dividends → portfolio_assets → assets`). Com `ON DELETE SET NULL` (o desenho
+anterior) existiria provento sem ativo e sem dono, invisível até para quem o
+recebeu. Consequência: provento de ativo que saiu da carteira só existe
+enquanto a posição existir.
+
+> Revisado em 02/10/2026: o texto anterior descrevia a FK como opcional e
+> `SET NULL`, o que não vale desde a V1 do reset (conferido no banco e em
+> `Dividend.portfolioAsset`, `nullable = false`).
 
 ### `assets.terms` sem cascade, de propósito
 O `@OneToOne` de `Asset` para `AssetTerms` **não** tem `cascade` nem
@@ -1149,7 +1167,7 @@ truncaria dados.
 As **8 casas das quantidades existem por causa de cripto** — alinhar para 4
 truncaria fração de BTC.
 
-Desde 25/09/2026 (F1b do `PLANO_CRIPTO_BINANCE.md`) a aplicação acompanha: preço
+Desde 25/09/2026 (F1b do `docs/planos/PLANO_CRIPTO_BINANCE.md`) a aplicação acompanha: preço
 médio com 8 casas (`PositionCalculator.AVERAGE_PRICE_SCALE`); `isCrypto` nas linhas
 de transação e de carteira; na tela, cripto mostra quantidade com até 8 casas e
 preço com 2 a 8 (`formatQuantity`, `formatUnitPrice`), e no modal a quantidade de
@@ -1405,7 +1423,7 @@ bloco entrou, para quem precisar voltar a um deles.
 |--------|--------------|
 | `2e731b3` | **Reserva de emergência**: `findOwnedById` em `PortfolioAssetRepository`, `PortfolioService.setReservation`, `PATCH /portfolio/assets/{id}/reservation` com `ReservationUpdateDTO` e `PortfolioAssetReservationDTO`; no front, `ToastContext`, `ui/Switch` e a coluna RESERVA da carteira. Sem migration — `is_reservation` já vinha da V1 |
 | `c19ff7c` | Ajustes das telas de Alocação e Estratégia |
-| `a63ca14` | `PENDENCIAS.txt` e atualizações deste documento |
+| `a63ca14` | `docs/PENDENCIAS.md` e atualizações deste documento |
 | `7d8a150` | Rebalanceamento estratégico |
 | `672ad13` | `.claude/` (`build.ps1`, `README.md`, `logs/` ignorado) e a entrada no `.gitignore` |
 

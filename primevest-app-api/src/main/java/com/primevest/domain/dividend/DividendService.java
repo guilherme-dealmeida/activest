@@ -47,7 +47,7 @@ public class DividendService {
         List<Dividend> received = allDividends.stream().filter(d -> d.isReceived(today)).toList();
         List<Dividend> toReceive = allDividends.stream().filter(d -> !d.isReceived(today)).toList();
 
-        // Totais: liquido (o que entrou), bruto e IR retido (PLANO_IR_PROVENTOS.md, D3)
+        // Totais: liquido (o que entrou), bruto e IR retido (docs/planos/PLANO_IR_PROVENTOS.md, D3)
         BigDecimal total = sum(received, Dividend::netOrGross);
         BigDecimal totalGross = sum(received, Dividend::getTotalAmount);
         BigDecimal totalTax = sum(received, Dividend::getWithholdingTax);

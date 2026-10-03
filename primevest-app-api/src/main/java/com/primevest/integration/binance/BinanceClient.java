@@ -26,7 +26,7 @@ import java.util.StringJoiner;
 import java.util.function.LongSupplier;
 
 /**
- * Cliente HTTP da Binance — so leitura, so GET (PLANO_CRIPTO_BINANCE.md, 5.3).
+ * Cliente HTTP da Binance — so leitura, so GET (docs/planos/PLANO_CRIPTO_BINANCE.md, 5.3).
  *
  * <p><b>Assinatura</b>: HMAC-SHA256 da query string exata, com o segredo do
  * usuario, em hexadecimal, no parametro {@code signature}. A chave vai no

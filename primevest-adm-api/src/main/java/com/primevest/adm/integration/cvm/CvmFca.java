@@ -13,7 +13,7 @@ import java.util.Map;
  * segmento de listagem).
  *
  * <p>O FCA do ano so traz quem ja entregou; o importador le os ultimos anos e
- * fica com o documento mais recente de cada CNPJ (PLANO_EMPRESAS_BALANCOS.md, 1.1).</p>
+ * fica com o documento mais recente de cada CNPJ (docs/planos/PLANO_EMPRESAS_BALANCOS.md, 1.1).</p>
  */
 public final class CvmFca {
 

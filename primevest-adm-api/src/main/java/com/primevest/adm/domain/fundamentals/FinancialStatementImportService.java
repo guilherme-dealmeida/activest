@@ -31,7 +31,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Balancos da CVM — DFP e ITR — em {@code cvm_documents}, {@code cvm_statement_values}
- * e {@code share_counts} (PLANO_EMPRESAS_BALANCOS.md, F5).
+ * e {@code share_counts} (docs/planos/PLANO_EMPRESAS_BALANCOS.md, F5).
  *
  * <p>So as companhias emissoras ({@code issuers}); o resto do arquivo e descartado
  * na leitura. Por documento: consolidado ou, na falta, individual (D6); as
@@ -41,7 +41,7 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <p><b>Idempotente.</b> Documento com a mesma versao ja gravada e pulado; versao
  * nova (reapresentacao) substitui as metricas e a quantidade. {@code force}
- * reprocessa tudo — e o caminho para uma regra nova ({@code data/cvm} ja tem os
+ * reprocessa tudo — e o caminho para uma regra nova ({@code carga/data/cvm} ja tem os
  * arquivos, nada e baixado de novo).</p>
  */
 @Slf4j

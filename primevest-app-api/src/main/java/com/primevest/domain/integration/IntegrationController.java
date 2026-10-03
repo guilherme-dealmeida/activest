@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Conexoes com corretoras (PLANO_CRIPTO_BINANCE.md, 6.7). E o que a tela de
+ * Conexoes com corretoras (docs/planos/PLANO_CRIPTO_BINANCE.md, 6.7). E o que a tela de
  * Integracoes (F6) vai chamar; ate la, pelo Swagger.
  */
 @RestController

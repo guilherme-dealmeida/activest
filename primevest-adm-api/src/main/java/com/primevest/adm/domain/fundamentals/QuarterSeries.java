@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Serie trimestral de uma companhia a partir dos seus DFP/ITR (PLANO_EMPRESAS_BALANCOS.md, 5.1 e F6).
+ * Serie trimestral de uma companhia a partir dos seus DFP/ITR (docs/planos/PLANO_EMPRESAS_BALANCOS.md, 5.1 e F6).
  *
  * <ul>
  *   <li><b>Trimestre isolado:</b> o valor do documento cujo periodo cabe num trimestre (coluna de 3 meses

@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.function.Predicate;
 
 /**
- * Leitor dos zips anuais de DFP e ITR da CVM (PLANO_EMPRESAS_BALANCOS.md, 1.1).
+ * Leitor dos zips anuais de DFP e ITR da CVM (docs/planos/PLANO_EMPRESAS_BALANCOS.md, 1.1).
  *
  * <p>So le e filtra; quem decide o que cada conta significa e o dominio
  * ({@code FinancialMetricRules}). Fica com:</p>

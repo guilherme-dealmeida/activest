@@ -1,10 +1,10 @@
 // Variaveis do projeto para os scripts: o ambiente do processo e o .env da raiz do repositorio.
-// Sem caminho absoluto: a raiz e achada a partir deste arquivo (scripts/lib/env.mjs -> ../..).
+// Sem caminho absoluto: a raiz e achada a partir deste arquivo (carga/scripts/lib/env.mjs -> ../../..).
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
 function parse(file) {
   const out = {};

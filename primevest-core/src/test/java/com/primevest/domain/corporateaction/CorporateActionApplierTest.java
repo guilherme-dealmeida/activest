@@ -11,7 +11,7 @@ import java.math.RoundingMode;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * A regra de cada evento societario, sem banco e sem Spring (PLANO_BRAPI.md, F6).
+ * A regra de cada evento societario, sem banco e sem Spring (docs/planos/PLANO_BRAPI.md, F6).
  *
  * <p>Os fatores sao os que a B3 publica, conferidos em casos reais (A12):
  * desdobramento e bonificacao em percentual de acoes novas, grupamento como

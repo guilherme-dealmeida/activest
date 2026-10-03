@@ -33,7 +33,7 @@ import java.util.function.LongSupplier;
 
 /**
  * Conector da Binance: a primeira implementacao de {@link SourceConnector}
- * (PLANO_CRIPTO_BINANCE.md, F3). Serve a qualquer usuario — recebe a
+ * (docs/planos/PLANO_CRIPTO_BINANCE.md, F3). Serve a qualquer usuario — recebe a
  * credencial da conexao e nao guarda nada entre chamadas.
  *
  * <p>O que busca, e como vira {@link ImportedMovement}:</p>

@@ -21,10 +21,10 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Datas de pagamento do levantamento no banco (PLANO_CARGA_INICIAL.md, 11 — L6/L7): grava so em
+ * Datas de pagamento do levantamento no banco (docs/planos/PLANO_CARGA_INICIAL.md, 11 — L6/L7): grava so em
  * evento sem data, com origem LEVANTAMENTO; nao passa por cima de data existente; A DEFINIR nao grava.
  */
-// data propria: o teste escreve o arquivo do levantamento e nao pode sujar a data/ real do projeto
+// data propria: o teste escreve o arquivo do levantamento e nao pode sujar a carga/data/ real do projeto
 @TestPropertySource(properties = "primevest.data.dir=target/it-data-levantamento")
 class PaymentDateSurveyIT extends IntegrationTestBase {
 

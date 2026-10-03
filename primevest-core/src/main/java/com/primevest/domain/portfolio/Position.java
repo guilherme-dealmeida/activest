@@ -35,7 +35,7 @@ public record Position(BigDecimal totalShares, BigDecimal averagePrice, BigDecim
     /** Posicao com custo: as telas so mostram essas. */
     public boolean hasInvestment() {
         // Cotas sem custo tambem contam: uma amortizacao maior que o custo zera
-        // o custo e a posicao continua na carteira (PLANO_BRAPI.md, B13).
+        // o custo e a posicao continua na carteira (docs/planos/PLANO_BRAPI.md, B13).
         return (totalInvested != null && totalInvested.compareTo(BigDecimal.ZERO) > 0)
             || (totalShares != null && totalShares.compareTo(BigDecimal.ZERO) > 0);
     }

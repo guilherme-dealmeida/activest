@@ -17,7 +17,7 @@ import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Mensagens da carteira com a adm-api pelo Redis (PLANO_ADM_API.md, 10.3):
+ * Mensagens da carteira com a adm-api pelo Redis (docs/planos/PLANO_ADM_API.md, 10.3):
  * <ul>
  *   <li>ouve "catalogo mudou" e recalcula as posicoes ({@link PositionRefreshService});</li>
  *   <li>publica "preciso do historico" quando uma transacao pede proventos de um ativo.</li>

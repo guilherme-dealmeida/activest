@@ -31,12 +31,12 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 
 /**
- * Logos dos ativos (PLANO_BRAPI.md, F7, B17, B18 e B25; PLANO_EMPRESAS_BALANCOS.md, F10).
+ * Logos dos ativos (docs/planos/PLANO_BRAPI.md, F7, B17, B18 e B25; docs/planos/PLANO_EMPRESAS_BALANCOS.md, F10).
  *
  * <p><b>Nao aponta para o site de terceiros na tela.</b> Metade dos icones da
  * BRAPI nao existe (5PRE11.svg da 404) e o endereco da CoinGecko muda a cada
  * troca de imagem. A rotina baixa cada logo, confere se veio imagem e guarda do
- * nosso lado, em {@code data/logos/{TICKER}.{ext}} — pasta fora do banco, montada
+ * nosso lado, em {@code carga/data/logos/{TICKER}.{ext}} — pasta fora do banco, montada
  * no container da API (B18).</p>
  *
  * <p><b>O arquivo e o estado</b> (F10): nada no catalogo diz se o ativo tem logo ou
@@ -88,7 +88,7 @@ public class AssetLogoService {
     /**
      * Procura e guarda os logos.
      *
-     * @param onlyMissing so os ativos sem arquivo em {@code data/logos} (rotina mensal)
+     * @param onlyMissing so os ativos sem arquivo em {@code carga/data/logos} (rotina mensal)
      */
     public synchronized SyncResult sync(boolean onlyMissing, String reason) {
         logos.reindex();

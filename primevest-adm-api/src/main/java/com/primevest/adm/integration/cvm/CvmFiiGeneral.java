@@ -7,7 +7,7 @@ import java.util.Map;
 
 /**
  * Parte {@code geral} do informe mensal de FII: cadastro do fundo
- * (PLANO_EMPRESAS_BALANCOS.md, 1.2). Uma linha por fundo por mes; o importador
+ * (docs/planos/PLANO_EMPRESAS_BALANCOS.md, 1.2). Uma linha por fundo por mes; o importador
  * fica com a mais recente de cada CNPJ.
  *
  * <p>O {@code Segmento_Atuacao} da CVM e fraco (metade dos fundos em bolsa como

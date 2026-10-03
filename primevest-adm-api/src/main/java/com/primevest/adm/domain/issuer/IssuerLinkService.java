@@ -39,7 +39,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * Ligacao ativo -> emissor (PLANO_EMPRESAS_BALANCOS.md, F3).
+ * Ligacao ativo -> emissor (docs/planos/PLANO_EMPRESAS_BALANCOS.md, F3).
  *
  * <p><b>Acoes</b>, em ordem, parando no primeiro que resolver:</p>
  * <ol>
@@ -359,7 +359,7 @@ public class IssuerLinkService {
     }
 
     /**
-     * Lista curada de CNPJs de FII (planilha conferida, PLANO_EMPRESAS_BALANCOS.md
+     * Lista curada de CNPJs de FII (planilha conferida, docs/planos/PLANO_EMPRESAS_BALANCOS.md
      * 1.6): liga como {@code MANUAL}, o fracionario junto, criando o emissor quando
      * falta — com os dados do informe, se o CNPJ estiver la, ou so com o nome do ativo.
      */

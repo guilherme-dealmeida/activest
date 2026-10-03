@@ -7,7 +7,7 @@ import java.util.List;
 
 /**
  * O que, alem das transacoes, mexe numa posicao: eventos societarios do papel
- * e devolucoes de capital recebidas (PLANO_BRAPI.md, F5 e F6).
+ * e devolucoes de capital recebidas (docs/planos/PLANO_BRAPI.md, F5 e F6).
  *
  * <p>Os dois vem ordenados por data aqui, uma vez, para o calculo so
  * percorrer.</p>

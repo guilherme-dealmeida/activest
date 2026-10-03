@@ -27,9 +27,9 @@ import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Datas de pagamento levantadas (PLANO_CARGA_INICIAL.md, secao 11 — D14): o arquivo
- * {@code data/levantamento/datas-pagamento.json}, gerado da planilha do levantamento
- * ({@code scripts/levantamento/xlsx_para_json.py}), completa a data dos proventos de acao que a B3,
+ * Datas de pagamento levantadas (docs/planos/PLANO_CARGA_INICIAL.md, secao 11 — D14): o arquivo
+ * {@code carga/data/levantamento/datas-pagamento.json}, gerado da planilha do levantamento
+ * ({@code carga/scripts/levantamento/xlsx_para_json.py}), completa a data dos proventos de acao que a B3,
  * o FNET e a CVM nao trazem.
  *
  * <p>Casa cada linha pela chave natural — ticker (e o fracionario; sem ele, o ticker + "F"), tipo,
@@ -55,7 +55,7 @@ public class PaymentDateSurveyService {
 
     @Autowired
     public PaymentDateSurveyService(JdbcTemplate jdbc, ObjectMapper mapper, CatalogChangePublisher catalogPublisher,
-                                    @Value("${primevest.data.dir:../data}") String dataDir) {
+                                    @Value("${primevest.data.dir:../carga/data}") String dataDir) {
         this.jdbc = jdbc;
         this.mapper = mapper;
         this.catalogPublisher = catalogPublisher;

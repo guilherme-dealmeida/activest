@@ -18,7 +18,7 @@ import java.util.NavigableMap;
 import java.util.TreeMap;
 
 /**
- * Regras puras da cotacao historica (PLANO_TELA_EMISSORES.md, 2.3, B5 e D9): janela de cada
+ * Regras puras da cotacao historica (docs/planos/PLANO_TELA_EMISSORES.md, 2.3, B5 e D9): janela de cada
  * atalho, ajuste por eventos societarios e densidade dos pontos. Sem banco — testavel sozinha.
  */
 public final class PriceSeries {

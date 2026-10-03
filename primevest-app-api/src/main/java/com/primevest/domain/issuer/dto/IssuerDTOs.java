@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
-/** Leituras do emissor para a tela (PLANO_EMPRESAS_BALANCOS.md, 5.4 — F9). */
+/** Leituras do emissor para a tela (docs/planos/PLANO_EMPRESAS_BALANCOS.md, 5.4 — F9). */
 public final class IssuerDTOs {
 
     private IssuerDTOs() {
@@ -30,7 +30,7 @@ public final class IssuerDTOs {
         }
     }
 
-    /** Ticker ligado ao emissor; {@code hasLogo}: existe arquivo em data/logos (tela de emissoras, B1). */
+    /** Ticker ligado ao emissor; {@code hasLogo}: existe arquivo em carga/data/logos (tela de emissoras, B1). */
     public record Ticker(String ticker, String shareClass, boolean active, boolean hasLogo) {
     }
 

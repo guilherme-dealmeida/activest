@@ -327,7 +327,7 @@ Observações para o teste:
 
 ### 5.6 Regras do `Claude.md` que viram teste funcional
 
-Varredura do `Claude.md` (e do `PENDENCIAS.txt` onde ele complementa) atrás de regra das 4 funcionalidades que
+Varredura do `Claude.md` (e do `docs/PENDENCIAS.md` onde ele complementa) atrás de regra das 4 funcionalidades que
 ainda não estava nas seções 5.1–5.5. Cada linha foi conferida no código; a coluna "Origem" aponta a seção.
 
 **Transações**

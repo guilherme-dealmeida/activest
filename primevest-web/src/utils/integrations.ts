@@ -1,7 +1,7 @@
 import { ConnectionStatus, IntegrationConnection, MovementKind, RunItemResolution, RunStatus } from '@/types';
 
 /**
- * Rótulos e regras de tela das integrações (PLANO_CRIPTO_BINANCE.md, F6).
+ * Rótulos e regras de tela das integrações (docs/planos/PLANO_CRIPTO_BINANCE.md, F6).
  * Um lugar só: a lista de conexões, a pré-visualização, o selo em Transações e
  * o marcador do menu falam a mesma língua.
  */

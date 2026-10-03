@@ -17,11 +17,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 /**
- * Logos gravados em {@code data/logos/} (PLANO_BRAPI.md, B18): quais tipos tem logo, quem tem
+ * Logos gravados em {@code carga/data/logos/} (docs/planos/PLANO_BRAPI.md, B18): quais tipos tem logo, quem tem
  * arquivo e qual arquivo servir. Separado do download ({@code AssetLogoService}, adm-api), que e
- * rotina de ingestao (PLANO_ADM_API.md, 4.3).
+ * rotina de ingestao (docs/planos/PLANO_ADM_API.md, 4.3).
  *
- * <p><b>O arquivo e o estado</b> (PLANO_EMPRESAS_BALANCOS.md, 2.3 e F10): nao ha coluna no
+ * <p><b>O arquivo e o estado</b> (docs/planos/PLANO_EMPRESAS_BALANCOS.md, 2.3 e F10): nao ha coluna no
  * catalogo. {@code {TICKER}.{svg|png|jpg|webp}} existe → o ativo tem logo. A pasta e indexada em
  * memoria (ticker → arquivo) na primeira leitura e de novo quando o indice passa de
  * {@link #REFRESH_MILLIS} — a app-api le a pasta que a adm-api grava, em outro processo;
@@ -44,7 +44,7 @@ public class AssetLogos {
     private volatile Map<String, String> index = Map.of();
     private volatile long indexedAt;
 
-    public AssetLogos(@Value("${primevest.logos.dir:data/logos}") String dir) {
+    public AssetLogos(@Value("${primevest.logos.dir:../carga/data/logos}") String dir) {
         this.dir = Path.of(dir).toAbsolutePath().normalize();
     }
 

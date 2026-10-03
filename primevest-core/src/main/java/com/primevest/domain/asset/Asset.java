@@ -87,7 +87,7 @@ public class Asset {
 
     // CNPJ, estado do historico de proventos e do logo sairam na F10 (V37): o CNPJ e do
     // emissor (issuers.cnpj), o historico se reconhece pelo que esta gravado e em
-    // data/b3/proventos, o logo pelo arquivo em data/logos (AssetLogos).
+    // carga/data/b3/proventos, o logo pelo arquivo em carga/data/logos (AssetLogos).
 
     /**
      * Emissor do papel: companhia aberta ou FII (V28). Nulo ate a ligacao (F3)

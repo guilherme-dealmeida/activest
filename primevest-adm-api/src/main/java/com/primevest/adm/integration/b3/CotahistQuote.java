@@ -16,7 +16,7 @@ import java.util.zip.ZipInputStream;
 
 /**
  * Um pregao da serie historica da B3 (COTAHIST, layout posicional de 245
- * posicoes — PLANO_EMPRESAS_BALANCOS.md, 1.3).
+ * posicoes — docs/planos/PLANO_EMPRESAS_BALANCOS.md, 1.3).
  *
  * <p>Preco <b>nao ajustado</b> por desdobramento, que e o que o indicador precisa:
  * casa com a quantidade de acoes da mesma data. Os precos vem em centavos e

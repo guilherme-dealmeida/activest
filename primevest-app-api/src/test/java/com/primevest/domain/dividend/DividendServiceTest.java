@@ -25,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 /**
- * Resumo dos proventos em liquido (PLANO_IR_PROVENTOS.md, D3).
+ * Resumo dos proventos em liquido (docs/planos/PLANO_IR_PROVENTOS.md, D3).
  */
 @ExtendWith(MockitoExtension.class)
 class DividendServiceTest {

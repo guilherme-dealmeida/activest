@@ -5,7 +5,7 @@ package com.primevest.adm.integration.brapi;
  *
  * <p>Antes o cliente engolia tudo num {@code catch (Exception)} e devolvia
  * lista vazia: nenhum preco era atualizado e o log nao dizia por que
- * (PLANO_BRAPI.md, D2). Agora o erro sobe com o que a BRAPI respondeu, e quem
+ * (docs/planos/PLANO_BRAPI.md, D2). Agora o erro sobe com o que a BRAPI respondeu, e quem
  * chama decide: 404 pula o ativo, 401/403 interrompe a rodada.</p>
  *
  * <p>Codigos que a BRAPI usa: 400 parametro fora do plano

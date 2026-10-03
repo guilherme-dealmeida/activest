@@ -11,7 +11,7 @@ interface Props {
 
 /**
  * Busca da tela de emissoras: só ações e FIIs ligados a emissor (B3 do
- * PLANO_TELA_EMISSORES.md). Mesma mecânica do TickerAutocomplete, sem tipo
+ * docs/planos/PLANO_TELA_EMISSORES.md). Mesma mecânica do TickerAutocomplete, sem tipo
  * obrigatório; Enter sem escolher na lista vai direto ao ticker digitado — a
  * própria tela avisa se ele não existe ou não tem emissor.
  */

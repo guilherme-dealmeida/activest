@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Confirmacao da importacao, duplicatas e as regras E1, E2 e E4
- * (PLANO_CRIPTO_BINANCE.md, F4 e 6.10) — pela API, com a conta ficticia do
+ * (docs/planos/PLANO_CRIPTO_BINANCE.md, F4 e 6.10) — pela API, com a conta ficticia do
  * {@link BinanceFake}: ordem 5001 (compra de 0,001998 BTC liquido), ordem 5002
  * (venda de 0,0002 BTC) e "Comprar Cripto" P1 (0,00025 ETH).
  */

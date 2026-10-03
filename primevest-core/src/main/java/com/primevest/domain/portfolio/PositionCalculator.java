@@ -47,7 +47,7 @@ import java.util.stream.Collectors;
  * R$ 20 e venda 100 a R$ 30 da preco medio R$ 15 e custo R$ 1.500 — a media
  * simples dos precos daria R$ 20 e a soma de quantidade x preco, R$ 6.000.</p>
  *
- * <p><b>Eventos do papel</b> (PLANO_BRAPI.md, F5 e F6) entram como passos a
+ * <p><b>Eventos do papel</b> (docs/planos/PLANO_BRAPI.md, F5 e F6) entram como passos a
  * mais na mesma linha do tempo, sem reescrever nenhuma transacao:</p>
  * <ul>
  *   <li><b>desdobramento, grupamento e bonificacao</b> — logo depois das
@@ -78,7 +78,7 @@ public class PositionCalculator {
     /**
      * Escala do preco medio = escala de price_per_share no banco. Com 4 casas,
      * uma cripto de fracao de centavo (R$ 0,00007123) ficava com preco medio de
-     * R$ 0,0001 — erro de 40%. A tela arredonda na exibicao (PLANO_CRIPTO_BINANCE.md, 6.12).
+     * R$ 0,0001 — erro de 40%. A tela arredonda na exibicao (docs/planos/PLANO_CRIPTO_BINANCE.md, 6.12).
      */
     private static final int AVERAGE_PRICE_SCALE = 8;
     private static final int INTERMEDIATE_SCALE = 10;

@@ -1,7 +1,7 @@
 # PrimeVest — Plano da Tela de Emissoras e Indicadores
 
 > Fase: **implementado em 28/09/2026** (T1–T9) — andamento na seção 8
-> Consome a F9 do `PLANO_EMPRESAS_BALANCOS.md` (indicadores e emissor já expostos pela app-api).
+> Consome a F9 do `docs/planos/PLANO_EMPRESAS_BALANCOS.md` (indicadores e emissor já expostos pela app-api).
 > Branch de trabalho: `TRACK_01-ajustes_crud_inicial`. **Todas as decisões tomadas em 28/09/2026** (seção 7).
 > Execução autorizada e concluída em 28/09/2026.
 
@@ -252,7 +252,7 @@ Gráficos seguem a skill de visualização (paleta, eixos, tooltip) e as cores d
 | **T6** | Demonstrativos (companhia e FII) | T3 |
 | **T7** | Links de ticker em Carteira, Dividendos e Preço Teto | T1, T3 |
 | **T8** | Validação (última etapa): build e lint do front, bateria do backend, `docker compose up`, conferência no navegador do app logado com os casos da seção 6 | T1–T7 |
-| **T9** | `Claude.md`, `PENDENCIAS.txt` (11.6 resolvido pelo B5; 18.x), andamento neste plano | T8 |
+| **T9** | `Claude.md`, `docs/PENDENCIAS.md` (11.6 resolvido pelo B5; 18.x), andamento neste plano | T8 |
 
 ## 6. Casos de conferência (T8)
 
@@ -312,7 +312,7 @@ futuro próprio).
 | T6 | **Feita.** `FinancialStatements`: companhia (trimestre/12 meses, últimos 8 ou todos) e FII (últimos 12 ou todos), valores compactos com o exato no tooltip |
 | T7 | **Feita.** `components/issuer/TickerLink` em Carteira, Dividendos e Preço Teto |
 | T8 | **Feita (28/09).** `mvn clean verify` completo verde; `tsc -b`, `eslint --max-warnings=0` e `vite build` limpos. Base real pela API: PETR4 1D = 25/09 → 28/09 (47,99 → 48,72), MAX de 04/01/2010 (37,32) em pontos mensais, 5A semanal, 7D diário; SBSP3 1A ajustado, maior queda diária −7% (sem o degrau de −80%); PETR4F → preço do PETR4; histórico em lote da PETR4 em ~0,2 s. Navegador do app (logado): PETR4, HGLG11 (P/VP 0,89, DY 9,04%, VP 165,95, 608.345 cotistas, imóveis 97,83%, alavancagem 14,5%; informe 08/2026 igual ao da seção 6), VGRH11 (DY 0, resto "—"), KLBN4 (unit/chips KLBN11 e KLBN3), BOVA11 ("sem emissor"), XPTO9 ("não encontrado"), modal com trimestral e ‹ ›, demonstrativos da PETR4 (4T24 lucro da controladora −17,04 bi), links nas três telas, tema claro. Ajustes feitos na conferência: a API omite campo nulo no JSON (`undefined`, não `null`) — os componentes comparam com `== null`; marcador da sparkline redondo; nome do FII sem repetir |
-| T9 | **Feita.** `Claude.md` (endpoints e telas), `PENDENCIAS.txt` (11.6 resolvido; seção 19: histórico de proventos faltando em 17 ações — Klabin, Ambev…; menu lateral no celular; links em outras telas) |
+| T9 | **Feita.** `Claude.md` (endpoints e telas), `docs/PENDENCIAS.md` (11.6 resolvido; seção 19: histórico de proventos faltando em 17 ações — Klabin, Ambev…; menu lateral no celular; links em outras telas) |
 
 Achado fora do escopo (PENDENCIAS 19.1): 17 ações com provento recente não têm o histórico da B3 (a B3 respondeu
 vazio e o arquivo vazio virou "estado") — o DY histórico delas sai 0. A tela mostra o que o catálogo tem.

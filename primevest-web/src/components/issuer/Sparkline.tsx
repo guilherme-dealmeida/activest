@@ -11,7 +11,7 @@ interface Props {
 const GOLD = '#c9a84c';
 
 /**
- * Tendência de um indicador no rodapé do cartão (PLANO_TELA_EMISSORES.md, 2.4):
+ * Tendência de um indicador no rodapé do cartão (docs/planos/PLANO_TELA_EMISSORES.md, 2.4):
  * pontos anuais + Atual, sem eixo. Nulo interrompe a linha; zero é ponto no
  * zero; o último ponto (Atual) ganha marcador dourado. SVG puro — dezenas de
  * cartões na tela não justificam um gráfico completo em cada um.

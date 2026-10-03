@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 
 /**
- * Processa a fila de sincronizacoes (PLANO_CRIPTO_BINANCE.md, F5).
+ * Processa a fila de sincronizacoes (docs/planos/PLANO_CRIPTO_BINANCE.md, F5).
  *
  * <p>A fila e a propria {@code integration_runs}: a cada
  * {@code primevest.integrations.worker-delay-ms} o worker pega as execucoes

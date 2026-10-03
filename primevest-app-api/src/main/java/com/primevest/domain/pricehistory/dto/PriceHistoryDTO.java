@@ -5,7 +5,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Cotacao historica de um ticker para o grafico da tela de emissoras (PLANO_TELA_EMISSORES.md, B5).
+ * Cotacao historica de um ticker para o grafico da tela de emissoras (docs/planos/PLANO_TELA_EMISSORES.md, B5).
  *
  * @param firstDate  primeiro pregao gravado do ticker (limite do "MAX" e dos campos de data); nulo sem preco
  * @param lastDate   ultimo pregao gravado; nulo sem preco

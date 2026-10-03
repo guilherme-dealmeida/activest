@@ -29,7 +29,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Proventos pela B3 de ponta a ponta (PLANO_BRAPI.md, F5): a rotina grava os
+ * Proventos pela B3 de ponta a ponta (docs/planos/PLANO_BRAPI.md, F5): a rotina grava os
  * eventos do papel no catalogo e cada posicao recebe a sua conta.
  *
  * <p>A B3 responde com os arquivos reais gravados em 24/09/2026 (a rede esta

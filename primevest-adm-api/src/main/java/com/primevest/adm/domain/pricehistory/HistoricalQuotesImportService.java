@@ -20,7 +20,7 @@ import java.util.Set;
 
 /**
  * Carga da serie historica da B3 (COTAHIST) em {@code asset_price_history}
- * (PLANO_EMPRESAS_BALANCOS.md, F2).
+ * (docs/planos/PLANO_EMPRESAS_BALANCOS.md, F2).
  *
  * <ul>
  *   <li>So ACAO (lote padrao e fracionario) e FII do catalogo.</li>
@@ -36,7 +36,7 @@ import java.util.Set;
  * </ul>
  *
  * <p>Idempotente: rodar de novo regrava os mesmos valores. Os zips ficam em
- * {@code data/b3/cotahist}; ano fechado em disco nao vai a rede.</p>
+ * {@code carga/data/b3/cotahist}; ano fechado em disco nao vai a rede.</p>
  */
 @Slf4j
 @Service

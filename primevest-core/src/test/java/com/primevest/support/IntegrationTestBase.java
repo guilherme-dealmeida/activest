@@ -23,7 +23,7 @@ import org.springframework.test.context.ActiveProfiles;
  *
  * <p>Integracoes externas sao mockadas — a rede esta bloqueada por politica e um
  * teste nao pode depender de cotacao de terceiro. Cada modulo mocka as suas
- * (PLANO_ADM_API.md): a app-api a Binance ({@code FuncionalBase}), a adm-api e os
+ * (docs/planos/PLANO_ADM_API.md): a app-api a Binance ({@code FuncionalBase}), a adm-api e os
  * testes de ponta a ponta as fontes do catalogo. Aqui, no primevest-core, so o que
  * e comum; a aplicacao do contexto e a do modulo do teste.</p>
  *

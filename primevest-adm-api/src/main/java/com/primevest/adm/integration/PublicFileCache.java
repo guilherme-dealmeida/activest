@@ -20,8 +20,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 
 /**
- * Arquivos publicos (CVM, B3) com cache em disco, em {@code data/}
- * (PLANO_EMPRESAS_BALANCOS.md, secao 2).
+ * Arquivos publicos (CVM, B3) com cache em disco, em {@code carga/data/}
+ * (docs/planos/PLANO_EMPRESAS_BALANCOS.md, secao 2).
  *
  * <p><b>O arquivo e o estado.</b> Sem {@code refresh}, o que existe em disco e
  * usado sem ir a rede. Com {@code refresh}, pergunta com

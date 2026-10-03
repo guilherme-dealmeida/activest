@@ -7,7 +7,7 @@ import java.util.List;
 
 /**
  * Cadastro de uma empresa ({@code GetDetail}): de onde sai o ISIN de cada ticker
- * e a classificacao setorial da B3 (PLANO_EMPRESAS_BALANCOS.md, 1.4).
+ * e a classificacao setorial da B3 (docs/planos/PLANO_EMPRESAS_BALANCOS.md, 1.4).
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record B3CompanyDetail(String issuingCompany, String tradingName, String cnpj, String codeCVM,

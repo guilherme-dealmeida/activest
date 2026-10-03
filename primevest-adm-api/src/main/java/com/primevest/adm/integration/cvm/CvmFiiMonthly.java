@@ -9,7 +9,7 @@ import java.util.function.Predicate;
 
 /**
  * Informe mensal de FII, partes {@code complemento} (PL, cotas, cotistas, taxas) e
- * {@code ativo_passivo} (carteira e passivo) — PLANO_EMPRESAS_BALANCOS.md, 1.2 e F7.
+ * {@code ativo_passivo} (carteira e passivo) — docs/planos/PLANO_EMPRESAS_BALANCOS.md, 1.2 e F7.
  *
  * <p>Uma linha por fundo e mes; reapresentacao vem como outra linha com {@code Versao}
  * maior, e fica a maior de cada arquivo. As duas partes se juntam por CNPJ e mes; a

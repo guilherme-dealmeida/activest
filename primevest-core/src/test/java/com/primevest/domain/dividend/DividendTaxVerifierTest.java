@@ -24,7 +24,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Verificacao do IR na subida (PLANO_IR_PROVENTOS.md, 4.5, trava 1).
+ * Verificacao do IR na subida (docs/planos/PLANO_IR_PROVENTOS.md, 4.5, trava 1).
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)

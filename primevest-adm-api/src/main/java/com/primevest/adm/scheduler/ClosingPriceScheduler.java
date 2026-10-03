@@ -9,7 +9,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Rotina de fechamento (PLANO_BRAPI.md, secao 3, B9 e B12).
+ * Rotina de fechamento (docs/planos/PLANO_BRAPI.md, secao 3, B9 e B12).
  *
  * <p>Substitui o PriceUpdateScheduler, que atualizava a B3 a cada 15 minutos
  * no pregao e o catalogo inteiro de uma vez — no plano gratuito cada lote de 15

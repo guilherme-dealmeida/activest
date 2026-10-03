@@ -18,7 +18,7 @@ import {
 import { IntegrationConnection } from '@/types';
 
 /**
- * Integrações com corretoras (PLANO_CRIPTO_BINANCE.md, F6): conectar, pedir
+ * Integrações com corretoras (docs/planos/PLANO_CRIPTO_BINANCE.md, F6): conectar, pedir
  * a sincronização, acompanhar a busca e chegar à pré-visualização.
  */
 export const IntegrationsPage = () => {

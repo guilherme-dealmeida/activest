@@ -26,12 +26,12 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Data de pagamento dos proventos de acao pelos "Relatorios Proventos" da CVM
- * (PLANO_CARGA_INICIAL.md, 5.2 — P3; regra D: informacao do catalogo completa).
+ * (docs/planos/PLANO_CARGA_INICIAL.md, 5.2 — P3; regra D: informacao do catalogo completa).
  *
  * <p>O historico longo da B3 ({@code B3_HISTORICO}) nao traz a data de pagamento. De 2022 em
  * diante a companhia entrega a CVM um relatorio padronizado por provento (ISIN, valor bruto por
  * acao, ultimo dia "com", data de pagamento ou parcelas). Esta rotina le o indice anual do IPE
- * ({@code data/cvm/ipe}), baixa cada relatorio uma vez ({@code data/cvm/proventos}, o arquivo e o
+ * ({@code carga/data/cvm/ipe}), baixa cada relatorio uma vez ({@code carga/data/cvm/proventos}, o arquivo e o
  * estado) e completa a data dos eventos do catalogo <b>sem data</b> que batem em ISIN, data-com e
  * valor — com {@code payment_date_source = 'CVM'}. A data que vier depois da propria fonte do
  * evento (B3) substitui esta ({@code CashEventWriter}).</p>

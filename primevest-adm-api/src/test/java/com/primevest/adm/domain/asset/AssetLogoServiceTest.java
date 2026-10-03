@@ -11,7 +11,7 @@ import java.nio.charset.StandardCharsets;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** O que conta como logo valido (PLANO_BRAPI.md, F7): so imagem de verdade vai para data/logos. */
+/** O que conta como logo valido (docs/planos/PLANO_BRAPI.md, F7): so imagem de verdade vai para carga/data/logos. */
 class AssetLogoServiceTest {
 
     private static final byte[] SVG = ("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 10 10\">"

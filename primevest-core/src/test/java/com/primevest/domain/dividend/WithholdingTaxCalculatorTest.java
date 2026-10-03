@@ -14,7 +14,7 @@ import static com.primevest.domain.dividend.TaxBaseDate.PAYMENT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * O jeito de calcular o IR retido (PLANO_IR_PROVENTOS.md, 5.1). Os valores sao
+ * O jeito de calcular o IR retido (docs/planos/PLANO_IR_PROVENTOS.md, 5.1). Os valores sao
  * os do extrato da B3 conferido em 24/09/2026.
  */
 class WithholdingTaxCalculatorTest {

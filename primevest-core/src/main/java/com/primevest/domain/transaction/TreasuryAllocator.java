@@ -36,7 +36,7 @@ import java.util.UUID;
  * com data retroativa passa a ser o titulo mais antigo e leva as cotas que
  * antes saiam de outro, inclusive reabrindo titulos que estavam liquidados.
  * Reparticao e dado derivado; aqui ela fica gravada porque a venda precisa
- * apontar para um titulo real — a divida esta registrada em PENDENCIAS.txt.</p>
+ * apontar para um titulo real — a divida esta registrada em docs/PENDENCIAS.md.</p>
  *
  * <p>A regra H — um titulo por ativo e data — e o que torna o FIFO
  * deterministico: sem ela, dois titulos comprados no mesmo dia nao teriam

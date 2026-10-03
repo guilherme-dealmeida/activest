@@ -3,7 +3,7 @@ package com.primevest.domain.indicator;
 import com.primevest.domain.issuer.IssuerKind;
 
 /**
- * Indicadores da F9 (PLANO_EMPRESAS_BALANCOS.md, 5.1 e 5.2). Nada e gravado: o
+ * Indicadores da F9 (docs/planos/PLANO_EMPRESAS_BALANCOS.md, 5.1 e 5.2). Nada e gravado: o
  * {@link IndicatorService} calcula na leitura.
  */
 public enum Indicator {

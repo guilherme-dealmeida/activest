@@ -16,12 +16,12 @@
 - **v6 (30/09): pilha `primevest-test` removida** (contêineres, volumes, `.env.test`, `data-test/`, parametrização do
   compose). O plano fica só com **bucket + primevest**; a prova numa máquina nova é do Guilherme, em outra máquina, depois.
 - **v7 (02/10): D14 decidida** — levantamento das datas de pagamento 2010–2026 concluído pelo Guilherme
-  (`proventos_datas_pagamento_2010_2026.xlsx`); entra na carga como arquivo em `data/` (seção 11). Nada implementado ainda.
+  (`proventos_datas_pagamento_2010_2026.xlsx`); entra na carga como arquivo em `carga/data/` (seção 11). Nada implementado ainda.
 
 **Regras do escopo**
 
 - **(A)** O que é carregado num ambiente novo não depende de diretório fora do projeto (ex.: `E:\carga`).
-- **(B)** Script necessário para a carga fica no projeto (`scripts/`); dado para popular tabela fica no projeto ou num bucket.
+- **(B)** Script necessário para a carga fica no projeto (`carga/scripts/`); dado para popular tabela fica no projeto ou num bucket.
 - **(C)** Evento que não é de usuário vem da **integração**, não de importação. **Não existe fonte `EXTRATO_B3` no catálogo.**
 - **(D)** A informação do catálogo tem que estar **completa** — inclusive a data de pagamento.
 
@@ -32,7 +32,7 @@
 | Origem | O que carrega | Situação |
 |---|---|---|
 | **Migrations V1–V37** | schema + seeds (ativos, categorias, emissores e ligações da V30, units, admin) | ✅ autocontido |
-| **`data/`** (fora do git) | lida pelo `POST /admin/bootstrap`: `b3/cotahist`, `b3/proventos`, `cvm/*`, `fnet/`, `logos/`, `curadoria/` | ✅ no bucket desde 29/09 (2.4) |
+| **`carga/data/`** (fora do git) | lida pelo `POST /admin/bootstrap`: `b3/cotahist`, `b3/proventos`, `cvm/*`, `fnet/`, `logos/`, `curadoria/` | ✅ no bucket desde 29/09 (2.4) |
 | **`E:\carga\scripts`** e **`E:\carga\data`** | disparo das rotinas, conferência, carga da carteira do Guilherme, seed V30 | ❌ fora do projeto → seção 3 |
 
 ### 1.1 Importado × integrado
@@ -40,13 +40,13 @@
 | Item | Situação | Num ambiente novo |
 |---|---|---|
 | Lista de CNPJ dos FIIs (`fiis.csv`, `fiis_cnpj_curado.json`) | superada pela V30 (346 de 347 iguais; VGRH11 corrigido na V30; todos com ISIN) | **apagar** (D5) |
-| `curadoria/` (bucket e `data/`) | superada pela V30 e por `docs/emissores/`; nenhum código lê | **apagar** (D11) |
-| 18 eventos de FII rotulados `EXTRATO_B3` | os avisos **estão** em `data/fnet` (1.2) | nascem como `FNET` |
+| `curadoria/` (bucket e `carga/data/`) | superada pela V30 e por `docs/emissores/`; nenhum código lê | **apagar** (D11) |
+| 18 eventos de FII rotulados `EXTRATO_B3` | os avisos **estão** em `carga/data/fnet` (1.2) | nascem como `FNET` |
 | 3 eventos de PETR4 rotulados `EXTRATO_B3` | nenhuma fonte achada até aqui (5.1) | fora do catálogo até a fonte aparecer |
 | 25 datas de pagamento com origem `EXTRATO_B3` | fonte integrável: CVM (5.2) | preenchidas pela integração |
 | Transações do Guilherme | dado de usuário | fora da carga inicial |
 
-### 1.2 Os avisos do FNET estão em `data/fnet` (correção da v2)
+### 1.2 Os avisos do FNET estão em `carga/data/fnet` (correção da v2)
 
 HGLG11 tem 116 avisos em disco, inclusive 12/2024 a 08/2025. No banco de dev eles aparecem como `EXTRATO_B3` porque o
 extrato foi carregado antes e o gravador **completa em vez de duplicar** quando acha o mesmo (ativo, tipo, data-com,
@@ -59,7 +59,7 @@ INHF11, KNRE11, RBOP11, RCFF11, SCPF11) **não distribuíram** no período — n
 
 ### 2.1 Modelo (D9 — **decidido: baixar na primeira subida**)
 
-A aplicação continua lendo **só a `data/` local**, como hoje. O bucket é a cópia de referência: a máquina nova baixa uma
+A aplicação continua lendo **só a `carga/data/` local**, como hoje. O bucket é a cópia de referência: a máquina nova baixa uma
 vez (`data-pull`); quem produz arquivo novo sobe (`data-push`). Nada muda no código Java por causa do bucket.
 
 Do anexo 1 fica: Object Storage + **manifest** + scripts de sync. Não entram: tabela `data_files`, `raw/processed`, NoSQL.
@@ -68,7 +68,7 @@ Do anexo "primevest R2": não entra (leitura direta do bucket / híbrido / Redis
 ### 2.2 Provedor — **Cloudflare R2**, bucket `primevest-data` (D1)
 
 Variáveis já no `.env`: `DATA_STORAGE=s3`, `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` (entram no
-`.env.example` sem valor). `DATA_STORAGE`: `s3` = o `data-pull` busca no bucket; `local` = usa a `data/` como está, sem bucket.
+`.env.example` sem valor). `DATA_STORAGE`: `s3` = o `data-pull` busca no bucket; `local` = usa a `carga/data/` como está, sem bucket.
 
 ### 2.3 Chaves
 
@@ -92,7 +92,7 @@ do Windows — recuperar de lá ou criar outro quando for montar a outra máquin
 ### 2.4 Situação do bucket (conferido em 29/09)
 
 `b3/cotahist` 17 · 587,5 MiB — `b3/proventos` 307 · 3,1 MiB — `cvm` 65 · 716,7 MiB — `fnet` 22.911 · 23,7 MiB —
-`logos` 1.451 · 5,9 MiB — `curadoria` 4 · 0,3 MiB. **24.755 objetos, ~1,30 GiB, idênticos à `data/` local.** Falta o manifest.
+`logos` 1.451 · 5,9 MiB — `curadoria` 4 · 0,3 MiB. **24.755 objetos, ~1,30 GiB, idênticos à `carga/data/` local.** Falta o manifest.
 
 ---
 
@@ -107,7 +107,7 @@ linhas da árvore do `Claude.md` (309–311).
 ### 3.2 `E:\carga\scripts` → `primevest/scripts`
 
 `admin.mjs` e `get.mjs` (`.env` relativo ao repo, portas por variável), `gerar_seed_emissores.mjs` (D3, saída relativa),
-`ensaio/contagens.sql` e `conferir_balancos.sql` → `scripts/sql/`.
+`ensaio/contagens.sql` e `conferir_balancos.sql` → `carga/scripts/sql/`.
 Ficam em `E:\carga` (dado de usuário, PENDENCIAS 16): `converter*`, `carregar*`, `proventos_regras*`, `binance-mcp/`.
 Descartáveis (edições pontuais de sessões anteriores) listados na v2; nada além de 3.1 é apagado em `E:\carga` sem ordem.
 
@@ -117,17 +117,17 @@ Serviços num profile `carga` (não sobem no `up` normal):
 
 | Serviço | Imagem | Faz |
 |---|---|---|
-| `tools` | `node:22-alpine` | `docker compose --profile carga run --rm tools node scripts/admin.mjs bootstrap` |
-| `data pull [--minimo]` | `rclone/rclone:1.75.1` | bucket → `data/`, incremental (só o que falta/mudou); `--minimo` = `fnet`, `b3/proventos`, `b3/proventos-12m`, `cvm/ipe`, `cvm/proventos` |
-| `data push` | `rclone/rclone:1.75.1` | `data/` → bucket (copia, nunca apaga lá) + regrava os manifests |
-| `data status` | `rclone/rclone:1.75.1` | `data/` × bucket, por dataset |
+| `tools` | `node:22-alpine` | `docker compose --profile carga run --rm tools node carga/scripts/admin.mjs bootstrap` |
+| `data pull [--minimo]` | `rclone/rclone:1.75.1` | bucket → `carga/data/`, incremental (só o que falta/mudou); `--minimo` = `fnet`, `b3/proventos`, `b3/proventos-12m`, `cvm/ipe`, `cvm/proventos` |
+| `data push` | `rclone/rclone:1.75.1` | `carga/data/` → bucket (copia, nunca apaga lá) + regrava os manifests |
+| `data status` | `rclone/rclone:1.75.1` | `carga/data/` × bucket, por dataset |
 
 rclone configurado só por variável (`S3_*` do `.env`), 32 transferências simultâneas (22.911 avisos do FNET em ~1–2 min).
 
 ### 3.4 Estrutura final
 
 ```
-scripts/
+carga/scripts/
 ├── README.md
 ├── admin.mjs  get.mjs  gerar_seed_emissores.mjs
 ├── lib/env.mjs    (raiz do projeto, `.env`, URLs da API)
@@ -141,7 +141,7 @@ scripts/
 
 A prova de subida do zero fica com o Guilherme, em outra máquina, seguindo o README (seção de máquina nova: `.env` com o
 token só leitura → `data pull` → `compose up` → `tools ... bootstrap`). Referência para conferir, com
-`scripts/sql/contagens.sql` e `datas_pagamento.sql` contra o dev: `cvm_documents` 19.349, `company_quarters` 19.344,
+`carga/scripts/sql/contagens.sql` e `datas_pagamento.sql` contra o dev: `cvm_documents` 19.349, `company_quarters` 19.344,
 `asset_stock_events` 1.053, emissores 1.198, `fii_monthly` 42.815, `asset_cash_events` ≈ dev (± janela de 12 meses);
 **nenhum evento com fonte `EXTRATO_B3`**; cobertura de datas da 10.1. Carga ~50 min + a etapa da CVM.
 
@@ -170,9 +170,9 @@ se eles aparecem num relatório de proventos; se não, não entram no catálogo 
 
 | # | Entrega | Efeito |
 |---|---|---|
-| P1 | **Guardar a resposta dos 12 meses da B3** em `data/b3/proventos-12m/{emissor}.json`, **acumulando** (linha nova entra, antiga fica) | a data de pagamento não se perde mais quando o evento sai da janela |
+| P1 | **Guardar a resposta dos 12 meses da B3** em `carga/data/b3/proventos-12m/{emissor}.json`, **acumulando** (linha nova entra, antiga fica) | a data de pagamento não se perde mais quando o evento sai da janela |
 | P2 | **Exportar uma vez, do banco de dev**, os 5.339 eventos `B3` com data para esse mesmo arquivo | salva o que já saiu da janela da B3 (20 eventos hoje, e crescendo) e só existe no banco do Guilherme |
-| P3 | **Integração nova: CVM "Relatório Proventos"** — índice anual do IPE (`dados.cvm.gov.br`, `data/cvm/ipe/`), PDF de cada relatório (`rad.cvm.gov.br`, `data/cvm/proventos/{protocolo}.pdf`), leitura do formulário; completa a data de pagamento de `B3_HISTORICO` por (ISIN, data-com, valor); origem da data = `CVM`. Entra no bootstrap e na rotina diária | cobre 2022+ |
+| P3 | **Integração nova: CVM "Relatório Proventos"** — índice anual do IPE (`dados.cvm.gov.br`, `carga/data/cvm/ipe/`), PDF de cada relatório (`rad.cvm.gov.br`, `carga/data/cvm/proventos/{protocolo}.pdf`), leitura do formulário; completa a data de pagamento de `B3_HISTORICO` por (ISIN, data-com, valor); origem da data = `CVM`. Entra no bootstrap e na rotina diária | cobre 2022+ |
 | P4 | **FNET: busca de avisos novos** por CNPJ (PENDENCIAS 18.10 d), na rotina das 20:00 | FII continua completo depois de 27/09 |
 | P5 | **Manifest** por dataset (`manifests/{dataset}.json`: chave, tamanho, hash, data), gerado no `data-push` a partir do `rclone lsjson` | o que o bucket tem, sem listar |
 
@@ -217,7 +217,7 @@ com o número na mão — (c) primeiro em amostra, (a) se o acerto for baixo.
 
 | Fase | Entrega | Quem |
 |---|---|---|
-| **E1** | apagar os 5 arquivos (3.1) e a `curadoria/` da `data/` e do bucket (D11); mover os scripts (3.2); `scripts/README.md` | Claude |
+| **E1** | apagar os 5 arquivos (3.1) e a `curadoria/` da `carga/data/` e do bucket (D11); mover os scripts (3.2); `carga/scripts/README.md` | Claude |
 | **E2** | serviços `tools` e `data` (profile `carga`), `.env.example` | Claude |
 | **E3** | token só leitura do R2 | **Guilherme** |
 | **E4** | manifests (P5) + primeiro `data-push`; `data-status` sem diferença | Claude |
@@ -225,7 +225,7 @@ com o número na mão — (c) primeiro em amostra, (a) se o acerto for baixo.
 | **E6** | P1 (12 meses acumulados), P4 (busca do FNET) | Claude |
 | **E7** | P3 (CVM "Relatório Proventos") + etapa no bootstrap + `datas_pagamento.sql` | Claude |
 | **E8** | seção 6 (`EXTRATO_B3` sai) | Claude |
-| **E9** | README, `Claude.md`, `PENDENCIAS.txt`; `data-push` do que E5–E7 gravaram | Claude |
+| **E9** | README, `Claude.md`, `docs/PENDENCIAS.md`; `data-push` do que E5–E7 gravaram | Claude |
 | **E10** | bateria de testes; medição de 5.4 para a D14 | Claude |
 
 ## 8. Decisões
@@ -234,17 +234,17 @@ com o número na mão — (c) primeiro em amostra, (a) se o acerto for baixo.
 |---|---|---|
 | D1 | Provedor | **Cloudflare R2**, `primevest-data` |
 | D2 | O que vai para o bucket | **tudo** (feito e conferido) |
-| D3 | `gerar_seed_emissores.mjs` em `scripts/` | **sim** |
+| D3 | `gerar_seed_emissores.mjs` em `carga/scripts/` | **sim** |
 | D4 | Eventos que não são de usuário | **vêm da integração** (regra C) |
 | D5 | `fiis.csv` e afins | **apagar** |
 | D6 | contêiner `tools` | **sim** |
 | D7 | Pilha de teste | ~~`primevest-test`~~ **removida em 30/09** — a prova fica para outra máquina (seção 4) |
 | D8 | Produtor e consumidor | **sim, sem complementos** (5.2, 3.3) |
-| D9 | Modelo de armazenamento | **baixar na primeira subida**; aplicação lê só a `data/` local |
+| D9 | Modelo de armazenamento | **baixar na primeira subida**; aplicação lê só a `carga/data/` local |
 | D12 | Cripto | não tem proventos — a pergunta era outra: o **histórico de preço** de cripto (CoinGecko) não é refeito num ambiente novo; o gráfico começa na data da carga. Fica anotada no PENDENCIAS, fora deste escopo |
 | D13 | `EXTRATO_B3` | **deixa de existir** (seção 6) |
-| D11 | `curadoria/` | **apagar da `data/` e do bucket** (fase E1) |
-| D14 | Data de pagamento de ações 2010–2021 | **levantamento manual** (Investidor10, Status Invest, Fundamentus, Brapi, RI) gravado em `data/levantamento/`; o que ficou sem data é **A DEFINIR** (seção 11) |
+| D11 | `curadoria/` | **apagar da `carga/data/` e do bucket** (fase E1) |
+| D14 | Data de pagamento de ações 2010–2021 | **levantamento manual** (Investidor10, Status Invest, Fundamentus, Brapi, RI) gravado em `carga/data/levantamento/`; o que ficou sem data é **A DEFINIR** (seção 11) |
 
 | D10 | Data de pagamento das **ações** | **sim** — (1) 12 meses da B3 guardados em arquivo, (2) datas do banco de dev salvas hoje, (3) relatórios de proventos da CVM 2022+ (5.2) |
 | D15 | Proventos de **FII** | **FNET como fonte principal**, B3 só de reserva (11 FIIs sem aviso no FNET), **com a busca de avisos novos (P4)** |
@@ -264,20 +264,20 @@ Produção/hospedagem; importação de extrato como funcionalidade (PENDENCIAS 1
 
 | Fase | Situação | O que ficou |
 |---|---|---|
-| E1 | ✅ | `generate_*`, `fiis.csv` e `fiis_cnpj_curado.json` na lixeira do Windows; `curadoria/` na lixeira e apagada do bucket; `scripts/` com `admin.mjs`, `get.mjs`, `gerar_seed_emissores.mjs` (corrigido: `issuers.segment`, contêiner `primevest-db`), `lib/env.mjs` (raiz achada pelo próprio arquivo), `sql/` e `README.md`; os originais de `E:\carga` na lixeira |
+| E1 | ✅ | `generate_*`, `fiis.csv` e `fiis_cnpj_curado.json` na lixeira do Windows; `curadoria/` na lixeira e apagada do bucket; `carga/scripts/` com `admin.mjs`, `get.mjs`, `gerar_seed_emissores.mjs` (corrigido: `issuers.segment`, contêiner `primevest-db`), `lib/env.mjs` (raiz achada pelo próprio arquivo), `sql/` e `README.md`; os originais de `E:\carga` na lixeira |
 | E2 | ✅ | serviços `data` (rclone 1.75.1: `pull [--minimo]`, `push`, `status`) e `tools` (Node 22) no profile `carga`; `.env.example` com as `S3_*` e `PRIMEVEST_SENHA` |
 | E3 | ✅ Guilherme | token só leitura: lista o bucket e recebe **403 AccessDenied** ao tentar gravar (conferido; ver 2.3) |
 | E4 | ✅ | `data push` compara por hash (`--checksum`) e grava `manifests/{dataset}.json` (chave e tamanho) + `manifests/manifest.json` |
-| E5 | ✅ | 4.327 proventos com data (fonte B3) exportados do banco de dev para `data/b3/proventos-12m` (503 emissores) |
+| E5 | ✅ | 4.327 proventos com data (fonte B3) exportados do banco de dev para `carga/data/b3/proventos-12m` (503 emissores) |
 | E6 | ✅ | `B3SupplementStore` (12 meses acumulados); FII com FNET primeiro e B3 de reserva; busca de avisos novos por CNPJ quando a B3 mostra provento mais novo (1×/dia/fundo); `CashEventWriter`: o FNET assume o evento da B3. Rodada no dev: 654 emissores, 0 falhas; **3.175 eventos de FII passaram de B3 a FNET** |
 | E7 | ✅ | `CvmProventosReport` (PDFBox; formato de 2022 e de 2023+), `CvmPaymentDateService`, etapa no bootstrap, rotina das 20:00 e `POST /admin/cvm/proventos`. Rodada no dev: **3.412 relatórios** (2022–2026, 779 MB), 113 ilegíveis, **4.075 datas de pagamento completadas** em 529 ativos |
 | E8 | ✅ | V38 aplicada no dev (18 eventos de FII → FNET, 3 de PETR4 fora do catálogo — os 3 proventos do usuário ficaram `MANUAL`, somando R$ 1,16 —, datas do extrato apagadas e refeitas pelo FNET/CVM); enums, extrato só conferência (`JA_EXISTE`/`SEM_DATA`/`SEM_EVENTO`), tela de Dividendos e testes |
-| E9 | ✅ | README (máquina nova), `Claude.md`, `PENDENCIAS.txt` (18.10 d resolvido, seção 20), `scripts/README.md` |
+| E9 | ✅ | README (máquina nova), `Claude.md`, `docs/PENDENCIAS.md` (18.10 d resolvido, seção 20), `carga/scripts/README.md` |
 | E10 | ✅ | bateria completa verde (30/09): core 138, adm-api 74 + 26, app-api 198 + 158 — 0 falhas; inclui `dataInvalida`. Front: `tsc` e `eslint` ok |
 
 ### 10.1 Medição da data de pagamento (entrada da D14)
 
-`scripts/sql/datas_pagamento.sql` no banco de dev, depois da carga da CVM:
+`carga/scripts/sql/datas_pagamento.sql` no banco de dev, depois da carga da CVM:
 
 | Ano | FII com data | Ações com data | Ações sem data |
 |---|---|---|---|
@@ -307,7 +307,7 @@ Download ou espera longa ficam com o Guilherme; o Claude só confere o resultado
   "N"/"V" no lugar de "Não"/"A Vista" — o leitor aceita os dois (teste `formato2022`).
 - A V38 manteve a referência da linha do extrato nos 18 eventos de FII; o `CashEventWriter` troca pelo id do aviso do
   FNET na próxima rodada de proventos (referência que não é número de aviso).
-- Os testes de integração da adm-api gravavam na `data/` real; o de proventos passou a usar `target/it-data-proventos`
+- Os testes de integração da adm-api gravavam na `carga/data/` real; o de proventos passou a usar `target/it-data-proventos`
   (PENDENCIAS 20.7 para os demais).
 - O manifest com hash por arquivo exigia um HEAD por objeto no R2 (22 mil no FNET): ficou só chave e tamanho.
 - Alguns relatórios da CVM usam 01/01/0001, 31/12/2998 ou 31/12/9999 como data de pagamento ("a definir"): 8 eventos (16
@@ -341,17 +341,17 @@ Conferência do arquivo: nenhuma data antes da data-com; 31 em fim de semana (pr
 
 | # | Peça | O que é |
 |---|---|---|
-| L1 | **Arquivo** `data/levantamento/datas-pagamento.json` | gerado da planilha; vai para o bucket como os demais (`data push`) e entra no `--minimo` do `data pull`. A planilha fica junto (`data/levantamento/origem/…xlsx`) como evidência |
+| L1 | **Arquivo** `carga/data/levantamento/datas-pagamento.json` | gerado da planilha; vai para o bucket como os demais (`data push`) e entra no `--minimo` do `data pull`. A planilha fica junto (`carga/data/levantamento/origem/…xlsx`) como evidência |
 | L2 | **Chave natural**, não `id_evento` | o id só existe no banco de dev e muda num reset. Chave: `ticker` (+ `ticker_fracionario`; sem ele, tenta também `ticker`+`F`), `tipo`, `data_com`, `parcela` (`seq`) e `valor_por_acao` — valor exato primeiro, senão o mais próximo dentro de 0,000001 (há pares no banco que diferem na 9ª casa, ex. AZEV3 11/12/2015); cada evento é usado uma vez |
 | L3 | **Campos por linha** | chave + `data_pagamento` (nula no A DEFINIR) + `status` (`CONFIRMADO` / `ACEITE_ULTIMA_REVISAO` / `A_DEFINIR`) + `fonte` + `regra` |
-| L4 | **Conversão** `scripts/levantamento/xlsx_para_json.py` | lê a planilha e grava o JSON (ordenado, sem hash de dev); rodado pelo Guilherme quando a planilha mudar; depois `data push` |
+| L4 | **Conversão** `carga/scripts/levantamento/xlsx_para_json.py` | lê a planilha e grava o JSON (ordenado, sem hash de dev); rodado pelo Guilherme quando a planilha mudar; depois `data push` |
 | L5 | **Fonte da data** `PaymentDateSource.LEVANTAMENTO` + migração **V39** | o CHECK `ck_asset_cash_events_payment_date_source` passa a aceitar `LEVANTAMENTO` (com `payment_date` não nula) |
 | L6 | **Serviço** `PaymentDateSurveyService` (adm-api) | aplica o arquivo **só em evento sem data**; grava `payment_date_source = LEVANTAMENTO`; publica `CatalogChange` (recalcula os proventos do usuário). Relatório: aplicados, já tinham data (iguais / diferentes), sem evento correspondente, A DEFINIR |
 | L7 | **Precedência** | data da própria fonte do evento (B3 12 meses, FNET) > CVM > LEVANTAMENTO. Mesmo comportamento da CVM hoje: o `CashEventWriter` troca a data de uma `PaymentDateSource` pela da fonte quando ela chega |
 | L8 | **Bootstrap** | nova etapa **depois** de "datas de pagamento CVM": "datas de pagamento do levantamento". Endpoint `POST /admin/proventos/levantamento` para rodar à parte (ex.: aplicar no dev sem reset) |
 | L9 | **Rotina** | não entra no agendador — o arquivo é estático; o bootstrap e o endpoint bastam |
 | L10 | **Testes** | leitura do JSON e casamento pela chave (inclui fracionário e parcela); precedência (B3 e CVM vencem, LEVANTAMENTO não sobrescreve); `SchemaTest` V39 |
-| L11 | **Docs** | `Claude.md` (tabela de fontes), `scripts/README.md`, `PENDENCIAS.txt` (A DEFINIR antigo, D17), README (dataset `levantamento`) |
+| L11 | **Docs** | `Claude.md` (tabela de fontes), `carga/scripts/README.md`, `docs/PENDENCIAS.md` (A DEFINIR antigo, D17), README (dataset `levantamento`) |
 
 ### 11.4 Cobertura esperada depois da L8
 
@@ -378,14 +378,14 @@ Das 8.933 linhas levantadas, **8.771 (98%)** ganham data. Ficam sem data **145 a
 
 | Fase | Situação | O que ficou |
 |---|---|---|
-| L-a | ✅ | planilha em `data/levantamento/origem/proventos_datas_pagamento_2010_2026.xlsx`; `scripts/levantamento/xlsx_para_json.py` (valida status × data, pagamento antes da data-com, chave repetida — nada é gravado se houver erro) gerou `data/levantamento/datas-pagamento.json` com **8.933 linhas** (CONFIRMADO 8.723, ACEITE_ULTIMA_REVISAO 48, A_DEFINIR 162); `levantamento` entrou no `MINIMO` do `data.sh`. `data push` feito em 02/10 (bucket: levantamento 2 arquivos; `data status` sem diferença) |
-| L-b | ✅ | `PaymentDateSource.LEVANTAMENTO` + **V39** (CHECK aceita `LEVANTAMENTO`); `PaymentDateSurveyService` (adm-api: lê o JSON, casa pela chave da L2, grava só em evento sem data, publica `CatalogChange`); etapa **"datas de pagamento do levantamento"** no bootstrap, depois da CVM; `POST /admin/proventos/levantamento` (`node scripts/admin.mjs proventos/levantamento`); D16 na tela de Dividendos ("Data não informada" + hover da origem `LEVANTAMENTO`). Testes: `PaymentDateSurveyServiceTest` (5), `PaymentDateSurveyIT` (2), `PaymentDateSourceIT` (+1: B3 substitui LEVANTAMENTO), `BootstrapServiceTest` (7 etapas), `SchemaTest` (V39) |
-| L-c | ✅ | aplicado no dev pelo endpoint (02/10): 8.933 linhas, 17.520 eventos casados — **17.209 datas gravadas**, 12 já tinham a mesma data (CVM), 0 divergentes, 299 A DEFINIR, 0 linhas sem evento; app-api recalculou a carteira (623 ativos); proventos do usuário com evento: 229 de 229 com a data do evento. Antes × depois em `.claude/logs/levantamento_{antes,depois}_datas_pagamento.txt` |
-| L-d | ✅ | `Claude.md` (fonte `LEVANTAMENTO`, V39, tela), `PENDENCIAS.txt` (20.1 resolvido, 20.8 e 20.9), `scripts/README.md` (conversão) e `README.md` (dataset `levantamento` e etapa da carga) |
+| L-a | ✅ | planilha em `carga/data/levantamento/origem/proventos_datas_pagamento_2010_2026.xlsx`; `carga/scripts/levantamento/xlsx_para_json.py` (valida status × data, pagamento antes da data-com, chave repetida — nada é gravado se houver erro) gerou `carga/data/levantamento/datas-pagamento.json` com **8.933 linhas** (CONFIRMADO 8.723, ACEITE_ULTIMA_REVISAO 48, A_DEFINIR 162); `levantamento` entrou no `MINIMO` do `data.sh`. `data push` feito em 02/10 (bucket: levantamento 2 arquivos; `data status` sem diferença) |
+| L-b | ✅ | `PaymentDateSource.LEVANTAMENTO` + **V39** (CHECK aceita `LEVANTAMENTO`); `PaymentDateSurveyService` (adm-api: lê o JSON, casa pela chave da L2, grava só em evento sem data, publica `CatalogChange`); etapa **"datas de pagamento do levantamento"** no bootstrap, depois da CVM; `POST /admin/proventos/levantamento` (`node carga/scripts/admin.mjs proventos/levantamento`); D16 na tela de Dividendos ("Data não informada" + hover da origem `LEVANTAMENTO`). Testes: `PaymentDateSurveyServiceTest` (5), `PaymentDateSurveyIT` (2), `PaymentDateSourceIT` (+1: B3 substitui LEVANTAMENTO), `BootstrapServiceTest` (7 etapas), `SchemaTest` (V39) |
+| L-c | ✅ | aplicado no dev pelo endpoint (02/10): 8.933 linhas, 17.520 eventos casados — **17.209 datas gravadas**, 12 já tinham a mesma data (CVM), 0 divergentes, 299 A DEFINIR, 0 linhas sem evento; app-api recalculou a carteira (623 ativos); proventos do usuário com evento: 229 de 229 com a data do evento. Antes × depois em `carga/data/levantamento/{antes,depois}_datas_pagamento.txt` |
+| L-d | ✅ | `Claude.md` (fonte `LEVANTAMENTO`, V39, tela), `docs/PENDENCIAS.md` (20.1 resolvido, 20.8 e 20.9), `carga/scripts/README.md` (conversão) e `README.md` (dataset `levantamento` e etapa da carga) |
 
 Datas em fim de semana aceitas no levantamento (31 linhas; em geral prazo "até 31/12" ou fim de mês). **Em 02/10 o
 Guilherme decidiu recuar cada uma para o dia útil anterior** (ex.: 31/12/2017 → 29/12/2017; 01/04/2017 → 31/03/2017);
-a planilha em `data/levantamento/origem/` e o JSON já estão ajustados (nota em OBSERVACAO de cada linha). Datas originais:
+a planilha em `carga/data/levantamento/origem/` e o JSON já estão ajustados (nota em OBSERVACAO de cada linha). Datas originais:
 
 | Ticker | Data-com | id_evento (dev) | Pagamento |
 |---|---|---|---|

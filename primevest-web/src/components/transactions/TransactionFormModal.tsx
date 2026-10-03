@@ -273,7 +273,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
   const isTesouro = selectedType?.name === TESOURO_DIRETO;
   const isValorTotal = selectedType?.name === RENDA_FIXA;
   // Cripto: quantidade e preço unitário com 8 casas, na mesma máscara dos
-  // demais tipos (PLANO_CRIPTO_BINANCE.md, 6.12).
+  // demais tipos (docs/planos/PLANO_CRIPTO_BINANCE.md, 6.12).
   const isCripto = isCryptoType(selectedType);
   const isVenda = formData.type === TransactionType.SELL;
 

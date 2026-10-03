@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 /**
  * Emissor de ativos do catalogo: companhia aberta ou FII (V28,
- * PLANO_EMPRESAS_BALANCOS.md). Global, sem dono: o balanco da Petrobras e o
+ * docs/planos/PLANO_EMPRESAS_BALANCOS.md). Global, sem dono: o balanco da Petrobras e o
  * mesmo para todo usuario.
  *
  * <p>Colunas de companhia e de FII convivem, nulas no outro tipo. O segmento

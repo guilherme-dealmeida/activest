@@ -21,7 +21,7 @@ const baseLabel = (current: AssetIndicators): string | null => {
 
 /**
  * Cabeçalho da emissora: logo, ticker, nomes, tipo, preço, data-base dos
- * indicadores e os outros tickers do mesmo emissor (PLANO_TELA_EMISSORES.md, 2.2).
+ * indicadores e os outros tickers do mesmo emissor (docs/planos/PLANO_TELA_EMISSORES.md, 2.2).
  */
 export const IssuerHeader = ({ ticker, issuer, current }: Props) => {
   // o chip leva o período da cotação junto

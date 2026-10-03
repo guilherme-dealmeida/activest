@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    Rotinas de administrador (PLANO_ADM_API.md, secao 10): tudo o que busca dado de fora
+    Rotinas de administrador (docs/planos/PLANO_ADM_API.md, secao 10): tudo o que busca dado de fora
     e grava o CATALOGO — emissores, balancos, serie trimestral, COTAHIST, fechamento diario,
     eventos de proventos (B3/FNET), logos, conferencia do catalogo — e o /api/v1/admin/*.
     Nao grava dado de usuario: avisa a app-api pelo Redis ("catalogo mudou").
@@ -42,7 +42,7 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
-        <!-- texto dos relatorios de proventos da CVM (PDF do RAD) — PLANO_CARGA_INICIAL.md, 5.2 -->
+        <!-- texto dos relatorios de proventos da CVM (PDF do RAD) — docs/planos/PLANO_CARGA_INICIAL.md, 5.2 -->
         <dependency>
             <groupId>org.apache.pdfbox</groupId>
             <artifactId>pdfbox</artifactId>

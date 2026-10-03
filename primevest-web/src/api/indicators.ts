@@ -1,7 +1,7 @@
 import { apiClient } from './client';
 import { AssetIndicators, IndicatorCode, IndicatorHistory, IndicatorPeriod } from '../types';
 
-/** Indicadores de ações e FIIs (app-api, F9 do PLANO_EMPRESAS_BALANCOS.md). */
+/** Indicadores de ações e FIIs (app-api, F9 do docs/planos/PLANO_EMPRESAS_BALANCOS.md). */
 export const indicatorsApi = {
   current: async (ticker: string) => {
     const { data } = await apiClient.get<AssetIndicators>(`/assets/${encodeURIComponent(ticker)}/indicators`);

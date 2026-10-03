@@ -72,7 +72,7 @@ public interface DividendRepository extends JpaRepository<Dividend, Long> {
      * enquanto todo caminho que cria ou apaga provento lembrasse de atualiza-la.
      * Posicao sem provento nao aparece no resultado.</p>
      *
-     * <p>Soma o LIQUIDO (V23, PLANO_IR_PROVENTOS.md, D1): e o dinheiro que
+     * <p>Soma o LIQUIDO (V23, docs/planos/PLANO_IR_PROVENTOS.md, D1): e o dinheiro que
      * entrou. Tipo sem regra de IR entra pelo bruto, para nao sumir do retorno.</p>
      *
      * <p>So o que ja foi RECEBIDO ate {@code today}: provento a receber nao e

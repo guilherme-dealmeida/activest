@@ -6,7 +6,7 @@ import com.primevest.domain.integration.credential.ApiKeyCredentials;
 import java.util.Map;
 
 /**
- * O contrato de toda fonte externa (PLANO_CRIPTO_BINANCE.md, 6.2).
+ * O contrato de toda fonte externa (docs/planos/PLANO_CRIPTO_BINANCE.md, 6.2).
  *
  * <p>Cada corretora e uma implementacao; a Binance e a primeira (F3). O
  * conector so sabe falar com a sua fonte: autentica, pagina, respeita os

@@ -121,7 +121,7 @@ Universo na BRAPI (23/09/2026): 771 ações · 12 units · 329 FIIs · 257 ETFs 
   `.gitignore`; os demais valores são os mesmos padrões do `docker-compose.yml`).
 - **B25 — Logos atualizados uma vez por mês e na entrada de ativo novo**, e exibidos **à esquerda do ticker nas
   listagens da carteira**.
-- **B26 — Central de avisos (A16): adiada para o `PENDENCIAS.txt`, seção 13** (24/09/2026). Fica fora deste plano;
+- **B26 — Central de avisos (A16): adiada para o `docs/PENDENCIAS.md`, seção 13** (24/09/2026). Fica fora deste plano;
   até lá, conferência do catálogo e bonificação sem custo avisam só no log (WARN).
 - **B27 — Bonificação sem custo informado pela B3:** as ações novas entram na hora com **custo zero provisório**, para
   a quantidade já ficar certa. Aviso, ícone na Carteira e "Informar custo" dependem da central (PENDENCIAS 13.2).
@@ -376,7 +376,7 @@ não informa o custo atribuído.
 - **Não apontar para o site de terceiros** na tela: metade dos ícones da BRAPI não existe (5.10) e o endereço da
   CoinGecko muda a cada troca de imagem. Uma rotina baixa cada logo uma vez, confere se veio imagem, e guarda do
   nosso lado; `assets.logo_path` aponta para o arquivo guardado.
-- **Onde guardar (B18): pasta fora do banco.** `data/logos/` na raiz do projeto, montada no container `api` como
+- **Onde guardar (B18): pasta fora do banco.** `carga/data/logos/` no projeto, montada no container `api` como
   volume (`./data/logos:/app/data/logos` no `docker-compose.yml`) e incluída no `.gitignore`. Um arquivo por ativo
   (`{TICKER}.svg` ou `.png`, como vier da fonte). `assets.logo_path` guarda o nome do arquivo; nulo = sem logo.
 - A API serve a imagem em `GET /api/v1/assets/{ticker}/logo`, com cache longo no navegador (o arquivo só muda na
@@ -388,7 +388,7 @@ não informa o custo atribuído.
 - Ações e FIIs entram na mesma rotina (ações: 638 de 771 têm ícone na BRAPI; FIIs: 66 de 329).
 - Atualização: mensal, e na inclusão de ativo novo.
 
-### F8 — Central de avisos *(adiada — B26; registrada no `PENDENCIAS.txt`, seção 13)*
+### F8 — Central de avisos *(adiada — B26; registrada no `docs/PENDENCIAS.md`, seção 13)*
 
 > Fora da execução deste plano. O texto abaixo fica como referência para a PENDENCIAS 13. O que entra agora: a
 > bonificação sem custo usa custo zero provisório (B27) e, junto com a conferência do catálogo, avisa só no log (WARN).
@@ -572,7 +572,7 @@ A11 (FII além de 12 meses — B15).
 
 Fechados na quarta rodada: A12 (primeiro passo da F6 — B21), A13 (pasta — B18), A14 e A15 (na execução — B22).
 
-Fechado em 24/09/2026 (quinta rodada): A16 — central adiada para o `PENDENCIAS.txt` 13 (B26); custo zero provisório
+Fechado em 24/09/2026 (quinta rodada): A16 — central adiada para o `docs/PENDENCIAS.md` 13 (B26); custo zero provisório
 na bonificação sem custo (B27).
 
 **Nenhuma decisão em aberto.** Padrões assumidos que podem ser trocados a qualquer momento: conferência do catálogo
@@ -587,13 +587,13 @@ Ordem decidida em 24/09/2026 (B20):
 | # | Etapa | Entrega | Pronto quando |
 |---|---|---|---|
 | 1 | F3 — Catálogo | V13–V19 + rotina de conferência (só loga; central adiada — B26) | Flyway verde do zero e no banco atual; AALR3 acentuado; ETFs, BDRs e criptos no autocomplete, ETFs e BDRs com a cotação de 23/09; inativos da V14 fora da busca; CoinGecko sem mapa fixo |
-| 2 | F7 — Logos | V21 + volume `data/logos` + rotina + `AssetLogo` na Carteira | logos baixados; na Carteira, logo à esquerda do ticker; sem ícone, as iniciais |
+| 2 | F7 — Logos | V21 + volume `carga/data/logos` + rotina + `AssetLogo` na Carteira | logos baixados; na Carteira, logo à esquerda do ticker; sem ícone, as iniciais |
 | 3 | Token | `.env` com `BRAPI_TOKEN` — **feito em 24/09/2026** | API recriada (`docker compose up -d`) com o token presente (sem imprimir o valor) |
 | 4 | F1 — Cliente BRAPI | Cliente v2 + `BrApiException` + testes do cliente | 200/400/401/403/404/429 cobertos; nenhum `catch` devolvendo vazio |
 | 5 | F2 — Fechamento | Rotina das 19:00 (B3 e cripto) + recuperação | uma rodada real grava OHLCV dos ativos em carteira e loga `RateLimit-Remaining` |
 | 6 | F5 — Proventos | V20 + `B3Client` + rotina de proventos + FNET | uma rodada real grava os eventos dos emissores em carteira e os proventos das posições batem com a B3; amortização reduz o custo |
 | 7 | F6 — Eventos societários | A12 + `CorporateActionApplier` + eventos no `PositionCalculator` | testes da F6 verdes; preço médio pós-desdobramento confere com a nota |
-| — | Documentação | `Claude.md` e `PENDENCIAS.txt` | seções BrAPI atualizadas; itens 3.2, 6.1, 6.2, 6.4, 11.3 e 11.4 baixados; seção 13 (central) segue aberta |
+| — | Documentação | `Claude.md` e `docs/PENDENCIAS.md` | seções BrAPI atualizadas; itens 3.2, 6.1, 6.2, 6.4, 11.3 e 11.4 baixados; seção 13 (central) segue aberta |
 
 **Efeito do `.env` antes da F1/F2:** com o token presente, o código atual passa a chamar a BRAPI de verdade e recebe
 400 (lote de 15 tickers e `range=1y`). Nada é atualizado — como hoje — e requisição recusada não gasta cota. Só a F1/F2
@@ -611,13 +611,13 @@ Tudo da seção 7 foi feito, na ordem decidida. Validação: `mvn clean verify` 
 | # | Etapa | O que ficou |
 |---|---|---|
 | 1 | F3 — Catálogo | V13 (98 nomes), V14 (9 inativos), V15 (14 ações + 9 FIIs + INHF11), V16–V17 (12 categorias, 219 ETFs com OHLCV de 23/09), V18 (22 categorias, 892 BDRs com OHLCV), V19 (`price_source_ref`, 15 categorias, 227 criptos). Busca ignora inativo. `CatalogAuditService` + `CatalogAuditScheduler` (segunda 07:00, só log; lista de ignorados em `primevest.catalog-audit.ignored`) |
-| 2 | F7 — Logos | V21, `AssetLogoService` (BRAPI e CoinGecko, confere se é imagem, grava em `data/logos/`), `LogoScheduler` (dia 1 às 06:00 + ativos novos na subida), `GET /api/v1/assets/{ticker}/logo` público com cache de 7 dias, volume no `docker-compose.yml`, `data/logos/` no `.gitignore`, `AssetLogo` à esquerda do ticker na Carteira (`hasLogo` no DTO) |
+| 2 | F7 — Logos | V21, `AssetLogoService` (BRAPI e CoinGecko, confere se é imagem, grava em `carga/data/logos/`), `LogoScheduler` (dia 1 às 06:00 + ativos novos na subida), `GET /api/v1/assets/{ticker}/logo` público com cache de 7 dias, volume no `docker-compose.yml`, `carga/data/logos/` no `.gitignore`, `AssetLogo` à esquerda do ticker na Carteira (`hasLogo` no DTO) |
 | 3 | Token | `.env` (24/09) — conferido no container sem imprimir o valor |
 | 4 | F1 — Cliente | `BrApiClient` v2: `fetchQuote` → `results[0].data` tipado (`BrApiQuote`), `fetchDailyHistory`, `fetchTickers`, `fetchRenames`; Bearer no header; `BrApiException` com status e `code`; 429 com `Retry-After` e uma nova tentativa; `RateLimit-Remaining` guardado. Testes com `ExchangeFunction` falsa (200/400/401/403/404/429) |
 | 5 | F2/F4 — Fechamento | `ClosingPriceService` + `ClosingPriceScheduler`: B3 19:00 seg–sex, cripto 19:00 todo dia; só posições com cotas; `range` 3mo na carga inicial, 5d/1mo/3mo conforme o que falta; recuperação na subida; 401/403/429 param a rodada, 404 pula o ativo; renome só loga. Saíram `PriceUpdateScheduler` e o mapa fixo do `CoinGeckoClient` |
 | 6 | F5 — Proventos | V20 (duas camadas) + V22 (parcelas); `B3Client`, `CvmFundRegistry`, `FnetClient`; `ProventosSyncService` (20:00, e sob demanda depois de cada transação, em segundo plano); `DividendRecalculator` refaz os AUTO a partir do catálogo (compra retroativa não chama a B3); AMORTIZACAO e RESTITUICAO_CAPITAL no enum e no custo. Saiu o `DividendSyncScheduler` |
 | 7 | F6 — Eventos | `CorporateActionApplier` (puro), eventos intercalados no `PositionCalculator` e na regra B (`PositionGuard`), bonificação sem custo com custo zero provisório + WARN no log |
-| — | Documentação | `Claude.md` (integrações, estrutura, Flyway V1–V22), `PENDENCIAS.txt` (3.2, 6.1, 6.2, 6.4, 11.3, 11.4 baixados; 11.1 e 13.2 atualizados) |
+| — | Documentação | `Claude.md` (integrações, estrutura, Flyway V1–V22), `docs/PENDENCIAS.md` (3.2, 6.1, 6.2, 6.4, 11.3, 11.4 baixados; 11.1 e 13.2 atualizados) |
 
 ### 8.2 O que mudou em relação ao plano
 
@@ -658,7 +658,7 @@ Com um usuário temporário de validação (PETR4, MXRF11, BOVA11 e BTC em carte
 
 ### 8.4 Fica para depois (fora deste plano)
 
-- Central de avisos — `PENDENCIAS.txt`, seção 13 (inclui "Informar custo" da bonificação).
+- Central de avisos — `docs/PENDENCIAS.md`, seção 13 (inclui "Informar custo" da bonificação).
 - Lançamento MANUAL de provento pela tela: a coluna `origin` e a regra existem; não há formulário.
 - Leitura do histórico de preço (gráfico) — PENDENCIAS 11.2 e 11.6.
 - 13 criptos sem logo na CoinGecko: a rotina mensal tenta de novo.

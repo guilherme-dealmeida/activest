@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Integracao com a Binance pela API, do jeito que qualquer usuario (e a tela
  * de Integracoes, F6) vai usar — com a Binance mockada no cliente HTTP e uma
- * conta ficticia ({@link BinanceFake}). PLANO_CRIPTO_BINANCE.md, F3.
+ * conta ficticia ({@link BinanceFake}). docs/planos/PLANO_CRIPTO_BINANCE.md, F3.
  */
 class IntegracoesIT extends FuncionalBase {
 

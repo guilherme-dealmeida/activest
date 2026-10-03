@@ -15,7 +15,7 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * A carteira reage ao "catalogo mudou" da adm-api (PLANO_ADM_API.md, 10.3): o evento entra no
+ * A carteira reage ao "catalogo mudou" da adm-api (docs/planos/PLANO_ADM_API.md, 10.3): o evento entra no
  * catalogo depois da compra, e so o recalculo da app-api o transforma em provento do usuario.
  */
 class PositionRefreshIT extends FuncionalBase {

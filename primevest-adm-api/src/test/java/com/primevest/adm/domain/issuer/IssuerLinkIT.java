@@ -36,7 +36,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
 /**
- * F3 do PLANO_EMPRESAS_BALANCOS.md: ligacao ativo -> emissor com os recortes
+ * F3 do docs/planos/PLANO_EMPRESAS_BALANCOS.md: ligacao ativo -> emissor com os recortes
  * reais da CVM (Petrobras, Itau, Klabin, Taesa; HGLG11 e PABY11).
  */
 class IssuerLinkIT extends IntegrationTestBase {

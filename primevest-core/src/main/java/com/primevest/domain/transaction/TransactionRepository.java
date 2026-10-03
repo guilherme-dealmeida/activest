@@ -85,7 +85,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     /** Data da transacao mais antiga do ativo, de qualquer carteira. Nula = nenhuma. */
     /**
      * Lancamentos MANUAIS do usuario que podem ser a mesma operacao de uma
-     * importada (PLANO_CRIPTO_BINANCE.md, 6.6): mesmos ativos, no intervalo de
+     * importada (docs/planos/PLANO_CRIPTO_BINANCE.md, 6.6): mesmos ativos, no intervalo de
      * datas do lote. A comparacao fina (tipo, data, quantidade) e do pipeline.
      */
     @Query("""

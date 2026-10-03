@@ -21,7 +21,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Emissor para a tela (PLANO_EMPRESAS_BALANCOS.md, 5.4 — F9): cadastro, tickers ligados,
+ * Emissor para a tela (docs/planos/PLANO_EMPRESAS_BALANCOS.md, 5.4 — F9): cadastro, tickers ligados,
  * serie trimestral (companhia) e informe mensal (FII). So leitura do catalogo.
  */
 @RestController

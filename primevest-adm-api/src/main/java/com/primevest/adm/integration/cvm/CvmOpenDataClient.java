@@ -16,7 +16,7 @@ import java.util.Optional;
 
 /**
  * Arquivos dos dados abertos da CVM ({@code dados.cvm.gov.br}), com cache em
- * disco em {@code data/cvm} (PLANO_EMPRESAS_BALANCOS.md, secao 2).
+ * disco em {@code carga/data/cvm} (docs/planos/PLANO_EMPRESAS_BALANCOS.md, secao 2).
  *
  * <p><b>O arquivo e o estado</b> ({@link PublicFileCache}). Ano fechado em
  * disco: usa o local, sem rede. Ano corrente ou anterior (a CVM ainda recebe
@@ -37,7 +37,7 @@ public class CvmOpenDataClient {
 
     @Autowired
     public CvmOpenDataClient(@Value("${cvm.base-url:https://dados.cvm.gov.br/dados}") String baseUrl,
-                             @Value("${primevest.data.dir:../data}") String dataDir,
+                             @Value("${primevest.data.dir:../carga/data}") String dataDir,
                              @Value("${cvm.timeout-seconds:120}") long timeoutSeconds) {
         this(baseUrl, Path.of(dataDir, "cvm"), Duration.ofSeconds(timeoutSeconds), Clock.system(ZONE));
     }
@@ -49,7 +49,7 @@ public class CvmOpenDataClient {
         this.files = new PublicFileCache(timeout);
     }
 
-    /** Pasta do cache ({@code data/cvm}). */
+    /** Pasta do cache ({@code carga/data/cvm}). */
     public Path dir() {
         return dir;
     }
@@ -65,7 +65,7 @@ public class CvmOpenDataClient {
     }
 
     /**
-     * PDF de um documento do RAD (link do indice IPE), em {@code data/cvm/proventos/{protocolo}_{versao}.pdf}.
+     * PDF de um documento do RAD (link do indice IPE), em {@code carga/data/cvm/proventos/{protocolo}_{versao}.pdf}.
      * Documento entregue nao muda (reapresentacao e outra versao): com o arquivo em disco, nao vai a
      * rede. Vazio quando o RAD responde 404.
      */

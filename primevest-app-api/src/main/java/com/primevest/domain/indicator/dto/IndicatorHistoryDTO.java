@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * Historico de um indicador de um ticker (PLANO_EMPRESAS_BALANCOS.md, 5.3): o Atual, a
+ * Historico de um indicador de um ticker (docs/planos/PLANO_EMPRESAS_BALANCOS.md, 5.3): o Atual, a
  * media da empresa (pontos anuais + Atual; nulos fora, zeros dentro) e os pontos do periodo
  * pedido, do mais antigo ao mais recente.
  */

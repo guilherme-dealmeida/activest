@@ -19,7 +19,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * "Relatorio Proventos" da CVM (PLANO_CARGA_INICIAL.md, 5.2 — P3): o formulario que a companhia
+ * "Relatorio Proventos" da CVM (docs/planos/PLANO_CARGA_INICIAL.md, 5.2 — P3): o formulario que a companhia
  * entrega no Empresas.NET a cada provento, publicado no RAD como PDF e listado no indice IPE dos
  * dados abertos (categoria "Relatorio Proventos", de 2022 em diante).
  *

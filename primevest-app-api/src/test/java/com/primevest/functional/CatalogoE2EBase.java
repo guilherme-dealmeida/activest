@@ -17,7 +17,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 
 /**
- * Testes de ponta a ponta do catalogo para a carteira (PLANO_ADM_API.md, 10.4): fonte
+ * Testes de ponta a ponta do catalogo para a carteira (docs/planos/PLANO_ADM_API.md, 10.4): fonte
  * mockada (B3, FNET, BRAPI, CoinGecko) → rotina da adm-api grava o catalogo → "catalogo
  * mudou" → a carteira recalcula → a API do usuario mostra.
  *
@@ -39,8 +39,8 @@ public abstract class CatalogoE2EBase extends FuncionalBase {
     static class Catalogo {
 
         /**
-         * Os 12 meses da B3 sem disco (PLANO_CARGA_INICIAL.md, P1): cada teste ve so a resposta
-         * mockada, sem o acumulado de outro teste nem a data/ real do projeto.
+         * Os 12 meses da B3 sem disco (docs/planos/PLANO_CARGA_INICIAL.md, P1): cada teste ve so a resposta
+         * mockada, sem o acumulado de outro teste nem a carga/data/ real do projeto.
          */
         @Bean
         B3SupplementStore b3SupplementStoreSemDisco(com.fasterxml.jackson.databind.ObjectMapper objectMapper) {

@@ -17,7 +17,7 @@ import java.util.TreeMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Regras da cotacao historica (PLANO_TELA_EMISSORES.md, 2.3, B5, D9). */
+/** Regras da cotacao historica (docs/planos/PLANO_TELA_EMISSORES.md, 2.3, B5, D9). */
 class PriceSeriesTest {
 
     private static NavigableMap<LocalDate, BigDecimal> closes(Object... pairs) {

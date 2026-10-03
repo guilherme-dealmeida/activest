@@ -31,7 +31,7 @@ const DECISOES: { value: DuplicateDecision; label: string }[] = [
 ];
 
 /**
- * Pré-visualização e resultado de uma sincronização (PLANO_CRIPTO_BINANCE.md,
+ * Pré-visualização e resultado de uma sincronização (docs/planos/PLANO_CRIPTO_BINANCE.md,
  * F6). Página própria: a primeira importação de outro usuário pode ter
  * centenas de linhas.
  */

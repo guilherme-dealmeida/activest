@@ -249,7 +249,7 @@ Playwright são escopo futuro.
    `ProventosIrIT` (F1–F15) e ajuste dos testes funcionais atuais.
 6. Tela de Dividendos; conferir Carteira e Dashboard.
 7. Validação: compilar, todos os testes, compose, e V1–V5 na tela batendo com o extrato.
-8. Atualizar `Claude.md` (proventos têm bruto e líquido) e `PENDENCIAS.txt` (§ 8).
+8. Atualizar `Claude.md` (proventos têm bruto e líquido) e `docs/PENDENCIAS.md` (§ 8).
 
 ---
 
@@ -268,7 +268,7 @@ Playwright são escopo futuro.
 
 ---
 
-## 8. Fora do escopo (vai para o `PENDENCIAS.txt`)
+## 8. Fora do escopo (vai para o `docs/PENDENCIAS.md`)
 
 - **Rendimentos de atualização pela Selic que não chegam pela integração** (ex.: PETR4 em 20/02 e
   20/03/2026). Só existem no extrato do investidor (§ 9).

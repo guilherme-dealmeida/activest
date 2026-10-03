@@ -28,7 +28,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 /**
- * IR retido na fonte sobre proventos, de ponta a ponta (PLANO_IR_PROVENTOS.md,
+ * IR retido na fonte sobre proventos, de ponta a ponta (docs/planos/PLANO_IR_PROVENTOS.md,
  * 5.2): uma regra por teste.
  *
  * <p>A B3 responde com os arquivos reais gravados em 24/09/2026 —

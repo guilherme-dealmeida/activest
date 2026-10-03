@@ -16,7 +16,7 @@ import java.time.format.DateTimeFormatter;
  * Grava um evento de provento no catalogo ({@link AssetCashEvent}), ou completa o que ja
  * existe — a mesma noticia vinda de outra fonte (V22). So a rotina de proventos da adm-api
  * (B3, historico, FNET) grava aqui: evento do catalogo vem de integracao, nunca de importacao
- * (PLANO_CARGA_INICIAL.md, regra C — o extrato da B3 nao grava mais no catalogo).
+ * (docs/planos/PLANO_CARGA_INICIAL.md, regra C — o extrato da B3 nao grava mais no catalogo).
  *
  * <p>Precedencia na mesma noticia: a data de pagamento que veio de outra fonte
  * ({@link PaymentDateSource}, ex.: relatorio de proventos da CVM) cede a data da propria fonte do

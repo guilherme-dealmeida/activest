@@ -26,9 +26,9 @@ const TYPE_GROUP_LABELS: Record<DividendType, string> = {
 const TYPE_ORDER = Object.values(DividendType);
 
 // Proventos de ação vindos só do histórico longo da B3 não têm data de
-// pagamento: a fonte não traz o campo (PENDENCIAS.txt, 3.4).
+// pagamento: a fonte não traz o campo (docs/PENDENCIAS.md, 3.4).
 // A partir de 2022 a data vem do relatório de proventos que a empresa entrega à CVM
-// (PLANO_CARGA_INICIAL.md, 5.2); o que ainda falta, do levantamento 2010–2026 (seção 11).
+// (docs/planos/PLANO_CARGA_INICIAL.md, 5.2); o que ainda falta, do levantamento 2010–2026 (seção 11).
 /** Hover da data de pagamento que não veio da própria fonte do evento (V38, V39). */
 const PAYMENT_DATE_SOURCE_HINT: Record<string, string> = {
   CVM: 'Data do relatório de proventos que a empresa entregou à CVM.',
@@ -87,7 +87,7 @@ export const DividendsPage = () => {
     queryFn: dividendsApi.getSummary
   });
 
-  // TOTAL = líquido (PLANO_IR_PROVENTOS.md); sem regra de IR, o bruto.
+  // TOTAL = líquido (docs/planos/PLANO_IR_PROVENTOS.md); sem regra de IR, o bruto.
   const allRows = useMemo<DividendRow[]>(
     () => (summary?.recent ?? []).map(r => ({ ...r, total: r.netAmount ?? r.totalAmount })),
     [summary]

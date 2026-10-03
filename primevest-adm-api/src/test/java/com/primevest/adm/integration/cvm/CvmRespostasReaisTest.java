@@ -18,7 +18,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * O formato dos arquivos reais da CVM (PLANO_EMPRESAS_BALANCOS.md, 1.1 e 1.2).
+ * O formato dos arquivos reais da CVM (docs/planos/PLANO_EMPRESAS_BALANCOS.md, 1.1 e 1.2).
  * Se a CVM mudar coluna ou charset, o teste quebra antes de gravar dado errado.
  */
 class CvmRespostasReaisTest {

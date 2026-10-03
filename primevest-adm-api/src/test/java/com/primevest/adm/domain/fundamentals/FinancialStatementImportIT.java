@@ -26,7 +26,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 
 /**
- * F5 do PLANO_EMPRESAS_BALANCOS.md: importacao de DFP/ITR com os recortes reais
+ * F5 do docs/planos/PLANO_EMPRESAS_BALANCOS.md: importacao de DFP/ITR com os recortes reais
  * (DFP 2025 e ITR 2026 de 8 companhias, DFP 2015 de BB e Petrobras, FRE 2025 e 2015).
  */
 class FinancialStatementImportIT extends IntegrationTestBase {

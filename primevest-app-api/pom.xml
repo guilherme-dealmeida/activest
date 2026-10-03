@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <!-- API do usuario (PLANO_ADM_API.md, 3.3). Versoes, compilador e testes: pom.xml da raiz. -->
+    <!-- API do usuario (docs/planos/PLANO_ADM_API.md, 3.3). Versoes, compilador e testes: pom.xml da raiz. -->
     <parent>
         <groupId>com.primevest</groupId>
         <artifactId>primevest-parent</artifactId>
@@ -149,7 +149,7 @@
             <scope>test</scope>
         </dependency>
         <!--
-            adm-api so nos testes de ponta a ponta de proventos e fechamento (PLANO_ADM_API.md, 10.4):
+            adm-api so nos testes de ponta a ponta de proventos e fechamento (docs/planos/PLANO_ADM_API.md, 10.4):
             B3 mockada -> catalogo (codigo da adm) -> recalculo da carteira -> API do usuario. A
             varredura da app-api exclui com.primevest.adm; os testes importam o que usam.
         -->

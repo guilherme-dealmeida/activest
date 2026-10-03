@@ -11,7 +11,7 @@ import java.util.UUID;
 
 /**
  * Na subida da API, recalcula as posicoes que tem provento AUTO com o IR ainda
- * nao calculado ({@code tax_checked_at} nulo) — PLANO_IR_PROVENTOS.md, 4.5.
+ * nao calculado ({@code tax_checked_at} nulo) — docs/planos/PLANO_IR_PROVENTOS.md, 4.5.
  *
  * <p>Cobre dois casos sem passo manual:</p>
  * <ul>

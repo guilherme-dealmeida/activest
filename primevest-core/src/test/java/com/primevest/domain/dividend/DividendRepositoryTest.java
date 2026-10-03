@@ -24,7 +24,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Somas da carteira em liquido (PLANO_IR_PROVENTOS.md, D1) e so do que ja foi
+ * Somas da carteira em liquido (docs/planos/PLANO_IR_PROVENTOS.md, D1) e so do que ja foi
  * recebido; a fila do verificador de IR (4.5).
  */
 class DividendRepositoryTest extends JpaTestBase {

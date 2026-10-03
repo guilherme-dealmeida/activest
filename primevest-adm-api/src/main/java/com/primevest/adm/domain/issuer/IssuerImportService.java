@@ -37,7 +37,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * Importacao dos emissores (PLANO_EMPRESAS_BALANCOS.md, F1).
+ * Importacao dos emissores (docs/planos/PLANO_EMPRESAS_BALANCOS.md, F1).
  *
  * <ul>
  *   <li><b>Companhias</b>: cadastro da CVM + FCA dos tres ultimos anos. Entram as
@@ -50,7 +50,7 @@ import java.util.stream.Collectors;
  * </ul>
  *
  * <p>Idempotente: roda de novo e atualiza pelo CNPJ. Os arquivos da CVM ficam
- * em {@code data/cvm} (ver {@link CvmOpenDataClient}).</p>
+ * em {@code carga/data/cvm} (ver {@link CvmOpenDataClient}).</p>
  */
 @Slf4j
 @Service

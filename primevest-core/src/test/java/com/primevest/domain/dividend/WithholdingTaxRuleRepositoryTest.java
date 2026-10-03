@@ -13,7 +13,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Regras de IR no banco (V23, PLANO_IR_PROVENTOS.md, 4.1). Protege toda
+ * Regras de IR no banco (V23, docs/planos/PLANO_IR_PROVENTOS.md, 4.1). Protege toda
  * migration futura de lei: nenhuma vigencia pode se sobrepor a outra.
  */
 class WithholdingTaxRuleRepositoryTest extends JpaTestBase {
