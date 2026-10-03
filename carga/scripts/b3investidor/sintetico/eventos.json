@@ -1,0 +1,13 @@
+[
+  {
+    "tickerSymbol": "PETR4",
+    "corporationName": "PETROLEO BRASILEIRO S.A. PETROBRAS",
+    "specificationCode": "PN",
+    "corporateActionTypeDescription": "JUROS SOBRE CAPITAL PRÓPRIO",
+    "PaymentDate": "2026-12-20",
+    "participantName": "CORRETORA FICTICIA S.A.",
+    "eventQuantity": 60,
+    "eventValue": 0.4,
+    "netValue": 19.8
+  }
+]

@@ -496,16 +496,19 @@ export interface PriceHistory {
 }
 
 // ---------------------------------------------------------------------------
-// Integrações com corretoras (docs/planos/PLANO_CRIPTO_BINANCE.md, F6)
+// Integrações com corretoras (docs/planos/PLANO_CRIPTO_BINANCE.md, F6; B3: docs/planos/PLANO_INTEGRACAO_B3.md, F6)
 // ---------------------------------------------------------------------------
 
-export type IntegrationProvider = 'BINANCE';
-export type ConnectionStatus = 'ACTIVE' | 'INVALID_CREDENTIALS' | 'PERMISSION_TOO_BROAD' | 'REVOKED';
+export type IntegrationProvider = 'BINANCE' | 'B3';
+export type ConnectionStatus = 'ACTIVE' | 'PENDING_AUTHORIZATION' | 'INVALID_CREDENTIALS' | 'PERMISSION_TOO_BROAD'
+  | 'REVOKED';
 export type RunStatus = 'QUEUED' | 'RUNNING' | 'AWAITING_CONFIRMATION' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED';
 export type RunTrigger = 'MANUAL' | 'SCHEDULED' | 'CONNECTION';
 export type PreviewOutcome = 'NEW' | 'EXISTING' | 'EXCLUDED' | 'UNMAPPED' | 'POSSIBLE_DUPLICATE';
 export type RunItemResolution = 'IMPORTED' | 'REPLACED' | 'KEPT_BOTH' | 'SKIPPED';
-export type MovementKind = 'TRADE' | 'CONVERT' | 'FIAT_DEPOSIT' | 'CRYPTO_DEPOSIT' | 'CRYPTO_WITHDRAW' | 'REWARD';
+export type MovementKind = 'TRADE' | 'CONVERT' | 'FIAT_DEPOSIT' | 'CRYPTO_DEPOSIT' | 'CRYPTO_WITHDRAW' | 'REWARD'
+  | 'EQUITY_TRADE' | 'SETTLEMENT' | 'STOCK_EVENT' | 'CASH_EVENT' | 'RIGHTS' | 'CUSTODY_TRANSFER' | 'LENDING'
+  | 'FIXED_INCOME' | 'OTHER';
 export type DuplicateDecision = 'REPLACE' | 'KEEP_BOTH' | 'SKIP';
 
 export interface IntegrationConnection {
@@ -513,7 +516,7 @@ export interface IntegrationConnection {
   provider: IntegrationProvider;
   label: string;
   status: ConnectionStatus;
-  /** Os 4 últimos caracteres da chave; o segredo nunca volta da API. */
+  /** Os 4 últimos caracteres da chave (B3: os 2 últimos dígitos do CPF); o segredo nunca volta da API. */
   fingerprint: string | null;
   validatedAt: string | null;
   lastSyncAt: string | null;
@@ -523,13 +526,25 @@ export interface IntegrationConnection {
   lastRunStatus: RunStatus | null;
   /** Ativos que divergem da corretora na última sincronização concluída. */
   divergenceCount: number;
+  /** Onde autorizar o PrimeVest na fonte, enquanto aguarda (B3: link de opt-in). */
+  authorizationUrl: string | null;
+}
+
+/** Uma fonte ligada no servidor e o que ela pede para conectar. */
+export interface IntegrationSource {
+  provider: IntegrationProvider;
+  /** API_KEY (chave e segredo, Binance) ou DOCUMENT (CPF, B3). */
+  credential: 'API_KEY' | 'DOCUMENT';
+  /** A fonte aceita uma consulta por dia (B3). */
+  oncePerDay: boolean;
 }
 
 export interface ConnectionCreate {
   provider: IntegrationProvider;
   label: string;
-  apiKey: string;
-  apiSecret: string;
+  apiKey?: string;
+  apiSecret?: string;
+  documentNumber?: string;
   consentAccepted: boolean;
 }
 

@@ -554,8 +554,8 @@ bonificacao que pega alguma posicao.
 
 ## 14. ROTINAS EXTERNAS — achados da carga do extrato B3 (24/09/2026)
 
-Os dois apareceram na carga de 88 transacoes pela API (scripts fora do repo,
-em E:\carga). Nenhum foi corrigido.
+Os dois apareceram na carga de 88 transacoes pela API (feita por scripts
+avulsos, fora do repositorio). Nenhum foi corrigido.
 
 **14.1** Rotinas travando: proventos sob demanda prendem as threads da API
 Cada transacao dispara uma busca de proventos em paralelo, e essas
@@ -639,7 +639,41 @@ Quando tratar: depois da primeira versao estavel, ou quando aparecer um usuario
 (ou conta) que opere fora de BRL. O ponto comum dos tres primeiros itens e um
 servico de "valor em reais no instante T" — resolver uma vez, servir a todos.
 
-## 16. IMPORTACAO DE EXTRATO DA B3 PELO PRIMEVEST (saiu do docs/planos/PLANO_CRIPTO_BINANCE.md, 25/09/2026)
+## 16. INTEGRACAO COM A B3 (docs/planos/PLANO_INTEGRACAO_B3.md; antes "importacao de extrato da B3", 25/09/2026)
+
+**Situacao em 03/10/2026:** F1 a F8 do PLANO_INTEGRACAO_B3 executadas. A integracao
+e pela API da Area do Investidor (nao por arquivo): modulo primevest-integration,
+conector da B3 com as regras B1-B10, testado contra o simulador com os extratos
+reais (pilha primevest-teste). O que falta para a B3 de verdade e o que ficou de fora:
+
+**16.4** Contrato com a B3 (Pacote de Acesso: client_id, segredo, certificado .p12,
+ link de opt-in) e conferir os contratos inferidos — Negociacao v2, Eventos
+ Provisionados v2 e Autorizacao (plano, 6.3): muda configuracao (b3i.paths.*)
+ e o mapeamento de campos, nao a arquitetura. Com o certificado, montar o .p12
+ no conteiner da app-api (volume) e apontar B3I_CERT_P12_PATH.
+
+**16.5** Venda de Tesouro Direto pela B3: nao importada. O PrimeVest reparte a
+ venda entre os titulos (FIFO) e refaz essas linhas a cada realocacao, sem
+ lugar para a origem da fonte. Hoje aparece em "nao importadas" com o motivo e
+ e lancada pela tela. Resolver = o alocador do Tesouro carregar a origem.
+
+**16.6** Renda fixa privada (CDB...) pela B3: nao importada. A Movimentacao nao
+ traz taxa, indice nem o valor de resgate (o vencimento vem com valor zero).
+ Depende da Posicao de renda fixa (plano, F7).
+
+**16.7** Reconectar depois de desconectar (ou de revogar na B3) reimporta tudo
+ como novo: o external_id e unico por conexao, e a deteccao de duplicata so
+ olha lancamento MANUAL. Vale tambem para a Binance. Resolver = a conexao nova
+ enxergar as importadas da conexao encerrada da mesma fonte e do mesmo usuario.
+
+**16.8** Posicao da B3 nao exportada: a divergencia (6.7, conferencia C6) fica
+ desligada no simulador. Exportar Extratos > Posicao para carga/mocks/ liga.
+
+**16.9** Antes do multiusuario: CPF de outra pessoa (armadilha A1). O PrimeVest
+ ja recusa CPF repetido entre conexoes vivas; falta confirmar com a B3 se o
+ link de opt-in aceita um identificador de retorno.
+
+Historico (25/09/2026):
 
 Era a F7 do plano de cripto: um conector de arquivo, com o extrato da B3 como
 primeiro layout, para provar que o pipeline de importacao e generico. Saiu de
@@ -648,10 +682,8 @@ cripto — exigem ativo do tipo CRIPTO, cotacao em reais e taxa no proprio ativo
 
 Vira escopo proprio, a planejar:
 
-**16.1** Importacao pelo PrimeVest, para qualquer usuario, do extrato de
- negociacao/movimentacao que o investidor baixa da Area do Investidor.
- Hoje isso existe so fora do projeto (E:\carga\scripts\converter.mjs e
- carregar.mjs), para o usuario Guilherme.
+**16.1** FEITO em 03/10/2026 pela API, nao por arquivo: docs/planos/PLANO_INTEGRACAO_B3.md
+ (a carga de 24/09/2026 foi feita por scripts avulsos, ja descartados).
 
 **16.2** Regras proprias por tipo: acoes/FIIs/ETFs/BDRs (por cota), Tesouro
  (titulo por compra, venda FIFO), renda fixa (nota com emissor, taxa e

@@ -1,0 +1,82 @@
+[
+  {
+    "referenceDate": "2025-03-12",
+    "operationType": "Credito",
+    "movementType": "Transferência - Liquidação",
+    "product": "PETR4 - PETROLEO BRASILEIRO S.A. PETROBRAS",
+    "participantName": "CORRETORA FICTICIA S.A.",
+    "quantity": 110,
+    "unitPrice": 38.5018,
+    "operationValue": 4235.2
+  },
+  {
+    "referenceDate": "2025-04-04",
+    "operationType": "Credito",
+    "movementType": "Transferência - Liquidação",
+    "product": "HGLG11 - FUNDO FICTICIO DE INVESTIMENTO IMOBILIARIO",
+    "participantName": "CORRETORA FICTICIA S.A.",
+    "quantity": 10,
+    "unitPrice": 160.0,
+    "operationValue": 1600.0
+  },
+  {
+    "referenceDate": "2025-05-19",
+    "operationType": "Debito",
+    "movementType": "Transferência - Liquidação",
+    "product": "PETR4 - PETROLEO BRASILEIRO S.A. PETROBRAS",
+    "participantName": "CORRETORA FICTICIA S.A.",
+    "quantity": 50,
+    "unitPrice": 40.0,
+    "operationValue": 2000.0
+  },
+  {
+    "referenceDate": "2025-05-14",
+    "operationType": "Credito",
+    "movementType": "Rendimento",
+    "product": "HGLG11 - FUNDO FICTICIO DE INVESTIMENTO IMOBILIARIO",
+    "participantName": "CORRETORA FICTICIA S.A.",
+    "quantity": 10,
+    "unitPrice": 1.1,
+    "operationValue": 11.0
+  },
+  {
+    "referenceDate": "2025-05-20",
+    "operationType": "Credito",
+    "movementType": "Juros Sobre Capital Próprio",
+    "product": "PETR4 - PETROLEO BRASILEIRO S.A. PETROBRAS",
+    "participantName": "CORRETORA FICTICIA S.A.",
+    "quantity": 110,
+    "unitPrice": 0.5,
+    "operationValue": 46.75
+  },
+  {
+    "referenceDate": "2025-06-02",
+    "operationType": "Credito",
+    "movementType": "Direito de Subscrição",
+    "product": "HGLG12 - FUNDO FICTICIO DE INVESTIMENTO IMOBILIARIO",
+    "participantName": "CORRETORA FICTICIA S.A.",
+    "quantity": 2,
+    "unitPrice": null,
+    "operationValue": null
+  },
+  {
+    "referenceDate": "2025-06-30",
+    "operationType": "Debito",
+    "movementType": "Direitos de Subscrição - Não Exercido",
+    "product": "HGLG12 - FUNDO FICTICIO DE INVESTIMENTO IMOBILIARIO",
+    "participantName": "CORRETORA FICTICIA S.A.",
+    "quantity": 2,
+    "unitPrice": null,
+    "operationValue": null
+  },
+  {
+    "referenceDate": "2025-07-01",
+    "operationType": "Credito",
+    "movementType": "Compra",
+    "product": "Tesouro Selic 2029",
+    "participantName": "CORRETORA FICTICIA S.A.",
+    "quantity": 0.1,
+    "unitPrice": 16000.0,
+    "operationValue": 1600.0
+  }
+]

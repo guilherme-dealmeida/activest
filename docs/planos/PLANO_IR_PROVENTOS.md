@@ -295,7 +295,7 @@ Playwright são escopo futuro.
 
 O único dado com o líquido é o do investidor. Duas saídas, que **não substituem** o cálculo deste plano:
 - **Importar o extrato de Movimentação** exportado da Área do Investidor (Excel), para conferência
-  automática e para trazer os rendimentos que faltam — escopo futuro, no espírito da carga em `E:\carga`.
+  automática e para trazer os rendimentos que faltam — escopo futuro, hoje em `docs/planos/PLANO_INTEGRACAO_B3.md`.
 - O cálculo continua necessário para os proventos **a receber**, que ainda não estão no extrato.
 
 ---

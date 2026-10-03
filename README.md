@@ -10,6 +10,7 @@ Sistema completo de gestão de carteira de investimentos da B3, com acompanhamen
 primevest/
 ├── pom.xml              # Backend: agregador Maven (Java 21 + Spring Boot 3.3)
 ├── primevest-core/      # Backend: modelo, regras compartilhadas, migrations
+├── primevest-integration/  # Backend: integrações (Binance, B3 Área do Investidor): conectores, credenciais, importação
 ├── primevest-adm-api/   # Backend: rotinas de administrador — catálogo (porta 8081)
 ├── primevest-app-api/   # Backend: API do usuário, a carteira (porta 8080)
 └── primevest-web/       # Frontend - React + TypeScript + Tailwind
@@ -53,6 +54,9 @@ primevest/
 - ✅ Acompanhamento de proventos (dividendos, JCP, rendimentos)
 - ✅ Atualização automática de cotações (BrAPI + CoinGecko)
 - ✅ Metas de investimento
+- ✅ Integrações: Binance (chave só de leitura) e B3 — Área do Investidor (CPF + autorização na B3): as negociações
+  entram depois de você conferir; proventos e eventos da B3 são conferidos com a carteira. A B3 real depende de contrato
+  (Pacote de Acesso); até lá, um simulador com os seus extratos (`docs/planos/PLANO_INTEGRACAO_B3.md`)
 
 ### Autenticação
 - ✅ Login via Google OAuth2
@@ -173,6 +177,14 @@ pvt --profile carga run --rm tools node carga/scripts/admin.mjs bootstrap
 Frontend em http://localhost:5174, APIs em 8082 e 8083, PostgreSQL em localhost:5434, Redis em 6380.
 Detalhes em `Claude.md` e `docs/planos/PLANO_PRIMEVEST_TESTE.md`.
 
+A integração com a B3 se testa aqui, contra o simulador da Área do Investidor (extratos em `carga/mocks/`, fora do git;
+`B3I_*` no `.env.teste`):
+
+```powershell
+pvt --profile b3mock up -d --build
+node carga/scripts/b3investidor/conferir.mjs --api http://localhost:8082 --mock http://localhost:8190 --gabarito http://localhost:8080
+```
+
 ## 🔌 APIs Externas
 
 | API | Uso | Docs |
@@ -180,6 +192,8 @@ Detalhes em `Claude.md` e `docs/planos/PLANO_PRIMEVEST_TESTE.md`.
 | **BrAPI** | Cotações B3 (Ações, FIIs, ETFs) | [brapi.dev](https://brapi.dev) |
 | **CoinGecko** | Cotações Crypto | [coingecko.com](https://www.coingecko.com/en/api) |
 | **Google OAuth** | Autenticação | [console.cloud.google.com](https://console.cloud.google.com) |
+| **Binance** | Operações de cripto do usuário (chave só de leitura) | [binance-docs.github.io](https://binance-docs.github.io/apidocs/spot/en/) |
+| **B3 — Área do Investidor** | Negociações, movimentações, posição e proventos do investidor (OAuth2 + mTLS; depende de contrato) | [developers.b3.com.br](https://developers.b3.com.br/apis/api-area-do-investidor) |
 
 ## 📊 Tipos de Ativos Suportados
 

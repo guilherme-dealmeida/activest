@@ -276,7 +276,7 @@ Regras da carga:
   completa o que faltou. Uma carga por vez.
 - **Ordem importa**: COTAHIST antes dos proventos (traz o ISIN que casa a B3); proventos antes dos balanços (a
   escala das ações usa os grupamentos/desdobramentos gravados).
-- Dados reais do usuário (extrato da B3, em `E:\carga`) **não** fazem parte da carga inicial.
+- Dados reais do usuário (extratos da B3, em `carga/mocks/`, fora do git) **não** fazem parte da carga inicial.
 
 ---
 

@@ -105,8 +105,8 @@ raiz).
 referência no bucket R2) e `carga/scripts` (scripts de carga e manutenção). Nada carregado num ambiente novo depende de
 pasta fora do projeto.
 
-**6.3** Os dados reais do Guilherme (ex.: extrato da B3 da carteira dele) ficam **fora** do projeto, em `E:\carga`.
-Nada é apagado em `E:\carga` sem ordem.
+**6.3** Os dados reais do Guilherme (ex.: extratos da B3 da carteira dele) ficam em `carga/mocks/`, dentro do projeto e
+**fora do git** (`.gitignore`). Nada é apagado em `carga/mocks/` sem ordem. Revisado em 03/10/2026.
 
 **6.4** Arquivo sem uso é apagado, não arquivado (nada de pastas `_old` ou backups esquecidos dentro do repositório).
 

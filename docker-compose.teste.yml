@@ -22,6 +22,9 @@ services:
     environment:
       # Rotinas agendadas desligadas (D3): nada roda sozinho no teste.
       PRIMEVEST_SCHEDULING_ENABLED: "false"
+      # Mas o worker da fila de integrações liga: ele só processa a sincronização que o usuário pediu
+      # (docs/planos/PLANO_INTEGRACAO_B3.md, F5).
+      PRIMEVEST_INTEGRATIONS_WORKER_ENABLED: "true"
     volumes:
       - ./carga/data-teste/logos:/app/data/logos:ro
 
@@ -36,6 +39,9 @@ services:
 
   web:
     container_name: primevest-teste-web
+
+  b3-investidor-mock:
+    container_name: primevest-teste-b3-investidor-mock
 
   data:
     volumes:

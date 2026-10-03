@@ -97,6 +97,37 @@ binance:
   # chamada espera o minuto virar — o orcamento e compartilhado por todos os usuarios.
   weight-threshold: 4800
 
+# Area do Investidor da B3 (docs/planos/PLANO_INTEGRACAO_B3.md, 6.13). Credenciais do PrimeVest
+# (Pacote de Acesso) e certificado vem do .env; o CPF de cada investidor fica cifrado em
+# integration_credentials. Sem B3I_ENABLED=true a B3 nao aparece entre as fontes.
+# Sem contrato com a B3, aponta para o simulador (servico b3-investidor-mock).
+b3i:
+  enabled: ${B3I_ENABLED:false}
+  base-url: ${B3I_BASE_URL:}
+  token-url: ${B3I_TOKEN_URL:}
+  client-id: ${B3I_CLIENT_ID:}
+  client-secret: ${B3I_CLIENT_SECRET:}
+  scope: ${B3I_SCOPE:}
+  cert-p12-path: ${B3I_CERT_P12_PATH:}
+  cert-p12-password: ${B3I_CERT_P12_PASSWORD:}
+  optin-url: ${B3I_OPTIN_URL:}
+  timeout-seconds: 30
+  # A5: historico da B3 desde 01/11/2019; a primeira busca pede desde aqui.
+  history-start: "2019-11-01"
+  # A6: uma consulta por CPF por dia; D-1 publicado a partir das 8h de Brasilia.
+  once-per-day: ${B3I_ONCE_PER_DAY:true}
+  available-after: "08:00"
+  # A7: o token vale 1 h; renova 5 min antes.
+  token-renew-seconds: 300
+  # 6.3: Negociacao v2, Eventos v2 e Autorizacao sao inferidas — confirmar o contrato muda aqui.
+  # Rota de conferencia (position, provisioned-events) em branco = nao consultada.
+  paths:
+    authorization: /api/authorization/v1/investors/{documentNumber}
+    asset-trading: /api/asset-trading/v2/investors/{documentNumber}
+    movement: /api/movement/v2/{product}/investors/{documentNumber}
+    position: /api/position/v3/{product}/investors/{documentNumber}
+    provisioned-events: /api/provisioned-events/v2/investors/{documentNumber}
+
 # Rotinas (fuso America/Sao_Paulo). Cron do Spring: segundo minuto hora dia mes dia-da-semana.
 primevest:
   # Proventos sob demanda: a transacao pede o historico do ativo a adm-api (Redis).
@@ -118,8 +149,9 @@ primevest:
       previous-keys: ${PRIMEVEST_CREDENTIALS_PREVIOUS_KEYS:}
     # Sincronizacao em segundo plano (F5). O worker pega uma execucao da fila a
     # cada worker-delay-ms; a rotina diaria enfileira todas as conexoes ativas.
+    # 08:45: depois das 8h, quando a B3 ja publicou o dia anterior (PLANO_INTEGRACAO_B3, A6).
     worker-delay-ms: 5000
-    sync-cron: "0 30 6 * * *"
+    sync-cron: "0 45 8 * * *"
     # Execucao RUNNING ha mais tempo que isto e tida como perdida (API caiu no meio).
     stale-minutes: 30
     # Rotina diaria confirma sozinha quando nao ha nada a decidir (nenhuma

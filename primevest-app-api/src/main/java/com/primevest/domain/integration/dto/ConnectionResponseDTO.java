@@ -24,5 +24,10 @@ public record ConnectionResponseDTO(
     UUID lastRunId,
     com.primevest.domain.integration.RunStatus lastRunStatus,
     /** Ativos que divergem da corretora na ultima sincronizacao concluida (E3). */
-    int divergenceCount
+    int divergenceCount,
+    /**
+     * Onde o investidor autoriza o PrimeVest na fonte, enquanto a conexao aguarda
+     * (PENDING_AUTHORIZATION; B3: link de opt-in). Nulo nos demais casos.
+     */
+    String authorizationUrl
 ) {}
