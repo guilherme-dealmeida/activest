@@ -1,6 +1,6 @@
 import { apiClient } from './client';
 import {
-  ConnectionCreate, CryptoExclusion, DuplicateDecision, ImportRun, IntegrationConnection, RunSummary,
+  ConnectionCreate, CryptoExclusion, DuplicateDecision, ImportRun, IntegrationConnection, IntegrationSource, RunSummary,
   TransactionResponse
 } from '../types';
 
@@ -13,6 +13,8 @@ const BASE = '/integrations/connections';
  * resposta os devolve — da chave volta só o fingerprint (4 últimos caracteres).
  */
 export const integrationsApi = {
+  /** As fontes ligadas no servidor (a B3 só aparece com B3I_ENABLED). */
+  sources: async () => (await apiClient.get<IntegrationSource[]>('/integrations/sources')).data,
   list: async () => (await apiClient.get<IntegrationConnection[]>(BASE)).data,
   connect: async (body: ConnectionCreate) => (await apiClient.post<IntegrationConnection>(BASE, body)).data,
   disconnect: async (id: string) => { await apiClient.delete(`${BASE}/${id}`); },

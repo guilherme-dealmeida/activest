@@ -12,6 +12,7 @@ FROM maven:3.9-eclipse-temurin-21 AS deps
 WORKDIR /app
 COPY pom.xml .
 COPY primevest-core/pom.xml primevest-core/
+COPY primevest-integration/pom.xml primevest-integration/
 COPY primevest-adm-api/pom.xml primevest-adm-api/
 COPY primevest-app-api/pom.xml primevest-app-api/
 RUN mvn -B dependency:go-offline
@@ -42,6 +43,7 @@ FROM deps AS build
 ARG MODULE=primevest-app-api
 WORKDIR /app
 COPY primevest-core/src primevest-core/src
+COPY primevest-integration/src primevest-integration/src
 COPY primevest-adm-api/src primevest-adm-api/src
 COPY primevest-app-api/src primevest-app-api/src
 RUN mvn -B -pl ${MODULE} -am clean package -DskipTests

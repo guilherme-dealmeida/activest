@@ -51,6 +51,20 @@ class IntegracoesIT extends FuncionalBase {
         return r.getBody();
     }
 
+    @Test
+    @DisplayName("Sem b3i.enabled a B3 nao aparece entre as fontes nem conecta")
+    @SuppressWarnings("unchecked")
+    void b3Desligada() {
+        List<Map<String, Object>> fontes = get(ana, "/api/v1/integrations/sources", List.class).getBody();
+        assertThat(fontes).extracting(f -> f.get("provider")).containsExactly("BINANCE");
+        Map<String, Object> corpo = new HashMap<>();
+        corpo.put("provider", "B3");
+        corpo.put("label", "B3");
+        corpo.put("documentNumber", "52998224725");
+        corpo.put("consentAccepted", true);
+        assertThat(post(ana, BASE, corpo, String.class).getBody()).contains("não suportada");
+    }
+
     private Map<String, Object> preview(User user, Object id) {
         Map<String, Object> run = sincronizar(user, id);
         assertThat(run.get("status")).isEqualTo("AWAITING_CONFIRMATION");

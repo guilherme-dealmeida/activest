@@ -4,6 +4,8 @@
 
       primevest-core     modelo JPA, repositorios, regras de posicao e proventos, migrations,
                          validacao do JWT e tratamento de erro — biblioteca, sem main
+      primevest-integration  integracoes com corretoras: contrato da fonte, credenciais, pipeline e
+                         conectores (docs/planos/PLANO_INTEGRACAO_B3.md) — biblioteca, sem main
       primevest-adm-api  rotinas de administrador: catalogo (porta 8081)
       primevest-app-api  a API do usuario, a carteira (porta 8080)
 
@@ -31,6 +33,7 @@
 
     <modules>
         <module>primevest-core</module>
+        <module>primevest-integration</module>
         <module>primevest-adm-api</module>
         <module>primevest-app-api</module>
     </modules>
@@ -64,6 +67,17 @@
             <dependency>
                 <groupId>com.primevest</groupId>
                 <artifactId>primevest-core</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+            <dependency>
+                <groupId>com.primevest</groupId>
+                <artifactId>primevest-integration</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.primevest</groupId>
+                <artifactId>primevest-integration</artifactId>
                 <version>${project.version}</version>
                 <type>test-jar</type>
             </dependency>

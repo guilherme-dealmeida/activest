@@ -2,7 +2,8 @@ package com.primevest.domain.transaction;
 
 import com.primevest.domain.integration.IntegrationCryptoExclusion;
 import com.primevest.domain.integration.IntegrationCryptoExclusionRepository;
-import com.primevest.domain.integration.pipeline.CryptoImportRules;
+import com.primevest.domain.integration.pipeline.ImportRules;
+import com.primevest.domain.integration.pipeline.ImportRulesRegistry;
 import com.primevest.domain.integration.pipeline.ProposedTransaction;
 import com.primevest.domain.integration.source.MovementJson;
 import com.primevest.domain.asset.Asset;
@@ -93,6 +94,7 @@ public class TransactionService {
     private final IntegrationCryptoExclusionRepository cryptoExclusionRepository;
     /** Movimento importado em JSON, para o "restaurar" (regra E4). */
     private final MovementJson movementJson;
+    private final ImportRulesRegistry importRules;
 
     /**
      * Gets user transactions.
@@ -129,14 +131,26 @@ public class TransactionService {
     /**
      * Grava uma operacao importada de uma integracao (docs/planos/PLANO_CRIPTO_BINANCE.md,
      * F4) pelas MESMAS regras do lancamento manual (P6): catalogo, regra A,
-     * reavaliacao da posicao, proventos e valorizacao. So cripto nesta versao.
+     * reavaliacao da posicao, proventos e valorizacao. Quais ativos cada fonte importa e das
+     * regras dela (cripto na Binance; renda variavel listada na B3); aqui so fica de fora o que
+     * a proposta nao sabe descrever — renda fixa, Tesouro e ativo de preco manual, que pedem
+     * taxa, indice ou valor total (docs/planos/PLANO_INTEGRACAO_B3.md, G13).
      */
     @Transactional
     public TransactionResponseDTO importTransaction(UUID userId, ProposedTransaction proposta, ImportOrigin origem) {
         Asset asset = assetRepository.findByTicker(proposta.ticker())
             .orElseThrow(() -> new BusinessException("Ativo não encontrado no catálogo: " + proposta.ticker()));
-        if (asset.getAssetType() == null || !asset.getAssetType().isCrypto()) {
-            throw new BusinessException("Importação só aceita criptomoedas: " + proposta.ticker());
+        AssetType tipo = asset.getAssetType();
+        boolean aceito = tipo != null
+            && (tipo.isTreasury() || tipo.getPriceSource() != com.primevest.domain.asset.PriceSource.MANUAL);
+        if (!aceito) {
+            throw new BusinessException("Importação aceita cripto, renda variável listada e Tesouro Direto: "
+                + proposta.ticker());
+        }
+        if (tipo.isTreasury() && proposta.type() == TransactionType.SELL) {
+            // A venda de Tesouro e repartida entre os titulos (FIFO) e as linhas sao refeitas a cada
+            // realocacao: a origem da fonte nao sobreviveria. Lancada pela tela (PLANO_INTEGRACAO_B3, F7).
+            throw new BusinessException("Venda de Tesouro Direto não é importada: lance pela tela de transações.");
         }
         TransactionCreateDTO dto = new TransactionCreateDTO(proposta.ticker(), proposta.type(), proposta.shares(),
             proposta.pricePerShare(), null, proposta.brokerageFee(), proposta.transactionDate(), false, null,
@@ -161,7 +175,7 @@ public class TransactionService {
         if (isTreasury(asset)) {
             return dto.type() == TransactionType.SELL
                 ? createTreasurySale(portfolio, asset, dto)
-                : createTreasuryPurchase(userId, portfolio, asset, dto);
+                : createTreasuryPurchase(userId, portfolio, asset, dto, origem);
         }
 
         // O papel de renda fixa. Nulo para renda variavel.
@@ -228,8 +242,8 @@ public class TransactionService {
         if (tx.getOrigin() != TransactionOrigin.AUTO || tx.getSourceSnapshot() == null) {
             throw new BusinessException("Só transações importadas podem ser restauradas da corretora.");
         }
-        CryptoImportRules.Result r = CryptoImportRules.map(movementJson.read(tx.getSourceSnapshot()),
-            assetRepository::findByTicker);
+        ImportRules.Result r = importRules.forExternalId(tx.getExternalId())
+            .apply(movementJson.read(tx.getSourceSnapshot()), assetRepository::findByTicker);
         if (!r.mapped()) {
             throw new BusinessException("Não foi possível restaurar: " + r.reason());
         }
@@ -403,7 +417,7 @@ public class TransactionService {
      * (regra H).</p>
      */
     private TransactionResponseDTO createTreasuryPurchase(UUID userId, Portfolio portfolio,
-                                                          Asset asset, TransactionCreateDTO dto) {
+                                                          Asset asset, TransactionCreateDTO dto, ImportOrigin origem) {
         if (dto.noteId() != null) {
             throw new BusinessException(
                 "Cada compra de Tesouro Direto é um título novo: não se lança sobre um título existente.");
@@ -439,6 +453,12 @@ public class TransactionService {
             .totalAmount(valores.totalAmount())
             .brokerageFee(fee(dto))
             .transactionDate(dto.transactionDate())
+            // Compra de Tesouro importada (B3, F7): uma linha so, que a realocacao das vendas nao refaz.
+            .origin(origem == null ? TransactionOrigin.MANUAL : TransactionOrigin.AUTO)
+            .connection(origem == null ? null : origem.connection())
+            .externalId(origem == null ? null : origem.externalId())
+            .executedAt(origem == null ? null : origem.executedAt())
+            .sourceSnapshot(origem == null ? null : origem.sourceSnapshot())
             .build());
         transactionRepository.flush();
 

@@ -108,6 +108,7 @@ Plano e histórico: **`docs/planos/PLANO_ADM_API.md`**. O backend é um Maven mu
 | Módulo | Porta | O que é |
 |---|---|---|
 | `primevest-core` | — | Biblioteca: **todas** as entidades JPA e repositórios, as regras de posição e de proventos usadas pelos dois lados (`PositionCalculator`, `DividendRecalculator`, `AppreciationUpdater`, `CashEventWriter`…), as migrations do Flyway, a validação do JWT, o tratamento de erro e o contrato das mensagens (`CatalogChange`, `CatalogMessaging`) |
+| `primevest-integration` | — | Biblioteca (03/10/2026, `docs/planos/PLANO_INTEGRACAO_B3.md`): **integrações com fontes do investidor** — contrato da fonte (`SourceConnector`, `ImportedMovement`), credenciais cifradas (`SourceCredentials`: chave de API ou CPF; `CredentialCipher`, `CredentialVault`), pipeline de importação (`ImportPipeline` + as regras de cada fonte, `ImportRules`) e os conectores (`integration/binance/`, `integration/b3investidor/`). Pacotes com o mesmo nome de antes. Só a app-api depende dele; a orquestração (serviço, fila, confirmação) continua na app-api, porque grava pelo `TransactionService` |
 | `primevest-app-api` | 8080 | **A carteira**: login, transações, carteira, proventos do usuário, estratégia, metas, preço teto, integrações com corretoras. O front só fala com ela |
 | `primevest-adm-api` | 8081 | **Rotinas de administrador — o catálogo**: emissores, balanços e série trimestral da CVM, COTAHIST, fechamento diário (BRAPI/CoinGecko), eventos de proventos (B3/FNET), logos, conferência do catálogo, todo o `/api/v1/admin/*` (exceto o extrato). Classes em `com.primevest.adm.*` |
 
@@ -129,7 +130,8 @@ recalcula todas as posições às 21:00 (`PositionRefreshScheduler`). Nos testes
 (`CatalogoE2EBase`).
 
 **Onde mexer:** regra que os dois usam (ou entidade/migration) → core; tela, API do usuário, cálculo da carteira →
-app-api; fonte externa, carga, rotina agendada de catálogo → adm-api. A app-api **nunca** chama fonte externa de
+app-api; fonte externa, carga, rotina agendada de catálogo → adm-api; conector de corretora, regra de importação e
+credencial → primevest-integration (a orquestração e os endpoints das integrações ficam na app-api). A app-api **nunca** chama fonte externa de
 catálogo; a adm-api **nunca** grava `dividends` nem `portfolio_assets`.
 
 ---
@@ -230,7 +232,12 @@ pvt stop                                   # para sem apagar; pvt start volta
   `primevest-teste_maven-repo`), contêineres `primevest-teste-*` e pasta de dados `carga/data-teste/` (no
   `.gitignore` e no `.dockerignore`) no lugar de `carga/data/`.
 - **Rotinas agendadas desligadas** (`PRIMEVEST_SCHEDULING_ENABLED=false` no override): nada roda sozinho, nem a
-  recuperação do fechamento na subida. O `bootstrap` não depende delas.
+  recuperação do fechamento na subida. O `bootstrap` não depende delas. O **worker da fila de integrações fica
+  ligado** (`PRIMEVEST_INTEGRATIONS_WORKER_ENABLED=true`): ele só processa a sincronização que alguém pediu.
+- **B3 contra o simulador** (`docs/planos/PLANO_INTEGRACAO_B3.md`, F5): `pvt --profile b3mock up -d --build` sobe
+  também o `primevest-teste-b3-investidor-mock` (porta 8190, extratos de `carga/mocks/`); `B3I_*` no `.env.teste`;
+  ponta a ponta com `node carga/scripts/b3investidor/conferir.mjs --api http://localhost:8082 --mock
+  http://localhost:8190 --gabarito http://localhost:8080`. Página de opt-in do simulador: http://localhost:8190/optin.
 - **Mesmo código do dev** (bind mount + `dev-watch`): salvar um `.java` do core ou da adm-api reinicia a adm-api
   do teste e interrompe uma carga em andamento — ela é retomável, basta disparar de novo.
 - **Primeira execução (03/10/2026):** `data pull` em ~7,5 min (~2,2 GB), `bootstrap` em 2.949 s, todas as etapas
@@ -295,7 +302,7 @@ Plano, decisões e achados da integração: **`docs/planos/PLANO_BRAPI.md`** (ex
 | Conferência do catálogo (só loga) — `CatalogAuditScheduler` | seg 07:00 | adm-api |
 | Logos (arquivos em `carga/data/logos/{TICKER}.{ext}` — o arquivo é o estado; só quem não tem arquivo; a subida não procura nada, o ativo novo é procurado no pedido "preciso do histórico") — `LogoScheduler` | dia 1, 06:00 | adm-api (a app-api só lê a pasta, `AssetLogos`) |
 | Recálculo de proventos e valorização de todas as posições — `PositionRefreshScheduler` | 21:00 | app-api |
-| Fila das integrações com corretoras — `IntegrationSyncScheduler` (06:30) e `IntegrationWorker` (5 s) | — | app-api |
+| Fila das integrações com corretoras — `IntegrationSyncScheduler` (08:45) e `IntegrationWorker` (5 s) | — | app-api |
 
 Disparo manual para admin, **na adm-api (8081)**: `POST /api/v1/admin/{closing|proventos|catalog-audit|logos|issuers/import|issuers/link|b3/cotahist|cvm/import|cvm/quarters|cvm/fii-monthly|cvm/proventos|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, datas de pagamento da CVM, balanços e informe de FII, em ordem — docs/planos/PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
 (`b3/cotahist?from=2010&to=2026`, padrão 2010 até o ano corrente; `cvm/import?from=2010&to=2026&force=false` —
@@ -328,8 +335,14 @@ Todas as fontes abaixo, menos o Google, são da **adm-api** (config em `primeves
 | **CoinGecko** | Preço de cripto (id em `assets.price_source_ref`) e logos das moedas | `coingecko.base-url` |
 | **Google Identity Services** | Login social (fluxo de ID token, sem client secret) | `VITE_GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_ID` |
 
-**Integrações com corretoras** (em construção — `docs/planos/PLANO_CRIPTO_BINANCE.md`). Cada usuário conecta a
-própria conta com uma chave **só de leitura**; a credencial é cifrada (AES-256-GCM) pelo
+**Integrações com corretoras e com a B3** (`docs/planos/PLANO_CRIPTO_BINANCE.md` e `docs/planos/PLANO_INTEGRACAO_B3.md`;
+código no módulo `primevest-integration` desde 03/10/2026). **Binance**: o usuário conecta a própria conta com uma
+chave **só de leitura**. **B3** (Área do Investidor): o usuário informa o CPF e autoriza o PrimeVest na B3 (opt-in);
+entram as negociações de renda variável (agrupadas por dia, papel e lado — B1) e as compras de Tesouro; liquidações,
+eventos do papel e proventos da B3 só são conferidos (o catálogo já os aplica). Configuração `b3i.*` / `B3I_*`
+(credenciais do Pacote de Acesso e certificado, que dependem de contrato com a B3; sem `B3I_ENABLED=true` a B3 some
+da tela); até lá, o simulador `b3-investidor-mock` (profile `b3mock`). Uma consulta por CPF por dia; a sincronização
+diária roda às 08:45, depois de a B3 publicar o dia anterior. A credencial (chave ou CPF) é cifrada (AES-256-GCM) pelo
 `CredentialCipher` com a chave-mestra `PRIMEVEST_CREDENTIALS_KEY` do `.env` e só o `CredentialVault`
 grava, lê ou apaga. Sem a chave a API sobe e só as integrações ficam indisponíveis. **Perder a
 chave-mestra = perder as credenciais gravadas** (os usuários recadastram). Rotação: chave nova em
@@ -361,7 +374,7 @@ primevest/
 │
 ├── pom.xml                      # agregador Maven (docs/planos/PLANO_ADM_API.md): versões, compilador, testes
 ├── Dockerfile                   # backend, contexto na raiz; alvos dev e runtime; ARG MODULE
-├── dev-watch.sh                 # hot reload do backend (core + módulo do contêiner)
+├── dev-watch.sh                 # hot reload do backend (core + módulo do contêiner; na app-api, também o integration)
 │
 ├── primevest-core/              # biblioteca compartilhada
 │   └── src/
@@ -376,6 +389,18 @@ primevest/
 │       ├── main/resources/db/migration/   # V1 .. V39 (as duas aplicações rodam o Flyway)
 │       └── test/                # test-jar: IntegrationTestBase, JpaTestBase, PostgresContainer,
 │                                # Fixtures, CatalogIds, Tokens, application-test.yml; SchemaTest
+│
+├── primevest-integration/       # integrações (Binance, B3) — biblioteca usada só pela app-api (03/10/2026)
+│   └── src/
+│       ├── main/java/com/primevest/
+│       │   ├── domain/integration/source/      # SourceConnector, ImportedMovement, FetchResult, CredentialCheck
+│       │   ├── domain/integration/credential/  # CredentialCipher (AES-256-GCM), CredentialVault, SourceCredentials
+│       │   │                                   #   (ApiKeyCredentials, InvestorDocument = CPF)
+│       │   ├── domain/integration/pipeline/    # ImportPipeline, ImportRules (CryptoImportRules), pré-visualização
+│       │   ├── integration/binance/            # BinanceClient, BinanceConnector
+│       │   └── integration/b3investidor/       # B3InvestidorClient (token, mTLS, paginação), B3InvestidorConnector,
+│       │                                       #   B3EquityImportRules (B1–B10), B3InvestidorProperties (b3i.*)
+│       └── test/                # unitários + test-jar (BinanceFake, ContaSintetica, ContaSinteticaB3) para os Integracoes*IT
 │
 ├── primevest-adm-api/           # rotinas de administrador — o catálogo (porta 8081)
 │   └── src/
@@ -399,8 +424,8 @@ primevest/
 │       │   │                    # PasswordEncoderConfig, SchedulingConfig, CatalogMessagingConfig
 │       │   ├── domain/          # controllers, serviços e DTOs de auth, user, asset, portfolio
 │       │   │                    # (PositionRefreshService), transaction, dividend (extrato),
-│       │   │                    # strategy, goal, ceilingprice, integration (corretoras)
-│       │   ├── integration/binance/
+│       │   │                    # strategy, goal, ceilingprice, integration (orquestração das
+│       │   │                    # corretoras: IntegrationService, controller, worker, DTOs)
 │       │   └── scheduler/       # IntegrationSyncScheduler, PositionRefreshScheduler
 │       ├── main/resources/      # application.yml, -dev, -docker, -prod
 │       └── test/                # functional/ (CatalogoE2EBase: adm-api só no classpath de teste)
@@ -548,7 +573,7 @@ categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, s
 | V27 | Fila das integrações (F5): `integration_runs.balances` (saldo da corretora, aviso de divergência) e índice `(status, created_at)` |
 | V28 | Emissores (F1 do `docs/planos/PLANO_EMPRESAS_BALANCOS.md`): `issuers`, `unit_compositions` e `assets.issuer_id/share_class/issuer_link_source` |
 | V29 | `asset_price_history.source` (`BRAPI`/`COINGECKO`/`B3_COTAHIST`), com as linhas de cripto marcadas `COINGECKO` (F2) |
-| V30 | Seed dos emissores (F4/M3): 369 companhias e 346 FIIs (CNPJ literal, segmento curado do FII), 1.139 ligações ativo → emissor com classe, origem e ISIN, 36 linhas de composição de units. Gerado do banco por `E:\carga\scripts\gerar_seed_emissores.mjs`; chave natural (CNPJ, ticker), `ON CONFLICT` preserva o que veio da fonte |
+| V30 | Seed dos emissores (F4/M3): 369 companhias e 346 FIIs (CNPJ literal, segmento curado do FII), 1.139 ligações ativo → emissor com classe, origem e ISIN, 36 linhas de composição de units. Gerado do banco por `carga/scripts/gerar_seed_emissores.mjs`; chave natural (CNPJ, ticker), `ON CONFLICT` preserva o que veio da fonte |
 | V31 | Categoria sem segmento (F4/M4, D11): uma linha por `(tipo, name)` — os ativos das duplicadas vão para a de menor id —, `segment` sai, unicidade `(asset_type_id, name)`. 165 → 80 |
 | V32 | Balanços da CVM (F5/M5): `cvm_documents`, `cvm_statement_values` (unicidade com `NULLS NOT DISTINCT` no `period_start`) e `share_counts`. Sem `cvm_account_map`: as métricas são achadas pela descrição da conta (`FinancialMetricRules`) |
 | V33 | Série trimestral (F6): `company_quarters`, derivada de `cvm_statement_values` e `share_counts`; nasce vazia e é preenchida pela carga de balanços (ou `POST /api/v1/admin/cvm/quarters`) |
@@ -796,7 +821,7 @@ Rotas em `App.tsx`; tudo abaixo de `/login` é protegido por `ProtectedRoute`.
 | `/emissoras`, `/emissoras/:ticker` | Emissoras (28/09/2026, `docs/planos/PLANO_TELA_EMISSORES.md`): busca, cabeçalho com os outros tickers do emissor, cotação (atalhos + de/até, período na URL `?periodo=` / `?de=&ate=`), cartões de indicadores com sparkline e histórico em modal (Anual/Trimestral, média, ‹ ›), cadastro e demonstrativos. O ticker é link para cá em Carteira, Dividendos e Preço Teto quando o ativo tem emissor (`issuerId` nos DTOs dessas telas — não confundir com `issuer` da carteira, que é o emissor da nota de renda fixa) |
 | `/dividends` | Dividendos |
 | `/goals` | Metas |
-| `/integrations` | Integrações com corretoras (hoje Binance): conectar, sincronizar, histórico, excluídas |
+| `/integrations` | Integrações (Binance e, com `B3I_ENABLED`, B3): conectar (chave ou CPF + autorização na B3), sincronizar, histórico, excluídas |
 | `/integrations/:id/runs/:runId` | Pré-visualização / resultado de uma sincronização (decidir duplicatas, confirmar) |
 | `/settings` | Configurações |
 | `/login` | Login (email/senha + Google) |
@@ -1131,8 +1156,9 @@ apagou as datas que vinham do extrato.
   fonte do evento substitui as duas (`CashEventWriter`); a CVM roda antes do levantamento na carga.
 - **Tela**: PAGAMENTO com sublinhado pontilhado e hover quando a data veio da CVM ou do levantamento
   (`paymentDateSource` no `DividendResponseDTO`); sem data, "Data não informada" (D16).
-- A importação da carteira por arquivo é escopo próprio (PENDENCIAS 16); os scripts pessoais do
-  Guilherme continuam fora do projeto (`E:\carga`) e não são necessários para subir o PrimeVest.
+- A carteira passou a vir da B3 pela API da Área do Investidor (`docs/planos/PLANO_INTEGRACAO_B3.md`; o que falta
+  na PENDENCIAS 16). A integração usa esta mesma conferência para os proventos que a B3 informa. Nada fora do
+  projeto é necessário para subir o PrimeVest.
 - **`GlobalExceptionHandler`** trata `ResponseStatusException` com o status e o
   motivo da própria exceção. Antes ela caía no handler genérico e virava 500 —
   inclusive o 403 dos endpoints de admin.
@@ -1287,7 +1313,8 @@ mvn -pl primevest-adm-api -am verify   # um módulo (e o que ele usa)
 > Docker environment", com o Docker Desktop rodando normalmente.
 
 O perfil `test` (`primevest-core/src/test/resources/application-test.yml`) desliga Redis, as mensagens e as
-rotinas agendadas; as fontes externas são mockadas nos testes (Binance no `FuncionalBase`, B3/FNET/BRAPI/
+rotinas agendadas; as fontes externas são mockadas nos testes (Binance no `FuncionalBase`, Área do Investidor da B3
+no `IntegracoesB3IT` com a `ContaSinteticaB3`, B3/FNET/BRAPI/
 CoinGecko no `CatalogoE2EBase` e nos testes da adm-api): nenhum teste depende de rede.
 
 ### O lint do front passou a existir em 18/09/2026

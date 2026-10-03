@@ -1,0 +1,57 @@
+[
+  {
+    "referenceDate": "2025-03-10",
+    "side": "Compra",
+    "marketName": "Mercado à Vista",
+    "expirationDate": null,
+    "participantName": "CORRETORA FICTICIA S.A.",
+    "tickerSymbol": "PETR4",
+    "tradeQuantity": 100,
+    "priceValue": 38.5,
+    "totalTradeAmount": 3850.0
+  },
+  {
+    "referenceDate": "2025-03-10",
+    "side": "Compra",
+    "marketName": "Mercado Fracionário",
+    "expirationDate": null,
+    "participantName": "CORRETORA FICTICIA S.A.",
+    "tickerSymbol": "PETR4F",
+    "tradeQuantity": 10,
+    "priceValue": 38.52,
+    "totalTradeAmount": 385.2
+  },
+  {
+    "referenceDate": "2025-04-02",
+    "side": "Compra",
+    "marketName": "Mercado à Vista",
+    "expirationDate": null,
+    "participantName": "CORRETORA FICTICIA S.A.",
+    "tickerSymbol": "HGLG11",
+    "tradeQuantity": 10,
+    "priceValue": 160.0,
+    "totalTradeAmount": 1600.0
+  },
+  {
+    "referenceDate": "2025-05-15",
+    "side": "Venda",
+    "marketName": "Mercado à Vista",
+    "expirationDate": null,
+    "participantName": "CORRETORA FICTICIA S.A.",
+    "tickerSymbol": "PETR4",
+    "tradeQuantity": 50,
+    "priceValue": 40.0,
+    "totalTradeAmount": 2000.0
+  },
+  {
+    "referenceDate": "2025-06-20",
+    "side": "Compra",
+    "marketName": "Opção de Compra",
+    "expirationDate": "2025-07-18",
+    "participantName": "CORRETORA FICTICIA S.A.",
+    "tickerSymbol": "PETRG400",
+    "tradeQuantity": 100,
+    "priceValue": 1.2,
+    "totalTradeAmount": 120.0
+  }
+]

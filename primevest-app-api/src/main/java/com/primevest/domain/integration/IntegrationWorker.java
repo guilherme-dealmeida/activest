@@ -1,7 +1,7 @@
 package com.primevest.domain.integration;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -18,11 +18,13 @@ import java.time.LocalDateTime;
  * orcamento unico para todos os usuarios.</p>
  *
  * <p>Desligado no perfil de testes, como as demais rotinas: la o teste chama
- * {@link IntegrationService#processNext()} quando quer.</p>
+ * {@link IntegrationService#processNext()} quando quer. Segue {@code primevest.scheduling.enabled},
+ * a menos que {@code primevest.integrations.worker.enabled} diga outra coisa — a pilha
+ * primevest-teste liga so o worker: ele processa o que o usuario pediu, nao busca nada sozinho.</p>
  */
 @Slf4j
 @Component
-@ConditionalOnProperty(name = "primevest.scheduling.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnExpression("${primevest.integrations.worker.enabled:${primevest.scheduling.enabled:true}}")
 public class IntegrationWorker {
 
     private final IntegrationService service;

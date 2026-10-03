@@ -52,3 +52,7 @@ dump.rdb
 # Ponte de execucao do Claude (ver .claude/README.md)
 # Os scripts e o README sao versionados; os logs, nao.
 .claude/logs/
+
+# Dados reais do Guilherme para o simulador da B3 (extratos da Area do Investidor e o JSON gerado deles)
+# docs/planos/PLANO_INTEGRACAO_B3.md, D14. Nunca versionar.
+/carga/mocks/

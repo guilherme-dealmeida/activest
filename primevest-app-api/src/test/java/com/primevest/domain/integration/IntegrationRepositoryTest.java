@@ -107,6 +107,20 @@ class IntegrationRepositoryTest extends JpaTestBase {
     }
 
     @Test
+    @DisplayName("V40: conexao com a B3 aguardando a autorizacao do investidor e aceita pelo banco")
+    void conexaoB3AguardandoAutorizacao() {
+        IntegrationConnection b3 = connections.saveAndFlush(IntegrationConnection.builder()
+            .user(dono).provider(IntegrationProvider.B3).label("B3")
+            .status(ConnectionStatus.PENDING_AUTHORIZATION)
+            .consentAcceptedAt(LocalDateTime.now()).build());
+        em.clear();
+
+        assertThat(nativo("SELECT status FROM integration_connections WHERE id = :id", b3.getId()))
+            .isEqualTo("PENDING_AUTHORIZATION");
+        assertThat(nativo("SELECT provider FROM integration_connections WHERE id = :id", b3.getId())).isEqualTo("B3");
+    }
+
+    @Test
     @DisplayName("findOwnedById: conexao de outro usuario nao e encontrada")
     void escopoDoDono() {
         User outro = users.save(Fixtures.user("outro@primevest.test"));
@@ -131,9 +145,24 @@ class IntegrationRepositoryTest extends JpaTestBase {
         assertThat(nativo("SELECT fingerprint FROM integration_credentials WHERE connection_id = :id", binance.getId()))
             .isEqualTo("a7K2");
 
-        ApiKeyCredentials lida = vault.read(binance.getId());
+        ApiKeyCredentials lida = (ApiKeyCredentials) vault.read(binance.getId());
         assertThat(lida.apiKey()).isEqualTo("chave-publica-a7K2");
         assertThat(lida.apiSecret()).isEqualTo("segredo-muito-secreto");
+    }
+
+    @Test
+    @DisplayName("Vault: CPF da B3 grava cifrado na mesma tabela e volta como InvestorDocument (G2)")
+    void cpfCifrado() {
+        vault.store(binance, new com.primevest.domain.integration.credential.InvestorDocument("529.982.247-25"));
+        em.flush();
+        em.clear();
+
+        byte[] gravado = (byte[]) nativo("SELECT ciphertext FROM integration_credentials WHERE connection_id = :id", binance.getId());
+        assertThat(new String(gravado, StandardCharsets.ISO_8859_1)).doesNotContain("52998224725");
+        assertThat(nativo("SELECT fingerprint FROM integration_credentials WHERE connection_id = :id", binance.getId()))
+            .isEqualTo("25");
+        assertThat(vault.read(binance.getId()))
+            .isEqualTo(new com.primevest.domain.integration.credential.InvestorDocument("52998224725"));
     }
 
     @Test
@@ -152,7 +181,7 @@ class IntegrationRepositoryTest extends JpaTestBase {
         assertThat(segunda.getIv()).isNotEqualTo(ivAntes);
         assertThat(segunda.getValidatedAt()).isNull();
         assertThat(segunda.getPermissions()).isNull();
-        assertThat(vault.read(binance.getId()).apiSecret()).isEqualTo("s2");
+        assertThat(((ApiKeyCredentials) vault.read(binance.getId())).apiSecret()).isEqualTo("s2");
     }
 
     @Test

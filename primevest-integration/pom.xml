@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        Integracoes com fontes externas de dados do usuario (docs/planos/PLANO_INTEGRACAO_B3.md, F1):
+        o contrato da fonte (SourceConnector), as credenciais cifradas, o pipeline de importacao e os
+        conectores (Binance; B3 a partir da F4). Biblioteca, sem main, como o core.
+
+        Quem usa e a app-api: ela orquestra (fila, worker, confirmacao) e grava pelo TransactionService,
+        porque so a app-api grava dado de usuario. Entidades, repositorios e migrations das integracoes
+        ficam no core. Este modulo nunca depende da app-api nem da adm-api.
+        Versoes, compilador e testes: pom.xml da raiz.
+    -->
+    <parent>
+        <groupId>com.primevest</groupId>
+        <artifactId>primevest-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>primevest-integration</artifactId>
+    <name>PrimeVest Integration</name>
+
+    <dependencies>
+        <!-- entidades e repositorios (integration_*, transactions, assets) -->
+        <dependency>
+            <groupId>com.primevest</groupId>
+            <artifactId>primevest-core</artifactId>
+        </dependency>
+        <!-- WebClient dos conectores -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+                test-jar: as contas inventadas no formato das fontes (support/BinanceFake,
+                support/ContaSintetica) vao para os testes funcionais da app-api (Integracoes*IT).
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

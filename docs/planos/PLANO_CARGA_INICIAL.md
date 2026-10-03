@@ -20,7 +20,7 @@
 
 **Regras do escopo**
 
-- **(A)** O que é carregado num ambiente novo não depende de diretório fora do projeto (ex.: `E:\carga`).
+- **(A)** O que é carregado num ambiente novo não depende de diretório fora do projeto.
 - **(B)** Script necessário para a carga fica no projeto (`carga/scripts/`); dado para popular tabela fica no projeto ou num bucket.
 - **(C)** Evento que não é de usuário vem da **integração**, não de importação. **Não existe fonte `EXTRATO_B3` no catálogo.**
 - **(D)** A informação do catálogo tem que estar **completa** — inclusive a data de pagamento.
@@ -33,7 +33,7 @@
 |---|---|---|
 | **Migrations V1–V37** | schema + seeds (ativos, categorias, emissores e ligações da V30, units, admin) | ✅ autocontido |
 | **`carga/data/`** (fora do git) | lida pelo `POST /admin/bootstrap`: `b3/cotahist`, `b3/proventos`, `cvm/*`, `fnet/`, `logos/`, `curadoria/` | ✅ no bucket desde 29/09 (2.4) |
-| **`E:\carga\scripts`** e **`E:\carga\data`** | disparo das rotinas, conferência, carga da carteira do Guilherme, seed V30 | ❌ fora do projeto → seção 3 |
+| **Scripts e dados avulsos, fora do projeto** | disparo das rotinas, conferência, carga da carteira do Guilherme, seed V30 | ❌ fora do projeto → seção 3 |
 
 ### 1.1 Importado × integrado
 
@@ -101,15 +101,15 @@ do Windows — recuperar de lá ou criar outro quando for montar a outra máquin
 ### 3.1 Apagar (D5)
 
 `generate_assets_sql.py`, `generate_classes.py`, `generate_seeds.js` (raiz: geradores de uma vez, de caminhos e migrations
-que não existem mais), `fiis.csv` (raiz) e `E:\carga\data\fiis_cnpj_curado.json` (superados pela V30). Junto: tirar as 3
+que não existem mais), `fiis.csv` (raiz) e o `fiis_cnpj_curado.json` avulso (superados pela V30). Junto: tirar as 3
 linhas da árvore do `Claude.md` (309–311).
 
-### 3.2 `E:\carga\scripts` → `primevest/scripts`
+### 3.2 Scripts avulsos → `primevest/scripts`
 
 `admin.mjs` e `get.mjs` (`.env` relativo ao repo, portas por variável), `gerar_seed_emissores.mjs` (D3, saída relativa),
 `ensaio/contagens.sql` e `conferir_balancos.sql` → `carga/scripts/sql/`.
-Ficam em `E:\carga` (dado de usuário, PENDENCIAS 16): `converter*`, `carregar*`, `proventos_regras*`, `binance-mcp/`.
-Descartáveis (edições pontuais de sessões anteriores) listados na v2; nada além de 3.1 é apagado em `E:\carga` sem ordem.
+Ficaram fora do projeto (dado de usuário, PENDENCIAS 16): `converter*`, `carregar*`, `proventos_regras*`, `binance-mcp/`.
+Descartáveis (edições pontuais de sessões anteriores) listados na v2; nada além de 3.1 era apagado sem ordem.
 
 ### 3.3 Docker (D6)
 
@@ -255,8 +255,8 @@ com o número na mão — (c) primeiro em amostra, (a) se o acerto for baixo.
 
 ## 9. Fora do escopo
 
-Produção/hospedagem; importação de extrato como funcionalidade (PENDENCIAS 16); histórico de preço de cripto; limpeza de
-`E:\carga` além de 3.1.
+Produção/hospedagem; importação de extrato como funcionalidade (PENDENCIAS 16); histórico de preço de cripto; limpeza dos
+arquivos avulsos além de 3.1.
 
 ---
 
@@ -264,7 +264,7 @@ Produção/hospedagem; importação de extrato como funcionalidade (PENDENCIAS 1
 
 | Fase | Situação | O que ficou |
 |---|---|---|
-| E1 | ✅ | `generate_*`, `fiis.csv` e `fiis_cnpj_curado.json` na lixeira do Windows; `curadoria/` na lixeira e apagada do bucket; `carga/scripts/` com `admin.mjs`, `get.mjs`, `gerar_seed_emissores.mjs` (corrigido: `issuers.segment`, contêiner `primevest-db`), `lib/env.mjs` (raiz achada pelo próprio arquivo), `sql/` e `README.md`; os originais de `E:\carga` na lixeira |
+| E1 | ✅ | `generate_*`, `fiis.csv` e `fiis_cnpj_curado.json` na lixeira do Windows; `curadoria/` na lixeira e apagada do bucket; `carga/scripts/` com `admin.mjs`, `get.mjs`, `gerar_seed_emissores.mjs` (corrigido: `issuers.segment`, contêiner `primevest-db`), `lib/env.mjs` (raiz achada pelo próprio arquivo), `sql/` e `README.md`; os originais avulsos na lixeira |
 | E2 | ✅ | serviços `data` (rclone 1.75.1: `pull [--minimo]`, `push`, `status`) e `tools` (Node 22) no profile `carga`; `.env.example` com as `S3_*` e `PRIMEVEST_SENHA` |
 | E3 | ✅ Guilherme | token só leitura: lista o bucket e recebe **403 AccessDenied** ao tentar gravar (conferido; ver 2.3) |
 | E4 | ✅ | `data push` compara por hash (`--checksum`) e grava `manifests/{dataset}.json` (chave e tamanho) + `manifests/manifest.json` |

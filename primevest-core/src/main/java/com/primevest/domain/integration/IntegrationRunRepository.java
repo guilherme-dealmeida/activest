@@ -22,6 +22,11 @@ public interface IntegrationRunRepository extends JpaRepository<IntegrationRun, 
 
     boolean existsByConnectionIdAndStatus(UUID connectionId, RunStatus status);
 
+    /** Houve busca na fonte desde o instante (fontes com uma consulta por dia, G12). */
+    boolean existsByConnectionIdAndStatusInAndStartedAtGreaterThanEqual(UUID connectionId,
+                                                                       java.util.Collection<RunStatus> status,
+                                                                       java.time.LocalDateTime desde);
+
     /**
      * A fila (F5): a execucao QUEUED mais antiga cuja conexao nao tem outra
      * RUNNING — uma sincronizacao por conexao por vez. SKIP LOCKED deixa dois

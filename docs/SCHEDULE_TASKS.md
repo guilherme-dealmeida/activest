@@ -20,9 +20,9 @@
 |---|---|---|
 | a cada 5 s | app | [B5] Worker da fila de integrações |
 | 06:00, dia 1 | adm | [A7] Logos (mensal) |
-| 06:30 | app | [B4] Sincronização diária das corretoras (enfileira) |
 | 07:00, segunda | adm | [A6] Conferência do catálogo (semanal) |
 | 07:30 | adm | [A5] Balanços CVM + informe mensal de FII |
+| 08:45 | app | [B4] Sincronização diária das corretoras (enfileira) |
 | 19:00, seg–sex | adm | [A1] Fechamento B3 (BRAPI) |
 | 19:00 | adm | [A2] Fechamento cripto (CoinGecko) |
 | 20:00 | adm | [A4] Proventos e eventos societários + datas de pagamento CVM |
@@ -218,16 +218,18 @@ valorização.
 
 | | |
 |---|---|
-| **Quando** | 06:30, todos os dias |
+| **Quando** | 08:45, todos os dias (até 03/10/2026, 06:30) |
 | **Classe** | `IntegrationSyncScheduler.sincronizar` → `IntegrationService.enqueueScheduled` |
-| **Config** | `primevest.integrations.sync-cron = "0 30 6 * * *"`; `primevest.integrations.auto-confirm-scheduled = true` |
+| **Config** | `primevest.integrations.sync-cron = "0 45 8 * * *"`; `primevest.integrations.auto-confirm-scheduled = true` |
 | **Grava** | `integration_runs` (status `QUEUED`, trigger `SCHEDULED`) |
 
-**Função.** Só **enfileira** uma execução para cada conexão `ACTIVE` que não tenha execução pendente (`QUEUED`,
-`RUNNING` ou `AWAITING_CONFIRMATION`). Quem busca na corretora é o worker [B5]. A execução agendada confirma sozinha
+**Função.** Só **enfileira** uma execução para cada conexão `ACTIVE` ou `PENDING_AUTHORIZATION` (B3: é a checagem que
+a leva a `ACTIVE` quando o investidor autorizar) que não tenha execução pendente (`QUEUED`, `RUNNING` ou
+`AWAITING_CONFIRMATION`) nem tenha passado do limite de uma consulta por dia da fonte (B3). Quem busca na corretora é o worker [B5]. A execução agendada confirma sozinha
 quando não há nada a decidir (nenhuma possível duplicata) e a conexão já teve uma importação confirmada pelo usuário.
 
-**Propósito.** Trazer as operações novas da corretora (hoje Binance) todo dia.
+**Propósito.** Trazer as operações novas das fontes (Binance e B3) todo dia. O horário é depois das 8h porque a B3 só
+publica o dia anterior a partir daí (docs/planos/PLANO_INTEGRACAO_B3.md, A6).
 
 ### [B5] Worker da fila de integrações
 

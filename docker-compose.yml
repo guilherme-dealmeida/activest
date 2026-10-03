@@ -11,6 +11,9 @@
 #   docker compose --profile carga run --rm data push              carga/data/ -> bucket + manifests (produtor)
 #   docker compose --profile carga run --rm data status            carga/data/ x bucket
 #   docker compose --profile carga run --rm tools node carga/scripts/admin.mjs bootstrap
+#
+# Simulador da API da Área do Investidor da B3 (profile "b3mock"; docs/planos/PLANO_INTEGRACAO_B3.md, 6.10):
+#   docker compose --profile b3mock up -d b3-investidor-mock
 
 services:
   db:
@@ -74,6 +77,18 @@ services:
       PRIMEVEST_CREDENTIALS_KEY: ${PRIMEVEST_CREDENTIALS_KEY:-}
       PRIMEVEST_CREDENTIALS_KEY_VERSION: ${PRIMEVEST_CREDENTIALS_KEY_VERSION:-1}
       PRIMEVEST_CREDENTIALS_PREVIOUS_KEYS: ${PRIMEVEST_CREDENTIALS_PREVIOUS_KEYS:-}
+      # Área do Investidor da B3 (docs/planos/PLANO_INTEGRACAO_B3.md, 6.13). Sem contrato com a B3,
+      # aponta para o simulador (b3-investidor-mock). B3I_ENABLED vazio/false: a B3 fica desligada.
+      B3I_ENABLED: ${B3I_ENABLED:-false}
+      B3I_BASE_URL: ${B3I_BASE_URL:-}
+      B3I_TOKEN_URL: ${B3I_TOKEN_URL:-}
+      B3I_CLIENT_ID: ${B3I_CLIENT_ID:-}
+      B3I_CLIENT_SECRET: ${B3I_CLIENT_SECRET:-}
+      B3I_SCOPE: ${B3I_SCOPE:-}
+      B3I_CERT_P12_PATH: ${B3I_CERT_P12_PATH:-}
+      B3I_CERT_P12_PASSWORD: ${B3I_CERT_P12_PASSWORD:-}
+      B3I_OPTIN_URL: ${B3I_OPTIN_URL:-}
+      B3I_ONCE_PER_DAY: ${B3I_ONCE_PER_DAY:-true}
     ports:
       - "0.0.0.0:${API_PORT:-8080}:8080"
     volumes:
@@ -82,6 +97,9 @@ services:
       - ./pom.xml:/app/pom.xml
       - ./primevest-core/pom.xml:/app/primevest-core/pom.xml
       - ./primevest-core/src:/app/primevest-core/src
+      # integracoes com corretoras (docs/planos/PLANO_INTEGRACAO_B3.md, F1): a app-api depende delas
+      - ./primevest-integration/pom.xml:/app/primevest-integration/pom.xml
+      - ./primevest-integration/src:/app/primevest-integration/src
       # o reator exige o pom de todos os modulos, e a app-api usa a adm-api nos testes
       - ./primevest-adm-api/pom.xml:/app/primevest-adm-api/pom.xml
       - ./primevest-adm-api/src:/app/primevest-adm-api/src
@@ -127,6 +145,8 @@ services:
       - ./primevest-core/src:/app/primevest-core/src
       - ./primevest-adm-api/pom.xml:/app/primevest-adm-api/pom.xml
       - ./primevest-adm-api/src:/app/primevest-adm-api/src
+      # o reator exige o pom de todos os modulos
+      - ./primevest-integration/pom.xml:/app/primevest-integration/pom.xml
       - ./primevest-app-api/pom.xml:/app/primevest-app-api/pom.xml
       - maven-repo:/root/.m2
       # Arquivos baixados pelas rotinas (ignorados pelo git): logos (docs/planos/PLANO_BRAPI.md,
@@ -171,6 +191,28 @@ services:
   # ---------------------------------------------------------------------------
   # Profile "carga" (docs/planos/PLANO_CARGA_INICIAL.md): não sobem no `docker compose up`.
   # ---------------------------------------------------------------------------
+
+  # Simulador da API da Área do Investidor da B3 (docs/planos/PLANO_INTEGRACAO_B3.md, 6.10): só sobe com
+  # --profile b3mock. Responde nas rotas e no formato da B3 com os extratos exportados da Área do Investidor,
+  # lidos de B3I_MOCK_DATA_DIR (padrão carga/mocks, fora do git); sem planilha, usa os dados sintéticos
+  # versionados. Token com as mesmas credenciais B3I_* da app-api; CPF fictício em B3I_MOCK_DOCUMENT.
+  b3-investidor-mock:
+    build: ./carga/scripts/b3investidor/simulador
+    profiles: ["b3mock"]
+    container_name: primevest-b3-investidor-mock
+    environment:
+      B3I_MOCK_CLIENT_ID: ${B3I_CLIENT_ID:-primevest-teste}
+      B3I_MOCK_CLIENT_SECRET: ${B3I_CLIENT_SECRET:-segredo-teste}
+      B3I_MOCK_SCOPE: ${B3I_SCOPE:-b3i-simulador/.default}
+      B3I_MOCK_DOCUMENT: ${B3I_MOCK_DOCUMENT:-52998224725}
+      B3I_MOCK_AUTHORIZED: ${B3I_MOCK_AUTHORIZED:-false}
+      # links da paginação e página de autorização, como o navegador as vê
+      B3I_MOCK_PUBLIC_URL: http://localhost:${B3I_MOCK_PORT:-8090}
+    ports:
+      - "127.0.0.1:${B3I_MOCK_PORT:-8090}:8090"
+    volumes:
+      - ./carga/scripts/b3investidor:/app:ro
+      - ${B3I_MOCK_DATA_DIR:-./carga/mocks}:/data:ro
 
   # carga/data/ <-> bucket R2 (rclone). A aplicação lê só a carga/data/ local; o bucket é a cópia de
   # referência: a máquina nova baixa uma vez (pull, token só leitura) e o produtor sobe o

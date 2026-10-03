@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,7 +22,10 @@ public interface IntegrationConnectionRepository extends JpaRepository<Integrati
 
     boolean existsByUserIdAndLabelIgnoreCase(UUID userId, String label);
 
-    List<IntegrationConnection> findByStatus(ConnectionStatus status);
+    List<IntegrationConnection> findByStatusIn(Collection<ConnectionStatus> statuses);
+
+    /** Conexoes vivas da fonte, de qualquer usuario: para o CPF unico entre conexoes (B3, armadilha A1). */
+    List<IntegrationConnection> findByProviderAndStatusNot(IntegrationProvider provider, ConnectionStatus status);
 
     @Query("SELECT c FROM IntegrationConnection c WHERE c.id = :id AND c.user.id = :userId")
     Optional<IntegrationConnection> findOwnedById(@Param("id") UUID id, @Param("userId") UUID userId);

@@ -34,6 +34,12 @@
 POLL_SECONDS="${POLL_SECONDS:-2}"
 MODULE="${MODULE:-primevest-app-api}"
 WATCH="primevest-core/src $MODULE/src"
+TARGETS="primevest-core/target $MODULE/target"
+# A app-api usa o primevest-integration (docs/planos/PLANO_INTEGRACAO_B3.md, F1): mesma regra do core.
+if [ "$MODULE" = "primevest-app-api" ]; then
+  WATCH="$WATCH primevest-integration/src"
+  TARGETS="$TARGETS primevest-integration/target"
+fi
 MARKER=/tmp/.last-compile
 TRIGGER="$MODULE/target/classes/.reloadtrigger"
 
@@ -42,7 +48,7 @@ TRIGGER="$MODULE/target/classes/.reloadtrigger"
 # removida ou renomeada no src/ continuava em target/classes/db/migration e o
 # Flyway acusava versão duplicada ("Found more than one migration with version
 # 1"), derrubando a API. Custa alguns segundos de compilação na subida.
-rm -rf primevest-core/target "$MODULE/target"
+rm -rf $TARGETS
 
 touch "$MARKER"
 

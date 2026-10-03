@@ -12,7 +12,7 @@ import { useToast } from '@/context/ToastContext';
 import { apiMessage } from '@/utils/apiError';
 import { formatCurrency, formatDate, formatQuantity, formatUnitPrice } from '@/utils/format';
 import { KIND, RESOLUTION, RUN_STATUS, formatDateTime, isRunInProgress, providerName } from '@/utils/integrations';
-import { DuplicateDecision, ImportRunItem, PreviewOutcome } from '@/types';
+import { DuplicateDecision, ImportRunItem, MovementKind, PreviewOutcome } from '@/types';
 
 /** Ordem dos grupos na tela: o que entra primeiro, o que precisa de decisão logo depois. */
 const GRUPOS: { outcome: PreviewOutcome; titulo: string; info: string }[] = [
@@ -49,7 +49,10 @@ export const IntegrationRunPage = () => {
   });
 
   const { data: conexoes } = useQuery({ queryKey: ['integrations'], queryFn: integrationsApi.list });
-  const provider = providerName(conexoes?.find(c => c.id === id)?.provider ?? 'BINANCE');
+  const providerCode = conexoes?.find(c => c.id === id)?.provider ?? 'BINANCE';
+  const provider = providerName(providerCode);
+  // A B3 entrega a data do negócio, sem hora (B2).
+  const soData = providerCode === 'B3';
 
   // Quando a busca termina com a tela aberta, a lista de conexões também muda.
   useEffect(() => {
@@ -110,7 +113,7 @@ export const IntegrationRunPage = () => {
     { label: 'Não importadas', valor: run.unmappedCount },
     { label: 'Já importadas', valor: run.existingCount },
     { label: 'Excluídas por você', valor: run.excludedCount },
-    { label: 'Depósitos em reais', valor: formatCurrency(run.fiatDeposited ?? 0) },
+    ...(providerCode === 'BINANCE' ? [{ label: 'Depósitos em reais', valor: formatCurrency(run.fiatDeposited ?? 0) }] : []),
   ];
 
   return (
@@ -168,7 +171,7 @@ export const IntegrationRunPage = () => {
             if (itens.length === 0) return null;
             return (
               <Card key={g.outcome} title={`${g.titulo} (${itens.length})`} titleInfo={g.info}>
-                <ItensTable itens={itens} duplicata={g.outcome === 'POSSIBLE_DUPLICATE'}
+                <ItensTable itens={itens} duplicata={g.outcome === 'POSSIBLE_DUPLICATE'} soData={soData}
                   decisoes={decisoes} podeDecidir={aguardando}
                   onDecidir={(ext, d) => setDecisoes(prev => ({ ...prev, [ext]: d }))} />
               </Card>
@@ -210,9 +213,15 @@ interface TableProps {
   decisoes: Record<string, DuplicateDecision>;
   podeDecidir: boolean;
   onDecidir: (externalId: string, d: DuplicateDecision) => void;
+  /** Fonte que informa so a data (B3): sem hora. */
+  soData?: boolean;
 }
 
-const ItensTable = ({ itens, duplicata, decisoes, podeDecidir, onDecidir }: TableProps) => (
+/** Movimentos que são compra ou venda (e os que viram transação); os demais (proventos, eventos, liquidação...)
+ *  são entrada ou saída. */
+const NEGOCIACAO = new Set<MovementKind>(['TRADE', 'CONVERT', 'EQUITY_TRADE']);
+
+const ItensTable = ({ itens, duplicata, decisoes, podeDecidir, onDecidir, soData }: TableProps) => (
   <div className="overflow-x-auto">
     <table className="w-full text-sm">
       <thead className="text-xs uppercase text-gray-400 border-b border-white/10">
@@ -233,9 +242,13 @@ const ItensTable = ({ itens, duplicata, decisoes, podeDecidir, onDecidir }: Tabl
           const venda = (t?.type ?? i.side) === 'SELL';
           return (
             <tr key={i.externalId} className="align-top">
-              <td className="px-3 py-2 whitespace-nowrap">{t ? formatDate(t.transactionDate) : formatDateTime(i.executedAt)}</td>
+              <td className="px-3 py-2 whitespace-nowrap">
+                {t ? formatDate(t.transactionDate) : soData ? formatDateTime(i.executedAt).slice(0, 10) : formatDateTime(i.executedAt)}
+              </td>
               <td className="px-3 py-2">
-                <span className={venda ? 'text-danger' : 'text-success'}>{i.side ? (venda ? 'Venda' : 'Compra') : ''}</span>
+                <span className={venda ? 'text-danger' : 'text-success'}>
+                  {!i.side ? '' : t || NEGOCIACAO.has(i.kind) ? (venda ? 'Venda' : 'Compra') : (venda ? 'Saída' : 'Entrada')}
+                </span>
                 <span className="ml-1 text-xs text-gray-400">{KIND[i.kind]}</span>
               </td>
               <td className="px-3 py-2 text-white font-medium">{t?.ticker ?? i.asset}</td>
@@ -246,7 +259,9 @@ const ItensTable = ({ itens, duplicata, decisoes, podeDecidir, onDecidir }: Tabl
               <td className="px-3 py-2 text-right">{t ? formatCurrency(t.brokerageFee) : '—'}</td>
               <td className="px-3 py-2 text-right text-white">
                 {t ? formatCurrency(t.totalAmount)
-                  : i.quoteAmount != null ? `${formatQuantity(i.quoteAmount, true)} ${i.quoteAsset ?? ''}` : '—'}
+                  : i.quoteAmount == null ? '—'
+                    : i.quoteAsset === 'BRL' ? formatCurrency(i.quoteAmount)
+                      : `${formatQuantity(i.quoteAmount, true)} ${i.quoteAsset ?? ''}`}
               </td>
               <td className="px-3 py-2">
                 {i.resolution ? (

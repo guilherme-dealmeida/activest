@@ -91,7 +91,8 @@ class TransactionServiceTest {
         service = new TransactionService(transactionRepository, portfolioRepository, portfolioAssetRepository,
             assetRepository, fixedIncomeNoteRepository, userRepository, dividendRecalculator, positionCalculator,
             appreciationUpdater, positionGuard, fixedIncomeSettlement, treasuryAllocator, eventPublisher,
-            cryptoExclusionRepository, movementJson);
+            cryptoExclusionRepository, movementJson,
+            new com.primevest.domain.integration.pipeline.ImportRulesRegistry(java.util.List.of()));
 
         userId = UUID.randomUUID();
         carteira = Portfolio.builder().name("Minha Carteira").build();

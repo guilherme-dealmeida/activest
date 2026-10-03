@@ -4,13 +4,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.primevest.domain.asset.AssetRepository;
 import com.primevest.domain.integration.dto.ConfirmImportDTO;
 import com.primevest.domain.integration.dto.ExclusionDTO;
-import com.primevest.domain.integration.pipeline.CryptoImportRules;
+import com.primevest.domain.integration.pipeline.ImportRules;
 import com.primevest.domain.integration.source.MovementJson;
 import com.primevest.domain.transaction.ImportOrigin;
 import com.primevest.domain.transaction.Transaction;
 import com.primevest.domain.transaction.TransactionRepository;
 import com.primevest.domain.transaction.TransactionService;
 import com.primevest.domain.integration.credential.ApiKeyCredentials;
+import com.primevest.domain.integration.credential.InvestorDocument;
+import com.primevest.domain.integration.credential.SourceCredentials;
 import com.primevest.domain.integration.credential.CredentialCipher;
 import com.primevest.domain.integration.credential.CredentialVault;
 import com.primevest.domain.integration.dto.ConnectionCreateDTO;
@@ -25,6 +27,7 @@ import com.primevest.domain.integration.source.CredentialCheck;
 import com.primevest.domain.integration.source.FetchResult;
 import com.primevest.domain.integration.source.ImportedMovement;
 import com.primevest.domain.integration.source.SourceConnector;
+import com.primevest.domain.portfolio.PositionCalculator;
 import com.primevest.domain.user.User;
 import com.primevest.domain.user.UserRepository;
 import com.primevest.exception.BusinessException;
@@ -35,7 +38,9 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
@@ -75,6 +80,8 @@ public class IntegrationService {
     private final CredentialVault vault;
     private final CredentialCipher cipher;
     private final ImportPipeline pipeline;
+    private final PositionCalculator positionCalculator;
+    private final ProventosConferencia proventosConferencia;
     private final Map<IntegrationProvider, SourceConnector> connectors = new EnumMap<>(IntegrationProvider.class);
     private final TransactionTemplate tx;
     private final TransactionTemplate readOnly;
@@ -100,6 +107,8 @@ public class IntegrationService {
                               CredentialVault vault,
                               CredentialCipher cipher,
                               ImportPipeline pipeline,
+                              PositionCalculator positionCalculator,
+                              ProventosConferencia proventosConferencia,
                               List<SourceConnector> connectorList,
                               PlatformTransactionManager transactionManager) {
         this.connections = connections;
@@ -117,10 +126,22 @@ public class IntegrationService {
         this.vault = vault;
         this.cipher = cipher;
         this.pipeline = pipeline;
+        this.positionCalculator = positionCalculator;
+        this.proventosConferencia = proventosConferencia;
         connectorList.forEach(c -> connectors.put(c.provider(), c));
         this.tx = new TransactionTemplate(transactionManager);
         this.readOnly = new TransactionTemplate(transactionManager);
         this.readOnly.setReadOnly(true);
+    }
+
+    /** As fontes ligadas no servidor, na ordem do enum (F6 da B3). */
+    public List<com.primevest.domain.integration.dto.SourceDTO> sources() {
+        return connectors.values().stream()
+            .map(c -> new com.primevest.domain.integration.dto.SourceDTO(c.provider(), switch (c.provider()) {
+                case BINANCE -> "API_KEY";
+                case B3 -> "DOCUMENT";
+            }, c.oncePerDay()))
+            .toList();
     }
 
     public List<ConnectionResponseDTO> list(UUID userId) {
@@ -141,12 +162,17 @@ public class IntegrationService {
             throw new BusinessException("Você já tem uma conexão chamada \"" + label + "\".");
         }
         SourceConnector connector = connector(dto.provider());
-        ApiKeyCredentials credencial = new ApiKeyCredentials(dto.apiKey(), dto.apiSecret());
+        SourceCredentials credencial = credenciais(dto);
+        documentoLivre(dto.provider(), credencial);
 
         CredentialCheck check = connector.check(credencial);
-        if (!check.usable()) {
+        if (!check.accepted() || !check.readOnly()) {
             throw new BusinessException(check.problem());
         }
+        // B3: o CPF vale, mas o investidor ainda nao autorizou o PrimeVest na Area do
+        // Investidor. A conexao nasce aguardando; a proxima sincronizacao confere de novo (G8).
+        ConnectionStatus inicial = check.awaitingAuthorization()
+            ? ConnectionStatus.PENDING_AUTHORIZATION : ConnectionStatus.ACTIVE;
 
         return tx.execute(s -> {
             User user = users.findById(userId)
@@ -155,13 +181,15 @@ public class IntegrationService {
                 .user(user)
                 .provider(dto.provider())
                 .label(label)
-                .status(ConnectionStatus.ACTIVE)
+                .status(inicial)
                 .consentAcceptedAt(LocalDateTime.now())
+                .lastError(check.awaitingAuthorization() ? check.problem() : null)
                 .build());
             IntegrationCredential gravada = vault.store(conexao, credencial);
             gravada.setPermissions(check.permissions());
-            gravada.setValidatedAt(LocalDateTime.now());
-            log.info("Conexao {} criada ({}), chave ****{}", conexao.getId(), dto.provider(), gravada.getFingerprint());
+            gravada.setValidatedAt(check.awaitingAuthorization() ? null : LocalDateTime.now());
+            log.info("Conexao {} criada ({}, {}), credencial ****{}", conexao.getId(), dto.provider(), inicial,
+                gravada.getFingerprint());
             return toDto(conexao, gravada);
         });
     }
@@ -180,6 +208,43 @@ public class IntegrationService {
         });
     }
 
+    static final String REVOGADA_NA_FONTE = "A autorização do PrimeVest foi revogada na fonte. A conexão foi "
+        + "encerrada e a credencial apagada; para voltar a importar, conecte de novo.";
+
+    /** Revogacao feita na fonte: apaga a credencial e encerra a conexao, como o desconectar. */
+    private void revogadaNaFonte(UUID connectionId) {
+        tx.executeWithoutResult(s -> connections.findById(connectionId).ifPresent(c -> {
+            vault.erase(connectionId);
+            c.setStatus(ConnectionStatus.REVOKED);
+            c.setLastError(REVOGADA_NA_FONTE);
+        }));
+        log.info("Conexao {} revogada na fonte; credencial apagada", connectionId);
+    }
+
+    /**
+     * Armadilha A1 da B3: a fonte so diz "este CPF autorizou o PrimeVest". Um CPF fica em uma
+     * conexao viva so — senao outro usuario que o informasse leria os dados do dono. A credencial
+     * e cifrada, entao a comparacao decifra as conexoes vivas da mesma fonte.
+     */
+    private void documentoLivre(IntegrationProvider provider, SourceCredentials credencial) {
+        if (!(credencial instanceof InvestorDocument documento)) {
+            return;
+        }
+        boolean emUso = Boolean.TRUE.equals(readOnly.execute(s -> connections
+            .findByProviderAndStatusNot(provider, ConnectionStatus.REVOKED).stream()
+            .anyMatch(c -> {
+                try {
+                    return documento.equals(vault.read(c.getId()));
+                } catch (RuntimeException e) {
+                    return false;
+                }
+            })));
+        if (emUso) {
+            throw new BusinessException("Este CPF já tem uma conexão com a " + provider + " no PrimeVest. "
+                + "Use a conexão existente ou desconecte-a antes.");
+        }
+    }
+
     /**
      * Pede uma sincronizacao (F5): cria uma execucao QUEUED e responde na hora.
      * O {@link IntegrationWorker} busca na corretora em segundo plano; a tela
@@ -191,6 +256,12 @@ public class IntegrationService {
             IntegrationConnection c = owned(userId, connectionId);
             if (c.getStatus() == ConnectionStatus.REVOKED) {
                 throw new BusinessException("Esta conexão foi desconectada. Conecte de novo para importar.");
+            }
+            boolean naFila = !runs.findByConnectionIdAndStatusIn(c.getId(),
+                List.of(RunStatus.QUEUED, RunStatus.RUNNING)).isEmpty();
+            if (!naFila && connector(c.getProvider()).oncePerDay() && buscouHoje(c.getId())) {
+                throw new BusinessException("Esta fonte permite uma consulta por dia para o mesmo investidor, e a "
+                    + "de hoje já foi feita. Tente de novo amanhã.");
             }
             return enfileirar(c, RunTrigger.MANUAL).getId();
         });
@@ -210,17 +281,21 @@ public class IntegrationService {
     /**
      * Rotina diaria: enfileira as conexoes ativas que nao tem nada pendente. A
      * que tem pre-visualizacao aguardando o usuario fica de fora — a decisao
-     * dele vem antes de uma busca nova.
+     * dele vem antes de uma busca nova. A que aguarda a autorizacao do investidor
+     * (B3) entra tambem: e a checagem que a leva a ACTIVE quando ele autorizar (G8).
      *
      * @return quantas execucoes entraram na fila
      */
     public int enqueueScheduled() {
         Integer n = tx.execute(s -> {
             int total = 0;
-            for (IntegrationConnection c : connections.findByStatus(ConnectionStatus.ACTIVE)) {
+            for (IntegrationConnection c : connections.findByStatusIn(
+                    List.of(ConnectionStatus.ACTIVE, ConnectionStatus.PENDING_AUTHORIZATION))) {
                 boolean pendente = !runs.findByConnectionIdAndStatusIn(c.getId(),
                     List.of(RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.AWAITING_CONFIRMATION)).isEmpty();
-                if (!pendente) {
+                SourceConnector connector = connectors.get(c.getProvider());
+                boolean limiteDoDia = connector != null && connector.oncePerDay() && buscouHoje(c.getId());
+                if (connector != null && !pendente && !limiteDoDia) {
                     enfileirar(c, RunTrigger.SCHEDULED);
                     total++;
                 }
@@ -280,7 +355,7 @@ public class IntegrationService {
                 throw new BusinessException("Esta conexão foi desconectada.");
             }
             SourceConnector connector = connector(ctx.provider());
-            ApiKeyCredentials credencial = vault.read(connectionId);
+            SourceCredentials credencial = vault.read(connectionId);
 
             // P2: a permissao e conferida de novo a cada busca.
             CredentialCheck check = connector.check(credencial);
@@ -292,12 +367,26 @@ public class IntegrationService {
                 marcar(connectionId, ConnectionStatus.PERMISSION_TOO_BROAD, check.problem());
                 throw new BusinessException(check.problem());
             }
+            if (check.awaitingAuthorization()) {
+                if (ctx.status() == ConnectionStatus.ACTIVE) {
+                    // Ja estava autorizada e a fonte diz que nao esta mais: o investidor revogou
+                    // la (B3: Aplicativos e Sites). Mesmo efeito de desconectar (B3, 6.9 e C5).
+                    revogadaNaFonte(connectionId);
+                    throw new BusinessException(REVOGADA_NA_FONTE);
+                }
+                marcar(connectionId, ConnectionStatus.PENDING_AUTHORIZATION, check.problem());
+                throw new BusinessException(check.problem());
+            }
 
             Map<String, String> posicoes = readOnly.execute(s -> cursors.findByIdConnectionId(connectionId).stream()
                 .collect(Collectors.toMap(c -> c.getId().getStream(), IntegrationCursor::getCursorValue)));
             FetchResult resultado = connector.fetch(credencial, posicoes);
-            ImportPreview preview = pipeline.preview(connectionId, ctx.userId(), resultado.movements());
+            ImportPreview preview = pipeline.preview(connectionId, ctx.userId(), resultado.movements(),
+                connector.rules());
             semDuplicatas = preview.count(PreviewOutcome.POSSIBLE_DUPLICATE) == 0;
+            // C3: provento informado pela fonte x proventos da carteira; o resultado vai no motivo.
+            Map<String, String> conferidos = proventosConferencia.conferir(ctx.userId(), preview.items().stream()
+                .filter(i -> i.outcome() == PreviewOutcome.UNMAPPED).map(PreviewItem::movement).toList());
 
             tx.executeWithoutResult(s -> {
                 // Vale a mais recente: uma pre-visualizacao anterior aguardando e cancelada.
@@ -325,7 +414,7 @@ public class IntegrationService {
                         .run(run)
                         .externalId(i.externalId())
                         .outcome(RunItemOutcome.valueOf(i.outcome().name()))
-                        .reason(i.reason())
+                        .reason(conferidos.getOrDefault(i.externalId(), i.reason()))
                         .raw(movementJson.write(i.movement()))
                         .duplicateOf(i.duplicateOf() == null ? null : i.duplicateOf().transactionId())
                         .build()));
@@ -422,7 +511,7 @@ public class IntegrationService {
                 continue;
             }
             ImportedMovement m = movementJson.read(item.getRaw());
-            CryptoImportRules.Result r = CryptoImportRules.map(m, assets::findByTicker);
+            ImportRules.Result r = connector(conexao.getProvider()).rules().apply(m, assets::findByTicker);
             if (!r.mapped()) {
                 throw new BusinessException(contexto(m, null) + r.reason());
             }
@@ -447,6 +536,20 @@ public class IntegrationService {
                 : decisao == ConfirmImportDTO.DuplicateDecision.KEEP_BOTH ? RunItemResolution.KEPT_BOTH
                 : RunItemResolution.IMPORTED);
             importados++;
+        }
+
+        // C3: com as operacoes ja na carteira, os proventos dela existem — a conferencia roda de novo.
+        if (importados > 0) {
+            List<IntegrationRunItem> naoImportados = itens.stream()
+                .filter(i -> i.getOutcome() == RunItemOutcome.UNMAPPED).toList();
+            Map<String, String> conferidos = proventosConferencia.conferir(userId,
+                naoImportados.stream().map(i -> movementJson.read(i.getRaw())).toList());
+            naoImportados.forEach(i -> {
+                String motivo = conferidos.get(i.getExternalId());
+                if (motivo != null) {
+                    i.setReason(motivo);
+                }
+            });
         }
 
         // So agora os cursores avancam: o que foi visto e confirmado nao volta.
@@ -510,7 +613,7 @@ public class IntegrationService {
                 .filter(x -> x.getConnection().getId().equals(connectionId))
                 .orElseThrow(() -> new ResourceNotFoundException("Exclusão não encontrada"));
             ImportedMovement m = movementJson.read(e.getSourceSnapshot());
-            CryptoImportRules.Result r = CryptoImportRules.map(m, assets::findByTicker);
+            ImportRules.Result r = connector(conexao.getProvider()).rules().apply(m, assets::findByTicker);
             if (!r.mapped()) {
                 throw new BusinessException(contexto(m, null) + r.reason());
             }
@@ -526,6 +629,38 @@ public class IntegrationService {
     private IntegrationConnection owned(UUID userId, UUID connectionId) {
         return connections.findOwnedById(connectionId, userId)
             .orElseThrow(() -> new ResourceNotFoundException("Conexão não encontrada"));
+    }
+
+    /** As regras da fonte; nulo se o conector dela nao estiver registrado (tela sem proposta). */
+    private ImportRules regrasDe(IntegrationProvider provider) {
+        SourceConnector c = connectors.get(provider);
+        return c == null ? null : c.rules();
+    }
+
+    /** Credencial de cada fonte, a partir do pedido de conexao (G9). */
+    private static SourceCredentials credenciais(ConnectionCreateDTO dto) {
+        try {
+            return switch (dto.provider()) {
+                case BINANCE -> new ApiKeyCredentials(dto.apiKey(), dto.apiSecret());
+                case B3 -> new InvestorDocument(dto.documentNumber());
+            };
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(e.getMessage());
+        }
+    }
+
+    private static final ZoneId SAO_PAULO = ZoneId.of("America/Sao_Paulo");
+
+    /**
+     * Ja houve busca na fonte hoje (dia de Sao Paulo)? Conta a execucao que chegou a
+     * consultar — aguardando, confirmada ou descartada. A que falhou nao conta: pode
+     * ter parado antes da fonte (ex.: autorizacao pendente). G12.
+     */
+    private boolean buscouHoje(UUID connectionId) {
+        LocalDateTime inicioDoDia = LocalDate.now(SAO_PAULO).atStartOfDay(SAO_PAULO)
+            .withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+        return runs.existsByConnectionIdAndStatusInAndStartedAtGreaterThanEqual(connectionId,
+            List.of(RunStatus.AWAITING_CONFIRMATION, RunStatus.SUCCEEDED, RunStatus.CANCELLED), inicioDoDia);
     }
 
     private SourceConnector connector(IntegrationProvider provider) {
@@ -559,7 +694,9 @@ public class IntegrationService {
             c.getLastSyncAt(), c.getLastError(), c.getCreatedAt(),
             ultima != null ? ultima.getId() : null, ultima != null ? ultima.getStatus() : null,
             c.getId() == null ? 0 : runs.findFirstByConnectionIdAndStatusOrderByCreatedAtDesc(c.getId(), RunStatus.SUCCEEDED)
-                .map(r -> divergencias(r).size()).orElse(0));
+                .map(r -> divergencias(r).size()).orElse(0),
+            c.getStatus() == ConnectionStatus.PENDING_AUTHORIZATION && connectors.containsKey(c.getProvider())
+                ? connectors.get(c.getProvider()).authorizationUrl() : null);
     }
 
     private IntegrationRun ownedRun(UUID userId, UUID connectionId, UUID runId) {
@@ -571,7 +708,8 @@ public class IntegrationService {
 
     private ImportPreviewDTO toDto(IntegrationRun run) {
         List<IntegrationRunItem> itens = runItems.findByRunIdOrderByCreatedAt(run.getId());
-        List<ImportPreviewDTO.Item> dtos = itens.stream().map(this::toItem).toList();
+        ImportRules regras = regrasDe(run.getConnection().getProvider());
+        List<ImportPreviewDTO.Item> dtos = itens.stream().map(i -> toItem(i, regras)).toList();
         return new ImportPreviewDTO(run.getConnection().getId(), run.getConnection().getLabel(), run.getId(),
             run.getCreatedAt(), run.getFinishedAt(), run.getStatus(), run.getTriggerType(),
             contar(itens, RunItemOutcome.NEW), contar(itens, RunItemOutcome.EXISTING),
@@ -580,29 +718,38 @@ public class IntegrationService {
             run.getFiatDeposited(), run.getError(), divergencias(run), dtos);
     }
 
-    /** Moedas fiduciarias: saldo em dinheiro, nao posicao (D3). */
-    private static final Set<String> FIAT = Set.of("BRL", "USD", "EUR");
-
     /**
-     * Regra E3: depois de confirmada, compara a posicao de cripto do usuario no
-     * PrimeVest com o saldo que a corretora informou na busca, ativo a ativo.
+     * Regra E3: depois de confirmada, compara a posicao do usuario no PrimeVest com
+     * o saldo que a fonte informou na busca, ativo a ativo. Quais ativos entram e o
+     * que e dinheiro (nao posicao) sao das regras da fonte (G6).
      */
     private List<ImportPreviewDTO.Divergence> divergencias(IntegrationRun run) {
-        if (run.getStatus() != RunStatus.SUCCEEDED || run.getBalances() == null) {
+        ImportRules regras = regrasDe(run.getConnection().getProvider());
+        if (run.getStatus() != RunStatus.SUCCEEDED || run.getBalances() == null || regras == null) {
             return List.of();
         }
         Map<String, BigDecimal> corretora = new java.util.TreeMap<>(lerSaldos(run.getBalances()));
-        FIAT.forEach(corretora::remove);
-        Map<String, BigDecimal> primevest = new java.util.HashMap<>();
+        regras.cashBalances().forEach(corretora::remove);
+        if (corretora.isEmpty() && !regras.emptyBalanceMeansNoPosition()) {
+            return List.of();
+        }
+        // Cotas na data da busca, com os eventos do papel que o catalogo aplica (desdobramento,
+        // bonificacao) — como na carteira (B3, 6.7). Cripto nao tem evento: e a soma das operacoes.
+        LocalDate data = (run.getFinishedAt() != null ? run.getFinishedAt() : run.getCreatedAt()).toLocalDate();
+        Map<String, List<Transaction>> porAtivo = new java.util.HashMap<>();
+        Map<String, com.primevest.domain.asset.Asset> ativoPorTicker = new java.util.HashMap<>();
         for (Transaction t : transactions.findAllTransactionsByUserId(run.getConnection().getUser().getId())) {
             var asset = t.getPortfolioAsset().getAsset();
-            if (t.getShares() == null || asset.getAssetType() == null || !asset.getAssetType().isCrypto()) {
+            if (t.getShares() == null || !regras.tracksPosition(asset)) {
                 continue;
             }
-            primevest.merge(asset.getTicker(),
-                t.getType() == com.primevest.domain.transaction.TransactionType.SELL ? t.getShares().negate() : t.getShares(),
-                BigDecimal::add);
+            porAtivo.computeIfAbsent(asset.getTicker(), k -> new java.util.ArrayList<>()).add(t);
+            ativoPorTicker.putIfAbsent(asset.getTicker(), asset);
         }
+        Map<String, BigDecimal> primevest = new java.util.HashMap<>();
+        porAtivo.forEach((ticker, operacoes) -> primevest.put(ticker, positionCalculator.sharesOn(
+            PositionCalculator.chronological(operacoes), positionCalculator.stockEventsOf(ativoPorTicker.get(ticker)),
+            data)));
         java.util.TreeSet<String> ativos = new java.util.TreeSet<>(corretora.keySet());
         ativos.addAll(primevest.keySet());
         List<ImportPreviewDTO.Divergence> out = new java.util.ArrayList<>();
@@ -630,11 +777,12 @@ public class IntegrationService {
         return itens.stream().filter(i -> i.getOutcome() == o).count();
     }
 
-    private ImportPreviewDTO.Item toItem(IntegrationRunItem i) {
+    private ImportPreviewDTO.Item toItem(IntegrationRunItem i, ImportRules regras) {
         ImportedMovement m = movementJson.read(i.getRaw());
         ImportPreviewDTO.Proposed proposta = null;
-        if (i.getOutcome() == RunItemOutcome.NEW || i.getOutcome() == RunItemOutcome.POSSIBLE_DUPLICATE) {
-            CryptoImportRules.Result r = CryptoImportRules.map(m, assets::findByTicker);
+        if (regras != null
+                && (i.getOutcome() == RunItemOutcome.NEW || i.getOutcome() == RunItemOutcome.POSSIBLE_DUPLICATE)) {
+            ImportRules.Result r = regras.apply(m, assets::findByTicker);
             if (r.mapped()) {
                 ProposedTransaction t = r.transaction();
                 proposta = new ImportPreviewDTO.Proposed(t.ticker(), t.type(), t.shares(), t.pricePerShare(),

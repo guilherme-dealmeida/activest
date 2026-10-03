@@ -3,8 +3,8 @@
 > Fase: **levantamento** (25/09/2026) · nada implementado no PrimeVest · branch `TRACK_01-ajustes_crud_inicial`
 > Escopo: importar os aportes em cripto das corretoras. A Binance é o piloto, com a conta do Guilherme;
 > o destino é **qualquer usuário** conectar as próprias contas (seção 6, revisada em 25/09/2026).
-> Fonte do levantamento: MCP próprio, só leitura, em `E:\carga\scripts\binance-mcp` (fase 1).
-> Dados reais, dumps e a carga gerada ficam **fora do repositório**, em `E:\carga\data`.
+> Fonte do levantamento: MCP próprio, só leitura, fora do repositório (fase 1).
+> Dados reais, dumps e a carga gerada ficaram **fora do repositório** e foram descartados em 03/10/2026.
 
 Objetivo: saber o que a Binance entrega, como isso vira `transactions` do PrimeVest e o que falta no
 banco para a fase 2 (o serviço Java) importar sem duplicar.
@@ -46,7 +46,7 @@ USDT, SOL × BRL, USDT, BTC, USDC, FDUSD, BUSD, BNB, ETH). Só `BTCBRL` tinha ne
 
 ## 3. Conciliação
 
-Feita pelo `E:\carga\scripts\converter_binance.mjs` com os dumps do MCP.
+Feita por um script avulso (`converter_binance.mjs`, fora do repositório) com os dumps do MCP.
 
 | Conferência | Resultado |
 |---|---|
@@ -525,7 +525,7 @@ Respostas do Guilherme em 25/09/2026.
 
 | Arquivo | O que é |
 |---|---|
-| `E:\carga\scripts\binance-mcp\` | MCP só leitura (v0.1.1) |
-| `E:\carga\data\binance\*.json` | dumps brutos de cada consulta |
-| `E:\carga\scripts\converter_binance.mjs` | aplica R1–R8 aos dumps e concilia |
-| `E:\carga\data\carga_binance_guilherme.json` | 7 operações no formato da carga B3 + conciliação + posição esperada |
+| `binance-mcp/` | MCP só leitura (v0.1.1) |
+| `binance/*.json` | dumps brutos de cada consulta (descartados em 03/10/2026) |
+| `converter_binance.mjs` | aplica R1–R8 aos dumps e concilia (descartado em 03/10/2026) |
+| `carga_binance_guilherme.json` | 7 operações no formato da carga B3 + conciliação + posição esperada (descartado em 03/10/2026) |

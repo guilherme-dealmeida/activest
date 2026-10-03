@@ -199,8 +199,7 @@ aberta do 2.2-b. É um **spike sem código de produção**: só chamadas à API 
 1. `POST /auth` → apiKey.
 2. Conectar o item do MeuPluggy e obter o `itemId`.
 3. `GET /investments?itemId=…` e, para cada um, `GET /investments/{id}/transactions`.
-4. Gravar o JSON bruto **fora do repositório** (`E:\carga\data\openfinance\`), como já se faz com
-   os dados reais da B3.
+4. Gravar o JSON bruto em `carga/mocks/openfinance/` (**fora do git**), como os dados reais da B3.
 5. Planilha de conferência em `docs/openfinance/` **sem dados pessoais** (só estrutura dos campos).
 
 ### 5.3 Perguntas que o teste precisa responder
