@@ -1,32 +1,41 @@
 package com.primevest.domain.auth;
 
+import com.primevest.domain.auth.dto.CodeConfirmDTO;
+import com.primevest.domain.auth.dto.CodeRequestDTO;
+import com.primevest.domain.auth.dto.CodeSentDTO;
 import com.primevest.domain.auth.dto.GoogleLoginRequestDTO;
 import com.primevest.domain.auth.dto.LoginRequestDTO;
-import com.primevest.domain.auth.dto.RegisterRequestDTO;
+import com.primevest.domain.auth.dto.PasswordForgotDTO;
+import com.primevest.domain.auth.dto.PasswordResetDTO;
+import com.primevest.domain.auth.dto.RefreshRequestDTO;
+import com.primevest.domain.auth.dto.SignupStartDTO;
+import com.primevest.domain.auth.dto.SignupStatusDTO;
 import com.primevest.domain.auth.dto.TokenResponseDTO;
+import com.primevest.domain.user.LegalTerms;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
+/**
+ * Rotas públicas de entrada e cadastro (docs/planos/PLANO_CADASTRO_USUARIO.md, 3.7). O antigo
+ * {@code POST /auth/register} saiu (D11): cadastro sem verificação era porta dos fundos.
+ */
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
     private final AuthService authService;
-
-    @PostMapping("/register")
-    public ResponseEntity<Void> register(@Valid @RequestBody RegisterRequestDTO request) {
-        authService.registerWithEmail(request);
-        return ResponseEntity.ok().build();
-    }
+    private final SignupService signupService;
+    private final PasswordResetService passwordResetService;
+    private final AuthSettings settings;
 
     @PostMapping("/login")
-    public ResponseEntity<TokenResponseDTO> login(@Valid @RequestBody LoginRequestDTO request) {
-        return ResponseEntity.ok(authService.loginWithEmail(request));
+    public ResponseEntity<TokenResponseDTO> login(@Valid @RequestBody LoginRequestDTO request, HttpServletRequest http) {
+        return ResponseEntity.ok(authService.loginWithEmail(request, ClientIp.of(http)));
     }
 
     @PostMapping("/google")
@@ -35,8 +44,43 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<TokenResponseDTO> refresh(@RequestBody Map<String, String> request) {
-        String refreshToken = request.get("refreshToken");
-        return ResponseEntity.ok(authService.refreshToken(refreshToken));
+    public ResponseEntity<TokenResponseDTO> refresh(@Valid @RequestBody RefreshRequestDTO request) {
+        return ResponseEntity.ok(authService.refreshToken(request.refreshToken()));
+    }
+
+    @GetMapping("/signup/enabled")
+    public SignupStatusDTO signupEnabled() {
+        return new SignupStatusDTO(settings.isSignupEnabled(), LegalTerms.CURRENT_VERSION);
+    }
+
+    @PostMapping("/signup/start")
+    public ResponseEntity<CodeSentDTO> signupStart(@Valid @RequestBody SignupStartDTO dto, HttpServletRequest http) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(signupService.start(dto, ClientIp.of(http)));
+    }
+
+    @PostMapping("/signup/resend")
+    public ResponseEntity<CodeSentDTO> signupResend(@Valid @RequestBody CodeRequestDTO dto) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(signupService.resend(dto.requestId()));
+    }
+
+    @PostMapping("/signup/confirm")
+    public ResponseEntity<TokenResponseDTO> signupConfirm(@Valid @RequestBody CodeConfirmDTO dto) {
+        return ResponseEntity.ok(signupService.confirm(dto));
+    }
+
+    @PostMapping("/password/forgot")
+    public ResponseEntity<CodeSentDTO> forgot(@Valid @RequestBody PasswordForgotDTO dto, HttpServletRequest http) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(passwordResetService.forgot(dto.email(), ClientIp.of(http)));
+    }
+
+    @PostMapping("/password/resend")
+    public ResponseEntity<CodeSentDTO> forgotResend(@Valid @RequestBody CodeRequestDTO dto) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(passwordResetService.resend(dto.requestId()));
+    }
+
+    @PostMapping("/password/reset")
+    public ResponseEntity<Void> reset(@Valid @RequestBody PasswordResetDTO dto) {
+        passwordResetService.reset(dto);
+        return ResponseEntity.noContent().build();
     }
 }

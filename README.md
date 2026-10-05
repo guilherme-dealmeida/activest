@@ -58,9 +58,13 @@ primevest/
   entram depois de você conferir; proventos e eventos da B3 são conferidos com a carteira. A B3 real depende de contrato
   (Pacote de Acesso); até lá, um simulador com os seus extratos (`docs/planos/PLANO_INTEGRACAO_B3.md`)
 
-### Autenticação
-- ✅ Login via Google OAuth2
-- ✅ Login via email/senha com JWT
+### Autenticação e conta
+- ✅ Login via Google (Google Identity Services, ID token)
+- ✅ Login via email/senha com JWT (token de acesso + renovação)
+- ✅ Criar conta com código de verificação por e-mail e aceite dos termos (`/cadastro`)
+- ✅ Esqueci a senha com código por e-mail
+- ✅ Configurações: perfil (celular, CPF cifrado), troca de e-mail com código, senha, vínculo Google, tema, excluir conta
+- No DEV, todo e-mail cai no **Mailpit** (http://localhost:8025); nada sai da máquina
 
 ## ⚙️ Setup
 
@@ -97,6 +101,8 @@ criado, e Redis opcional para cache de cotações.
 export DB_USERNAME=postgres
 export DB_PASSWORD=postgres
 export GOOGLE_CLIENT_ID=seu-client-id        # opcional; sem ele o botão do Google some
+export SIGNUP_ENABLED=true                   # liga o "Criar conta"
+export MAIL_HOST=localhost MAIL_PORT=1025    # SMTP (ex.: um Mailpit local) para os códigos
 
 # Backend — porta 8080, da raiz
 mvn -pl primevest-app-api -am -Drun.module=primevest-app-api spring-boot:run

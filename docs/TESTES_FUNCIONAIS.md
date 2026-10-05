@@ -1,6 +1,8 @@
 # PrimeVest — Testes funcionais (de ponta a ponta)
 
-> Gerado em 02/10/2026 lendo direto o código de teste (classes `*IT`) · revisado em 03/10/2026 (Markdown).
+> Gerado em 02/10/2026 lendo direto o código de teste (classes `*IT`) · revisado em 03/10/2026 (Markdown) · 05/10/2026
+> (cadastro de usuário: `CadastroUsuarioIT`, `CadastroDesligadoIT`; `IntegracoesB3IT` e o 11º teste de `IntegracoesIT`
+> entraram na lista). Contagens conferidas no `mvn clean verify` de 05/10/2026.
 
 **O que é "funcional" aqui:** as classes `*IT`, rodadas pelo Failsafe no `mvn clean verify`. Sobem o Spring inteiro contra PostgreSQL 17 de verdade (Testcontainers, com Flyway e `ddl-auto: validate`) e exercitam a API por HTTP ou o serviço com o banco real. Fontes externas (B3, FNET, CVM, BRAPI, CoinGecko, Binance) são mockadas: nenhum teste depende de rede. Rotinas agendadas e mensagens Redis ficam desligadas no perfil de teste; os testes de ponta a ponta ligam adm-api e app-api direto (`CatalogoE2EBase`).
 
@@ -11,7 +13,7 @@ mvn clean verify                       # tudo (precisa do Docker Desktop)
 mvn -pl primevest-app-api -am verify   # um módulo
 ```
 
-**Total: 24 classes, 187 testes funcionais.**
+**Total: 27 classes, 209 testes funcionais.**
 
 ## Resumo
 
@@ -26,15 +28,18 @@ mvn -pl primevest-app-api -am verify   # um módulo
 | adm-api | [HistoricalQuotesImportIT](#historicalquotesimportit-4) | 4 |
 | app-api | [PaymentDateSourceIT](#paymentdatesourceit-3) | 3 |
 | app-api | [AlocacaoIT](#alocacaoit-6) | 6 |
+| app-api | [CadastroDesligadoIT](#cadastrodesligadoit-1) | 1 |
+| app-api | [CadastroUsuarioIT](#cadastrousuarioit-14) | 14 |
 | app-api | [CarteiraIT](#carteirait-13) | 13 |
 | app-api | [EstrategiaIT](#estrategiait-13) | 13 |
 | app-api | [EventosSocietariosIT](#eventossocietariosit-5) | 5 |
 | app-api | [ExtratoProventosIT](#extratoproventosit-6) | 6 |
 | app-api | [FechamentoIT](#fechamentoit-8) | 8 |
 | app-api | [IndicadoresIT](#indicadoresit-9) | 9 |
+| app-api | [IntegracoesB3IT](#integracoesb3it-6) | 6 |
 | app-api | [IntegracoesConfirmacaoIT](#integracoesconfirmacaoit-9) | 9 |
 | app-api | [IntegracoesFilaIT](#integracoesfilait-9) | 9 |
-| app-api | [IntegracoesIT](#integracoesit-10) | 10 |
+| app-api | [IntegracoesIT](#integracoesit-11) | 11 |
 | app-api | [PositionRefreshIT](#positionrefreshit-3) | 3 |
 | app-api | [ProventosAReceberIT](#proventosareceberit-7) | 7 |
 | app-api | [ProventosIT](#proventosit-6) | 6 |
@@ -135,7 +140,7 @@ F2 do docs/planos/PLANO_EMPRESAS_BALANCOS.md: serie historica da B3 em asset_pri
 | 3 | Catalogo so com o fracionario: o pregao do lote padrao nao cai nele pelo ISIN | `fracionarioNaoRecebeLotePadrao` |
 | 4 | Rodar de novo nao duplica e a serie da B3 substitui o que a BRAPI gravou no dia | `idempotenteESubstituiBrapi` |
 
-## Módulo app-api (carteira — porta 8080) — 17 classes, 159 testes
+## Módulo app-api (carteira — porta 8080) — 20 classes, 181 testes
 
 ### PaymentDateSourceIT (3)
 
@@ -163,6 +168,40 @@ A tela Alocacao e o Dashboard — que leem o mesmo endpoint com criterios difere
 | 4 | A alocacao por categoria nunca inclui a reserva e agrupa por tipo e categoria | `alocacaoDetalhada` |
 | 5 | Marcar um CDB como reserva muda a alocacao sem nenhuma outra escrita | `reservaMudaAAlocacao` |
 | 6 | Posicao liquidada sai da alocacao | `posicaoLiquidadaSaiDaAlocacao` |
+
+### CadastroDesligadoIT (1)
+
+`primevest-app-api/src/test/java/com/primevest/functional/CadastroDesligadoIT.java`
+
+Cadastro com `primevest.auth.signup-enabled=false` (docs/planos/PLANO_CADASTRO_USUARIO.md, D16, caso C10).
+
+| # | Teste | Método |
+|---|---|---|
+| 1 | Cadastro desligado: enabled=false e signup/start 403 | `desligado` |
+
+### CadastroUsuarioIT (14)
+
+`primevest-app-api/src/test/java/com/primevest/functional/CadastroUsuarioIT.java`
+
+Cadastro, entrada e conta de ponta a ponta na API (docs/planos/PLANO_CADASTRO_USUARIO.md, seção 7). O e-mail é o mock
+`accountMailer` do `FuncionalBase`: o código é lido dele. Códigos e contadores ficam em memória no perfil de teste.
+
+| # | Teste | Método |
+|---|---|---|
+| 1 | C4: cadastro com codigo cria a conta com carteira, e-mail verificado e termos aceitos | `cadastroCompleto` |
+| 2 | C8: e-mail ja cadastrado responde igual, avisa por e-mail e nenhum codigo confirma | `emailExistente` |
+| 3 | C5/C7: codigo errado conta tentativas; reenvio antes de 60 s e recusado | `tentativasEReenvio` |
+| 4 | C9/C16/C17/C25: sem aceite 400; CPF invalido, CPF e celular repetidos 422 | `validacoes` |
+| 5 | C12/C13: refresh nao serve de acesso, acesso nao serve de refresh; a renovacao funciona | `tiposDeToken` |
+| 6 | Login: senha errada 401; depois de 10 falhas o e-mail fica bloqueado (429) | `limiteDeLogin` |
+| 7 | C14: esqueci a senha — codigo no e-mail, nova senha vale e as sessoes antigas caem | `esqueciASenha` |
+| 8 | C21: trocar a senha devolve token novo e derruba o antigo | `trocarSenha` |
+| 9 | C15: trocar o e-mail so com o codigo enviado ao novo; o antigo e avisado | `trocarEmail` |
+| 10 | Perfil: nome, celular, CPF (nulo nao mexe, vazio tira) e tema | `perfil` |
+| 11 | C20: desvincular o Google sem senha e recusado | `desvincularGoogleSemSenha` |
+| 12 | C26: termos desatualizados — 403 TERMS_REQUIRED ate aceitar; /users/me continua liberado | `novoAceiteDosTermos` |
+| 13 | C23: excluir a conta com o codigo apaga o usuario e os dados; o token deixa de valer | `excluirConta` |
+| 14 | Foto de perfil: envio vira JPEG quadrado, sai com a versao no perfil, recusa invalida e remove | `fotoDePerfil` |
 
 ### CarteiraIT (13)
 
@@ -272,6 +311,22 @@ F9 do docs/planos/PLANO_EMPRESAS_BALANCOS.md de ponta a ponta: balancos (`compan
 | 8 | Emissor: cadastro com tickers, serie trimestral da companhia, informe do FII | `emissor` |
 | 9 | Quantidade do ultimo balanco em revisao: vale a do anterior, com motivo; com evento no meio, nulo | `quantidadeEmRevisao` |
 
+### IntegracoesB3IT (6)
+
+`primevest-app-api/src/test/java/com/primevest/functional/IntegracoesB3IT.java`
+
+Área do Investidor da B3 de ponta a ponta na API, com o cliente HTTP mockado (`ContaSinteticaB3`). Desde 05/10/2026 a
+conexão usa o CPF do perfil (docs/planos/PLANO_CADASTRO_USUARIO.md, D20).
+
+| # | Teste | Método |
+|---|---|---|
+| 1 | Com b3i.enabled a B3 aparece entre as fontes, pedindo o CPF | `fontes` |
+| 2 | Conectar com CPF que ainda nao autorizou: PENDING_AUTHORIZATION, com o link de autorizacao | `conectarAguardando` |
+| 3 | D20: sem CPF no perfil, CPF diferente do perfil, CPF que a B3 nao localiza, CPF de outro usuario (A1) e troca de CPF com conexao viva sao recusados | `recusas` |
+| 4 | Fluxo: aguardando -> autoriza -> importa as negociacoes (B1) -> segunda busca sem nada novo (C4) | `fluxoCompleto` |
+| 5 | C5: o investidor revoga na B3 -> a proxima busca encerra a conexao (REVOKED) e apaga o CPF | `revogacao` |
+| 6 | A rotina diaria tambem confere a conexao que aguarda autorizacao (G8) | `rotinaConfereAguardando` |
+
 ### IntegracoesConfirmacaoIT (9)
 
 `primevest-app-api/src/test/java/com/primevest/functional/IntegracoesConfirmacaoIT.java`
@@ -308,7 +363,7 @@ Fila, worker, rotina diaria e aviso de divergencia (docs/planos/PLANO_CRIPTO_BIN
 | 8 | Execucao RUNNING perdida (API caiu no meio) vira FAILED e libera a conexao | `execucaoPerdida` |
 | 9 | A lista de conexoes mostra a ultima execucao | `ultimaExecucaoNaLista` |
 
-### IntegracoesIT (10)
+### IntegracoesIT (11)
 
 `primevest-app-api/src/test/java/com/primevest/functional/IntegracoesIT.java`
 
@@ -326,6 +381,7 @@ Integracao com a Binance pela API, do jeito que qualquer usuario (e a tela de In
 | 8 | Dois usuarios: um nao lista, nao pre-visualiza nem desconecta a conexao do outro (404) | `isolamentoEntreUsuarios` |
 | 9 | Chave que passou a negociar depois de conectada: a busca falha com o motivo e marca a conexao | `permissaoMudouDepois` |
 | 10 | Desconectar apaga a credencial, marca REVOKED e bloqueia a pre-visualizacao | `desconectar` |
+| 11 | Sem b3i.enabled a B3 nao aparece entre as fontes nem conecta | `b3Desligada` |
 
 ### PositionRefreshIT (3)
 
@@ -456,5 +512,6 @@ Testes unitários e de repositório (`*Test`, Surefire, `mvn clean test`): regra
 | Módulo | Classes | Testes |
 |---|---|---|
 | adm-api | 16 | 79 |
-| app-api | 18 | 195 |
+| app-api | 16 | 167 |
 | core | 20 | 138 |
+| integration | 9 | 103 |

@@ -38,6 +38,10 @@ public final class Fixtures {
             .email(email)
             // bcrypt de "senha-de-teste"; nenhuma senha real entra em teste.
             .passwordHash("$2a$10$7EqJtq98hPqEX7fNZaFWoOa5t1oMuPqjFaZnGnSSVoMWvPb7uZ0/e")
+            // Termos aceitos na versao atual: sem isso a app-api responde 403 (TERMS_REQUIRED, D19)
+            // a todo teste que nao e sobre os termos.
+            .termsVersion(com.primevest.domain.user.LegalTerms.CURRENT_VERSION)
+            .termsAcceptedAt(java.time.LocalDateTime.now())
             .build();
     }
 

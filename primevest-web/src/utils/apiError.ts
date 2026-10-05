@@ -12,3 +12,21 @@ export const apiMessage = (error: unknown): string | undefined => {
   }
   return undefined;
 };
+
+/**
+ * Mensagem para formulário: o primeiro erro de campo do 400 (Bean Validation, já em português) ou a
+ * mensagem da regra (422/429/403). Sem nenhuma das duas, o texto padrão de quem chama.
+ */
+export const formErrorMessage = (error: unknown, fallback: string): string => {
+  if (typeof error === 'object' && error !== null && 'response' in error) {
+    const { response } = error as { response?: { status?: number; data?: { message?: string; errors?: Record<string, string> } } };
+    if (!response) return 'Não foi possível conectar ao servidor. Verifique se a API do PrimeVest está no ar.';
+    const campos = response.data?.errors;
+    if (response.status === 400 && campos) {
+      const primeiro = Object.values(campos)[0];
+      if (primeiro) return primeiro;
+    }
+    if (response.data?.message) return response.data.message;
+  }
+  return fallback;
+};

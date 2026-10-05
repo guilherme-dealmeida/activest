@@ -1,8 +1,26 @@
+/** GET /users/me (UserResponseDTO). O CPF só vem mascarado. */
 export interface User {
   id: string;
   name: string;
   email: string;
-  avatarUrl: string;
+  /** Foto do Google (da criação da conta). */
+  avatarUrl?: string;
+  /** Versão da foto enviada (epoch ms); ausente = sem foto enviada. Tem precedência sobre a do Google. */
+  avatarVersion?: number;
+  /** E.164 (+5541999999999). */
+  phone?: string;
+  /** "***.456.789-**". */
+  cpfMasked?: string;
+  emailVerified: boolean;
+  hasPassword: boolean;
+  googleLinked: boolean;
+  admin: boolean;
+  theme: 'DARK' | 'LIGHT';
+  termsVersion?: string;
+  termsAcceptedAt?: string;
+  currentTermsVersion: string;
+  /** A versão aceita não é a atual: abre o modal de novo aceite (D19). */
+  termsPending: boolean;
   createdAt?: string;
 }
 
@@ -12,18 +30,41 @@ export interface LoginRequest {
   password: string;
 }
 
-/** Corpo de POST /auth/register (RegisterRequestDTO): senha com no mínimo 8 caracteres. */
-export interface RegisterRequest {
-  name: string;
-  email: string;
-  password: string;
-}
-
 export interface TokenResponse {
   accessToken: string;
   refreshToken: string;
   tokenType: string;
   expiresIn: number;
+}
+
+/** Corpo de POST /auth/signup/start (SignupStartDTO). Celular e CPF opcionais. */
+export interface SignupRequest {
+  name: string;
+  email: string;
+  phone?: string;
+  cpf?: string;
+  password: string;
+  acceptTerms: boolean;
+}
+
+/** Resposta de todo pedido que manda código por e-mail (CodeSentDTO). */
+export interface CodeSent {
+  requestId: string;
+  maskedEmail: string;
+  resendInSeconds: number;
+  expiresInSeconds: number;
+}
+
+export interface SignupStatus {
+  enabled: boolean;
+  termsVersion: string;
+}
+
+/** PUT /users/me: cpf ausente = não mexe; '' = tira. */
+export interface UserUpdateRequest {
+  name: string;
+  phone?: string | null;
+  cpf?: string | null;
 }
 
 export interface AssetType {

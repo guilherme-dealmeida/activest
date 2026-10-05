@@ -27,6 +27,9 @@ public interface IntegrationConnectionRepository extends JpaRepository<Integrati
     /** Conexoes vivas da fonte, de qualquer usuario: para o CPF unico entre conexoes (B3, armadilha A1). */
     List<IntegrationConnection> findByProviderAndStatusNot(IntegrationProvider provider, ConnectionStatus status);
 
+    /** O usuario tem conexao viva com a fonte? (B3: o CPF do perfil nao muda com conexao viva, D20.) */
+    boolean existsByUserIdAndProviderAndStatusNot(UUID userId, IntegrationProvider provider, ConnectionStatus status);
+
     @Query("SELECT c FROM IntegrationConnection c WHERE c.id = :id AND c.user.id = :userId")
     Optional<IntegrationConnection> findOwnedById(@Param("id") UUID id, @Param("userId") UUID userId);
 }

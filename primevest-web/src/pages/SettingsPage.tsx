@@ -1,141 +1,360 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Save, User as UserIcon, Mail, CreditCard, KeyRound, Moon, Sun, ShieldAlert, FileText, Camera } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
+import { useToast } from '@/context/ToastContext';
+import { useGoogleSignIn } from '@/hooks/useGoogleSignIn';
+import { usersApi } from '@/api/users';
 import { Button } from '@/components/ui/Button';
-import { Save, User, Mail, Phone, CreditCard } from 'lucide-react';
+import { Input } from '@/components/ui/Input';
+import { Badge } from '@/components/ui/Badge';
+import { EmailChangeModal } from '@/components/settings/EmailChangeModal';
+import { DeleteAccountModal } from '@/components/settings/DeleteAccountModal';
+import { AvatarCropModal } from '@/components/settings/AvatarCropModal';
+import { AVATAR_MAX_MB, AVATAR_MIN_PX, AVATAR_TYPES, validarArquivoAvatar } from '@/utils/avatar';
+import { UserAvatar } from '@/components/ui/UserAvatar';
+import { formErrorMessage } from '@/utils/apiError';
+import { formatPhone, isPhoneComplete, phoneFromApi } from '@/utils/phone';
+import { formatCpf, isValidCpf } from '@/utils/integrations';
+import { tokens } from '@/api/tokens';
 
+const Section = ({ title, icon, children, danger }: {
+  title: string; icon: React.ReactNode; children: React.ReactNode; danger?: boolean;
+}) => (
+  <section className={`bg-surface rounded-lg border p-6 ${danger ? 'border-danger/40' : 'border-white/10'}`}>
+    <h3 className={`mb-5 flex items-center gap-2 text-base font-semibold ${danger ? 'text-danger' : 'text-white'}`}>
+      {icon}{title}
+    </h3>
+    {children}
+  </section>
+);
+
+const formatDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('pt-BR') : '—');
+
+/**
+ * Configurações (docs/planos/PLANO_CADASTRO_USUARIO.md, seção 4): perfil, acesso, preferências e
+ * exclusão da conta. Até 05/10/2026 a tela era uma maquete com valores fixos e "salvar" de mentira.
+ */
 export const SettingsPage = () => {
-  const { user } = useAuth();
-  
-  const [formData, setFormData] = useState({
-    fullName: user?.name || 'Guilherme Henrique',
-    email: user?.email || 'guilherme@email.com',
-    phone: '(41) 99999-9999',
-    document: '123.456.789-00',
-  });
+  const { user, setUser, startSession, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
+  const { showToast } = useToast();
 
-  const [saved, setSaved] = useState(false);
+  // ---------------- perfil
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [cpf, setCpf] = useState('');
+  const [editandoCpf, setEditandoCpf] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const [emailModal, setEmailModal] = useState(false);
+  const [excluirModal, setExcluirModal] = useState(false);
 
-  const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    setSaved(false);
+  // ---------------- foto
+  const fotoInput = React.useRef<HTMLInputElement>(null);
+  const [fotoArquivo, setFotoArquivo] = useState<File | null>(null);
+
+  const escolherFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = ''; // escolher o mesmo arquivo de novo também dispara
+    if (!f) return;
+    const problema = validarArquivoAvatar(f);
+    if (problema) {
+      showToast(problema, 'error', 8000);
+      return;
+    }
+    setFotoArquivo(f);
   };
 
-  const formatPhone = (value: string) => {
-    const digits = value.replace(/\D/g, '').slice(0, 11);
-    if (digits.length <= 2) return `(${digits}`;
-    if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-  };
-
-  const formatDocument = (value: string) => {
-    const digits = value.replace(/\D/g, '');
-    if (digits.length <= 11) {
-      // CPF
-      if (digits.length <= 3) return digits;
-      if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
-      if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
-      return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
-    } else {
-      // CNPJ
-      const cnpj = digits.slice(0, 14);
-      if (cnpj.length <= 2) return cnpj;
-      if (cnpj.length <= 5) return `${cnpj.slice(0, 2)}.${cnpj.slice(2)}`;
-      if (cnpj.length <= 8) return `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5)}`;
-      if (cnpj.length <= 12) return `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5, 8)}/${cnpj.slice(8)}`;
-      return `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5, 8)}/${cnpj.slice(8, 12)}-${cnpj.slice(12)}`;
+  const salvarFoto = async (image: Blob) => {
+    try {
+      setUser(await usersApi.uploadAvatar(image));
+      setFotoArquivo(null);
+      showToast('Foto atualizada.', 'success');
+    } catch (err) {
+      throw new Error(formErrorMessage(err, 'Não foi possível salvar a foto.'));
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Mock save
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+  const removerFoto = async () => {
+    try {
+      setUser(await usersApi.deleteAvatar());
+      showToast('Foto removida.', 'success');
+    } catch (err) {
+      showToast(formErrorMessage(err, 'Não foi possível remover a foto.'), 'error', 8000);
+    }
   };
 
+  useEffect(() => {
+    if (!user) return;
+    setName(user.name);
+    setPhone(phoneFromApi(user.phone));
+    setCpf('');
+    setEditandoCpf(!user.cpfMasked);
+  }, [user]);
+
+  const cpfDigitos = cpf.replace(/\D/g, '');
+  const cpfOk = cpfDigitos.length === 0 || isValidCpf(cpf);
+  const perfilOk = name.trim() && isPhoneComplete(phone) && cpfOk;
+
+  const salvarPerfil = async (e: React.FormEvent, removerCpf = false) => {
+    e.preventDefault();
+    setSalvando(true);
+    try {
+      // CPF: ausente = não mexe (a API só devolve o mascarado); '' = tira; número = troca.
+      const cpfEnvio = removerCpf ? '' : (editandoCpf && cpfDigitos ? cpfDigitos : undefined);
+      const atualizado = await usersApi.update({ name: name.trim(), phone: phone.trim() || null, cpf: cpfEnvio });
+      setUser(atualizado);
+      showToast(removerCpf ? 'CPF removido.' : 'Dados salvos.', 'success');
+    } catch (err) {
+      showToast(formErrorMessage(err, 'Não foi possível salvar os dados.'), 'error', 8000);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  // ---------------- senha
+  const [senhaAtual, setSenhaAtual] = useState('');
+  const [senhaNova, setSenhaNova] = useState('');
+  const [senhaConfirma, setSenhaConfirma] = useState('');
+  const [trocandoSenha, setTrocandoSenha] = useState(false);
+  const senhaOk = senhaNova.length >= 8 && senhaNova.length <= 72 && senhaNova === senhaConfirma
+    && (!user?.hasPassword || senhaAtual.length > 0);
+
+  const salvarSenha = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTrocandoSenha(true);
+    try {
+      const definia = !user?.hasPassword;
+      // A troca derruba as sessões (D15): os tokens novos mantêm esta aberta.
+      await startSession(await usersApi.changePassword(user?.hasPassword ? senhaAtual : undefined, senhaNova));
+      setSenhaAtual('');
+      setSenhaNova('');
+      setSenhaConfirma('');
+      showToast(definia ? 'Senha definida. Você também pode entrar por e-mail e senha.'
+        : 'Senha alterada. As outras sessões abertas foram encerradas.', 'success', 6000);
+    } catch (err) {
+      showToast(formErrorMessage(err, 'Não foi possível alterar a senha.'), 'error', 8000);
+    } finally {
+      setTrocandoSenha(false);
+    }
+  };
+
+  // ---------------- Google
+  const vincular = useCallback(async (credential: string) => {
+    setUser(await usersApi.linkGoogle(credential));
+    showToast('Conta Google vinculada.', 'success');
+  }, [setUser, showToast]);
+  const google = useGoogleSignIn({ onCredential: vincular });
+
+  const desvincular = async () => {
+    try {
+      setUser(await usersApi.unlinkGoogle());
+      showToast('Conta Google desvinculada.', 'success');
+    } catch (err) {
+      showToast(formErrorMessage(err, 'Não foi possível desvincular.'), 'error', 8000);
+    }
+  };
+
+  if (!user) return null;
+
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white dark:text-white light:text-gray-900">Configurações</h2>
-        <p className="text-gray-400 mt-1">Gerencie suas informações pessoais</p>
+        <h2 className="text-2xl font-bold text-white">Configurações</h2>
+        <p className="text-gray-400 mt-1">Seus dados, o acesso à conta e as preferências</p>
       </div>
 
-      <div className="bg-surface dark:bg-surface light:bg-white rounded-lg border border-white/10 dark:border-white/10 light:border-gray-200 p-8">
-        <div className="flex items-center mb-8">
-          <div className="h-16 w-16 rounded-full bg-accent/20 flex items-center justify-center border-2 border-accent/40">
-            <span className="text-accent text-2xl font-bold">{formData.fullName[0]}</span>
+      {/* Perfil */}
+      <Section title="Perfil" icon={<UserIcon className="h-4 w-4 text-accent" />}>
+        {/* Foto centralizada, com troca por upload (adendo de 05/10/2026). */}
+        <div className="flex flex-col items-center text-center mb-8">
+          <button type="button" onClick={() => fotoInput.current?.click()}
+            className="group relative rounded-full focus:outline-none focus:ring-2 focus:ring-accent"
+            title="Alterar foto" aria-label="Alterar foto">
+            <UserAvatar user={user} className="h-28 w-28 border-2 border-accent/40" textClassName="text-4xl font-bold" />
+            <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
+              <Camera className="h-7 w-7 text-white" />
+            </span>
+            <span className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full bg-accent text-black shadow">
+              <Camera className="h-4 w-4" />
+            </span>
+          </button>
+          <input ref={fotoInput} type="file" accept={AVATAR_TYPES.join(',')} className="hidden" onChange={escolherFoto} />
+          <h4 className="mt-4 text-lg font-semibold text-white">{user.name}</h4>
+          <p className="text-gray-400 text-sm">Conta criada em {formatDate(user.createdAt)}</p>
+          <div className="mt-3 flex gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={() => fotoInput.current?.click()}>
+              {user.avatarVersion ? 'Trocar foto' : 'Enviar foto'}
+            </Button>
+            {user.avatarVersion && (
+              <Button type="button" size="sm" variant="ghost" onClick={removerFoto}>Remover foto</Button>
+            )}
           </div>
-          <div className="ml-4">
-            <h3 className="text-lg font-semibold text-white dark:text-white light:text-gray-900">{formData.fullName}</h3>
-            <p className="text-gray-400 text-sm">{formData.email}</p>
-          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            JPEG, PNG ou WebP, até {AVATAR_MAX_MB} MB e com pelo menos {AVATAR_MIN_PX}×{AVATAR_MIN_PX} px.
+            {!user.avatarVersion && user.avatarUrl && ' Hoje aparece a foto da sua conta Google.'}
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="relative">
-            <label className="block text-sm font-medium text-gray-300 dark:text-gray-300 light:text-gray-700 mb-1.5">
-              <User className="inline h-4 w-4 mr-1.5 -mt-0.5" />
-              Nome Completo
-            </label>
-            <input
-              type="text"
-              value={formData.fullName}
-              onChange={(e) => handleChange('fullName', e.target.value)}
-              className="flex h-10 w-full rounded-md border border-white/10 dark:border-white/10 light:border-gray-300 bg-black/20 dark:bg-black/20 light:bg-gray-50 px-3 py-2 text-sm text-white dark:text-white light:text-gray-900 focus:ring-2 focus:ring-accent focus:border-transparent transition-colors"
-              placeholder="Seu nome completo"
-            />
-          </div>
+        <form onSubmit={salvarPerfil} className="space-y-5">
+          <Input label="Nome completo" value={name} onChange={(e) => setName(e.target.value)} maxLength={255} required />
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 dark:text-gray-300 light:text-gray-700 mb-1.5">
-              <Mail className="inline h-4 w-4 mr-1.5 -mt-0.5" />
-              Email
+            <label className="block text-sm font-medium text-gray-300 mb-1.5">
+              <Mail className="inline h-4 w-4 mr-1.5 -mt-0.5" />E-mail
             </label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => handleChange('email', e.target.value)}
-              className="flex h-10 w-full rounded-md border border-white/10 dark:border-white/10 light:border-gray-300 bg-black/20 dark:bg-black/20 light:bg-gray-50 px-3 py-2 text-sm text-white dark:text-white light:text-gray-900 focus:ring-2 focus:ring-accent focus:border-transparent transition-colors"
-              placeholder="seu@email.com"
-            />
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm text-white">{user.email}</span>
+              {user.emailVerified
+                ? <Badge variant="success">verificado</Badge>
+                : <Badge variant="warning">não verificado</Badge>}
+              <Button type="button" size="sm" variant="outline" onClick={() => setEmailModal(true)}>Alterar</Button>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">É o seu login. A troca é confirmada por um código enviado ao novo endereço.</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 dark:text-gray-300 light:text-gray-700 mb-1.5">
-              <Phone className="inline h-4 w-4 mr-1.5 -mt-0.5" />
-              Telefone
-            </label>
-            <input
-              type="text"
-              value={formData.phone}
-              onChange={(e) => handleChange('phone', formatPhone(e.target.value))}
-              className="flex h-10 w-full rounded-md border border-white/10 dark:border-white/10 light:border-gray-300 bg-black/20 dark:bg-black/20 light:bg-gray-50 px-3 py-2 text-sm text-white dark:text-white light:text-gray-900 focus:ring-2 focus:ring-accent focus:border-transparent transition-colors"
-              placeholder="(11) 99999-9999"
-            />
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div>
+              <Input label="Celular" value={phone} inputMode="tel" placeholder="(11) 99999-9999"
+                onChange={(e) => setPhone(formatPhone(e.target.value))}
+                error={!isPhoneComplete(phone) ? 'Informe DDD e número.' : undefined}
+                hint="Opcional. Contato, não serve para entrar." />
+            </div>
+            <div>
+              {editandoCpf ? (
+                <Input label="CPF" value={cpf} inputMode="numeric" maxLength={14} placeholder="000.000.000-00"
+                  onChange={(e) => setCpf(formatCpf(e.target.value))}
+                  error={cpfDigitos.length === 11 && !cpfOk ? 'CPF inválido.' : undefined}
+                  hint={user.cpfMasked ? 'Digite o novo CPF e salve.' : 'Opcional. Usado na integração com a B3.'} />
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                    <CreditCard className="inline h-4 w-4 mr-1.5 -mt-0.5" />CPF
+                  </label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-sm text-white">{user.cpfMasked}</span>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setEditandoCpf(true)}>Alterar</Button>
+                    <Button type="button" size="sm" variant="ghost" onClick={(e) => salvarPerfil(e, true)}>Remover</Button>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">Guardado cifrado. Não muda enquanto houver conexão com a B3.</p>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 dark:text-gray-300 light:text-gray-700 mb-1.5">
-              <CreditCard className="inline h-4 w-4 mr-1.5 -mt-0.5" />
-              CPF/CNPJ
-            </label>
-            <input
-              type="text"
-              value={formData.document}
-              onChange={(e) => handleChange('document', formatDocument(e.target.value))}
-              className="flex h-10 w-full rounded-md border border-white/10 dark:border-white/10 light:border-gray-300 bg-black/20 dark:bg-black/20 light:bg-gray-50 px-3 py-2 text-sm text-white dark:text-white light:text-gray-900 focus:ring-2 focus:ring-accent focus:border-transparent transition-colors"
-              placeholder="000.000.000-00"
-            />
-          </div>
-
-          <div className="pt-4 border-t border-white/10 dark:border-white/10 light:border-gray-200">
-            <Button type="submit" className="w-full sm:w-auto">
-              <Save className="w-4 h-4 mr-2" />
-              {saved ? '✓ Salvo com sucesso!' : 'Salvar Alterações'}
+          <div className="pt-4 border-t border-white/10 flex gap-3">
+            <Button type="submit" disabled={!perfilOk} isLoading={salvando}>
+              <Save className="w-4 h-4 mr-2" />Salvar alterações
             </Button>
+            {editandoCpf && user.cpfMasked && (
+              <Button type="button" variant="ghost" onClick={() => { setEditandoCpf(false); setCpf(''); }}>Manter CPF atual</Button>
+            )}
           </div>
         </form>
-      </div>
+      </Section>
+
+      {/* Acesso */}
+      <Section title="Acesso" icon={<KeyRound className="h-4 w-4 text-accent" />}>
+        <div className="space-y-8">
+          <form onSubmit={salvarSenha} className="space-y-4">
+            <div>
+              <h4 className="text-sm font-medium text-white">{user.hasPassword ? 'Alterar senha' : 'Definir senha'}</h4>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {user.hasPassword
+                  ? 'Ao trocar, as outras sessões abertas são encerradas.'
+                  : 'Sua conta entra só pelo Google. Defina uma senha para entrar também por e-mail.'}
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {user.hasPassword && (
+                <Input label="Senha atual" type="password" value={senhaAtual} autoComplete="current-password"
+                  onChange={(e) => setSenhaAtual(e.target.value)} />
+              )}
+              <Input label="Nova senha" type="password" value={senhaNova} autoComplete="new-password"
+                onChange={(e) => setSenhaNova(e.target.value)}
+                error={senhaNova && (senhaNova.length < 8 || senhaNova.length > 72) ? 'De 8 a 72 caracteres.' : undefined} />
+              <Input label="Confirme" type="password" value={senhaConfirma} autoComplete="new-password"
+                onChange={(e) => setSenhaConfirma(e.target.value)}
+                error={senhaConfirma && senhaNova !== senhaConfirma ? 'As senhas não conferem.' : undefined} />
+            </div>
+            <Button type="submit" variant="outline" disabled={!senhaOk} isLoading={trocandoSenha}>
+              {user.hasPassword ? 'Alterar senha' : 'Definir senha'}
+            </Button>
+          </form>
+
+          <div className="pt-6 border-t border-white/10 space-y-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <h4 className="text-sm font-medium text-white">Conta Google</h4>
+              {user.googleLinked ? <Badge variant="success">vinculada</Badge> : <Badge>não vinculada</Badge>}
+            </div>
+            {user.googleLinked ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <Button type="button" size="sm" variant="ghost" onClick={desvincular} disabled={!user.hasPassword}>
+                  Desvincular
+                </Button>
+                {!user.hasPassword && (
+                  <span className="text-xs text-gray-500">Defina uma senha antes: sem ela não haveria como entrar.</span>
+                )}
+              </div>
+            ) : google.enabled ? (
+              <div>
+                <p className="text-xs text-gray-500 mb-2">Vincule para entrar com um clique pelo Google.</p>
+                {google.error && <p className="text-sm text-danger mb-2">{google.error}</p>}
+                <div className="min-h-[44px]">
+                  {google.isLoading ? <span className="text-sm text-gray-400">Vinculando...</span> : <div ref={google.containerRef} />}
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500">O login com Google não está configurado neste ambiente.</p>
+            )}
+          </div>
+
+          <div className="pt-6 border-t border-white/10">
+            <h4 className="text-sm font-medium text-white flex items-center gap-2"><FileText className="h-4 w-4" />Termos</h4>
+            <p className="text-sm text-gray-400 mt-1">
+              {user.termsAcceptedAt
+                ? <>Versão <span className="text-white">{user.termsVersion}</span> aceita em {formatDate(user.termsAcceptedAt)}.</>
+                : 'Nenhum aceite registrado.'}{' '}
+              <Link to="/termos" target="_blank" className="text-accent hover:underline">Termos de Uso</Link> ·{' '}
+              <Link to="/privacidade" target="_blank" className="text-accent hover:underline">Política de Privacidade</Link>
+            </p>
+          </div>
+        </div>
+      </Section>
+
+      {/* Preferências */}
+      <Section title="Preferências" icon={isDark ? <Moon className="h-4 w-4 text-accent" /> : <Sun className="h-4 w-4 text-accent" />}>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-white">Tema</p>
+            <p className="text-xs text-gray-500">Fica guardado na sua conta e vale em qualquer navegador.</p>
+          </div>
+          <div className="inline-flex rounded-md border border-white/10 p-1">
+            {(['dark', 'light'] as const).map((t) => (
+              <button key={t} type="button"
+                onClick={() => { if ((t === 'dark') !== isDark) toggleTheme(); }}
+                className={`px-4 py-1.5 text-sm rounded ${(t === 'dark') === isDark ? 'bg-accent text-black font-medium' : 'text-gray-400 hover:text-white'}`}>
+                {t === 'dark' ? 'Escuro' : 'Claro'}
+              </button>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      {/* Zona de perigo */}
+      <Section title="Zona de perigo" icon={<ShieldAlert className="h-4 w-4" />} danger>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <p className="text-sm text-gray-300">Excluir a conta apaga definitivamente todos os seus dados no PrimeVest.</p>
+          <Button type="button" variant="danger" onClick={() => setExcluirModal(true)}>Excluir conta</Button>
+        </div>
+      </Section>
+
+      <EmailChangeModal isOpen={emailModal} onClose={() => setEmailModal(false)}
+        onChanged={(u) => { setUser(u); showToast('E-mail alterado.', 'success'); }} />
+      <AvatarCropModal file={fotoArquivo} onClose={() => setFotoArquivo(null)} onConfirm={salvarFoto} />
+      <DeleteAccountModal isOpen={excluirModal} onClose={() => setExcluirModal(false)}
+        onDeleted={() => { tokens.clear(); logout(); }} />
     </div>
   );
 };

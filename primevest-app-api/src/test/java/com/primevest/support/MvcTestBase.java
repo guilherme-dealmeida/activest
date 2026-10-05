@@ -35,4 +35,8 @@ public abstract class MvcTestBase {
 
     @MockBean
     protected JwtTokenProvider jwtTokenProvider;
+
+    /** O filtro JWT consulta o estado da sessao no banco (D15); aqui nao ha banco. */
+    @MockBean
+    protected com.primevest.domain.auth.SessionValidator sessionValidator;
 }

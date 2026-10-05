@@ -27,6 +27,24 @@ public abstract class FuncionalBase extends IntegrationTestBase {
     protected com.primevest.domain.integration.IntegrationService integrationService;
 
     /**
+     * E-mails da conta (docs/planos/PLANO_CADASTRO_USUARIO.md, U3): nenhum sai do teste. Os testes de
+     * cadastro leem o codigo enviado deste mock.
+     */
+    @org.springframework.boot.test.mock.mockito.MockBean
+    protected com.primevest.domain.auth.mail.AccountMailer accountMailer;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.primevest.domain.auth.verification.VerificationStore verificationStore;
+
+    /** Codigos e contadores de tentativa em memoria: cada cenario comeca sem os do anterior. */
+    @org.junit.jupiter.api.BeforeEach
+    void limparCodigos() {
+        if (verificationStore instanceof com.primevest.domain.auth.verification.InMemoryVerificationStore m) {
+            m.clear();
+        }
+    }
+
+    /**
      * Pede a sincronizacao pela API (202, fila), roda o worker como a rotina
      * faria e devolve a execucao como a tela a leria.
      */

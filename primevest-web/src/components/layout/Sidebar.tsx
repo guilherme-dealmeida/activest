@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import { integrationsApi } from '@/api/integrations';
 import { needsAttention } from '@/utils/integrations';
 import { useTheme } from '@/context/ThemeContext';
@@ -81,7 +82,7 @@ export const Sidebar = () => {
   });
   const attention = (connections ?? []).filter(needsAttention).length;
 
-  const userName = user?.name || 'Guilherme';
+  const userName = user?.name ?? '';
 
   const footerButton = clsx(
     'p-1.5 rounded-md transition-colors',
@@ -207,12 +208,8 @@ export const Sidebar = () => {
         isDark ? 'border-white/10' : 'border-gray-200'
       )}>
         <div className={clsx('flex items-center', collapsed && 'flex-col gap-2')}>
-          <div
-            className="h-8 w-8 shrink-0 rounded-full bg-accent/20 flex items-center justify-center border border-accent/30 text-accent font-semibold text-sm"
-            title={collapsed ? userName : undefined}
-          >
-            {user?.name?.[0] || 'G'}
-          </div>
+          {/* A foto do usuário (enviada, do Google ou a inicial) — a mesma de Configurações. */}
+          <UserAvatar user={user} className="h-8 w-8" textClassName="text-sm" title={collapsed ? userName : undefined} />
           {!collapsed && (
             <div className="ml-3 flex-1 min-w-0">
               <p className={clsx(

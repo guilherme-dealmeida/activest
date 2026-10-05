@@ -5,7 +5,10 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 03/10/2026 (pilha de teste `primevest-teste` com a carga inicial completa — ver
+> **Última revisão**: 05/10/2026 (cadastro de usuário: login Google em uso, cadastro com código por e-mail,
+> "esqueci a senha", termos, Configurações completas, refresh token separado do acesso — ver
+> `docs/planos/PLANO_CADASTRO_USUARIO.md`).
+> Antes: 03/10/2026 (pilha de teste `primevest-teste` com a carga inicial completa — ver
 > `docs/planos/PLANO_PRIMEVEST_TESTE.md`). No mesmo dia: organização (planos em `docs/planos/`, pendências em
 > `docs/PENDENCIAS.md`, documentos de `docs/` em Markdown, carga em `carga/data` e `carga/scripts`).
 > Antes: 28/09/2026 (tela de Emissoras, T1–T7 — ver `docs/planos/PLANO_TELA_EMISSORES.md`).
@@ -155,6 +158,7 @@ docker compose up -d --build
 | Swagger UI | http://localhost:8080/swagger-ui.html e http://localhost:8081/swagger-ui.html |
 | PostgreSQL | localhost:**5433** |
 | Redis | localhost:6379 |
+| Mailpit (caixa de e-mail do DEV) | http://localhost:8025 (SMTP 1025) — todo e-mail da app-api cai aqui, nada sai da máquina |
 
 > A porta do banco é **5433** de propósito, para não colidir com o PostgreSQL 17
 > instalado na máquina, que ocupa a 5432. No pgAdmin use `localhost:5433`.
@@ -227,6 +231,7 @@ pvt stop                                   # para sem apagar; pvt start volta
 | web | 5173 | 5174 |
 | app-api | 8080 | 8082 |
 | adm-api | 8081 | 8083 |
+| mailpit | 8025 (SMTP 1025) | 8026 (SMTP 1026) |
 
 - **Isolamento:** projeto Compose próprio (rede `primevest-teste_default`, volumes `primevest-teste_pgdata` e
   `primevest-teste_maven-repo`), contêineres `primevest-teste-*` e pasta de dados `carga/data-teste/` (no
@@ -383,7 +388,8 @@ primevest/
 │       │   │                    # transaction, issuer, strategy, goal, user...) + regras dos dois
 │       │   │                    # lados: PositionCalculator, DividendRecalculator, AppreciationUpdater,
 │       │   │                    # CashEventWriter, AssetLogos (leitura), catalog/ (mensagens)
-│       │   ├── domain/auth/     # JwtTokenProvider, JwtAuthFilter, UserDetailsServiceImpl
+│       │   ├── domain/auth/     # JwtTokenProvider (typ access/refresh), JwtAuthFilter, SessionValidator,
+│       │   │                    # UserDetailsServiceImpl; domain/user/LegalTerms (versão dos termos)
 │       │   ├── config/          # SecurityUtils
 │       │   └── exception/       # GlobalExceptionHandler, BusinessException...
 │       ├── main/resources/db/migration/   # V1 .. V39 (as duas aplicações rodam o Flyway)
@@ -420,9 +426,11 @@ primevest/
 │   └── src/
 │       ├── main/java/com/primevest/
 │       │   ├── PrimevestApplication.java   # varredura exclui com.primevest.adm
-│       │   ├── config/          # SecurityConfig, CorsConfig, RedisConfig, SwaggerConfig,
+│       │   ├── config/          # SecurityConfig, TermsAcceptanceFilter, CorsConfig, RedisConfig, SwaggerConfig,
 │       │   │                    # PasswordEncoderConfig, SchedulingConfig, CatalogMessagingConfig
-│       │   ├── domain/          # controllers, serviços e DTOs de auth, user, asset, portfolio
+│       │   ├── domain/          # controllers, serviços e DTOs de auth (AuthService, SignupService,
+│       │   │                    # PasswordResetService, AccountFactory; verification/: códigos no Redis,
+│       │   │                    # RateLimiter; mail/: AccountMailer SMTP), user (UserService, UserCpfService), asset, portfolio
 │       │   │                    # (PositionRefreshService), transaction, dividend (extrato),
 │       │   │                    # strategy, goal, ceilingprice, integration (orquestração das
 │       │   │                    # corretoras: IntegrationService, controller, worker, DTOs)
@@ -440,11 +448,14 @@ primevest/
         ├── components/
         │   ├── charts/
         │   ├── forms/           # AssetTypeSelect, TickerAutocomplete, FixedIncomeFields
+        │   ├── auth/            # AuthShell, CodeStep (código por e-mail), TermsGate (novo aceite)
         │   ├── layout/
+        │   ├── settings/        # EmailChangeModal, DeleteAccountModal, AvatarCropModal
         │   └── ui/              # Modal, MaskedNumberInput, CurrencyInput, PercentInput...
+        ├── content/             # legal.ts: Termos de Uso e Política de Privacidade (provisórios)
         ├── context/             # XContext.ts (contexto + hook) e XProvider.tsx: Auth, Theme, Toast
         ├── hooks/               # useSortable, useGoogleSignIn
-        ├── pages/               # 12 páginas
+        ├── pages/               # 16 páginas (inclui Signup, ForgotPassword, Legal)
         ├── types/               # interfaces TypeScript
         └── utils/               # format.ts
 ```
@@ -468,7 +479,8 @@ em desenvolvimento. **Não versione credenciais reais.**
 
 | Tabela | Descrição |
 |--------|-----------|
-| `users` | Usuários (bcrypt em `password_hash`, ou `google_id` para OAuth) |
+| `users` | Usuários (bcrypt em `password_hash`, ou `google_id` para OAuth). V41: `phone` (E.164, único), CPF cifrado (`cpf_ciphertext`/`cpf_iv`/`cpf_key_version`, AES-256-GCM com o id do usuário como AAD) + `cpf_hash` (HMAC, único), `email_verified_at`, `password_changed_at` (corta tokens anteriores), `terms_accepted_at`/`terms_version`, `theme`. E-mail sempre minúsculo (`uk_users_email_lower`) |
+| `user_avatars` | Foto de perfil enviada (V42): JPEG 512×512 regravado pela API (sem metadados). Tabela própria para a imagem não vir em toda leitura de `users`. `users.avatar_url` continua sendo a foto do Google; a enviada tem precedência |
 | `portfolios` | Carteira (1 por usuário) |
 | `portfolio_assets` | A posição. Chave lógica: `(portfolio_id, asset_id, note_id)` com `NULLS NOT DISTINCT`. **Não guarda cotas, preço médio nem custo** — saem das transações (V28) |
 | `transactions` | Compras e vendas. Fonte da verdade da posição. `note_id` nulo na renda variável |
@@ -583,6 +595,9 @@ categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, s
 | V37 | M7/F10: `assets` sem `cnpj` (é do emissor), `cash_history_loaded_at` (histórico se reconhece pelo gravado e por `carga/data/b3/proventos`, `carga/data/fnet`), `logo_path` e `logo_checked_at` (o arquivo em `carga/data/logos` é o estado) |
 | V38 | docs/planos/PLANO_CARGA_INICIAL.md (D13): catálogo sem o extrato — eventos `EXTRATO_B3` de FII viram `FNET`, os demais saem (proventos do usuário ficam `MANUAL`), datas `EXTRATO_B3`/`DEDUZIDA` apagadas; `source` só `B3`, `B3_HISTORICO`, `FNET`; `payment_date_source` só `CVM` |
 | V39 | docs/planos/PLANO_CARGA_INICIAL.md (D14, seção 11): `payment_date_source` aceita também `LEVANTAMENTO` (datas de pagamento levantadas, `carga/data/levantamento`) |
+| V40 | docs/planos/PLANO_INTEGRACAO_B3.md (F2): `integration_connections` aceita `provider = B3` e `status = PENDING_AUTHORIZATION` |
+| V42 | docs/planos/PLANO_CADASTRO_USUARIO.md (adendo): `user_avatars` — foto de perfil enviada (JPEG 512×512, ≤ 1 MB), 1:1 com `users`, `ON DELETE CASCADE` |
+| V41 | docs/planos/PLANO_CADASTRO_USUARIO.md (seção 5): colunas novas de `users` (celular, CPF cifrado + hash, verificação de e-mail, `password_changed_at`, aceite dos termos, tema), índices únicos de e-mail sem caixa, celular e CPF; o usuário semeado ganha e-mail verificado e o aceite da versão `2026-10-provisorio` |
 
 **Como o reset foi verificado** — vale registrar, porque é o método a repetir se
 houver um terceiro. Construiu-se um banco `db_ref` aplicando as 30 migrations
@@ -698,31 +713,55 @@ Implementações em vigor:
 
 ## 🔑 Autenticação
 
-- **Login por email/senha**: `POST /api/v1/auth/login` → `{ "accessToken": "..." }`
-- **Login Google**: `POST /api/v1/auth/google` com o ID token do Google
-- **Header nas demais chamadas**: `Authorization: Bearer <token>`
-- Token no frontend em `localStorage`, chave `primevest_token`
-- 401 em qualquer chamada limpa o token e redireciona para `/login`
-- Usuário semeado pela **V22**: `guilhermeunatec@gmail.com`
-  (hash bcrypt na migration; **a senha não fica documentada aqui**, e em produção
-  esse arquivo não deveria existir — credencial versionada é credencial pública)
+Plano e decisões: **`docs/planos/PLANO_CADASTRO_USUARIO.md`** (05/10/2026).
 
-**Google**: o fluxo usa Google Identity Services diretamente
-(`google.accounts.id` em `useGoogleSignIn`), com ID token e **sem client secret**.
-Sem `VITE_GOOGLE_CLIENT_ID` o hook fica inerte e o botão some da tela de login —
-de propósito, um botão que não funciona é pior que botão nenhum.
-Falta criar o Client ID no Google Cloud Console.
+- **Login por email/senha**: `POST /api/v1/auth/login` → `{ accessToken, refreshToken, tokenType, expiresIn }`.
+  E-mail normalizado (minúsculas) em todo lugar. 10 falhas em 15 min por e-mail (ou 50 por IP) → **429**.
+- **Login Google**: `POST /api/v1/auth/google` com o ID token. Caminhos: `google_id` → e-mail (vincula) →
+  cria a conta (só com `SIGNUP_ENABLED=true`). Nome e foto vêm do Google **só na criação** (D5); conta nova pelo
+  Google nasce com e-mail verificado e o aceite dos termos pela frase sob o botão (D17).
+- **Dois tokens** (claim `typ`): `access` (24 h, header `Authorization: Bearer`) e `refresh` (7 dias, só
+  `POST /auth/refresh`). Até 05/10/2026 nada os distinguia e o refresh valia como acesso de 7 dias. O front
+  renova sozinho no 401 (`api/client.ts`), uma vez, e só então manda para `/login`.
+- **Sessão no banco** (`SessionValidator`, core): a cada requisição autenticada o filtro confere que o usuário
+  existe e que o token é posterior a `password_changed_at` — trocar ou redefinir a senha derruba as outras
+  sessões (D15), inclusive os refresh tokens.
+- **Termos** (`LegalTerms.CURRENT_VERSION`, core; texto em `primevest-web/src/content/legal.ts`): versão aceita
+  diferente da atual → a app-api responde **403** com `errors.code = TERMS_REQUIRED` a tudo menos `GET/DELETE
+  /users/me`, `/users/me/terms` e `/users/me/delete-request*` (`TermsAcceptanceFilter`); o front abre o modal de
+  novo aceite (`TermsGate`). Texto hoje **fictício e provisório**.
+- **Cadastro com código** (`SignupService`): passo 1 guarda o cadastro pendente no **Redis** (D3; hash da senha,
+  CPF já cifrado), o código de 6 dígitos vai por e-mail; o usuário só nasce no `confirm`. Atrás de
+  `SIGNUP_ENABLED` (D16). Anti-enumeração: e-mail já cadastrado responde igual e recebe o aviso "você já tem
+  conta" (D10). Celular e CPF repetidos: 422.
+- **Códigos** (`VerificationCodeService`): HMAC (`PRIMEVEST_HASH_KEY`) no Redis, 10 min, 5 erros, reenvio após
+  60 s, 5 envios/h por e-mail. Testes: armazenamento em memória (`primevest.auth.store=memory`).
+- **E-mail** (`AccountMailer` / `SmtpAccountMailer`): SMTP do `.env`; sem configuração, o **Mailpit** do compose.
+- Token no frontend em `localStorage`, chaves `primevest_token` e `primevest_refresh_token`.
+- Usuário semeado pela **V9**: `guilhermeunatec@gmail.com` (hash bcrypt na migration; **a senha não fica
+  documentada aqui**, e em produção esse arquivo não deveria existir — credencial versionada é credencial pública).
+
+**Google**: o fluxo usa Google Identity Services diretamente (`google.accounts.id` em `useGoogleSignIn`), com ID
+token e **sem client secret**. Sem `VITE_GOOGLE_CLIENT_ID` o hook fica inerte e o botão some — de propósito, um
+botão que não funciona é pior que botão nenhum. Client ID criado em 05/10/2026 (projeto `primevest-510701`,
+passo a passo no apêndice A do plano); origens autorizadas `http://localhost` e `http://localhost:5173`.
 
 ---
 
 ## 🔌 Endpoints da API
 
-### Auth
-| Método | Endpoint |
-|--------|----------|
-| POST | `/api/v1/auth/login` |
-| POST | `/api/v1/auth/register` |
-| POST | `/api/v1/auth/google` |
+### Auth (públicas)
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| POST | `/api/v1/auth/login` | E-mail e senha → tokens |
+| POST | `/api/v1/auth/google` | ID token do Google → tokens |
+| POST | `/api/v1/auth/refresh` | `{refreshToken}` → tokens novos |
+| GET | `/api/v1/auth/signup/enabled` | `{enabled, termsVersion}` |
+| POST | `/api/v1/auth/signup/start` | `{name, email, phone?, cpf?, password, acceptTerms}` → 202 `{requestId, maskedEmail, resendInSeconds, expiresInSeconds}` |
+| POST | `/api/v1/auth/signup/resend` · `/signup/confirm` | `{requestId}` · `{requestId, code}` → tokens |
+| POST | `/api/v1/auth/password/forgot` · `/password/resend` · `/password/reset` | Esqueci a senha: `{email}` (202 sempre) · `{requestId}` · `{requestId, code, newPassword}` → 204 |
+
+`POST /auth/register` (cadastro sem verificação) **saiu** em 05/10/2026.
 
 ### Portfolio
 | Método | Endpoint | Descrição |
@@ -785,11 +824,18 @@ Falta criar o Client ID no Google Cloud Console.
 | GET / POST | `/api/v1/ceiling-prices/` · `/api/v1/goals/` |
 | PUT / DELETE | `/api/v1/ceiling-prices/{id}` · `/api/v1/goals/{id}` |
 
-### Users
-| Método | Endpoint |
-|--------|----------|
-| GET | `/api/v1/users/me` |
-| PUT | `/api/v1/users/me` |
+### Users (o próprio usuário)
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/api/v1/users/me` | Perfil: `avatarUrl` (Google), `avatarVersion` (foto enviada), `phone`, `cpfMasked` (`***.456.789-**`), `emailVerified`, `hasPassword`, `googleLinked`, `admin`, `theme`, termos (`termsVersion`, `termsAcceptedAt`, `currentTermsVersion`, `termsPending`) |
+| PUT | `/api/v1/users/me` | `{name, phone, cpf}` — `cpf` nulo não mexe, vazio tira; com conexão viva com a B3 o CPF não muda (D20) |
+| PUT | `/api/v1/users/me/preferences` | `{theme: DARK\|LIGHT}` |
+| PUT | `/api/v1/users/me/password` | `{currentPassword?, newPassword}` → tokens novos (derruba as outras sessões) |
+| POST | `/api/v1/users/me/email` · `/email/resend` · `/email/confirm` | Troca de e-mail com código no endereço novo |
+| POST · DELETE | `/api/v1/users/me/google` | Vincular (ID token) · desvincular (exige senha) |
+| GET · PUT · DELETE | `/api/v1/users/me/avatar` | Foto de perfil: `PUT` multipart (`file`, JPEG/PNG, ≤ 2 MB, ≥ 128 px; a API recorta o quadrado central e regrava JPEG ≤ 512×512); `GET` devolve o JPEG (a tela busca com o token e mostra como blob; `avatarVersion` no perfil muda a cada envio); `DELETE` volta para a do Google ou as iniciais |
+| POST | `/api/v1/users/me/terms` | Aceita a versão atual dos termos |
+| POST · DELETE | `/api/v1/users/me/delete-request` (`/resend`) · `/api/v1/users/me` | Exclusão definitiva com código (`DELETE` com `{requestId, code}`) |
 
 ---
 
@@ -823,8 +869,11 @@ Rotas em `App.tsx`; tudo abaixo de `/login` é protegido por `ProtectedRoute`.
 | `/goals` | Metas |
 | `/integrations` | Integrações (Binance e, com `B3I_ENABLED`, B3): conectar (chave ou CPF + autorização na B3), sincronizar, histórico, excluídas |
 | `/integrations/:id/runs/:runId` | Pré-visualização / resultado de uma sincronização (decidir duplicatas, confirmar) |
-| `/settings` | Configurações |
-| `/login` | Login (email/senha + Google) |
+| `/settings` | Configurações (05/10/2026): Perfil (foto centralizada com envio e recorte no navegador — `AvatarCropModal`, JPEG/PNG/WebP até 5 MB, ≥ 128 px —, nome, e-mail com troca por código, celular, CPF mascarado), Acesso (alterar/definir senha, vincular/desvincular Google, termos aceitos), Preferências (tema, gravado no usuário), Zona de perigo (excluir conta com código) |
+| `/login` | Login (email/senha + Google), links "Esqueci a senha" e "Criar conta" (só com o cadastro ligado) |
+| `/cadastro` | Criar conta (pública): dados (celular e CPF opcionais) + aceite dos termos → código por e-mail → já entra. Ou Google |
+| `/esqueci-senha` | Esqueci a senha (pública): e-mail → código + nova senha |
+| `/termos`, `/privacidade` | Termos de Uso e Política de Privacidade (públicas; texto provisório em `src/content/legal.ts`) |
 
 ### Alocação
 Aba **Carteira de Investimentos**: um card, duas metades iguais — "Alocação da
@@ -1353,11 +1402,6 @@ a ser ignorada. Agora o `tsconfig.node.json` emite só declaração, em
 mudar dependência, o container precisa de `npm install` próprio
 (`docker exec primevest-web npm install`): o `node_modules` dele é um volume
 anônimo, não o do Windows.
-
-### `GoogleOAuthProvider` vestigial em `main.tsx`
-`main.tsx` ainda envolve a app em `GoogleOAuthProvider` com
-`"YOUR_GOOGLE_CLIENT_ID_HERE"`, mas nada usa os hooks de `@react-oauth/google` —
-o login foi feito com Google Identity Services direto. O wrapper pode sair.
 
 ### Nomes de ação sem acento
 Os 782 nomes de ação vieram sem acento da importação original: `AALR3` é

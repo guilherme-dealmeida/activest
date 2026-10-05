@@ -86,6 +86,10 @@ public class IntegrationService {
     private final TransactionTemplate tx;
     private final TransactionTemplate readOnly;
 
+    /** CPF do perfil: a conexao com a B3 usa o do cadastro do usuario (docs/planos/PLANO_CADASTRO_USUARIO.md, D20). */
+    @org.springframework.beans.factory.annotation.Autowired
+    com.primevest.domain.user.UserCpfService userCpfService;
+
     @org.springframework.beans.factory.annotation.Value("${primevest.integrations.stale-minutes:30}")
     long staleMinutes = 30;
 
@@ -162,7 +166,9 @@ public class IntegrationService {
             throw new BusinessException("Você já tem uma conexão chamada \"" + label + "\".");
         }
         SourceConnector connector = connector(dto.provider());
-        SourceCredentials credencial = credenciais(dto);
+        SourceCredentials credencial = dto.provider() == IntegrationProvider.B3
+            ? documentoDoPerfil(userId, dto.documentNumber())
+            : credenciais(dto);
         documentoLivre(dto.provider(), credencial);
 
         CredentialCheck check = connector.check(credencial);
@@ -635,6 +641,25 @@ public class IntegrationService {
     private ImportRules regrasDe(IntegrationProvider provider) {
         SourceConnector c = connectors.get(provider);
         return c == null ? null : c.rules();
+    }
+
+    /**
+     * B3 (D20): o CPF e o do perfil do usuario — a tela o mostra preenchido e travado. Sem CPF no
+     * perfil nao conecta; um CPF diferente no pedido e recusado. Como o CPF e unico entre usuarios,
+     * ninguem conecta o CPF de outra pessoa (armadilha A1, PENDENCIAS 16.9).
+     */
+    private SourceCredentials documentoDoPerfil(UUID userId, String informado) {
+        String doPerfil = readOnly.execute(s -> users.findById(userId)
+            .flatMap(userCpfService::read).orElse(null));
+        if (doPerfil == null) {
+            throw new BusinessException("Cadastre o seu CPF em Configurações antes de conectar a B3.");
+        }
+        if (informado != null && !informado.isBlank()
+                && !doPerfil.equals(informado.replaceAll("\\D", ""))) {
+            throw new BusinessException("A conexão com a B3 usa o CPF do seu cadastro. Para usar outro, "
+                + "altere-o em Configurações.");
+        }
+        return new InvestorDocument(doPerfil);
     }
 
     /** Credencial de cada fonte, a partir do pedido de conexao (G9). */

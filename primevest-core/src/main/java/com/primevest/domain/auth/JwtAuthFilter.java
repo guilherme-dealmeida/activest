@@ -13,25 +13,37 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.UUID;
 
+/**
+ * Autentica pelo header {@code Authorization: Bearer}. Só token de acesso ({@code typ=access}) de um
+ * usuário que ainda existe e emitido depois da última troca de senha (D15). Qualquer outro caso segue
+ * sem autenticação, e a rota protegida responde 401.
+ *
+ * <p>O estado da sessão fica no atributo {@link #SESSION_ATTRIBUTE} da requisição: o filtro dos termos
+ * da app-api (D19) o lê sem consultar o banco de novo.</p>
+ */
 @Component
 @RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
 
+    public static final String SESSION_ATTRIBUTE = "primevest.session";
+
     private final JwtTokenProvider tokenProvider;
+    private final SessionValidator sessionValidator;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         String token = getJwtFromRequest(request);
 
-        if (StringUtils.hasText(token) && tokenProvider.validateToken(token)) {
-            UUID userId = tokenProvider.getUserIdFromToken(token);
-
-            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    userId, null, new ArrayList<>()
-            );
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+        if (StringUtils.hasText(token)) {
+            tokenProvider.parseAccess(token)
+                .flatMap(claims -> sessionValidator.load(claims.userId())
+                    .filter(state -> state.accepts(claims.issuedAt())))
+                .ifPresent(state -> {
+                    request.setAttribute(SESSION_ATTRIBUTE, state);
+                    SecurityContextHolder.getContext().setAuthentication(
+                        new UsernamePasswordAuthenticationToken(state.userId(), null, new ArrayList<>()));
+                });
         }
 
         filterChain.doFilter(request, response);

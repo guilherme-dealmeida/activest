@@ -16,6 +16,9 @@ import { IntegrationRunPage } from '@/pages/IntegrationRunPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { IssuerPage } from '@/pages/IssuerPage';
 import { LoginPage } from '@/pages/LoginPage';
+import { SignupPage } from '@/pages/SignupPage';
+import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
+import { LegalPage } from '@/pages/LegalPage';
 
 const ProtectedRoute = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -28,6 +31,10 @@ function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/cadastro" element={<SignupPage />} />
+      <Route path="/esqueci-senha" element={<ForgotPasswordPage />} />
+      <Route path="/termos" element={<LegalPage kind="termos" />} />
+      <Route path="/privacidade" element={<LegalPage kind="privacidade" />} />
       
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<DashboardPage />} />

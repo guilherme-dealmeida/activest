@@ -86,6 +86,13 @@ cvm:
 google:
   client-id: ""
 
+# Cadastro ligado e codigos em memoria (sem Redis nos testes). O e-mail nunca sai: os testes da
+# app-api trocam o AccountMailer por um mock e leem o codigo dele.
+primevest.auth:
+  signup-enabled: true
+  store: memory
+  hash-key: chave-de-teste-do-hmac-primevest
+
 logging:
   level:
     com.primevest: INFO
