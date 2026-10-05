@@ -28,6 +28,9 @@ export default defineConfig({
       '/api': {
         target: apiTarget,
         changeOrigin: true,
+        // X-Forwarded-For com o IP do navegador: os limites por IP da API (cadastro, login,
+        // "esqueci a senha") contam a pessoa, e nao o container do front.
+        xfwd: true,
       },
     },
   },

@@ -61,7 +61,8 @@ export const loginErrorMessage = (error: unknown, { unauthorized, fallback }: Lo
     case 400:
       return INVALID_INPUT;
     case 403:
-      return FORBIDDEN;
+      // 403 com a mensagem da API é regra (ex.: cadastro desativado); sem ela, é o CORS recusando a origem.
+      return message || FORBIDDEN;
     case 500:
       return SERVER_ERROR;
     default:

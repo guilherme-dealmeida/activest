@@ -26,6 +26,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -46,7 +47,9 @@ public class SecurityConfig {
             // ficava na tela recebendo erro, sem ser levado ao login.
             .exceptionHandling(ex -> ex.authenticationEntryPoint(
                 new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            // Termos atualizados pedem novo aceite (D19): depois do JWT, de quem le o estado da sessao.
+            .addFilterAfter(new TermsAcceptanceFilter(objectMapper), JwtAuthFilter.class);
 
         // Sem oauth2Login: o login pelo Google não usa redirect de servidor. O
         // navegador obtém o ID token direto do Google e o envia para

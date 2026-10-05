@@ -6,13 +6,17 @@ export type Theme = 'dark' | 'light';
 
 export interface ThemeContextType {
   theme: Theme;
+  /** Troca o tema e, com alguém logado, grava no usuário (D13). */
   toggleTheme: () => void;
+  /** Aplica um tema sem gravar — o AuthProvider usa ao carregar o usuário. */
+  setTheme: (theme: Theme) => void;
   isDark: boolean;
 }
 
 export const ThemeContext = createContext<ThemeContextType>({
   theme: 'dark',
   toggleTheme: () => {},
+  setTheme: () => {},
   isDark: true,
 });
 

@@ -66,7 +66,15 @@ public class GlobalExceptionHandler {
         return resposta(HttpStatus.BAD_REQUEST, "Corpo da requisição inválido", null);
     }
 
-    @ExceptionHandler({MissingServletRequestParameterException.class, MethodArgumentTypeMismatchException.class})
+    /** Arquivo acima do limite do multipart (foto de perfil: 2 MB). Sem isto virava 500. */
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleUploadGrande(Exception ex) {
+        return resposta(HttpStatus.PAYLOAD_TOO_LARGE, "O arquivo passa do tamanho permitido.", null);
+    }
+
+    @ExceptionHandler({MissingServletRequestParameterException.class, MethodArgumentTypeMismatchException.class,
+        org.springframework.web.multipart.support.MissingServletRequestPartException.class,
+        org.springframework.web.multipart.MultipartException.class})
     public ResponseEntity<ErrorResponse> handleParametro(Exception ex) {
         return resposta(HttpStatus.BAD_REQUEST, "Parâmetro inválido", null);
     }

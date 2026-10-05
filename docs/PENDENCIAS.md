@@ -2,7 +2,8 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 03/10/2026 — secao 21 (pilha de teste primevest-teste,
+Ultima atualizacao: 05/10/2026 — secao 22 (cadastro de usuario, docs/planos/PLANO_CADASTRO_USUARIO.md);
+9.4 e 16.9 resolvidos. Antes: 03/10/2026 — secao 21 (pilha de teste primevest-teste,
 docs/planos/PLANO_PRIMEVEST_TESTE.md). Antes: 29/09/2026 — secao 20 (ambiente de carga inicial,
 docs/planos/PLANO_CARGA_INICIAL.md) e 18.10 d resolvido. Antes: 28/09/2026 (noite) — 11.6
 resolvido e secao 19 (tela de Emissoras, docs/planos/PLANO_TELA_EMISSORES.md). Antes, no mesmo dia: itens 14.1
@@ -309,9 +310,8 @@ sumido antes, e restavam dois arquivos de teste somando 34 bytes.
 C:\Users\guilh\.gemini\antigravity\scratch\primevest
 Esta defasada e aparece nas buscas. Apagar ou desconectar da sessao.
 
-**9.4** Google OAuth: o codigo esta pronto e usa fluxo de ID token, sem client
-secret. Falta VOCE criar o Client ID no Google Cloud Console — nao crio
-credencial na sua conta. Depois e so preencher a variavel de ambiente.
+**9.4** FEITO em 05/10/2026 — Client ID criado pelo Guilherme (projeto primevest-510701,
+apendice A de docs/planos/PLANO_CADASTRO_USUARIO.md) e login Google conferido.
 
 **9.5** COMITADO em 18/09/2026. O acumulo das ultimas sessoes saiu do working
 tree, na branch TRACK_01-ajustes_crud_inicial:
@@ -669,9 +669,11 @@ reais (pilha primevest-teste). O que falta para a B3 de verdade e o que ficou de
 **16.8** Posicao da B3 nao exportada: a divergencia (6.7, conferencia C6) fica
  desligada no simulador. Exportar Extratos > Posicao para carga/mocks/ liga.
 
-**16.9** Antes do multiusuario: CPF de outra pessoa (armadilha A1). O PrimeVest
- ja recusa CPF repetido entre conexoes vivas; falta confirmar com a B3 se o
- link de opt-in aceita um identificador de retorno.
+**16.9** RESOLVIDO em 05/10/2026 (docs/planos/PLANO_CADASTRO_USUARIO.md, D20): a conexao com a
+ B3 usa o CPF do perfil do usuario, que e unico entre usuarios — ninguem conecta o CPF
+ de outra pessoa sem que ela ja o tenha no cadastro. O CPF do perfil nao muda com
+ conexao viva. (Confirmar com a B3 se o opt-in aceita um identificador de retorno
+ deixou de ser necessario para este risco.)
 
 Historico (25/09/2026):
 
@@ -921,6 +923,26 @@ Achados da primeira carga inicial completa num banco novo (primevest-teste), com
 **21.3** Busca de avisos no FNET por CNPJ sem resposta (timeout de 20 s, 3
  tentativas) para CXRI11 e VILG11 durante a carga: a B3 ficou de reserva
  para os dois. A rotina de proventos tenta de novo quando ligada.
+
+## 22. CADASTRO DE USUARIO (docs/planos/PLANO_CADASTRO_USUARIO.md, 05/10/2026)
+
+**22.1** Termos de Uso e Politica de Privacidade com texto FICTICIO
+ (primevest-web/src/content/legal.ts). Antes da producao: texto definitivo e
+ versao nova nos dois lados (TERMS_VERSION no front, LegalTerms.CURRENT_VERSION no
+ core) — quem aceitou a provisoria passa pelo modal de novo aceite.
+**22.2** Producao: CAPTCHA no cadastro e no "esqueci a senha" (ex.: Cloudflare
+ Turnstile); SMTP real com dominio proprio (SPF/DKIM) no lugar do Mailpit; origens
+ do dominio no Client ID do Google; publicar a tela de consentimento (hoje em modo
+ Teste: so entram as contas da lista de usuarios de teste), com logo e as URLs
+ dos textos definitivos.
+**22.3** SMS e WhatsApp ficaram fora (D8). Se voltarem: nova implementacao de
+ envio ao lado do SmtpAccountMailer e verificacao do celular (phone_verified_at).
+**22.4** Limites por IP contam o X-Forwarded-For; atras de um proxy de producao,
+ conferir que ele sobrescreve o cabecalho (senao o cliente escolhe o proprio IP).
+**22.5** FEITO em 05/10/2026 (adendo): foto de perfil enviada pelo usuario, com recorte
+ no navegador, guardada no banco (user_avatars, V42) e usada em Configuracoes e no menu.
+**22.6** npm audit no primevest-web aponta 10 vulnerabilidades (3 moderadas, 7
+ altas) em dependencias ja existentes antes deste escopo; nao tratadas aqui.
 
 ## ORDEM SUGERIDA
 

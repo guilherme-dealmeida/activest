@@ -42,7 +42,22 @@ class IntegracoesB3IT extends FuncionalBase {
         ana = usuarioComCarteira("ana@primevest.test");
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.primevest.domain.user.UserCpfService userCpfService;
+
+    /** D20: a conexao usa o CPF do perfil. Aqui ele e gravado direto, como Configuracoes faria. */
+    private void cpfNoPerfil(User user, String cpf) {
+        User u = userRepository.findById(user.getId()).orElseThrow();
+        userCpfService.apply(u, userCpfService.normalize(cpf));
+        userRepository.save(u);
+    }
+
     private ResponseEntity<Map> conectar(User user, String label, String cpf) {
+        cpfNoPerfil(user, cpf);
+        return pedirConexao(user, label, cpf);
+    }
+
+    private ResponseEntity<Map> pedirConexao(User user, String label, String cpf) {
         Map<String, Object> corpo = new HashMap<>();
         corpo.put("provider", "B3");
         corpo.put("label", label);
@@ -88,18 +103,34 @@ class IntegracoesB3IT extends FuncionalBase {
     }
 
     @Test
-    @DisplayName("CPF invalido, CPF que a B3 nao localiza e CPF ja conectado (A1) sao recusados")
+    @DisplayName("D20: sem CPF no perfil, CPF diferente do perfil, CPF que a B3 nao localiza, CPF de outro usuario (A1) e troca de CPF com conexao viva sao recusados")
     void recusas() {
         ContaSinteticaB3.conta(b3Client, true);
 
-        assertThat(conectar(ana, "B3 a", "123.456.789-00").getBody().toString()).contains("CPF válido");
+        // D20: sem CPF no perfil nao conecta; CPF diferente do perfil no pedido e recusado.
+        assertThat(pedirConexao(ana, "B3 a", ContaSinteticaB3.CPF).getBody().toString()).contains("Cadastre o seu CPF");
+        cpfNoPerfil(ana, ContaSinteticaB3.CPF_DESCONHECIDO);
+        assertThat(pedirConexao(ana, "B3 a", ContaSinteticaB3.CPF).getBody().toString()).contains("CPF do seu cadastro");
+
         assertThat(conectar(ana, "B3 b", ContaSinteticaB3.CPF_DESCONHECIDO).getBody().toString()).contains("não localizou");
         assertThat(conectar(ana, "B3 c", ContaSinteticaB3.CPF).getStatusCode()).isEqualTo(HttpStatus.OK);
 
+        // A1: o CPF e unico entre usuarios — o de Ana nao entra no perfil de Bruno.
         User bruno = usuarioComCarteira("bruno@primevest.test");
-        ResponseEntity<Map> outro = conectar(bruno, "B3", ContaSinteticaB3.CPF);
+        Map<String, Object> perfil = new HashMap<>();
+        perfil.put("name", "Bruno");
+        perfil.put("cpf", ContaSinteticaB3.CPF);
+        ResponseEntity<Map> outro = put(bruno, "/api/v1/users/me", perfil, Map.class);
         assertThat(outro.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
-        assertThat(outro.getBody().toString()).contains("já tem uma conexão");
+        assertThat(outro.getBody().toString()).contains("já está cadastrado em outra conta");
+
+        // C28: com a conexao viva, Ana nao troca nem tira o CPF do perfil.
+        Map<String, Object> troca = new HashMap<>();
+        troca.put("name", "Ana");
+        troca.put("cpf", "");
+        ResponseEntity<Map> r = put(ana, "/api/v1/users/me", troca, Map.class);
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(r.getBody().toString()).contains("enquanto houver conexão com a B3");
     }
 
     @Test

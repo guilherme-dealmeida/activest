@@ -17,6 +17,9 @@ services:
   redis:
     container_name: primevest-teste-redis
 
+  mailpit:
+    container_name: primevest-teste-mailpit
+
   app-api:
     container_name: primevest-teste-app-api
     environment:

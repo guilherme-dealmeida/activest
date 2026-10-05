@@ -1,16 +1,32 @@
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode, useCallback } from 'react';
 import { ThemeContext, Theme } from './ThemeContext';
+import { tokens } from '@/api/tokens';
+import { usersApi } from '@/api/users';
 
+const STORAGE_KEY = 'primevest-theme';
+
+/**
+ * Tema da tela. Desde 05/10/2026 é do usuário, no servidor (docs/planos/PLANO_CADASTRO_USUARIO.md,
+ * D13): o AuthProvider aplica o do usuário ao carregá-lo, e trocar aqui grava nele. O localStorage
+ * ficou só como cache — é o que pinta a tela de login e o primeiro desenho antes do usuário chegar.
+ */
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  const [theme, setTheme] = useState<Theme>(() => {
-    const stored = localStorage.getItem('primevest-theme');
-    return (stored as Theme) || 'dark';
+  const [theme, setThemeState] = useState<Theme>(() => {
+    try {
+      return (localStorage.getItem(STORAGE_KEY) as Theme) || 'dark';
+    } catch {
+      return 'dark';
+    }
   });
 
   const isDark = theme === 'dark';
 
   useEffect(() => {
-    localStorage.setItem('primevest-theme', theme);
+    try {
+      localStorage.setItem(STORAGE_KEY, theme);
+    } catch {
+      // sem armazenamento, o tema vale para esta visita
+    }
     const root = document.documentElement;
     if (theme === 'dark') {
       root.classList.add('dark');
@@ -21,12 +37,19 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [theme]);
 
+  const setTheme = useCallback((t: Theme) => setThemeState(t), []);
+
   const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+    const novo: Theme = theme === 'dark' ? 'light' : 'dark';
+    setThemeState(novo);
+    if (tokens.access()) {
+      // Falhar aqui não desfaz a troca na tela: o tema só não acompanha o usuário em outro navegador.
+      usersApi.preferences(novo === 'dark' ? 'DARK' : 'LIGHT').catch(() => {});
+    }
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, isDark }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme, isDark }}>
       {children}
     </ThemeContext.Provider>
   );

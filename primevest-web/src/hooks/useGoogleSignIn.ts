@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { loginErrorMessage } from '@/utils/loginError';
 
 const GSI_SRC = 'https://accounts.google.com/gsi/client';
@@ -45,7 +45,11 @@ export function useGoogleSignIn({ onCredential }: Options) {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
   const enabled = !!clientId && clientId !== 'dummy';
 
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Ref de callback, e nao useRef: o container pode nascer depois da montagem (tela que mostra
+  // "Carregando..." antes, ou o botao que volta depois do "Entrando..."). Com useRef o efeito rodava
+  // uma vez com o container nulo e o botao nunca aparecia (cadastro, 05/10/2026).
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
+  const containerRef = useCallback((el: HTMLDivElement | null) => setContainer(el), []);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -55,12 +59,12 @@ export function useGoogleSignIn({ onCredential }: Options) {
   onCredentialRef.current = onCredential;
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !container) return;
     let cancelado = false;
 
     loadGsi()
       .then(() => {
-        if (cancelado || !containerRef.current) return;
+        if (cancelado || !container) return;
 
         google.accounts.id.initialize({
           client_id: clientId!,
@@ -78,7 +82,7 @@ export function useGoogleSignIn({ onCredential }: Options) {
           },
         });
 
-        google.accounts.id.renderButton(containerRef.current, {
+        google.accounts.id.renderButton(container, {
           type: 'standard',
           theme: 'filled_black',
           size: 'large',
@@ -95,7 +99,7 @@ export function useGoogleSignIn({ onCredential }: Options) {
     return () => {
       cancelado = true;
     };
-  }, [clientId, enabled]);
+  }, [clientId, enabled, container]);
 
   return { containerRef, enabled, error, isLoading };
 }

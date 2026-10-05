@@ -349,7 +349,7 @@ Prefixo das rotas: `/api/v1`. Investidor = qualquer usuário logado; Admin = `is
 
 | UC | Nome | Ator | O que faz | Rotas / gatilho |
 |---|---|---|---|---|
-| UC01 | Autenticar | Investidor | Cadastro, login por senha ou Google, renovação do token (JWT) | `POST /auth/register`, `/auth/login`, `/auth/google`, `/auth/refresh` |
+| UC01 | Autenticar | Investidor | Cadastro com código por e-mail (e aceite dos termos), login por senha ou Google, esqueci a senha, renovação do token (JWT) — docs/planos/PLANO_CADASTRO_USUARIO.md | `GET /auth/signup/enabled`, `POST /auth/signup/{start,resend,confirm}`, `/auth/login`, `/auth/google`, `/auth/refresh`, `/auth/password/{forgot,resend,reset}` |
 | UC02 | Registrar transação | Investidor | Compra/venda de RV, RF e Tesouro; edita, exclui, restaura importada. Recusa venda sem saldo na data, RF sem título, dois títulos do Tesouro no mesmo dia | `POST/GET/PUT/DELETE /transactions/`, `POST /transactions/{id}/restore` |
 | UC03 | Consultar carteira e reserva | Investidor | Posições com cotas, PM, custo, valorização, emissor/vencimento da RF; liga/desliga reserva de emergência | `GET /portfolio/`, `/portfolio/assets`, `PATCH /portfolio/assets/{id}/reservation` |
 | UC04 | Dashboard e alocação | Investidor | Alocação por tipo e por categoria, com ou sem reserva; desempenho | `GET /portfolio/allocation`, `/allocation/detailed`, `/allocation/reservation`, `/portfolio/performance` |
@@ -359,7 +359,7 @@ Prefixo das rotas: `/api/v1`. Investidor = qualquer usuário logado; Admin = `is
 | UC08 | Metas | Investidor | Cadastrar/editar/excluir metas de investimento | `GET/POST /goals/`, `PUT/DELETE /goals/{id}` |
 | UC09 | Emissoras e indicadores | Investidor | Busca de ativo, cadastro do emissor, cotação ajustada por período, indicadores atuais e históricos, série trimestral e informe do FII | `GET /assets/`, `/assets/{ticker}`, `/assets/{ticker}/prices`, `/assets/{ticker}/indicators[/history]`, `/issuers/{id}[/quarters\|/months]`, `/assets/{ticker}/logo` |
 | UC10 | Conectar corretora | Investidor | Chave só leitura + consentimento; credencial cifrada; mostra só os 4 últimos caracteres | `GET/POST /integrations/connections` |
-| UC11 | Perfil do usuário | Investidor | Ver e alterar os próprios dados | `GET/PUT /users/me` |
+| UC11 | Perfil do usuário | Investidor | Ver e alterar os próprios dados (nome, celular, CPF), tema, senha, e-mail com código, vínculo Google, novo aceite dos termos, excluir a conta com código | `GET/PUT/DELETE /users/me`, `PUT /users/me/{preferences,password}`, `POST /users/me/{email,email/confirm,google,terms,delete-request}`, `DELETE /users/me/google` |
 | UC12 | Pré-visualizar importação | Investidor | Pede a busca na corretora (fila); mostra novas, já importadas, não mapeadas, possíveis duplicatas | `POST /integrations/connections/{id}/preview`, `GET …/runs/{runId}` |
 | UC13 | Confirmar importação | Investidor | Grava as operações como transações `AUTO`; possível duplicata exige REPLACE ou SKIP | `POST …/runs/{runId}/confirm`, `…/cancel` |
 | UC14 | Editar/excluir/restaurar importada | Investidor | Edição marca `editedAt`; exclusão registra para não recriar; restaurar volta aos valores da corretora | `PUT/DELETE /transactions/{id}`, `POST /transactions/{id}/restore`, `GET …/exclusions`, `POST …/exclusions/{id}/restore` |
