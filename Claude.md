@@ -5,7 +5,9 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 05/10/2026 (cadastro de usuário: login Google em uso, cadastro com código por e-mail,
+> **Última revisão**: 05/10/2026 (índices de mercado: CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, PTAX, Ibovespa e
+> IFIX desde 2010, rotina das 10:00 e `/api/v1/indices` — ver `docs/planos/PLANO_INDICES_MERCADO.md`).
+> No mesmo dia: cadastro de usuário (login Google em uso, cadastro com código por e-mail,
 > "esqueci a senha", termos, Configurações completas, refresh token separado do acesso — ver
 > `docs/planos/PLANO_CADASTRO_USUARIO.md`).
 > Antes: 03/10/2026 (pilha de teste `primevest-teste` com a carga inicial completa — ver
@@ -113,9 +115,9 @@ Plano e histórico: **`docs/planos/PLANO_ADM_API.md`**. O backend é um Maven mu
 | `primevest-core` | — | Biblioteca: **todas** as entidades JPA e repositórios, as regras de posição e de proventos usadas pelos dois lados (`PositionCalculator`, `DividendRecalculator`, `AppreciationUpdater`, `CashEventWriter`…), as migrations do Flyway, a validação do JWT, o tratamento de erro e o contrato das mensagens (`CatalogChange`, `CatalogMessaging`) |
 | `primevest-integration` | — | Biblioteca (03/10/2026, `docs/planos/PLANO_INTEGRACAO_B3.md`): **integrações com fontes do investidor** — contrato da fonte (`SourceConnector`, `ImportedMovement`), credenciais cifradas (`SourceCredentials`: chave de API ou CPF; `CredentialCipher`, `CredentialVault`), pipeline de importação (`ImportPipeline` + as regras de cada fonte, `ImportRules`) e os conectores (`integration/binance/`, `integration/b3investidor/`). Pacotes com o mesmo nome de antes. Só a app-api depende dele; a orquestração (serviço, fila, confirmação) continua na app-api, porque grava pelo `TransactionService` |
 | `primevest-app-api` | 8080 | **A carteira**: login, transações, carteira, proventos do usuário, estratégia, metas, preço teto, integrações com corretoras. O front só fala com ela |
-| `primevest-adm-api` | 8081 | **Rotinas de administrador — o catálogo**: emissores, balanços e série trimestral da CVM, COTAHIST, fechamento diário (BRAPI/CoinGecko), eventos de proventos (B3/FNET), logos, conferência do catálogo, todo o `/api/v1/admin/*` (exceto o extrato). Classes em `com.primevest.adm.*` |
+| `primevest-adm-api` | 8081 | **Rotinas de administrador — o catálogo**: emissores, balanços e série trimestral da CVM, COTAHIST, fechamento diário (BRAPI/CoinGecko), eventos de proventos (B3/FNET), índices de mercado (SGS/B3), logos, conferência do catálogo, todo o `/api/v1/admin/*` (exceto o extrato). Classes em `com.primevest.adm.*` |
 
-**A regra:** a adm-api grava **só catálogo** (`asset_cash_events`, `asset_stock_events`, `asset_price_history`, `assets`, `issuers`, balanços, `company_quarters`, `fii_monthly`);
+**A regra:** a adm-api grava **só catálogo** (`asset_cash_events`, `asset_stock_events`, `asset_price_history`, `assets`, `issuers`, balanços, `company_quarters`, `fii_monthly`, `market_index_values`);
 a app-api é a **única que grava dado de usuário** (`dividends`, valorização em `portfolio_assets`, transações…). Mesmo
 banco, mesmo Redis, mesmo JWT (o login é na 8080; a 8081 só valida o token). Os dois rodam o Flyway ao subir — ele
 trava o banco enquanto migra, a ordem de subida não importa.
@@ -304,16 +306,18 @@ Plano, decisões e achados da integração: **`docs/planos/PLANO_BRAPI.md`** (ex
 | Fechamento B3 (seg–sex) e cripto (todo dia), com recuperação na subida — `ClosingPriceScheduler` | 19:00 | adm-api → "catálogo mudou" (FECHAMENTO) |
 | Eventos de proventos da B3/FNET de **todo o catálogo** ligado a emissor + o que já esteve em carteira (F8; `primevest.proventos.scope`) — `ProventosScheduler` | 20:00 | adm-api → "catálogo mudou" (PROVENTOS), por emissor |
 | Balanços da CVM (DFP/ITR do ano corrente e do anterior) + série trimestral + informe mensal de FII (F7) — `CvmStatementsScheduler` | 07:30 | adm-api |
-| Conferência do catálogo (só loga) — `CatalogAuditScheduler` | seg 07:00 | adm-api |
+| Índices de mercado, incremental com janela de revisão (30 dias nos diários, 3 meses nos mensais), com recuperação na subida — `MarketIndexScheduler` (`docs/planos/PLANO_INDICES_MERCADO.md`) | 10:00 | adm-api |
+| Conferência do catálogo e dos índices atrasados (só loga) — `CatalogAuditScheduler` | seg 07:00 | adm-api |
 | Logos (arquivos em `carga/data/logos/{TICKER}.{ext}` — o arquivo é o estado; só quem não tem arquivo; a subida não procura nada, o ativo novo é procurado no pedido "preciso do histórico") — `LogoScheduler` | dia 1, 06:00 | adm-api (a app-api só lê a pasta, `AssetLogos`) |
 | Recálculo de proventos e valorização de todas as posições — `PositionRefreshScheduler` | 21:00 | app-api |
 | Fila das integrações com corretoras — `IntegrationSyncScheduler` (08:45) e `IntegrationWorker` (5 s) | — | app-api |
 
-Disparo manual para admin, **na adm-api (8081)**: `POST /api/v1/admin/{closing|proventos|catalog-audit|logos|issuers/import|issuers/link|b3/cotahist|cvm/import|cvm/quarters|cvm/fii-monthly|cvm/proventos|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, datas de pagamento da CVM, balanços e informe de FII, em ordem — docs/planos/PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
+Disparo manual para admin, **na adm-api (8081)**: `POST /api/v1/admin/{closing|proventos|catalog-audit|logos|issuers/import|issuers/link|b3/cotahist|cvm/import|cvm/quarters|cvm/fii-monthly|cvm/proventos|indices|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, datas de pagamento da CVM, balanços, informe de FII e índices de mercado, em ordem — docs/planos/PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
 (`b3/cotahist?from=2010&to=2026`, padrão 2010 até o ano corrente; `cvm/import?from=2010&to=2026&force=false` —
 documento na mesma versão é pulado, `force=true` reprocessa a partir de `carga/data/cvm` sem baixar; ao terminar recalcula
 a série trimestral, que `cvm/quarters` recalcula sozinha; `cvm/fii-monthly?from=2016&to=2026&force=false` — informe
-mensal de FII em `fii_monthly`, mês na mesma versão é pulado). Na **app-api (8080)** só
+mensal de FII em `fii_monthly`, mês na mesma versão é pulado; `indices?codes=CDI,IPCA&from=2010&to=2026` — padrão: todos,
+2010 até o ano corrente; código desconhecido 400; `recent=true` = a rodada incremental das 10:00). Na **app-api (8080)** só
 `POST /api/v1/admin/proventos/extrato` (importação da carteira). Script: `node carga/scripts/admin.mjs <rotina> [--json corpo.json]`
 (ou `docker compose --profile carga run --rm tools node carga/scripts/admin.mjs <rotina>`) — login na app-api com a
 `PRIMEVEST_SENHA` do `.env` e disparo na adm-api (ou na app-api, para o extrato); portas do `.env` (`API_PORT`, `ADM_API_PORT`).
@@ -338,6 +342,8 @@ Todas as fontes abaixo, menos o Google, são da **adm-api** (config em `primeves
 | **Série histórica da B3 — COTAHIST** (`B3HistoricalQuotesClient`) | Preço diário não ajustado de ações (lote padrão e fracionário) e FIIs desde 2010, e o ISIN de cada ticker do catálogo. Zip por ano em `carga/data/b3/cotahist`. Dia gravado pela B3 não é sobrescrito pela BRAPI (`asset_price_history.source`, V29) | `b3.cotahist-url` |
 | **CVM dados abertos** (`CvmOpenDataClient`) | Emissores (cadastro de companhias, FCA, informe mensal de FII); informe mensal de FII 2016+ em `fii_monthly` (`CvmFiiMonthly`, partes complemento e ativo/passivo, F7); balanços DFP (2010+) e ITR (2011+) (`CvmStatements`); histórico de capital do Formulário de Referência (`CvmFreCapital`, quantidade de ações antes de 2020 e régua da escala depois). Cache em `carga/data/cvm/{cad,fca,fii,dfp,itr,fre}` — o arquivo é o estado (`docs/planos/PLANO_EMPRESAS_BALANCOS.md`) | `cvm.base-url`, `primevest.data.dir` |
 | **CoinGecko** | Preço de cripto (id em `assets.price_source_ref`) e logos das moedas | `coingecko.base-url` |
+| **Banco Central — API SGS** (`BcbSgsClient`, sem token) | Índices de mercado (`docs/planos/PLANO_INDICES_MERCADO.md`): CDI (série 12), Selic (11), IPCA (433), IGP-M (189), INPC (188), TR (226), meta Selic (432), dólar PTAX venda (1). Uma consulta por ano civil com `dataInicial`/`dataFinal` (série diária recusa janela de mais de 10 anos com 406; 404 = sem valores no período); timeout de 20 s e até 4 tentativas (o SGS às vezes demora). A TR repete o início com fins diferentes: fica o período de um mês cheio. Data futura não entra (a meta Selic vem preenchida até a próxima reunião do Copom). Cache `carga/data/bcb/sgs/{código}/{ano}.json`: ano fechado com arquivo só do disco; o corrente e o anterior sempre da fonte (`IndexYearCache`) | `bcb.sgs-base-url`, `indices.*`, `primevest.data.dir` |
+| **B3 — índices** (`B3IndexClient`) | Fechamento diário do Ibovespa e do IFIX: `indexStatisticsProxy/IndexCall/GetPortfolioDay`, um ano por chamada, numa grade dia × mês com texto pt-BR. Cache `carga/data/b3/indices/{índice}/{ano}.json`, mesma regra | `b3.base-url`, `indices.*` |
 | **Google Identity Services** | Login social (fluxo de ID token, sem client secret) | `VITE_GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_ID` |
 
 **Integrações com corretoras e com a B3** (`docs/planos/PLANO_CRIPTO_BINANCE.md` e `docs/planos/PLANO_INTEGRACAO_B3.md`;
@@ -392,7 +398,7 @@ primevest/
 │       │   │                    # UserDetailsServiceImpl; domain/user/LegalTerms (versão dos termos)
 │       │   ├── config/          # SecurityUtils
 │       │   └── exception/       # GlobalExceptionHandler, BusinessException...
-│       ├── main/resources/db/migration/   # V1 .. V39 (as duas aplicações rodam o Flyway)
+│       ├── main/resources/db/migration/   # V1 .. V43 (as duas aplicações rodam o Flyway)
 │       └── test/                # test-jar: IntegrationTestBase, JpaTestBase, PostgresContainer,
 │                                # Fixtures, CatalogIds, Tokens, application-test.yml; SchemaTest
 │
@@ -418,7 +424,7 @@ primevest/
 │       │   ├── domain/          # dividend/ProventosCatalogService, pricehistory/ClosingPriceService e
 │       │   │                    # HistoricalQuotesImportService, issuer/ (import e ligação),
 │       │   │                    # fundamentals/ (balanços, série trimestral), asset/ (logos, conferência)
-│       │   ├── integration/     # b3/ (B3, FNET, COTAHIST), cvm/, brapi/, coingecko/, PublicFileCache
+│       │   ├── integration/     # b3/ (B3, FNET, COTAHIST), cvm/, brapi/, coingecko/, indices/ (SGS, B3), PublicFileCache
 │       │   └── scheduler/       # fechamento, proventos, balanços, logos, conferência
 │       └── test/                # recortes reais da B3 e da CVM (test-jar, usados pela app-api)
 │
@@ -508,6 +514,8 @@ em desenvolvimento. **Não versione credenciais reais.**
 | `company_quarters` | Série trimestral derivada (V33, F6), uma linha por `(issuer_id, period_end)` de cada DFP/ITR: `*_q` trimestre isolado (3 meses do ITR, ou acumulado menos o trimestre anterior — 4T = DFP − 9 meses), `*_ttm` 12 meses (anual do DFP ou soma de 4 trimestres consecutivos; faltando um, nulo), posição (PL, PL da controladora, ativo, caixa, dívida) e ações em unidades (nulas em `REVISAR`). Recalculada inteira por `CompanyQuarterService` (regras em `QuarterSeries`) ao fim de cada carga de balanços; nada próprio nela |
 | `fii_monthly` | Informe mensal de FII da CVM (V34, F7), cru, uma linha por `(issuer_id, reference_month)` (primeiro dia do mês), 09/2016 em diante, só fundos emissores; `version` é a maior recebida (reapresentação substitui). Do complemento: PL, ativo, cotas, VP por cota, cotistas, taxa de administração, DY e amortização do mês (frações: 0,0068 = 0,68%). Do ativo/passivo: liquidez, total investido, imóveis, imóveis via SPE, recebíveis (CRI/CRA, LCI/LCA, LH, LIG), cotas de FII, passivo e rendimentos a distribuir (÷ cotas = rendimento estimado, **só indicador**, nunca vira `asset_cash_events`). Gravada por `FiiMonthlyImportService` (adm-api) |
 | `integration_crypto_exclusions` | Operação de cripto importada e excluída pelo usuário: a sincronização não recria (regra E2 do plano) |
+| `market_indices` | Cadastro dos índices de mercado (V43, seed): `code` (o mesmo nome do enum `Indexer` para CDI, SELIC, IPCA, IGPM, INPC, TR — a nota acha a série por `fixed_income_notes.indexer`, sem FK; mais SELIC_META, USD_PTAX, IBOV, IFIX), `periodicity` (DIARIA/MENSAL), `unit` (PCT_DIA, PCT_MES, PCT_PERIODO da TR, PCT_ANO da meta, PONTOS, BRL), `source` (BCB_SGS/B3) + `source_ref` (código SGS ou sigla), `history_from` (2010) |
+| `market_index_values` | Série de cada índice, PK `(index_id, reference_date)`, `value` como a fonte publica (mensal no dia 1º; só até hoje). Gravada só pela adm-api (`MarketIndexImportService`); o acumulado **não** é gravado — sai do `MarketIndexCalculator` (core) |
 
 ### Asset Types — 12
 
@@ -539,7 +547,7 @@ coluna.
 > usuário; `getName()` é para lógica interna. `AssetCategory.getDisplayName()`
 > encapsula o fallback description → name.
 
-### Flyway — V1 a V39
+### Flyway — V1 a V43
 
 O Flyway roda do zero no perfil `docker`. No perfil `dev` fica desligado, porque
 o banco local é gerenciado à mão.
@@ -556,7 +564,7 @@ O reset deixou **9 arquivos, 156 KB contra 340 KB**. Desde então entraram
 V10–V12 (20/09/2026), V13–V22 (24/09/2026, integração BRAPI/B3) e V23
 (24/09/2026, IR retido nos proventos), V24 (25/09/2026, extrato de proventos
 da B3) V25 a V27 (25/09/2026, integrações com corretoras) V28 e V29 (27/09/2026, emissores e origem do preço histórico), V30 e V31 (27/09/2026, seed dos emissores e
-categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, série trimestral), V34 (28/09/2026, informe mensal de FII), V35 a V37 (28/09/2026, amortização da B3, escala por evento e `assets` sem estado — F10), V38 (29/09/2026, catálogo sem o extrato), V39 (02/10/2026, datas de pagamento do levantamento), e o banco fica na **versão 39**.
+categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, série trimestral), V34 (28/09/2026, informe mensal de FII), V35 a V37 (28/09/2026, amortização da B3, escala por evento e `assets` sem estado — F10), V38 (29/09/2026, catálogo sem o extrato), V39 (02/10/2026, datas de pagamento do levantamento), V40 a V42 (03–05/10/2026, integração B3, cadastro de usuário, foto de perfil) e V43 (05/10/2026, índices de mercado), e o banco fica na **versão 43**.
 
 | Arquivo | Conteúdo |
 |---------|----------|
@@ -597,6 +605,7 @@ categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, s
 | V39 | docs/planos/PLANO_CARGA_INICIAL.md (D14, seção 11): `payment_date_source` aceita também `LEVANTAMENTO` (datas de pagamento levantadas, `carga/data/levantamento`) |
 | V40 | docs/planos/PLANO_INTEGRACAO_B3.md (F2): `integration_connections` aceita `provider = B3` e `status = PENDING_AUTHORIZATION` |
 | V42 | docs/planos/PLANO_CADASTRO_USUARIO.md (adendo): `user_avatars` — foto de perfil enviada (JPEG 512×512, ≤ 1 MB), 1:1 com `users`, `ON DELETE CASCADE` |
+| V43 | docs/planos/PLANO_INDICES_MERCADO.md (X1): `market_indices` (10 índices semeados) e `market_index_values` (vazia; a série vem da adm-api) |
 | V41 | docs/planos/PLANO_CADASTRO_USUARIO.md (seção 5): colunas novas de `users` (celular, CPF cifrado + hash, verificação de e-mail, `password_changed_at`, aceite dos termos, tema), índices únicos de e-mail sem caixa, celular e CPF; o usuário semeado ganha e-mail verificado e o aceite da versão `2026-10-provisorio` |
 
 **Como o reset foi verificado** — vale registrar, porque é o método a repetir se
@@ -824,6 +833,19 @@ passo a passo no apêndice A do plano); origens autorizadas `http://localhost` e
 | GET / POST | `/api/v1/ceiling-prices/` · `/api/v1/goals/` |
 | PUT / DELETE | `/api/v1/ceiling-prices/{id}` · `/api/v1/goals/{id}` |
 
+### Índices de mercado (05/10/2026)
+`docs/planos/PLANO_INDICES_MERCADO.md` (X5). Autenticado; só leitura do catálogo (`MarketIndexQueryService`).
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/api/v1/indices` | Os 10 índices: `code`, `name`, `periodicity`, `unit`, `source`, `accumulates` (falso para TR e meta Selic), `firstDate`, `lastDate`, `lastValue` |
+| GET | `/api/v1/indices/{code}/history?from=&to=` | Série no período (padrão: um ano até hoje), como a fonte publica |
+| GET | `/api/v1/indices/{code}/chart?range=1A` ou `?from=&to=` | Card da tela Índices (`IndexChart`): janela do atalho (mensal em meses inteiros: 1A = 12 meses, 1M = o último mês, 1D e 7D recusados com 422; CDI/Selic no 1D = o último dia), pontos no valor exibido (`displayUnit`; CDI e Selic anualizados em 252 dias úteis), densidade da cotação (diário até ~1 ano, semanal até ~5, mensal acima), `last`/`min`/`max`, `accumulatedPct` (taxa) ou `change`/`changePct` (nível), `firstDate`/`lastDate` da série inteira. Mensais: `view=MENSAL` (padrão) ou `ANUAL` — cada mês com o acumulado dos 12 meses terminados nele (`IndexChart.rolling12`). Atalho inválido, de depois de até ou `view` em índice que não é mensal: 422 |
+| GET | `/api/v1/indices/{code}/accumulated?from=&to=&percent=&spread=` | Acumulado: taxa diária soma os dias entre `from` e `to`; taxa mensal os meses inteiros do mês de `from` ao de `to`; nível (Ibovespa, IFIX, dólar) = último até `to` ÷ último até `from`. `percent` = % do índice (110 = 110% do CDI), `spread` = % a.a. (`(1+s)^(1/252)` por dia útil, `^(1/12)` por mês). Devolve `factor` (10 casas) e `percent` (6). Índice desconhecido 404; TR, meta Selic, período sem valores ou `percent`/`spread` em índice de nível: 422 |
+
+Conferido com a série real em 05/10/2026: CDI 2024 = **10,875983%** (253 dias), IPCA 2024 = **4,831296%** (o IBGE
+divulgou 4,83%), Ibovespa 2024 = −9,35%.
+
 ### Users (o próprio usuário)
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
@@ -865,6 +887,7 @@ Rotas em `App.tsx`; tudo abaixo de `/login` é protegido por `ProtectedRoute`.
 | `/transactions` | CRUD completo |
 | `/ceiling-prices` | Preço Teto — CRUD |
 | `/emissoras`, `/emissoras/:ticker` | Emissoras (28/09/2026, `docs/planos/PLANO_TELA_EMISSORES.md`): busca, cabeçalho com os outros tickers do emissor, cotação (atalhos + de/até, período na URL `?periodo=` / `?de=&ate=`), cartões de indicadores com sparkline e histórico em modal (Anual/Trimestral, média, ‹ ›), cadastro e demonstrativos. O ticker é link para cá em Carteira, Dividendos e Preço Teto quando o ativo tem emissor (`issuerId` nos DTOs dessas telas — não confundir com `issuer` da carteira, que é o emissor da nota de renda fixa) |
+| `/indices` | Índices (05/10/2026, `docs/planos/PLANO_INDICES_MERCADO.md`, seção 10): um card por índice, um abaixo do outro, na ordem SELIC, CDI, IPCA, IBOV, IFIX, IGPM, INPC, TR, SELIC_META, USD_PTAX (`IndicesPage`), cada um com o desenho da cotação das Emissoras (`IndexChartCard`: atalhos 1D…MAX — nos mensais IPCA, IGP-M e INPC sem 1D e 7D e com o seletor Mensal (% no mês, barras) / Anual (acumulado em 12 meses, % a.a.) —, 1A padrão, de/até; o período fica no card, não na URL). CDI e Selic aparecem anualizados (% a.a.); mensais em barras; meta Selic em degraus. Resumo: acumulado no período (taxa), variação (Ibovespa, IFIX, dólar), atual/último, mín e máx. Lê `GET /api/v1/indices/{code}/chart` |
 | `/dividends` | Dividendos |
 | `/goals` | Metas |
 | `/integrations` | Integrações (Binance e, com `B3I_ENABLED`, B3): conectar (chave ou CPF + autorização na B3), sincronizar, histórico, excluídas |
@@ -1088,7 +1111,8 @@ edição apagaria emissor, vencimento e taxa.
   Carteira até 23/09/2026. Usou `text-white/NN`, `bg-surface-light/NN`,
   `hover:text-white` ou similar numa tela nova? Confira se o override existe.
 - **Menu lateral** (23/09/2026, `Sidebar.tsx`): ordem Dashboard, Carteira,
-  Transações, Alocação, Estratégia, Dividendos, Preço Teto, Metas, Integrações
+  Transações, Alocação, Estratégia, Dividendos, Preço Teto, Emissoras, Índices (05/10/2026, ícone de
+  gráfico de linha), Metas, Integrações
   (26/09/2026, com marcador quando uma conexão pede atenção). Recolhível
   pelo botão redondo sobre a borda direita, na altura do logo: 256px ↔ 72px.
   Recolhido mostra só "PV", os ícones (nome no `title`/`aria-label`) e o rodapé
@@ -1225,7 +1249,9 @@ consciente: erro claro em vez de dado errado.
 ### Valorização de renda fixa dá sempre zero
 Sem cotação, o valor atual é custo + `appreciation`, e nada preenche
 `appreciation` ainda, então `currentValue == totalInvested`. Não é arredondamento — é a ausência do cálculo
-de curva. Depende da série histórica dos índices. Detalhes em `docs/PENDENCIAS.md`.
+de curva. A série dos índices existe desde 05/10/2026 (`market_index_values`, com o acumulado no
+`MarketIndexCalculator`); falta o escopo da valorização em si (curva, pro rata, feriados). Detalhes em
+`docs/PENDENCIAS.md` 2.1.
 
 ### `dividends` não tem dono próprio
 O dono vem de `portfolio_asset_id`, que é **obrigatório** (`NOT NULL`) e
@@ -1274,6 +1300,7 @@ truncaria dados.
 | Quantidades e preços unitários | `numeric(18,8)` | `shares`, `price_per_share`, `current_price`, `max_price`, `amount_per_share`, preços do histórico |
 | Valores monetários agregados | `numeric(18,2)` | `appreciation`, `total_amount`, `brokerage_fee`, `target_amount`, `current_amount`, `target_value` |
 | Taxa de indexador | `numeric(10,4)` | `indexer_rate` |
+| Valor de índice de mercado | `numeric(18,8)` | `market_index_values.value` (CDI 0,050788 % a.d.; Ibovespa 132.696,63) |
 | Percentual da estratégia | `numeric(5,2)` | `target_percentage` |
 
 As **8 casas das quantidades existem por causa de cripto** — alinhar para 4
@@ -1313,8 +1340,9 @@ não "quando o usuário mexeu nesta posição" — para a segunda pergunta, o qu
 
 ### Testes — existem desde 22/09/2026
 
-**Desde a F11 (28/09/2026): 394 unitários + 180 de integração**, por módulo: core 138; adm-api 65 + 25;
-app-api 191 + 155. O suporte comum (container do PostgreSQL, bases, fixtures, `application-test.yml`) vem do
+**Em 05/10/2026 (índices de mercado e tela Índices): 509 unitários + 222 de integração**, por módulo: core 147;
+integration 103; adm-api 87 + 35; app-api 172 + 187, todos verdes em `mvn clean verify` (~7 min). Na F11 (28/09/2026) eram 394 + 180.
+O suporte comum (container do PostgreSQL, bases, fixtures, `application-test.yml`) vem do
 test-jar do core. A app-api tem a adm-api **só no classpath de teste**, para os testes de ponta a ponta de
 proventos e fechamento (`CatalogoE2EBase`: fonte mockada → catálogo pela adm-api → recálculo pela app-api →
 API do usuário). O histórico abaixo é de antes da separação.
@@ -1457,8 +1485,10 @@ rede interna, então nada mais muda.
 ### Egress bloqueado
 A política da organização bloqueia, entre outros: `repo.maven.apache.org`
 (então não dá para compilar fora do Docker em ambiente restrito),
-`api.bcb.gov.br`, `b3.com.br`, `statusinvest.com.br`, `brapi.dev`. Um 403/000 do
-proxy é negação de política — não é para contornar.
+`api.bcb.gov.br`, `apisidra.ibge.gov.br`, `b3.com.br`, `statusinvest.com.br`, `brapi.dev`. Um 403/000 do
+proxy é negação de política — não é para contornar. O bloqueio é do ambiente do assistente (nuvem): na máquina do
+usuário e nos contêineres o SGS do Banco Central e o site da B3 respondem (conferido em 05/10/2026), e é dali que a
+adm-api os consulta.
 
 ---
 

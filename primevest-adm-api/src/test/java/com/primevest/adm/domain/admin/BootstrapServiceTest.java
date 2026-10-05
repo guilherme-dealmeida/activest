@@ -6,6 +6,7 @@ import com.primevest.adm.domain.dividend.ProventosCatalogService;
 import com.primevest.adm.domain.fundamentals.FiiMonthlyImportService;
 import com.primevest.adm.domain.fundamentals.FinancialStatementImportService;
 import com.primevest.adm.domain.issuer.IssuerImportService;
+import com.primevest.adm.domain.marketindex.MarketIndexImportService;
 import com.primevest.adm.domain.pricehistory.HistoricalQuotesImportService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,18 +33,19 @@ class BootstrapServiceTest {
     private final FiiMonthlyImportService fii = mock(FiiMonthlyImportService.class);
     private final CvmPaymentDateService datas = mock(CvmPaymentDateService.class);
     private final PaymentDateSurveyService levantamento = mock(PaymentDateSurveyService.class);
+    private final MarketIndexImportService indices = mock(MarketIndexImportService.class);
     private final BootstrapService service = new BootstrapService(issuers, quotes, proventos, statements, fii, datas,
-            levantamento,
+            levantamento, indices,
             Clock.fixed(Instant.parse("2026-09-28T12:00:00Z"), ZoneId.of("America/Sao_Paulo")));
 
     @Test
-    @DisplayName("Ordem: emissores, COTAHIST (ISIN), proventos (eventos societarios), datas de pagamento (CVM e levantamento), balancos (escala EVENTO), informe de FII")
+    @DisplayName("Ordem: emissores, COTAHIST (ISIN), proventos (eventos societarios), datas de pagamento (CVM e levantamento), balancos (escala EVENTO), informe de FII, indices")
     void ordem() {
         when(proventos.syncAll(anyString())).thenReturn(new ProventosCatalogService.SyncResult(654, 0, 0, 0));
 
         BootstrapService.Result r = service.run("teste");
 
-        InOrder o = inOrder(issuers, quotes, proventos, datas, levantamento, statements, fii);
+        InOrder o = inOrder(issuers, quotes, proventos, datas, levantamento, statements, fii, indices);
         o.verify(issuers).importAll(anyString());
         o.verify(quotes).importYears(eq(2010), eq(2026), anyString());
         o.verify(proventos).syncAll(anyString());
@@ -51,7 +53,8 @@ class BootstrapServiceTest {
         o.verify(levantamento).run(anyString());
         o.verify(statements).importYears(eq(2010), eq(2026), eq(false), anyString());
         o.verify(fii).importYears(eq(2016), eq(2026), eq(false), anyString());
-        assertThat(r.steps()).hasSize(7);
+        o.verify(indices).importAll(anyString());
+        assertThat(r.steps()).hasSize(8);
     }
 
     @Test

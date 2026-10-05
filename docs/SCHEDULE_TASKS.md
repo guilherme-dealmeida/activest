@@ -1,7 +1,8 @@
 # PrimeVest — Rotinas agendadas e automáticas
 
 > Gerado em 02/10/2026 a partir do código (`@Scheduled`, `ApplicationReadyEvent` e ouvintes do Redis) e dos
-> `application.yml` dos módulos · revisado em 03/10/2026 (Markdown, caminhos `carga/`).
+> `application.yml` dos módulos · revisado em 03/10/2026 (Markdown, caminhos `carga/`) · 05/10/2026 ([A9] índices de
+> mercado, `docs/planos/PLANO_INDICES_MERCADO.md`).
 
 - **Fuso** de todas as rotinas: `America/Sao_Paulo`.
 - **Cron do Spring:** `segundo minuto hora dia-do-mês mês dia-da-semana`. Os horários ficam em propriedade
@@ -11,7 +12,7 @@
 
 | Módulo | Papel |
 |---|---|
-| **adm-api** (8081) | rotinas de **catálogo**: preços, proventos, balanços, logos. Grava só catálogo e avisa a carteira pelo Redis |
+| **adm-api** (8081) | rotinas de **catálogo**: preços, proventos, balanços, logos, índices de mercado. Grava só catálogo e avisa a carteira pelo Redis |
 | **app-api** (8080) | rotinas da **carteira**: recálculo das posições e sincronização das corretoras. Única que grava dado de usuário |
 
 ## Linha do tempo de um dia
@@ -23,11 +24,12 @@
 | 07:00, segunda | adm | [A6] Conferência do catálogo (semanal) |
 | 07:30 | adm | [A5] Balanços CVM + informe mensal de FII |
 | 08:45 | app | [B4] Sincronização diária das corretoras (enfileira) |
+| 10:00 | adm | [A9] Índices de mercado (CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, PTAX, Ibovespa, IFIX) |
 | 19:00, seg–sex | adm | [A1] Fechamento B3 (BRAPI) |
 | 19:00 | adm | [A2] Fechamento cripto (CoinGecko) |
 | 20:00 | adm | [A4] Proventos e eventos societários + datas de pagamento CVM |
 | 21:00 | app | [B1] Rede de segurança: recálculo de todas as posições |
-| ao subir | adm / app | [A3] recuperação do fechamento · [B2] verificação da carteira · [B6] recuperação da fila |
+| ao subir | adm / app | [A3] recuperação do fechamento · [A9] recuperação dos índices · [B2] verificação da carteira · [B6] recuperação da fila |
 | por mensagem | adm / app | [A8] "preciso do histórico" · [B3] "catálogo mudou" |
 
 A ordem 19:00 → 20:00 → 21:00 é proposital: o recálculo da carteira roda depois de o catálogo ter recebido os preços e
@@ -133,13 +135,14 @@ ROE, payout, DY...).
 | | |
 |---|---|
 | **Quando** | 07:00, toda segunda-feira |
-| **Classe** | `CatalogAuditScheduler.weeklyAudit` → `CatalogAuditService.run` |
+| **Classe** | `CatalogAuditScheduler.weeklyAudit` → `CatalogAuditService.run` e `MarketIndexImportService.audit` |
 | **Config** | `primevest.catalog-audit.cron = "0 0 7 * * MON"`; `primevest.catalog-audit.ignored` (tickers fora de propósito) |
 | **Fonte** | lista oficial e renomes da BRAPI |
 | **Grava** | **nada**: cada diferença vira linha WARN no log da adm-api |
 
 **Função.** Aponta (1) ticker novo na B3 que não está no catálogo, (2) ticker sumido (fora da lista **e** cotação
-404), (3) ticker renomeado ainda ativo no catálogo.
+404), (3) ticker renomeado ainda ativo no catálogo, (4) índice de mercado atrasado — diário sem valor há mais de 7
+dias, mensal sem o mês seguinte 45 dias depois do fim do mês de referência, ou sem série nenhuma (05/10/2026).
 
 **Propósito.** Avisar o administrador de mudanças na bolsa sem alterar o catálogo sozinho. (A central de avisos é a
 `docs/PENDENCIAS.md`, seção 13.)
@@ -171,6 +174,24 @@ com "catálogo mudou".
 
 **Propósito.** Ativo que entra numa carteira já ganha histórico de proventos e logo, sem esperar a rotina das 20:00 nem
 a do dia 1.
+
+### [A9] Índices de mercado (05/10/2026)
+
+| | |
+|---|---|
+| **Quando** | 10:00, todos os dias, e na subida da adm-api quando algum índice está atrasado ou vazio |
+| **Classe** | `MarketIndexScheduler.daily` / `recoverOnStartup` → `MarketIndexImportService.importRecent` |
+| **Config** | `primevest.indices.cron = "0 0 10 * * *"`; `primevest.indices.enabled`; `indices.*` (timeout 20 s, 4 tentativas) |
+| **Fontes** | API SGS do Banco Central (CDI 12, Selic 11, IPCA 433, IGP-M 189, INPC 188, TR 226, meta Selic 432, PTAX 1) e site da B3 (Ibovespa, IFIX) |
+| **Grava** | `market_index_values` e os arquivos `carga/data/bcb/sgs/{código}/{ano}.json`, `carga/data/b3/indices/{índice}/{ano}.json` |
+
+**Função.** Por índice, relê de (última data gravada − 30 dias nos diários, − 3 meses nos mensais) até hoje, ano a ano
+(o ano corrente e o anterior sempre vão à fonte). Valor novo entra, valor corrigido pela fonte é sobrescrito com log
+`antigo -> novo`, data futura não entra. Índice sem série faz a carga histórica desde 2010. Um índice que falha não
+impede os outros. Sem mensagem para a app-api por enquanto (D8 do plano).
+
+**Propósito.** Série dos indexadores da renda fixa e dos benchmarks em dia — base da valorização da renda fixa
+(`docs/PENDENCIAS.md` 2.1). CDI e Selic do dia anterior saem no SGS de manhã; IPCA e INPC por volta do dia 10.
 
 ---
 

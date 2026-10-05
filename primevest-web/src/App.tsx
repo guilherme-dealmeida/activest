@@ -15,6 +15,7 @@ import { IntegrationsPage } from '@/pages/IntegrationsPage';
 import { IntegrationRunPage } from '@/pages/IntegrationRunPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { IssuerPage } from '@/pages/IssuerPage';
+import { IndicesPage } from '@/pages/IndicesPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { SignupPage } from '@/pages/SignupPage';
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
@@ -45,6 +46,7 @@ function App() {
         <Route path="/ceiling-prices" element={<CeilingPricesPage />} />
         <Route path="/emissoras" element={<IssuerPage />} />
         <Route path="/emissoras/:ticker" element={<IssuerPage />} />
+        <Route path="/indices" element={<IndicesPage />} />
         <Route path="/dividends" element={<DividendsPage />} />
         <Route path="/goals" element={<GoalsPage />} />
         <Route path="/integrations" element={<IntegrationsPage />} />

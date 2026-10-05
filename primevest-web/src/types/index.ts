@@ -830,3 +830,52 @@ export interface PriceSeries {
   max: number | null;
   points: { time: string; close: number }[];
 }
+
+// ---------------------------------------------------------------------------
+// Índices de mercado (docs/planos/PLANO_INDICES_MERCADO.md)
+// ---------------------------------------------------------------------------
+
+export type IndexCode = 'SELIC' | 'CDI' | 'IPCA' | 'IBOV' | 'IFIX' | 'IGPM' | 'INPC' | 'TR' | 'SELIC_META' | 'USD_PTAX';
+export type IndexView = 'MENSAL' | 'ANUAL';
+export type IndexUnit = 'PCT_DIA' | 'PCT_MES' | 'PCT_PERIODO' | 'PCT_ANO' | 'PONTOS' | 'BRL';
+
+/** GET /indices */
+export interface MarketIndex {
+  code: IndexCode;
+  name: string;
+  periodicity: 'DIARIA' | 'MENSAL';
+  unit: IndexUnit;
+  source: 'BCB_SGS' | 'B3';
+  accumulates: boolean;
+  firstDate?: string;
+  lastDate?: string;
+  lastValue?: number;
+}
+
+/**
+ * GET /indices/{code}/chart — um card da tela Índices. Valores em `displayUnit` (CDI e Selic anualizados);
+ * índice de taxa traz `accumulatedPct`, de nível `change`/`changePct`.
+ */
+export interface IndexChart {
+  code: IndexCode;
+  name: string;
+  periodicity: 'DIARIA' | 'MENSAL';
+  unit: IndexUnit;
+  displayUnit: string;
+  source: 'BCB_SGS' | 'B3';
+  firstDate?: string;
+  lastDate?: string;
+  from?: string;
+  to?: string;
+  range: PriceRange | 'CUSTOM';
+  interval: 'DAY' | 'WEEK' | 'MONTH';
+  /** Só nos mensais: variação do mês ou acumulado em 12 meses (a.a.). */
+  view?: IndexView;
+  last?: number;
+  min?: number;
+  max?: number;
+  change?: number;
+  changePct?: number;
+  accumulatedPct?: number;
+  points: { date: string; value: number }[];
+}

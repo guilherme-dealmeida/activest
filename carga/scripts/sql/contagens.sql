@@ -13,5 +13,7 @@ select 'cvm_documents', count(*) from cvm_documents union all
 select 'share_counts REVISAR', count(*) from share_counts where scale_status = 'REVISAR' union all
 select 'company_quarters', count(*) from company_quarters union all
 select 'fii_monthly', count(*) from fii_monthly union all
+select 'market_index_values', count(*) from market_index_values union all
+select 'indice ' || i.code, count(*) from market_index_values v join market_indices i on i.id = v.index_id group by i.code union all
 select 'cash sem tipo', count(*) from asset_cash_events where type is null
 order by 1;

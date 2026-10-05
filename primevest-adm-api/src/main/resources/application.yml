@@ -93,6 +93,17 @@ cvm:
   base-url: https://dados.cvm.gov.br/dados
   timeout-seconds: 120
 
+# Indices de mercado (docs/planos/PLANO_INDICES_MERCADO.md): API SGS do Banco Central (CDI, Selic, IPCA,
+# IGP-M, INPC, TR, meta Selic, PTAX) e o site da B3 (Ibovespa, IFIX, em b3.base-url). Uma consulta por ano;
+# o SGS as vezes demora: timeout de 20 s e ate 4 tentativas com espera crescente (1 s, 2 s, 4 s).
+# Cache por ano em ${primevest.data.dir}/bcb/sgs e ${primevest.data.dir}/b3/indices.
+bcb:
+  sgs-base-url: https://api.bcb.gov.br/dados/serie
+indices:
+  timeout-seconds: 20
+  attempts: 4
+  retry-base-millis: 1000
+
 # Rotinas (fuso America/Sao_Paulo). Cron do Spring: segundo minuto hora dia mes dia-da-semana.
 primevest:
   # Cache das fontes publicas (CVM, B3, FNET) e logos. No Docker: /app/data,
@@ -118,6 +129,10 @@ primevest:
     # Balancos (DFP/ITR) do ano corrente e do anterior; a CVM atualiza de madrugada.
     enabled: true
     cron: "0 30 7 * * *"
+  indices:
+    # Incremental todo dia as 10:00 (D5), com recuperacao na subida.
+    enabled: true
+    cron: "0 0 10 * * *"
   catalog-audit:
     cron: "0 0 7 * * MON"
     # Ficaram de fora do catalogo de proposito (secao 2.2 e planilha de ETFs,

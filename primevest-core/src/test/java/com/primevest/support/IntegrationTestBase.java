@@ -48,7 +48,9 @@ public abstract class IntegrationTestBase {
         // e company_quarters, e nao toca issuers.
         "cvm_documents",
         // Informe mensal de FII (V34): idem; sai antes dos testes que apagam issuers.
-        "fii_monthly"
+        "fii_monthly",
+        // Serie dos indices de mercado (V43): o cadastro (market_indices) e seed e fica; a serie vem da carga.
+        "market_index_values"
     };
 
     @Autowired

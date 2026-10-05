@@ -1,7 +1,7 @@
 # USE_CASES — Casos de uso do PrimeVest
 
 > Gerado em 02/10/2026 a partir do código (controllers da app-api e da adm-api, rotinas agendadas, telas do
-> `primevest-web`) e do `carga/scripts/README.md`. Diagramas em Mermaid (o GitHub e o IntelliJ renderizam).
+> `primevest-web`) e do `carga/scripts/README.md` · 05/10/2026: UC36–UC38 (índices de mercado). Diagramas em Mermaid (o GitHub e o IntelliJ renderizam).
 > Mermaid não tem diagrama UML de caso de uso nativo: os atores aparecem como círculos, os casos de uso como
 > elipses dentro da fronteira do sistema, e `«include»`/`«extend»` como setas tracejadas.
 
@@ -380,4 +380,7 @@ Prefixo das rotas: `/api/v1`. Investidor = qualquer usuário logado; Admin = `is
 | UC32 | Balanços e informe FII | Agendador | DFP/ITR e informe do ano corrente e anterior | 07:30 diário |
 | UC33 | Recalcular carteira | Agendador | Proventos e valorização de todas as posições; IR pendente na subida | 21:00 diário + subida da app-api |
 | UC34 | Sincronizar corretoras | Agendador | Enfileira as conexões ativas; o worker busca | 06:30 diário; worker a cada 5 s |
-| UC35 | Logos e conferência | Agendador | Logos que faltam; tickers novos/sumidos/renomeados (só log) | dia 1 06:00; segunda 07:00 |
+| UC35 | Logos e conferência | Agendador | Logos que faltam; tickers novos/sumidos/renomeados e índices atrasados (só log) | dia 1 06:00; segunda 07:00 |
+| UC36 | Índices de mercado diários | Agendador | CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, PTAX (SGS do BCB), Ibovespa e IFIX (B3); janela de revisão; recupera na subida (05/10/2026) | 10:00 diário |
+| UC37 | Carregar índices de mercado | Admin | Histórico por índice e ano (padrão 2010 até hoje), ou a rodada incremental | `POST /admin/indices?codes&from&to&recent` |
+| UC38 | Consultar índices | Investidor | Tela Índices: um card por índice com período (1D…MAX, de/até) e gráfico; lista, série e acumulado no período (% do índice, spread; nível para Ibovespa/IFIX/dólar) | `/indices`; `GET /indices`, `/indices/{code}/chart`, `/history`, `/accumulated` |

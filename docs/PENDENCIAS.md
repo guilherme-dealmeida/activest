@@ -2,8 +2,9 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 05/10/2026 — secao 22 (cadastro de usuario, docs/planos/PLANO_CADASTRO_USUARIO.md);
-9.4 e 16.9 resolvidos. Antes: 03/10/2026 — secao 21 (pilha de teste primevest-teste,
+Ultima atualizacao: 05/10/2026 — 5.1 resolvido e secao 23 (indices de mercado,
+docs/planos/PLANO_INDICES_MERCADO.md). No mesmo dia: secao 22 (cadastro de usuario,
+docs/planos/PLANO_CADASTRO_USUARIO.md); 9.4 e 16.9 resolvidos. Antes: 03/10/2026 — secao 21 (pilha de teste primevest-teste,
 docs/planos/PLANO_PRIMEVEST_TESTE.md). Antes: 29/09/2026 — secao 20 (ambiente de carga inicial,
 docs/planos/PLANO_CARGA_INICIAL.md) e 18.10 d resolvido. Antes: 28/09/2026 (noite) — 11.6
 resolvido e secao 19 (tela de Emissoras, docs/planos/PLANO_TELA_EMISSORES.md). Antes, no mesmo dia: itens 14.1
@@ -83,6 +84,12 @@ O que falta e marcar a curva do titulo: pegar a taxa contratada da nota
 Prefixado resolve so com isso. Pos-fixado e hibrido dependem do item 5.1,
 a serie historica do indice — sem CDI e IPCA nao da para saber quanto o
 papel rendeu.
+ATUALIZADO em 05/10/2026: a serie existe (5.1). market_index_values tem CDI, Selic,
+IPCA, IGP-M, INPC e TR desde 2010, e o MarketIndexCalculator (core) ja acumula
+"% do indice" e "indice + spread" entre duas datas. Falta o escopo da valorizacao:
+curva do titulo por nota, pro rata do mes corrente (IPCA ainda nao divulgado:
+projecao ou ultimo publicado), calendario de feriados (23.2) e o aviso da adm-api
+quando um indice muda (23.1). Deve gravar pela FixedIncomeSettlement (10.3).
 
 **2.2** Enquanto 2.1 nao existe, o total da carteira subestima o patrimonio.
 Vale decidir se a tela mostra "—" em vez de 0,00% para renda fixa, para
@@ -202,7 +209,12 @@ que o campo significa. Decisao em aberto desde a conversa sobre o modelo.
 
 ## 5. INDICES — serie historica
 
-**5.1** Cadastrar CDI, SELIC, IPCA, IGP-M, INPC e TR. Voce disse que faria em
+**5.1** FEITO em 05/10/2026 (docs/planos/PLANO_INDICES_MERCADO.md): V43
+(market_indices + market_index_values), carga 2010+ pelo bootstrap ou
+POST /api/v1/admin/indices, rotina das 10:00 com recuperacao na subida e leitura
+em GET /api/v1/indices. Entraram tambem meta Selic, dolar PTAX, Ibovespa e IFIX
+(D1). O que ficou esta na secao 23. Texto original:
+Cadastrar CDI, SELIC, IPCA, IGP-M, INPC e TR. Voce disse que faria em
 branch separada.
 Fonte: API SGS do Banco Central. Codigos das series:
   CDI .......... 12      SELIC ........ 11      SELIC meta ... 432
@@ -212,8 +224,11 @@ Periodicidade: CDI e SELIC diarios; IPCA, INPC e IGP-M mensais.
 ATENCAO: api.bcb.gov.br esta bloqueado pela politica de egress da sua
 organizacao — testei e volta 000. A coleta tera de rodar da sua maquina
 ou de um ambiente com saida liberada.
+(05/10/2026: confirmado — o bloqueio e so do ambiente do assistente; na sua maquina
+e nos conteineres o SGS e o site da B3 respondem.)
 
-**5.2** Sem 5.1, o item 2.1 so resolve prefixado.
+**5.2** Sem 5.1, o item 2.1 so resolve prefixado. (05/10/2026: com 5.1 feito, o 2.1
+resolve tambem pos-fixado e hibrido.)
 
 ## 6. CATALOGO DE ATIVOS
 
@@ -944,10 +959,32 @@ Achados da primeira carga inicial completa num banco novo (primevest-teste), com
 **22.6** npm audit no primevest-web aponta 10 vulnerabilidades (3 moderadas, 7
  altas) em dependencias ja existentes antes deste escopo; nao tratadas aqui.
 
+## 23. INDICES DE MERCADO (docs/planos/PLANO_INDICES_MERCADO.md, 05/10/2026)
+
+**23.1** A adm-api nao avisa a app-api quando um indice muda (D8). O resultado da
+ carga ja devolve, por indice, a menor data que entrou ou mudou (changedFrom):
+ o escopo da valorizacao da renda fixa cria o canal (ex.: primevest:catalogo:indices)
+ e revaloriza as notas daquele indexador.
+**23.2** Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
+ do IPCA+ no mes corrente e para projecao de CDI. Fica no escopo da valorizacao.
+**23.3** FEITO em 05/10/2026 (D7 revista pelo Guilherme): menu e tela Indices, um card
+ por indice com periodo e grafico (plano, secao 10). Fica para o escopo de rentabilidade
+ so a comparacao da carteira com CDI, IPCA, Ibovespa e IFIX.
+**23.4** Poupanca (SGS 195, rendimento por dia de aniversario) ficou de fora (D1).
+ Entra so com seed numa migration e a regra de aniversario no calculador.
+**23.5** Historico antes de 2010: POST /api/v1/admin/indices?from=2000 (ou outro ano)
+ estende sem mudar nada; nao foi pedido.
+**23.6** FEITO em 05/10/2026 (bucket conferido: bcb 136 arquivos, b3/indices 34, iguais ao local).
+ data push (Guilherme): as pastas novas carga/data/bcb e carga/data/b3/indices
+ sobem para o bucket no proximo "docker compose --profile carga run --rm data push"
+ (o push leva toda pasta de primeiro nivel; nenhuma mudanca no script).
+**23.7** Reserva conhecida, sem codigo: IBGE SIDRA (tabela 1737) para IPCA/INPC se o SGS
+ atrasar a publicacao (D4). Respondeu da sua maquina em 05/10/2026.
+
 ## ORDEM SUGERIDA
 
-O item 1 saiu. Sobrou como proximo passo o 5.1 (indices), que destrava o 2.1 — e o 2.1 e a razao de
-existir da renda fixa no sistema: saber quanto ela rendeu.
+O item 1 saiu. O 5.1 (indices) saiu em 05/10/2026; o proximo passo e o 2.1 — a razao de
+existir da renda fixa no sistema: saber quanto ela rendeu (com 23.1 e 23.2 juntos).
 
 O 4.1 vem junto ou logo depois, porque enquanto ele nao existir voce nao
 consegue vender um titulo (4.2).
