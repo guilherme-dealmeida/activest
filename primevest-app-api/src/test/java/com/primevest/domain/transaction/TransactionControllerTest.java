@@ -44,7 +44,7 @@ class TransactionControllerTest extends MvcTestBase {
         return new TransactionResponseDTO(id, UUID.randomUUID(), "PETR4", "PETROBRAS", 1L, "Ações",
             null, null, TransactionType.BUY, new BigDecimal("10"), new BigDecimal("30.00"),
             new BigDecimal("300.00"), BigDecimal.ZERO, LocalDate.of(2026, 9, 1), LocalDateTime.now(),
-            null, null, null, null, null, false, false, TransactionOrigin.MANUAL, null, null, null, null, null, null, null, null, null);
+            null, null, null, null, null, false, false, TransactionOrigin.MANUAL, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     @Test

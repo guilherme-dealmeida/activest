@@ -30,12 +30,14 @@ public class PortfolioService {
     private final PositionCalculator positionCalculator;
     private final DividendCalendar dividendCalendar;
     private final AssetLogos assetLogos;
+    private final PositionValuationInfo valuationInfo;
 
     public PortfolioService(PortfolioRepository portfolioRepository, PortfolioAssetRepository portfolioAssetRepository,
                             UserRepository userRepository, DividendRepository dividendRepository,
                             PositionCalculator positionCalculator, DividendCalendar dividendCalendar,
-                            AssetLogos assetLogos) {
+                            AssetLogos assetLogos, PositionValuationInfo valuationInfo) {
         this.assetLogos = assetLogos;
+        this.valuationInfo = valuationInfo;
         this.portfolioRepository = portfolioRepository;
         this.portfolioAssetRepository = portfolioAssetRepository;
         this.userRepository = userRepository;
@@ -98,10 +100,13 @@ public class PortfolioService {
         List<PortfolioAsset> assets = portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId());
         Map<UUID, Position> positions = positionCalculator.positionsOf(portfolio.getId(), assets);
         Map<UUID, BigDecimal> dividends = dividendsByPosition(portfolio.getId());
-        return assets.stream()
+        List<PortfolioAsset> open = assets.stream()
             // So posicoes em aberto: a liquidada acabou, e a sem custo nunca
             // comecou.
             .filter(pa -> !pa.isSettled() && positions.get(pa.getId()).hasInvestment())
+            .toList();
+        Map<UUID, PositionValuationInfo.Info> infos = valuationInfo != null ? valuationInfo.of(open) : null;
+        return open.stream()
             .map(pa -> {
                 Position position = positions.get(pa.getId());
                 BigDecimal invested = safe(position.totalInvested());
@@ -153,7 +158,11 @@ public class PortfolioService {
                     pa.isSettled(),
                     pa.getAsset().getAssetType().isCrypto(),
                     assetLogos.logoFlag(pa.getAsset()),
-                    pa.getAsset().getIssuer() != null ? pa.getAsset().getIssuer().getId() : null
+                    pa.getAsset().getIssuer() != null ? pa.getAsset().getIssuer().getId() : null,
+                    info(infos, pa) != null ? info(infos, pa).basis() : null,
+                    info(infos, pa) != null ? info(infos, pa).date() : null,
+                    info(infos, pa) != null ? info(infos, pa).note() : null,
+                    info(infos, pa) != null && info(infos, pa).matured()
                 );
             }).collect(Collectors.toList());
     }
@@ -433,5 +442,9 @@ public class PortfolioService {
 
     private BigDecimal safe(BigDecimal val) {
         return val != null ? val : BigDecimal.ZERO;
+    }
+
+    private static PositionValuationInfo.Info info(Map<UUID, PositionValuationInfo.Info> infos, PortfolioAsset pa) {
+        return infos == null ? null : infos.get(pa.getId());
     }
 }

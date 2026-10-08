@@ -15,6 +15,7 @@ import com.primevest.adm.domain.marketindex.MarketIndexImportService;
 import com.primevest.domain.issuer.ShareClass;
 import com.primevest.adm.domain.pricehistory.ClosingPriceService;
 import com.primevest.adm.domain.pricehistory.HistoricalQuotesImportService;
+import com.primevest.adm.domain.pricehistory.TreasuryPriceService;
 import com.primevest.domain.user.User;
 import com.primevest.domain.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -65,6 +66,7 @@ public class AdminController {
     private final CvmPaymentDateService cvmPaymentDateService;
     private final PaymentDateSurveyService paymentDateSurveyService;
     private final MarketIndexImportService marketIndexImportService;
+    private final TreasuryPriceService treasuryPriceService;
 
     @PostMapping("/catalog-audit")
     public ResponseEntity<Map<String, String>> catalogAudit() {
@@ -266,6 +268,24 @@ public class AdminController {
             return start("indices", () -> marketIndexImportService.importRecent("sob demanda"));
         }
         return start("indices", () -> marketIndexImportService.importYears(codes, from, last, "sob demanda"));
+    }
+
+    /**
+     * Preco oficial do Tesouro Direto (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, R1): PU de venda de cada titulo do
+     * catalogo desde {@code from} (padrao 2010) em asset_price_history e o ultimo em assets.current_price.
+     * {@code recent=true} = a rodada diaria das 08:00. O arquivo do Tesouro (~14 MB) so e baixado se mudou.
+     */
+    @PostMapping("/tesouro")
+    public ResponseEntity<Map<String, String>> tesouro(
+            @RequestParam(defaultValue = "" + TreasuryPriceService.FIRST_YEAR) int from,
+            @RequestParam(defaultValue = "false") boolean recent) {
+        if (from < 2002) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O historico do Tesouro comeca em 2002");
+        }
+        if (recent) {
+            return start("tesouro", () -> treasuryPriceService.importRecent("sob demanda"));
+        }
+        return start("tesouro", () -> treasuryPriceService.importFrom(from, "sob demanda"));
     }
 
     @PostMapping("/proventos")

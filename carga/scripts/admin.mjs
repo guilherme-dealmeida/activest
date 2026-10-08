@@ -7,6 +7,7 @@
 //   node carga/scripts/admin.mjs indices            indices de mercado 2010+ (docs/planos/PLANO_INDICES_MERCADO.md)
 //   node carga/scripts/admin.mjs "indices?codes=CDI,IPCA&from=2024"   so alguns indices / anos
 //   node carga/scripts/admin.mjs "indices?recent=true"                rodada incremental (a da rotina das 10:00)
+//   node carga/scripts/admin.mjs tesouro            preco oficial do Tesouro 2010+ (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md)
 //
 // Duas APIs (docs/planos/PLANO_ADM_API.md): o login e na app-api (API_PORT, 8080); as rotinas de
 // catalogo na adm-api (ADM_API_PORT, 8081). Na app-api so o extrato.

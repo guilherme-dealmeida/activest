@@ -3,6 +3,8 @@ package com.primevest.adm.domain.marketindex;
 import com.primevest.adm.integration.indices.B3IndexClient;
 import com.primevest.adm.integration.indices.BcbSgsClient;
 import com.primevest.adm.integration.indices.IndexSourceException;
+import com.primevest.domain.catalog.CatalogChange;
+import com.primevest.domain.catalog.CatalogMessaging.CatalogChangePublisher;
 import com.primevest.domain.marketindex.IndexPeriodicity;
 import com.primevest.domain.marketindex.IndexPoint;
 import com.primevest.domain.marketindex.MarketIndex;
@@ -50,8 +52,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * <p><b>Idempotente.</b> Valor igual e pulado; valor que a fonte corrigiu e sobrescrito, com log
  * {@code antigo → novo} (D10). Nada e apagado. Indice que falha nao impede os outros. Uma carga por vez.</p>
  *
- * <p>O resultado traz, por indice, a menor data que mudou: e o que a app-api vai precisar para revalorizar a
- * renda fixa quando aquele escopo existir (D8 — sem canal de mensagem por enquanto).</p>
+ * <p>O resultado traz, por indice, a menor data que mudou; quando algo mudou, publica "catalogo mudou" (INDICES) e a
+ * app-api refaz a curva da renda fixa privada (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, R5).</p>
  */
 @Slf4j
 @Service
@@ -72,22 +74,24 @@ public class MarketIndexImportService {
     private final B3IndexClient b3;
     private final JdbcTemplate jdbc;
     private final TransactionTemplate tx;
+    private final CatalogChangePublisher publisher;
     private final Clock clock;
     private final ReentrantLock running = new ReentrantLock();
 
     @Autowired
     public MarketIndexImportService(MarketIndexRepository indices, BcbSgsClient sgs, B3IndexClient b3,
-                                    JdbcTemplate jdbc, PlatformTransactionManager txm) {
-        this(indices, sgs, b3, jdbc, txm, Clock.system(ZONE));
+                                    JdbcTemplate jdbc, PlatformTransactionManager txm, CatalogChangePublisher publisher) {
+        this(indices, sgs, b3, jdbc, txm, publisher, Clock.system(ZONE));
     }
 
     MarketIndexImportService(MarketIndexRepository indices, BcbSgsClient sgs, B3IndexClient b3, JdbcTemplate jdbc,
-                             PlatformTransactionManager txm, Clock clock) {
+                             PlatformTransactionManager txm, CatalogChangePublisher publisher, Clock clock) {
         this.indices = indices;
         this.sgs = sgs;
         this.b3 = b3;
         this.jdbc = jdbc;
         this.tx = new TransactionTemplate(txm);
+        this.publisher = publisher;
         this.clock = clock;
     }
 
@@ -247,6 +251,10 @@ public class MarketIndexImportService {
 
     private Result finish(String trigger, List<IndexResult> results, long started) {
         Result r = new Result(results);
+        // D8 da renda fixa (R5): a app-api revaloriza a renda fixa privada quando um indice entra ou muda
+        if (!r.changedFrom().isEmpty()) {
+            publisher.publish(CatalogChange.indices(r.changedFrom().keySet()));
+        }
         log.info("Indices ({}) em {}s: {}", trigger, (System.currentTimeMillis() - started) / 1000, r);
         results.forEach(i -> log.info("Indices: {} {}-{} — {} novos, {} corrigidos, {} iguais, ultimo {}{}",
                 i.code(), i.fromYear(), i.toYear(), i.created(), i.updated(), i.unchanged(), i.lastDate(),

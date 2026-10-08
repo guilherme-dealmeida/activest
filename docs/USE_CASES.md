@@ -383,4 +383,6 @@ Prefixo das rotas: `/api/v1`. Investidor = qualquer usuário logado; Admin = `is
 | UC35 | Logos e conferência | Agendador | Logos que faltam; tickers novos/sumidos/renomeados e índices atrasados (só log) | dia 1 06:00; segunda 07:00 |
 | UC36 | Índices de mercado diários | Agendador | CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, PTAX (SGS do BCB), Ibovespa e IFIX (B3); janela de revisão; recupera na subida (05/10/2026) | 10:00 diário |
 | UC37 | Carregar índices de mercado | Admin | Histórico por índice e ano (padrão 2010 até hoje), ou a rodada incremental | `POST /admin/indices?codes&from&to&recent` |
+| UC39 | Preço do Tesouro | Agendador / Admin | PU de venda oficial de cada título; o Tesouro passa a valer cotas × PU | 08:00 diário; `POST /admin/tesouro` |
+| UC40 | Valorizar renda fixa privada | Agendador | Curva da taxa contratada (CDI, Selic, IPCA…), por transação, índice novo, 21:00 e subida | por evento e 21:00 |
 | UC38 | Consultar índices | Investidor | Tela Índices: um card por índice com período (1D…MAX, de/até) e gráfico; lista, série e acumulado no período (% do índice, spread; nível para Ibovespa/IFIX/dólar) | `/indices`; `GET /indices`, `/indices/{code}/chart`, `/history`, `/accumulated` |

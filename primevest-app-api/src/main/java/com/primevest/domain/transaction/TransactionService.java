@@ -7,6 +7,7 @@ import com.primevest.domain.integration.pipeline.ImportRulesRegistry;
 import com.primevest.domain.integration.pipeline.ProposedTransaction;
 import com.primevest.domain.integration.source.MovementJson;
 import com.primevest.domain.asset.Asset;
+import com.primevest.domain.asset.AssetLogos;
 import com.primevest.domain.asset.AssetRepository;
 import com.primevest.domain.asset.AssetTerms;
 import com.primevest.domain.asset.AssetType;
@@ -27,6 +28,7 @@ import com.primevest.domain.portfolio.PositionEvents;
 import com.primevest.domain.corporateaction.StockEventStep;
 import com.primevest.domain.portfolio.PositionGuard;
 import com.primevest.domain.transaction.TreasuryAllocator.SaleIntent;
+import com.primevest.domain.transaction.dto.NoteOptionDTO;
 import com.primevest.domain.transaction.dto.TransactionCreateDTO;
 import com.primevest.domain.user.UserRepository;
 import com.primevest.domain.transaction.dto.TransactionResponseDTO;
@@ -87,6 +89,7 @@ public class TransactionService {
     private final AppreciationUpdater appreciationUpdater;
     private final PositionGuard positionGuard;
     private final FixedIncomeSettlement fixedIncomeSettlement;
+    private final com.primevest.domain.fixedincome.FixedIncomeValuation fixedIncomeValuation;
     private final TreasuryAllocator treasuryAllocator;
     /** Avisa quem depende da posicao (proventos sob demanda) depois do commit. */
     private final ApplicationEventPublisher eventPublisher;
@@ -95,6 +98,8 @@ public class TransactionService {
     /** Movimento importado em JSON, para o "restaurar" (regra E4). */
     private final MovementJson movementJson;
     private final ImportRulesRegistry importRules;
+    /** Logo do ativo na coluna ATIVO da listagem, como na carteira. */
+    private final AssetLogos assetLogos;
 
     /**
      * Gets user transactions.
@@ -107,6 +112,29 @@ public class TransactionService {
                 .thenComparing(Comparator.comparing(Transaction::getCreatedAt).reversed()))
             .map(tx -> toResponseDTO(tx, groups))
             .collect(Collectors.toList());
+    }
+
+    /**
+     * Os titulos de renda fixa do usuario num ativo, para o seletor da Nova
+     * Transacao (compra e venda). Todos, e nao so os abertos: lancamento
+     * retroativo existe. Titulo sem posicao (sem nenhuma transacao) fica de fora.
+     */
+    public List<NoteOptionDTO> getNotes(UUID userId, String ticker) {
+        Asset asset = ticker == null ? null : assetRepository.findByTicker(ticker.trim().toUpperCase()).orElse(null);
+        Portfolio portfolio = portfolioRepository.findFirstByUserId(userId).orElse(null);
+        if (asset == null || portfolio == null) {
+            return List.of();
+        }
+        LocalDate hoje = LocalDate.now();
+        return fixedIncomeNoteRepository.findByUserIdAndAssetId(userId, asset.getId()).stream()
+            .flatMap(note -> portfolioAssetRepository.findByPortfolioIdAndNoteId(portfolio.getId(), note.getId())
+                .map(pa -> new NoteOptionDTO(note.getId(), note.getIssuer(), note.getMaturityDate(),
+                    note.getRateType(), note.getIndexer(), note.getIndexerRate(), pa.isSettled(),
+                    note.getMaturityDate() != null && !note.getMaturityDate().isAfter(hoje)))
+                .stream())
+            .sorted(Comparator.comparing(NoteOptionDTO::maturityDate, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(NoteOptionDTO::issuer, Comparator.nullsLast(Comparator.naturalOrder())))
+            .toList();
     }
 
     /**
@@ -180,6 +208,11 @@ public class TransactionService {
 
         // O papel de renda fixa. Nulo para renda variavel.
         FixedIncomeNote note = resolveNote(userId, asset, dto);
+        // Aporte num titulo que ja existe: a lista da tela traz todos (lancamento
+        // retroativo existe), entao a data e quem diz se o titulo ainda rendia.
+        if (dto.noteId() != null && dto.type() == TransactionType.BUY) {
+            validateBuyBeforeMaturity(note, dto.transactionDate());
+        }
 
         // Com papel, a posicao e do papel: dois CDBs de bancos diferentes sao
         // duas linhas na carteira, cada uma com sua taxa. Sem papel, continua
@@ -310,6 +343,9 @@ public class TransactionService {
         if (tx.getNote() != null && hasNoteData(dto)) {
             applyNoteFields(tx.getNote(), dto);
             fixedIncomeNoteRepository.save(tx.getNote());
+        }
+        if (tx.getNote() != null && tx.getType() == TransactionType.BUY) {
+            validateBuyBeforeMaturity(tx.getNote(), tx.getTransactionDate());
         }
 
         boolean venda = tx.getType() == TransactionType.SELL;
@@ -608,6 +644,19 @@ public class TransactionService {
      * quer dizer nada: comprar o mesmo papel duas vezes no mesmo dia e uma
      * aplicacao so, com mais dinheiro.</p>
      */
+    /**
+     * Compra de renda fixa so ate a vespera do vencimento: no dia do vencimento
+     * o titulo ja esta vencido (a mesma regra do selo "Vencido" da carteira) e
+     * nao rende mais nada. A venda nao passa por aqui — resgatar um titulo
+     * vencido e justamente o que encerra a aplicacao.
+     */
+    private void validateBuyBeforeMaturity(FixedIncomeNote note, LocalDate date) {
+        LocalDate vencimento = note != null ? note.getMaturityDate() : null;
+        if (vencimento != null && date != null && !vencimento.isAfter(date)) {
+            throw new BusinessException("Título vencido para a data de transação escolhida");
+        }
+    }
+
     private void validateOnePurchasePerDate(List<Transaction> current, Asset asset,
                                             LocalDate date, UUID ignoreTxId) {
         boolean existe = current.stream()
@@ -651,6 +700,8 @@ public class TransactionService {
         List<StockEventStep> stockEvents = valuedByTotal ? List.of() : positionCalculator.stockEventsOf(pa.getAsset());
         if (valuedByTotal) {
             fixedIncomeSettlement.recompute(pa, chronological, vendaLancada);
+            // a curva contratada (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, R4) depois das regras da escrita
+            fixedIncomeValuation.apply(pa, chronological, fixedIncomeValuation.series());
         } else {
             // Regra B com os desdobramentos, grupamentos e bonificacoes do
             // papel no meio da linha do tempo: o saldo que sobra e o de hoje.
@@ -927,6 +978,7 @@ public class TransactionService {
 
     private TransactionResponseDTO toResponseDTO(Transaction tx, Map<UUID, GroupInfo> groups) {
         PortfolioAsset pa = tx.getPortfolioAsset();
+        Asset asset = pa != null ? pa.getAsset() : null;
         String ticker = pa != null && pa.getAsset() != null ? pa.getAsset().getTicker() : "";
         String assetName = pa != null && pa.getAsset() != null ? pa.getAsset().getName() : "";
         var assetType = pa != null && pa.getAsset() != null ? pa.getAsset().getAssetType() : null;
@@ -969,7 +1021,9 @@ public class TransactionService {
             note != null ? note.getMaturityDate() : null,
             note != null ? note.getRateType()     : null,
             note != null ? note.getIndexer()      : null,
-            note != null ? note.getIndexerRate()  : null
+            note != null ? note.getIndexerRate()  : null,
+            asset != null ? assetLogos.logoFlag(asset) : null,
+            asset != null && asset.getIssuer() != null ? asset.getIssuer().getId() : null
         );
     }
 }

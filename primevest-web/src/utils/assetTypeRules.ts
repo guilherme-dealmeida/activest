@@ -1,4 +1,5 @@
 import { AssetType } from '@/types';
+import tesouroDiretoLogo from '@/assets/logos/tesouro-direto.svg';
 
 /**
  * Regras que dependem do tipo de ativo e valem em mais de uma tela.
@@ -33,3 +34,18 @@ export const isCryptoType = (type: AssetType | null | undefined) => type?.name =
  */
 export const isFixedIncomeNote = (type: AssetType) =>
   type.fixedIncome && type.name !== TESOURO_DIRETO;
+
+/**
+ * Logo pelo TIPO, nos tipos em que o ativo não tem logo próprio.
+ *
+ * Tesouro Direto: o símbolo do programa, igual para todos os títulos. Renda
+ * Fixa: por enquanto o texto "RF", no mesmo quadro de quem não tem logo —
+ * o logo pelo emissor do título terá planejamento próprio.
+ *
+ * null = o tipo segue a regra do ativo (hasLogo da API).
+ */
+export const typeLogo = (typeName: string | null | undefined): { src?: string; label?: string } | null => {
+  if (typeName === TESOURO_DIRETO) return { src: tesouroDiretoLogo };
+  if (typeName === RENDA_FIXA) return { label: 'RF' };
+  return null;
+};

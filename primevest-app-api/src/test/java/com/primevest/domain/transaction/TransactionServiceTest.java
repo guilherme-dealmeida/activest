@@ -71,10 +71,12 @@ class TransactionServiceTest {
     @Mock private PositionCalculator positionCalculator;
     @Mock private AppreciationUpdater appreciationUpdater;
     @Mock private FixedIncomeSettlement fixedIncomeSettlement;
+    @Mock private com.primevest.domain.fixedincome.FixedIncomeValuation fixedIncomeValuation;
     @Mock private TreasuryAllocator treasuryAllocator;
     @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
     @Mock private com.primevest.domain.integration.IntegrationCryptoExclusionRepository cryptoExclusionRepository;
     @Mock private com.primevest.domain.integration.source.MovementJson movementJson;
+    @Mock private com.primevest.domain.asset.AssetLogos assetLogos;
 
     /** O guard entra de verdade: as regras A e B sao dele, e ja tem teste proprio. */
     private final PositionGuard positionGuard = new PositionGuard();
@@ -90,9 +92,9 @@ class TransactionServiceTest {
     void cenario() {
         service = new TransactionService(transactionRepository, portfolioRepository, portfolioAssetRepository,
             assetRepository, fixedIncomeNoteRepository, userRepository, dividendRecalculator, positionCalculator,
-            appreciationUpdater, positionGuard, fixedIncomeSettlement, treasuryAllocator, eventPublisher,
+            appreciationUpdater, positionGuard, fixedIncomeSettlement, fixedIncomeValuation, treasuryAllocator, eventPublisher,
             cryptoExclusionRepository, movementJson,
-            new com.primevest.domain.integration.pipeline.ImportRulesRegistry(java.util.List.of()));
+            new com.primevest.domain.integration.pipeline.ImportRulesRegistry(java.util.List.of()), assetLogos);
 
         userId = UUID.randomUUID();
         carteira = Portfolio.builder().name("Minha Carteira").build();
@@ -382,6 +384,21 @@ class TransactionServiceTest {
                     null, LocalDate.of(2026, 9, 1), null, null, deOutroAtivo.getId(), null, null, null, null, null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("O título selecionado pertence a outro ativo: PETR4");
+        }
+
+        @Test
+        @DisplayName("Compra num titulo existente no dia do vencimento ou depois e recusada")
+        void compraEmTituloVencidoNaData() {
+            FixedIncomeNote nota = nota();
+            when(fixedIncomeNoteRepository.findByIdAndUserId(nota.getId(), userId)).thenReturn(Optional.of(nota));
+
+            for (LocalDate data : List.of(LocalDate.of(2030, 1, 15), LocalDate.of(2030, 2, 1))) {
+                assertThatThrownBy(() -> service.createTransaction(userId,
+                    new TransactionCreateDTO("CDB", TransactionType.BUY, null, null, new BigDecimal("1000.00"),
+                        null, data, null, null, nota.getId(), null, null, null, null, null)))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("Título vencido para a data de transação escolhida");
+            }
         }
 
         @Test

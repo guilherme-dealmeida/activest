@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { transactionsApi } from '@/api/transactions';
 import { assetsApi } from '@/api/assets';
+import { portfolioApi } from '@/api/portfolio';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
@@ -14,7 +15,7 @@ import { apiMessage } from '@/utils/apiError';
 import { AssetTypeSelect } from '@/components/forms/AssetTypeSelect';
 import { TickerAutocomplete } from '@/components/forms/TickerAutocomplete';
 import { FixedIncomeFields, FixedIncomeValues } from '@/components/forms/FixedIncomeFields';
-import { formatCurrency, toLocalISODate } from '@/utils/format';
+import { formatCurrency, formatDate, toLocalISODate } from '@/utils/format';
 import { CRYPTO_DECIMALS, isCryptoType } from '@/utils/assetTypeRules';
 import {
   Asset, AssetType, Indexer, RateType, TransactionCreate, TransactionResponse, TransactionType
@@ -66,8 +67,19 @@ export interface TransactionPreset {
     rateType: RateType | null;
     indexer: Indexer | null;
     indexerRate: number | null;
+    /** Saldo atual do título (curva), para o "resgatar tudo". */
+    currentValue?: number | null;
   } | null;
 }
+
+/** "110% do CDI", "CDI + 2%", "12,5% a.a." — rótulo curto da remuneração na lista de títulos. */
+const rateLabel = (rateType: RateType | null, indexer: Indexer | null, rate: number | null) => {
+  if (rate == null || !rateType) return '';
+  const n = rate.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+  if (rateType === 'PREFIXADO') return `${n}% a.a.`;
+  if (rateType === 'POS_FIXADO') return `${n}% do ${indexer ?? ''}`;
+  return `${indexer ?? ''} + ${n}%`;
+};
 
 interface Props {
   isOpen: boolean;
@@ -78,7 +90,26 @@ interface Props {
   preset?: TransactionPreset | null;
   /** Lista de tipos, para reconstruir o tipo da transação editada. */
   assetTypes?: AssetType[];
+  /**
+   * Depois de salvar (criação ou edição). A tela de Transações usa para filtrar
+   * o extrato na posição lançada; a Carteira não passa nada.
+   */
+  onSaved?: (saved: TransactionResponse | undefined, txData: TransactionCreate) => void;
 }
+
+/**
+ * O quadro do título como o catálogo o deixa num título NOVO: categoria e, no
+ * que for público do papel, vencimento e remuneração. Emissor e taxa são do
+ * usuário. É o estado de "nenhum título escolhido" numa compra.
+ */
+const termosDoCatalogo = (asset: Asset | null): FixedIncomeValues => asset ? {
+  assetCategoryId: asset.categoryId ?? null,
+  issuer: '',
+  maturityDate: asset.maturityDate ?? '',
+  rateType: asset.rateType ?? null,
+  indexer: asset.indexer ?? null,
+  indexerRate: null
+} : EMPTY_FIXED_INCOME;
 
 /**
  * O formulário de transação, usado por três caminhos: Nova Transação, edição
@@ -88,7 +119,7 @@ interface Props {
  * por isso que ele virou componente: duplicar essa tela significaria manter
  * duas vezes as regras de Renda Fixa, de Tesouro e de título.</p>
  */
-export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTypes }: Props) => {
+export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTypes, onSaved }: Props) => {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
 
@@ -98,6 +129,8 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [fixedIncome, setFixedIncome] = useState<FixedIncomeValues>(EMPTY_FIXED_INCOME);
   const [fullSettlement, setFullSettlement] = useState(false);
+  /** Renda Fixa pela Nova Transação: o título escolhido na lista — na venda é obrigatório, na compra é opcional. */
+  const [pickedNoteId, setPickedNoteId] = useState<string | null>(null);
   const [formData, setFormData] = useState<TransactionCreate>({
     ticker: '',
     type: TransactionType.BUY,
@@ -115,6 +148,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     setEditingNoteId(null);
     setFixedIncome(EMPTY_FIXED_INCOME);
     setFullSettlement(false);
+    setPickedNoteId(null);
     setFormData({
       ticker: '', type: TransactionType.BUY, shares: 0,
       pricePerShare: 0, totalAmount: 0, brokerageFee: 0,
@@ -169,6 +203,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       setMatchedAsset(null);
       setEditingNoteId(preset.note?.noteId ?? null);
       setFullSettlement(false);
+      setPickedNoteId(null);
       setFormData({
         ticker: preset.ticker,
         type: preset.operation,
@@ -245,6 +280,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     onSuccess: (saved: TransactionResponse | undefined, txData) => {
       invalidate();
       onClose();
+      onSaved?.(saved, txData);
       const ticker = saved?.ticker ?? txData.ticker;
       if (txData.type === TransactionType.BUY) {
         showToast(`Compra de ${ticker} registrada.`, 'success');
@@ -263,6 +299,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     onSuccess: (saved: TransactionResponse | undefined, { txData }) => {
       invalidate();
       onClose();
+      onSaved?.(saved, txData);
       showToast(`Transação de ${saved?.ticker ?? txData.ticker} atualizada.`, 'success');
       avisarDivisao(saved);
     },
@@ -278,6 +315,69 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
   const isVenda = formData.type === TransactionType.SELL;
 
   /**
+   * Renda Fixa pela Nova Transação: o título sai de uma lista dos títulos do ativo — o mesmo que os ícones da
+   * Carteira fazem pela linha.
+   *
+   * Na VENDA ele é obrigatório (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, seção 5, D11): o resgate sai de uma
+   * aplicação. Na COMPRA é opcional: escolhido, o aporte cai na mesma aplicação; "Novo Título" cria outro com o
+   * que o usuário preencher no quadro. O Tesouro fica de fora — lá cada compra é um título novo e a venda é FIFO.
+   */
+  const escolheTitulo = !travado && isValorTotal;
+  const vendaAvulsaRF = escolheTitulo && isVenda;
+  const tickerAtual = (matchedAsset?.ticker ?? tickerInput).trim().toUpperCase();
+  const { data: notas } = useQuery({
+    queryKey: ['transactions', 'notes', tickerAtual],
+    queryFn: () => transactionsApi.notes(tickerAtual),
+    enabled: isOpen && escolheTitulo && !!matchedAsset,
+  });
+  /** Só para o saldo do "Resgatar tudo": a carteira traz o valor na curva das posições abertas. */
+  const { data: positions } = useQuery({
+    queryKey: ['portfolio', 'assets'],
+    queryFn: portfolioApi.getAssets,
+    enabled: isOpen && vendaAvulsaRF,
+  });
+  /**
+   * Todos os títulos do ativo — abertos, vencidos e liquidados —, na compra e na
+   * venda: lançamento retroativo existe, e hoje o título pode estar vencido ou
+   * encerrado mas não estar na data da transação. Quem decide é a data (aporte
+   * no vencimento ou depois é recusado, aqui e na API).
+   */
+  const titulos = escolheTitulo && matchedAsset ? (notas ?? []) : [];
+  const picked = titulos.find(p => p.noteId === pickedNoteId) ?? null;
+  /** Saldo do título para o "resgatar tudo": o da linha da Carteira ou o do título escolhido. */
+  const saldoTitulo = preset?.note?.currentValue
+    ?? (picked ? positions?.find(p => p.noteId === picked.noteId)?.currentValue ?? null : null);
+
+  /**
+   * "Novo Título" desfaz a escolha por inteiro. Na compra o quadro volta ao estado de
+   * título novo, com o que o catálogo sabe do ativo — zerar tudo perderia a
+   * categoria e, no papel que os tem, o vencimento e a remuneração travados.
+   */
+  const escolherTitulo = (noteId: string, tipo: string = formData.type) => {
+    const p = noteId ? titulos.find(x => x.noteId === noteId) : undefined;
+    setPickedNoteId(p ? noteId : null);
+    setFixedIncome(p ? {
+      assetCategoryId: matchedAsset?.categoryId ?? null,
+      issuer: p.issuer ?? '',
+      maturityDate: p.maturityDate ?? '',
+      rateType: p.rateType,
+      indexer: p.indexer,
+      indexerRate: p.indexerRate,
+    } : (tipo === TransactionType.BUY ? termosDoCatalogo(matchedAsset) : EMPTY_FIXED_INCOME));
+  };
+
+  /**
+   * O título escolhido continua na troca de operação (a lista é a mesma). Sem
+   * escolha, o quadro volta ao estado certo para a operação nova: título novo
+   * com os dados do catálogo na compra, vazio na venda.
+   */
+  const trocarOperacao = (tipo: TransactionType) => {
+    setFormData(prev => ({ ...prev, type: tipo }));
+    if (tipo === TransactionType.BUY) setFullSettlement(false);
+    if (escolheTitulo && tipo !== formData.type) escolherTitulo(pickedNoteId ?? '', tipo);
+  };
+
+  /**
    * Trocar o tipo invalida o ticker: a lista do autocomplete é outra. Invalida
    * também os valores: entrar ou sair de Renda Fixa troca quantidade e preço
    * por valor total, e o que foi digitado num modo não tem sentido no outro.
@@ -288,13 +388,12 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     setFixedIncome(EMPTY_FIXED_INCOME);
     setTickerInput('');
     setFullSettlement(false);
-    // Venda de Renda Fixa ainda não se lança por aqui: falta dizer de qual
-    // título ela sai. Pela carteira, onde o título é a própria linha, ela
-    // funciona.
+    setPickedNoteId(null);
+    // A operação escolhida fica: venda de Renda Fixa se lança por aqui, com o
+    // título escolhido na lista (D11 do plano de valorização).
     setFormData(prev => ({
       ...prev,
-      ticker: '', shares: 0, pricePerShare: 0, totalAmount: 0,
-      type: type?.name === RENDA_FIXA ? TransactionType.BUY : prev.type
+      ticker: '', shares: 0, pricePerShare: 0, totalAmount: 0
     }));
   };
 
@@ -304,21 +403,11 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
    * usuario. asset == null -> nada escolhido ainda.
    */
   const handleTickerChange = (ticker: string, asset: Asset | null) => {
+    setPickedNoteId(null);
     setTickerInput(ticker);
     setFormData(prev => ({ ...prev, ticker }));
     setMatchedAsset(asset);
-    if (asset) {
-      setFixedIncome({
-        assetCategoryId: asset.categoryId ?? null,
-        issuer: '',
-        maturityDate: asset.maturityDate ?? '',
-        rateType: asset.rateType ?? null,
-        indexer: asset.indexer ?? null,
-        indexerRate: null
-      });
-    } else {
-      setFixedIncome(EMPTY_FIXED_INCOME);
-    }
+    setFixedIncome(termosDoCatalogo(asset));
   };
 
   const computedTotal = isValorTotal
@@ -340,7 +429,8 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
    * O título já existe: os dados são dele, e editá-los aqui mudaria a aplicação
    * por tabela. Na venda de Tesouro nada é editável porque não há um título só.
    */
-  const tituloSomenteLeitura = (!!preset && !!preset.note) || (isTesouro && isVenda);
+  const tituloSomenteLeitura = (!!preset && !!preset.note) || (isTesouro && isVenda) || vendaAvulsaRF
+    || (escolheTitulo && !!picked);
 
   /**
    * O ativo já traz vencimento e forma de remuneração? Então são do papel, não
@@ -355,8 +445,6 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     ? true
     : (!!matchedAsset?.maturityDate || !!matchedAsset?.rateType);
 
-  /** Renda Fixa não tem venda pelo formulário avulso: falta o título. */
-  const vendaBloqueada = !travado && isValorTotal;
 
   const grupo = editing?.groupParts && editing.groupParts > 1 ? editing.groupParts : null;
 
@@ -365,6 +453,16 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
 
     // Renda Fixa manda o valor total e anula quantidade e preço; os demais
     // tipos mandam quantidade e preço e deixam o total para a API calcular.
+    // Aporte num título que já existe só até a véspera do vencimento (no dia
+    // ele já está vencido, a regra do selo da carteira). O modal fica aberto.
+    const vencimentoDoTitulo = !isVenda && !isTesouro && !editing
+      ? (picked?.maturityDate ?? preset?.note?.maturityDate ?? null)
+      : null;
+    if (vencimentoDoTitulo && formData.transactionDate >= vencimentoDoTitulo) {
+      showToast('Título vencido para a data de transação escolhida', 'error');
+      return;
+    }
+
     const valores: TransactionCreate = isValorTotal
       ? { ...formData, shares: null, pricePerShare: null, totalAmount: formData.totalAmount || 0 }
       : { ...formData, totalAmount: null };
@@ -389,7 +487,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       ...dadosTitulo,
       // O Tesouro nunca manda título: cada compra é um novo e a venda é do
       // ativo.
-      noteId: !isTesouro && !editing ? (preset?.note?.noteId ?? null) : null,
+      noteId: !isTesouro && !editing ? (preset?.note?.noteId ?? (escolheTitulo ? (picked?.noteId ?? null) : null)) : null,
       isFullSettlement: isValorTotal && isVenda ? fullSettlement : null
     };
 
@@ -448,9 +546,11 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1.5">
               <LabelWithInfo
-                info={vendaBloqueada
-                  ? 'A venda de Renda Fixa é feita pela Carteira, no ícone Vender da linha do título. Assim o sistema sabe de qual aplicação sai o resgate.'
-                  : undefined}
+                info={vendaAvulsaRF
+                  ? 'Na venda de Renda Fixa escolha de qual título sai o resgate.'
+                  : escolheTitulo
+                    ? 'Na compra de Renda Fixa escolha um título para aportar na mesma aplicação, ou deixe "Novo Título" para criar outro.'
+                    : undefined}
               >
                 Operação
               </LabelWithInfo>
@@ -459,7 +559,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
               <button
                 type="button"
                 disabled={travado}
-                onClick={() => setFormData({ ...formData, type: TransactionType.BUY })}
+                onClick={() => trocarOperacao(TransactionType.BUY)}
                 className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded text-sm font-medium transition-all ${
                   formData.type === TransactionType.BUY
                     ? 'bg-success/15 text-success border border-success/30 shadow-sm'
@@ -471,13 +571,13 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
               </button>
               <button
                 type="button"
-                disabled={travado || vendaBloqueada}
-                onClick={() => setFormData({ ...formData, type: TransactionType.SELL })}
+                disabled={travado}
+                onClick={() => trocarOperacao(TransactionType.SELL)}
                 className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded text-sm font-medium transition-all ${
                   formData.type === TransactionType.SELL
                     ? 'bg-danger/15 text-danger border border-danger/30 shadow-sm'
                     : 'text-gray-400 hover:text-gray-300 hover:bg-white/5'
-                } ${vendaBloqueada ? 'opacity-40 cursor-not-allowed' : ''}`}
+                }`}
               >
                 <ArrowUpRight className="w-4 h-4" />
                 Venda
@@ -505,6 +605,34 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
             )}
           </div>
 
+          {escolheTitulo && (
+            <div className="sm:col-span-2">
+              <label htmlFor="titulo-rf" className="block text-sm font-medium text-gray-300 mb-1.5">Título</label>
+              <select
+                id="titulo-rf"
+                required={isVenda}
+                disabled={!isVenda && !matchedAsset}
+                value={picked?.noteId ?? ''}
+                onChange={(e) => escolherTitulo(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-surface-light bg-surface px-3 py-2 text-sm text-white disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <option value="">{!tickerAtual
+                  ? 'Escolha o ativo primeiro'
+                  : isVenda
+                    ? (titulos.length ? 'Escolha a aplicação' : `Nenhum título de ${tickerAtual}`)
+                    : 'Novo Título'}</option>
+                {titulos.map(p => (
+                  <option key={p.noteId} value={p.noteId}>
+                    {[p.issuer || 'Sem emissor',
+                      p.maturityDate ? `venc. ${formatDate(p.maturityDate)}` : 'sem vencimento',
+                      rateLabel(p.rateType, p.indexer, p.indexerRate),
+                      p.settled ? 'liquidado' : (p.matured ? 'vencido' : null)].filter(Boolean).join(' · ')}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {isValorTotal ? (
             <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
               <CurrencyInput
@@ -526,6 +654,18 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
                   <span className="text-sm text-gray-300">Liquidação total</span>
                   <InfoTooltip content="Marque quando este resgate encerra a aplicação. A posição é zerada e a valorização é ajustada para o valor resgatado." />
                 </label>
+              )}
+              {isVenda && saldoTitulo != null && saldoTitulo > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData({ ...formData, totalAmount: Math.round(saldoTitulo * 100) / 100 });
+                    setFullSettlement(true);
+                  }}
+                  className="sm:col-span-2 justify-self-start text-xs text-accent hover:underline"
+                >
+                  Resgatar tudo — saldo na curva {formatCurrency(saldoTitulo)}
+                </button>
               )}
             </div>
           ) : (

@@ -159,6 +159,44 @@ public class FixedIncomeSettlement {
         pa.setSettled(liquidacaoTotal);
     }
 
+    /**
+     * Valorizacao pela curva contratada (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, 3.4): titulo em aberto passa a
+     * valer o saldo na curva — valorizacao = saldo + resgatado − aplicado, nunca negativa (regra G). Titulo liquidado
+     * fica com o ganho realizado no resgate; titulo sem curva (TR, dado faltando) fica com o que tinha.
+     *
+     * <p>Roda depois do {@link #recompute} (que valida as regras E, F e G da escrita) e tambem sozinha, nas rodadas de
+     * recalculo. A curva ja trata o resgate acima do saldo (D4, o centavo da regra F) e a venda excluida (10.2): o
+     * saldo e refeito do zero a cada passagem.</p>
+     *
+     * @return se a valorizacao mudou
+     */
+    public boolean applyCurve(PortfolioAsset pa, List<Transaction> chronological, FixedIncomeCurve.Result curve) {
+        if (pa.isSettled() || chronological.isEmpty() || curve == null
+                || curve.status() == FixedIncomeCurve.Status.UNSUPPORTED || curve.balance() == null) {
+            return false;
+        }
+        BigDecimal aplicado = BigDecimal.ZERO;
+        BigDecimal resgatado = BigDecimal.ZERO;
+        for (Transaction tx : chronological) {
+            BigDecimal valor = tx.getTotalAmount() != null ? tx.getTotalAmount() : BigDecimal.ZERO;
+            if (tx.getType() == TransactionType.BUY) {
+                aplicado = aplicado.add(valor);
+            } else {
+                resgatado = resgatado.add(valor);
+            }
+        }
+        BigDecimal valorizacao = escala(curve.balance().add(resgatado).subtract(aplicado));
+        if (valorizacao.signum() < 0) {
+            valorizacao = BigDecimal.ZERO.setScale(MONEY_SCALE); // regra G
+        }
+        BigDecimal atual = pa.getAppreciation() != null ? escala(pa.getAppreciation()) : null;
+        if (atual != null && atual.compareTo(valorizacao) == 0) {
+            return false;
+        }
+        pa.setAppreciation(valorizacao);
+        return true;
+    }
+
     private BigDecimal escala(BigDecimal valor) {
         return valor.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
     }

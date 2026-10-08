@@ -77,5 +77,11 @@ public record TransactionResponseDTO(
     LocalDate maturityDate,
     RateType rateType,
     Indexer indexer,
-    BigDecimal indexerRate
+    BigDecimal indexerRate,
+
+    // ----- coluna ATIVO da listagem, igual a carteira -----
+    /** null = tipo sem logo (renda fixa, Tesouro); senao, se ha arquivo de logo. */
+    Boolean hasLogo,
+    /** assets.issuer_id: com emissor, o ticker vira link para a tela de emissoras. */
+    Long issuerId
 ) {}

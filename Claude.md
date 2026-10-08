@@ -5,7 +5,13 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 05/10/2026 (índices de mercado: CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, PTAX, Ibovespa e
+> **Última revisão**: 07/10/2026 (cadastro de transação: seletor de título também na compra de Renda Fixa, com todos os
+> títulos do ativo e aporte só até a véspera do vencimento; filtro do extrato depois de salvar e ícone Listar em
+> Transações; colunas ATIVO com logo e TÍTULO; logo por tipo — símbolo do Tesouro Direto e "RF"; tipos de ativo na
+> ordem do cadastro — ver "Transações" em Telas).
+> Antes: 05/10/2026, noite (valorização da renda fixa: Tesouro pelo preço oficial, renda fixa privada pela
+> curva contratada, venda de renda fixa pela Nova Transação — ver `docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`).
+> No mesmo dia: (índices de mercado: CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, PTAX, Ibovespa e
 > IFIX desde 2010, rotina das 10:00 e `/api/v1/indices` — ver `docs/planos/PLANO_INDICES_MERCADO.md`).
 > No mesmo dia: cadastro de usuário (login Google em uso, cadastro com código por e-mail,
 > "esqueci a senha", termos, Configurações completas, refresh token separado do acesso — ver
@@ -306,13 +312,14 @@ Plano, decisões e achados da integração: **`docs/planos/PLANO_BRAPI.md`** (ex
 | Fechamento B3 (seg–sex) e cripto (todo dia), com recuperação na subida — `ClosingPriceScheduler` | 19:00 | adm-api → "catálogo mudou" (FECHAMENTO) |
 | Eventos de proventos da B3/FNET de **todo o catálogo** ligado a emissor + o que já esteve em carteira (F8; `primevest.proventos.scope`) — `ProventosScheduler` | 20:00 | adm-api → "catálogo mudou" (PROVENTOS), por emissor |
 | Balanços da CVM (DFP/ITR do ano corrente e do anterior) + série trimestral + informe mensal de FII (F7) — `CvmStatementsScheduler` | 07:30 | adm-api |
+| Preço oficial do Tesouro Direto (PU de venda, Tesouro Transparente), com recuperação na subida — `TreasuryPriceScheduler` (`docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`) | 08:00 | adm-api → "catálogo mudou" (FECHAMENTO) |
 | Índices de mercado, incremental com janela de revisão (30 dias nos diários, 3 meses nos mensais), com recuperação na subida — `MarketIndexScheduler` (`docs/planos/PLANO_INDICES_MERCADO.md`) | 10:00 | adm-api |
 | Conferência do catálogo e dos índices atrasados (só loga) — `CatalogAuditScheduler` | seg 07:00 | adm-api |
 | Logos (arquivos em `carga/data/logos/{TICKER}.{ext}` — o arquivo é o estado; só quem não tem arquivo; a subida não procura nada, o ativo novo é procurado no pedido "preciso do histórico") — `LogoScheduler` | dia 1, 06:00 | adm-api (a app-api só lê a pasta, `AssetLogos`) |
 | Recálculo de proventos e valorização de todas as posições — `PositionRefreshScheduler` | 21:00 | app-api |
 | Fila das integrações com corretoras — `IntegrationSyncScheduler` (08:45) e `IntegrationWorker` (5 s) | — | app-api |
 
-Disparo manual para admin, **na adm-api (8081)**: `POST /api/v1/admin/{closing|proventos|catalog-audit|logos|issuers/import|issuers/link|b3/cotahist|cvm/import|cvm/quarters|cvm/fii-monthly|cvm/proventos|indices|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, datas de pagamento da CVM, balanços, informe de FII e índices de mercado, em ordem — docs/planos/PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
+Disparo manual para admin, **na adm-api (8081)**: `POST /api/v1/admin/{closing|proventos|catalog-audit|logos|issuers/import|issuers/link|b3/cotahist|cvm/import|cvm/quarters|cvm/fii-monthly|cvm/proventos|indices|tesouro|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, datas de pagamento da CVM, balanços, informe de FII, índices de mercado e preço do Tesouro, em ordem — docs/planos/PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
 (`b3/cotahist?from=2010&to=2026`, padrão 2010 até o ano corrente; `cvm/import?from=2010&to=2026&force=false` —
 documento na mesma versão é pulado, `force=true` reprocessa a partir de `carga/data/cvm` sem baixar; ao terminar recalcula
 a série trimestral, que `cvm/quarters` recalcula sozinha; `cvm/fii-monthly?from=2016&to=2026&force=false` — informe
@@ -343,6 +350,7 @@ Todas as fontes abaixo, menos o Google, são da **adm-api** (config em `primeves
 | **CVM dados abertos** (`CvmOpenDataClient`) | Emissores (cadastro de companhias, FCA, informe mensal de FII); informe mensal de FII 2016+ em `fii_monthly` (`CvmFiiMonthly`, partes complemento e ativo/passivo, F7); balanços DFP (2010+) e ITR (2011+) (`CvmStatements`); histórico de capital do Formulário de Referência (`CvmFreCapital`, quantidade de ações antes de 2020 e régua da escala depois). Cache em `carga/data/cvm/{cad,fca,fii,dfp,itr,fre}` — o arquivo é o estado (`docs/planos/PLANO_EMPRESAS_BALANCOS.md`) | `cvm.base-url`, `primevest.data.dir` |
 | **CoinGecko** | Preço de cripto (id em `assets.price_source_ref`) e logos das moedas | `coingecko.base-url` |
 | **Banco Central — API SGS** (`BcbSgsClient`, sem token) | Índices de mercado (`docs/planos/PLANO_INDICES_MERCADO.md`): CDI (série 12), Selic (11), IPCA (433), IGP-M (189), INPC (188), TR (226), meta Selic (432), dólar PTAX venda (1). Uma consulta por ano civil com `dataInicial`/`dataFinal` (série diária recusa janela de mais de 10 anos com 406; 404 = sem valores no período); timeout de 20 s e até 4 tentativas (o SGS às vezes demora). A TR repete o início com fins diferentes: fica o período de um mês cheio. Data futura não entra (a meta Selic vem preenchida até a próxima reunião do Copom). Cache `carga/data/bcb/sgs/{código}/{ano}.json`: ano fechado com arquivo só do disco; o corrente e o anterior sempre da fonte (`IndexYearCache`) | `bcb.sgs-base-url`, `indices.*`, `primevest.data.dir` |
+| **Tesouro Transparente — preços e taxas do Tesouro Direto** (`TesouroPriceClient`, sem token) | `PrecoTaxaTesouroDireto.csv`: todo o histórico desde 2002 num arquivo (~14 MB, ~1 min), atualizado todo dia útil ~07:20 com o D-1; colunas tipo, vencimento, data base, taxas e PU de compra/venda/base. Cache `carga/data/tesouro/` (`PublicFileCache`, só baixa se mudou). `TreasuryPriceService` casa a linha com o título do catálogo por **tipo + vencimento** (`asset_terms`; o ano do ticker nem sempre é o do vencimento: Renda+ 2065 vence em 2084), grava o **PU de venda** (resgate antecipado; sem ele, o PU base) em `asset_price_history` (`source = TESOURO`) e o último em `assets.current_price` | `tesouro.prices-url`, `tesouro.timeout-seconds` |
 | **B3 — índices** (`B3IndexClient`) | Fechamento diário do Ibovespa e do IFIX: `indexStatisticsProxy/IndexCall/GetPortfolioDay`, um ano por chamada, numa grade dia × mês com texto pt-BR. Cache `carga/data/b3/indices/{índice}/{ano}.json`, mesma regra | `b3.base-url`, `indices.*` |
 | **Google Identity Services** | Login social (fluxo de ID token, sem client secret) | `VITE_GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_ID` |
 
@@ -398,7 +406,7 @@ primevest/
 │       │   │                    # UserDetailsServiceImpl; domain/user/LegalTerms (versão dos termos)
 │       │   ├── config/          # SecurityUtils
 │       │   └── exception/       # GlobalExceptionHandler, BusinessException...
-│       ├── main/resources/db/migration/   # V1 .. V43 (as duas aplicações rodam o Flyway)
+│       ├── main/resources/db/migration/   # V1 .. V44 (as duas aplicações rodam o Flyway)
 │       └── test/                # test-jar: IntegrationTestBase, JpaTestBase, PostgresContainer,
 │                                # Fixtures, CatalogIds, Tokens, application-test.yml; SchemaTest
 │
@@ -501,7 +509,7 @@ em desenvolvimento. **Não versione credenciais reais.**
 | `withholding_tax_rules` | Alíquotas de IR retido na fonte por tipo de provento, tipo de ativo e vigência, com a base legal (V23). Lei nova = migration — ver "IR retido nos proventos" |
 | `ceiling_prices` | Preço teto por ativo — `unique(user_id, asset_id)` |
 | `goals` | Metas de investimento |
-| `asset_price_history` | Histórico de cotações. `source` (V29): `BRAPI`, `COINGECKO` ou `B3_COTAHIST` — a série da B3 vence e a BRAPI não a sobrescreve |
+| `asset_price_history` | Histórico de cotações. `source` (V29): `BRAPI`, `COINGECKO` ou `B3_COTAHIST` — a série da B3 vence e a BRAPI não a sobrescreve; `TESOURO` (V44): PU de venda do Tesouro Direto desde 2010 |
 | `integration_connections` | Conexão do usuário com uma fonte externa (hoje só `BINANCE`); `label` único por usuário, `status`, `consent_accepted_at` (V25) |
 | `integration_credentials` | Credencial **cifrada**, 1:1 com a conexão (`ciphertext`, `iv`, `key_version`, `fingerprint`). Nunca sai na API; apagada na revogação |
 | `integration_cursors` | Onde cada fluxo da fonte parou (`stream`, `cursor_value`) — sincronização incremental |
@@ -543,11 +551,15 @@ propósito. Antes o scheduler fazia `"CRYPTO".equals(name)`, que quebrava em
 silêncio a cada renomeação ou tipo novo. A tela e os services só perguntam à
 coluna.
 
+> **Ordem** (07/10/2026): quem lista os tipos usa `AssetTypeRepository.findAllByOrderByIdAsc()` — a ordem do cadastro
+> (V2). O `findAll()` sem ORDER BY devolve a ordem física da tabela, e no PostgreSQL um UPDATE regrava a linha no fim:
+> depois da V44, que atualiza o Tesouro Direto, ele passou a vir por último no modal e no rebalanceamento.
+
 > **Convenção**: em DTOs e respostas de API use `getDescription()` para exibir ao
 > usuário; `getName()` é para lógica interna. `AssetCategory.getDisplayName()`
 > encapsula o fallback description → name.
 
-### Flyway — V1 a V43
+### Flyway — V1 a V44
 
 O Flyway roda do zero no perfil `docker`. No perfil `dev` fica desligado, porque
 o banco local é gerenciado à mão.
@@ -564,7 +576,7 @@ O reset deixou **9 arquivos, 156 KB contra 340 KB**. Desde então entraram
 V10–V12 (20/09/2026), V13–V22 (24/09/2026, integração BRAPI/B3) e V23
 (24/09/2026, IR retido nos proventos), V24 (25/09/2026, extrato de proventos
 da B3) V25 a V27 (25/09/2026, integrações com corretoras) V28 e V29 (27/09/2026, emissores e origem do preço histórico), V30 e V31 (27/09/2026, seed dos emissores e
-categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, série trimestral), V34 (28/09/2026, informe mensal de FII), V35 a V37 (28/09/2026, amortização da B3, escala por evento e `assets` sem estado — F10), V38 (29/09/2026, catálogo sem o extrato), V39 (02/10/2026, datas de pagamento do levantamento), V40 a V42 (03–05/10/2026, integração B3, cadastro de usuário, foto de perfil) e V43 (05/10/2026, índices de mercado), e o banco fica na **versão 43**.
+categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, série trimestral), V34 (28/09/2026, informe mensal de FII), V35 a V37 (28/09/2026, amortização da B3, escala por evento e `assets` sem estado — F10), V38 (29/09/2026, catálogo sem o extrato), V39 (02/10/2026, datas de pagamento do levantamento), V40 a V42 (03–05/10/2026, integração B3, cadastro de usuário, foto de perfil) e V43 (05/10/2026, índices de mercado), V44 (05/10/2026, preço oficial do Tesouro), e o banco fica na **versão 44**.
 
 | Arquivo | Conteúdo |
 |---------|----------|
@@ -605,6 +617,7 @@ categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, s
 | V39 | docs/planos/PLANO_CARGA_INICIAL.md (D14, seção 11): `payment_date_source` aceita também `LEVANTAMENTO` (datas de pagamento levantadas, `carga/data/levantamento`) |
 | V40 | docs/planos/PLANO_INTEGRACAO_B3.md (F2): `integration_connections` aceita `provider = B3` e `status = PENDING_AUTHORIZATION` |
 | V42 | docs/planos/PLANO_CADASTRO_USUARIO.md (adendo): `user_avatars` — foto de perfil enviada (JPEG 512×512, ≤ 1 MB), 1:1 com `users`, `ON DELETE CASCADE` |
+| V44 | docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md (R1): `asset_types.price_source` aceita `TESOURO` (o tipo Tesouro Direto passa a ser cotado) e `asset_price_history.source` aceita `TESOURO` |
 | V43 | docs/planos/PLANO_INDICES_MERCADO.md (X1): `market_indices` (10 índices semeados) e `market_index_values` (vazia; a série vem da adm-api) |
 | V41 | docs/planos/PLANO_CADASTRO_USUARIO.md (seção 5): colunas novas de `users` (celular, CPF cifrado + hash, verificação de e-mail, `password_changed_at`, aceite dos termos, tema), índices únicos de e-mail sem caixa, celular e CPF; o usuário semeado ganha e-mail verificado e o aceite da versão `2026-10-provisorio` |
 
@@ -787,7 +800,8 @@ passo a passo no apêndice A do plano); origens autorizadas `http://localhost` e
 ### Transactions
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| GET | `/api/v1/transactions/` | Listar |
+| GET | `/api/v1/transactions/` | Listar (data decrescente; cada linha traz `hasLogo` e `issuerId`, como a carteira) |
+| GET | `/api/v1/transactions/notes?ticker=` | Títulos de renda fixa do usuário no ativo, para o seletor da Nova Transação — **todos**, inclusive liquidados e vencidos (`settled`, `matured`); título sem posição fica de fora (07/10/2026) |
 | GET | `/api/v1/transactions/{id}` | Buscar por ID |
 | POST | `/api/v1/transactions/` | Criar (cria a nota se for renda fixa; recalcula proventos) |
 | PUT | `/api/v1/transactions/{id}` | Editar (atualiza a nota; recalcula proventos) |
@@ -975,6 +989,27 @@ a chave precisa avisar quem está de fora que o estado mudou. Por isso o
 - Na edição, ticker e tipo de ativo são readonly, mas **o tipo é preenchido** a
   partir do `assetTypeId` que a transação carrega, e o quadro do título reaparece
   com os dados da nota.
+- **Seletor "Título" na Renda Fixa** (07/10/2026), na compra e na venda pela Nova Transação (o Tesouro fica de
+  fora: cada compra é um título novo e a venda é FIFO). Lista **todos** os títulos do ativo
+  (`GET /transactions/notes`), marcando "vencido" e "liquidado" — lançamento retroativo existe. Sem saldo na lista; o
+  "Resgatar tudo" da venda continua mostrando. Na **venda** a escolha é obrigatória e o quadro é somente leitura;
+  na **compra** a opção padrão é "Novo Título" (quadro editável, preenchido com o catálogo) e escolher um título
+  lança o aporte nele (quadro somente leitura). Voltar para "Novo Título" restaura o quadro pelo catálogo, não vazio.
+- **Aporte só até a véspera do vencimento**: compra num título existente com data igual ou posterior ao vencimento
+  dá "Título vencido para a data de transação escolhida" — na tela (o modal fica aberto) e na API
+  (`validateBuyBeforeMaturity`, na criação com `noteId` e na edição de compra). Mesma regra do selo "Vencido".
+- Trocar o tipo de ativo **mantém a operação** (antes Renda Fixa forçava Compra). O spinner do autocomplete
+  desliga quando o texto cai abaixo de 2 caracteres — apagar rápido deixava o loading eterno.
+- **Filtro depois de salvar** (Nova Transação e edição) e **ícone Listar** em cada linha: o extrato mostra só
+  aquela posição, com o mesmo aviso do Listar da carteira e os outros filtros de volta a "Todos". Tesouro Direto
+  filtra pelo ticker (`?ticker=`, cada compra é um título); os demais pela posição (`?position=`, que na Renda Fixa
+  é o título). A carteira continua só com `?position=`.
+- Colunas: **ATIVO** primeiro (logo e link para a emissora, como na carteira), **TÍTULO** ao lado
+  ("Emissor · venc. dd/mm/aaaa · 110,00% do CDI", com o selo "título 1/2" da venda repartida), depois DATA. A
+  ordem padrão continua a da API (data decrescente).
+- **Logo por tipo** (`typeLogo`, em `utils/assetTypeRules`; vale também na carteira): Tesouro Direto usa o símbolo
+  do programa (`primevest-web/src/assets/logos/tesouro-direto.svg`, recortado do logo horizontal) e Renda Fixa o
+  texto "RF" no quadro de quem não tem logo — o logo pelo emissor do título terá planejamento próprio.
 
 ### Estratégia
 - **Ideal Estratégico**: percentuais editáveis + pizza. Adicionar/remover age em
@@ -1091,7 +1126,7 @@ está em `TransacoesIT.exemplo6`.
 | Situação | O que acontece |
 |----------|----------------|
 | Ativo não é renda fixa | nota nula; `noteId` no DTO é erro |
-| DTO traz `noteId` | carrega **escopado pelo dono** e confere que é do mesmo ativo |
+| DTO traz `noteId` | carrega **escopado pelo dono** e confere que é do mesmo ativo; numa compra, recusa data no vencimento ou depois (`validateBuyBeforeMaturity`) |
 | Compra sem `noteId` | cria nota nova, herdando de `asset_terms` o que o DTO não trouxer |
 | **Venda sem `noteId`** | **recusa** — ver Pontos de Atenção |
 
@@ -1242,16 +1277,26 @@ apagou as datas que vinham do extrato.
 ### Venda de renda fixa exige o título
 `resolveNote` recusa venda sem `noteId`, porque criar nota nova numa venda
 geraria posição negativa de um papel nunca comprado. **Pela API funciona** — é o
-que os testes de resgate parcial e liquidação total fazem —, mas **pela tela
-ainda não**: falta o seletor de título no formulário de venda. Foi escolha
-consciente: erro claro em vez de dado errado.
+que os testes de resgate parcial e liquidação total fazem — e, desde 05/10/2026, **pela tela também**: o ícone
+Vender da Carteira lança no título da linha, e a Nova Transação tem o seletor do título na venda de Renda Fixa
+(emissor · vencimento · taxa; desde 07/10/2026 todos os títulos, sem o saldo), com o atalho "Resgatar tudo" (saldo na
+curva + liquidação total).
 
-### Valorização de renda fixa dá sempre zero
-Sem cotação, o valor atual é custo + `appreciation`, e nada preenche
-`appreciation` ainda, então `currentValue == totalInvested`. Não é arredondamento — é a ausência do cálculo
-de curva. A série dos índices existe desde 05/10/2026 (`market_index_values`, com o acumulado no
-`MarketIndexCalculator`); falta o escopo da valorização em si (curva, pro rata, feriados). Detalhes em
-`docs/PENDENCIAS.md` 2.1.
+### Valorização da renda fixa (05/10/2026)
+Plano: `docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`. Dois mundos, duas fontes:
+
+- **Tesouro Direto = cotação.** O PU de venda oficial (V44, `TreasuryPriceService`) vira `assets.current_price` e o
+  `AppreciationUpdater` grava cotas × PU − custo por título, como nas ações. Pode ficar **negativa** (marcação a
+  mercado). A taxa da nota continua a da compra, só informativa. Cupons de juros semestrais não entram (PENDENCIAS 24.1).
+- **Renda fixa privada = curva contratada.** `FixedIncomeCurve` (core, regra pura) faz o saldo dia útil a dia útil com
+  os aportes e resgates do título: prefixado `(1+r)^(1/252)`; % do CDI/Selic `1 + taxa × p`; CDI/Selic + spread;
+  IPCA/IGP-M/INPC com o mês distribuído pelos dias úteis (`BusinessCalendar`) e o mês não divulgado estimado pelo
+  último publicado; resgate acima do saldo → centavo da regra F (o resgate prova o valor); vencido para de render;
+  TR sem curva. Referência = último CDI publicado ("atualizado até"). `FixedIncomeSettlement.applyCurve` grava:
+  aberto = saldo na curva (valorização = saldo + resgatado − aplicado, nunca negativa); liquidado = ganho do resgate;
+  sem curva = como estava. Roda depois de cada transação (após as regras E/F/G), às 21:00, na subida da app-api e no
+  "catálogo mudou" INDICES. Valores **brutos** (sem IR/IOF).
+- **`BusinessCalendar`** (core): feriados nacionais calculados; conferido contra as 4.208 datas do CDI 2010–2026.
 
 ### `dividends` não tem dono próprio
 O dono vem de `portfolio_asset_id`, que é **obrigatório** (`NOT NULL`) e
@@ -1300,6 +1345,7 @@ truncaria dados.
 | Quantidades e preços unitários | `numeric(18,8)` | `shares`, `price_per_share`, `current_price`, `max_price`, `amount_per_share`, preços do histórico |
 | Valores monetários agregados | `numeric(18,2)` | `appreciation`, `total_amount`, `brokerage_fee`, `target_amount`, `current_amount`, `target_value` |
 | Taxa de indexador | `numeric(10,4)` | `indexer_rate` |
+| PU do Tesouro | `numeric(18,8)` | `asset_price_history.close_price`, `assets.current_price` |
 | Valor de índice de mercado | `numeric(18,8)` | `market_index_values.value` (CDI 0,050788 % a.d.; Ibovespa 132.696,63) |
 | Percentual da estratégia | `numeric(5,2)` | `target_percentage` |
 
@@ -1340,8 +1386,7 @@ não "quando o usuário mexeu nesta posição" — para a segunda pergunta, o qu
 
 ### Testes — existem desde 22/09/2026
 
-**Em 05/10/2026 (índices de mercado e tela Índices): 509 unitários + 222 de integração**, por módulo: core 147;
-integration 103; adm-api 87 + 35; app-api 172 + 187, todos verdes em `mvn clean verify` (~7 min). Na F11 (28/09/2026) eram 394 + 180.
+**Em 05/10/2026, noite (valorização da renda fixa): 521 unitários + 231 de integração**, por módulo: core 158; integration 103; adm-api 88 + 38; app-api 172 + 193, todos verdes em `mvn clean verify` (~7 min). Na F11 (28/09/2026) eram 394 + 180.
 O suporte comum (container do PostgreSQL, bases, fixtures, `application-test.yml`) vem do
 test-jar do core. A app-api tem a adm-api **só no classpath de teste**, para os testes de ponta a ponta de
 proventos e fechamento (`CatalogoE2EBase`: fonte mockada → catálogo pela adm-api → recálculo pela app-api →
@@ -1478,9 +1523,13 @@ netsh interface ipv4 show excludedportrange protocol=tcp  # a 8080 aparece aqui
 net stop winnat; net start winnat                         # como administrador
 ```
 
-Se voltar a cada reboot, a saída definitiva é `API_PORT=8081` num `.env` na
-raiz — o compose já lê a variável, e o front fala com a API por `app-api:8080` na
+Se voltar a cada reboot, a saída definitiva é `API_PORT=8082` num `.env` na
+raiz (a 8081 é da adm-api) — o compose já lê a variável, e o front fala com a API por `app-api:8080` na
 rede interna, então nada mais muda.
+
+Às vezes é porta ocupada de fato: em 07/10/2026 era o `MTAgentService` (MiniTool ShadowMaker, inicia com o
+Windows). `Get-NetTCPConnection -LocalPort 8080` mostra o processo; `Stop-Service MTAgentService` (administrador)
+libera, e `docker compose up -d app-api web` sobe os dois (o web depende do app-api e não sobe sozinho).
 
 ### Egress bloqueado
 A política da organização bloqueia, entre outros: `repo.maven.apache.org`

@@ -11,5 +11,7 @@ public enum PriceHistorySource {
     /** Fechamento diario de cripto. */
     COINGECKO,
     /** Serie historica oficial da B3 (COTAHIST), carregada pelo admin desde 2010. */
-    B3_COTAHIST
+    B3_COTAHIST,
+    /** PU de venda do Tesouro Direto (Tesouro Transparente, V44). */
+    TESOURO
 }

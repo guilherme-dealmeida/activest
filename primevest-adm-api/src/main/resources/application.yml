@@ -99,6 +99,11 @@ cvm:
 # Cache por ano em ${primevest.data.dir}/bcb/sgs e ${primevest.data.dir}/b3/indices.
 bcb:
   sgs-base-url: https://api.bcb.gov.br/dados/serie
+# Preco oficial do Tesouro Direto (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md): um CSV com todo o historico
+# (~14 MB, ~1 min), cache em ${primevest.data.dir}/tesouro, so baixado de novo quando muda.
+tesouro:
+  prices-url: https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/PrecoTaxaTesouroDireto.csv
+  timeout-seconds: 180
 indices:
   timeout-seconds: 20
   attempts: 4
@@ -129,6 +134,10 @@ primevest:
     # Balancos (DFP/ITR) do ano corrente e do anterior; a CVM atualiza de madrugada.
     enabled: true
     cron: "0 30 7 * * *"
+  tesouro:
+    # PU de venda do Tesouro Direto todo dia as 08:00 (o arquivo sai ~07:20 com o D-1), com recuperacao na subida.
+    enabled: true
+    cron: "0 0 8 * * *"
   indices:
     # Incremental todo dia as 10:00 (D5), com recuperacao na subida.
     enabled: true

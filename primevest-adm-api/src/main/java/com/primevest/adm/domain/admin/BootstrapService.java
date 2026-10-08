@@ -8,6 +8,7 @@ import com.primevest.adm.domain.fundamentals.FinancialStatementImportService;
 import com.primevest.adm.domain.issuer.IssuerImportService;
 import com.primevest.adm.domain.marketindex.MarketIndexImportService;
 import com.primevest.adm.domain.pricehistory.HistoricalQuotesImportService;
+import com.primevest.adm.domain.pricehistory.TreasuryPriceService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -41,6 +42,8 @@ import java.util.function.Supplier;
  *   <li><b>indices de mercado</b> 2010+ (CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, PTAX, Ibovespa, IFIX —
  *   docs/planos/PLANO_INDICES_MERCADO.md, 4.1): independente das outras; anos fechados de
  *   {@code carga/data/bcb} e {@code carga/data/b3/indices}.</li>
+ *   <li><b>preco do Tesouro Direto</b> 2010+ (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, R1): o PU de venda de cada
+ *   titulo, de {@code carga/data/tesouro} (ou do Tesouro Transparente, se mudou).</li>
  * </ol>
  *
  * <p><b>Retomavel:</b> toda etapa e idempotente e o que ja esta em {@code carga/data/} nao e baixado de novo
@@ -61,6 +64,7 @@ public class BootstrapService {
     private final CvmPaymentDateService paymentDates;
     private final PaymentDateSurveyService surveyDates;
     private final MarketIndexImportService indices;
+    private final TreasuryPriceService treasury;
     private final Clock clock;
     private final AtomicBoolean running = new AtomicBoolean();
 
@@ -68,15 +72,17 @@ public class BootstrapService {
     public BootstrapService(IssuerImportService issuers, HistoricalQuotesImportService quotes,
                             ProventosCatalogService proventos, FinancialStatementImportService statements,
                             FiiMonthlyImportService fiiMonthly, CvmPaymentDateService paymentDates,
-                            PaymentDateSurveyService surveyDates, MarketIndexImportService indices) {
-        this(issuers, quotes, proventos, statements, fiiMonthly, paymentDates, surveyDates, indices,
+                            PaymentDateSurveyService surveyDates, MarketIndexImportService indices,
+                            TreasuryPriceService treasury) {
+        this(issuers, quotes, proventos, statements, fiiMonthly, paymentDates, surveyDates, indices, treasury,
                 Clock.system(ZONE));
     }
 
     BootstrapService(IssuerImportService issuers, HistoricalQuotesImportService quotes,
                      ProventosCatalogService proventos, FinancialStatementImportService statements,
                      FiiMonthlyImportService fiiMonthly, CvmPaymentDateService paymentDates,
-                     PaymentDateSurveyService surveyDates, MarketIndexImportService indices, Clock clock) {
+                     PaymentDateSurveyService surveyDates, MarketIndexImportService indices,
+                     TreasuryPriceService treasury, Clock clock) {
         this.issuers = issuers;
         this.quotes = quotes;
         this.proventos = proventos;
@@ -85,6 +91,7 @@ public class BootstrapService {
         this.paymentDates = paymentDates;
         this.surveyDates = surveyDates;
         this.indices = indices;
+        this.treasury = treasury;
         this.clock = clock;
     }
 
@@ -109,7 +116,7 @@ public class BootstrapService {
             int year = LocalDate.now(clock).getYear();
             String reason = "carga inicial " + trigger;
             List<Step> steps = new ArrayList<>();
-            log.info("Carga inicial ({}): emissores, COTAHIST, proventos, datas de pagamento, balancos, informe de FII e indices", trigger);
+            log.info("Carga inicial ({}): emissores, COTAHIST, proventos, datas de pagamento, balancos, informe de FII, indices e Tesouro", trigger);
             steps.add(step("emissores", () -> issuers.importAll(reason)));
             steps.add(step("COTAHIST " + HistoricalQuotesImportService.FIRST_YEAR + "-" + year,
                     () -> quotes.importYears(HistoricalQuotesImportService.FIRST_YEAR, year, reason)));
@@ -122,6 +129,8 @@ public class BootstrapService {
             steps.add(step("informe FII " + FiiMonthlyImportService.FIRST_YEAR + "-" + year,
                     () -> fiiMonthly.importYears(FiiMonthlyImportService.FIRST_YEAR, year, false, reason)));
             steps.add(step("indices de mercado", () -> indices.importAll(reason)));
+            steps.add(step("preco do Tesouro " + TreasuryPriceService.FIRST_YEAR + "+",
+                    () -> treasury.importFrom(TreasuryPriceService.FIRST_YEAR, reason)));
             Result r = new Result(steps, (System.currentTimeMillis() - started) / 1000);
             log.info("Carga inicial ({}) concluida em {}s{}", trigger, r.seconds(),
                     r.ok() ? "" : " COM FALHA — rode de novo: o que ja entrou e pulado");

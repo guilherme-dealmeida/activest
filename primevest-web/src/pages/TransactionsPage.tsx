@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Pencil, X, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, Pencil, X, RotateCcw, List } from 'lucide-react';
 import { transactionsApi } from '@/api/transactions';
 import { assetsApi } from '@/api/assets';
 import { Card } from '@/components/ui/Card';
@@ -9,10 +9,12 @@ import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Pagination } from '@/components/ui/Pagination';
 import { TransactionFormModal } from '@/components/transactions/TransactionFormModal';
-import { formatCurrency, formatDate, formatQuantity, formatUnitPrice, toLocalISODate } from '@/utils/format';
-import { TransactionResponse, TransactionType, AssetType } from '@/types';
+import { formatCurrency, formatDate, formatPercentage, formatQuantity, formatUnitPrice, toLocalISODate } from '@/utils/format';
+import { TransactionResponse, TransactionType, AssetType, TransactionCreate } from '@/types';
 import { useSortable } from '@/hooks/useSortable';
-import { isFixedIncomeNote } from '@/utils/assetTypeRules';
+import { isFixedIncomeNote, TESOURO_DIRETO, typeLogo } from '@/utils/assetTypeRules';
+import { AssetLogo } from '@/components/ui/AssetLogo';
+import { TickerLink } from '@/components/issuer/TickerLink';
 import { apiMessage } from '@/utils/apiError';
 import { useToast } from '@/context/ToastContext';
 import { providerName } from '@/utils/integrations';
@@ -21,6 +23,33 @@ import { providerName } from '@/utils/integrations';
 const labelOfType = (type: AssetType) => type.description || type.name;
 
 const ordenarPt = (a: string, b: string) => a.localeCompare(b, 'pt-BR');
+
+/** "12,50% a.a.", "110,00% do CDI", "IPCA + 6,00% a.a." — o mesmo formato da TAXA na carteira. */
+const taxaDoTitulo = (t: TransactionResponse): string | null => {
+  if (t.indexerRate == null || !t.rateType) return null;
+  const rate = formatPercentage(t.indexerRate);
+  switch (t.rateType) {
+    case 'PREFIXADO':
+      return `${rate} a.a.`;
+    case 'POS_FIXADO':
+      return t.indexer ? `${rate} do ${t.indexer}` : rate;
+    case 'HIBRIDO':
+      return t.indexer ? `${t.indexer} + ${rate} a.a.` : `${rate} a.a.`;
+    default:
+      return null;
+  }
+};
+
+/** Coluna TÍTULO: "Emissor · venc. dd/mm/aaaa · 110,00% do CDI". null fora da renda fixa. */
+const rotuloDoTitulo = (t: TransactionResponse): string | null => {
+  if (!t.noteId) return null;
+  const partes = [
+    t.issuer || null,
+    t.maturityDate ? `venc. ${formatDate(t.maturityDate)}` : null,
+    taxaDoTitulo(t),
+  ].filter(Boolean);
+  return partes.length ? partes.join(' · ') : null;
+};
 
 function getDateFromDaysAgo(days: number): string {
   const d = new Date();
@@ -50,6 +79,11 @@ export const TransactionsPage = () => {
    * coluna do ativo.
    */
   const positionFilter = searchParams.get('position');
+  /**
+   * Filtro por ticker, para o Tesouro Direto depois de salvar: lá cada compra é
+   * um título novo (uma posição só dela), e o que interessa é o papel inteiro.
+   */
+  const tickerFilter = searchParams.get('ticker');
 
   // Mesma queryKey do AssetTypeSelect, entao nao ha requisicao extra: o cache
   // do React Query e um so. A pagina precisa da lista para reconstruir o tipo
@@ -145,12 +179,17 @@ export const TransactionsPage = () => {
     setCurrentPage(1);
   };
 
+  /** Nome técnico do tipo da linha (a linha traz o id e a descrição). */
+  const nomeDoTipo = (row: TransactionResponse | null) =>
+    (assetTypes || []).find(t => t.id === row?.assetTypeId)?.name ?? null;
+
   const posicaoFiltrada = positionFilter
     ? enriched.find(row => row.portfolioAssetId === positionFilter)
     : undefined;
 
   const filtered = enriched.filter(row => {
     if (positionFilter && row.portfolioAssetId !== positionFilter) return false;
+    if (tickerFilter && row.ticker !== tickerFilter) return false;
     if (filterType !== 'ALL' && row.assetType !== filterType) return false;
     if (filterOrigin !== 'ALL' && row.origin !== filterOrigin) return false;
     if (filtrarPorAtivo) {
@@ -172,7 +211,42 @@ export const TransactionsPage = () => {
   const limparPosicao = () => {
     const params = new URLSearchParams(searchParams);
     params.delete('position');
+    params.delete('ticker');
     setSearchParams(params, { replace: true });
+    setCurrentPage(1);
+  };
+
+  /**
+   * Depois de salvar (Nova Transação ou edição), o extrato mostra só o que foi
+   * lançado, com o mesmo aviso do ícone Listar da carteira. Renda Fixa e os
+   * tipos por cota filtram pela posição — na renda fixa a posição é o título —;
+   * o Tesouro filtra pelo ticker, porque cada compra é um título novo.
+   *
+   * Os outros filtros voltam a "Todos": um "30 dias" ligado esconderia uma
+   * compra retroativa, e o usuário acharia que ela não foi gravada.
+   */
+  const filtrarLancamento = (saved: TransactionResponse | undefined, txData: TransactionCreate) => {
+    filtrarPor(saved ?? null, txData.ticker);
+  };
+
+  /** Ícone Listar da linha: a mesma regra do filtro depois de salvar. */
+  const listar = (row: TransactionResponse) => filtrarPor(row, row.ticker);
+
+  const filtrarPor = (row: TransactionResponse | null, ticker: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('position');
+    params.delete('ticker');
+    if (nomeDoTipo(row) === TESOURO_DIRETO || !row?.portfolioAssetId) {
+      params.set('ticker', row?.ticker ?? ticker);
+    } else {
+      params.set('position', row.portfolioAssetId);
+    }
+    setSearchParams(params, { replace: true });
+    setFilterType('ALL');
+    setFilterCategory('ALL');
+    setFilterAsset('ALL');
+    setFilterPeriod('ALL');
+    setFilterOrigin('ALL');
     setCurrentPage(1);
   };
 
@@ -220,13 +294,19 @@ export const TransactionsPage = () => {
 
   return (
     <div className="space-y-6">
-      {positionFilter && (
+      {(positionFilter || tickerFilter) && (
         <div className="flex items-center gap-3 rounded-md border border-accent/30 bg-accent/10 px-4 py-2 text-sm">
           <span className="text-gray-200">
             Mostrando apenas as transações de{' '}
-            <span className="font-medium text-white">{posicaoFiltrada?.ticker ?? 'uma posição da carteira'}</span>
-            {posicaoFiltrada?.issuer ? ` · ${posicaoFiltrada.issuer}` : ''}
-            {posicaoFiltrada?.maturityDate ? ` · venc. ${formatDate(posicaoFiltrada.maturityDate)}` : ''}
+            {positionFilter ? (
+              <>
+                <span className="font-medium text-white">{posicaoFiltrada?.ticker ?? 'uma posição da carteira'}</span>
+                {posicaoFiltrada?.issuer ? ` · ${posicaoFiltrada.issuer}` : ''}
+                {posicaoFiltrada?.maturityDate ? ` · venc. ${formatDate(posicaoFiltrada.maturityDate)}` : ''}
+              </>
+            ) : (
+              <span className="font-medium text-white">{tickerFilter}</span>
+            )}
           </span>
           <button
             onClick={limparPosicao}
@@ -322,14 +402,19 @@ export const TransactionsPage = () => {
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-gray-400 uppercase border-b border-white/10">
               <tr>
+                {/* ATIVO primeiro, como na carteira. A ordem padrão continua a da
+                    API: data da transação, da mais nova para a mais antiga. */}
+                <th className={`px-4 py-3 cursor-pointer ${getSortClass('ticker')}`} onClick={() => requestSort('ticker')}>
+                  ATIVO{getSortIndicator('ticker')}
+                </th>
+                <th className={`px-4 py-3 cursor-pointer ${getSortClass('issuer')}`} onClick={() => requestSort('issuer')}>
+                  TÍTULO{getSortIndicator('issuer')}
+                </th>
                 <th className={`px-4 py-3 cursor-pointer ${getSortClass('transactionDate')}`} onClick={() => requestSort('transactionDate')}>
                   DATA TRANSAÇÃO{getSortIndicator('transactionDate')}
                 </th>
                 <th className={`px-4 py-3 cursor-pointer ${getSortClass('assetType')}`} onClick={() => requestSort('assetType')}>
                   TIPO ATIVO{getSortIndicator('assetType')}
-                </th>
-                <th className={`px-4 py-3 cursor-pointer ${getSortClass('ticker')}`} onClick={() => requestSort('ticker')}>
-                  ATIVO{getSortIndicator('ticker')}
                 </th>
                 <th className={`px-4 py-3 cursor-pointer ${getSortClass('type')}`} onClick={() => requestSort('type')}>
                   TIPO{getSortIndicator('type')}
@@ -352,10 +437,44 @@ export const TransactionsPage = () => {
             <tbody className="divide-y divide-white/5">
               {paginated.map((row) => (
                 <tr key={row.id} className="hover:bg-white/5 transition-colors">
-                  <td className="px-4 py-3">{formatDate(row.transactionDate)}</td>
-                  <td className="px-4 py-3 text-gray-400">{row.assetType}</td>
                   <td className="px-4 py-3 text-white font-medium">
-                    {row.ticker}
+                    {/* Logo e link para a emissora, como na carteira. Nome do ativo no hover. */}
+                    <div className="flex items-center gap-3" title={row.assetName || undefined}>
+                      {(() => {
+                        // Tesouro e Renda Fixa: logo do tipo. Demais: o do ativo (null = tipo sem logo).
+                        const logoDoTipo = typeLogo(nomeDoTipo(row));
+                        if (logoDoTipo) {
+                          return <AssetLogo ticker={row.ticker} hasLogo={!!logoDoTipo.src} src={logoDoTipo.src}
+                            label={logoDoTipo.label} size={38} shape="square" />;
+                        }
+                        return row.hasLogo !== null && row.hasLogo !== undefined
+                          ? <AssetLogo ticker={row.ticker} hasLogo={row.hasLogo} size={38} shape="square" />
+                          : null;
+                      })()}
+                      <div className="flex flex-wrap items-center gap-y-1">
+                        <TickerLink ticker={row.ticker} issuerId={row.issuerId} />
+                        {/* Veio de uma corretora: o selo diz de qual, e se o
+                            usuário mexeu depois (a sincronização não sobrescreve). */}
+                        {row.origin === 'AUTO' && (
+                          <span
+                            className="ml-2 rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-normal text-accent"
+                            title={row.editedAt
+                              ? `Importada de ${row.connectionLabel ?? providerName(row.connectionProvider)} e editada por você`
+                              : `Importada de ${row.connectionLabel ?? providerName(row.connectionProvider)}`}
+                          >
+                            {providerName(row.connectionProvider) || 'Importada'}{row.editedAt ? ' · editada' : ''}
+                          </span>
+                        )}
+                        {row.isFullSettlement && (
+                          <span className="ml-2 rounded bg-danger/15 px-1.5 py-0.5 text-[10px] font-normal text-danger">
+                            liquidação total
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-white/70">
+                    {rotuloDoTitulo(row) ?? '—'}
                     {/* A venda do Tesouro sai dos títulos mais antigos primeiro, e
                         pode consumir mais de um: cada parte é uma linha, e a marca
                         diz que elas são a mesma venda. */}
@@ -364,24 +483,9 @@ export const TransactionsPage = () => {
                         título {row.groupPart}/{row.groupParts}
                       </span>
                     )}
-                    {/* Veio de uma corretora: o selo diz de qual, e se o
-                        usuário mexeu depois (a sincronização não sobrescreve). */}
-                    {row.origin === 'AUTO' && (
-                      <span
-                        className="ml-2 rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-normal text-accent"
-                        title={row.editedAt
-                          ? `Importada de ${row.connectionLabel ?? providerName(row.connectionProvider)} e editada por você`
-                          : `Importada de ${row.connectionLabel ?? providerName(row.connectionProvider)}`}
-                      >
-                        {providerName(row.connectionProvider) || 'Importada'}{row.editedAt ? ' · editada' : ''}
-                      </span>
-                    )}
-                    {row.isFullSettlement && (
-                      <span className="ml-2 rounded bg-danger/15 px-1.5 py-0.5 text-[10px] font-normal text-danger">
-                        liquidação total
-                      </span>
-                    )}
                   </td>
+                  <td className="px-4 py-3">{formatDate(row.transactionDate)}</td>
+                  <td className="px-4 py-3 text-gray-400">{row.assetType}</td>
                   <td className="px-4 py-3">
                     <span className={row.type === TransactionType.BUY ? "text-success font-medium" : "text-danger font-medium"}>
                       {row.type === TransactionType.BUY ? 'Compra' : 'Venda'}
@@ -393,6 +497,14 @@ export const TransactionsPage = () => {
                   <td className="px-4 py-3 text-right font-medium text-white">{formatCurrency(row.totalAmount)}</td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-1">
+                      {/* Como o Listar da carteira: Tesouro pelo ticker, os demais pela posição. */}
+                      <button
+                        onClick={() => listar(row)}
+                        className="text-gray-500 hover:text-accent transition-colors p-1"
+                        title="Ver as transações desta posição"
+                      >
+                        <List className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={() => handleEdit(row)}
                         className="text-gray-500 hover:text-accent transition-colors p-1"
@@ -423,7 +535,7 @@ export const TransactionsPage = () => {
                 </tr>
               ))}
               {paginated.length === 0 && (
-                <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-500">Nenhuma transação encontrada.</td></tr>
+                <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-500">Nenhuma transação encontrada.</td></tr>
               )}
             </tbody>
           </table>
@@ -443,6 +555,7 @@ export const TransactionsPage = () => {
         onClose={() => { setIsModalOpen(false); setEditing(null); }}
         editing={editing}
         assetTypes={assetTypes}
+        onSaved={filtrarLancamento}
       />
     </div>
   );

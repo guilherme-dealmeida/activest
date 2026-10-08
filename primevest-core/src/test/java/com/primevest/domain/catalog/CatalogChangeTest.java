@@ -25,6 +25,20 @@ class CatalogChangeTest {
     }
 
     @Test
+    @DisplayName("Indices que mudaram (R5 da renda fixa) vao e voltam; mensagem antiga, sem indexCodes, ainda e lida")
+    void indices() throws Exception {
+        CatalogChange change = CatalogChange.indices(Set.of("CDI", "IPCA"));
+
+        CatalogChange lido = json.readValue(json.writeValueAsString(change), CatalogChange.class);
+        assertThat(lido).isEqualTo(change);
+        assertThat(lido.assetIds()).isEmpty();
+
+        CatalogChange antiga = json.readValue("{\"origin\":\"FECHAMENTO\",\"assetIds\":[1]}", CatalogChange.class);
+        assertThat(antiga.indexCodes()).isEmpty();
+        assertThat(antiga.assetIds()).containsExactly(1L);
+    }
+
+    @Test
     @DisplayName("Sem ativos: conjunto vazio, nunca nulo")
     void semAtivos() {
         assertThat(new CatalogChange(CatalogChange.Origin.FECHAMENTO, null).assetIds()).isEmpty();

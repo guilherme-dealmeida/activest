@@ -66,5 +66,16 @@ public record PortfolioAssetDetailDTO(
      * de emissoras. Nulo sem emissor. Nao confundir com {@code issuer}, o emissor da nota de
      * renda fixa (o banco do CDB).
      */
-    Long issuerId
+    Long issuerId,
+    /**
+     * Base do valor atual na renda fixa (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, secao 5): CURVA (renda fixa
+     * privada, taxa contratada), MERCADO (Tesouro, preco oficial) ou SEM_CURVA. Nulo fora da renda fixa.
+     */
+    String valuationBasis,
+    /** Ate quando o valor vale: o ultimo CDI (curva) ou o dia do preco do Tesouro. */
+    LocalDate valuationDate,
+    /** Motivo de nao ter curva, ou a observacao da inflacao estimada. */
+    String valuationNote,
+    /** Passou do vencimento: na renda fixa privada, falta lancar o resgate. */
+    boolean matured
 ) {}
