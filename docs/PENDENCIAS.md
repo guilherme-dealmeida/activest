@@ -2,7 +2,8 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 05/10/2026 — 5.1 resolvido e secao 23 (indices de mercado,
+Ultima atualizacao: 05/10/2026 (noite) — 2.1, 2.2, 4.1, 4.2, 10.2, 10.3, 10.4, 23.1 e 23.2 resolvidos
+pela valorizacao da renda fixa (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md) e secao 24. Antes, no mesmo dia: 5.1 resolvido e secao 23 (indices de mercado,
 docs/planos/PLANO_INDICES_MERCADO.md). No mesmo dia: secao 22 (cadastro de usuario,
 docs/planos/PLANO_CADASTRO_USUARIO.md); 9.4 e 16.9 resolvidos. Antes: 03/10/2026 — secao 21 (pilha de teste primevest-teste,
 docs/planos/PLANO_PRIMEVEST_TESTE.md). Antes: 29/09/2026 — secao 20 (ambiente de carga inicial,
@@ -72,7 +73,9 @@ PENDENTE, descoberto no caminho: ver item 3.3.
 
 ## 2. CALCULO — valorizacao de renda fixa da sempre zero
 
-**2.1** PortfolioService.appreciation: sem cotacao, a valorizacao e a gravada
+**2.1** FEITO em 05/10/2026 (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md): Tesouro pelo PU oficial
+(marcacao a mercado, como cotacao) e renda fixa privada pela curva contratada (FixedIncomeCurve). Texto original:
+PortfolioService.appreciation: sem cotacao, a valorizacao e a gravada
 em portfolio_assets.appreciation, que nada preenche ainda.
 
 Renda fixa nao tem cotacao, entao o valor atual e custo + zero. Resultado: currentValue == totalInvested, valorizacao
@@ -91,7 +94,8 @@ curva do titulo por nota, pro rata do mes corrente (IPCA ainda nao divulgado:
 projecao ou ultimo publicado), calendario de feriados (23.2) e o aviso da adm-api
 quando um indice muda (23.1). Deve gravar pela FixedIncomeSettlement (10.3).
 
-**2.2** Enquanto 2.1 nao existe, o total da carteira subestima o patrimonio.
+**2.2** FEITO em 05/10/2026: titulo sem curva (TR, dados faltando) mostra RENT. % "—" e o motivo no (i).
+Texto original: Enquanto 2.1 nao existe, o total da carteira subestima o patrimonio.
 Vale decidir se a tela mostra "—" em vez de 0,00% para renda fixa, para
 nao parecer que o titulo nao rendeu nada.
 
@@ -186,12 +190,16 @@ somar por empresa pagadora no mes. Hoje dividendo e isento sempre.
 
 ## 4. RENDA FIXA — o que ficou pela metade na reestruturacao
 
-**4.1** Varios lancamentos no mesmo titulo. A tabela ja aguenta: transactions
+**4.1** FEITO em 05/10/2026: o icone Comprar/Vender da Carteira ja lancava no titulo da linha; a Nova
+Transacao ganhou o seletor do titulo na venda de Renda Fixa. Texto original:
+Varios lancamentos no mesmo titulo. A tabela ja aguenta: transactions
 aponta para a nota, e portfolio_assets tem unicidade por
 (carteira, ativo, titulo). Falta o seletor no frontend — hoje o modal so
 cria titulo novo, nunca reaproveita um existente.
 
-**4.2** CONSEQUENCIA DIRETA DE 4.1: vender renda fixa esta BLOQUEADO.
+**4.2** FEITO em 05/10/2026 (com o 4.1): venda de renda fixa pela Nova Transacao com o titulo escolhido,
+e "Resgatar tudo" com o saldo na curva. Texto original:
+CONSEQUENCIA DIRETA DE 4.1: vender renda fixa esta BLOQUEADO.
 TransactionService.resolveNote recusa venda sem noteId, porque criar
 titulo novo numa venda geraria posicao negativa de um papel nunca
 comprado. Sem o seletor do 4.1, nao ha como informar o noteId.
@@ -416,7 +424,9 @@ recalculo se mostrar fragil.
 Primeiro teste a escrever quando o item 8 sair do papel: Exemplo 6 do
 escopo — compra retroativa depois de uma venda ja repartida.
 
-**10.2** A valorizacao de renda fixa que sobra quando uma venda e EXCLUIDA.
+**10.2** FEITO em 05/10/2026: a curva refaz o saldo do zero a cada passagem; excluida a venda, a valorizacao
+volta para a curva (RendaFixaCurvaIT). Sem curva (TR), continua como estava. Texto original:
+A valorizacao de renda fixa que sobra quando uma venda e EXCLUIDA.
 
 Vender por mais do que a posicao valia corrige a valorizacao para cima
 (regras 3.1.1 e 3.1.2). Excluir essa venda depois nao devolve o valor
@@ -427,12 +437,16 @@ Quem corrige e a rotina assincrona de rentabilidade de renda fixa, que
 ainda nao existe (item 2.1). Enquanto ela nao existir, esse numero fica
 de pe ate o proximo resgate.
 
-**10.3** A rotina de rentabilidade de renda fixa, quando vier, passa pelas mesmas
+**10.3** FEITO em 05/10/2026: a curva entra por FixedIncomeSettlement.applyCurve, depois das regras E/F/G da
+escrita. Texto original:
+A rotina de rentabilidade de renda fixa, quando vier, passa pelas mesmas
 regras E, F e G — FixedIncomeSettlement e o unico lugar que grava
 appreciation de renda fixa hoje, e o certo e ela entrar por la em vez de
 escrever direto na coluna.
 
-**10.4** Ativos com vencimento ainda nao sao liquidados sozinhos. is_settled so
+**10.4** FEITO em 05/10/2026 (D8): o titulo para de render no vencimento e aparece com o selo "Vencido"; a
+liquidacao continua sendo o resgate lancado pelo usuario. Texto original:
+Ativos com vencimento ainda nao sao liquidados sozinhos. is_settled so
 muda por venda (renda fixa), por zerar cotas (renda variavel e Tesouro)
 ou pela regra J. O vencimento continua fora.
 
@@ -961,11 +975,13 @@ Achados da primeira carga inicial completa num banco novo (primevest-teste), com
 
 ## 23. INDICES DE MERCADO (docs/planos/PLANO_INDICES_MERCADO.md, 05/10/2026)
 
-**23.1** A adm-api nao avisa a app-api quando um indice muda (D8). O resultado da
+**23.1** FEITO em 05/10/2026: CatalogChange INDICES (plano da renda fixa, R5).
+A adm-api nao avisa a app-api quando um indice muda (D8). O resultado da
  carga ja devolve, por indice, a menor data que entrou ou mudou (changedFrom):
  o escopo da valorizacao da renda fixa cria o canal (ex.: primevest:catalogo:indices)
  e revaloriza as notas daquele indexador.
-**23.2** Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
+**23.2** FEITO em 05/10/2026: BusinessCalendar (core), conferido contra o CDI 2010-2026.
+Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
  do IPCA+ no mes corrente e para projecao de CDI. Fica no escopo da valorizacao.
 **23.3** FEITO em 05/10/2026 (D7 revista pelo Guilherme): menu e tela Indices, um card
  por indice com periodo e grafico (plano, secao 10). Fica para o escopo de rentabilidade
@@ -980,6 +996,19 @@ Achados da primeira carga inicial completa num banco novo (primevest-teste), com
  (o push leva toda pasta de primeiro nivel; nenhuma mudanca no script).
 **23.7** Reserva conhecida, sem codigo: IBGE SIDRA (tabela 1737) para IPCA/INPC se o SGS
  atrasar a publicacao (D4). Respondeu da sua maquina em 05/10/2026.
+
+## 24. VALORIZACAO DA RENDA FIXA (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, 05/10/2026)
+
+**24.1** Cupons do Tesouro com juros semestrais (IPCA+, Prefixado e IGP-M+ com Juros Semestrais) e o pagamento
+ mensal do Renda+/Educa+ apos a conversao: o PU cai na data e o dinheiro pago nao aparece (D13). Nenhum titulo da
+ carteira paga hoje.
+**24.2** TR e poupanca sem curva (D9).
+**24.3** IR, IOF e taxas: valores brutos (regra do projeto). Tambem nao ha valor liquido estimado.
+**24.4** O IPCA+ privado usa o mes distribuido pelos dias uteis (D6); o metodo do aniversario (dia 15) daria
+ diferenca pequena, so na renda fixa privada (o Tesouro vem pelo preco).
+**24.5** Rentabilidade historica da carteira e comparacao com CDI/IPCA/Ibovespa: escopo de rentabilidade.
+**24.6** Duas subidas seguidas da adm-api (hot reload) podem baixar o CSV do Tesouro ao mesmo tempo e uma falhar no
+ ".part"; a proxima rodada completa. Sem efeito com uma instancia so.
 
 ## ORDEM SUGERIDA
 

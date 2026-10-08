@@ -46,8 +46,11 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    // O searching também volta a false aqui: a limpeza deste efeito cancela a
+    // busca agendada, e era o finally dela que desligava o spinner. Apagar o
+    // texto (ou trocar o tipo) antes dos 300ms deixava o loading eterno.
     if (disabled || !typeId || value.trim().length < 2) {
-      setOptions([]); setOpen(false); setTruncado(false); return;
+      setOptions([]); setOpen(false); setTruncado(false); setSearching(false); return;
     }
     // Valor que veio da própria lista: não há o que buscar nem o que avisar.
     if (escolhido && value.trim() === escolhido) {
@@ -73,6 +76,11 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
     }, 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [value, typeId, disabled, escolhido]);
+
+  // Outro tipo, outra lista: a escolha anterior não vale mais.
+  useEffect(() => {
+    setEscolhido(null);
+  }, [typeId]);
 
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {

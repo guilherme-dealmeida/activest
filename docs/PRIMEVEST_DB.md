@@ -2,7 +2,8 @@
 
 > Gerado em 02/10/2026 a partir do banco de desenvolvimento (`db_primevest`, Flyway na **V39**), lendo o `information_schema` e as constraints — não do texto do `Claude.md`.
 > **31 tabelas** (fora `flyway_schema_history`), **43 chaves estrangeiras**. Acréscimo de 05/10/2026: `market_indices` e
-> `market_index_values` (V43, seção 5a — `docs/planos/PLANO_INDICES_MERCADO.md`). Diagramas em Mermaid: o GitHub e o IntelliJ (plugin Mermaid) renderizam.
+> `market_index_values` (V43, seção 5a — `docs/planos/PLANO_INDICES_MERCADO.md`); V44: `asset_types.price_source` e
+> `asset_price_history.source` aceitam `TESOURO` (preço oficial do Tesouro Direto). Diagramas em Mermaid: o GitHub e o IntelliJ (plugin Mermaid) renderizam.
 
 **A ideia que organiza o schema:** o *catálogo* é global (o que o instrumento É — `assets`, preços, proventos, emissores; gravado pela **adm-api**), e o *papel* é do usuário (posição, transações, título de renda fixa, proventos recebidos; gravado só pela **app-api**).
 

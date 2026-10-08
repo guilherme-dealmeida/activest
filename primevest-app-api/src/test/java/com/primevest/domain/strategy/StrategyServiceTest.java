@@ -67,7 +67,7 @@ class StrategyServiceTest {
         when(assetTypeRepository.findById(1L)).thenReturn(Optional.of(acao));
         when(assetTypeRepository.findById(2L)).thenReturn(Optional.of(fii));
         when(assetTypeRepository.findById(3L)).thenReturn(Optional.of(rendaFixa));
-        when(assetTypeRepository.findAll()).thenReturn(List.of(acao, fii, rendaFixa));
+        when(assetTypeRepository.findAllByOrderByIdAsc()).thenReturn(List.of(acao, fii, rendaFixa));
         when(strategyRepository.findByUserId(userId)).thenReturn(new ArrayList<>());
         when(strategyRepository.save(any(Strategy.class))).thenAnswer(i -> i.getArgument(0));
     }

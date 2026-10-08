@@ -10,6 +10,10 @@ interface AssetLogoProps {
   /** Formato do ícone. Padrão 'circle'. */
   shape?: 'circle' | 'square';
   className?: string;
+  /** Imagem do tipo em vez da do ativo (Tesouro Direto — utils/assetTypeRules, typeLogo). */
+  src?: string;
+  /** Texto do quadro sem logo em vez das iniciais do ticker ("RF" na Renda Fixa). */
+  label?: string;
 }
 
 /**
@@ -23,21 +27,21 @@ interface AssetLogoProps {
  * Sem logo, as iniciais do ticker nas cores do PrimeVest (dourado sobre
  * #111111). O mesmo vale se a imagem falhar ao carregar.
  */
-export const AssetLogo = ({ ticker, hasLogo, size = 24, shape = 'circle', className }: AssetLogoProps) => {
+export const AssetLogo = ({ ticker, hasLogo, size = 24, shape = 'circle', className, src, label }: AssetLogoProps) => {
   const [failed, setFailed] = useState(false);
   const style = { width: size, height: size };
   const rounded = shape === 'square' ? 'rounded-none' : 'rounded-full';
 
-  if (hasLogo && !failed) {
+  if ((hasLogo || src) && !failed) {
     return (
       <img
-        src={`/api/v1/assets/${encodeURIComponent(ticker)}/logo`}
+        src={src ?? `/api/v1/assets/${encodeURIComponent(ticker)}/logo`}
         alt=""
         aria-hidden="true"
         loading="lazy"
         onError={() => setFailed(true)}
         style={style}
-        className={clsx('shrink-0 object-cover', rounded, className)}
+        className={clsx('shrink-0', src ? 'object-contain' : 'object-cover', rounded, className)}
       />
     );
   }
@@ -53,7 +57,7 @@ export const AssetLogo = ({ ticker, hasLogo, size = 24, shape = 'circle', classN
         className
       )}
     >
-      {initials(ticker)}
+      {label ?? initials(ticker)}
     </span>
   );
 };

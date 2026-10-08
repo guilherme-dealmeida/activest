@@ -47,7 +47,10 @@ primevest/
 ### Módulo Gestão de Carteira B3
 - ✅ Catálogo de ativos já populado (Ações, FIIs, Tesouro, Renda Fixa, ETFs, BDRs, Cripto) — a transação seleciona do catálogo, não cria ativo novo
 - ✅ Registro de compras e vendas com cálculo de preço médio
-- ✅ Cálculo de rentabilidade por ativo e da carteira total — **renda variável apenas**; renda fixa ainda marca zero, por falta do cálculo de curva (ver `docs/PENDENCIAS.md`, item 2.1)
+- ✅ Cálculo de rentabilidade por ativo e da carteira total — renda variável pela cotação, **Tesouro Direto pelo preço
+  oficial do Tesouro** (atualizado todo dia) e **renda fixa privada pela curva da taxa contratada** (% do CDI, CDI +
+  spread, prefixado, IPCA + spread), valores brutos — ver `docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`
+- ✅ Venda de renda fixa pela Nova Transação (escolhendo o título) ou pela Carteira, com "Resgatar tudo"
 - ✅ Gráficos de alocação (pizza por tipo e por categoria)
 - ✅ Estratégia de alocação com % ideal e sugestão de rebalanceamento
 - ✅ Preço teto por ativo definido pelo usuário
@@ -138,8 +141,8 @@ Nada depende de pasta fora do projeto (`docs/planos/PLANO_CARGA_INICIAL.md`).
    `guilhermeunatec@gmail.com`, migration V9 — peça a quem mantém o projeto) e o **token só
    leitura** do bucket R2 (`S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`).
 2. **Pasta `carga/data/`** (fora do git, ~1,4 GB) baixada do bucket `primevest-data` (Cloudflare R2):
-   `cvm/`, `b3/cotahist/`, `b3/proventos/`, `b3/proventos-12m/`, `b3/indices/`, `bcb/`, `fnet/`, `levantamento/`
-   e `logos/`. Com ela a
+   `cvm/`, `b3/cotahist/`, `b3/proventos/`, `b3/proventos-12m/`, `b3/indices/`, `bcb/`, `fnet/`, `levantamento/`,
+   `logos/` e `tesouro/`. Com ela a
    carga lê quase tudo do disco; sem ela baixa ~2 GB da CVM e da B3, e perde o que as fontes não
    devolvem mais (avisos antigos do FNET, datas de pagamento que já saíram da janela da B3 e as
    datas levantadas de 2010–2026, que só existem em `levantamento/`).
@@ -159,7 +162,7 @@ A carga roda, em ordem: emissores (completa o seed com as companhias e os FIIs n
 estão no catálogo), COTAHIST, proventos (FII pelo FNET, ações pela B3), datas de pagamento pelos
 relatórios de proventos da CVM (2022+), datas de pagamento do levantamento 2010–2026
 (`carga/data/levantamento/datas-pagamento.json`, só onde ainda falta data), balanços com a série
-trimestral, informe mensal de FII e os índices de mercado desde 2010 (CDI, Selic, IPCA, IGP-M, INPC,
+trimestral, informe mensal de FII, o preço oficial do Tesouro Direto desde 2010 (`tesouro/`) e os índices de mercado desde 2010 (CDI, Selic, IPCA, IGP-M, INPC,
 TR, meta Selic, dólar PTAX, Ibovespa e IFIX — `docs/planos/PLANO_INDICES_MERCADO.md`; ~2 min sem os
 arquivos de `bcb/` e `b3/indices/`, segundos com eles).
 Com `carga/data/` cheia leva **~1 h**. É retomável: se uma etapa falhar (a B3 às vezes cai), rode de
@@ -206,6 +209,7 @@ node carga/scripts/b3investidor/conferir.mjs --api http://localhost:8082 --mock 
 | **CoinGecko** | Cotações Crypto | [coingecko.com](https://www.coingecko.com/en/api) |
 | **Banco Central — SGS** | Índices: CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, dólar PTAX (sem token) | [dadosabertos.bcb.gov.br](https://dadosabertos.bcb.gov.br) |
 | **Site da B3** | Proventos, eventos societários, série histórica (COTAHIST) e os índices Ibovespa e IFIX | [b3.com.br](https://www.b3.com.br) |
+| **Tesouro Transparente** | Preço e taxa diários dos títulos do Tesouro Direto (PU de resgate) | [tesourotransparente.gov.br](https://www.tesourotransparente.gov.br) |
 | **Google OAuth** | Autenticação | [console.cloud.google.com](https://console.cloud.google.com) |
 | **Binance** | Operações de cripto do usuário (chave só de leitura) | [binance-docs.github.io](https://binance-docs.github.io/apidocs/spot/en/) |
 | **B3 — Área do Investidor** | Negociações, movimentações, posição e proventos do investidor (OAuth2 + mTLS; depende de contrato) | [developers.b3.com.br](https://developers.b3.com.br/apis/api-area-do-investidor) |

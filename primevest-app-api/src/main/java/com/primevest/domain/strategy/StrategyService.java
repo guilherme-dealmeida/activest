@@ -142,7 +142,7 @@ public class StrategyService {
      */
     public RebalanceDTO getRebalanceSuggestion(UUID userId) {
         List<Strategy> strategies = strategyRepository.findByUserId(userId);
-        List<AssetType> allTypes = assetTypeRepository.findAll();
+        List<AssetType> allTypes = assetTypeRepository.findAllByOrderByIdAsc();
 
         // Custo de cada posicao, apurado das transacoes: nao e mais gravado.
         StrategyHoldings.Holdings holdings = strategyHoldings.of(userId);

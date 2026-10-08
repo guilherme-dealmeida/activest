@@ -59,7 +59,7 @@ public class AssetService {
      * Gets all asset types.
      */
     public List<AssetTypeResponseDTO> getAllTypes() {
-        return assetTypeRepository.findAll().stream()
+        return assetTypeRepository.findAllByOrderByIdAsc().stream()
             .map(t -> new AssetTypeResponseDTO(t.getId(), t.getName(), t.getDescription(), t.getColorHex(), t.isFixedIncome()))
             .collect(Collectors.toList());
     }

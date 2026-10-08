@@ -166,6 +166,17 @@ export interface PortfolioAssetDetail {
    */
   hasLogo: boolean | null;
   /**
+   * Base do valor atual na renda fixa (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md): CURVA (taxa contratada),
+   * MERCADO (preço oficial do Tesouro) ou SEM_CURVA. null fora da renda fixa.
+   */
+  valuationBasis?: 'CURVA' | 'MERCADO' | 'SEM_CURVA' | null;
+  /** Até quando o valor vale: último CDI (curva) ou dia do preço do Tesouro. */
+  valuationDate?: string | null;
+  /** Motivo de não ter curva, ou a observação da inflação estimada. */
+  valuationNote?: string | null;
+  /** Passou do vencimento. */
+  matured?: boolean;
+  /**
    * Emissor do catálogo (companhia ou FII) — link para /emissoras/{ticker}.
    * null = sem emissor (renda fixa, ETF, BDR, cripto). Não confundir com
    * `issuer` da carteira, que é o emissor da NOTA de renda fixa.
@@ -282,6 +293,27 @@ export interface TransactionResponse {
   rateType: RateType | null;
   indexer: Indexer | null;
   indexerRate: number | null;
+
+  /** Coluna ATIVO, igual à carteira. null = tipo sem logo (renda fixa, Tesouro). */
+  hasLogo: boolean | null;
+  /** Com emissor, o ticker vira link para a tela de emissoras. */
+  issuerId: number | null;
+}
+
+/**
+ * Um título de renda fixa do usuário, no seletor "Título" da Nova Transação.
+ * Todos os títulos do ativo, inclusive liquidados e vencidos (lançamento
+ * retroativo); quem recusa o aporte fora de prazo é a data.
+ */
+export interface NoteOption {
+  noteId: string;
+  issuer: string | null;
+  maturityDate: string | null;
+  rateType: RateType | null;
+  indexer: Indexer | null;
+  indexerRate: number | null;
+  settled: boolean;
+  matured: boolean;
 }
 
 export interface TransactionCreate {

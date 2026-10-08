@@ -1,7 +1,7 @@
 # PrimeVest — Endpoints administrativos
 
 > Gerado em 02/10/2026 a partir de `AdminController` (adm-api) e `ExtratoProventosController` (app-api) · revisado em
-> 03/10/2026 (Markdown, caminhos `carga/`) · 05/10/2026 ([18] índices de mercado).
+> 03/10/2026 (Markdown, caminhos `carga/`) · 05/10/2026 ([18] índices de mercado, [19] preço do Tesouro).
 
 | Tema | Como funciona |
 |---|---|
@@ -45,6 +45,7 @@ Prefixo das rotas: `/api/v1/admin`.
 | 16 | POST | `/catalog-audit` | adm | 202 | Conferência |
 | 17 | POST | `/proventos/extrato` | **app** | 200 | Carteira (conferência) |
 | 18 | POST | `/indices?codes&from&to&recent` | adm | 202 (400 com código desconhecido) | Índices de mercado |
+| 19 | POST | `/tesouro?from&recent` | adm | 202 | Preço do Tesouro |
 
 ---
 
@@ -66,6 +67,7 @@ Prefixo das rotas: `/api/v1/admin`.
 | 6 | balanços DFP/ITR 2010+ e série trimestral | [12] |
 | 7 | informe mensal de FII 2016+ | [14] |
 | 8 | índices de mercado 2010+ (anos fechados de `carga/data/bcb` e `carga/data/b3/indices`) | [18] |
+| 9 | preço do Tesouro Direto 2010+ (`carga/data/tesouro`, ou o Tesouro Transparente se mudou) | [19] |
 
 Etapa que falha é registrada e a seguinte roda assim mesmo. Uma carga por vez. Termina no log com
 `Carga inicial (...) concluida` e o resumo de cada etapa.
@@ -284,3 +286,24 @@ node carga/scripts/admin.mjs "indices?recent=true"
 
 **Propósito.** Carga histórica num banco existente (o `bootstrap` já faz num banco novo), estender o histórico para
 antes de 2010 ou reprocessar um índice.
+
+---
+
+## Preço do Tesouro Direto
+
+### [19] `POST /api/v1/admin/tesouro?from=2010&recent=false`
+
+**Serviço:** `TreasuryPriceService.importFrom` (ou `importRecent` com `recent=true`) · **Grava:** `asset_price_history`
+(`source = TESOURO`), `assets.current_price`, `carga/data/tesouro/PrecoTaxaTesouroDireto.csv`
+
+**Função.** PU de venda (resgate antecipado) de cada título do catálogo desde `from` (padrão 2010; o arquivo começa em
+2002), casado por tipo + vencimento; o último dia vira o preço atual e a app-api é avisada ("catálogo mudou",
+FECHAMENTO). O arquivo (~14 MB) só é baixado se mudou. `recent=true` = a rodada das 08:00.
+
+```bash
+node carga/scripts/admin.mjs tesouro
+node carga/scripts/admin.mjs "tesouro?from=2002"
+```
+
+**Propósito.** Carregar o histórico num banco existente (o `bootstrap` já faz num banco novo) ou estender para antes de
+2010 (`docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`).

@@ -13,6 +13,8 @@ public enum PriceSource {
     BRAPI,
     /** Criptomoedas via CoinGecko. */
     COINGECKO,
+    /** Tesouro Direto: PU de venda publicado pelo Tesouro (Tesouro Transparente), V44. */
+    TESOURO,
     /** Sem provedor automático: renda fixa, fundos e ativos dos EUA
      *  enquanto não houver um cliente para eles. */
     MANUAL

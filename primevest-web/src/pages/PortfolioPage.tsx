@@ -8,13 +8,13 @@ import { assetsApi } from '@/api/assets';
 import { AssetLogo } from '@/components/ui/AssetLogo';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Switch } from '@/components/ui/Switch';
-import { LabelWithInfo } from '@/components/ui/InfoTooltip';
+import { InfoTooltip, LabelWithInfo } from '@/components/ui/InfoTooltip';
 import { useToast } from '@/context/ToastContext';
 import { TransactionFormModal, TransactionPreset } from '@/components/transactions/TransactionFormModal';
 import { useSortable } from '@/hooks/useSortable';
 import { AssetType, PortfolioAssetDetail, RateType, TransactionType } from '@/types';
 import { formatCurrency, formatDate, formatPercentage, formatQuantity, formatUnitPrice, getReturnColor } from '@/utils/format';
-import { RENDA_FIXA, TESOURO_DIRETO, isFixedIncomeNote } from '@/utils/assetTypeRules';
+import { RENDA_FIXA, TESOURO_DIRETO, isFixedIncomeNote, typeLogo } from '@/utils/assetTypeRules';
 import { apiMessage } from '@/utils/apiError';
 import { TickerLink } from '@/components/issuer/TickerLink';
 
@@ -66,6 +66,27 @@ const RATE_TYPE_LABELS: Record<RateType, string> = {
 };
 
 /** "12,50% a.a." no prefixado, "110,00% do CDI" no pós, "IPCA + 6,00% a.a." no híbrido. */
+/**
+ * De onde vem o valor atual de um título de renda fixa (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, seção 5): a curva
+ * contratada (CDB, LCI...), o preço oficial do Tesouro ou nenhuma (o motivo). null fora da renda fixa.
+ */
+const valuationInfo = (a: PortfolioAssetDetail): string | null => {
+  const data = a.valuationDate ? formatDate(a.valuationDate) : null;
+  switch (a.valuationBasis) {
+    case 'CURVA':
+      return `Curva da taxa contratada (${formatRate(a)}), atualizada até ${data}${a.matured ? ', o vencimento' : ''}. `
+        + 'Valor bruto, sem IR e IOF.' + (a.valuationNote ? ` Obs.: ${a.valuationNote}.` : '');
+    case 'MERCADO':
+      return `Preço oficial do Tesouro (PU de resgate antecipado) de ${data}: cotas × preço. Pode ficar abaixo do `
+        + 'aplicado quando a taxa de mercado sobe. Valor bruto, sem IR e IOF.';
+    case 'SEM_CURVA':
+      return `Sem curva: ${a.valuationNote ?? 'dados do título incompletos'}. O valor fica em aplicado − resgatado `
+        + '(mais o ganho já comprovado por resgate).';
+    default:
+      return null;
+  }
+};
+
 const formatRate = (a: PortfolioAssetDetail): string => {
   if (a.indexerRate == null || !a.rateType) return '—';
   const rate = formatPercentage(a.indexerRate);
@@ -93,7 +114,8 @@ interface Column {
   /** Explicação no (i) do cabeçalho. Função quando o significado muda com o tipo. */
   info?: string | ((type: AssetType) => string);
   align: 'left' | 'right';
-  render: (asset: PortfolioAssetDetail) => ReactNode;
+  /** type: a aba em que a linha está — o logo do Tesouro e da Renda Fixa é do tipo. */
+  render: (asset: PortfolioAssetDetail, type: AssetType) => ReactNode;
   visible?: (type: AssetType) => boolean;
 }
 
@@ -102,14 +124,20 @@ const COLUMNS: Column[] = [
     key: 'ticker',
     label: 'ATIVO',
     align: 'left',
-    render: (a) => (
+    render: (a, type) => {
+      const logoDoTipo = typeLogo(type.name);
+      return (
       // Nome do ativo só no hover (tooltip nativo), não mais abaixo do ticker.
       <div className="flex items-center gap-3" title={a.assetName || undefined}>
-        {/* Logo à esquerda do ticker (B25). null = tipo sem logo (renda fixa, Tesouro). */}
-        {a.hasLogo !== null && a.hasLogo !== undefined && <AssetLogo ticker={a.ticker} hasLogo={a.hasLogo} size={38} shape="square" />}
+        {/* Logo à esquerda do ticker (B25). Tesouro e Renda Fixa usam o do tipo;
+            nos demais, null = tipo sem logo. */}
+        {logoDoTipo
+          ? <AssetLogo ticker={a.ticker} hasLogo={!!logoDoTipo.src} src={logoDoTipo.src} label={logoDoTipo.label} size={38} shape="square" />
+          : a.hasLogo !== null && a.hasLogo !== undefined && <AssetLogo ticker={a.ticker} hasLogo={a.hasLogo} size={38} shape="square" />}
         <TickerLink ticker={a.ticker} issuerId={a.issuerId} />
       </div>
-    ),
+      );
+    },
   },
   {
     key: 'categoryName',
@@ -140,7 +168,21 @@ const COLUMNS: Column[] = [
     label: 'VENCIMENTO',
     align: 'left',
     visible: showMaturity,
-    render: (a) => <span className="text-white/70">{a.maturityDate ? formatDate(a.maturityDate) : '—'}</span>,
+    render: (a) => (
+      <span className="inline-flex items-center gap-1.5 text-white/70">
+        {a.maturityDate ? formatDate(a.maturityDate) : '—'}
+        {a.matured && (
+          <span
+            className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase bg-danger/15 text-danger"
+            title={a.valuationBasis === 'CURVA'
+              ? 'O título venceu e parou de render. Lance o resgate (ícone Vender) para encerrar a aplicação.'
+              : 'O título venceu: o Tesouro paga o resgate na conta da corretora. Lance a venda para encerrar a posição.'}
+          >
+            Vencido
+          </span>
+        )}
+      </span>
+    ),
   },
   // Dados do título, logo depois do vencimento.
   {
@@ -202,9 +244,14 @@ const COLUMNS: Column[] = [
   {
     key: 'currentValue',
     label: 'VALOR ATUAL',
-    info: 'Valor aplicado + valorização − resgatado.',
+    info: 'Valor aplicado + valorização − resgatado. Na renda fixa, valor bruto (sem IR e IOF).',
     align: 'right',
-    render: (a) => formatCurrency(a.currentValue),
+    render: (a) => (
+      <span className="inline-flex items-center justify-end gap-1">
+        {formatCurrency(a.currentValue)}
+        {valuationInfo(a) && <InfoTooltip content={valuationInfo(a)!} />}
+      </span>
+    ),
   },
   {
     key: 'totalDividends',
@@ -226,7 +273,9 @@ const COLUMNS: Column[] = [
     label: 'RENT. %',
     info: 'Valorização dividida pelo valor aplicado.',
     align: 'right',
-    render: (a) => <span className={getReturnColor(a.returnPercentage)}>{formatPercentage(a.returnPercentage)}</span>,
+    render: (a) => (a.valuationBasis === 'SEM_CURVA'
+      ? <span className="text-gray-400" title={a.valuationNote ?? undefined}>—</span>
+      : <span className={getReturnColor(a.returnPercentage)}>{formatPercentage(a.returnPercentage)}</span>),
   },
 ];
 
@@ -389,7 +438,7 @@ const PortfolioTypeTable = ({ type, assets, reservation, onList, onBuy, onSell }
               )}
               {columns.map((col) => (
                 <td key={col.key} className={clsx('py-3 px-3', col.align === 'right' && 'text-right')}>
-                  {col.render(asset)}
+                  {col.render(asset, type)}
                 </td>
               ))}
               <td className="py-3 px-3">
@@ -589,6 +638,7 @@ export const PortfolioPage = () => {
           rateType: asset.rateType,
           indexer: asset.indexer,
           indexerRate: asset.indexerRate,
+          currentValue: asset.currentValue,
         }
       : null,
   });

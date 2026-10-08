@@ -3,6 +3,7 @@ package com.primevest.domain.portfolio;
 import com.primevest.domain.catalog.CatalogChange;
 import com.primevest.domain.dividend.DividendRecalculator;
 import com.primevest.domain.dividend.DividendTaxVerifier;
+import com.primevest.domain.fixedincome.FixedIncomeValuation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -21,7 +22,10 @@ import java.util.function.Supplier;
  * <ul>
  *   <li>PROVENTOS: eventos novos ou completados — proventos ({@link DividendRecalculator}) e
  *   valorizacao de cada posicao;</li>
- *   <li>FECHAMENTO: preco novo — so a valorizacao ({@link AppreciationUpdater}).</li>
+ *   <li>FECHAMENTO: preco novo (acoes, cripto, Tesouro) — so a valorizacao ({@link AppreciationUpdater});</li>
+ *   <li>INDICES: indice de mercado novo ou corrigido — a curva da renda fixa privada ({@link FixedIncomeValuation},
+ *   docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, R5). Todos os titulos abertos: a data de referencia (o ultimo CDI)
+ *   muda para todos, inclusive o prefixado.</li>
  * </ul>
  *
  * <p>Tambem roda {@link #refreshAll} — uma vez por dia ({@code PositionRefreshScheduler}), que
@@ -36,17 +40,20 @@ public class PositionRefreshService {
     private final DividendRecalculator dividendRecalculator;
     private final AppreciationUpdater appreciationUpdater;
     private final DividendTaxVerifier dividendTaxVerifier;
+    private final FixedIncomeValuation fixedIncomeValuation;
     private final TransactionTemplate tx;
 
     public PositionRefreshService(PortfolioAssetRepository portfolioAssetRepository,
                                   DividendRecalculator dividendRecalculator,
                                   AppreciationUpdater appreciationUpdater,
                                   DividendTaxVerifier dividendTaxVerifier,
+                                  FixedIncomeValuation fixedIncomeValuation,
                                   PlatformTransactionManager transactionManager) {
         this.portfolioAssetRepository = portfolioAssetRepository;
         this.dividendRecalculator = dividendRecalculator;
         this.appreciationUpdater = appreciationUpdater;
         this.dividendTaxVerifier = dividendTaxVerifier;
+        this.fixedIncomeValuation = fixedIncomeValuation;
         this.tx = new TransactionTemplate(transactionManager);
     }
 
@@ -56,12 +63,18 @@ public class PositionRefreshService {
 
     /** "Catalogo mudou" vindo da adm-api. */
     public synchronized Result refresh(CatalogChange change) {
+        if (change.origin() == CatalogChange.Origin.INDICES) {
+            int changed = refreshFixedIncome();
+            log.info("Carteira: indices mudaram ({}) — {} titulos de renda fixa revalorizados", change.indexCodes(), changed);
+            return new Result(changed, 0);
+        }
         if (change.assetIds().isEmpty()) {
             return new Result(0, 0);
         }
         Result r = switch (change.origin()) {
             case FECHAMENTO -> new Result(appreciationUpdater.refreshAssets(change.assetIds()), 0);
             case PROVENTOS -> recalculate(() -> portfolioAssetRepository.findAllByAssetIdIn(change.assetIds()));
+            case INDICES -> new Result(0, 0);
         };
         log.info("Carteira: catalogo mudou ({}, {} ativos) — {} posicoes, {} proventos novos",
                 change.origin(), change.assetIds().size(), r.positions(), r.newDividends());
@@ -84,15 +97,24 @@ public class PositionRefreshService {
                 dividends += dividendRecalculator.recalculate(pa, dividendRecalculator.chronologicalTransactions(pa));
                 appreciationUpdater.refresh(pa);
             }
+            fixedIncomeValuation.refresh(all);
             return new Result(all.size(), dividends);
         });
     }
 
-    /** Na subida: IR pendente dos proventos e valorizacao de todas as posicoes com cotacao. */
+    /** A curva de todos os titulos de renda fixa privada em aberto. */
+    public int refreshFixedIncome() {
+        Integer n = tx.execute(s -> fixedIncomeValuation.refreshAll());
+        return n == null ? 0 : n;
+    }
+
+    /** Na subida: IR pendente dos proventos, valorizacao das posicoes com cotacao e a curva da renda fixa. */
     @EventListener(ApplicationReadyEvent.class)
     public void onStartup() {
         dividendTaxVerifier.onStartup();
         int updated = appreciationUpdater.refreshAll();
-        log.info("Valorizacao regravada na subida: {} posicoes alteradas", updated);
+        int curve = refreshFixedIncome();
+        log.info("Valorizacao regravada na subida: {} posicoes com cotacao e {} titulos de renda fixa alterados",
+                updated, curve);
     }
 }

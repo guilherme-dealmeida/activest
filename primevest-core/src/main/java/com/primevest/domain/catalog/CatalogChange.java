@@ -7,15 +7,28 @@ import java.util.Set;
  * (docs/planos/PLANO_ADM_API.md, 10.3). A adm-api grava so catalogo; o que muda na carteira de cada
  * usuario e a app-api quem grava.
  *
- * @param origin   PROVENTOS: eventos em dinheiro ou societarios novos/completados — refaz
- *                 proventos e valorizacao; FECHAMENTO: preco novo — refaz so a valorizacao
- * @param assetIds ativos cujas posicoes devem ser recalculadas
+ * @param origin     PROVENTOS: eventos em dinheiro ou societarios novos/completados — refaz
+ *                   proventos e valorizacao; FECHAMENTO: preco novo (acoes, cripto, Tesouro) — refaz so a
+ *                   valorizacao; INDICES: valor novo ou corrigido de indice de mercado — refaz a curva da renda fixa
+ *                   privada (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, R5)
+ * @param assetIds   ativos cujas posicoes devem ser recalculadas (vazio em INDICES)
+ * @param indexCodes indices que mudaram (so em INDICES)
  */
-public record CatalogChange(Origin origin, Set<Long> assetIds) {
+public record CatalogChange(Origin origin, Set<Long> assetIds, Set<String> indexCodes) {
 
-    public enum Origin { PROVENTOS, FECHAMENTO }
+    public enum Origin { PROVENTOS, FECHAMENTO, INDICES }
 
     public CatalogChange {
         assetIds = assetIds == null ? Set.of() : Set.copyOf(assetIds);
+        indexCodes = indexCodes == null ? Set.of() : Set.copyOf(indexCodes);
+    }
+
+    public CatalogChange(Origin origin, Set<Long> assetIds) {
+        this(origin, assetIds, Set.of());
+    }
+
+    /** Indices de mercado que mudaram. */
+    public static CatalogChange indices(Set<String> codes) {
+        return new CatalogChange(Origin.INDICES, Set.of(), codes);
     }
 }

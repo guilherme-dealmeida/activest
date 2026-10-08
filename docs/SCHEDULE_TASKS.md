@@ -2,7 +2,8 @@
 
 > Gerado em 02/10/2026 a partir do código (`@Scheduled`, `ApplicationReadyEvent` e ouvintes do Redis) e dos
 > `application.yml` dos módulos · revisado em 03/10/2026 (Markdown, caminhos `carga/`) · 05/10/2026 ([A9] índices de
-> mercado, `docs/planos/PLANO_INDICES_MERCADO.md`).
+> mercado, `docs/planos/PLANO_INDICES_MERCADO.md`; [A10] preço do Tesouro e a curva da renda fixa,
+> `docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`).
 
 - **Fuso** de todas as rotinas: `America/Sao_Paulo`.
 - **Cron do Spring:** `segundo minuto hora dia-do-mês mês dia-da-semana`. Os horários ficam em propriedade
@@ -23,13 +24,14 @@
 | 06:00, dia 1 | adm | [A7] Logos (mensal) |
 | 07:00, segunda | adm | [A6] Conferência do catálogo (semanal) |
 | 07:30 | adm | [A5] Balanços CVM + informe mensal de FII |
+| 08:00 | adm | [A10] Preço oficial do Tesouro Direto |
 | 08:45 | app | [B4] Sincronização diária das corretoras (enfileira) |
 | 10:00 | adm | [A9] Índices de mercado (CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, PTAX, Ibovespa, IFIX) |
 | 19:00, seg–sex | adm | [A1] Fechamento B3 (BRAPI) |
 | 19:00 | adm | [A2] Fechamento cripto (CoinGecko) |
 | 20:00 | adm | [A4] Proventos e eventos societários + datas de pagamento CVM |
 | 21:00 | app | [B1] Rede de segurança: recálculo de todas as posições |
-| ao subir | adm / app | [A3] recuperação do fechamento · [A9] recuperação dos índices · [B2] verificação da carteira · [B6] recuperação da fila |
+| ao subir | adm / app | [A3] recuperação do fechamento · [A9] recuperação dos índices · [A10] recuperação do Tesouro · [B2] verificação da carteira · [B6] recuperação da fila |
 | por mensagem | adm / app | [A8] "preciso do histórico" · [B3] "catálogo mudou" |
 
 A ordem 19:00 → 20:00 → 21:00 é proposital: o recálculo da carteira roda depois de o catálogo ter recebido os preços e
@@ -190,8 +192,29 @@ a do dia 1.
 `antigo -> novo`, data futura não entra. Índice sem série faz a carga histórica desde 2010. Um índice que falha não
 impede os outros. Sem mensagem para a app-api por enquanto (D8 do plano).
 
+**Ao fim (desde 05/10/2026).** Se algo entrou ou mudou, publica "catálogo mudou" (origem `INDICES`) → a app-api
+refaz a curva da renda fixa privada ([B3]).
+
 **Propósito.** Série dos indexadores da renda fixa e dos benchmarks em dia — base da valorização da renda fixa
 (`docs/PENDENCIAS.md` 2.1). CDI e Selic do dia anterior saem no SGS de manhã; IPCA e INPC por volta do dia 10.
+
+---
+
+### [A10] Preço oficial do Tesouro Direto (05/10/2026)
+
+| | |
+|---|---|
+| **Quando** | 08:00, todos os dias (o arquivo sai ~07:20 com o D-1), e na subida da adm-api quando o último PU tem mais de 4 dias |
+| **Classe** | `TreasuryPriceScheduler.daily` / `recoverOnStartup` → `TreasuryPriceService.importRecent` |
+| **Config** | `primevest.tesouro.cron = "0 0 8 * * *"`; `primevest.tesouro.enabled`; `tesouro.*` |
+| **Fonte** | Tesouro Transparente, `PrecoTaxaTesouroDireto.csv` (todo o histórico, ~14 MB; só baixado se mudou) |
+| **Grava** | `asset_price_history` (`source = TESOURO`, PU de venda), `assets.current_price` e `carga/data/tesouro/` |
+| **Ao fim** | publica "catálogo mudou" (`FECHAMENTO`) com os títulos cujo preço mudou → a app-api revaloriza o Tesouro |
+
+**Função.** Relê os dias a partir de 10 antes do último PU gravado, casa cada linha com o título do catálogo por tipo
+\+ vencimento e grava o PU de venda (sem ele, o PU base). Título do arquivo sem título no catálogo vai para o log.
+
+**Propósito.** Valor de mercado do Tesouro na carteira (`docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`).
 
 ---
 
@@ -206,7 +229,8 @@ impede os outros. Sem mensagem para a app-api por enquanto (D8 do plano).
 | **Config** | `primevest.positions.refresh-cron = "0 0 21 * * *"` |
 | **Grava** | `dividends` (proventos das posições), `portfolio_assets.appreciation` |
 
-**Função.** Recalcula proventos e valorização de **todas** as posições.
+**Função.** Recalcula proventos e valorização de **todas** as posições — desde 05/10/2026 também a curva da renda fixa
+privada (a subida da app-api, [B2], faz o mesmo).
 
 **Propósito.** Cobrir mensagem "catálogo mudou" que se perdeu (Redis ou app-api fora do ar): o Redis pub/sub não
 garante entrega.
@@ -227,11 +251,12 @@ cotação.
 
 | | |
 |---|---|
-| **Quando** | a cada mensagem no canal Redis `primevest:catalogo:ativos`, publicada pela adm-api (`{origin: PROVENTOS\|FECHAMENTO, assetIds}`) |
+| **Quando** | a cada mensagem no canal Redis `primevest:catalogo:ativos`, publicada pela adm-api (`{origin: PROVENTOS\|FECHAMENTO\|INDICES, assetIds, indexCodes}`) |
 | **Classe** | `CatalogMessagingConfig` → `PositionRefreshService` |
 
 **Função.** `PROVENTOS` → refaz proventos e valorização das posições dos ativos citados; `FECHAMENTO` → só a
-valorização.
+valorização (inclusive Tesouro, pelo PU oficial); `INDICES` (05/10/2026) → refaz a curva de todos os títulos de renda
+fixa privada em aberto (`FixedIncomeValuation`).
 
 **Propósito.** A carteira reage ao catálogo na hora, sem esperar as 21:00.
 

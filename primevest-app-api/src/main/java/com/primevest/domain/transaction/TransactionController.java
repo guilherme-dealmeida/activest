@@ -1,6 +1,7 @@
 package com.primevest.domain.transaction;
 
 import com.primevest.config.SecurityUtils;
+import com.primevest.domain.transaction.dto.NoteOptionDTO;
 import com.primevest.domain.transaction.dto.TransactionCreateDTO;
 import com.primevest.domain.transaction.dto.TransactionResponseDTO;
 import jakarta.validation.Valid;
@@ -28,6 +29,12 @@ public class TransactionController {
     @GetMapping("/")
     public ResponseEntity<List<TransactionResponseDTO>> getTransactions() {
         return ResponseEntity.ok(transactionService.getTransactions(SecurityUtils.getCurrentUserId()));
+    }
+
+    /** Titulos de renda fixa do usuario num ativo, para o seletor da Nova Transacao (todos, inclusive liquidados). */
+    @GetMapping("/notes")
+    public ResponseEntity<List<NoteOptionDTO>> getNotes(@RequestParam String ticker) {
+        return ResponseEntity.ok(transactionService.getNotes(SecurityUtils.getCurrentUserId(), ticker));
     }
 
     @GetMapping("/{id}")

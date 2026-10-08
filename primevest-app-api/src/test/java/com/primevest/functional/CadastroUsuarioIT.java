@@ -105,8 +105,10 @@ class CadastroUsuarioIT extends FuncionalBase {
             + "WHERE u.email = 'maria@primevest.test'", Integer.class)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM strategy_reservations r JOIN users u ON u.id = r.user_id "
             + "WHERE u.email = 'maria@primevest.test'", Integer.class)).isEqualTo(1);
-        // CPF nunca em claro no banco
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM users WHERE convert_from(cpf_ciphertext, 'LATIN1') LIKE '%52998224725%'",
+        // CPF nunca em claro no banco. A busca e por bytes (position em bytea): converter o
+        // ciphertext para texto falhava sempre que o AES gerava um byte 0x00 — teste instavel.
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM users "
+            + "WHERE position(convert_to('52998224725', 'UTF8') IN cpf_ciphertext) > 0",
             Integer.class)).isZero();
 
         // C11: maiusculas no login entram na mesma conta
