@@ -11,6 +11,7 @@ import com.primevest.adm.domain.fundamentals.FiiMonthlyImportService;
 import com.primevest.adm.domain.fundamentals.FinancialStatementImportService;
 import com.primevest.adm.domain.issuer.IssuerImportService;
 import com.primevest.adm.domain.issuer.IssuerLinkService;
+import com.primevest.adm.domain.marketindex.MarketIndexImportService;
 import com.primevest.domain.issuer.ShareClass;
 import com.primevest.adm.domain.pricehistory.ClosingPriceService;
 import com.primevest.adm.domain.pricehistory.HistoricalQuotesImportService;
@@ -63,10 +64,14 @@ public class AdminController {
     private final BootstrapService bootstrapService;
     private final CvmPaymentDateService cvmPaymentDateService;
     private final PaymentDateSurveyService paymentDateSurveyService;
+    private final MarketIndexImportService marketIndexImportService;
 
     @PostMapping("/catalog-audit")
     public ResponseEntity<Map<String, String>> catalogAudit() {
-        return start("conferencia do catalogo", () -> catalogAuditService.run("sob demanda"));
+        return start("conferencia do catalogo", () -> {
+            catalogAuditService.run("sob demanda");
+            marketIndexImportService.audit("sob demanda");
+        });
     }
 
     @PostMapping("/logos")
@@ -232,6 +237,35 @@ public class AdminController {
     @PostMapping("/proventos/levantamento")
     public ResponseEntity<Map<String, String>> proventosLevantamento() {
         return start("datas de pagamento do levantamento", () -> paymentDateSurveyService.run("sob demanda"));
+    }
+
+    /**
+     * Indices de mercado (docs/planos/PLANO_INDICES_MERCADO.md, 4.1): {@code codes} separados por virgula (padrao:
+     * todos os ativos), de {@code from} (padrao: {@code history_from} de cada indice, 2010) a {@code to} (padrao:
+     * ano corrente). Ano fechado com arquivo em carga/data nao vai a fonte; valor igual e pulado, corrigido e
+     * sobrescrito com log. {@code recent=true} roda a rodada incremental da rotina diaria (ignora o periodo).
+     */
+    @PostMapping("/indices")
+    public ResponseEntity<Map<String, String>> indices(
+            @RequestParam(required = false) List<String> codes,
+            @RequestParam(required = false) Integer from,
+            @RequestParam(required = false) Integer to,
+            @RequestParam(defaultValue = "false") boolean recent) {
+        int last = to != null ? to : java.time.LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo")).getYear();
+        if ((from != null && (from < 1986 || last < from)) || last < 1986) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Periodo invalido: " + from + " a " + last);
+        }
+        if (codes != null && !codes.isEmpty()) {
+            try {
+                marketIndexImportService.validateCodes(codes);
+            } catch (IllegalArgumentException e) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+            }
+        }
+        if (recent) {
+            return start("indices", () -> marketIndexImportService.importRecent("sob demanda"));
+        }
+        return start("indices", () -> marketIndexImportService.importYears(codes, from, last, "sob demanda"));
     }
 
     @PostMapping("/proventos")

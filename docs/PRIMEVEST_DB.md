@@ -1,7 +1,8 @@
 # PRIMEVEST_DB — Modelo de dados
 
 > Gerado em 02/10/2026 a partir do banco de desenvolvimento (`db_primevest`, Flyway na **V39**), lendo o `information_schema` e as constraints — não do texto do `Claude.md`.
-> **31 tabelas** (fora `flyway_schema_history`), **43 chaves estrangeiras**. Diagramas em Mermaid: o GitHub e o IntelliJ (plugin Mermaid) renderizam.
+> **31 tabelas** (fora `flyway_schema_history`), **43 chaves estrangeiras**. Acréscimo de 05/10/2026: `market_indices` e
+> `market_index_values` (V43, seção 5a — `docs/planos/PLANO_INDICES_MERCADO.md`). Diagramas em Mermaid: o GitHub e o IntelliJ (plugin Mermaid) renderizam.
 
 **A ideia que organiza o schema:** o *catálogo* é global (o que o instrumento É — `assets`, preços, proventos, emissores; gravado pela **adm-api**), e o *papel* é do usuário (posição, transações, título de renda fixa, proventos recebidos; gravado só pela **app-api**).
 
@@ -14,6 +15,7 @@ Legenda das relações: `||--o{` um para muitos (FK obrigatória) · `|o--o{` um
 3. [Catálogo de ativos, preços e proventos](#3-catálogo-de-ativos-preços-e-proventos)
 4. [Emissores, balanços e indicadores](#4-emissores-balanços-e-indicadores)
 5. [Integrações com corretoras](#5-integrações-com-corretoras)
+5a. [Índices de mercado](#5a-índices-de-mercado)
 6. [Descrição das tabelas](#6-descrição-das-tabelas)
 7. [Regras de exclusão (ON DELETE)](#7-regras-de-exclusão-on-delete)
 
@@ -66,6 +68,7 @@ erDiagram
     integration_connections |o--o{ transactions : "connection_id"
     assets ||--o{ unit_compositions : "asset_id"
     asset_types ||--o{ withholding_tax_rules : "asset_type_id"
+    market_indices ||--o{ market_index_values : "index_id"
 ```
 
 ## 2. Usuário e carteira
@@ -545,6 +548,32 @@ erDiagram
     integration_connections |o--o{ transactions : "connection_id"
 ```
 
+## 5a. Índices de mercado
+
+Tabelas: `market_indices`, `market_index_values` (V43, 05/10/2026). Sem ligação com outro domínio: a nota de renda fixa
+acha a série pelo nome (`fixed_income_notes.indexer` = `market_indices.code`), sem FK.
+
+```mermaid
+erDiagram
+    market_indices {
+        bigint id PK "not null"
+        varchar code UK "not null"
+        varchar name "not null"
+        varchar periodicity "not null DIARIA|MENSAL"
+        varchar unit "not null PCT_DIA|PCT_MES|PCT_PERIODO|PCT_ANO|PONTOS|BRL"
+        varchar source "not null BCB_SGS|B3"
+        varchar source_ref "not null"
+        date history_from "not null"
+        boolean active "not null"
+    }
+    market_index_values {
+        bigint index_id PK,FK "not null"
+        date reference_date PK "not null"
+        numeric value "not null (18,8)"
+    }
+    market_indices ||--o{ market_index_values : "index_id"
+```
+
 ## 6. Descrição das tabelas
 
 | Domínio | Tabela | Quem grava | Descrição | Unicidade |
@@ -574,6 +603,8 @@ erDiagram
 | Emissores | `issuers` | seed V30 / adm-api | Emissores: companhia aberta ou FII, um por CNPJ. Código CVM, setores CVM e B3, segmento de listagem, administrador do FII e o segmento curado do FII. | (cnpj); (cvm_code) |
 | Emissores | `share_counts` | adm-api | Quantidade de ações (e em tesouraria) de cada documento, com a escala conferida (scale_factor, scale_status, scale_check). | — |
 | Emissores | `unit_compositions` | seed V30 / adm-api | Composição das units: quantas ações de cada classe (ON, PN...) formam uma unit. | — |
+| Índices | `market_indices` | seed V43 | Cadastro dos índices de mercado: código (o mesmo do enum Indexer para CDI, SELIC, IPCA, IGPM, INPC, TR; mais SELIC_META, USD_PTAX, IBOV, IFIX), periodicidade, unidade do valor publicado e a fonte (série do SGS ou sigla da B3). | (code); (source, source_ref) |
+| Índices | `market_index_values` | adm-api | Série de cada índice, um valor por data, como a fonte publica (mensal no dia 1º). O acumulado não é gravado: sai do MarketIndexCalculator. | (index_id, reference_date) |
 | Integrações | `integration_connections` | app-api | Conexão do usuário com uma corretora (hoje BINANCE): apelido único por usuário, status, aceite do consentimento, última sincronização e erro. | (user_id, label) |
 | Integrações | `integration_credentials` | app-api | Credencial cifrada (AES-256-GCM) da conexão, 1:1; nunca sai na API e é apagada na revogação. | — |
 | Integrações | `integration_crypto_exclusions` | app-api | Operação importada e excluída pelo usuário: a sincronização não a recria (pode ser restaurada). | (connection_id, external_id) |
@@ -615,6 +646,7 @@ erDiagram
 | `integration_run_items` | `duplicate_of` | `transactions.id` | SET NULL |
 | `integration_run_items` | `run_id` | `integration_runs.id` | CASCADE |
 | `integration_runs` | `connection_id` | `integration_connections.id` | CASCADE |
+| `market_index_values` | `index_id` | `market_indices.id` | bloqueia (NO ACTION) |
 | `portfolio_assets` | `asset_id` | `assets.id` | bloqueia (NO ACTION) |
 | `portfolio_assets` | `note_id` | `fixed_income_notes.id` | bloqueia (NO ACTION) |
 | `portfolio_assets` | `portfolio_id` | `portfolios.id` | CASCADE |

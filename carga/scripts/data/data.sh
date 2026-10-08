@@ -5,7 +5,7 @@
 #   docker compose --profile carga run --rm data status            carga/data/ x bucket, por dataset (tamanho)
 #
 # A aplicacao le so a carga/data/ local. pull e push copiam o que falta ou mudou e NUNCA apagam
-# nada do outro lado. Datasets = as pastas de primeiro nivel (b3, cvm, fnet, levantamento, logos);
+# nada do outro lado. Datasets = as pastas de primeiro nivel (b3, bcb, cvm, fnet, levantamento, logos);
 # manifests/ e so do bucket. rclone configurado por variavel (RCLONE_CONFIG_R2_*, do .env).
 set -eu
 # sem expansao de * nas opcoes (--exclude *.part)

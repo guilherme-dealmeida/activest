@@ -1,7 +1,7 @@
 # PrimeVest — Endpoints administrativos
 
 > Gerado em 02/10/2026 a partir de `AdminController` (adm-api) e `ExtratoProventosController` (app-api) · revisado em
-> 03/10/2026 (Markdown, caminhos `carga/`).
+> 03/10/2026 (Markdown, caminhos `carga/`) · 05/10/2026 ([18] índices de mercado).
 
 | Tema | Como funciona |
 |---|---|
@@ -44,6 +44,7 @@ Prefixo das rotas: `/api/v1/admin`.
 | 15 | POST | `/logos` | adm | 202 | Logos |
 | 16 | POST | `/catalog-audit` | adm | 202 | Conferência |
 | 17 | POST | `/proventos/extrato` | **app** | 200 | Carteira (conferência) |
+| 18 | POST | `/indices?codes&from&to&recent` | adm | 202 (400 com código desconhecido) | Índices de mercado |
 
 ---
 
@@ -64,6 +65,7 @@ Prefixo das rotas: `/api/v1/admin`.
 | 5 | datas de pagamento do levantamento | [11] |
 | 6 | balanços DFP/ITR 2010+ e série trimestral | [12] |
 | 7 | informe mensal de FII 2016+ | [14] |
+| 8 | índices de mercado 2010+ (anos fechados de `carga/data/bcb` e `carga/data/b3/indices`) | [18] |
 
 Etapa que falha é registrada e a seguinte roda assim mesmo. Uma carga por vez. Termina no log com
 `Carga inicial (...) concluida` e o resumo de cada etapa.
@@ -252,8 +254,33 @@ apaga o arquivo existente.
 
 ### [16] `POST /api/v1/admin/catalog-audit`
 
-**Serviço:** `CatalogAuditService.run` · **Grava:** nada (linhas WARN no log)
+**Serviço:** `CatalogAuditService.run` e `MarketIndexImportService.audit` · **Grava:** nada (linhas WARN no log)
 
-**Função.** Mesma conferência das segundas 07:00: tickers novos, sumidos e renomeados contra a lista da BRAPI.
+**Função.** Mesma conferência das segundas 07:00: tickers novos, sumidos e renomeados contra a lista da BRAPI, e os
+índices de mercado atrasados.
 
 **Propósito.** Ver as diferenças do catálogo sem esperar a semana.
+
+---
+
+## Índices de mercado
+
+### [18] `POST /api/v1/admin/indices?codes=&from=&to=&recent=false`
+
+**Serviço:** `MarketIndexImportService.importYears` (ou `importRecent` com `recent=true`) · **Grava:**
+`market_index_values` e `carga/data/bcb/sgs/{código SGS}/{ano}.json`, `carga/data/b3/indices/{índice}/{ano}.json`
+
+**Função.** Carga dos índices (`docs/planos/PLANO_INDICES_MERCADO.md`): `codes` separados por vírgula (`CDI`, `SELIC`,
+`IPCA`, `IGPM`, `INPC`, `TR`, `SELIC_META`, `USD_PTAX`, `IBOV`, `IFIX`; padrão: todos), `from` (padrão: 2010, o
+`history_from` de cada índice) e `to` (padrão: ano corrente). Ano fechado com arquivo não vai à fonte; valor igual é
+pulado, corrigido é sobrescrito com log, data futura não entra. `recent=true` roda a rodada incremental da rotina das
+10:00 e ignora o período. Código desconhecido: 400 antes de começar.
+
+```bash
+node carga/scripts/admin.mjs indices
+node carga/scripts/admin.mjs "indices?codes=CDI,IPCA&from=2024"
+node carga/scripts/admin.mjs "indices?recent=true"
+```
+
+**Propósito.** Carga histórica num banco existente (o `bootstrap` já faz num banco novo), estender o histórico para
+antes de 2010 ou reprocessar um índice.

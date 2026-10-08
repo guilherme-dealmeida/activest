@@ -11,6 +11,7 @@ import {
   Flag,
   Plug,
   Building2,
+  LineChart,
   LogOut,
   Settings,
   Sun,
@@ -38,6 +39,7 @@ const navItems = [
   { name: 'Dividendos', path: '/dividends', icon: DollarSign },
   { name: 'Preço Teto', path: '/ceiling-prices', icon: TrendingDown },
   { name: 'Emissoras', path: '/emissoras', icon: Building2 },
+  { name: 'Índices', path: '/indices', icon: LineChart },
   { name: 'Metas', path: '/goals', icon: Flag },
   { name: 'Integrações', path: '/integrations', icon: Plug },
 ];
