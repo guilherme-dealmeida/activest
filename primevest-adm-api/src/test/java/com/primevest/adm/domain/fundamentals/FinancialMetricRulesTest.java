@@ -84,6 +84,9 @@ class FinancialMetricRulesTest {
         assertThat(value(v, FinancialMetric.FCO, DEZ_2025)).isEqualByComparingTo(mi(200_333));
         assertThat(value(v, FinancialMetric.JCP_DECLARADO, DEZ_2025)).isEqualByComparingTo(mi(30_682));
         assertThat(value(v, FinancialMetric.DIVIDENDOS_DECLARADOS, DEZ_2025)).isEqualByComparingTo(mi(10_554));
+        // payout pela DFC (PLANO_PRECO_TETO, D4): 6.03.05 "Dividendos pagos a acionistas da Petrobras", sem a
+        // 6.03.06 (nao controladores) nem a 6.03.04 (juros de financiamentos)
+        assertThat(value(v, FinancialMetric.DIVIDENDOS_PAGOS, DEZ_2025)).isEqualByComparingTo(mi(45_205));
         // LPA nao leva a escala MIL
         assertThat(value(v, FinancialMetric.LPA_ON, DEZ_2025)).isEqualByComparingTo("8.54");
         assertThat(value(v, FinancialMetric.LPA_PN, DEZ_2025)).isEqualByComparingTo("8.54");
@@ -115,6 +118,8 @@ class FinancialMetricRulesTest {
         assertThat(value(bb, FinancialMetric.PL, DEZ_2025)).isEqualByComparingTo("193567416000");
         assertThat(value(bb, FinancialMetric.JCP_DECLARADO, DEZ_2025)).isEqualByComparingTo("5219106000");
         assertThat(value(bb, FinancialMetric.FCO, DEZ_2025)).isEqualByComparingTo("159254089000");
+        // so os controladores; "juros de instrumento elegivel a capital principal" nao e dividendo
+        assertThat(value(bb, FinancialMetric.DIVIDENDOS_PAGOS, DEZ_2025)).isEqualByComparingTo("6680889000");
     }
 
     @Test
@@ -180,5 +185,21 @@ class FinancialMetricRulesTest {
         List<LocalDate> camil = itr.keySet().stream().filter(k -> k.cnpj().equals("64904295000103"))
                 .map(CvmStatements.DocKey::referenceDate).sorted().toList();
         assertThat(camil).isNotEmpty().allMatch(dt -> dt.getMonthValue() % 3 == 2);
+    }
+
+    @Test
+    @DisplayName("Dividendos pagos (DFC): os nomes reais de 2025 — pagos sim; recebidos e nao controladores nao")
+    void nomesDeDividendosPagos() {
+        assertThat(FinancialMetricRules.isDividendPaid("dividendos/jcp pagos a acionistas")).isTrue();          // Vale
+        assertThat(FinancialMetricRules.isDividendPaid("pgto de dividendos/juros s/ capital proprio")).isTrue(); // WEG
+        assertThat(FinancialMetricRules.isDividendPaid("pagamento de dividendos e jcp")).isTrue();               // Taesa
+        assertThat(FinancialMetricRules.isDividendPaid("juros pagos sobre o capital proprio e dividendos")).isTrue();
+        assertThat(FinancialMetricRules.isDividendPaid("dividendos / juros sobre o capital proprio pagos")).isTrue();
+        assertThat(FinancialMetricRules.isDividendPaid(
+                "dividendos / juros sobre o capital proprio pagos a acionistas nao controladores")).isFalse();
+        assertThat(FinancialMetricRules.isDividendPaid("dividendos recebidos")).isFalse();
+        assertThat(FinancialMetricRules.isDividendPaid("juros de instrumento elegivel a capital principal pagos"))
+                .isFalse();
+        assertThat(FinancialMetricRules.isDividendPaid("amortizacoes de juros - financiamentos")).isFalse();
     }
 }

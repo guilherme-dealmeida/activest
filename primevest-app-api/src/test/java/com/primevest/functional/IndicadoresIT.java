@@ -83,7 +83,7 @@ class IndicadoresIT extends FuncionalBase {
                 VALUES (?, 'DFP', CAST(? AS DATE), 1, true) RETURNING id""", Long.class, issuerId, data);
         jdbc.update("""
                 INSERT INTO company_quarters (issuer_id, period_end, source_doc_id, net_income_parent_ttm, equity_parent,
-                                              shares_outstanding, dividends_declared_ttm)
+                                              shares_outstanding, dividends_paid_ttm)
                 VALUES (?, CAST(? AS DATE), ?, ?, ?, 12888732761, ?)""",
                 issuerId, data, doc, new BigDecimal(lucro12m), new BigDecimal(pl), new BigDecimal(dividendos12m));
     }

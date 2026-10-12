@@ -43,7 +43,8 @@ const EMPTY_FIXED_INCOME: FixedIncomeValues = {
 };
 
 /**
- * O que a carteira já sabe quando abre o modal por um dos ícones de ação.
+ * O que a tela já sabe quando abre o modal por um dos ícones de ação (Comprar
+ * e Vender, na Carteira e em Transações).
  *
  * Operação, tipo e ativo vêm travados: a linha clicada já respondeu essas três
  * perguntas, e deixá-las editáveis criaria um lançamento em outra posição sem
@@ -86,7 +87,7 @@ interface Props {
   onClose: () => void;
   /** Edição de uma transação existente. */
   editing?: TransactionResponse | null;
-  /** Abertura pela carteira, com a posição já escolhida. */
+  /** Abertura pelos ícones Comprar/Vender (Carteira ou Transações), com a posição já escolhida. */
   preset?: TransactionPreset | null;
   /** Lista de tipos, para reconstruir o tipo da transação editada. */
   assetTypes?: AssetType[];

@@ -1,7 +1,8 @@
 # USE_CASES — Casos de uso do PrimeVest
 
 > Gerado em 02/10/2026 a partir do código (controllers da app-api e da adm-api, rotinas agendadas, telas do
-> `primevest-web`) e do `carga/scripts/README.md` · 05/10/2026: UC36–UC38 (índices de mercado). Diagramas em Mermaid (o GitHub e o IntelliJ renderizam).
+> `primevest-web`) e do `carga/scripts/README.md` · 05/10/2026: UC36–UC38 (índices de mercado) · 10/10/2026: UC07 refeito
+> (Preço Teto pelo modelo PREÇO TETO V2) e UC41 (cotações diárias do catálogo pelo COTAHIST). Diagramas em Mermaid (o GitHub e o IntelliJ renderizam).
 > Mermaid não tem diagrama UML de caso de uso nativo: os atores aparecem como círculos, os casos de uso como
 > elipses dentro da fronteira do sistema, e `«include»`/`«extend»` como setas tracejadas.
 
@@ -355,7 +356,7 @@ Prefixo das rotas: `/api/v1`. Investidor = qualquer usuário logado; Admin = `is
 | UC04 | Dashboard e alocação | Investidor | Alocação por tipo e por categoria, com ou sem reserva; desempenho | `GET /portfolio/allocation`, `/allocation/detailed`, `/allocation/reservation`, `/portfolio/performance` |
 | UC05 | Estratégia e rebalanceamento | Investidor | % ideal por tipo (soma 100%, PUT substitui tudo), reserva por % ou valor, sugestão de aporte | `GET/PUT /strategy/`, `GET/PUT /strategy/reservation`, `GET /strategy/rebalance` |
 | UC06 | Acompanhar proventos | Investidor | Resumo recebido × a receber, por tipo e por ativo, bruto, IR retido e líquido | `GET /dividends/`, `/dividends/asset/{ticker}`, `/portfolio/dividends` |
-| UC07 | Preço teto | Investidor | Cadastrar/editar/excluir preço teto por ativo, com alerta | `GET/POST /ceiling-prices/`, `PUT/DELETE /ceiling-prices/{id}` |
+| UC07 | Preço teto | Investidor | Calcular o Preço Teto e o Preço Ideal de uma ação pelo modelo PREÇO TETO V2 (docs/planos/PLANO_PRECO_TETO.md): formulário com os padrões do catálogo (4 lucros da CVM, ações sem tesouraria, ROE e payout médios de 3 anos, Selic meta, 3%, 15%, último fechamento), ↻ por campo e "Restaurar todos os padrões", resultado ao vivo com alertas; salvar (entradas obrigatórias, alertas confirmados), editar, excluir; lista comparando teto e ideal com o preço do cálculo, o fechamento do dia e o preço médio | `GET /ceiling-prices`, `/ceiling-prices/defaults/{ticker}`, `/ceiling-prices/{id}`, `POST /ceiling-prices/calculate`, `POST /ceiling-prices`, `PUT/DELETE /ceiling-prices/{id}` |
 | UC08 | Metas | Investidor | Cadastrar/editar/excluir metas de investimento | `GET/POST /goals/`, `PUT/DELETE /goals/{id}` |
 | UC09 | Emissoras e indicadores | Investidor | Busca de ativo, cadastro do emissor, cotação ajustada por período, indicadores atuais e históricos, série trimestral e informe do FII | `GET /assets/`, `/assets/{ticker}`, `/assets/{ticker}/prices`, `/assets/{ticker}/indicators[/history]`, `/issuers/{id}[/quarters\|/months]`, `/assets/{ticker}/logo` |
 | UC10 | Conectar corretora | Investidor | Chave só leitura + consentimento; credencial cifrada; mostra só os 4 últimos caracteres | `GET/POST /integrations/connections` |
@@ -385,4 +386,5 @@ Prefixo das rotas: `/api/v1`. Investidor = qualquer usuário logado; Admin = `is
 | UC37 | Carregar índices de mercado | Admin | Histórico por índice e ano (padrão 2010 até hoje), ou a rodada incremental | `POST /admin/indices?codes&from&to&recent` |
 | UC39 | Preço do Tesouro | Agendador / Admin | PU de venda oficial de cada título; o Tesouro passa a valer cotas × PU | 08:00 diário; `POST /admin/tesouro` |
 | UC40 | Valorizar renda fixa privada | Agendador | Curva da taxa contratada (CDI, Selic, IPCA…), por transação, índice novo, 21:00 e subida | por evento e 21:00 |
+| UC41 | Cotações diárias do catálogo | Agendador / Admin | COTAHIST da B3 pregão a pregão para todas as ações e FIIs (sem cota da BRAPI), completando os dias que faltam; recupera na subida (10/10/2026) | 21:30 e 08:30 diário; `POST /admin/b3/cotahist/diario` |
 | UC38 | Consultar índices | Investidor | Tela Índices: um card por índice com período (1D…MAX, de/até) e gráfico; lista, série e acumulado no período (% do índice, spread; nível para Ibovespa/IFIX/dólar) | `/indices`; `GET /indices`, `/indices/{code}/chart`, `/history`, `/accumulated` |

@@ -2,7 +2,7 @@
 
 > Gerado em 02/10/2026 lendo direto o código de teste (classes `*IT`) · revisado em 03/10/2026 (Markdown) · 05/10/2026
 > (cadastro de usuário: `CadastroUsuarioIT`, `CadastroDesligadoIT`; `IntegracoesB3IT` e o 11º teste de `IntegracoesIT`
-> entraram na lista). Contagens conferidas no `mvn clean verify` de 05/10/2026.
+> entraram na lista) · 10/10/2026 (Preço Teto: `PrecoTetoIT`; COTAHIST diário: 2 testes em `HistoricalQuotesImportIT`). Contagens conferidas no `mvn clean verify` de 05/10/2026.
 
 **O que é "funcional" aqui:** as classes `*IT`, rodadas pelo Failsafe no `mvn clean verify`. Sobem o Spring inteiro contra PostgreSQL 17 de verdade (Testcontainers, com Flyway e `ddl-auto: validate`) e exercitam a API por HTTP ou o serviço com o banco real. Fontes externas (B3, FNET, CVM, BRAPI, CoinGecko, Binance) são mockadas: nenhum teste depende de rede. Rotinas agendadas e mensagens Redis ficam desligadas no perfil de teste; os testes de ponta a ponta ligam adm-api e app-api direto (`CatalogoE2EBase`).
 
@@ -13,7 +13,7 @@ mvn clean verify                       # tudo (precisa do Docker Desktop)
 mvn -pl primevest-app-api -am verify   # um módulo
 ```
 
-**Total: 27 classes, 209 testes funcionais.**
+**Total: 27 classes, 209 testes funcionais** (contagem de 05/10/2026; em 10/10/2026 o `mvn verify` rodou 40 de integração na adm-api e 199 na app-api).
 
 ## Resumo
 
@@ -25,7 +25,7 @@ mvn -pl primevest-app-api -am verify   # um módulo
 | adm-api | [FinancialStatementImportIT](#financialstatementimportit-6) | 6 |
 | adm-api | [IssuerImportIT](#issuerimportit-2) | 2 |
 | adm-api | [IssuerLinkIT](#issuerlinkit-5) | 5 |
-| adm-api | [HistoricalQuotesImportIT](#historicalquotesimportit-4) | 4 |
+| adm-api | [HistoricalQuotesImportIT](#historicalquotesimportit-6) | 6 |
 | app-api | [PaymentDateSourceIT](#paymentdatesourceit-3) | 3 |
 | app-api | [AlocacaoIT](#alocacaoit-6) | 6 |
 | app-api | [CadastroDesligadoIT](#cadastrodesligadoit-1) | 1 |
@@ -41,6 +41,7 @@ mvn -pl primevest-app-api -am verify   # um módulo
 | app-api | [IntegracoesFilaIT](#integracoesfilait-9) | 9 |
 | app-api | [IntegracoesIT](#integracoesit-11) | 11 |
 | app-api | [PositionRefreshIT](#positionrefreshit-3) | 3 |
+| app-api | [PrecoTetoIT](#precotetoit-6) | 6 |
 | app-api | [ProventosAReceberIT](#proventosareceberit-7) | 7 |
 | app-api | [ProventosIT](#proventosit-6) | 6 |
 | app-api | [ProventosIrIT](#proventosirit-15) | 15 |
@@ -127,7 +128,7 @@ F3 do docs/planos/PLANO_EMPRESAS_BALANCOS.md: ligacao ativo -> emissor com os re
 | 4 | B3 aponta codigo CVM que nao e emissor: cria a companhia pelo cadastro da CVM (caso WDCN3) | `b3CriaCompanhiaDoCadastro` |
 | 5 | Curadoria manual: bonus sem classe perde a composicao; unit com composicao manual; CNPJ do cadastro | `curadoriaManual` |
 
-### HistoricalQuotesImportIT (4)
+### HistoricalQuotesImportIT (6)
 
 `primevest-adm-api/src/test/java/com/primevest/adm/domain/pricehistory/HistoricalQuotesImportIT.java`
 
@@ -139,6 +140,8 @@ F2 do docs/planos/PLANO_EMPRESAS_BALANCOS.md: serie historica da B3 em asset_pri
 | 2 | Ticker antigo com o mesmo ISIN entra no ativo atual, sem passar por cima do pregao do ticker atual | `tickerAntigoPeloIsin` |
 | 3 | Catalogo so com o fracionario: o pregao do lote padrao nao cai nele pelo ISIN | `fracionarioNaoRecebeLotePadrao` |
 | 4 | Rodar de novo nao duplica e a serie da B3 substitui o que a BRAPI gravou no dia | `idempotenteESubstituiBrapi` |
+| 5 | COTAHIST diario: um arquivo por pregao, fim de semana nao vai a B3, dia sem arquivo fica para depois | `pregaoAPregao` |
+| 6 | Rotina diaria: comeca no dia seguinte ao ultimo pregao gravado pela B3 e para hoje | `rotinaDiariaContinuaDoUltimoPregao` |
 
 ## Módulo app-api (carteira — porta 8080) — 20 classes, 181 testes
 
@@ -394,6 +397,21 @@ A carteira reage ao "catalogo mudou" da adm-api (docs/planos/PLANO_ADM_API.md, 1
 | 1 | PROVENTOS: o evento novo do catalogo vira provento na posicao so quando a carteira e avisada | `proventos` |
 | 2 | FECHAMENTO: preco novo so revaloriza, nao gera provento | `fechamento` |
 | 3 | Rede de seguranca diaria: sem mensagem nenhuma, recalcular tudo acerta a carteira | `recalculaTudo` |
+
+### PrecoTetoIT (6)
+
+`primevest-app-api/src/test/java/com/primevest/functional/PrecoTetoIT.java`
+
+Preço Teto de ponta a ponta (docs/planos/PLANO_PRECO_TETO.md, 8.1): padrões do catálogo, cálculo sem gravar, gravação com as validações, origem de cada entrada, lista com as três comparações e o dono. Balanços sintéticos da Petrobras.
+
+| # | Teste | Método |
+|---|---|---|
+| 1 | Padrões: 4 trimestres do catálogo, ações sem tesouraria, médias de 3 exercícios, Selic meta, 3% e 15% | `padroesDoCatalogo` |
+| 2 | Cenário 12 pela API: a linha VALE3 da planilha no formulário dá o mesmo teto e ideal | `planilhaPelaApi` |
+| 3 | Salvar com os padrões: origens PADRAO, detalhe devolve o gravado, lista com as comparações e preço médio | `salvaComPadroes` |
+| 4 | Campo vazio, d ≤ G e alertas sem confirmação: não salva (422) | `validacoesAoSalvar` |
+| 5 | Lucro em dólar: PTAX do fim do trimestre por padrão; câmbio informado vale | `lucroEmDolar` |
+| 6 | Só ações; o cálculo de um usuário não aparece para outro | `soAcoesEDono` |
 
 ### ProventosAReceberIT (7)
 

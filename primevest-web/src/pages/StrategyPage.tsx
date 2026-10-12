@@ -17,6 +17,7 @@ import { REBALANCE_TABLE_CLASS, RebalanceColGroup } from '@/components/strategy/
 import { LabelWithInfo } from '@/components/ui/InfoTooltip';
 import { useToast } from '@/context/ToastContext';
 import { apiMessage } from '@/utils/apiError';
+import { TABLE_ACTION_CLASS } from '@/components/ui/tableAction';
 
 const PIE_COLORS = ['#c9a84c', '#38a169', '#e53e3e', '#3182ce', '#805ad5', '#d69e2e', '#ed8936', '#dd6b20'];
 
@@ -323,7 +324,7 @@ export const StrategyPage = () => {
                       <td className="px-4 py-3">
                         <button
                           onClick={() => handleRemoveType(row.assetTypeId)}
-                          className="text-gray-500 hover:text-danger transition-colors p-1"
+                          className={TABLE_ACTION_CLASS}
                           title="Remover tipo"
                         >
                           <Trash2 className="w-4 h-4" />

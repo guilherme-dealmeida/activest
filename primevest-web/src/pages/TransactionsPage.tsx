@@ -1,16 +1,19 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Pencil, X, RotateCcw, List } from 'lucide-react';
+import { Plus, Trash2, Pencil, X, RotateCcw, List, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { transactionsApi } from '@/api/transactions';
 import { assetsApi } from '@/api/assets';
+import { portfolioApi } from '@/api/portfolio';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Pagination } from '@/components/ui/Pagination';
-import { TransactionFormModal } from '@/components/transactions/TransactionFormModal';
+import { TransactionFormModal, TransactionPreset } from '@/components/transactions/TransactionFormModal';
+import { presetFromPosition, presetFromTransaction } from '@/components/transactions/transactionPreset';
+import { TABLE_ACTION_CLASS } from '@/components/ui/tableAction';
 import { formatCurrency, formatDate, formatPercentage, formatQuantity, formatUnitPrice, toLocalISODate } from '@/utils/format';
-import { TransactionResponse, TransactionType, AssetType, TransactionCreate } from '@/types';
+import { TransactionResponse, TransactionType, AssetType, TransactionCreate, PortfolioAssetDetail } from '@/types';
 import { useSortable } from '@/hooks/useSortable';
 import { isFixedIncomeNote, TESOURO_DIRETO, typeLogo } from '@/utils/assetTypeRules';
 import { AssetLogo } from '@/components/ui/AssetLogo';
@@ -63,6 +66,8 @@ export const TransactionsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<TransactionResponse | null>(null);
+  /** Comprar/Vender pela linha do extrato: o mesmo preset dos ícones da carteira. */
+  const [preset, setPreset] = useState<TransactionPreset | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [filterType, setFilterType] = useState('ALL');
@@ -96,6 +101,14 @@ export const TransactionsPage = () => {
   const { data: transactions, isLoading } = useQuery<TransactionResponse[]>({
     queryKey: ['transactions'],
     queryFn: transactionsApi.list
+  });
+
+  // As posições da carteira, na mesma queryKey da Carteira (cache único). É
+  // delas que Comprar/Vender tiram o preset, para o modal abrir igual nas duas
+  // telas — inclusive o saldo na curva do "Resgatar tudo" da Renda Fixa.
+  const { data: positions } = useQuery<PortfolioAssetDetail[]>({
+    queryKey: ['portfolio', 'assets'],
+    queryFn: portfolioApi.getAssets
   });
 
   // Recebe a linha, e não só o id: o aviso diz o que foi excluído, e numa
@@ -259,11 +272,37 @@ export const TransactionsPage = () => {
 
   const handleOpenModal = () => {
     setEditing(null);
+    setPreset(null);
     setIsModalOpen(true);
   };
 
   const handleEdit = (row: TransactionResponse) => {
+    setPreset(null);
     setEditing(row);
+    setIsModalOpen(true);
+  };
+
+  /**
+   * Ícones Comprar e Vender da linha, como na carteira.
+   *
+   * Com a posição aberta, o preset sai dela pela mesma função da Carteira. Com
+   * a posição encerrada (não está mais na carteira), sai da própria transação:
+   * comprar de novo é legítimo, e uma venda sem saldo a API recusa com a
+   * mensagem dela.
+   */
+  const handleOperate = (row: TransactionResponse, operation: TransactionType) => {
+    const type = (assetTypes || []).find(t => t.id === row.assetTypeId);
+    if (!type) {
+      showToast('Tipo de ativo da transação não encontrado.', 'error');
+      return;
+    }
+    const position = row.portfolioAssetId
+      ? positions?.find(p => p.id === row.portfolioAssetId)
+      : undefined;
+    setEditing(null);
+    setPreset(position
+      ? presetFromPosition(operation, type, position)
+      : presetFromTransaction(operation, type, row));
     setIsModalOpen(true);
   };
 
@@ -500,14 +539,28 @@ export const TransactionsPage = () => {
                       {/* Como o Listar da carteira: Tesouro pelo ticker, os demais pela posição. */}
                       <button
                         onClick={() => listar(row)}
-                        className="text-gray-500 hover:text-accent transition-colors p-1"
+                        className={TABLE_ACTION_CLASS}
                         title="Ver as transações desta posição"
                       >
                         <List className="w-4 h-4" />
                       </button>
                       <button
+                        onClick={() => handleOperate(row, TransactionType.BUY)}
+                        className={TABLE_ACTION_CLASS}
+                        title="Comprar"
+                      >
+                        <ArrowDownLeft className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleOperate(row, TransactionType.SELL)}
+                        className={TABLE_ACTION_CLASS}
+                        title="Vender"
+                      >
+                        <ArrowUpRight className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => handleEdit(row)}
-                        className="text-gray-500 hover:text-accent transition-colors p-1"
+                        className={TABLE_ACTION_CLASS}
                         title={(row.groupParts ?? 0) > 1 ? 'Editar a venda inteira' : 'Editar'}
                       >
                         <Pencil className="w-4 h-4" />
@@ -516,7 +569,7 @@ export const TransactionsPage = () => {
                         <button
                           onClick={() => handleRestore(row)}
                           disabled={restoreMutation.isPending}
-                          className="text-gray-500 hover:text-accent transition-colors p-1 disabled:opacity-50"
+                          className={TABLE_ACTION_CLASS}
                           title="Restaurar dados da corretora"
                           aria-label="Restaurar dados da corretora"
                         >
@@ -525,7 +578,7 @@ export const TransactionsPage = () => {
                       )}
                       <button
                         onClick={() => handleDelete(row)}
-                        className="text-gray-500 hover:text-danger transition-colors p-1"
+                        className={TABLE_ACTION_CLASS}
                         title={(row.groupParts ?? 0) > 1 ? 'Excluir a venda inteira' : 'Excluir'}
                       >
                         <Trash2 className="w-4 h-4" />
@@ -552,8 +605,9 @@ export const TransactionsPage = () => {
 
       <TransactionFormModal
         isOpen={isModalOpen}
-        onClose={() => { setIsModalOpen(false); setEditing(null); }}
+        onClose={() => { setIsModalOpen(false); setEditing(null); setPreset(null); }}
         editing={editing}
+        preset={preset}
         assetTypes={assetTypes}
         onSaved={filtrarLancamento}
       />

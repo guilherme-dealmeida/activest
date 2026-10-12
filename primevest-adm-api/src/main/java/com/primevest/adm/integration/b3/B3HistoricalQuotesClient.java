@@ -44,6 +44,23 @@ public class B3HistoricalQuotesClient {
         this.clock = clock;
     }
 
+    private static final java.time.format.DateTimeFormatter DAY = java.time.format.DateTimeFormatter.ofPattern("ddMMyyyy");
+
+    /**
+     * Zip de um pregao ({@code COTAHIST_DddMMaaaa.ZIP}, ~0,5 MB, todas as acoes e FIIs), com cache em
+     * {@code carga/data/b3/cotahist/diario} (docs/planos/PLANO_PRECO_TETO.md, 4.5). O arquivo do dia nao muda
+     * depois de publicado: em disco, sem rede. Vazio quando a B3 responde 404 — dia sem pregao, ou o arquivo do
+     * dia ainda nao saiu.
+     */
+    public Optional<Path> day(LocalDate date) {
+        String name = "COTAHIST_D" + date.format(DAY) + ".ZIP";
+        try {
+            return files.fetch(URI.create(baseUrl + name), dir.resolve("diario").resolve(name), false);
+        } catch (PublicFileCache.UnavailableException e) {
+            throw new B3Exception("Cotacoes do pregao de " + date + " indisponiveis na B3: " + e.getMessage(), e);
+        }
+    }
+
     /** Zip do ano. Vazio quando a B3 nao tem o ano e nao ha copia em disco. */
     public Optional<Path> year(int year) {
         String name = "COTAHIST_A" + year + ".ZIP";

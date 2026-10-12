@@ -42,7 +42,8 @@ const COMPANY_FLOW = (ttm: boolean): Row<CompanyQuarter>[] => [
   { label: 'Lucro líquido', get: r => (ttm ? r.netIncomeTtm : r.netIncomeQ), fmt: 'money' },
   { label: 'Lucro da controladora', get: r => (ttm ? r.netIncomeParentTtm : r.netIncomeParentQ), fmt: 'money' },
   { label: 'FCO (caixa operacional)', get: r => (ttm ? r.fcoTtm : r.fcoQ), fmt: 'money' },
-  { label: 'Dividendos + JCP declarados', get: r => (ttm ? r.dividendsDeclaredTtm : r.dividendsDeclaredQ), fmt: 'money' },
+  { label: 'Dividendos + JCP declarados (DVA)', get: r => (ttm ? r.dividendsDeclaredTtm : r.dividendsDeclaredQ), fmt: 'money' },
+  { label: 'Dividendos + JCP pagos (fluxo de caixa)', get: r => (ttm ? r.dividendsPaidTtm : r.dividendsPaidQ), fmt: 'money' },
 ];
 const COMPANY_POSITION: Row<CompanyQuarter>[] = [
   { label: 'Patrimônio líquido', get: r => r.equity, fmt: 'money' },

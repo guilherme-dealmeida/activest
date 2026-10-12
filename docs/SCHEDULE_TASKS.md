@@ -3,7 +3,8 @@
 > Gerado em 02/10/2026 a partir do código (`@Scheduled`, `ApplicationReadyEvent` e ouvintes do Redis) e dos
 > `application.yml` dos módulos · revisado em 03/10/2026 (Markdown, caminhos `carga/`) · 05/10/2026 ([A9] índices de
 > mercado, `docs/planos/PLANO_INDICES_MERCADO.md`; [A10] preço do Tesouro e a curva da renda fixa,
-> `docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`).
+> `docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`) · 10/10/2026 ([A11] cotações do catálogo pelo COTAHIST diário,
+> `docs/planos/PLANO_PRECO_TETO.md`).
 
 - **Fuso** de todas as rotinas: `America/Sao_Paulo`.
 - **Cron do Spring:** `segundo minuto hora dia-do-mês mês dia-da-semana`. Os horários ficam em propriedade
@@ -25,13 +26,15 @@
 | 07:00, segunda | adm | [A6] Conferência do catálogo (semanal) |
 | 07:30 | adm | [A5] Balanços CVM + informe mensal de FII |
 | 08:00 | adm | [A10] Preço oficial do Tesouro Direto |
+| 08:30 | adm | [A11] Cotações do catálogo — COTAHIST diário (o pregão que ainda não tinha saído) |
 | 08:45 | app | [B4] Sincronização diária das corretoras (enfileira) |
 | 10:00 | adm | [A9] Índices de mercado (CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, PTAX, Ibovespa, IFIX) |
 | 19:00, seg–sex | adm | [A1] Fechamento B3 (BRAPI) |
 | 19:00 | adm | [A2] Fechamento cripto (CoinGecko) |
 | 20:00 | adm | [A4] Proventos e eventos societários + datas de pagamento CVM |
 | 21:00 | app | [B1] Rede de segurança: recálculo de todas as posições |
-| ao subir | adm / app | [A3] recuperação do fechamento · [A9] recuperação dos índices · [A10] recuperação do Tesouro · [B2] verificação da carteira · [B6] recuperação da fila |
+| 21:30 | adm | [A11] Cotações do catálogo — COTAHIST diário |
+| ao subir | adm / app | [A3] recuperação do fechamento · [A9] recuperação dos índices · [A10] recuperação do Tesouro · [A11] recuperação das cotações · [B2] verificação da carteira · [B6] recuperação da fila |
 | por mensagem | adm / app | [A8] "preciso do histórico" · [B3] "catálogo mudou" |
 
 A ordem 19:00 → 20:00 → 21:00 é proposital: o recálculo da carteira roda depois de o catálogo ter recebido os preços e
@@ -215,6 +218,24 @@ refaz a curva da renda fixa privada ([B3]).
 \+ vencimento e grava o PU de venda (sem ele, o PU base). Título do arquivo sem título no catálogo vai para o log.
 
 **Propósito.** Valor de mercado do Tesouro na carteira (`docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`).
+
+### [A11] Cotações do catálogo — COTAHIST diário (10/10/2026)
+
+| | |
+|---|---|
+| **Quando** | 21:30 e 08:30, todos os dias, e na subida da adm-api quando falta o pregão do último dia útil |
+| **Classe** | `B3DailyQuotesScheduler.daily` / `recoverOnStartup` → `HistoricalQuotesImportService.importRecent` |
+| **Config** | `primevest.cotahist-diario.cron = "0 30 8,21 * * *"`; `primevest.cotahist-diario.enabled` |
+| **Fonte** | B3, `COTAHIST_DddMMaaaa.ZIP` (um por pregão, ~0,5 MB, todas as ações e FIIs) |
+| **Grava** | `asset_price_history` (`source = B3_COTAHIST`), `assets.isin`; zips em `carga/data/b3/cotahist/diario` |
+
+**Função.** Do pregão seguinte ao último gravado pela B3 até hoje, um arquivo por dia útil (fim de semana não vai à B3;
+feriado e arquivo ainda não publicado respondem 404 e ficam para a rodada seguinte). Mesmas regras do zip anual
+(ticker, ISIN, fracionário). Lacuna maior que 31 dias usa o zip do ano.
+
+**Propósito.** Preço de **todo o catálogo** atualizado sem cota da BRAPI (o fechamento [A1] só cobre a carteira): base
+do preço do Preço Teto e da tela de Emissoras (`docs/planos/PLANO_PRECO_TETO.md`, 4.5 e D6). Primeira rodada
+(10/10/2026): 26/09 a 09/10, 10 pregões, 9.909 cotações.
 
 ---
 

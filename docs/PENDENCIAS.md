@@ -2,7 +2,8 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 05/10/2026 (noite) — 2.1, 2.2, 4.1, 4.2, 10.2, 10.3, 10.4, 23.1 e 23.2 resolvidos
+Ultima atualizacao: 10/10/2026 — secao 25 (preco teto pelo modelo PRECO TETO V2,
+docs/planos/PLANO_PRECO_TETO.md) e 18.11 c (payout passa a vir da DFC). Antes: 05/10/2026 (noite) — 2.1, 2.2, 4.1, 4.2, 10.2, 10.3, 10.4, 23.1 e 23.2 resolvidos
 pela valorizacao da renda fixa (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md) e secao 24. Antes, no mesmo dia: 5.1 resolvido e secao 23 (indices de mercado,
 docs/planos/PLANO_INDICES_MERCADO.md). No mesmo dia: secao 22 (cadastro de usuario,
 docs/planos/PLANO_CADASTRO_USUARIO.md); 9.4 e 16.9 resolvidos. Antes: 03/10/2026 — secao 21 (pilha de teste primevest-teste,
@@ -860,7 +861,11 @@ preco teto", que vira o proximo e consome este. Fases F1 a F11 no plano.
     da fonte passa para o ponto do trimestre. Sem conferencia extra.
  c) Payout com dividendos negativos na DVA (269 trimestres, ex.: Klabin
     06/2026 -191 mi): nulo com motivo. Vem da serie trimestral (F6) —
-    reapresentacao entre documentos.
+    reapresentacao entre documentos. SUPERADO em 10/10/2026: o payout
+    passou a ser dividendos + JCP PAGOS (DFC, V45) ÷ lucro — a DVA zerava
+    o payout da Vale e de 167 de 357 companhias no DFP 2025
+    (docs/planos/PLANO_PRECO_TETO.md, 1.5 e D4). Pago negativo na DFC
+    (reapresentacao) segue nulo com motivo.
  d) RESOLVIDO em 28/09 (decisao do Guilherme): "AMORTIZACAO RF" e o
     rotulo da B3 para amortizacao de cota de fundo — a B3 nunca manda
     "AMORTIZACAO" puro, entao sem o mapeamento toda amortizacao nova do
@@ -1009,6 +1014,21 @@ Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
 **24.5** Rentabilidade historica da carteira e comparacao com CDI/IPCA/Ibovespa: escopo de rentabilidade.
 **24.6** Duas subidas seguidas da adm-api (hot reload) podem baixar o CSV do Tesouro ao mesmo tempo e uma falhar no
  ".part"; a proxima rodada completa. Sem efeito com uma instancia so.
+
+## 25. PRECO TETO (docs/planos/PLANO_PRECO_TETO.md, 10/10/2026)
+
+**25.1** Alerta de preco (ex.: "VALE3 abaixo do preco ideal"): a coluna alert_enabled, que nunca funcionou, saiu na
+ V46 (D10). Um aviso de verdade e escopo de notificacoes proprio.
+**25.2** Historico de versoes do calculo (D9 b): hoje um calculo por acao, sobrescrito a cada "Salvar". Versoes
+ seriam uma tabela a mais. Historico do teto por trimestre com os padroes da epoca (D9 c) tambem fica para depois.
+**25.3** So acoes com balanco na CVM (D1). FII, BDR e ETF ficam fora; um calculo 100% digitado (sem padroes) para
+ BDR seria barato com a estrutura atual.
+**25.4** Modelo mais rigoroso (FCD por FCFE, Graham, Bazin): a observacao do pedido de 10/10 deixa para depois.
+**25.5** Testes E2E da tela (Playwright, "caminho 3"): escopo futuro do Guilherme.
+**25.6** Horario de publicacao do COTAHIST diario na B3 nao e documentado: a rotina tenta 21:30 e 08:30 e completa o
+ que faltar; o feriado so responde 404.
+**25.7** Payout pela DFC: companhia sem a demonstracao de financiamento (6.03) fica com payout nulo; companhia que
+ paga dividendo a controladores e nao controladores numa conta so (sem separar) entra inteira.
 
 ## ORDEM SUGERIDA
 

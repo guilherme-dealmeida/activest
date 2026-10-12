@@ -429,28 +429,189 @@ export interface Rebalance {
   reservation: ReservationRebalance;
 }
 
-export interface CeilingPrice {
+// ---------------------------------------------------------------- Preço Teto (docs/planos/PLANO_PRECO_TETO.md)
+
+export type CeilingIssueLevel = 'BLOQUEIO' | 'ATENCAO' | 'INFORMACAO';
+
+/** Aviso do cálculo: código estável, nível, campo afetado (null = geral) e mensagem. */
+export interface CeilingIssue {
+  code: string;
+  level: CeilingIssueLevel;
+  field: string | null;
+  message: string;
+}
+
+export type CeilingUnit = 'UNIDADE' | 'MIL' | 'MILHAO' | 'BILHAO';
+export type CeilingCurrency = 'BRL' | 'USD';
+
+export interface CeilingQuarterInput {
+  periodEnd: string;
+  originalValue: number | null;
+  unit: CeilingUnit;
+  currency: CeilingCurrency;
+  fxRate: number | null;
+}
+
+/** Entradas do formulário; percentuais em pontos (13,75). */
+export interface CeilingPriceInput {
+  ticker: string;
+  quarters: CeilingQuarterInput[];
+  shares: number | null;
+  roePct: number | null;
+  payoutPct: number | null;
+  discountRatePct: number | null;
+  perpetualGrowthPct: number | null;
+  safetyMarginPct: number | null;
+  price: number | null;
+  notes: string | null;
+  confirmWarnings: boolean;
+}
+
+export interface CeilingDefaultValue {
+  value: number | null;
+  /** De onde vem o padrão ("Selic meta vigente em 10/10/2026"). */
+  ref: string | null;
+  /** Motivo de não haver padrão, ou observação (média incompleta). */
+  note: string | null;
+}
+
+export interface CeilingDefaultQuarter {
+  periodEnd: string;
+  label: string;
+  value: number | null;
+  ref: string | null;
+  note: string | null;
+}
+
+export interface CeilingDefaults {
+  ticker: string;
+  assetName: string;
+  issuerId: number | null;
+  hasLogo: boolean | null;
+  existingId: string | null;
+  quarters: CeilingDefaultQuarter[];
+  shares: CeilingDefaultValue;
+  roePct: CeilingDefaultValue;
+  payoutPct: CeilingDefaultValue;
+  discountRatePct: CeilingDefaultValue;
+  perpetualGrowthPct: CeilingDefaultValue;
+  safetyMarginPct: CeilingDefaultValue;
+  price: CeilingDefaultValue;
+  priceDate: string | null;
+  latestQuarterEnd: string | null;
+  equityParent: number | null;
+  catalogTtm: number | null;
+  roeYears: string[];
+  payoutYears: string[];
+}
+
+export interface CeilingStep {
+  key: string;
+  label: string;
+  value: number | null;
+  formula: string;
+  substituted: string;
+}
+
+/** Resultado do modelo: R$ por ação com 4 casas, totais com 2, taxas em pontos. null = não calculado. */
+export interface CeilingResult {
+  netIncomeTtm: number | null;
+  growthPct: number | null;
+  fc1: number | null;
+  pv1: number | null;
+  fc2: number | null;
+  pv2: number | null;
+  fc3: number | null;
+  pv3: number | null;
+  terminalValue: number | null;
+  terminalPv: number | null;
+  equityValue: number | null;
+  terminalWeightPct: number | null;
+  ceilingPrice: number | null;
+  idealPrice: number | null;
+  ceilingMarginPct: number | null;
+  idealMarginPct: number | null;
+  steps: CeilingStep[];
+  issues: CeilingIssue[];
+}
+
+export interface CeilingInputOrigin {
+  origin: 'PADRAO' | 'INFORMADO';
+  ref: string | null;
+  defaultValue: number | null;
+}
+
+export interface CeilingQuarterView {
+  position: number;
+  periodEnd: string;
+  label: string;
+  originalValue: number;
+  unit: CeilingUnit;
+  currency: CeilingCurrency;
+  fxRate: number;
+  valueBrl: number;
+  origin: 'PADRAO' | 'INFORMADO';
+}
+
+export interface CeilingPriceDetail {
   id: string;
   ticker: string;
   assetName: string;
-  assetTypeName: string;
-  maxPrice: number;
-  currentPrice: number;
-  diffPercentage: number;
-  alertEnabled: boolean;
-  belowCeiling: boolean;
-  /**
-   * Emissor do catálogo (companhia ou FII) — link para /emissoras/{ticker}.
-   * null = sem emissor (renda fixa, ETF, BDR, cripto). Não confundir com
-   * `issuer` da carteira, que é o emissor da NOTA de renda fixa.
-   */
   issuerId: number | null;
+  hasLogo: boolean | null;
+  quarters: CeilingQuarterView[];
+  shares: number;
+  roePct: number;
+  payoutPct: number;
+  discountRatePct: number;
+  perpetualGrowthPct: number;
+  safetyMarginPct: number;
+  price: number;
+  notes: string | null;
+  origins: Record<string, CeilingInputOrigin>;
+  calculatedAt: string;
+  result: CeilingResult;
+  defaults: CeilingDefaults;
+  /** Campos cujo padrão mudou desde o "Salvar" (o ↻ fica destacado); "quarters" = trimestres. */
+  changedDefaults: string[];
 }
 
-export interface CeilingPriceCreate {
+export type CeilingStatus = 'ABAIXO_DO_IDEAL' | 'ENTRE_IDEAL_E_TETO' | 'ACIMA_DO_TETO';
+
+/** Linha da lista: resultado salvo e três comparações (preço do cálculo, fechamento de hoje, preço médio). */
+export interface CeilingPriceListItem {
+  id: string;
   ticker: string;
-  maxPrice: number;
-  alertEnabled?: boolean;
+  assetName: string;
+  /** Emissor do catálogo — link para /emissoras/{ticker}. */
+  issuerId: number | null;
+  hasLogo: boolean | null;
+  ceilingPrice: number | null;
+  idealPrice: number | null;
+  /** Margem de segurança (pontos) usada no Preço Ideal. */
+  safetyMarginPct: number;
+  calcPrice: number;
+  calcCeilingMarginPct: number | null;
+  calcIdealMarginPct: number | null;
+  todayPrice: number | null;
+  todayPriceDate: string | null;
+  todayCeilingMarginPct: number | null;
+  todayIdealMarginPct: number | null;
+  averagePrice: number | null;
+  averageCeilingMarginPct: number | null;
+  averageIdealMarginPct: number | null;
+  status: CeilingStatus;
+  blockingCount: number;
+  warningCount: number;
+  defaultsChanged: boolean;
+  lastQuarterEnd: string | null;
+  calculatedAt: string;
+}
+
+/** Recusa ao salvar (422). */
+export interface CeilingRejection {
+  message: string;
+  issues: CeilingIssue[];
 }
 
 export enum DividendType {
@@ -801,12 +962,14 @@ export interface CompanyQuarter {
   netIncomeParentQ: number | null;
   fcoQ: number | null;
   dividendsDeclaredQ: number | null;
+  dividendsPaidQ: number | null;
   revenueTtm: number | null;
   ebitTtm: number | null;
   netIncomeTtm: number | null;
   netIncomeParentTtm: number | null;
   fcoTtm: number | null;
   dividendsDeclaredTtm: number | null;
+  dividendsPaidTtm: number | null;
   equity: number | null;
   equityParent: number | null;
   totalAssets: number | null;

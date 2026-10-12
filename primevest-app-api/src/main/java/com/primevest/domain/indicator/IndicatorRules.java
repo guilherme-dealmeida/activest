@@ -47,7 +47,7 @@ public final class IndicatorRules {
      */
     public record CompanyBasis(LocalDate periodEnd, BigDecimal netIncomeParentTtm, BigDecimal equityParent,
                                BigDecimal equityParentStart, Long sharesOutstanding, BigDecimal sharesRatio,
-                               int unitShares, BigDecimal dividendsDeclaredTtm, BigDecimal price,
+                               int unitShares, BigDecimal dividendsPaidTtm, BigDecimal price,
                                BigDecimal proventos12m) {
     }
 
@@ -110,14 +110,16 @@ public final class IndicatorRules {
                 if (b.netIncomeParentTtm().signum() <= 0) {
                     yield Value.none("lucro 12 meses negativo ou zero");
                 }
-                if (b.dividendsDeclaredTtm() == null) {
-                    yield Value.none("sem DVA no periodo");
+                // Base: dividendos + JCP PAGOS aos acionistas da controladora (DFC), desde 10/10/2026
+                // (docs/planos/PLANO_PRECO_TETO.md, 1.5 e D4). A DVA dava 0% para a Vale e para 167 de 357 no DFP 2025.
+                // Acima de 100% e real (pagou mais que o lucro do periodo) e fica como esta.
+                if (b.dividendsPaidTtm() == null) {
+                    yield Value.none("sem fluxo de caixa de 12 meses");
                 }
-                if (b.dividendsDeclaredTtm().signum() < 0) {
-                    // 269 de ~9.700 trimestres: acumulado reapresentado na DVA (ex.: Klabin 06/2026)
-                    yield Value.none("dividendos declarados negativos na DVA (reapresentacao na fonte)");
+                if (b.dividendsPaidTtm().signum() < 0) {
+                    yield Value.none("dividendos pagos negativos na DFC (reapresentacao na fonte)");
                 }
-                yield Value.of(b.dividendsDeclaredTtm().divide(b.netIncomeParentTtm(), MC), indicator.unit());
+                yield Value.of(b.dividendsPaidTtm().divide(b.netIncomeParentTtm(), MC), indicator.unit());
             }
             case DY -> dy(b.price(), b.proventos12m(), indicator);
             default -> throw new IllegalArgumentException(indicator + " nao e indicador de acao");

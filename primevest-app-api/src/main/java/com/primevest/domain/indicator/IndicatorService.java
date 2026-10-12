@@ -169,6 +169,67 @@ public class IndicatorService {
         return new IndicatorPointDTO(label, periodEnd, v.value(), v.note());
     }
 
+    // ------------------------------------------------------------------ base do Preco Teto
+
+    /**
+     * O que o Preco Teto usa de padrao (docs/planos/PLANO_PRECO_TETO.md, 5.2), lido pelas <b>mesmas regras</b> da
+     * tela de Emissoras: quantidade de acoes do ultimo balanco (ou do ultimo conferido, com o motivo) ajustada pelos
+     * eventos societarios posteriores, preco atual com a data, e o ROE e o payout anuais (DFP).
+     *
+     * @param sharesAdjusted acoes sem tesouraria da companhia ajustadas ate hoje; nulo sem quantidade conferida
+     * @param unitShares     acoes por papel (1, ou a composicao da unit)
+     */
+    public record CompanyFundamentals(String ticker, Long issuerId, IssuerKind kind, int unitShares,
+                                      LocalDate lastPeriodEnd, LocalDate sharesPeriodEnd, Long sharesAdjusted,
+                                      String sharesNote, BigDecimal equityParent, BigDecimal price,
+                                      LocalDate priceDate, List<IndicatorPointDTO> roeYears,
+                                      List<IndicatorPointDTO> payoutYears) {
+    }
+
+    public CompanyFundamentals companyFundamentals(String ticker) {
+        Context ctx = context(ticker);
+        if (ctx.asset.kind != IssuerKind.COMPANY) {
+            return new CompanyFundamentals(ctx.asset.ticker, ctx.asset.issuerId, ctx.asset.kind, ctx.asset.unitShares,
+                    null, null, null, null, null, ctx.currentPrice, ctx.currentPriceDate, List.of(), List.of());
+        }
+        List<QuarterRow> quarters = quarters(ctx.asset.issuerId);
+        Long shares = null;
+        LocalDate sharesDate = null;
+        String note = null;
+        LocalDate last = null;
+        BigDecimal equity = null;
+        if (!quarters.isEmpty()) {
+            CurrentCompany cc = currentCompany(ctx, quarters);
+            QuarterRow lastRow = quarters.get(quarters.size() - 1);
+            last = lastRow.periodEnd;
+            equity = lastRow.equityParent;
+            note = cc.sharesNote();
+            sharesDate = last;
+            if (note != null) {
+                // o fallback do balanco em revisao: a quantidade e a do ultimo conferido
+                for (int k = quarters.size() - 2; k >= 0; k--) {
+                    if (cc.basis().sharesOutstanding() != null
+                            && cc.basis().sharesOutstanding().equals(quarters.get(k).sharesOutstanding)) {
+                        sharesDate = quarters.get(k).periodEnd;
+                        break;
+                    }
+                }
+            }
+            if (cc.basis().sharesOutstanding() != null && cc.basis().sharesOutstanding() > 0) {
+                BigDecimal ratio = cc.basis().sharesRatio() == null ? BigDecimal.ONE : cc.basis().sharesRatio();
+                shares = BigDecimal.valueOf(cc.basis().sharesOutstanding()).multiply(ratio)
+                        .setScale(0, java.math.RoundingMode.HALF_UP).longValueExact();
+            } else {
+                note = "sem quantidade de acoes conferida no balanco (escala em revisao)";
+            }
+        }
+        Rows rows = new Rows(ctx);
+        List<IndicatorPointDTO> roe = history(ctx, rows, Indicator.ROE, Period.YEAR).points();
+        List<IndicatorPointDTO> payout = history(ctx, rows, Indicator.PAYOUT, Period.YEAR).points();
+        return new CompanyFundamentals(ctx.asset.ticker, ctx.asset.issuerId, ctx.asset.kind, ctx.asset.unitShares,
+                last, sharesDate, shares, note, equity, ctx.currentPrice, ctx.currentPriceDate, roe, payout);
+    }
+
     // ------------------------------------------------------------------ acoes
 
     /**
@@ -209,7 +270,7 @@ public class IndicatorService {
             }
             CompanyBasis fallback = new CompanyBasis(b.periodEnd(), b.netIncomeParentTtm(), b.equityParent(),
                     b.equityParentStart(), prev.sharesOutstanding, b.sharesRatio(), b.unitShares(),
-                    b.dividendsDeclaredTtm(), b.price(), b.proventos12m());
+                    b.dividendsPaidTtm(), b.price(), b.proventos12m());
             return new CurrentCompany(fallback, "quantidade de acoes do balanco de "
                     + prev.periodEnd.format(BR) + " (a do ultimo esta em revisao)");
         }
@@ -236,7 +297,7 @@ public class IndicatorService {
         QuarterRow start = yearBefore(q, quarters);
         return new CompanyBasis(q.periodEnd, q.netIncomeParentTtm, q.equityParent,
                 start == null ? null : start.equityParent, q.sharesOutstanding, ratio, unitShares,
-                q.dividendsDeclaredTtm, price, proventos);
+                q.dividendsPaidTtm, price, proventos);
     }
 
     /** O balanco de 12 meses antes (inicio do periodo do ROE), com folga de 20 dias. */
@@ -293,7 +354,7 @@ public class IndicatorService {
     }
 
     private record QuarterRow(LocalDate periodEnd, boolean annual, BigDecimal netIncomeParentTtm,
-                              BigDecimal equityParent, Long sharesOutstanding, BigDecimal dividendsDeclaredTtm) {
+                              BigDecimal equityParent, Long sharesOutstanding, BigDecimal dividendsPaidTtm) {
     }
 
     private record MonthRow(LocalDate month, BigDecimal navPerShare, Integer shareholders, BigDecimal realEstate,
@@ -312,15 +373,26 @@ public class IndicatorService {
         final AssetRow asset;
         final NavigableMap<LocalDate, BigDecimal> closes;
         final BigDecimal currentPrice;
+        /** Data do preco atual: {@code price_updated_at} da BRAPI ou o dia do ultimo fechamento. */
+        final LocalDate currentPriceDate;
         final List<StockEvent> stockEvents;
         final List<CashEvent> cashEvents;
 
         Context(AssetRow asset) {
             this.asset = asset;
             this.closes = closes(asset.priceAssetId);
-            BigDecimal current = jdbc.queryForObject("SELECT current_price FROM assets WHERE id = ?",
-                    BigDecimal.class, asset.priceAssetId);
-            this.currentPrice = current != null ? current : closes.isEmpty() ? null : closes.lastEntry().getValue();
+            Map<String, Object> cur = jdbc.queryForMap(
+                    "SELECT current_price, price_updated_at FROM assets WHERE id = ?", asset.priceAssetId);
+            BigDecimal current = (BigDecimal) cur.get("current_price");
+            if (current != null) {
+                this.currentPrice = current;
+                Object at = cur.get("price_updated_at");
+                this.currentPriceDate = at instanceof java.sql.Timestamp ts ? ts.toLocalDateTime().toLocalDate()
+                        : closes.isEmpty() ? null : closes.lastKey();
+            } else {
+                this.currentPrice = closes.isEmpty() ? null : closes.lastEntry().getValue();
+                this.currentPriceDate = closes.isEmpty() ? null : closes.lastKey();
+            }
             this.stockEvents = jdbc.query("""
                     SELECT data_com, type, factor FROM asset_stock_events WHERE asset_id = ? ORDER BY data_com""",
                     (rs, i) -> new StockEvent(rs.getDate("data_com").toLocalDate(), rs.getString("type"),
@@ -426,12 +498,12 @@ public class IndicatorService {
     private List<QuarterRow> quarters(long issuerId) {
         return jdbc.query("""
                 SELECT q.period_end, d.doc_type, q.net_income_parent_ttm, q.equity_parent, q.shares_outstanding,
-                       q.dividends_declared_ttm
+                       q.dividends_paid_ttm
                 FROM company_quarters q JOIN cvm_documents d ON d.id = q.source_doc_id
                 WHERE q.issuer_id = ? ORDER BY q.period_end""",
                 (rs, i) -> new QuarterRow(rs.getDate("period_end").toLocalDate(), "DFP".equals(rs.getString("doc_type")),
                         rs.getBigDecimal("net_income_parent_ttm"), rs.getBigDecimal("equity_parent"),
-                        (Long) rs.getObject("shares_outstanding", Long.class), rs.getBigDecimal("dividends_declared_ttm")),
+                        (Long) rs.getObject("shares_outstanding", Long.class), rs.getBigDecimal("dividends_paid_ttm")),
                 issuerId);
     }
 

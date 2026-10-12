@@ -20,6 +20,13 @@ public enum FinancialMetric {
     FCO,
     JCP_DECLARADO,
     DIVIDENDOS_DECLARADOS,
+    /**
+     * Dividendos + JCP <b>pagos</b> aos acionistas da controladora no periodo (DFC, atividades de financiamento),
+     * positivo. Base do payout desde 10/10/2026 (docs/planos/PLANO_PRECO_TETO.md, 1.5 e D4): a DVA de 167 de 357
+     * companhias no DFP 2025 traz dividendos zerados (Vale: tudo em lucros retidos). Com DFC e sem conta de
+     * dividendos, 0 (nao pagou).
+     */
+    DIVIDENDOS_PAGOS,
     /** LPA basico informado pela companhia, por classe. So conferencia (ver ShareScale). */
     LPA_ON,
     LPA_PN;

@@ -190,7 +190,7 @@ public final class CvmStatements {
         (con ? d.consolidated : d.individual).add(line);
     }
 
-    /** Contas que as regras podem usar: ate o 4o nivel, e so as do ativo e do caixa que interessam. */
+    /** Contas que as regras podem usar: ate o 4o nivel, e so as do ativo e da DFC que interessam. */
     private static boolean wanted(Statement s, String code) {
         int dots = 0;
         for (int i = 0; i < code.length(); i++) {
@@ -203,7 +203,8 @@ public final class CvmStatements {
         }
         return switch (s) {
             case BPA -> code.equals("1") || code.equals("1.01.01") || code.equals("1.01.02");
-            case DFC_MI, DFC_MD -> code.equals("6.01");
+            // 6.01: FCO; 6.03: financiamento, onde estao os dividendos/JCP pagos (base do payout desde 10/10/2026)
+            case DFC_MI, DFC_MD -> code.equals("6.01") || code.equals("6.03") || code.startsWith("6.03.");
             default -> true;
         };
     }

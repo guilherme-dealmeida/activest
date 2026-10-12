@@ -47,7 +47,7 @@ class TelaEmissorasIT extends FuncionalBase {
                 VALUES (?, 'DFP', DATE '2025-12-31', 1, true) RETURNING id""", Long.class, petr);
         jdbc.update("""
                 INSERT INTO company_quarters (issuer_id, period_end, source_doc_id, net_income_parent_ttm, equity_parent,
-                                              shares_outstanding, dividends_declared_ttm)
+                                              shares_outstanding, dividends_paid_ttm)
                 VALUES (?, DATE '2025-12-31', ?, 110129000000, 415786000000, 12888732761, 41236000000)""", petr, doc);
     }
 
@@ -185,8 +185,20 @@ class TelaEmissorasIT extends FuncionalBase {
         assertThat(numero(posicaoDe(user, "PETR4").get("issuerId")).longValue()).isEqualTo(petr);
         assertThat(posicaoDe(user, "BOVA11").get("issuerId")).isNull();
 
-        post(user, "/api/v1/ceiling-prices/", Map.of("ticker", "PETR4", "maxPrice", 50, "alertEnabled", true), Map.class);
-        List<Map<String, Object>> tetos = get(user, "/api/v1/ceiling-prices/", List.class).getBody();
+        // preco teto do modelo V2 (docs/planos/PLANO_PRECO_TETO.md): as entradas gravadas direto, sem passar pelos padroes
+        java.util.UUID cp = jdbc.queryForObject("""
+                INSERT INTO ceiling_prices (user_id, asset_id, shares, roe_pct, payout_pct, discount_rate_pct,
+                    perpetual_growth_pct, safety_margin_pct, price, inputs_origin, calculated_at)
+                SELECT ?, id, 1000, 20, 50, 13.75, 3, 15, 40, '{}'::jsonb, NOW() FROM assets WHERE ticker = 'PETR4'
+                RETURNING id""", java.util.UUID.class, user.getId());
+        for (int i = 1; i <= 4; i++) {
+            jdbc.update("""
+                    INSERT INTO ceiling_price_quarters (ceiling_price_id, position, period_end, original_value, unit,
+                        currency, fx_rate, value_brl, origin)
+                    VALUES (?, ?, CAST(? AS DATE), 100, 'UNIDADE', 'BRL', 1, 100, 'INFORMADO')""",
+                    cp, i, "2025-0" + (i * 2) + "-28");
+        }
+        List<Map<String, Object>> tetos = get(user, "/api/v1/ceiling-prices", List.class).getBody();
         assertThat(numero(tetos.get(0).get("issuerId")).longValue()).isEqualTo(petr);
     }
 }

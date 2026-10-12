@@ -1,9 +1,41 @@
 import { apiClient } from './client';
-import { CeilingPrice, CeilingPriceCreate } from '../types';
+import {
+  CeilingDefaults,
+  CeilingPriceDetail,
+  CeilingPriceInput,
+  CeilingPriceListItem,
+  CeilingResult,
+} from '@/types';
 
+/** Preço Teto pelo modelo PREÇO TETO V2 (docs/planos/PLANO_PRECO_TETO.md, 5.3). */
 export const ceilingPricesApi = {
-  list: async () => { const { data } = await apiClient.get<CeilingPrice[]>('/ceiling-prices/'); return data; },
-  create: async (cpData: CeilingPriceCreate) => { const { data } = await apiClient.post<CeilingPrice>('/ceiling-prices/', cpData); return data; },
-  update: async (id: string, cpData: CeilingPriceCreate) => { const { data } = await apiClient.put<CeilingPrice>(`/ceiling-prices/${id}`, cpData); return data; },
-  delete: async (id: string) => { await apiClient.delete(`/ceiling-prices/${id}`); },
+  list: async () => {
+    const { data } = await apiClient.get<CeilingPriceListItem[]>('/ceiling-prices');
+    return data;
+  },
+  /** Padrões de hoje para o ticker; traz o id se o usuário já tem cálculo para ele. */
+  defaults: async (ticker: string) => {
+    const { data } = await apiClient.get<CeilingDefaults>(`/ceiling-prices/defaults/${encodeURIComponent(ticker)}`);
+    return data;
+  },
+  /** Calcula sem gravar. */
+  calculate: async (input: CeilingPriceInput) => {
+    const { data } = await apiClient.post<CeilingResult>('/ceiling-prices/calculate', input);
+    return data;
+  },
+  get: async (id: string) => {
+    const { data } = await apiClient.get<CeilingPriceDetail>(`/ceiling-prices/${id}`);
+    return data;
+  },
+  create: async (input: CeilingPriceInput) => {
+    const { data } = await apiClient.post<CeilingPriceDetail>('/ceiling-prices', input);
+    return data;
+  },
+  update: async (id: string, input: CeilingPriceInput) => {
+    const { data } = await apiClient.put<CeilingPriceDetail>(`/ceiling-prices/${id}`, input);
+    return data;
+  },
+  delete: async (id: string) => {
+    await apiClient.delete(`/ceiling-prices/${id}`);
+  },
 };

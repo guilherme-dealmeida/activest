@@ -71,7 +71,7 @@ public final class FinancialMetricRules {
                 case DRE -> income(accounts, g, out);
                 case BPA -> assets(accounts, g, layout, out);
                 case BPP -> liabilities(accounts, g, layout, out);
-                case DFC_MI -> put(out, FinancialMetric.FCO, g, amount(accounts.get("6.01")));
+                case DFC_MI -> cashFlow(accounts, g, out);
                 case DVA -> valueAdded(accounts, g, out);
                 default -> { }
             }
@@ -140,6 +140,46 @@ public final class FinancialMetricRules {
                     shortTerm != null && shortTerm.key().startsWith("emprestimos") ? amount(shortTerm) : null,
                     longTerm != null && longTerm.key().startsWith("emprestimos") ? amount(longTerm) : null));
         }
+    }
+
+    // ------------------------------------------------------------------ DFC
+
+    private static void cashFlow(Map<String, Line> a, GroupKey g, List<Value> out) {
+        put(out, FinancialMetric.FCO, g, amount(a.get("6.01")));
+        put(out, FinancialMetric.DIVIDENDOS_PAGOS, g, dividendsPaid(a));
+    }
+
+    /**
+     * Dividendos/JCP pagos aos acionistas da controladora: contas das atividades de financiamento (6.03.*) com
+     * dividendo ou JCP na descricao, menos as recebidas e as pagas a nao controladores, sem contar uma conta e a
+     * filha dela. Os nomes variam ("Dividendos/JCP Pagos a Acionistas" na Vale, "Dividendos pagos a acionistas da
+     * Petrobras", "Pgto de Dividendos/Juros s/ Capital Proprio" na WEG, controladores e nao controladores
+     * separados no BB e no Itau); a conta e saida de caixa (negativa), o valor gravado e o pago (positivo).
+     * Sem a demonstracao de financiamento, nulo; com ela e sem conta de dividendos, 0.
+     */
+    static BigDecimal dividendsPaid(Map<String, Line> a) {
+        if (a.keySet().stream().noneMatch(c -> c.startsWith("6.03"))) {
+            return null;
+        }
+        List<Line> matched = a.values().stream()
+                .filter(l -> l.code().startsWith("6.03.") && isDividendPaid(l.key()))
+                .toList();
+        BigDecimal total = BigDecimal.ZERO;
+        for (Line l : matched) {
+            boolean ancestorMatched = matched.stream()
+                    .anyMatch(p -> p != l && l.code().startsWith(p.code() + "."));
+            if (!ancestorMatched) {
+                total = total.add(amount(l));
+            }
+        }
+        return total.negate().setScale(2, RoundingMode.HALF_UP);
+    }
+
+    static boolean isDividendPaid(String k) {
+        boolean dividend = k.contains("dividend") || k.contains("capital proprio") || k.contains("jcp")
+                || k.contains("juros s/");
+        boolean excluded = k.contains("recebid") || k.contains("nao controlador") || k.contains("minoritari");
+        return dividend && !excluded;
     }
 
     // ------------------------------------------------------------------ DVA

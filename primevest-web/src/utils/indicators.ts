@@ -16,7 +16,7 @@ export const INDICATOR_META: Record<IndicatorCode, IndicatorMeta> = {
   PVP: { label: 'P/VP', name: 'Preço / Valor Patrimonial', formula: 'Preço ÷ VPA (ação) ou preço ÷ VP por cota do informe mensal (FII).' },
   DY: { label: 'DY', name: 'Dividend Yield', formula: 'Proventos por cota com data-com nos últimos 12 meses (dividendo, JCP, rendimento) ÷ preço. Sem provento = 0.' },
   ROE: { label: 'ROE', name: 'Retorno sobre o PL', formula: 'Lucro da controladora em 12 meses ÷ PL da controladora médio (início e fim do período).' },
-  PAYOUT: { label: 'Payout', name: 'Payout', formula: 'Dividendos + JCP declarados em 12 meses (DVA) ÷ lucro da controladora em 12 meses.' },
+  PAYOUT: { label: 'Payout', name: 'Payout', formula: 'Dividendos + JCP pagos aos acionistas em 12 meses (fluxo de caixa) ÷ lucro da controladora em 12 meses.' },
   LPA: { label: 'LPA', name: 'Lucro por Ação', formula: 'Lucro da controladora em 12 meses ÷ ações em circulação (unit: × ações da unit).' },
   VPA: { label: 'VPA', name: 'Valor Patrimonial por Ação', formula: 'PL da controladora ÷ ações em circulação (unit: × ações da unit).' },
   VP_COTA: { label: 'VP por cota', name: 'Valor Patrimonial por Cota', formula: 'VP por cota do último informe mensal da CVM.' },

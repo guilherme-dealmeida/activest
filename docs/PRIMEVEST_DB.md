@@ -3,7 +3,9 @@
 > Gerado em 02/10/2026 a partir do banco de desenvolvimento (`db_primevest`, Flyway na **V39**), lendo o `information_schema` e as constraints — não do texto do `Claude.md`.
 > **31 tabelas** (fora `flyway_schema_history`), **43 chaves estrangeiras**. Acréscimo de 05/10/2026: `market_indices` e
 > `market_index_values` (V43, seção 5a — `docs/planos/PLANO_INDICES_MERCADO.md`); V44: `asset_types.price_source` e
-> `asset_price_history.source` aceitam `TESOURO` (preço oficial do Tesouro Direto). Diagramas em Mermaid: o GitHub e o IntelliJ (plugin Mermaid) renderizam.
+> `asset_price_history.source` aceitam `TESOURO` (preço oficial do Tesouro Direto). Acréscimo de 10/10/2026
+> (`docs/planos/PLANO_PRECO_TETO.md`): V45 `company_quarters.dividends_paid_q/_ttm`; V46 `ceiling_prices` recriada
+> (entradas do modelo PREÇO TETO V2) e `ceiling_price_quarters` (nova). Diagramas em Mermaid: o GitHub e o IntelliJ (plugin Mermaid) renderizam.
 
 **A ideia que organiza o schema:** o *catálogo* é global (o que o instrumento É — `assets`, preços, proventos, emissores; gravado pela **adm-api**), e o *papel* é do usuário (posição, transações, título de renda fixa, proventos recebidos; gravado só pela **app-api**).
 
@@ -36,6 +38,7 @@ erDiagram
     asset_types ||--o{ assets : "asset_type_id"
     assets ||--o{ ceiling_prices : "asset_id"
     users ||--o{ ceiling_prices : "user_id"
+    ceiling_prices ||--o{ ceiling_price_quarters : "ceiling_price_id"
     cvm_documents ||--o{ company_quarters : "source_doc_id"
     issuers ||--o{ company_quarters : "issuer_id"
     issuers ||--o{ cvm_documents : "issuer_id"
@@ -74,7 +77,7 @@ erDiagram
 
 ## 2. Usuário e carteira
 
-Tabelas: `ceiling_prices`, `dividends`, `fixed_income_notes`, `goals`, `portfolio_assets`, `portfolios`, `strategies`, `strategy_reservations`, `transactions`, `users`.
+Tabelas: `ceiling_prices`, `ceiling_price_quarters`, `dividends`, `fixed_income_notes`, `goals`, `portfolio_assets`, `portfolios`, `strategies`, `strategy_reservations`, `transactions`, `users`.
 
 Aparecem só como referência (de outro domínio): `asset_cash_events`, `asset_types`, `assets`, `integration_connections`, `integration_run_items`, `withholding_tax_rules`.
 
@@ -84,10 +87,29 @@ erDiagram
         uuid id PK "not null"
         uuid user_id FK "not null"
         bigint asset_id FK "not null"
-        numeric max_price "not null"
-        boolean alert_enabled "not null"
+        bigint shares "not null"
+        numeric roe_pct "not null"
+        numeric payout_pct "not null"
+        numeric discount_rate_pct "not null"
+        numeric perpetual_growth_pct "not null"
+        numeric safety_margin_pct "not null"
+        numeric price "not null"
+        jsonb inputs_origin "not null"
+        varchar notes
+        timestamp calculated_at "not null"
         timestamp created_at "not null"
         timestamp updated_at "not null"
+    }
+    ceiling_price_quarters {
+        uuid ceiling_price_id PK,FK "not null"
+        smallint position PK "not null"
+        date period_end "not null"
+        numeric original_value "not null"
+        varchar unit "not null"
+        varchar currency "not null"
+        numeric fx_rate "not null"
+        numeric value_brl "not null"
+        varchar origin "not null"
     }
     dividends {
         bigint id PK "not null"
@@ -198,6 +220,7 @@ erDiagram
     }
     assets ||--o{ ceiling_prices : "asset_id"
     users ||--o{ ceiling_prices : "user_id"
+    ceiling_prices ||--o{ ceiling_price_quarters : "ceiling_price_id"
     withholding_tax_rules |o--o{ dividends : "withholding_rule_id"
     asset_cash_events |o--o{ dividends : "cash_event_id"
     portfolio_assets ||--o{ dividends : "portfolio_asset_id"
@@ -353,12 +376,14 @@ erDiagram
         numeric net_income_parent_q
         numeric fco_q
         numeric dividends_declared_q
+        numeric dividends_paid_q
         numeric revenue_ttm
         numeric ebit_ttm
         numeric net_income_ttm
         numeric net_income_parent_ttm
         numeric fco_ttm
         numeric dividends_declared_ttm
+        numeric dividends_paid_ttm
         numeric equity
         numeric equity_parent
         numeric total_assets
@@ -579,7 +604,8 @@ erDiagram
 
 | Domínio | Tabela | Quem grava | Descrição | Unicidade |
 |---|---|---|---|---|
-| Usuário | `ceiling_prices` | app-api | Preço teto definido pelo usuário por ativo, com alerta; único por (user_id, asset_id). | (user_id, asset_id) |
+| Usuário | `ceiling_prices` | app-api | Cálculo de preço teto (modelo PREÇO TETO V2, V46) de uma ação pelo usuário: só as entradas, todas obrigatórias — N (shares), ROE, payout, desconto, perpetuidade, margem de segurança (pontos) e preço — com a origem de cada uma (inputs_origin, JSONB: PADRAO/INFORMADO + referência do padrão). O resultado não é gravado: sai das entradas. Um por (user_id, asset_id). | (user_id, asset_id) |
+| Usuário | `ceiling_price_quarters` | app-api | Os 4 lucros de um cálculo de preço teto (V46): valor digitado, unidade (UNIDADE/MIL/MILHAO/BILHAO), moeda (BRL/USD), câmbio, valor em reais (value_brl, o que entra no cálculo), origem (PADRAO = CVM sem alteração, INFORMADO). A fonte (source_ref) saiu na V47. | (ceiling_price_id, position) |
 | Usuário | `dividends` | app-api | Proventos da posição, gerados a partir do catálogo (asset_cash_events) × cotas na data-com. Bruto (total_amount), IR retido pela regra vigente e líquido (net_amount). Sem user_id: o dono vem da posição. | — |
 | Usuário | `fixed_income_notes` | app-api | O título de renda fixa do usuário (CDB, Tesouro...): emissor, vencimento, forma de remuneração, indexador e taxa contratada. Copia de asset_terms no lançamento. | — |
 | Usuário | `goals` | app-api | Metas de investimento: valor alvo, valor atual, data e status. | — |
@@ -597,7 +623,7 @@ erDiagram
 | Catálogo | `asset_types` | seed V2 | Os 12 tipos de ativo (Ações, FIIs, Renda Fixa, Tesouro, ETF, BDR, Cripto...), com a fonte de preço (price_source) e se é renda fixa (fixed_income). | (name) |
 | Catálogo | `assets` | seeds / adm-api | Catálogo global de instrumentos (sem dono): ticker, nome, tipo, categoria, preço atual, ISIN e a ligação com o emissor (issuer_id, share_class, issuer_link_source). | (ticker) |
 | Catálogo | `withholding_tax_rules` | seed V23 | Alíquotas de IR retido na fonte por tipo de provento, tipo de ativo e vigência, com a base legal. Lei nova = migration. | — |
-| Emissores | `company_quarters` | adm-api (derivada) | Série trimestral derivada por (issuer_id, period_end): trimestre isolado (_q), 12 meses (_ttm), posição do balanço e ações. Recalculada inteira ao fim de cada carga de balanços. Base dos indicadores. | — |
+| Emissores | `company_quarters` | adm-api (derivada) | Série trimestral derivada por (issuer_id, period_end): trimestre isolado (_q), 12 meses (_ttm), posição do balanço e ações. Recalculada inteira ao fim de cada carga de balanços. Base dos indicadores. dividends_paid_q/_ttm (V45): dividendos + JCP pagos aos acionistas da controladora (DFC), base do payout desde 10/10/2026. | — |
 | Emissores | `cvm_documents` | adm-api | Cada DFP ou ITR entregue à CVM por emissor e data de referência; version (reapresentação substitui) e se é consolidado. | (issuer_id, doc_type, reference_date) |
 | Emissores | `cvm_statement_values` | adm-api | Métricas extraídas de cada documento (receita, EBIT, lucro, PL, caixa, dívida, FCO, dividendos declarados, LPA...), em reais, por período. | (document_id, metric, period_start, period_end) |
 | Emissores | `fii_monthly` | adm-api | Informe mensal de FII da CVM por (issuer_id, reference_month): PL, cotas, VP por cota, cotistas, taxas, DY, amortização, carteira e passivo. | — |
@@ -627,6 +653,7 @@ erDiagram
 | `assets` | `asset_type_id` | `asset_types.id` | bloqueia (NO ACTION) |
 | `ceiling_prices` | `asset_id` | `assets.id` | bloqueia (NO ACTION) |
 | `ceiling_prices` | `user_id` | `users.id` | CASCADE |
+| `ceiling_price_quarters` | `ceiling_price_id` | `ceiling_prices.id` | CASCADE |
 | `company_quarters` | `source_doc_id` | `cvm_documents.id` | CASCADE |
 | `company_quarters` | `issuer_id` | `issuers.id` | bloqueia (NO ACTION) |
 | `cvm_documents` | `issuer_id` | `issuers.id` | bloqueia (NO ACTION) |
