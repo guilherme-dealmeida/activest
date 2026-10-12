@@ -9,6 +9,7 @@ import { AllocationPage } from '@/pages/AllocationPage';
 import { StrategyPage } from '@/pages/StrategyPage';
 import { TransactionsPage } from '@/pages/TransactionsPage';
 import { CeilingPricesPage } from '@/pages/CeilingPricesPage';
+import { CeilingPriceDetailPage } from '@/pages/CeilingPriceDetailPage';
 import { DividendsPage } from '@/pages/DividendsPage';
 import { GoalsPage } from '@/pages/GoalsPage';
 import { IntegrationsPage } from '@/pages/IntegrationsPage';
@@ -44,6 +45,7 @@ function App() {
         <Route path="/strategy" element={<StrategyPage />} />
         <Route path="/transactions" element={<TransactionsPage />} />
         <Route path="/ceiling-prices" element={<CeilingPricesPage />} />
+        <Route path="/ceiling-prices/:ticker" element={<CeilingPriceDetailPage />} />
         <Route path="/emissoras" element={<IssuerPage />} />
         <Route path="/emissoras/:ticker" element={<IssuerPage />} />
         <Route path="/indices" element={<IndicesPage />} />

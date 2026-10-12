@@ -34,6 +34,7 @@ Prefixo das rotas: `/api/v1/admin`.
 | 05 | PUT | `/assets/{assetId}/issuer` | adm | 204 | Emissores (curadoria) |
 | 06 | PUT | `/assets/{assetId}/unit-composition` | adm | 204 | Emissores (curadoria) |
 | 07 | POST | `/b3/cotahist?from&to` | adm | 202 | Preços |
+| 07b | POST | `/b3/cotahist/diario?from&to` | adm | 202 | Preços (pregão a pregão) |
 | 08 | POST | `/closing` | adm | 202 | Preços |
 | 09 | POST | `/proventos` | adm | 202 | Proventos |
 | 10 | POST | `/cvm/proventos?from&to` | adm | 202 | Proventos (datas) |
@@ -149,6 +150,16 @@ mesmo ISIN entra no ativo atual. A série da B3 vence a BRAPI e não é sobrescr
 
 **Propósito.** Histórico de preço desde 2010 (gráfico de cotação, indicadores históricos) e o ISIN de cada ativo (usado
 pelos proventos).
+
+### [07b] `POST /api/v1/admin/b3/cotahist/diario?from=AAAA-MM-DD&to=AAAA-MM-DD` (10/10/2026)
+
+**Serviço:** `HistoricalQuotesImportService.importRecent` (sem `from`) ou `importDays` · **Validação:** `to >= from` e
+no máximo 366 dias, senão 400 · **Grava:** `asset_price_history` (source `B3_COTAHIST`), `assets.isin`
+
+**Função.** O mesmo da rotina [A11] de `docs/SCHEDULE_TASKS.md`: um `COTAHIST_DddMMaaaa.ZIP` por pregão, cache em
+`carga/data/b3/cotahist/diario`. Sem parâmetros, do pregão seguinte ao último gravado até hoje.
+
+**Propósito.** Cotação de todo o catálogo em dia (Preço Teto, Emissoras) — `docs/planos/PLANO_PRECO_TETO.md`, 4.5.
 
 ### [08] `POST /api/v1/admin/closing`
 

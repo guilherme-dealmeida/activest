@@ -129,4 +129,48 @@ class HistoricalQuotesImportIT extends IntegrationTestBase {
         // na segunda rodada o ISIN ja estava certo
         assertThat(r.isinsUpdated()).isZero();
     }
+
+    // ------------------------------------------------------------------ pregao a pregao (PLANO_PRECO_TETO, 4.5)
+
+    @Test
+    @DisplayName("COTAHIST diario: um arquivo por pregao, fim de semana nao vai a B3, dia sem arquivo fica para depois")
+    void pregaoAPregao() {
+        java.time.LocalDate qui = java.time.LocalDate.of(2026, 9, 24);
+        java.time.LocalDate sex = java.time.LocalDate.of(2026, 9, 25);
+        when(client.day(org.mockito.ArgumentMatchers.any())).thenReturn(Optional.empty());
+        when(client.day(sex)).thenReturn(Optional.of(B3Fixtures.cotahistZip(tmp, 2026)));
+
+        HistoricalQuotesImportService.DaysResult r = service.importDays(qui, java.time.LocalDate.of(2026, 9, 27),
+                "teste");
+
+        assertThat(r.days()).extracting(HistoricalQuotesImportService.DayResult::date).containsExactly(qui, sex);
+        assertThat(r.days()).extracting(HistoricalQuotesImportService.DayResult::found).containsExactly(false, true);
+        assertThat(r.quotes()).isEqualTo(8);
+        org.mockito.Mockito.verify(client, org.mockito.Mockito.never()).day(java.time.LocalDate.of(2026, 9, 26));
+        org.mockito.Mockito.verify(client, org.mockito.Mockito.never()).day(java.time.LocalDate.of(2026, 9, 27));
+        assertThat((BigDecimal) linhas("PETR4").get(1).get("close_price")).isEqualByComparingTo("47.99");
+        assertThat(linhas("PETR4").get(1).get("source")).isEqualTo("B3_COTAHIST");
+        assertThat(jdbc.queryForObject("SELECT isin FROM assets WHERE ticker = 'PETR4'", String.class))
+                .isEqualTo("BRPETRACNPR6");
+    }
+
+    @Test
+    @DisplayName("Rotina diaria: comeca no dia seguinte ao ultimo pregao gravado pela B3 e para hoje")
+    void rotinaDiariaContinuaDoUltimoPregao() {
+        java.time.LocalDate hoje = java.time.LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo"));
+        jdbc.update("DELETE FROM asset_price_history WHERE source = 'B3_COTAHIST' AND reference_date > ?",
+                java.sql.Date.valueOf(hoje.minusDays(3)));
+        jdbc.update("""
+            INSERT INTO asset_price_history (asset_id, reference_date, close_price, source)
+            SELECT id, ?, 48.00, 'B3_COTAHIST' FROM assets WHERE ticker = 'PETR4'""",
+                java.sql.Date.valueOf(hoje.minusDays(3)));
+        when(client.day(org.mockito.ArgumentMatchers.any())).thenReturn(Optional.empty());
+
+        HistoricalQuotesImportService.DaysResult r = service.importRecent("teste");
+
+        assertThat(r.from()).isEqualTo(hoje.minusDays(2));
+        assertThat(r.to()).isEqualTo(hoje);
+        assertThat(r.quotes()).isZero();
+        assertThat(service.lastB3Day()).isEqualTo(hoje.minusDays(3));
+    }
 }

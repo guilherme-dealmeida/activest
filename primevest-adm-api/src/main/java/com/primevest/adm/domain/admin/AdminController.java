@@ -165,6 +165,26 @@ public class AdminController {
     }
 
     /**
+     * Cotacoes pregao a pregao pelo COTAHIST diario (docs/planos/PLANO_PRECO_TETO.md, 4.5). Sem {@code from}: do
+     * pregao seguinte ao ultimo gravado ate hoje (o mesmo da rotina); com {@code from}/{@code to}, o periodo.
+     */
+    @PostMapping("/b3/cotahist/diario")
+    public ResponseEntity<Map<String, String>> cotahistDiario(
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
+        if (from == null) {
+            return start("cotacoes diarias B3", () -> historicalQuotesImportService.importRecent("sob demanda"));
+        }
+        java.time.LocalDate last = to != null ? to : java.time.LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo"));
+        if (last.isBefore(from) || from.isBefore(last.minusDays(366))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Periodo invalido: " + from + " a " + last);
+        }
+        return start("cotacoes diarias B3", () -> historicalQuotesImportService.importDays(from, last, "sob demanda"));
+    }
+
+    /**
      * Balancos da CVM (DFP e ITR) de {@code from} (padrao 2010) a {@code to} (padrao: ano corrente).
      * Documento ja gravado na mesma versao e pulado; {@code force=true} reprocessa a partir de
      * carga/data/cvm, sem baixar de novo (regra nova). docs/planos/PLANO_EMPRESAS_BALANCOS.md, F5.

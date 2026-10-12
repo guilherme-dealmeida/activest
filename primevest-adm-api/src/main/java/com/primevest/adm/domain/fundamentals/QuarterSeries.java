@@ -36,8 +36,10 @@ public final class QuarterSeries {
 
     public enum Flow {
         REVENUE, EBIT, NET_INCOME, NET_INCOME_PARENT, FCO,
-        /** Dividendos + JCP declarados (DVA, remuneracao de capitais proprios) — base do payout. */
-        DIVIDENDS_DECLARED
+        /** Dividendos + JCP declarados (DVA, remuneracao de capitais proprios). */
+        DIVIDENDS_DECLARED,
+        /** Dividendos + JCP pagos aos acionistas da controladora (DFC) — base do payout desde 10/10/2026. */
+        DIVIDENDS_PAID
     }
 
     private static final Map<FinancialMetric, Flow> FLOW_OF = Map.of(
@@ -47,7 +49,8 @@ public final class QuarterSeries {
             FinancialMetric.LUCRO_CONTROLADORA, Flow.NET_INCOME_PARENT,
             FinancialMetric.FCO, Flow.FCO,
             FinancialMetric.JCP_DECLARADO, Flow.DIVIDENDS_DECLARED,
-            FinancialMetric.DIVIDENDOS_DECLARADOS, Flow.DIVIDENDS_DECLARED);
+            FinancialMetric.DIVIDENDOS_DECLARADOS, Flow.DIVIDENDS_DECLARED,
+            FinancialMetric.DIVIDENDOS_PAGOS, Flow.DIVIDENDS_PAID);
 
     /** Uma metrica gravada do documento; {@code start} nulo = posicao na data. */
     public record Value(FinancialMetric metric, LocalDate start, LocalDate end, BigDecimal value) {

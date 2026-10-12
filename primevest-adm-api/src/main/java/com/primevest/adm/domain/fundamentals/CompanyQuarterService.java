@@ -121,10 +121,11 @@ public class CompanyQuarterService {
                 jdbc.batchUpdate("""
                         INSERT INTO company_quarters (issuer_id, period_end, fiscal_year_start, source_doc_id,
                             revenue_q, ebit_q, net_income_q, net_income_parent_q, fco_q, dividends_declared_q,
+                            dividends_paid_q,
                             revenue_ttm, ebit_ttm, net_income_ttm, net_income_parent_ttm, fco_ttm,
-                            dividends_declared_ttm, equity, equity_parent, total_assets, cash, gross_debt,
-                            shares_total, shares_outstanding)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                            dividends_declared_ttm, dividends_paid_ttm, equity, equity_parent, total_assets, cash,
+                            gross_debt, shares_total, shares_outstanding)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                         rows, 1000, (ps, r) -> {
                             Quarter q = r.q();
                             int i = 1;

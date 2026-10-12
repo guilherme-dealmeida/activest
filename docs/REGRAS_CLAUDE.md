@@ -1,7 +1,8 @@
 # PrimeVest — Regras de trabalho entre Guilherme e o Claude
 
 > Gerado em 02/10/2026 · revisado em 03/10/2026 (planos em `docs/planos/`, pendências em `docs/PENDENCIAS.md`,
-> carga em `carga/`).
+> carga em `carga/`), em 09/10/2026 (seção 8, banco de dados) e em 10/10/2026 (5.3: o Claude executa downloads e
+> esperas longas; a antiga 5.7 deixou de ser necessária).
 >
 > **Escopo:** só a **relação de trabalho**: como pedimos, executamos, validamos e documentamos. Regras de negócio do
 > sistema não entram aqui; elas ficam no `Claude.md` e nos planos.
@@ -18,6 +19,7 @@
 5. [Execução na máquina do Guilherme](#5-execução-na-máquina-do-guilherme)
 6. [Arquivos, pastas e dados](#6-arquivos-pastas-e-dados)
 7. [Documentação](#7-documentação)
+8. [Banco de dados](#8-banco-de-dados)
 
 ---
 
@@ -81,9 +83,8 @@ a limitação é real; aí o Claude diz isso, e não que o projeto não pode ser
 (`docker compose up -d`) e o log é lido num comando separado. Sem a ponte, o fallback é o `.claude\build.ps1`, que
 grava a saída em `.claude\logs\` para o Claude ler o log inteiro.
 
-**5.3** Downloads demorados (ex.: mais de meia hora) e esperas longas o Guilherme executa ele mesmo na máquina: rodar
-isso pelo Claude gasta token e consome o plano. O Claude entrega os comandos prontos e depois só confere o
-resultado. Ex.: `data push` para o bucket é do Guilherme.
+**5.3** Downloads e uploads demorados e esperas longas (ex.: `data pull`, `data push`, `bootstrap`) o próprio Claude
+executa e confere o resultado (revisada em 10/10/2026 — antes o Guilherme rodava esses comandos na máquina dele).
 
 **5.4** Quando a tabela "Quem faz" do plano disser que o Guilherme roda algo (ex.: a bateria completa numa etapa
 específica), o Claude prepara e depois confere; não roda por conta própria.
@@ -93,8 +94,6 @@ administrador são disparadas por script (`carga/scripts/admin.mjs`) sem pedir a
 
 **5.6** Bloqueio de rede da política da organização (403/000 do proxy) é negação de política: não se contorna.
 
-**5.7** A regra 5.3 não vale para a conta Claude do **Gabriel** (03/10/2026): nas sessões dele, o próprio Claude
-executa os downloads demorados e as esperas longas (ex.: `data pull`, `bootstrap`) e confere o resultado.
 
 ## 6. Arquivos, pastas e dados
 
@@ -122,6 +121,13 @@ do plano correspondente em `docs/planos/`), com a data.
 
 **7.3** Os documentos de `docs/` são Markdown (`.md`); as subpastas (`planos/`, `brapi/`, `emissores/`) seguem o
 formato do que guardam.
+
+## 8. Banco de dados
+
+**8.1** Campo novo obrigatório (`NOT NULL`) em tabela que já existe nasce com o **valor default informado** na própria
+migration, que preenche as linhas existentes. Não se escreve migration com lógica customizada para deduzir o valor de
+cada linha; o ajuste fino, se houver, é feito depois pelo usuário. Ex. (09/10/2026): emissora e distribuidora dos
+títulos de Renda Fixa e Tesouro Direto entram como "Instituição não listada".
 
 ---
 

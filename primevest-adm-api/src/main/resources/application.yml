@@ -138,6 +138,11 @@ primevest:
     # PU de venda do Tesouro Direto todo dia as 08:00 (o arquivo sai ~07:20 com o D-1), com recuperacao na subida.
     enabled: true
     cron: "0 0 8 * * *"
+  cotahist-diario:
+    # Cotacoes do catalogo inteiro pelo arquivo diario da B3 (PLANO_PRECO_TETO, D6): 21:30 e 08:30 (o pregao que
+    # ainda nao tinha saido), completando o que faltar; recuperacao na subida.
+    enabled: true
+    cron: "0 30 8,21 * * *"
   indices:
     # Incremental todo dia as 10:00 (D5), com recuperacao na subida.
     enabled: true

@@ -1,82 +1,57 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AlertTriangle, Edit2, RefreshCw, Trash2 } from 'lucide-react';
 import { ceilingPricesApi } from '@/api/ceilingPrices';
 import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Badge } from '@/components/ui/Badge';
-import { Pagination } from '@/components/ui/Pagination';
-import { formatCurrency, formatPercentage } from '@/utils/format';
-import { CeilingPrice, CeilingPriceCreate } from '@/types';
-import { Plus, Trash2, Edit2 } from 'lucide-react';
-import { useSortable } from '@/hooks/useSortable';
+import { AssetLogo } from '@/components/ui/AssetLogo';
 import { TickerLink } from '@/components/issuer/TickerLink';
+import { IssuerSearch } from '@/components/issuer/IssuerSearch';
+import { useSortable } from '@/hooks/useSortable';
+import { formatCurrency, formatDate } from '@/utils/format';
+import { CeilingPriceListItem, CeilingStatus } from '@/types';
+import { IDEAL_PRICE_INFO, STATUS_LABEL, STATUS_VARIANT, pct } from '@/components/ceilingprice/ceilingFormat';
+import { InfoTooltip } from '@/components/ui/InfoTooltip';
+import { MarginPair } from '@/components/ceilingprice/MarginPair';
+import { TABLE_ACTION_CLASS } from '@/components/ui/tableAction';
 
+/**
+ * Preço Teto — lista dos cálculos do usuário (docs/planos/PLANO_PRECO_TETO.md, 7.1). Cada linha compara o teto e o
+ * ideal com três preços (D13): o do cálculo, o fechamento de hoje e o preço médio da carteira.
+ */
 export const CeilingPricesPage = () => {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [filterType, setFilterType] = useState('ALL');
-  const [formData, setFormData] = useState<CeilingPriceCreate>({
-    ticker: '',
-    maxPrice: 0,
-    alertEnabled: true
-  });
+  const [filter, setFilter] = useState<CeilingStatus | 'ALL'>('ALL');
 
-  const { data: prices, isLoading } = useQuery<CeilingPrice[]>({
+  const { data, isLoading } = useQuery<CeilingPriceListItem[]>({
     queryKey: ['ceilingPrices'],
-    queryFn: ceilingPricesApi.list
+    queryFn: ceilingPricesApi.list,
   });
 
-  const mutationCreate = useMutation({
-    mutationFn: ceilingPricesApi.create,
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['ceilingPrices'] }); closeModal(); }
-  });
-
-  const mutationUpdate = useMutation({
-    mutationFn: ({ id, data }: { id: string, data: CeilingPriceCreate }) => ceilingPricesApi.update(id, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['ceilingPrices'] }); closeModal(); }
-  });
-
-  const mutationDelete = useMutation({
+  const remove = useMutation({
     mutationFn: ceilingPricesApi.delete,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ceilingPrices'] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ceilingPrices'] }),
   });
 
-  // O tipo do ativo vem da API (CeilingPriceDTO.assetTypeName), não de mapa local.
-  const rows = prices || [];
-  // Opções do filtro derivadas dos próprios dados: só aparece tipo que existe
-  // na lista, evitando filtro que não devolve nada.
-  const assetTypeOptions = Array.from(
-    new Set(rows.map(p => p.assetTypeName).filter(Boolean))
-  ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  const filtered = rows.filter(p => filterType === 'ALL' || p.assetTypeName === filterType);
-  const { sortedData, requestSort, getSortIndicator, getSortClass } = useSortable(filtered);
-  const totalPages = Math.ceil(sortedData.length / itemsPerPage);
-  const paginated = sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const rows = (data ?? []).filter(r => filter === 'ALL' || r.status === filter);
+  const { sortedData, requestSort, getSortIndicator, getSortClass } = useSortable(rows);
 
-  const openModal = (item?: CeilingPrice) => {
-    if (item) {
-      setEditingId(item.id);
-      setFormData({ ticker: item.ticker, maxPrice: item.maxPrice, alertEnabled: item.alertEnabled });
-    } else {
-      setEditingId(null);
-      setFormData({ ticker: '', maxPrice: 0, alertEnabled: true });
-    }
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => { setIsModalOpen(false); setEditingId(null); };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingId) mutationUpdate.mutate({ id: editingId, data: formData });
-    else mutationCreate.mutate(formData);
-  };
+  const th = (key: keyof CeilingPriceListItem, label: string, align = 'text-right', info?: string) => (
+    <th className={`px-3 py-3 cursor-pointer whitespace-nowrap ${align} ${getSortClass(key as string)}`}
+        onClick={() => requestSort(key as string)}>
+      {label}
+      {info && (
+        // o (i) não ordena a coluna
+        <span className="inline-flex align-middle ml-1 normal-case" onClick={e => e.stopPropagation()}>
+          <InfoTooltip content={info} />
+        </span>
+      )}
+      {getSortIndicator(key as string)}
+    </th>
+  );
 
   if (isLoading) {
     return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent" /></div>;
@@ -84,115 +59,136 @@ export const CeilingPricesPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-end">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex items-end gap-3">
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Tipo de Ativo</label>
+            <label className="block text-xs text-gray-400 mb-1">Situação</label>
             <select
-              value={filterType}
-              onChange={(e) => { setFilterType(e.target.value); setCurrentPage(1); }}
+              value={filter}
+              onChange={e => setFilter(e.target.value as CeilingStatus | 'ALL')}
               className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2"
             >
-              <option value="ALL">Todos</option>
-              {assetTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}
+              <option value="ALL">Todas</option>
+              {(Object.keys(STATUS_LABEL) as CeilingStatus[]).map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
             </select>
           </div>
-          <p className="text-gray-400 text-sm pb-2">Monitore seus ativos baseados no seu preço teto pessoal.</p>
         </div>
-        <Button onClick={() => openModal()}>
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Preço Teto
-        </Button>
+        <div className="w-full max-w-sm">
+          <label className="block text-xs text-gray-400 mb-1">Novo cálculo</label>
+          <IssuerSearch
+            placeholder="Ação para calcular (ex: VALE3, PETR4)"
+            addLabel="Calcular preço teto da ação"
+            onSelect={ticker => navigate(`/ceiling-prices/${encodeURIComponent(ticker)}`)}
+          />
+        </div>
       </div>
 
-      <Card>
+      <Card className="p-0">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-gray-400 uppercase border-b border-white/10">
               <tr>
-                <th className={`px-4 py-3 cursor-pointer ${getSortClass('assetTypeName')}`} onClick={() => requestSort('assetTypeName')}>
-                  TIPO ATIVO{getSortIndicator('assetTypeName')}
-                </th>
-                <th className={`px-4 py-3 cursor-pointer ${getSortClass('ticker')}`} onClick={() => requestSort('ticker')}>
-                  ATIVO{getSortIndicator('ticker')}
-                </th>
-                <th className={`px-4 py-3 text-right cursor-pointer ${getSortClass('currentPrice')}`} onClick={() => requestSort('currentPrice')}>
-                  PREÇO ATUAL{getSortIndicator('currentPrice')}
-                </th>
-                <th className={`px-4 py-3 text-right cursor-pointer ${getSortClass('maxPrice')}`} onClick={() => requestSort('maxPrice')}>
-                  PREÇO TETO{getSortIndicator('maxPrice')}
-                </th>
-                <th className={`px-4 py-3 text-right cursor-pointer ${getSortClass('diffPercentage')}`} onClick={() => requestSort('diffPercentage')}>
-                  DIFERENÇA %{getSortIndicator('diffPercentage')}
-                </th>
-                <th className={`px-4 py-3 text-center cursor-pointer ${getSortClass('belowCeiling')}`} onClick={() => requestSort('belowCeiling')}>
-                  STATUS{getSortIndicator('belowCeiling')}
-                </th>
-                <th className="px-4 py-3 text-right">AÇÕES</th>
+                {th('ticker', 'Ativo', 'text-left')}
+                {th('ceilingPrice', 'Preço teto')}
+                {th('idealPrice', 'Preço ideal', 'text-right', IDEAL_PRICE_INFO)}
+                {th('calcCeilingMarginPct', 'Preço do cálculo')}
+                {th('todayCeilingMarginPct', 'Preço atual')}
+                {th('averageCeilingMarginPct', 'Preço médio')}
+                {th('status', 'Situação', 'text-center')}
+                {th('calculatedAt', 'Calculado em')}
+                <th className="px-3 py-3 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {paginated.map((row) => (
-                <tr key={row.id} className="hover:bg-white/5 transition-colors">
-                  <td className="px-4 py-3 text-gray-400">{row.assetTypeName}</td>
-                  <td className="px-4 py-3 font-medium text-white"><TickerLink ticker={row.ticker} issuerId={row.issuerId} /></td>
-                  <td className="px-4 py-3 text-right">{formatCurrency(row.currentPrice)}</td>
-                  <td className="px-4 py-3 text-right">{formatCurrency(row.maxPrice)}</td>
-                  <td className="px-4 py-3 text-right">
-                    <span className={row.diffPercentage < 0 ? 'text-success' : 'text-danger'}>{formatPercentage(Math.abs(row.diffPercentage))}</span>
+              {sortedData.map(row => (
+                <tr key={row.id} className="hover:bg-white/5 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/ceiling-prices/${encodeURIComponent(row.ticker)}`)}>
+                  <td className="px-3 py-3">
+                    <div className="flex items-center gap-2">
+                      <AssetLogo ticker={row.ticker} hasLogo={!!row.hasLogo} />
+                      <div>
+                        <TickerLink ticker={row.ticker} issuerId={row.issuerId} className="font-medium text-white" />
+                        <div className="text-xs text-gray-500 truncate max-w-[180px]">{row.assetName}</div>
+                      </div>
+                    </div>
                   </td>
-                  <td className="px-4 py-3 text-center">
-                    <Badge variant={row.belowCeiling ? 'success' : 'danger'}>
-                      {row.belowCeiling ? 'Abaixo do Teto' : 'Acima do Teto'}
-                    </Badge>
+                  <td className="px-3 py-3 text-right font-semibold text-accent tabular-nums">
+                    {row.ceilingPrice == null ? '—' : formatCurrency(row.ceilingPrice)}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button onClick={() => openModal(row)} className="text-gray-400 hover:text-white p-1"><Edit2 className="w-4 h-4" /></button>
-                      <button onClick={() => { if(window.confirm('Excluir?')) mutationDelete.mutate(row.id); }} className="text-gray-400 hover:text-danger p-1"><Trash2 className="w-4 h-4" /></button>
+                  <td className="px-3 py-3 text-right">
+                    <div className="tabular-nums">{row.idealPrice == null ? '—' : formatCurrency(row.idealPrice)}</div>
+                    <div className="text-xs text-gray-500 tabular-nums whitespace-nowrap">MS: {pct(row.safetyMarginPct, 1)}</div>
+                  </td>
+                  <td className="px-3 py-3 text-right">
+                    <div className="tabular-nums">{formatCurrency(row.calcPrice)}</div>
+                    <MarginPair ceiling={row.calcCeilingMarginPct} ideal={row.calcIdealMarginPct} />
+                  </td>
+                  <td className="px-3 py-3 text-right">
+                    <div className="tabular-nums">{row.todayPrice == null ? '—' : formatCurrency(row.todayPrice)}</div>
+                    <MarginPair ceiling={row.todayCeilingMarginPct} ideal={row.todayIdealMarginPct} />
+                  </td>
+                  <td className="px-3 py-3 text-right">
+                    {row.averagePrice == null ? <span className="text-gray-600">—</span> : (
+                      <>
+                        <div className="tabular-nums">{formatCurrency(row.averagePrice)}</div>
+                        <MarginPair ceiling={row.averageCeilingMarginPct} ideal={row.averageIdealMarginPct} />
+                      </>
+                    )}
+                  </td>
+                  <td className="px-3 py-3 text-center">
+                    <Badge variant={STATUS_VARIANT[row.status]}>{STATUS_LABEL[row.status]}</Badge>
+                  </td>
+                  <td className="px-3 py-3 text-right text-gray-400 whitespace-nowrap">
+                    {formatDate(row.calculatedAt.slice(0, 10))}
+                  </td>
+                  <td className="px-3 py-3 text-right">
+                    <div className="flex justify-end items-center gap-2">
+                      {row.defaultsChanged && (
+                        <span title="Há padrões mais novos (balanço, Selic, preço): abra para revisar" className="text-accent">
+                          <RefreshCw className="w-4 h-4" />
+                        </span>
+                      )}
+                      {(row.blockingCount + row.warningCount) > 0 && (
+                        <span title={`${row.blockingCount + row.warningCount} alerta(s) no cálculo`}
+                              className={row.blockingCount > 0 ? 'text-danger' : 'text-yellow-500'}>
+                          <AlertTriangle className="w-4 h-4" />
+                        </span>
+                      )}
+                      <button title="Abrir / editar" className={TABLE_ACTION_CLASS}
+                              onClick={e => { e.stopPropagation(); navigate(`/ceiling-prices/${encodeURIComponent(row.ticker)}`); }}>
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button title="Excluir" className={TABLE_ACTION_CLASS}
+                              onClick={e => {
+                                e.stopPropagation();
+                                if (window.confirm(`Excluir o cálculo de ${row.ticker}?`)) remove.mutate(row.id);
+                              }}>
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </td>
                 </tr>
               ))}
-              {paginated.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">Nenhum preço teto encontrado.</td></tr>
+              {sortedData.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-4 py-10 text-center text-gray-500">
+                    Nenhum cálculo de preço teto. Busque uma ação em "Novo cálculo".
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
         </div>
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-          itemsPerPage={itemsPerPage}
-          onItemsPerPageChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }}
-          totalItems={sortedData.length}
-        />
       </Card>
 
-      <Modal isOpen={isModalOpen} onClose={closeModal} title={editingId ? "Editar Preço Teto" : "Novo Preço Teto"}>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            label="Ticker (Ativo)"
-            value={formData.ticker}
-            onChange={(e) => setFormData({...formData, ticker: e.target.value.toUpperCase()})}
-            required
-            disabled={!!editingId}
-          />
-          <Input
-            label="Preço Teto (R$)"
-            type="number"
-            step="any"
-            value={formData.maxPrice || ''}
-            onChange={(e) => setFormData({...formData, maxPrice: Number(e.target.value)})}
-            required
-          />
-          <div className="pt-4 flex justify-end gap-3">
-            <Button type="button" variant="ghost" onClick={closeModal}>Cancelar</Button>
-            <Button type="submit" isLoading={mutationCreate.isPending || mutationUpdate.isPending}>Salvar</Button>
-          </div>
-        </form>
-      </Modal>
+      {/* legenda */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400">
+        <span>Legenda:</span>
+        <span><strong className="text-white">MS</strong> = margem de segurança usada no cálculo do preço teto</span>
+        <span><strong className="text-white">T</strong> = margem do preço da coluna em relação ao preço teto</span>
+        <span><strong className="text-white">I</strong> = margem do preço da coluna em relação ao preço ideal</span>
+      </div>
     </div>
   );
 };
+

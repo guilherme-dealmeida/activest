@@ -53,9 +53,13 @@ primevest/
 - ✅ Venda de renda fixa pela Nova Transação (escolhendo o título) ou pela Carteira, com "Resgatar tudo"
 - ✅ Gráficos de alocação (pizza por tipo e por categoria)
 - ✅ Estratégia de alocação com % ideal e sugestão de rebalanceamento
-- ✅ Preço teto por ativo definido pelo usuário
+- ✅ Preço Teto e Preço Ideal de ações pelo modelo PREÇO TETO V2 (10/10/2026): lucros dos 4 últimos trimestres
+  da CVM, crescimento sustentável (ROE × (1 − payout)), 3 períodos + perpetuidade descontados pela Selic, margem de
+  segurança; padrões do catálogo editáveis, alertas e comparação com o fechamento do dia e o
+  preço médio — ver `docs/PRECO_TETO_METODOLOGIA.md` e `docs/planos/PLANO_PRECO_TETO.md`
 - ✅ Acompanhamento de proventos (dividendos, JCP, rendimentos)
-- ✅ Atualização automática de cotações (BrAPI + CoinGecko)
+- ✅ Atualização automática de cotações (BrAPI + CoinGecko para a carteira; COTAHIST diário da B3 para todas as
+  ações e FIIs do catálogo, às 21:30 e 08:30)
 - ✅ Índices de mercado desde 2010 — CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, dólar PTAX, Ibovespa e IFIX —,
   atualizados todo dia às 10:00 (Banco Central e B3), com consulta da série e do acumulado no período
   (tela **Índices**: um card por índice com período e gráfico; `/api/v1/indices`). Base da futura valorização da

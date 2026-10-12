@@ -1,0 +1,1195 @@
+{
+  "geradoEm": "2026-10-11T00:14:41.724Z",
+  "api": "http://localhost:8080",
+  "linhas": [
+    {
+      "rotulo": "VALE3 (padroes do PrimeVest)",
+      "entradas": {
+        "ticker": "VALE3",
+        "quarters": [
+          {
+            "periodEnd": "2025-09-30",
+            "originalValue": 14617000000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          },
+          {
+            "periodEnd": "2025-12-31",
+            "originalValue": -21048000000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          },
+          {
+            "periodEnd": "2026-03-31",
+            "originalValue": 9953000000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          },
+          {
+            "periodEnd": "2026-06-30",
+            "originalValue": 6847000000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          }
+        ],
+        "shares": 4072366000,
+        "roePct": 14.69,
+        "payoutPct": 93.33,
+        "discountRatePct": 13.75,
+        "perpetualGrowthPct": 3,
+        "safetyMarginPct": 15,
+        "price": 67.9
+      },
+      "resultado": {
+        "netIncomeTtm": 10369000000,
+        "growthPct": 0.9798,
+        "fc1": 10369000000,
+        "pv1": 9115604395.6,
+        "fc2": 10470597846.87,
+        "pv2": 8092238403.57,
+        "fc3": 10573191172.81,
+        "pv3": 7183760893.77,
+        "terminalValue": 101305924725.54,
+        "terminalPv": 68830453214.73,
+        "equityValue": 93222056907.67,
+        "terminalWeightPct": 73.8349,
+        "ceilingPrice": 22.8914,
+        "idealPrice": 19.4577,
+        "ceilingMarginPct": -66.2866,
+        "idealMarginPct": -71.3436,
+        "steps": [
+          {
+            "key": "netIncomeTtm",
+            "label": "LL TTM",
+            "value": 10369000000,
+            "formula": "LL T-3 + LL T-2 + LL T-1 + LL T",
+            "substituted": "14.617.000.000 + -21.048.000.000 + 9.953.000.000 + 6.847.000.000 = 10.369.000.000"
+          },
+          {
+            "key": "growth",
+            "label": "Crescimento sustentável (g)",
+            "value": 0.9798,
+            "formula": "ROE × (1 − Payout)",
+            "substituted": "14,69% × (1 − 93,33%) = 0,979823%"
+          },
+          {
+            "key": "fc1",
+            "label": "FC1",
+            "value": 10369000000,
+            "formula": "FC1 = LL TTM",
+            "substituted": "FC1 = 10.369.000.000"
+          },
+          {
+            "key": "pv1",
+            "label": "VPL1",
+            "value": 9115604395.6,
+            "formula": "FC1 ÷ (1 + d)",
+            "substituted": "10.369.000.000 ÷ (1 + 0,1375) = 9.115.604.395,604396"
+          },
+          {
+            "key": "fc2",
+            "label": "FC2",
+            "value": 10470597846.87,
+            "formula": "FC1 × (1 + g)",
+            "substituted": "10.369.000.000 × (1 + 0,009798) = 10.470.597.846,87"
+          },
+          {
+            "key": "pv2",
+            "label": "VPL2",
+            "value": 8092238403.57,
+            "formula": "FC2 ÷ (1 + d)²",
+            "substituted": "10.470.597.846,87 ÷ (1 + 0,1375)² = 8.092.238.403,570583"
+          },
+          {
+            "key": "fc3",
+            "label": "FC3",
+            "value": 10573191172.81,
+            "formula": "FC2 × (1 + g)",
+            "substituted": "10.470.597.846,87 × (1 + 0,009798) = 10.573.191.172,811137"
+          },
+          {
+            "key": "pv3",
+            "label": "VPL3",
+            "value": 7183760893.77,
+            "formula": "FC3 ÷ (1 + d)³",
+            "substituted": "10.573.191.172,811137 ÷ (1 + 0,1375)³ = 7.183.760.893,770198"
+          },
+          {
+            "key": "terminalValue",
+            "label": "Valor terminal",
+            "value": 101305924725.54,
+            "formula": "FC3 × (1 + G) ÷ (d − G)",
+            "substituted": "10.573.191.172,811137 × (1 + 0,03) ÷ (0,1375 − 0,03) = 101.305.924.725,539267"
+          },
+          {
+            "key": "terminalPv",
+            "label": "VPL do valor terminal",
+            "value": 68830453214.73,
+            "formula": "Valor terminal ÷ (1 + d)³",
+            "substituted": "101.305.924.725,539267 ÷ (1 + 0,1375)³ = 68.830.453.214,728412"
+          },
+          {
+            "key": "equityValue",
+            "label": "Valor do patrimônio",
+            "value": 93222056907.67,
+            "formula": "VPL1 + VPL2 + VPL3 + VPL do valor terminal",
+            "substituted": "9.115.604.395,604396 + 8.092.238.403,570583 + 7.183.760.893,770198 + 68.830.453.214,728412 = 93.222.056.907,67359"
+          },
+          {
+            "key": "ceilingPrice",
+            "label": "Preço Teto",
+            "value": 22.8914,
+            "formula": "Valor do patrimônio ÷ N",
+            "substituted": "93.222.056.907,67359 ÷ 4.072.366.000 = 22,891375"
+          },
+          {
+            "key": "idealPrice",
+            "label": "Preço Ideal",
+            "value": 19.4577,
+            "formula": "Preço Teto × (1 − MS)",
+            "substituted": "22,891375 × (1 − 15%) = 19,457669"
+          },
+          {
+            "key": "ceilingMargin",
+            "label": "Margem do Preço Teto",
+            "value": -66.2866,
+            "formula": "Preço Teto ÷ Preço − 1",
+            "substituted": "22,891375 ÷ 67,9 − 1 = -66,286635%"
+          },
+          {
+            "key": "idealMargin",
+            "label": "Margem do Preço Ideal",
+            "value": -71.3436,
+            "formula": "Preço Ideal ÷ Preço − 1",
+            "substituted": "19,457669 ÷ 67,9 − 1 = -71,34364%"
+          }
+        ],
+        "issues": [
+          {
+            "code": "TRIMESTRE_COM_PREJUIZO",
+            "level": "INFORMACAO",
+            "field": "quarters[1]",
+            "message": "O 4T25 teve prejuízo de −R$ 21,05 bi; ele entra na soma do LL TTM."
+          }
+        ]
+      }
+    },
+    {
+      "rotulo": "VALE3 (linha da planilha V2)",
+      "entradas": {
+        "ticker": "VALE3",
+        "quarters": [
+          {
+            "periodEnd": "2025-09-30",
+            "originalValue": 9956933910,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          },
+          {
+            "periodEnd": "2025-12-31",
+            "originalValue": 6940807500,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          },
+          {
+            "periodEnd": "2026-03-31",
+            "originalValue": 9956933910,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          },
+          {
+            "periodEnd": "2026-06-30",
+            "originalValue": 6940807500,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          }
+        ],
+        "shares": 4262140830,
+        "roePct": 19.26,
+        "payoutPct": 48.19,
+        "discountRatePct": 13.75,
+        "perpetualGrowthPct": 3,
+        "safetyMarginPct": 15,
+        "price": 67.63
+      },
+      "resultado": {
+        "netIncomeTtm": 33795482820,
+        "growthPct": 9.9786,
+        "fc1": 33795482820,
+        "pv1": 29710314567.03,
+        "fc2": 37167800896.41,
+        "pv2": 28725265757.4,
+        "fc3": 40876629306.72,
+        "pv3": 27772876351.45,
+        "terminalValue": 391655145915.57,
+        "terminalPv": 266102908297.66,
+        "equityValue": 352311364973.54,
+        "terminalWeightPct": 75.5306,
+        "ceilingPrice": 82.6607,
+        "idealPrice": 70.2616,
+        "ceilingMarginPct": 22.2248,
+        "idealMarginPct": 3.8911,
+        "steps": [
+          {
+            "key": "netIncomeTtm",
+            "label": "LL TTM",
+            "value": 33795482820,
+            "formula": "LL T-3 + LL T-2 + LL T-1 + LL T",
+            "substituted": "9.956.933.910 + 6.940.807.500 + 9.956.933.910 + 6.940.807.500 = 33.795.482.820"
+          },
+          {
+            "key": "growth",
+            "label": "Crescimento sustentável (g)",
+            "value": 9.9786,
+            "formula": "ROE × (1 − Payout)",
+            "substituted": "19,26% × (1 − 48,19%) = 9,978606%"
+          },
+          {
+            "key": "fc1",
+            "label": "FC1",
+            "value": 33795482820,
+            "formula": "FC1 = LL TTM",
+            "substituted": "FC1 = 33.795.482.820"
+          },
+          {
+            "key": "pv1",
+            "label": "VPL1",
+            "value": 29710314567.03,
+            "formula": "FC1 ÷ (1 + d)",
+            "substituted": "33.795.482.820 ÷ (1 + 0,1375) = 29.710.314.567,032967"
+          },
+          {
+            "key": "fc2",
+            "label": "FC2",
+            "value": 37167800896.41,
+            "formula": "FC1 × (1 + g)",
+            "substituted": "33.795.482.820 × (1 + 0,099786) = 37.167.800.896,405489"
+          },
+          {
+            "key": "pv2",
+            "label": "VPL2",
+            "value": 28725265757.4,
+            "formula": "FC2 ÷ (1 + d)²",
+            "substituted": "37.167.800.896,405489 ÷ (1 + 0,1375)² = 28.725.265.757,395862"
+          },
+          {
+            "key": "fc3",
+            "label": "FC3",
+            "value": 40876629306.72,
+            "formula": "FC2 × (1 + g)",
+            "substituted": "37.167.800.896,405489 × (1 + 0,099786) = 40.876.629.306,722261"
+          },
+          {
+            "key": "pv3",
+            "label": "VPL3",
+            "value": 27772876351.45,
+            "formula": "FC3 ÷ (1 + d)³",
+            "substituted": "40.876.629.306,722261 ÷ (1 + 0,1375)³ = 27.772.876.351,454339"
+          },
+          {
+            "key": "terminalValue",
+            "label": "Valor terminal",
+            "value": 391655145915.57,
+            "formula": "FC3 × (1 + G) ÷ (d − G)",
+            "substituted": "40.876.629.306,722261 × (1 + 0,03) ÷ (0,1375 − 0,03) = 391.655.145.915,571432"
+          },
+          {
+            "key": "terminalPv",
+            "label": "VPL do valor terminal",
+            "value": 266102908297.66,
+            "formula": "Valor terminal ÷ (1 + d)³",
+            "substituted": "391.655.145.915,571432 ÷ (1 + 0,1375)³ = 266.102.908.297,655527"
+          },
+          {
+            "key": "equityValue",
+            "label": "Valor do patrimônio",
+            "value": 352311364973.54,
+            "formula": "VPL1 + VPL2 + VPL3 + VPL do valor terminal",
+            "substituted": "29.710.314.567,032967 + 28.725.265.757,395862 + 27.772.876.351,454339 + 266.102.908.297,655527 = 352.311.364.973,538695"
+          },
+          {
+            "key": "ceilingPrice",
+            "label": "Preço Teto",
+            "value": 82.6607,
+            "formula": "Valor do patrimônio ÷ N",
+            "substituted": "352.311.364.973,538695 ÷ 4.262.140.830 = 82,660658"
+          },
+          {
+            "key": "idealPrice",
+            "label": "Preço Ideal",
+            "value": 70.2616,
+            "formula": "Preço Teto × (1 − MS)",
+            "substituted": "82,660658 × (1 − 15%) = 70,261559"
+          },
+          {
+            "key": "ceilingMargin",
+            "label": "Margem do Preço Teto",
+            "value": 22.2248,
+            "formula": "Preço Teto ÷ Preço − 1",
+            "substituted": "82,660658 ÷ 67,63 − 1 = 22,224838%"
+          },
+          {
+            "key": "idealMargin",
+            "label": "Margem do Preço Ideal",
+            "value": 3.8911,
+            "formula": "Preço Ideal ÷ Preço − 1",
+            "substituted": "70,261559 ÷ 67,63 − 1 = 3,891112%"
+          }
+        ],
+        "issues": [
+          {
+            "code": "PREMISSA_EXTREMA",
+            "level": "ATENCAO",
+            "field": "quarters[1]",
+            "message": "Lucro do 4T25 132,98% diferente do da CVM (−R$ 21,05 bi). Confira."
+          }
+        ]
+      }
+    },
+    {
+      "rotulo": "PETR4 (padroes do PrimeVest)",
+      "entradas": {
+        "ticker": "PETR4",
+        "quarters": [
+          {
+            "periodEnd": "2025-09-30",
+            "originalValue": 32705000000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          },
+          {
+            "periodEnd": "2025-12-31",
+            "originalValue": 15563000000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          },
+          {
+            "periodEnd": "2026-03-31",
+            "originalValue": 32663000000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          },
+          {
+            "periodEnd": "2026-06-30",
+            "originalValue": 52445000000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          }
+        ],
+        "shares": 12888732761,
+        "roePct": 23.84,
+        "payoutPct": 131.22,
+        "discountRatePct": 13.75,
+        "perpetualGrowthPct": 3,
+        "safetyMarginPct": 15,
+        "price": 56
+      },
+      "resultado": {
+        "netIncomeTtm": 133376000000,
+        "growthPct": -7.4428,
+        "fc1": 133376000000,
+        "pv1": 117253626373.63,
+        "fc2": 123449027051.52,
+        "pv2": 95408015110.46,
+        "fc3": 114260903610.6,
+        "pv3": 77632476101.95,
+        "terminalValue": 1094778890408.51,
+        "terminalPv": 743827445441.98,
+        "equityValue": 1034121563028.02,
+        "terminalWeightPct": 71.9284,
+        "ceilingPrice": 80.2345,
+        "idealPrice": 68.1994,
+        "ceilingMarginPct": 43.276,
+        "idealMarginPct": 21.7846,
+        "steps": [
+          {
+            "key": "netIncomeTtm",
+            "label": "LL TTM",
+            "value": 133376000000,
+            "formula": "LL T-3 + LL T-2 + LL T-1 + LL T",
+            "substituted": "32.705.000.000 + 15.563.000.000 + 32.663.000.000 + 52.445.000.000 = 133.376.000.000"
+          },
+          {
+            "key": "growth",
+            "label": "Crescimento sustentável (g)",
+            "value": -7.4428,
+            "formula": "ROE × (1 − Payout)",
+            "substituted": "23,84% × (1 − 131,22%) = -7,442848%"
+          },
+          {
+            "key": "fc1",
+            "label": "FC1",
+            "value": 133376000000,
+            "formula": "FC1 = LL TTM",
+            "substituted": "FC1 = 133.376.000.000"
+          },
+          {
+            "key": "pv1",
+            "label": "VPL1",
+            "value": 117253626373.63,
+            "formula": "FC1 ÷ (1 + d)",
+            "substituted": "133.376.000.000 ÷ (1 + 0,1375) = 117.253.626.373,626374"
+          },
+          {
+            "key": "fc2",
+            "label": "FC2",
+            "value": 123449027051.52,
+            "formula": "FC1 × (1 + g)",
+            "substituted": "133.376.000.000 × (1 + -0,074428) = 123.449.027.051,52"
+          },
+          {
+            "key": "pv2",
+            "label": "VPL2",
+            "value": 95408015110.46,
+            "formula": "FC2 ÷ (1 + d)²",
+            "substituted": "123.449.027.051,52 ÷ (1 + 0,1375)² = 95.408.015.110,461055"
+          },
+          {
+            "key": "fc3",
+            "label": "FC3",
+            "value": 114260903610.6,
+            "formula": "FC2 × (1 + g)",
+            "substituted": "123.449.027.051,52 × (1 + -0,074428) = 114.260.903.610,596485"
+          },
+          {
+            "key": "pv3",
+            "label": "VPL3",
+            "value": 77632476101.95,
+            "formula": "FC3 ÷ (1 + d)³",
+            "substituted": "114.260.903.610,596485 ÷ (1 + 0,1375)³ = 77.632.476.101,953764"
+          },
+          {
+            "key": "terminalValue",
+            "label": "Valor terminal",
+            "value": 1094778890408.51,
+            "formula": "FC3 × (1 + G) ÷ (d − G)",
+            "substituted": "114.260.903.610,596485 × (1 + 0,03) ÷ (0,1375 − 0,03) = 1.094.778.890.408,505854"
+          },
+          {
+            "key": "terminalPv",
+            "label": "VPL do valor terminal",
+            "value": 743827445441.98,
+            "formula": "Valor terminal ÷ (1 + d)³",
+            "substituted": "1.094.778.890.408,505854 ÷ (1 + 0,1375)³ = 743.827.445.441,975603"
+          },
+          {
+            "key": "equityValue",
+            "label": "Valor do patrimônio",
+            "value": 1034121563028.02,
+            "formula": "VPL1 + VPL2 + VPL3 + VPL do valor terminal",
+            "substituted": "117.253.626.373,626374 + 95.408.015.110,461055 + 77.632.476.101,953764 + 743.827.445.441,975603 = 1.034.121.563.028,016796"
+          },
+          {
+            "key": "ceilingPrice",
+            "label": "Preço Teto",
+            "value": 80.2345,
+            "formula": "Valor do patrimônio ÷ N",
+            "substituted": "1.034.121.563.028,016796 ÷ 12.888.732.761 = 80,234541"
+          },
+          {
+            "key": "idealPrice",
+            "label": "Preço Ideal",
+            "value": 68.1994,
+            "formula": "Preço Teto × (1 − MS)",
+            "substituted": "80,234541 × (1 − 15%) = 68,19936"
+          },
+          {
+            "key": "ceilingMargin",
+            "label": "Margem do Preço Teto",
+            "value": 43.276,
+            "formula": "Preço Teto ÷ Preço − 1",
+            "substituted": "80,234541 ÷ 56 − 1 = 43,275967%"
+          },
+          {
+            "key": "idealMargin",
+            "label": "Margem do Preço Ideal",
+            "value": 21.7846,
+            "formula": "Preço Ideal ÷ Preço − 1",
+            "substituted": "68,19936 ÷ 56 − 1 = 21,784572%"
+          }
+        ],
+        "issues": [
+          {
+            "code": "PREMISSA_EXTREMA",
+            "level": "ATENCAO",
+            "field": "payoutPct",
+            "message": "Payout de 131,22% está acima de 100,00%. Confira."
+          },
+          {
+            "code": "G_NEGATIVO",
+            "level": "ATENCAO",
+            "field": "growth",
+            "message": "Crescimento sustentável negativo (-7,44%): payout acima de 100% ou ROE negativo projetam lucro caindo."
+          }
+        ]
+      }
+    },
+    {
+      "rotulo": "ITUB4 (padroes do PrimeVest)",
+      "entradas": {
+        "ticker": "ITUB4",
+        "quarters": [
+          {
+            "periodEnd": "2025-09-30",
+            "originalValue": 11306000000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          },
+          {
+            "periodEnd": "2025-12-31",
+            "originalValue": 11907000000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          },
+          {
+            "periodEnd": "2026-03-31",
+            "originalValue": 11636000000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          },
+          {
+            "periodEnd": "2026-06-30",
+            "originalValue": 11979000000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          }
+        ],
+        "shares": 11021872000,
+        "roePct": 20.19,
+        "payoutPct": 63.6,
+        "discountRatePct": 13.75,
+        "perpetualGrowthPct": 3,
+        "safetyMarginPct": 15,
+        "price": 50.47
+      },
+      "resultado": {
+        "netIncomeTtm": 46828000000,
+        "growthPct": 7.3492,
+        "fc1": 46828000000,
+        "pv1": 41167472527.47,
+        "fc2": 50269464644.8,
+        "pv2": 38850932704.59,
+        "fc3": 53963848032.69,
+        "pv3": 36664747174.1,
+        "terminalValue": 517048962545.77,
+        "terminalPv": 351299438040.26,
+        "equityValue": 467982590446.43,
+        "terminalWeightPct": 75.0668,
+        "ceilingPrice": 42.4594,
+        "idealPrice": 36.0905,
+        "ceilingMarginPct": -15.8719,
+        "idealMarginPct": -28.4911,
+        "steps": [
+          {
+            "key": "netIncomeTtm",
+            "label": "LL TTM",
+            "value": 46828000000,
+            "formula": "LL T-3 + LL T-2 + LL T-1 + LL T",
+            "substituted": "11.306.000.000 + 11.907.000.000 + 11.636.000.000 + 11.979.000.000 = 46.828.000.000"
+          },
+          {
+            "key": "growth",
+            "label": "Crescimento sustentável (g)",
+            "value": 7.3492,
+            "formula": "ROE × (1 − Payout)",
+            "substituted": "20,19% × (1 − 63,6%) = 7,34916%"
+          },
+          {
+            "key": "fc1",
+            "label": "FC1",
+            "value": 46828000000,
+            "formula": "FC1 = LL TTM",
+            "substituted": "FC1 = 46.828.000.000"
+          },
+          {
+            "key": "pv1",
+            "label": "VPL1",
+            "value": 41167472527.47,
+            "formula": "FC1 ÷ (1 + d)",
+            "substituted": "46.828.000.000 ÷ (1 + 0,1375) = 41.167.472.527,472527"
+          },
+          {
+            "key": "fc2",
+            "label": "FC2",
+            "value": 50269464644.8,
+            "formula": "FC1 × (1 + g)",
+            "substituted": "46.828.000.000 × (1 + 0,073492) = 50.269.464.644,8"
+          },
+          {
+            "key": "pv2",
+            "label": "VPL2",
+            "value": 38850932704.59,
+            "formula": "FC2 ÷ (1 + d)²",
+            "substituted": "50.269.464.644,8 ÷ (1 + 0,1375)² = 38.850.932.704,591233"
+          },
+          {
+            "key": "fc3",
+            "label": "FC3",
+            "value": 53963848032.69,
+            "formula": "FC2 × (1 + g)",
+            "substituted": "50.269.464.644,8 × (1 + 0,073492) = 53.963.848.032,689784"
+          },
+          {
+            "key": "pv3",
+            "label": "VPL3",
+            "value": 36664747174.1,
+            "formula": "FC3 ÷ (1 + d)³",
+            "substituted": "53.963.848.032,689784 ÷ (1 + 0,1375)³ = 36.664.747.174,104589"
+          },
+          {
+            "key": "terminalValue",
+            "label": "Valor terminal",
+            "value": 517048962545.77,
+            "formula": "FC3 × (1 + G) ÷ (d − G)",
+            "substituted": "53.963.848.032,689784 × (1 + 0,03) ÷ (0,1375 − 0,03) = 517.048.962.545,771881"
+          },
+          {
+            "key": "terminalPv",
+            "label": "VPL do valor terminal",
+            "value": 351299438040.26,
+            "formula": "Valor terminal ÷ (1 + d)³",
+            "substituted": "517.048.962.545,771881 ÷ (1 + 0,1375)³ = 351.299.438.040,257923"
+          },
+          {
+            "key": "equityValue",
+            "label": "Valor do patrimônio",
+            "value": 467982590446.43,
+            "formula": "VPL1 + VPL2 + VPL3 + VPL do valor terminal",
+            "substituted": "41.167.472.527,472527 + 38.850.932.704,591233 + 36.664.747.174,104589 + 351.299.438.040,257923 = 467.982.590.446,426272"
+          },
+          {
+            "key": "ceilingPrice",
+            "label": "Preço Teto",
+            "value": 42.4594,
+            "formula": "Valor do patrimônio ÷ N",
+            "substituted": "467.982.590.446,426272 ÷ 11.021.872.000 = 42,459447"
+          },
+          {
+            "key": "idealPrice",
+            "label": "Preço Ideal",
+            "value": 36.0905,
+            "formula": "Preço Teto × (1 − MS)",
+            "substituted": "42,459447 × (1 − 15%) = 36,09053"
+          },
+          {
+            "key": "ceilingMargin",
+            "label": "Margem do Preço Teto",
+            "value": -15.8719,
+            "formula": "Preço Teto ÷ Preço − 1",
+            "substituted": "42,459447 ÷ 50,47 − 1 = -15,87191%"
+          },
+          {
+            "key": "idealMargin",
+            "label": "Margem do Preço Ideal",
+            "value": -28.4911,
+            "formula": "Preço Ideal ÷ Preço − 1",
+            "substituted": "36,09053 ÷ 50,47 − 1 = -28,491123%"
+          }
+        ],
+        "issues": []
+      }
+    },
+    {
+      "rotulo": "BBAS3 (padroes do PrimeVest)",
+      "entradas": {
+        "ticker": "BBAS3",
+        "quarters": [
+          {
+            "periodEnd": "2025-09-30",
+            "originalValue": 2237301000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          },
+          {
+            "periodEnd": "2025-12-31",
+            "originalValue": 5239936000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          },
+          {
+            "periodEnd": "2026-03-31",
+            "originalValue": 2397165000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          },
+          {
+            "periodEnd": "2026-06-30",
+            "originalValue": 2397643000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          }
+        ],
+        "shares": 5708971478,
+        "roePct": 13.58,
+        "payoutPct": 49.47,
+        "discountRatePct": 13.75,
+        "perpetualGrowthPct": 3,
+        "safetyMarginPct": 15,
+        "price": 24.64
+      },
+      "resultado": {
+        "netIncomeTtm": 12272045000,
+        "growthPct": 6.862,
+        "fc1": 12272045000,
+        "pv1": 10788610989.01,
+        "fc2": 13114149537.17,
+        "pv2": 10135316633,
+        "fc3": 14014039068.73,
+        "pv3": 9521581912.24,
+        "terminalValue": 134274048751.55,
+        "terminalPv": 91230040647.52,
+        "equityValue": 121675550181.78,
+        "terminalWeightPct": 74.9781,
+        "ceilingPrice": 21.313,
+        "idealPrice": 18.1161,
+        "ceilingMarginPct": -13.5023,
+        "idealMarginPct": -26.4769,
+        "steps": [
+          {
+            "key": "netIncomeTtm",
+            "label": "LL TTM",
+            "value": 12272045000,
+            "formula": "LL T-3 + LL T-2 + LL T-1 + LL T",
+            "substituted": "2.237.301.000 + 5.239.936.000 + 2.397.165.000 + 2.397.643.000 = 12.272.045.000"
+          },
+          {
+            "key": "growth",
+            "label": "Crescimento sustentável (g)",
+            "value": 6.862,
+            "formula": "ROE × (1 − Payout)",
+            "substituted": "13,58% × (1 − 49,47%) = 6,861974%"
+          },
+          {
+            "key": "fc1",
+            "label": "FC1",
+            "value": 12272045000,
+            "formula": "FC1 = LL TTM",
+            "substituted": "FC1 = 12.272.045.000"
+          },
+          {
+            "key": "pv1",
+            "label": "VPL1",
+            "value": 10788610989.01,
+            "formula": "FC1 ÷ (1 + d)",
+            "substituted": "12.272.045.000 ÷ (1 + 0,1375) = 10.788.610.989,010989"
+          },
+          {
+            "key": "fc2",
+            "label": "FC2",
+            "value": 13114149537.17,
+            "formula": "FC1 × (1 + g)",
+            "substituted": "12.272.045.000 × (1 + 0,06862) = 13.114.149.537,1683"
+          },
+          {
+            "key": "pv2",
+            "label": "VPL2",
+            "value": 10135316633,
+            "formula": "FC2 ÷ (1 + d)²",
+            "substituted": "13.114.149.537,1683 ÷ (1 + 0,1375)² = 10.135.316.633,000498"
+          },
+          {
+            "key": "fc3",
+            "label": "FC3",
+            "value": 14014039068.73,
+            "formula": "FC2 × (1 + g)",
+            "substituted": "13.114.149.537,1683 × (1 + 0,06862) = 14.014.039.068,729909"
+          },
+          {
+            "key": "pv3",
+            "label": "VPL3",
+            "value": 9521581912.24,
+            "formula": "FC3 ÷ (1 + d)³",
+            "substituted": "14.014.039.068,729909 ÷ (1 + 0,1375)³ = 9.521.581.912,241466"
+          },
+          {
+            "key": "terminalValue",
+            "label": "Valor terminal",
+            "value": 134274048751.55,
+            "formula": "FC3 × (1 + G) ÷ (d − G)",
+            "substituted": "14.014.039.068,729909 × (1 + 0,03) ÷ (0,1375 − 0,03) = 134.274.048.751,551687"
+          },
+          {
+            "key": "terminalPv",
+            "label": "VPL do valor terminal",
+            "value": 91230040647.52,
+            "formula": "Valor terminal ÷ (1 + d)³",
+            "substituted": "134.274.048.751,551687 ÷ (1 + 0,1375)³ = 91.230.040.647,522879"
+          },
+          {
+            "key": "equityValue",
+            "label": "Valor do patrimônio",
+            "value": 121675550181.78,
+            "formula": "VPL1 + VPL2 + VPL3 + VPL do valor terminal",
+            "substituted": "10.788.610.989,010989 + 10.135.316.633,000498 + 9.521.581.912,241466 + 91.230.040.647,522879 = 121.675.550.181,775832"
+          },
+          {
+            "key": "ceilingPrice",
+            "label": "Preço Teto",
+            "value": 21.313,
+            "formula": "Valor do patrimônio ÷ N",
+            "substituted": "121.675.550.181,775832 ÷ 5.708.971.478 = 21,313042"
+          },
+          {
+            "key": "idealPrice",
+            "label": "Preço Ideal",
+            "value": 18.1161,
+            "formula": "Preço Teto × (1 − MS)",
+            "substituted": "21,313042 × (1 − 15%) = 18,116086"
+          },
+          {
+            "key": "ceilingMargin",
+            "label": "Margem do Preço Teto",
+            "value": -13.5023,
+            "formula": "Preço Teto ÷ Preço − 1",
+            "substituted": "21,313042 ÷ 24,64 − 1 = -13,502264%"
+          },
+          {
+            "key": "idealMargin",
+            "label": "Margem do Preço Ideal",
+            "value": -26.4769,
+            "formula": "Preço Ideal ÷ Preço − 1",
+            "substituted": "18,116086 ÷ 24,64 − 1 = -26,476924%"
+          }
+        ],
+        "issues": []
+      }
+    },
+    {
+      "rotulo": "TAEE11 (padroes do PrimeVest)",
+      "entradas": {
+        "ticker": "TAEE11",
+        "quarters": [
+          {
+            "periodEnd": "2025-09-30",
+            "originalValue": 340606000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          },
+          {
+            "periodEnd": "2025-12-31",
+            "originalValue": 364077000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          },
+          {
+            "periodEnd": "2026-03-31",
+            "originalValue": 353646000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          },
+          {
+            "periodEnd": "2026-06-30",
+            "originalValue": 567144000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          }
+        ],
+        "shares": 344499000,
+        "roePct": 22.42,
+        "payoutPct": 65.8,
+        "discountRatePct": 13.75,
+        "perpetualGrowthPct": 3,
+        "safetyMarginPct": 15,
+        "price": 46.45
+      },
+      "resultado": {
+        "netIncomeTtm": 1625473000,
+        "growthPct": 7.6676,
+        "fc1": 1625473000,
+        "pv1": 1428987252.75,
+        "fc2": 1750108417.94,
+        "pv2": 1352577451.37,
+        "fc3": 1884300431.03,
+        "pv3": 1280253381.15,
+        "terminalValue": 18054227385.72,
+        "terminalPv": 12266613791.52,
+        "equityValue": 16328431876.79,
+        "terminalWeightPct": 75.1243,
+        "ceilingPrice": 47.3976,
+        "idealPrice": 40.288,
+        "ceilingMarginPct": 2.0401,
+        "idealMarginPct": -13.2659,
+        "steps": [
+          {
+            "key": "netIncomeTtm",
+            "label": "LL TTM",
+            "value": 1625473000,
+            "formula": "LL T-3 + LL T-2 + LL T-1 + LL T",
+            "substituted": "340.606.000 + 364.077.000 + 353.646.000 + 567.144.000 = 1.625.473.000"
+          },
+          {
+            "key": "growth",
+            "label": "Crescimento sustentável (g)",
+            "value": 7.6676,
+            "formula": "ROE × (1 − Payout)",
+            "substituted": "22,42% × (1 − 65,8%) = 7,66764%"
+          },
+          {
+            "key": "fc1",
+            "label": "FC1",
+            "value": 1625473000,
+            "formula": "FC1 = LL TTM",
+            "substituted": "FC1 = 1.625.473.000"
+          },
+          {
+            "key": "pv1",
+            "label": "VPL1",
+            "value": 1428987252.75,
+            "formula": "FC1 ÷ (1 + d)",
+            "substituted": "1.625.473.000 ÷ (1 + 0,1375) = 1.428.987.252,747253"
+          },
+          {
+            "key": "fc2",
+            "label": "FC2",
+            "value": 1750108417.94,
+            "formula": "FC1 × (1 + g)",
+            "substituted": "1.625.473.000 × (1 + 0,076676) = 1.750.108.417,9372"
+          },
+          {
+            "key": "pv2",
+            "label": "VPL2",
+            "value": 1352577451.37,
+            "formula": "FC2 ÷ (1 + d)²",
+            "substituted": "1.750.108.417,9372 ÷ (1 + 0,1375)² = 1.352.577.451,370376"
+          },
+          {
+            "key": "fc3",
+            "label": "FC3",
+            "value": 1884300431.03,
+            "formula": "FC2 × (1 + g)",
+            "substituted": "1.750.108.417,9372 × (1 + 0,076676) = 1.884.300.431,03432"
+          },
+          {
+            "key": "pv3",
+            "label": "VPL3",
+            "value": 1280253381.15,
+            "formula": "FC3 ÷ (1 + d)³",
+            "substituted": "1.884.300.431,03432 ÷ (1 + 0,1375)³ = 1.280.253.381,153961"
+          },
+          {
+            "key": "terminalValue",
+            "label": "Valor terminal",
+            "value": 18054227385.72,
+            "formula": "FC3 × (1 + G) ÷ (d − G)",
+            "substituted": "1.884.300.431,03432 × (1 + 0,03) ÷ (0,1375 − 0,03) = 18.054.227.385,724182"
+          },
+          {
+            "key": "terminalPv",
+            "label": "VPL do valor terminal",
+            "value": 12266613791.52,
+            "formula": "Valor terminal ÷ (1 + d)³",
+            "substituted": "18.054.227.385,724182 ÷ (1 + 0,1375)³ = 12.266.613.791,521676"
+          },
+          {
+            "key": "equityValue",
+            "label": "Valor do patrimônio",
+            "value": 16328431876.79,
+            "formula": "VPL1 + VPL2 + VPL3 + VPL do valor terminal",
+            "substituted": "1.428.987.252,747253 + 1.352.577.451,370376 + 1.280.253.381,153961 + 12.266.613.791,521676 = 16.328.431.876,793266"
+          },
+          {
+            "key": "ceilingPrice",
+            "label": "Preço Teto",
+            "value": 47.3976,
+            "formula": "Valor do patrimônio ÷ N",
+            "substituted": "16.328.431.876,793266 ÷ 344.499.000 = 47,397618"
+          },
+          {
+            "key": "idealPrice",
+            "label": "Preço Ideal",
+            "value": 40.288,
+            "formula": "Preço Teto × (1 − MS)",
+            "substituted": "47,397618 × (1 − 15%) = 40,287975"
+          },
+          {
+            "key": "ceilingMargin",
+            "label": "Margem do Preço Teto",
+            "value": 2.0401,
+            "formula": "Preço Teto ÷ Preço − 1",
+            "substituted": "47,397618 ÷ 46,45 − 1 = 2,040081%"
+          },
+          {
+            "key": "idealMargin",
+            "label": "Margem do Preço Ideal",
+            "value": -13.2659,
+            "formula": "Preço Ideal ÷ Preço − 1",
+            "substituted": "40,287975 ÷ 46,45 − 1 = -13,265931%"
+          }
+        ],
+        "issues": []
+      }
+    },
+    {
+      "rotulo": "WEGE3 (padroes do PrimeVest)",
+      "entradas": {
+        "ticker": "WEGE3",
+        "quarters": [
+          {
+            "periodEnd": "2025-09-30",
+            "originalValue": 1650469000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          },
+          {
+            "periodEnd": "2025-12-31",
+            "originalValue": 1587762000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          },
+          {
+            "periodEnd": "2026-03-31",
+            "originalValue": 1457187000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          },
+          {
+            "periodEnd": "2026-06-30",
+            "originalValue": 1558633000,
+            "unit": "UNIDADE",
+            "currency": "BRL"
+          }
+        ],
+        "shares": 4195829691,
+        "roePct": 32.79,
+        "payoutPct": 57.77,
+        "discountRatePct": 13.75,
+        "perpetualGrowthPct": 3,
+        "safetyMarginPct": 15,
+        "price": 51.47
+      },
+      "resultado": {
+        "netIncomeTtm": 6254051000,
+        "growthPct": 13.8472,
+        "fc1": 6254051000,
+        "pv1": 5498066813.19,
+        "fc2": 7120063013.26,
+        "pv2": 5502765763.18,
+        "fc3": 8105993589.24,
+        "pv3": 5507468729.15,
+        "terminalValue": 77666729273.68,
+        "terminalPv": 52769235265.32,
+        "equityValue": 69277536570.84,
+        "terminalWeightPct": 76.1708,
+        "ceilingPrice": 16.511,
+        "idealPrice": 14.0344,
+        "ceilingMarginPct": -67.921,
+        "idealMarginPct": -72.7329,
+        "steps": [
+          {
+            "key": "netIncomeTtm",
+            "label": "LL TTM",
+            "value": 6254051000,
+            "formula": "LL T-3 + LL T-2 + LL T-1 + LL T",
+            "substituted": "1.650.469.000 + 1.587.762.000 + 1.457.187.000 + 1.558.633.000 = 6.254.051.000"
+          },
+          {
+            "key": "growth",
+            "label": "Crescimento sustentável (g)",
+            "value": 13.8472,
+            "formula": "ROE × (1 − Payout)",
+            "substituted": "32,79% × (1 − 57,77%) = 13,847217%"
+          },
+          {
+            "key": "fc1",
+            "label": "FC1",
+            "value": 6254051000,
+            "formula": "FC1 = LL TTM",
+            "substituted": "FC1 = 6.254.051.000"
+          },
+          {
+            "key": "pv1",
+            "label": "VPL1",
+            "value": 5498066813.19,
+            "formula": "FC1 ÷ (1 + d)",
+            "substituted": "6.254.051.000 ÷ (1 + 0,1375) = 5.498.066.813,186813"
+          },
+          {
+            "key": "fc2",
+            "label": "FC2",
+            "value": 7120063013.26,
+            "formula": "FC1 × (1 + g)",
+            "substituted": "6.254.051.000 × (1 + 0,138472) = 7.120.063.013,26067"
+          },
+          {
+            "key": "pv2",
+            "label": "VPL2",
+            "value": 5502765763.18,
+            "formula": "FC2 ÷ (1 + d)²",
+            "substituted": "7.120.063.013,26067 ÷ (1 + 0,1375)² = 5.502.765.763,176946"
+          },
+          {
+            "key": "fc3",
+            "label": "FC3",
+            "value": 8105993589.24,
+            "formula": "FC2 × (1 + g)",
+            "substituted": "7.120.063.013,26067 × (1 + 0,138472) = 8.105.993.589,243614"
+          },
+          {
+            "key": "pv3",
+            "label": "VPL3",
+            "value": 5507468729.15,
+            "formula": "FC3 ÷ (1 + d)³",
+            "substituted": "8.105.993.589,243614 ÷ (1 + 0,1375)³ = 5.507.468.729,147924"
+          },
+          {
+            "key": "terminalValue",
+            "label": "Valor terminal",
+            "value": 77666729273.68,
+            "formula": "FC3 × (1 + G) ÷ (d − G)",
+            "substituted": "8.105.993.589,243614 × (1 + 0,03) ÷ (0,1375 − 0,03) = 77.666.729.273,682997"
+          },
+          {
+            "key": "terminalPv",
+            "label": "VPL do valor terminal",
+            "value": 52769235265.32,
+            "formula": "Valor terminal ÷ (1 + d)³",
+            "substituted": "77.666.729.273,682997 ÷ (1 + 0,1375)³ = 52.769.235.265,324295"
+          },
+          {
+            "key": "equityValue",
+            "label": "Valor do patrimônio",
+            "value": 69277536570.84,
+            "formula": "VPL1 + VPL2 + VPL3 + VPL do valor terminal",
+            "substituted": "5.498.066.813,186813 + 5.502.765.763,176946 + 5.507.468.729,147924 + 52.769.235.265,324295 = 69.277.536.570,835978"
+          },
+          {
+            "key": "ceilingPrice",
+            "label": "Preço Teto",
+            "value": 16.511,
+            "formula": "Valor do patrimônio ÷ N",
+            "substituted": "69.277.536.570,835978 ÷ 4.195.829.691 = 16,511046"
+          },
+          {
+            "key": "idealPrice",
+            "label": "Preço Ideal",
+            "value": 14.0344,
+            "formula": "Preço Teto × (1 − MS)",
+            "substituted": "16,511046 × (1 − 15%) = 14,034389"
+          },
+          {
+            "key": "ceilingMargin",
+            "label": "Margem do Preço Teto",
+            "value": -67.921,
+            "formula": "Preço Teto ÷ Preço − 1",
+            "substituted": "16,511046 ÷ 51,47 − 1 = -67,92103%"
+          },
+          {
+            "key": "idealMargin",
+            "label": "Margem do Preço Ideal",
+            "value": -72.7329,
+            "formula": "Preço Ideal ÷ Preço − 1",
+            "substituted": "14,034389 ÷ 51,47 − 1 = -72,732875%"
+          }
+        ],
+        "issues": [
+          {
+            "code": "G_MAIOR_QUE_D",
+            "level": "ATENCAO",
+            "field": "growth",
+            "message": "Crescimento sustentável (13,85%) igual ou acima da taxa de desconto (13,75%)."
+          }
+        ]
+      }
+    }
+  ]
+}

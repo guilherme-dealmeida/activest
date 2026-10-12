@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { assetsApi } from '@/api/assets';
 import { Asset } from '@/types';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -7,6 +7,13 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 interface Props {
   /** Chamado com o ticker escolhido (lista ou Enter). */
   onSelect: (ticker: string) => void;
+  /** Texto do campo vazio (padrão: o da tela de emissoras). */
+  placeholder?: string;
+  /**
+   * Rótulo do botão "+" no fim do campo (ex: "Calcular preço teto"). Sem ele o botão não aparece.
+   * O "+" faz o mesmo que o Enter: abre a opção destacada ou o ticker digitado.
+   */
+  addLabel?: string;
 }
 
 /**
@@ -15,13 +22,14 @@ interface Props {
  * obrigatório; Enter sem escolher na lista vai direto ao ticker digitado — a
  * própria tela avisa se ele não existe ou não tem emissor.
  */
-export const IssuerSearch = ({ onSelect }: Props) => {
+export const IssuerSearch = ({ onSelect, placeholder = 'Buscar ticker ou nome (ex: PETR4, HGLG11, Itaú)', addLabel }: Props) => {
   const [value, setValue] = useState('');
   const [options, setOptions] = useState<Asset[]>([]);
   const [open, setOpen] = useState(false);
   const [searching, setSearching] = useState(false);
   const [highlight, setHighlight] = useState(-1);
   const boxRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -63,11 +71,17 @@ export const IssuerSearch = ({ onSelect }: Props) => {
     onSelect(t);
   };
 
+  const submit = () => {
+    if (!value.trim()) { inputRef.current?.focus(); return; }
+    go(open && highlight >= 0 ? options[highlight].ticker : value);
+  };
+
   return (
     <div ref={boxRef} className="relative w-full max-w-md">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input
+          ref={inputRef}
           type="text"
           autoComplete="off"
           aria-label="Buscar emissora por ticker ou nome"
@@ -78,13 +92,26 @@ export const IssuerSearch = ({ onSelect }: Props) => {
             else if (e.key === 'ArrowUp' && open) { e.preventDefault(); setHighlight(p => Math.max(p - 1, 0)); }
             else if (e.key === 'Enter') {
               e.preventDefault();
-              go(open && highlight >= 0 ? options[highlight].ticker : value);
+              submit();
             } else if (e.key === 'Escape') setOpen(false);
           }}
-          placeholder="Buscar ticker ou nome (ex: PETR4, HGLG11, Itaú)"
-          className="flex h-10 w-full rounded-md border border-surface-light bg-surface pl-9 pr-9 py-2 text-sm text-white focus:ring-2 focus:ring-accent focus:border-transparent"
+          placeholder={placeholder}
+          className={`flex h-10 w-full border border-surface-light bg-surface pl-9 ${addLabel ? 'rounded-l-md rounded-r-none pr-[3.25rem]' : 'rounded-md pr-9'} py-2 text-sm text-white focus:ring-2 focus:ring-accent focus:border-transparent`}
         />
-        {searching && <LoadingSpinner className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 border-2 text-accent" />}
+        {searching && (
+          <LoadingSpinner className={`absolute ${addLabel ? 'right-14' : 'right-3'} top-1/2 -translate-y-1/2 h-4 w-4 border-2 text-accent`} />
+        )}
+        {addLabel && (
+          <button
+            type="button"
+            onClick={submit}
+            title={addLabel}
+            aria-label={addLabel}
+            className="absolute right-0 inset-y-0 w-11 flex items-center justify-center rounded-r-md bg-accent text-primary hover:bg-accent/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" strokeWidth={2.5} />
+          </button>
+        )}
       </div>
 
       {open && options.length > 0 && (

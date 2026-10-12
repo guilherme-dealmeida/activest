@@ -48,6 +48,10 @@ public class CompanyQuarter {
     @Column(name = "dividends_declared_q")
     private BigDecimal dividendsDeclaredQ;
 
+    /** Dividendos + JCP pagos aos acionistas da controladora no trimestre (DFC) — base do payout (V45). */
+    @Column(name = "dividends_paid_q")
+    private BigDecimal dividendsPaidQ;
+
     @Column(name = "revenue_ttm")
     private BigDecimal revenueTtm;
     @Column(name = "ebit_ttm")
@@ -60,6 +64,9 @@ public class CompanyQuarter {
     private BigDecimal fcoTtm;
     @Column(name = "dividends_declared_ttm")
     private BigDecimal dividendsDeclaredTtm;
+
+    @Column(name = "dividends_paid_ttm")
+    private BigDecimal dividendsPaidTtm;
 
     private BigDecimal equity;
     @Column(name = "equity_parent")

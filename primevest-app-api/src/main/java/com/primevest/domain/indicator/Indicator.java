@@ -19,7 +19,7 @@ public enum Indicator {
     PVP(null, Unit.RATIO),
     /** Lucro da controladora 12 meses / PL da controladora medio (inicio e fim — D4). */
     ROE(IssuerKind.COMPANY, Unit.PERCENT),
-    /** Dividendos + JCP declarados 12 meses (DVA) / lucro da controladora 12 meses. */
+    /** Dividendos + JCP pagos em 12 meses (DFC) / lucro da controladora 12 meses (base desde 10/10/2026). */
     PAYOUT(IssuerKind.COMPANY, Unit.PERCENT),
 
     // ------------------------------------------------------------ os dois

@@ -11,6 +11,8 @@ import { Switch } from '@/components/ui/Switch';
 import { InfoTooltip, LabelWithInfo } from '@/components/ui/InfoTooltip';
 import { useToast } from '@/context/ToastContext';
 import { TransactionFormModal, TransactionPreset } from '@/components/transactions/TransactionFormModal';
+import { presetFromPosition } from '@/components/transactions/transactionPreset';
+import { TABLE_ACTION_CLASS } from '@/components/ui/tableAction';
 import { useSortable } from '@/hooks/useSortable';
 import { AssetType, PortfolioAssetDetail, RateType, TransactionType } from '@/types';
 import { formatCurrency, formatDate, formatPercentage, formatQuantity, formatUnitPrice, getReturnColor } from '@/utils/format';
@@ -446,21 +448,21 @@ const PortfolioTypeTable = ({ type, assets, reservation, onList, onBuy, onSell }
                   <button
                     onClick={() => onList(asset)}
                     title="Ver as transações desta posição"
-                    className="text-gray-500 hover:text-accent transition-colors p-1"
+                    className={TABLE_ACTION_CLASS}
                   >
                     <List className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => onBuy(asset)}
                     title="Comprar"
-                    className="text-gray-500 hover:text-success transition-colors p-1"
+                    className={TABLE_ACTION_CLASS}
                   >
                     <ArrowDownLeft className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => onSell(asset)}
                     title="Vender"
-                    className="text-gray-500 hover:text-danger transition-colors p-1"
+                    className={TABLE_ACTION_CLASS}
                   >
                     <ArrowUpRight className="w-4 h-4" />
                   </button>
@@ -619,29 +621,6 @@ export const PortfolioPage = () => {
 
   const activeTab = tabs.find((t) => t.type.id === activeTypeId) ?? tabs[0];
 
-  /**
-   * O que o modal já sabe ao abrir pela carteira.
-   *
-   * O título só vai junto na Renda Fixa: lá a linha É uma aplicação, e comprar
-   * mais significa aportar nela. No Tesouro cada compra é um título novo — a
-   * taxa é a do dia — e a venda é do ativo, com os títulos escolhidos por FIFO.
-   */
-  const presetOf = (operation: TransactionType, type: AssetType, asset: PortfolioAssetDetail): TransactionPreset => ({
-    operation,
-    assetType: type,
-    ticker: asset.ticker,
-    note: isFixedIncomeNote(type) && asset.noteId
-      ? {
-          noteId: asset.noteId,
-          issuer: asset.issuer,
-          maturityDate: asset.maturityDate,
-          rateType: asset.rateType,
-          indexer: asset.indexer,
-          indexerRate: asset.indexerRate,
-          currentValue: asset.currentValue,
-        }
-      : null,
-  });
 
   return (
     <div className="space-y-6">
@@ -673,8 +652,8 @@ export const PortfolioPage = () => {
             assets={activeTab.assets}
             reservation={reservation}
             onList={(asset) => navigate(`/transactions?position=${asset.id}`)}
-            onBuy={(asset) => setPreset(presetOf(TransactionType.BUY, activeTab.type, asset))}
-            onSell={(asset) => setPreset(presetOf(TransactionType.SELL, activeTab.type, asset))}
+            onBuy={(asset) => setPreset(presetFromPosition(TransactionType.BUY, activeTab.type, asset))}
+            onSell={(asset) => setPreset(presetFromPosition(TransactionType.SELL, activeTab.type, asset))}
           />
         ) : (
           <p className="text-sm text-gray-400">Nenhum ativo na carteira.</p>

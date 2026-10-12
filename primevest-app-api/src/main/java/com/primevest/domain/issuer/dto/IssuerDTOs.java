@@ -37,17 +37,17 @@ public final class IssuerDTOs {
     /** Uma linha da serie trimestral ({@code company_quarters}): _q trimestre, _ttm 12 meses. */
     public record QuarterDTO(LocalDate periodEnd, LocalDate fiscalYearStart,
                              BigDecimal revenueQ, BigDecimal ebitQ, BigDecimal netIncomeQ, BigDecimal netIncomeParentQ,
-                             BigDecimal fcoQ, BigDecimal dividendsDeclaredQ,
+                             BigDecimal fcoQ, BigDecimal dividendsDeclaredQ, BigDecimal dividendsPaidQ,
                              BigDecimal revenueTtm, BigDecimal ebitTtm, BigDecimal netIncomeTtm,
                              BigDecimal netIncomeParentTtm, BigDecimal fcoTtm, BigDecimal dividendsDeclaredTtm,
-                             BigDecimal equity, BigDecimal equityParent, BigDecimal totalAssets, BigDecimal cash,
+                             BigDecimal dividendsPaidTtm, BigDecimal equity, BigDecimal equityParent, BigDecimal totalAssets, BigDecimal cash,
                              BigDecimal grossDebt, Long sharesTotal, Long sharesOutstanding) {
 
         public static QuarterDTO of(CompanyQuarter q) {
             return new QuarterDTO(q.getPeriodEnd(), q.getFiscalYearStart(), q.getRevenueQ(), q.getEbitQ(),
                     q.getNetIncomeQ(), q.getNetIncomeParentQ(), q.getFcoQ(), q.getDividendsDeclaredQ(),
-                    q.getRevenueTtm(), q.getEbitTtm(), q.getNetIncomeTtm(), q.getNetIncomeParentTtm(), q.getFcoTtm(),
-                    q.getDividendsDeclaredTtm(), q.getEquity(), q.getEquityParent(), q.getTotalAssets(), q.getCash(),
+                    q.getDividendsPaidQ(), q.getRevenueTtm(), q.getEbitTtm(), q.getNetIncomeTtm(), q.getNetIncomeParentTtm(), q.getFcoTtm(),
+                    q.getDividendsDeclaredTtm(), q.getDividendsPaidTtm(), q.getEquity(), q.getEquityParent(), q.getTotalAssets(), q.getCash(),
                     q.getGrossDebt(), q.getSharesTotal(), q.getSharesOutstanding());
         }
     }

@@ -84,18 +84,7 @@ public class HistoricalQuotesImportService {
     /** Anos {@code from} a {@code to}, inclusive. */
     public synchronized Result importYears(int from, int to, String reason) {
         log.info("Serie historica B3 ({}): {} a {}", reason, from, to);
-        Map<String, Long> byTicker = new HashMap<>();
-        Map<String, Long> byIsin = new HashMap<>();
-        for (Asset a : assetRepository.findAllWithType()) {
-            if (TYPES.contains(a.getAssetType().getName())) {
-                byTicker.put(a.getTicker().toUpperCase(), a.getId());
-                if (a.getIsin() != null && !a.getIsin().isBlank() && !isOddLot(a.getTicker())) {
-                    byIsin.putIfAbsent(a.getIsin().trim().toUpperCase(), a.getId());
-                }
-            }
-        }
-
-        Map<Long, LatestIsin> latestIsin = new HashMap<>();
+        Catalog catalog = catalog();
         List<YearResult> years = new ArrayList<>();
         long total = 0;
         // Do mais recente para o mais antigo: o ano novo ensina o ISIN atual de cada
@@ -108,59 +97,162 @@ public class HistoricalQuotesImportService {
                 years.add(new YearResult(year, false, 0, 0));
                 continue;
             }
-            List<Object[]> batch = new ArrayList<>(BATCH);
-            List<Object[]> viaIsin = new ArrayList<>();
-            long[] counts = new long[2];
-            CotahistQuote.forEach(zip.get(), q -> {
-                Long assetId = byTicker.get(q.ticker());
-                boolean spot = CotahistQuote.MARKET_SPOT.equals(q.market());
-                boolean direct = assetId != null;
-                if (direct) {
-                    latestIsin.merge(assetId, new LatestIsin(q.date(), q.isin()),
-                            (a, b) -> b.date().isAfter(a.date()) ? b : a);
-                    if (spot && !q.isin().isEmpty() && !isOddLot(q.ticker())) {
-                        byIsin.putIfAbsent(q.isin(), assetId);
-                    }
-                } else if (spot && !q.isin().isEmpty()) {
-                    // So a vista: o fracionario (PETR4F) tem o mesmo ISIN do lote padrao
-                    // e nao pode cair na linha do PETR4.
-                    assetId = byIsin.get(q.isin());
-                }
-                if (assetId == null || q.close().signum() <= 0) {
-                    return;
-                }
-                Object[] row = {assetId, Date.valueOf(q.date()), q.open(), q.high(), q.low(), q.close(), q.quantity()};
-                counts[0]++;
-                if (!direct) {
-                    // gravadas depois das do ano inteiro, sem sobrescrever: no dia da
-                    // troca de ticker, vale o pregao do ticker atual
-                    viaIsin.add(row);
-                    counts[1]++;
-                    return;
-                }
-                batch.add(row);
-                if (batch.size() >= BATCH) {
-                    flush(batch);
-                }
-            });
-            flush(batch);
-            if (!viaIsin.isEmpty()) {
-                jdbc.batchUpdate(INSERT_IF_ABSENT, viaIsin);
-            }
+            long[] counts = importZip(zip.get(), catalog);
             total += counts[0];
             years.add(new YearResult(year, true, counts[0], counts[1]));
             log.info("Serie historica B3: {} — {} pregoes gravados ({} pelo ISIN)", year, counts[0], counts[1]);
         }
 
-        int isins = updateIsins(latestIsin);
+        int isins = updateIsins(catalog.latestIsin());
         Result r = new Result(years, total, isins);
         log.info("Serie historica B3 ({}) concluida: {} pregoes, {} ISINs gravados no catalogo", reason, total, isins);
         return r;
     }
 
+    // ------------------------------------------------------------------ pregao a pregao (PLANO_PRECO_TETO, 4.5)
+
+    /** Lacuna maior que isso usa o zip do ano (um arquivo) em vez de um arquivo por pregao. */
+    static final int MAX_DAILY_GAP_DAYS = 31;
+
+    public record DayResult(LocalDate date, boolean found, long quotes) {
+    }
+
+    public record DaysResult(LocalDate from, LocalDate to, List<DayResult> days, long quotes, int isinsUpdated) {
+    }
+
+    /**
+     * Rotina diaria: do pregao seguinte ao ultimo gravado pela B3 ({@code source = B3_COTAHIST}) ate hoje, um
+     * arquivo por pregao. Sem nada gravado, ou com lacuna maior que {@value #MAX_DAILY_GAP_DAYS} dias, cai para o
+     * zip do ano ({@link #importYears}). O dia cujo arquivo ainda nao saiu fica para a rodada seguinte.
+     */
+    public DaysResult importRecent(String reason) {
+        LocalDate today = LocalDate.now(ZONE);
+        LocalDate last = lastB3Day();
+        if (last == null || last.isBefore(today.minusDays(MAX_DAILY_GAP_DAYS))) {
+            int fromYear = last == null ? today.getYear() : last.getYear();
+            log.info("Cotacoes B3 ({}): ultimo pregao gravado {} — lacuna longa, zip do ano", reason, last);
+            Result y = importYears(fromYear, today.getYear(), reason);
+            return new DaysResult(last, today, List.of(), y.quotes(), y.isinsUpdated());
+        }
+        return importDays(last.plusDays(1), today, reason);
+    }
+
+    /** Pregoes de {@code from} a {@code to}, inclusive (fim de semana nao vai a B3). */
+    public synchronized DaysResult importDays(LocalDate from, LocalDate to, String reason) {
+        Catalog catalog = catalog();
+        List<DayResult> days = new ArrayList<>();
+        long total = 0;
+        for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
+            if (d.getDayOfWeek() == java.time.DayOfWeek.SATURDAY || d.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
+                continue;
+            }
+            Optional<java.nio.file.Path> zip = client.day(d);
+            if (zip.isEmpty()) {
+                days.add(new DayResult(d, false, 0));
+                continue;
+            }
+            long[] counts = importZip(zip.get(), catalog);
+            total += counts[0];
+            days.add(new DayResult(d, true, counts[0]));
+        }
+        int isins = updateIsins(catalog.latestIsin());
+        long found = days.stream().filter(DayResult::found).count();
+        if (found > 0 || !days.isEmpty()) {
+            log.info("Cotacoes B3 ({}): {} a {} — {} pregoes com arquivo, {} cotacoes gravadas", reason, from, to,
+                    found, total);
+        }
+        return new DaysResult(from, to, days, total, isins);
+    }
+
+    /** Ultimo dia gravado pelo COTAHIST; nulo sem nenhum. */
+    public LocalDate lastB3Day() {
+        return jdbc.queryForObject(
+                "SELECT MAX(reference_date) FROM asset_price_history WHERE source = 'B3_COTAHIST'", LocalDate.class);
+    }
+
+    /**
+     * Atrasado quando falta o pregao do ultimo dia util anterior a hoje (o de hoje pode ainda nao ter saido).
+     * Feriado conta como dia util aqui: a rodada so encontra 404 e nao grava nada.
+     */
+    public boolean stale() {
+        LocalDate last = lastB3Day();
+        LocalDate expected = LocalDate.now(ZONE).minusDays(1);
+        while (expected.getDayOfWeek() == java.time.DayOfWeek.SATURDAY
+                || expected.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
+            expected = expected.minusDays(1);
+        }
+        return last == null || last.isBefore(expected);
+    }
+
+    // ------------------------------------------------------------------ leitura de um zip
+
+    private static final ZoneId ZONE = ZoneId.of("America/Sao_Paulo");
+
+    /** Mapas do catalogo para casar as linhas (ticker e ISIN) e o ISIN mais recente visto por ativo. */
+    private record Catalog(Map<String, Long> byTicker, Map<String, Long> byIsin, Map<Long, LatestIsin> latestIsin) {
+    }
+
+    private Catalog catalog() {
+        Map<String, Long> byTicker = new HashMap<>();
+        Map<String, Long> byIsin = new HashMap<>();
+        for (Asset a : assetRepository.findAllWithType()) {
+            if (TYPES.contains(a.getAssetType().getName())) {
+                byTicker.put(a.getTicker().toUpperCase(), a.getId());
+                if (a.getIsin() != null && !a.getIsin().isBlank() && !isOddLot(a.getTicker())) {
+                    byIsin.putIfAbsent(a.getIsin().trim().toUpperCase(), a.getId());
+                }
+            }
+        }
+        return new Catalog(byTicker, byIsin, new HashMap<>());
+    }
+
+    /** Grava as linhas de um zip (ano ou pregao). Devolve {cotacoes, das quais pelo ISIN}. */
+    private long[] importZip(java.nio.file.Path zip, Catalog c) {
+        List<Object[]> batch = new ArrayList<>(BATCH);
+        List<Object[]> viaIsin = new ArrayList<>();
+        long[] counts = new long[2];
+        CotahistQuote.forEach(zip, q -> {
+            Long assetId = c.byTicker().get(q.ticker());
+            boolean spot = CotahistQuote.MARKET_SPOT.equals(q.market());
+            boolean direct = assetId != null;
+            if (direct) {
+                c.latestIsin().merge(assetId, new LatestIsin(q.date(), q.isin()),
+                        (a, b) -> b.date().isAfter(a.date()) ? b : a);
+                if (spot && !q.isin().isEmpty() && !isOddLot(q.ticker())) {
+                    c.byIsin().putIfAbsent(q.isin(), assetId);
+                }
+            } else if (spot && !q.isin().isEmpty()) {
+                // So a vista: o fracionario (PETR4F) tem o mesmo ISIN do lote padrao
+                // e nao pode cair na linha do PETR4.
+                assetId = c.byIsin().get(q.isin());
+            }
+            if (assetId == null || q.close().signum() <= 0) {
+                return;
+            }
+            Object[] row = {assetId, Date.valueOf(q.date()), q.open(), q.high(), q.low(), q.close(), q.quantity()};
+            counts[0]++;
+            if (!direct) {
+                // gravadas depois das do arquivo inteiro, sem sobrescrever: no dia da
+                // troca de ticker, vale o pregao do ticker atual
+                viaIsin.add(row);
+                counts[1]++;
+                return;
+            }
+            batch.add(row);
+            if (batch.size() >= BATCH) {
+                flush(batch);
+            }
+        });
+        flush(batch);
+        if (!viaIsin.isEmpty()) {
+            jdbc.batchUpdate(INSERT_IF_ABSENT, viaIsin);
+        }
+        return counts;
+    }
+
     /** Do primeiro ano da serie ({@value #FIRST_YEAR}) ate o ano corrente. */
     public Result importAll(String reason) {
-        return importYears(FIRST_YEAR, LocalDate.now(ZoneId.of("America/Sao_Paulo")).getYear(), reason);
+        return importYears(FIRST_YEAR, LocalDate.now(ZONE).getYear(), reason);
     }
 
     /**
