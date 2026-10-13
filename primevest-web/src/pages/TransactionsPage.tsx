@@ -75,7 +75,7 @@ export const TransactionsPage = () => {
   const [filterCategory, setFilterCategory] = useState('ALL');
   const [filterAsset, setFilterAsset] = useState('ALL');
   const [filterPeriod, setFilterPeriod] = useState('ALL');
-  const [filterOrigin, setFilterOrigin] = useState<'ALL' | 'MANUAL' | 'AUTO'>('ALL');
+  const [filterOrigin, setFilterOrigin] = useState<'ALL' | 'MANUAL' | 'AUTO' | 'SISTEMA'>('ALL');
 
   /**
    * Filtro vindo da carteira, pelo ícone Listar.
@@ -436,12 +436,13 @@ export const TransactionsPage = () => {
           <label className="block text-xs text-gray-400 mb-1">Origem</label>
           <select
             value={filterOrigin}
-            onChange={(e) => { setFilterOrigin(e.target.value as 'ALL' | 'MANUAL' | 'AUTO'); setCurrentPage(1); }}
+            onChange={(e) => { setFilterOrigin(e.target.value as 'ALL' | 'MANUAL' | 'AUTO' | 'SISTEMA'); setCurrentPage(1); }}
             className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2"
           >
             <option value="ALL">Todas</option>
             <option value="MANUAL">Digitadas</option>
             <option value="AUTO">Importadas</option>
+            <option value="SISTEMA">Automáticas</option>
           </select>
         </div>
 
@@ -532,6 +533,17 @@ export const TransactionsPage = () => {
                               : `Importada de ${row.connectionLabel ?? providerName(row.connectionProvider)}`}
                           >
                             {providerName(row.connectionProvider) || 'Importada'}{row.editedAt ? ' · editada' : ''}
+                          </span>
+                        )}
+                        {/* Liquidação automática do título vencido (seção 6 do plano de notificações). */}
+                        {row.origin === 'SISTEMA' && (
+                          <span
+                            className="ml-2 rounded bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-normal text-blue-400"
+                            title={row.editedAt
+                              ? 'Resgate lançado pelo PrimeVest no vencimento do título e editado por você'
+                              : 'Resgate lançado pelo PrimeVest no vencimento do título. Se o valor recebido foi outro, edite.'}
+                          >
+                            Automática{row.editedAt ? ' · editada' : ''}
                           </span>
                         )}
                         {row.isFullSettlement && (

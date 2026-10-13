@@ -90,6 +90,10 @@ public class IntegrationService {
     @org.springframework.beans.factory.annotation.Autowired
     com.primevest.domain.user.UserCpfService userCpfService;
 
+    /** As mensagens de cada execucao (docs/planos/PLANO_NOTIFICACOES.md, 5.8). */
+    @org.springframework.beans.factory.annotation.Autowired
+    IntegrationNotifier notifier;
+
     @org.springframework.beans.factory.annotation.Value("${primevest.integrations.stale-minutes:30}")
     long staleMinutes = 30;
 
@@ -212,6 +216,7 @@ public class IntegrationService {
             conexao.setStatus(ConnectionStatus.REVOKED);
             conexao.setLastError(null);
         });
+        notifier.desconectada(userId, connectionId);
     }
 
     static final String REVOGADA_NA_FONTE = "A autorização do PrimeVest foi revogada na fonte. A conexão foi "
@@ -345,17 +350,25 @@ public class IntegrationService {
     }
 
     private record Contexto(UUID connectionId, UUID userId, IntegrationProvider provider, RunTrigger trigger,
-                            ConnectionStatus status) {}
+                            ConnectionStatus status, String label) {
+        IntegrationNotifier.Conexao conexao() {
+            return new IntegrationNotifier.Conexao(connectionId, userId, provider, label);
+        }
+    }
 
     /** O corpo da sincronizacao: fora de transacao, porque a corretora pode levar minutos. */
     void executar(UUID runId) {
         Contexto ctx = readOnly.execute(s -> {
             IntegrationRun r = runs.findById(runId).orElseThrow();
             IntegrationConnection c = r.getConnection();
-            return new Contexto(c.getId(), c.getUser().getId(), c.getProvider(), r.getTriggerType(), c.getStatus());
+            return new Contexto(c.getId(), c.getUser().getId(), c.getProvider(), r.getTriggerType(), c.getStatus(),
+                c.getLabel());
         });
         UUID connectionId = ctx.connectionId();
         boolean semDuplicatas;
+        // O problema de conexao que a busca encontrou (vira pendencia, nao "falhou").
+        ConnectionStatus[] problema = {null};
+        List<UUID> substituidas = new java.util.ArrayList<>();
         try {
             if (ctx.status() == ConnectionStatus.REVOKED) {
                 throw new BusinessException("Esta conexão foi desconectada.");
@@ -367,10 +380,12 @@ public class IntegrationService {
             CredentialCheck check = connector.check(credencial);
             if (!check.accepted()) {
                 marcar(connectionId, ConnectionStatus.INVALID_CREDENTIALS, check.problem());
+                problema[0] = ConnectionStatus.INVALID_CREDENTIALS;
                 throw new BusinessException(check.problem());
             }
             if (!check.readOnly()) {
                 marcar(connectionId, ConnectionStatus.PERMISSION_TOO_BROAD, check.problem());
+                problema[0] = ConnectionStatus.PERMISSION_TOO_BROAD;
                 throw new BusinessException(check.problem());
             }
             if (check.awaitingAuthorization()) {
@@ -378,9 +393,11 @@ public class IntegrationService {
                     // Ja estava autorizada e a fonte diz que nao esta mais: o investidor revogou
                     // la (B3: Aplicativos e Sites). Mesmo efeito de desconectar (B3, 6.9 e C5).
                     revogadaNaFonte(connectionId);
+                    notifier.desconectada(ctx.userId(), connectionId);
                     throw new BusinessException(REVOGADA_NA_FONTE);
                 }
                 marcar(connectionId, ConnectionStatus.PENDING_AUTHORIZATION, check.problem());
+                problema[0] = ConnectionStatus.PENDING_AUTHORIZATION;
                 throw new BusinessException(check.problem());
             }
 
@@ -397,7 +414,10 @@ public class IntegrationService {
             tx.executeWithoutResult(s -> {
                 // Vale a mais recente: uma pre-visualizacao anterior aguardando e cancelada.
                 runs.findByConnectionIdAndStatus(connectionId, RunStatus.AWAITING_CONFIRMATION)
-                    .forEach(r -> r.setStatus(RunStatus.CANCELLED));
+                    .forEach(r -> {
+                        r.setStatus(RunStatus.CANCELLED);
+                        substituidas.add(r.getId());
+                    });
                 IntegrationConnection c = connections.getReferenceById(connectionId);
                 if (c.getStatus() != ConnectionStatus.REVOKED) {
                     c.setStatus(ConnectionStatus.ACTIVE);
@@ -435,8 +455,15 @@ public class IntegrationService {
                 });
                 connections.findById(connectionId).ifPresent(c -> c.setLastError(e.getMessage()));
             });
+            if (problema[0] != null) {
+                notifier.problemaDeConexao(ctx.conexao(), problema[0], e.getMessage());
+            } else {
+                notifier.falhou(ctx.conexao(), runId, e.getMessage());
+            }
             return;
         }
+        substituidas.forEach(id -> notifier.decidida(ctx.userId(), id));
+        notifier.conexaoOk(ctx.conexao());
 
         // Rotina diaria: confirma sozinha quando nao ha nada para o usuario decidir e
         // ele ja confirmou uma importacao desta conexao antes (a primeira e sempre dele, P5).
@@ -446,6 +473,18 @@ public class IntegrationService {
                 confirm(ctx.userId(), connectionId, runId, new ConfirmImportDTO(null));
             } catch (RuntimeException e) {
                 log.warn("Confirmacao automatica da execucao {} falhou; fica aguardando o usuario: {}", runId, e.getMessage());
+            }
+        }
+
+        // Mensagem da execucao agendada: importou sozinha ou ficou esperando o usuario.
+        if (ctx.trigger() == RunTrigger.SCHEDULED) {
+            IntegrationRun fim = readOnly.execute(s -> runs.findById(runId).orElse(null));
+            if (fim != null && fim.getStatus() == RunStatus.SUCCEEDED && fim.getImportedCount() != null
+                    && fim.getImportedCount() > 0) {
+                notifier.importou(ctx.conexao(), runId, fim.getImportedCount());
+            } else if (fim != null && fim.getStatus() == RunStatus.AWAITING_CONFIRMATION) {
+                notifier.aguardando(ctx.conexao(), runId,
+                    fim.getDuplicateCount() == null ? 0 : fim.getDuplicateCount());
             }
         }
     }
@@ -470,6 +509,13 @@ public class IntegrationService {
             tx.executeWithoutResult(s -> runs.findById(runId).ifPresent(r -> r.setError(e.getMessage())));
             throw e;
         }
+        notifier.decidida(userId, runId);
+        // Divergencia com o saldo da fonte: pendencia da conexao (a agendada avisa; a manual so fecha).
+        readOnly.executeWithoutResult(s -> runs.findById(runId).ifPresent(r -> {
+            IntegrationConnection c = r.getConnection();
+            notifier.divergencias(new IntegrationNotifier.Conexao(c.getId(), userId, c.getProvider(), c.getLabel()),
+                runId, divergencias(r), r.getTriggerType() == RunTrigger.SCHEDULED);
+        }));
         return run(userId, connectionId, runId);
     }
 
@@ -591,6 +637,7 @@ public class IntegrationService {
             }
             run.setStatus(RunStatus.CANCELLED);
         });
+        notifier.decidida(userId, runId);
     }
 
     /** Operacoes importadas que o usuario excluiu (regra E2). */

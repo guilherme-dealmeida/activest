@@ -60,6 +60,14 @@ public class CeilingPriceController {
         return service.update(SecurityUtils.getCurrentUserId(), id, input);
     }
 
+    /** Coluna "Alerta" da lista: alertar preço abaixo do ideal. */
+    @PatchMapping("/{id}/alert")
+    public java.util.Map<String, Boolean> alert(@PathVariable UUID id,
+                                                @RequestBody com.primevest.domain.ceilingprice.dto.CeilingPriceDTOs.AlertInput body) {
+        return java.util.Map.of("alertEnabled",
+                service.setAlert(com.primevest.config.SecurityUtils.getCurrentUserId(), id, body != null && body.enabled()));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         service.delete(SecurityUtils.getCurrentUserId(), id);

@@ -61,8 +61,31 @@ public class PositionRefreshService {
     public record Result(int positions, int newDividends) {
     }
 
+    /**
+     * O que mais reage ao catalogo depois do recalculo: mensagens da caixa (docs/planos/PLANO_NOTIFICACOES.md) —
+     * bonificacao sem custo, aviso de catalogo para quem tem a posicao, alerta de preco, "padrao mudou".
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    List<com.primevest.domain.notification.CatalogReaction> reactions = List.of();
+
     /** "Catalogo mudou" vindo da adm-api. */
-    public synchronized Result refresh(CatalogChange change) {
+    public Result refresh(CatalogChange change) {
+        Result r = recalculateFor(change);
+        for (com.primevest.domain.notification.CatalogReaction reaction : reactions) {
+            try {
+                reaction.after(change);
+            } catch (RuntimeException e) {
+                log.warn("Carteira: reacao {} ao catalogo ({}) falhou: {}", reaction.getClass().getSimpleName(),
+                        change.origin(), e.getMessage());
+            }
+        }
+        return r;
+    }
+
+    private synchronized Result recalculateFor(CatalogChange change) {
+        if (change.origin() == CatalogChange.Origin.BALANCOS) {
+            return new Result(0, 0);
+        }
         if (change.origin() == CatalogChange.Origin.INDICES) {
             int changed = refreshFixedIncome();
             log.info("Carteira: indices mudaram ({}) — {} titulos de renda fixa revalorizados", change.indexCodes(), changed);
@@ -74,7 +97,7 @@ public class PositionRefreshService {
         Result r = switch (change.origin()) {
             case FECHAMENTO -> new Result(appreciationUpdater.refreshAssets(change.assetIds()), 0);
             case PROVENTOS -> recalculate(() -> portfolioAssetRepository.findAllByAssetIdIn(change.assetIds()));
-            case INDICES -> new Result(0, 0);
+            case INDICES, BALANCOS -> new Result(0, 0);
         };
         log.info("Carteira: catalogo mudou ({}, {} ativos) — {} posicoes, {} proventos novos",
                 change.origin(), change.assetIds().size(), r.positions(), r.newDividends());

@@ -96,6 +96,18 @@ public interface DividendRepository extends JpaRepository<Dividend, Long> {
     /** Proventos da posicao de certos tipos (devolucoes de capital, no calculo da posicao). */
     List<Dividend> findByPortfolioAssetIdAndTypeIn(UUID portfolioAssetId, Collection<DividendType> types);
 
+    /** Proventos pagos na data, com a posicao, o ativo e o dono (mensagem de D0, docs/planos/PLANO_NOTIFICACOES.md). */
+    @Query("""
+        SELECT d FROM Dividend d
+        JOIN FETCH d.portfolioAsset pa
+        JOIN FETCH pa.asset a
+        JOIN FETCH pa.portfolio p
+        JOIN FETCH p.user
+        WHERE d.paymentDate = :date
+        ORDER BY a.ticker, d.type, d.exDate
+        """)
+    List<Dividend> findPaidOnWithOwner(@Param("date") java.time.LocalDate date);
+
     /** Proventos de certos tipos de todas as posicoes de uma carteira, numa consulta so. */
     @Query("""
         SELECT d FROM Dividend d

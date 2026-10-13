@@ -14,6 +14,7 @@ import {
   Building2,
   LineChart,
   LogOut,
+  Bell,
   Settings,
   Sun,
   Moon,
@@ -24,6 +25,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { integrationsApi } from '@/api/integrations';
+import { notificationsApi } from '@/api/notifications';
 import { needsAttention } from '@/utils/integrations';
 import { useTheme } from '@/context/ThemeContext';
 import { clsx } from 'clsx';
@@ -86,6 +88,18 @@ export const Sidebar = () => {
     refetchInterval: 60_000,
   });
   const attention = (connections ?? []).filter(needsAttention).length;
+
+  // Sino das notificações (docs/planos/PLANO_NOTIFICACOES.md, 5.1): não lidas fora de Arquivadas, mesmo ritmo e
+  // mesmo marcador de Integrações.
+  const { data: summary } = useQuery({
+    queryKey: ['notifications', 'summary'],
+    queryFn: notificationsApi.summary,
+    refetchInterval: 60_000,
+  });
+  const unread = summary?.unread ?? 0;
+  const unreadTitle = unread === 0
+    ? 'Notificações'
+    : `Notificações · ${unread} não lida${unread === 1 ? '' : 's'}`;
 
   const userName = user?.name ?? '';
 
@@ -208,11 +222,13 @@ export const Sidebar = () => {
         })}
       </nav>
 
+      {/* Rodapé em duas linhas (13/10/2026): 1ª foto e nome; 2ª sino, Modo, Configurações e Sair. Recolhido, tudo em
+          coluna. */}
       <div className={clsx(
         'p-4 border-t overflow-hidden transition-colors duration-300',
         isDark ? 'border-white/10' : 'border-gray-200'
       )}>
-        <div className={clsx('flex items-center', collapsed && 'flex-col gap-2')}>
+        <div className={clsx('flex items-center', collapsed && 'justify-center')}>
           {/* A foto do usuário (enviada, do Google ou a inicial) — a mesma de Configurações. */}
           <UserAvatar user={user} className="h-8 w-8" textClassName="text-sm" title={collapsed ? userName : undefined} />
           {!collapsed && (
@@ -220,11 +236,36 @@ export const Sidebar = () => {
               <p className={clsx(
                 'text-sm font-medium truncate',
                 isDark ? 'text-white' : 'text-gray-900'
-              )}>
+              )} title={userName}>
                 {userName}
               </p>
             </div>
           )}
+        </div>
+
+        <div className={clsx('flex items-center mt-3', collapsed ? 'flex-col gap-2' : 'justify-between px-1')}>
+          {/* Notificações */}
+          <button
+            onClick={() => navigate('/notifications')}
+            className={twMerge(footerButton, 'relative', location.pathname.startsWith('/notifications') && 'text-accent')}
+            title={unreadTitle}
+            aria-label={unreadTitle}
+          >
+            <Bell className="h-4 w-4" />
+            {unread > 0 && (collapsed ? (
+              <span
+                className={clsx('absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-yellow-400 ring-2', isDark ? 'ring-[#111111]' : 'ring-white')}
+                aria-hidden
+              />
+            ) : (
+              <span
+                className="absolute -top-1.5 -right-2.5 min-w-[18px] h-[18px] px-1 rounded-full bg-yellow-400/20 text-yellow-500 text-[10px] font-semibold flex items-center justify-center"
+                aria-hidden
+              >
+                {unread > 99 ? '99+' : unread}
+              </span>
+            ))}
+          </button>
 
           {/* Theme Toggle */}
           <button

@@ -22,6 +22,10 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(name = "primevest.scheduling.enabled", havingValue = "true", matchIfMissing = true)
 public class TreasuryPriceScheduler {
 
+    /** Falha da rotina vira mensagem de administrador (docs/planos/PLANO_NOTIFICACOES.md, 5.7). */
+    @org.springframework.beans.factory.annotation.Autowired
+    com.primevest.adm.domain.notice.AdminNotices notices;
+
     private final TreasuryPriceService service;
     private final boolean enabled;
 
@@ -38,6 +42,7 @@ public class TreasuryPriceScheduler {
                 service.importRecent("08:00");
             } catch (RuntimeException e) {
                 log.error("Tesouro (08:00) falhou: {}", e.getMessage(), e);
+                notices.routineFailed("Tesouro (08:00)", e.getMessage());
             }
         }
     }
@@ -56,6 +61,7 @@ public class TreasuryPriceScheduler {
                 }
             } catch (RuntimeException e) {
                 log.error("Recuperacao do preco do Tesouro falhou: {}", e.getMessage(), e);
+                notices.routineFailed("Recuperação do preço do Tesouro", e.getMessage());
             }
         });
     }

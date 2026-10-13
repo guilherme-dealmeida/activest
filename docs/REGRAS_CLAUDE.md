@@ -2,7 +2,7 @@
 
 > Gerado em 02/10/2026 · revisado em 03/10/2026 (planos em `docs/planos/`, pendências em `docs/PENDENCIAS.md`,
 > carga em `carga/`), em 09/10/2026 (seção 8, banco de dados) e em 10/10/2026 (5.3: o Claude executa downloads e
-> esperas longas; a antiga 5.7 deixou de ser necessária).
+> esperas longas; a antiga 5.7 deixou de ser necessária) e em 12/10/2026 (2.6: preço atual × fechamento).
 >
 > **Escopo:** só a **relação de trabalho**: como pedimos, executamos, validamos e documentamos. Regras de negócio do
 > sistema não entram aqui; elas ficam no `Claude.md` e nos planos.
@@ -54,6 +54,13 @@ traz: objetivo, decisões numeradas (D1, D2...) para o Guilherme responder, etap
 
 **2.5** Pontos em aberto viram perguntas (decisões) no plano: o Claude não decide sozinho o que é escolha do
 Guilherme.
+
+**2.6** (12/10/2026) **Preço atual × preço de fechamento.** Não se criam regras de escopo baseadas na insuficiência
+temporária de atualização do preço atual (hoje só há fechamento, sem intradiário). Isso é uma decisão financeira, pela
+idade do projeto, e não uma decisão técnica ou funcional. As regras usam sempre o **preço atual**; o preço de
+fechamento só entra numa regra de escopo de forma **explícita**, quando a funcionalidade depender exclusivamente
+dele, e não do preço atual. Origem: Preço Teto (10/10) e alerta de preço das notificações (12/10), onde a mesma
+pergunta voltou.
 
 ## 3. Git
 

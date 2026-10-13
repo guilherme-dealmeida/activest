@@ -42,6 +42,10 @@ import java.util.Set;
 @Service
 public class HistoricalQuotesImportService {
 
+    /** "Catalogo mudou" para a carteira (docs/planos/PLANO_NOTIFICACOES.md: alerta de preco e "padrao mudou"). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.primevest.domain.catalog.CatalogMessaging.CatalogChangePublisher catalogChangePublisher;
+
     public static final int FIRST_YEAR = 2010;
     private static final Set<String> TYPES = Set.of("ACAO", "FII");
     private static final int BATCH = 5000;
@@ -157,6 +161,21 @@ public class HistoricalQuotesImportService {
         }
         int isins = updateIsins(catalog.latestIsin());
         long found = days.stream().filter(DayResult::found).count();
+        // Preco novo de todo o catalogo: a carteira confere o alerta de preco do Preco Teto (secao 5.5).
+        if (total > 0 && catalogChangePublisher != null) {
+            try {
+                java.util.Set<Long> ids = new java.util.HashSet<>(jdbc.queryForList(
+                        "SELECT DISTINCT asset_id FROM asset_price_history WHERE source = 'B3_COTAHIST' "
+                                + "AND reference_date BETWEEN ? AND ?", Long.class, java.sql.Date.valueOf(from),
+                        java.sql.Date.valueOf(to)));
+                if (!ids.isEmpty()) {
+                    catalogChangePublisher.publish(new com.primevest.domain.catalog.CatalogChange(
+                            com.primevest.domain.catalog.CatalogChange.Origin.FECHAMENTO, ids));
+                }
+            } catch (RuntimeException e) {
+                log.warn("Cotacoes B3: aviso a carteira nao publicado: {}", e.getMessage());
+            }
+        }
         if (found > 0 || !days.isEmpty()) {
             log.info("Cotacoes B3 ({}): {} a {} — {} pregoes com arquivo, {} cotacoes gravadas", reason, from, to,
                     found, total);

@@ -53,6 +53,37 @@ public class OpenPositions {
         return assets.values().stream().sorted(Comparator.comparing(Asset::getTicker)).toList();
     }
 
+    /** Uma posicao aberta hoje: de quem e, a linha da carteira e as cotas. */
+    public record Holding(UUID userId, UUID portfolioAssetId, Asset asset, java.math.BigDecimal shares) {
+    }
+
+    /**
+     * Quem tem cotas hoje dos ativos informados (docs/planos/PLANO_NOTIFICACOES.md — o aviso de catalogo que chega
+     * a quem tem a posicao).
+     */
+    @Transactional(readOnly = true)
+    public List<Holding> holdersOf(java.util.Collection<Long> assetIds) {
+        if (assetIds == null || assetIds.isEmpty()) {
+            return List.of();
+        }
+        java.util.Set<Long> wanted = new java.util.HashSet<>(assetIds);
+        Map<UUID, List<PortfolioAsset>> byPortfolio = portfolioAssetRepository.findAllWithAsset().stream()
+                .filter(pa -> wanted.contains(pa.getAsset().getId()))
+                .collect(Collectors.groupingBy(pa -> pa.getPortfolio().getId()));
+        List<Holding> out = new java.util.ArrayList<>();
+        for (Map.Entry<UUID, List<PortfolioAsset>> entry : byPortfolio.entrySet()) {
+            Map<UUID, Position> positions = positionCalculator.positionsOf(entry.getKey(), entry.getValue());
+            for (PortfolioAsset pa : entry.getValue()) {
+                Position p = positions.get(pa.getId());
+                if (p != null && p.shares().signum() > 0) {
+                    pa.getAsset().getTicker();
+                    out.add(new Holding(pa.getPortfolio().getUser().getId(), pa.getId(), pa.getAsset(), p.shares()));
+                }
+            }
+        }
+        return out;
+    }
+
     /** Ativos que tem ou ja tiveram posicao (qualquer transacao), de qualquer usuario. */
     @Transactional(readOnly = true)
     public List<Asset> assetsEverHeld() {

@@ -91,6 +91,13 @@ public class PositionCalculator {
     private final AssetStockEventRepository stockEventRepository;
     private final DividendRepository dividendRepository;
 
+    /**
+     * Custo de bonificacao informado pelo usuario (V51). Opcional: os testes que montam o calculador a mao nao o
+     * tem, e ai vale o custo do catalogo (ou o zero provisorio).
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.primevest.domain.corporateaction.StockEventCostRepository stockEventCostRepository;
+
     public PositionCalculator(TransactionRepository transactionRepository,
                               AssetStockEventRepository stockEventRepository,
                               DividendRepository dividendRepository) {
@@ -122,16 +129,46 @@ public class PositionCalculator {
                 .toList();
     }
 
+    /**
+     * Eventos societarios do ativo para uma posicao: o custo de bonificacao que o usuario informou entra no lugar do
+     * zero provisorio (docs/planos/PLANO_NOTIFICACOES.md, 5.4).
+     */
+    public List<StockEventStep> stockEventsOf(PortfolioAsset pa) {
+        Asset asset = pa.getAsset();
+        if (asset == null || asset.getId() == null || stockEventRepository == null) {
+            return List.of();
+        }
+        Map<Long, BigDecimal> costs = userCosts(pa.getId() == null ? List.of() : List.of(pa.getId()))
+                .getOrDefault(pa.getId(), Map.of());
+        return stockEventRepository.findByAssetIdOrderByDataComAsc(asset.getId()).stream()
+                .map(e -> e.toStep(costs.get(e.getId())))
+                .toList();
+    }
+
+    /** Custos informados pelo usuario: posicao -> evento -> custo por acao. */
+    private Map<UUID, Map<Long, BigDecimal>> userCosts(Collection<UUID> positionIds) {
+        if (stockEventCostRepository == null || positionIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, Map<Long, BigDecimal>> out = new HashMap<>();
+        for (com.primevest.domain.corporateaction.StockEventCost c
+                : stockEventCostRepository.findByPortfolioAssetIdIn(positionIds)) {
+            out.computeIfAbsent(c.getPortfolioAssetId(), k -> new HashMap<>()).put(c.getStockEventId(),
+                    c.getCostPerShare());
+        }
+        return out;
+    }
+
     /** Eventos societarios do ativo e devolucoes de capital recebidas pela posicao. */
     public PositionEvents eventsOf(PortfolioAsset pa) {
         if (dividendRepository == null) {
-            return PositionEvents.ofStockEvents(stockEventsOf(pa.getAsset()));
+            return PositionEvents.ofStockEvents(stockEventsOf(pa));
         }
         List<CapitalReturn> returns = dividendRepository
                 .findByPortfolioAssetIdAndTypeIn(pa.getId(), CAPITAL_RETURN_TYPES).stream()
                 .map(PositionCalculator::toCapitalReturn)
                 .toList();
-        return new PositionEvents(stockEventsOf(pa.getAsset()), returns);
+        return new PositionEvents(stockEventsOf(pa), returns);
     }
 
     /** Posicao de uma unica linha da carteira, com os eventos do papel. */
@@ -152,7 +189,7 @@ public class PositionCalculator {
                 .stream()
                 .collect(Collectors.groupingBy(tx -> tx.getPortfolioAsset().getId()));
 
-        Map<Long, List<StockEventStep>> stockByAsset = new HashMap<>();
+        Map<Long, List<AssetStockEvent>> stockByAsset = new HashMap<>();
         if (stockEventRepository != null) {
             Set<Long> assetIds = positions.stream()
                     .map(pa -> pa.getAsset() != null ? pa.getAsset().getId() : null)
@@ -160,10 +197,12 @@ public class PositionCalculator {
                     .collect(Collectors.toSet());
             if (!assetIds.isEmpty()) {
                 for (AssetStockEvent e : stockEventRepository.findByAssetIds(assetIds)) {
-                    stockByAsset.computeIfAbsent(e.getAsset().getId(), k -> new ArrayList<>()).add(e.toStep());
+                    stockByAsset.computeIfAbsent(e.getAsset().getId(), k -> new ArrayList<>()).add(e);
                 }
             }
         }
+        Map<UUID, Map<Long, BigDecimal>> costs = stockByAsset.isEmpty() ? Map.of()
+                : userCosts(positions.stream().map(PortfolioAsset::getId).filter(java.util.Objects::nonNull).toList());
         Map<UUID, List<CapitalReturn>> returnsByPosition = new HashMap<>();
         if (dividendRepository != null) {
             for (Dividend d : dividendRepository.findByPortfolioIdAndTypeIn(portfolioId, CAPITAL_RETURN_TYPES)) {
@@ -180,8 +219,9 @@ public class PositionCalculator {
                 continue;
             }
             Long assetId = pa.getAsset() != null ? pa.getAsset().getId() : null;
+            Map<Long, BigDecimal> mine = costs.getOrDefault(pa.getId(), Map.of());
             PositionEvents events = new PositionEvents(
-                    stockByAsset.getOrDefault(assetId, List.of()),
+                    stockByAsset.getOrDefault(assetId, List.of()).stream().map(e -> e.toStep(mine.get(e.getId()))).toList(),
                     returnsByPosition.getOrDefault(pa.getId(), List.of()));
             result.put(pa.getId(), calculate(isValuedByTotal(pa.getAsset()), chronological(txs), events));
         }

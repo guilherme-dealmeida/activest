@@ -539,7 +539,7 @@ abaixo do preço ideal") seria um escopo de notificações próprio, se você qu
 | D4, D6 | seguir recomendação (D6: situação temporária) | tomadas |
 | D5 | Selic vigente, só pré-preenchimento do cálculo novo; na edição, busca de novo a vigente a pedido | tomada |
 | D9 | o salvo é o retrato da edição; campos atualizados a pedido; botão para restaurar os padrões sem persistir | tomada; botão "Restaurar todos os padrões" (7.2) |
-| D10 | que alerta? | explicado (9.3); coluna sai |
+| D10 | que alerta? | explicado (9.3); coluna sai. **13/10/2026:** o alerta de verdade veio com as notificações (`docs/planos/PLANO_NOTIFICACOES.md`, 5.5): `alert_enabled` voltou na V49 com a coluna "Alerta" |
 | D2 | trimestre com prejuízo pode ser usado (o usuário manipula como quiser); os limites mais apertados ficam como alerta | tomada (9.2) |
 | D8 | ok | tomada |
 | D13 | sim, e também o preço médio, se tiver em carteira | tomada; três colunas de comparação (7.1) |

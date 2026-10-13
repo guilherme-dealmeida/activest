@@ -54,6 +54,10 @@ import java.util.function.Supplier;
 @Service
 public class BootstrapService {
 
+    /** Falha da rotina vira mensagem de administrador (docs/planos/PLANO_NOTIFICACOES.md, 5.7). */
+    @org.springframework.beans.factory.annotation.Autowired
+    com.primevest.adm.domain.notice.AdminNotices notices;
+
     private static final ZoneId ZONE = ZoneId.of("America/Sao_Paulo");
 
     private final IssuerImportService issuers;
@@ -151,6 +155,9 @@ public class BootstrapService {
                     result != null ? String.valueOf(result) : "nao rodou (outra execucao em andamento)");
         } catch (RuntimeException e) {
             log.error("Carga inicial: {} falhou: {}", name, e.getMessage(), e);
+            if (notices != null) {
+                notices.routineFailed("Carga inicial — " + name, e.getMessage());
+            }
             return new Step(name, false, (System.currentTimeMillis() - t) / 1000, e.getMessage());
         }
     }

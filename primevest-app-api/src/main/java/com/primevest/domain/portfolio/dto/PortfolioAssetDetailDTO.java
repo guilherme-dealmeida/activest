@@ -77,5 +77,15 @@ public record PortfolioAssetDetailDTO(
     /** Motivo de nao ter curva, ou a observacao da inflacao estimada. */
     String valuationNote,
     /** Passou do vencimento: na renda fixa privada, falta lancar o resgate. */
-    boolean matured
-) {}
+    boolean matured,
+    /**
+     * Bonificacoes sem custo atribuido que pegam a posicao (docs/planos/PLANO_NOTIFICACOES.md, 5.4): o icone de
+     * atencao ao lado do preco medio e o "Informar custo". Vazia quando nao ha.
+     */
+    java.util.List<PendingBonusCost> pendingBonusCosts
+) {
+    /** Uma bonificacao sem custo: o evento, a data-com, o percentual e as acoes novas na posicao. */
+    public record PendingBonusCost(Long stockEventId, LocalDate dataCom, BigDecimal factor, BigDecimal newShares,
+                                   String label) {
+    }
+}

@@ -23,6 +23,10 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class PortfolioService {
 
+    /** Bonificacoes sem custo (icone na Carteira). Opcional nos testes que montam o servico a mao. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    BonusCostService bonusCosts;
+
     private final PortfolioRepository portfolioRepository;
     private final PortfolioAssetRepository portfolioAssetRepository;
     private final UserRepository userRepository;
@@ -106,6 +110,7 @@ public class PortfolioService {
             .filter(pa -> !pa.isSettled() && positions.get(pa.getId()).hasInvestment())
             .toList();
         Map<UUID, PositionValuationInfo.Info> infos = valuationInfo != null ? valuationInfo.of(open) : null;
+        Map<UUID, List<BonusCostService.Pending>> bonus = bonusCosts != null ? bonusCosts.pendingFor(open) : Map.of();
         return open.stream()
             .map(pa -> {
                 Position position = positions.get(pa.getId());
@@ -162,7 +167,11 @@ public class PortfolioService {
                     info(infos, pa) != null ? info(infos, pa).basis() : null,
                     info(infos, pa) != null ? info(infos, pa).date() : null,
                     info(infos, pa) != null ? info(infos, pa).note() : null,
-                    info(infos, pa) != null && info(infos, pa).matured()
+                    info(infos, pa) != null && info(infos, pa).matured(),
+                    bonus.getOrDefault(pa.getId(), List.of()).stream()
+                        .map(b -> new PortfolioAssetDetailDTO.PendingBonusCost(b.stockEventId(), b.dataCom(),
+                            b.factor(), b.newShares(), b.label()))
+                        .toList()
                 );
             }).collect(Collectors.toList());
     }

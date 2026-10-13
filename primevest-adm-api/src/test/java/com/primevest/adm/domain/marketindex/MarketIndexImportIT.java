@@ -169,6 +169,28 @@ class MarketIndexImportIT extends IntegrationTestBase {
     }
 
     @Test
+    @DisplayName("Conferencia vira mensagem de administrador por indice atrasado; o que volta ao dia fica resolvido")
+    void conferenciaViraMensagem() {
+        service.importYears(List.of("CDI"), 2024, 2024, "teste");
+
+        service.audit("teste");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM notifications WHERE kind = 'CATALOGO_INDICE_ATRASADO' "
+                + "AND audience = 'ADMIN' AND status = 'NAO_RESOLVIDA'", Integer.class)).isEqualTo(10);
+
+        // de novo: nao repete
+        service.audit("teste");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM notifications WHERE kind = 'CATALOGO_INDICE_ATRASADO'",
+                Integer.class)).isEqualTo(10);
+
+        // o CDI volta ao dia: a mensagem dele fica resolvida
+        jdbc.update("INSERT INTO market_index_values (index_id, reference_date, value) SELECT id, CURRENT_DATE, 0.05 "
+                + "FROM market_indices WHERE code = 'CDI'");
+        service.audit("teste");
+        assertThat(jdbc.queryForObject("SELECT status FROM notifications WHERE kind = 'CATALOGO_INDICE_ATRASADO' "
+                + "AND dedup_key = 'CATALOGO_INDICE_ATRASADO:CDI'", String.class)).isEqualTo("RESOLVIDA");
+    }
+
+    @Test
     @DisplayName("Codigo desconhecido e recusado antes de qualquer carga; o endpoint responde 400")
     void codigoDesconhecido() throws InterruptedException {
         assertThatThrownBy(() -> service.importYears(List.of("CDI", "XPTO"), 2024, 2024, "teste"))

@@ -81,7 +81,7 @@ public class User {
     @Builder.Default
     private UserTheme theme = UserTheme.DARK;
 
-    /** Acesso administrativo. Ainda não é consumido por nenhuma regra de autorização. */
+    /** Acesso administrativo: rotinas da adm-api, conferência do extrato e as notificações de administrador. */
     @Column(name = "is_admin", nullable = false)
     @Builder.Default
     private boolean isAdmin = false;

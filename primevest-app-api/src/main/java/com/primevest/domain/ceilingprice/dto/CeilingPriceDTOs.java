@@ -107,7 +107,11 @@ public final class CeilingPriceDTOs {
                            BigDecimal todayIdealMarginPct, BigDecimal averagePrice,
                            BigDecimal averageCeilingMarginPct, BigDecimal averageIdealMarginPct, String status,
                            int blockingCount, int warningCount, boolean defaultsChanged, LocalDate lastQuarterEnd,
-                           LocalDateTime calculatedAt) {
+                           LocalDateTime calculatedAt, boolean alertEnabled) {
+    }
+
+    /** Liga/desliga o alerta de preço abaixo do ideal (docs/planos/PLANO_NOTIFICACOES.md, 5.5). */
+    public record AlertInput(boolean enabled) {
     }
 
     /** Recusa ao salvar: a mensagem e os avisos que impediram (bloqueios, ou atenção sem confirmação). */

@@ -2,8 +2,9 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 10/10/2026 — secao 25 (preco teto pelo modelo PRECO TETO V2,
-docs/planos/PLANO_PRECO_TETO.md) e 18.11 c (payout passa a vir da DFC). Antes: 05/10/2026 (noite) — 2.1, 2.2, 4.1, 4.2, 10.2, 10.3, 10.4, 23.1 e 23.2 resolvidos
+Ultima atualizacao: 13/10/2026 — secao 13 (central de avisos) e itens 10.4, 13.2 e 25.1 resolvidos pelas
+notificacoes (docs/planos/PLANO_NOTIFICACOES.md) e secao 26. Antes: 10/10/2026 — secao 25 (preco teto pelo modelo
+PRECO TETO V2, docs/planos/PLANO_PRECO_TETO.md) e 18.11 c (payout passa a vir da DFC). Antes: 05/10/2026 (noite) — 2.1, 2.2, 4.1, 4.2, 10.2, 10.3, 10.4, 23.1 e 23.2 resolvidos
 pela valorizacao da renda fixa (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md) e secao 24. Antes, no mesmo dia: 5.1 resolvido e secao 23 (indices de mercado,
 docs/planos/PLANO_INDICES_MERCADO.md). No mesmo dia: secao 22 (cadastro de usuario,
 docs/planos/PLANO_CADASTRO_USUARIO.md); 9.4 e 16.9 resolvidos. Antes: 03/10/2026 — secao 21 (pilha de teste primevest-teste,
@@ -445,8 +446,11 @@ regras E, F e G — FixedIncomeSettlement e o unico lugar que grava
 appreciation de renda fixa hoje, e o certo e ela entrar por la em vez de
 escrever direto na coluna.
 
-**10.4** FEITO em 05/10/2026 (D8): o titulo para de render no vencimento e aparece com o selo "Vencido"; a
-liquidacao continua sendo o resgate lancado pelo usuario. Texto original:
+**10.4** FEITO em 13/10/2026 (docs/planos/PLANO_NOTIFICACOES.md, secao 6 — revoga a D8 de 05/10/2026, em que o
+titulo so parava de render e ganhava o selo "Vencido"): o sistema LIQUIDA o titulo vencido na abertura do dia, com uma
+venda de origem SISTEMA (selo "Automatica") na data do vencimento — RF privada pelo saldo da curva, Tesouro pelo PU
+oficial do vencimento; a compra retroativa de titulo ja vencido nasce liquidada; sem valor, pendencia "informe o valor
+do resgate". Texto original:
 Ativos com vencimento ainda nao sao liquidados sozinhos. is_settled so
 muda por venda (renda fixa), por zerar cotas (renda variavel e Tesouro)
 ou pela regra J. O vencimento continua fora.
@@ -540,7 +544,12 @@ e cache da resolucao antiga: docker restart primevest-web.
 **12.4** Nao ha lint no backend. Nenhum Checkstyle, SpotBugs ou formatador no
 pom.xml. Decidir se vale, e se vale, antes ou depois do item 8.
 
-## 13. CENTRAL DE AVISOS (adiada do docs/planos/PLANO_BRAPI.md em 24/09/2026)
+## 13. CENTRAL DE AVISOS (adiada do docs/planos/PLANO_BRAPI.md em 24/09/2026) — FEITO em 13/10/2026
+
+Implementada como a caixa de **Notificacoes** (docs/planos/PLANO_NOTIFICACOES.md): tabela `notifications` (V48), estado
+por pessoa em `notification_states`, sino no rodape do menu, tela `/notifications`. A 13.2 entrou com ela
+(`stock_event_costs`, V51, "Informar custo" e o icone na Carteira). O que ficou de fora esta na secao 26. Texto
+original:
 
 Hoje o unico aviso do sistema e o toast (canto superior direito, some em 4-8s).
 Serve para responder a um clique, nao para algo que uma rotina da madrugada
@@ -1017,8 +1026,10 @@ Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
 
 ## 25. PRECO TETO (docs/planos/PLANO_PRECO_TETO.md, 10/10/2026)
 
-**25.1** Alerta de preco (ex.: "VALE3 abaixo do preco ideal"): a coluna alert_enabled, que nunca funcionou, saiu na
- V46 (D10). Um aviso de verdade e escopo de notificacoes proprio.
+**25.1** FEITO em 13/10/2026 (docs/planos/PLANO_NOTIFICACOES.md, 5.5): `alert_enabled` voltou (V49, default false)
+ com a coluna "Alerta" na lista; aviso quando o preco atual fica abaixo do ideal, rearme ao voltar acima, no maximo um
+ por ativo por dia. Texto original: alerta de preco (ex.: "VALE3 abaixo do preco ideal"): a coluna alert_enabled, que
+ nunca funcionou, saiu na V46 (D10). Um aviso de verdade e escopo de notificacoes proprio.
 **25.2** Historico de versoes do calculo (D9 b): hoje um calculo por acao, sobrescrito a cada "Salvar". Versoes
  seriam uma tabela a mais. Historico do teto por trimestre com os padroes da epoca (D9 c) tambem fica para depois.
 **25.3** So acoes com balanco na CVM (D1). FII, BDR e ETF ficam fora; um calculo 100% digitado (sem padroes) para
@@ -1029,6 +1040,46 @@ Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
  que faltar; o feriado so responde 404.
 **25.7** Payout pela DFC: companhia sem a demonstracao de financiamento (6.03) fica com payout nulo; companhia que
  paga dividendo a controladores e nao controladores numa conta so (sem separar) entra inteira.
+
+## 26. NOTIFICACOES (docs/planos/PLANO_NOTIFICACOES.md, 13/10/2026)
+
+**26.1** Arquivamento automatico por tempo: decidido que existe, prazo em aberto (L3). Hoje so arquivar manual.
+**26.2** Envio por e-mail e preferencias por tipo em Configuracoes: escopo proprio (L12). O envio de e-mail da conta
+ (SmtpAccountMailer) ja existe e pode ser reaproveitado.
+**26.3** Metas: escopo proprio, que vai usar a central (kind novo em NotificationKind).
+**26.4** Exposicao sem token nas duas APIs (levantado em 12/10, detalhado em 13/10; escopo proprio). Conferido no
+ ambiente DEV, sem token:
+ a) Rotinas: os 19 endpoints de /api/v1/admin (adm-api) exigem token E is_admin (403 para os demais); o front nao chama
+    a adm-api. Isso esta certo.
+ b) Swagger ABERTO nas duas APIs (nao so na adm-api): GET /api-docs responde 200 na adm-api (7,4 KB: as 19 rotas de
+    administrador, parametros e corpos) e na app-api (64 KB: o contrato inteiro da API do usuario); /swagger-ui.html
+    redireciona para a tela do Swagger. Nao entrega dado nem executa nada (as chamadas continuam pedindo token), mas
+    entrega o mapa da API a quem alcancar a porta. Configurado por permitAll em AdmSecurityConfig e SecurityConfig;
+    nenhum perfil (nem application-prod.yml) desliga o springdoc.
+ c) /actuator: o permitAll existe nas duas, mas o spring-boot-starter-actuator NAO esta em nenhum pom — responde 404.
+    E configuracao morta: se o actuator entrar um dia, ja nasce aberto (no Spring Boot 3 so o health e exposto por
+    padrao, mas qualquer management.endpoints.web.exposure.include a mais tambem ficaria sem token).
+ d) Portas publicadas em 0.0.0.0 no docker-compose (alcancaveis pela rede local, se o firewall do Windows deixar):
+    8080 (app-api), 8081 (adm-api), 5433 (PostgreSQL com usuario/senha padrao postgres/postgres), 6379 (Redis sem
+    senha — quem alcanca publica "catalogo mudou"/"preciso do historico" nos canais), 8025/1025 (Mailpit, com os
+    e-mails de codigo). So o mock da B3 (8090) esta em 127.0.0.1. O 0.0.0.0 foi posto para forcar IPv4 (comentario do
+    web), nao para abrir a rede.
+ Caminhos possiveis (decidir no escopo): Swagger so no perfil dev (springdoc.api-docs.enabled=false e
+ springdoc.swagger-ui.enabled=false no prod/docker) ou atras de token/is_admin; tirar /actuator/** do permitAll (ou
+ liberar so /actuator/health quando o actuator entrar); portas em 127.0.0.1 (DB, Redis, Mailpit e adm-api no minimo);
+ senha do Postgres e do Redis vindas do .env; em producao a adm-api nem precisa de porta publicada (o script chega pela
+ rede do compose).
+**26.5** Rotulo de provento desconhecido (CATALOGO_ROTULO_DESCONHECIDO): o mapeamento e codigo (DividendType), entao a
+ mensagem nao se resolve sozinha — o administrador dispensa depois de mapear.
+**26.6** CVM e FII mensal indisponivel por ano (warn de FinancialStatementImportService/FiiMonthlyImportService) nao
+ gera mensagem: o ano corrente sem arquivo e normal e encheria a caixa. So a falha da rotina inteira vira mensagem.
+**26.7** Integracao da B3 com renda fixa e Tesouro (16.5/16.6): quando importar vencimento/resgate, o importado tem que
+ casar com a venda automatica (duplicata) em vez de somar a ela.
+**26.8** Escopo de venda de renda fixa (do Guilherme, em andamento): a liquidacao automatica usa a venda de hoje
+ (TransactionService com liquidacao total); se a venda mudar, MaturitySettlementService acompanha.
+**26.9** Liquidacao da RF privada espera a curva chegar ao vencimento (o CDI da vespera publicado); ela roda de novo a
+ cada "indices mudaram", entao o atraso e de no maximo um dia util.
+**26.10** Tela de notificacoes em tempo real (SSE/WebSocket): por enquanto consulta a cada 60 s (L4).
 
 ## ORDEM SUGERIDA
 

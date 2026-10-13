@@ -26,6 +26,10 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(name = "primevest.scheduling.enabled", havingValue = "true", matchIfMissing = true)
 public class B3DailyQuotesScheduler {
 
+    /** Falha da rotina vira mensagem de administrador (docs/planos/PLANO_NOTIFICACOES.md, 5.7). */
+    @org.springframework.beans.factory.annotation.Autowired
+    com.primevest.adm.domain.notice.AdminNotices notices;
+
     private final HistoricalQuotesImportService service;
     private final boolean enabled;
 
@@ -44,6 +48,7 @@ public class B3DailyQuotesScheduler {
             service.importRecent("rotina diaria");
         } catch (RuntimeException e) {
             log.error("Cotacoes diarias da B3 falharam: {}", e.getMessage(), e);
+            notices.routineFailed("Cotações diárias da B3", e.getMessage());
         }
     }
 
@@ -61,6 +66,7 @@ public class B3DailyQuotesScheduler {
                 }
             } catch (RuntimeException e) {
                 log.error("Recuperacao das cotacoes da B3 falhou: {}", e.getMessage(), e);
+                notices.routineFailed("Recuperação das cotações da B3", e.getMessage());
             }
         });
     }

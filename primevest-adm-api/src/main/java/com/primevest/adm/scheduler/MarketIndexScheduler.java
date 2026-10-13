@@ -24,6 +24,10 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(name = "primevest.scheduling.enabled", havingValue = "true", matchIfMissing = true)
 public class MarketIndexScheduler {
 
+    /** Falha da rotina vira mensagem de administrador (docs/planos/PLANO_NOTIFICACOES.md, 5.7). */
+    @org.springframework.beans.factory.annotation.Autowired
+    com.primevest.adm.domain.notice.AdminNotices notices;
+
     private final MarketIndexImportService service;
     private final boolean enabled;
 
@@ -55,6 +59,7 @@ public class MarketIndexScheduler {
                 }
             } catch (RuntimeException e) {
                 log.error("Recuperacao dos indices falhou: {}", e.getMessage(), e);
+                notices.routineFailed("Recuperação dos índices", e.getMessage());
             }
         });
     }

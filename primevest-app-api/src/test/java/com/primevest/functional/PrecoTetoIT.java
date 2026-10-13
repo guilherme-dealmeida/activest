@@ -18,6 +18,9 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import com.primevest.domain.ceilingprice.CeilingPriceAlertService;
+
 /**
  * Preço Teto de ponta a ponta (docs/planos/PLANO_PRECO_TETO.md, 8.1): padrões do catálogo, cálculo sem gravar,
  * gravação com as validações, origem de cada entrada, lista com as três comparações e o dono.
@@ -295,5 +298,95 @@ class PrecoTetoIT extends FuncionalBase {
         assertThat(delete(outro, BASE + "/" + id).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(get(outro, BASE, List.class).getBody()).isEmpty();
         assertThat(delete(user, BASE + "/" + id).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    }
+
+    @Autowired
+    CeilingPriceAlertService alertas;
+
+    private void precoHoje(String valor) {
+        jdbc.update("DELETE FROM asset_price_history WHERE asset_id IN (SELECT id FROM assets WHERE ticker = 'PETR4') "
+                + "AND reference_date = ?", java.sql.Date.valueOf(hoje));
+        jdbc.update("""
+                INSERT INTO asset_price_history (asset_id, reference_date, close_price, source)
+                SELECT id, ?, CAST(? AS NUMERIC), 'B3_COTAHIST' FROM assets WHERE ticker = 'PETR4'""",
+                java.sql.Date.valueOf(hoje), valor);
+    }
+
+    private long alertasDePreco() {
+        return jdbc.queryForObject("SELECT COUNT(*) FROM notifications WHERE kind = 'PRECO_ABAIXO_IDEAL'", Long.class);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private Object salvarPadrao() {
+        Map<String, Object> f = formularioPadrao(padroes("PETR4"));
+        f.put("confirmWarnings", true);
+        ResponseEntity<Map> r = post(user, BASE, f, Map.class);
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        return r.getBody().get("id");
+    }
+
+    @Test
+    @DisplayName("Alerta de preço: desligado por padrão; ligado, avisa ao cruzar o ideal para baixo, rearma ao voltar e só um por dia")
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void alertaDePreco() {
+        Object id = salvarPadrao();
+        List<Map<String, Object>> lista = List.of(get(user, BASE, Map[].class).getBody());
+        assertThat(lista.get(0)).containsEntry("alertEnabled", false);
+
+        // abaixo do ideal com o alerta desligado: nada
+        precoHoje("1.00");
+        alertas.checkPrices(null, hoje);
+        assertThat(alertasDePreco()).isZero();
+
+        org.springframework.http.HttpHeaders h = headers(user);
+        h.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+        ResponseEntity<Map> lig = rest.exchange(BASE + "/" + id + "/alert", org.springframework.http.HttpMethod.PATCH,
+                new org.springframework.http.HttpEntity<>(Map.of("enabled", true), h), Map.class);
+        assertThat(lig.getBody()).containsEntry("alertEnabled", true);
+
+        // ligado com o preço já abaixo: avisa na próxima conferência; repetir não avisa de novo
+        alertas.checkPrices(null, hoje);
+        assertThat(alertasDePreco()).isEqualTo(1);
+        alertas.checkPrices(null, hoje);
+        assertThat(alertasDePreco()).isEqualTo(1);
+        String titulo = jdbc.queryForObject("SELECT title FROM notifications WHERE kind = 'PRECO_ABAIXO_IDEAL'",
+                String.class);
+        assertThat(titulo).isEqualTo("PETR4 abaixo do Preço Ideal");
+
+        // volta acima (rearma) e cai de novo no mesmo dia: no máximo um aviso por dia
+        precoHoje("999.00");
+        alertas.checkPrices(null, hoje);
+        precoHoje("1.00");
+        alertas.checkPrices(null, hoje);
+        assertThat(alertasDePreco()).isEqualTo(1);
+
+        // no dia seguinte, a nova descida avisa
+        precoHoje("999.00");
+        alertas.checkPrices(null, hoje);
+        precoHoje("1.00");
+        alertas.checkPrices(null, hoje.plusDays(1));
+        assertThat(alertasDePreco()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("Padrão mudou: balanço novo vira pendência; salvar o cálculo de novo resolve")
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void padraoMudou() {
+        Object id = salvarPadrao();
+        alertas.checkDefaults(null);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM notifications WHERE kind = 'PRECO_TETO_PADRAO_MUDOU'",
+                Long.class)).isZero();
+
+        long petr = jdbc.queryForObject("SELECT id FROM issuers WHERE cnpj = ?", Long.class, PETR);
+        doc(petr, "ITR", "2026-09-30", "30000000000", "107000000000", "430000000000", "42000000000");
+        alertas.checkDefaults(null);
+        assertThat(jdbc.queryForObject("SELECT status FROM notifications WHERE kind = 'PRECO_TETO_PADRAO_MUDOU'",
+                String.class)).isEqualTo("NAO_RESOLVIDA");
+
+        Map<String, Object> f = formularioPadrao(padroes("PETR4"));
+        f.put("confirmWarnings", true);
+        assertThat(put(user, BASE + "/" + id, f, Map.class).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject("SELECT status FROM notifications WHERE kind = 'PRECO_TETO_PADRAO_MUDOU'",
+                String.class)).isEqualTo("RESOLVIDA");
     }
 }

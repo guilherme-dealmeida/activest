@@ -153,7 +153,18 @@ public class TransactionService {
      */
     @Transactional
     public TransactionResponseDTO createTransaction(UUID userId, TransactionCreateDTO dto) {
-        return create(userId, dto, null);
+        TransactionResponseDTO r = create(userId, dto, null);
+        publicarEscrita(userId, dto.ticker());
+        return r;
+    }
+
+    /** Liquidacao automatica: confere, depois do commit, se o titulo ja vencido precisa ser liquidado. */
+    private void publicarEscrita(UUID userId, String ticker) {
+        if (SystemWrites.active() || ticker == null) {
+            return;
+        }
+        assetRepository.findByTicker(ticker)
+            .ifPresent(a -> eventPublisher.publishEvent(new PositionWrittenEvent(userId, a.getId())));
     }
 
     /**
@@ -251,7 +262,8 @@ public class TransactionService {
             .brokerageFee(fee(dto))
             .transactionDate(dto.transactionDate())
             .fullSettlement(isFullSettlement(asset, dto))
-            .origin(origem == null ? TransactionOrigin.MANUAL : TransactionOrigin.AUTO)
+            .origin(origem != null ? TransactionOrigin.AUTO
+                : SystemWrites.active() ? TransactionOrigin.SISTEMA : TransactionOrigin.MANUAL)
             .connection(origem == null ? null : origem.connection())
             .externalId(origem == null ? null : origem.externalId())
             .executedAt(origem == null ? null : origem.executedAt())
@@ -315,9 +327,11 @@ public class TransactionService {
         validateSettlementFlag(asset, dto);
 
         if (isTreasury(asset)) {
-            return tx.getType() == TransactionType.SELL
+            TransactionResponseDTO r = tx.getType() == TransactionType.SELL
                 ? updateTreasurySale(portfolio, asset, tx, dto)
                 : updateTreasuryPurchase(portfolio, asset, tx, dto);
+            publicarEscrita(userId, asset.getTicker());
+            return r;
         }
 
         // Only update allowed fields (quantity/price or total, fee, date)
@@ -330,6 +344,10 @@ public class TransactionService {
         tx.setFullSettlement(isFullSettlement(asset, dto));
         // Regra E1: importada editada ganha a marca, e a sincronizacao nao mexe mais nela.
         if (tx.getOrigin() == TransactionOrigin.AUTO) {
+            tx.setEditedAt(java.time.LocalDateTime.now());
+        }
+        // A venda automatica editada pelo usuario: a rotina nao a refaz mais (secao 6).
+        if (tx.getOrigin() == TransactionOrigin.SISTEMA && !SystemWrites.active()) {
             tx.setEditedAt(java.time.LocalDateTime.now());
         }
 
@@ -352,6 +370,7 @@ public class TransactionService {
         tx = transactionRepository.save(tx);
         transactionRepository.flush();
         afterPositionChange(pa, venda);
+        publicarEscrita(userId, asset.getTicker());
         return toResponseDTO(tx);
     }
 
@@ -526,7 +545,8 @@ public class TransactionService {
         positionGuard.validateSellHasPosition(hasPurchase(current), asset.getTicker());
 
         SaleIntent nova = new SaleIntent(UUID.randomUUID(), dto.transactionDate(), dto.shares(),
-            dto.pricePerShare(), fee(dto), LocalDateTime.now());
+            dto.pricePerShare(), fee(dto), LocalDateTime.now(),
+            SystemWrites.active() ? TransactionOrigin.SISTEMA : TransactionOrigin.MANUAL, null);
 
         List<Transaction> rows = reallocate(portfolio, asset, nova, null).get(nova.groupId());
         return toResponseDTO(rows.get(0));
@@ -539,8 +559,12 @@ public class TransactionService {
             throw new BusinessException("Informe a quantidade e o preço unitário.");
         }
         UUID groupId = groupKey(tx);
+        // Liquidacao automatica editada pelo usuario continua SISTEMA, com a marca de editada (secao 6).
+        boolean sistema = tx.getOrigin() == TransactionOrigin.SISTEMA;
         SaleIntent alterada = new SaleIntent(groupId, dto.transactionDate(), dto.shares(),
-            dto.pricePerShare(), fee(dto), tx.getCreatedAt());
+            dto.pricePerShare(), fee(dto), tx.getCreatedAt(),
+            sistema ? TransactionOrigin.SISTEMA : TransactionOrigin.MANUAL,
+            !sistema ? null : SystemWrites.active() ? tx.getEditedAt() : LocalDateTime.now());
 
         List<Transaction> rows = reallocate(portfolio, asset, alterada, null).get(groupId);
         return toResponseDTO(rows.get(0));

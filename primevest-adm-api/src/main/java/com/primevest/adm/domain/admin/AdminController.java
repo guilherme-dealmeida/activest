@@ -51,6 +51,10 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AdminController {
 
+    /** Falha da rotina vira mensagem de administrador (docs/planos/PLANO_NOTIFICACOES.md, 5.7). */
+    @org.springframework.beans.factory.annotation.Autowired
+    com.primevest.adm.domain.notice.AdminNotices notices;
+
     private final UserRepository userRepository;
     private final CatalogAuditService catalogAuditService;
     private final AssetLogoService assetLogoService;
@@ -329,6 +333,7 @@ public class AdminController {
                 routine.run();
             } catch (RuntimeException e) {
                 log.error("Rotina '{}' sob demanda falhou: {}", name, e.getMessage(), e);
+                notices.routineFailed(name + " (sob demanda)", e.getMessage());
             }
         });
         return ResponseEntity.accepted().body(Map.of("status", "iniciada", "rotina", name,

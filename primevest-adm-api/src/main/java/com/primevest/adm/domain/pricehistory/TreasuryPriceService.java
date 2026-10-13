@@ -47,6 +47,10 @@ import java.util.concurrent.locks.ReentrantLock;
 @Service
 public class TreasuryPriceService {
 
+    /** Mensagens de administrador (docs/planos/PLANO_NOTIFICACOES.md, 5.7). */
+    @org.springframework.beans.factory.annotation.Autowired
+    com.primevest.adm.domain.notice.AdminNotices notices;
+
     public static final int FIRST_YEAR = 2010;
     /** A rodada diaria rele a partir de alguns dias antes do ultimo gravado (o Tesouro corrige o arquivo). */
     static final int DAILY_OVERLAP_DAYS = 10;
@@ -134,6 +138,7 @@ public class TreasuryPriceService {
                 file = client.fetch();
             } catch (PublicFileCache.UnavailableException e) {
                 log.error("Tesouro ({}): arquivo de precos indisponivel: {}", trigger, e.getMessage());
+                notices.sourceUnavailable("Preço do Tesouro", "Tesouro Transparente", e.getMessage());
                 throw e;
             }
             Map<Key, Long> catalog = new HashMap<>();
@@ -206,6 +211,14 @@ public class TreasuryPriceService {
             if (!unmatched.isEmpty()) {
                 log.warn("Tesouro: titulos do arquivo sem titulo no catalogo (entram por migration): {}", unmatched);
             }
+            List<String> semTitulo = unmatched.stream().map(String::valueOf).toList();
+            semTitulo.forEach(t -> notices.pending(
+                    com.primevest.domain.notification.NotificationKind.CATALOGO_TESOURO_SEM_TITULO, t,
+                    "Tesouro sem título no catálogo: " + t,
+                    "O arquivo de preços do Tesouro tem este título e o catálogo não. Título novo entra por migration; "
+                            + "título antigo que ficou de fora de propósito pode ser dispensado.", List.of()));
+            notices.resolveAllExcept(com.primevest.domain.notification.NotificationKind.CATALOGO_TESOURO_SEM_TITULO,
+                    semTitulo);
             return r;
         } finally {
             running.unlock();

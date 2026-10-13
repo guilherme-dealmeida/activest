@@ -14,6 +14,7 @@ import { formatCurrency, formatDate } from '@/utils/format';
 import { CeilingPriceListItem, CeilingStatus } from '@/types';
 import { IDEAL_PRICE_INFO, STATUS_LABEL, STATUS_VARIANT, pct } from '@/components/ceilingprice/ceilingFormat';
 import { InfoTooltip } from '@/components/ui/InfoTooltip';
+import { Switch } from '@/components/ui/Switch';
 import { MarginPair } from '@/components/ceilingprice/MarginPair';
 import { TABLE_ACTION_CLASS } from '@/components/ui/tableAction';
 
@@ -33,6 +34,12 @@ export const CeilingPricesPage = () => {
 
   const remove = useMutation({
     mutationFn: ceilingPricesApi.delete,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ceilingPrices'] }),
+  });
+
+  // Coluna "Alerta" (docs/planos/PLANO_NOTIFICACOES.md, 5.5): o estado vai na hora, como a Reserva da Carteira.
+  const alert = useMutation({
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) => ceilingPricesApi.setAlert(id, enabled),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ceilingPrices'] }),
   });
 
@@ -96,6 +103,12 @@ export const CeilingPricesPage = () => {
                 {th('averageCeilingMarginPct', 'Preço médio')}
                 {th('status', 'Situação', 'text-center')}
                 {th('calculatedAt', 'Calculado em')}
+                <th className="px-3 py-3 text-center whitespace-nowrap">
+                  <span className="inline-flex items-center gap-1">
+                    Alerta
+                    <InfoTooltip content="Alertar preço abaixo do ideal: uma mensagem nas Notificações quando o preço atual ficar igual ou abaixo do Preço Ideal (no máximo uma por dia; avisa de novo só depois que o preço voltar acima)." />
+                  </span>
+                </th>
                 <th className="px-3 py-3 text-right">Ações</th>
               </tr>
             </thead>
@@ -141,6 +154,17 @@ export const CeilingPricesPage = () => {
                   <td className="px-3 py-3 text-right text-gray-400 whitespace-nowrap">
                     {formatDate(row.calculatedAt.slice(0, 10))}
                   </td>
+                  <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-center">
+                      <Switch
+                        checked={row.alertEnabled}
+                        disabled={alert.isPending && alert.variables?.id === row.id}
+                        onChange={(next) => alert.mutate({ id: row.id, enabled: next })}
+                        label={`Alertar preço abaixo do ideal — ${row.ticker}`}
+                        title={row.alertEnabled ? 'Desligar o alerta de preço' : 'Alertar quando o preço ficar abaixo do ideal'}
+                      />
+                    </div>
+                  </td>
                   <td className="px-3 py-3 text-right">
                     <div className="flex justify-end items-center gap-2">
                       {row.defaultsChanged && (
@@ -171,7 +195,7 @@ export const CeilingPricesPage = () => {
               ))}
               {sortedData.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-gray-500">
+                  <td colSpan={10} className="px-4 py-10 text-center text-gray-500">
                     Nenhum cálculo de preço teto. Busque uma ação em "Novo cálculo".
                   </td>
                 </tr>

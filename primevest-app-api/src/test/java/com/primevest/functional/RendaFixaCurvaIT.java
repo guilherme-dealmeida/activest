@@ -110,15 +110,19 @@ class RendaFixaCurvaIT extends FuncionalBase {
     }
 
     @Test
-    @DisplayName("Vencido: para de render no vencimento e sai marcado")
+    @DisplayName("Vencido: para de render no vencimento e é liquidado pelo sistema no saldo da curva (D8 revista, "
+        + "docs/planos/PLANO_NOTIFICACOES.md, seção 6)")
     void vencido() {
         Map<String, Object> c = cdb100("2024-01-02", "1000.00");
         c.put("maturityDate", "2024-01-15");
         lancarComSucesso(dono, c);
 
-        Map<String, Object> p = posicaoDe(dono, CatalogIds.CDB);
-        assertThat(p).containsEntry("matured", true).containsEntry("valuationDate", "2024-01-15");
-        assertThat(numero(p.get("currentValue")).doubleValue()).isCloseTo(1000 * Math.pow(1.0005, 9), within(0.01));
+        // a compra retroativa de um título já vencido nasce liquidada: sai da carteira aberta
+        assertThat(carteiraDe(dono)).noneMatch(p -> CatalogIds.CDB.equals(p.get("ticker")));
+        TransactionResponseDTO venda = transacoesDe(dono).stream()
+            .filter(t -> t.type() == com.primevest.domain.transaction.TransactionType.SELL).findFirst().orElseThrow();
+        assertThat(venda.transactionDate()).isEqualTo(LocalDate.of(2024, 1, 15));
+        assertThat(venda.totalAmount().doubleValue()).isCloseTo(1000 * Math.pow(1.0005, 9), within(0.01));
     }
 
     @Test

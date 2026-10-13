@@ -59,6 +59,10 @@ import java.util.concurrent.locks.ReentrantLock;
 @Service
 public class MarketIndexImportService {
 
+    /** Mensagens de administrador (docs/planos/PLANO_NOTIFICACOES.md, 5.7). */
+    @org.springframework.beans.factory.annotation.Autowired
+    com.primevest.adm.domain.notice.AdminNotices notices;
+
     static final int DAILY_REVISION_DAYS = 30;
     static final int MONTHLY_REVISION_MONTHS = 3;
     /** Diario sem valor ha mais que isto (~5 dias uteis) esta atrasado. */
@@ -207,11 +211,20 @@ public class MarketIndexImportService {
         return out;
     }
 
-    /** Conferencia semanal (so log). */
+    /** Conferencia semanal: log e mensagem de administrador por indice atrasado; o que voltou ao dia fica resolvido. */
     public List<Stale> audit(String reason) {
         List<Stale> late = stale();
         late.forEach(s -> log.warn("Indices: {} atrasado — ultimo valor {}", s.code(),
                 s.lastDate() == null ? "nenhum (carga historica nao rodou)" : s.lastDate()));
+        late.forEach(s -> notices.pending(com.primevest.domain.notification.NotificationKind.CATALOGO_INDICE_ATRASADO,
+                String.valueOf(s.code()), "Índice " + s.code() + " atrasado",
+                s.lastDate() == null
+                        ? "O índice não tem série: a carga histórica não rodou (POST /api/v1/admin/indices)."
+                        : "O último valor gravado é de " + s.lastDate().format(java.time.format.DateTimeFormatter
+                                .ofPattern("dd/MM/yyyy")) + ". A fonte pode estar atrasada ou a rotina parada.",
+                List.of()));
+        notices.resolveAllExcept(com.primevest.domain.notification.NotificationKind.CATALOGO_INDICE_ATRASADO,
+                late.stream().map(s -> String.valueOf(s.code())).toList());
         log.info("Conferencia dos indices ({}): {} atrasado(s)", reason, late.size());
         return late;
     }
@@ -276,6 +289,10 @@ public class MarketIndexImportService {
             } catch (IndexSourceException e) {
                 error = year + ": " + e.getMessage();
                 log.error("Indices: {} {} indisponivel: {}", index.getCode(), year, e.getMessage());
+                notices.sourceUnavailable("Índices de mercado",
+                        index.getSource() == com.primevest.domain.marketindex.IndexSource.B3 ? "B3" : "Banco Central (SGS)",
+                        index.getCode()
+                        + " " + year + ": " + e.getMessage());
                 continue;
             }
             LocalDate first = LocalDate.of(year, 1, 1);
