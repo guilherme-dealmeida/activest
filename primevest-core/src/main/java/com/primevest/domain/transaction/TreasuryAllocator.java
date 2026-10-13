@@ -58,7 +58,15 @@ public class TreasuryAllocator {
      * @param groupId identificador do grupo; e ele que sobrevive a reparticao
      */
     public record SaleIntent(UUID groupId, LocalDate date, BigDecimal shares,
-                             BigDecimal pricePerShare, BigDecimal fee, LocalDateTime createdAt) {}
+                             BigDecimal pricePerShare, BigDecimal fee, LocalDateTime createdAt,
+                             TransactionOrigin origin, LocalDateTime editedAt) {
+
+        /** Venda digitada pelo usuario. */
+        public SaleIntent(UUID groupId, LocalDate date, BigDecimal shares, BigDecimal pricePerShare, BigDecimal fee,
+                          LocalDateTime createdAt) {
+            this(groupId, date, shares, pricePerShare, fee, createdAt, TransactionOrigin.MANUAL, null);
+        }
+    }
 
     /** Uma parte da venda: as cotas que saem de um titulo. */
     private record Allocation(PortfolioAsset position, BigDecimal shares) {}
@@ -92,8 +100,12 @@ public class TreasuryAllocator {
                     createdAt = row.getCreatedAt();
                 }
             }
+            // A origem do grupo sobrevive a reparticao: a liquidacao automatica (SISTEMA, V50) continua sendo.
+            TransactionOrigin origin = first.getOrigin() == TransactionOrigin.SISTEMA
+                    ? TransactionOrigin.SISTEMA : TransactionOrigin.MANUAL;
             sales.add(new SaleIntent(entry.getKey(), first.getTransactionDate(), shares,
-                    safe(first.getPricePerShare()), fee, createdAt));
+                    safe(first.getPricePerShare()), fee, createdAt, origin,
+                    origin == TransactionOrigin.SISTEMA ? first.getEditedAt() : null));
         }
         return sales;
     }
@@ -212,6 +224,8 @@ public class TreasuryAllocator {
                         .setScale(MONEY_SCALE, RoundingMode.HALF_UP));
                 row.setBrokerageFee(fees.get(i));
                 row.setTransactionDate(sale.date());
+                row.setOrigin(sale.origin() == null ? TransactionOrigin.MANUAL : sale.origin());
+                row.setEditedAt(sale.origin() == TransactionOrigin.SISTEMA ? sale.editedAt() : null);
                 saved.add(transactionRepository.save(row));
             }
 

@@ -50,7 +50,9 @@ public abstract class IntegrationTestBase {
         // Informe mensal de FII (V34): idem; sai antes dos testes que apagam issuers.
         "fii_monthly",
         // Serie dos indices de mercado (V43): o cadastro (market_indices) e seed e fica; a serie vem da carga.
-        "market_index_values"
+        "market_index_values",
+        // Notificacoes (V48): as de administrador nao tem dono e nao saem com users.
+        "notifications"
     };
 
     @Autowired

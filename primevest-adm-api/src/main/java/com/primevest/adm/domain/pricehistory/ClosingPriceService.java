@@ -111,9 +111,14 @@ public class ClosingPriceService {
     // B3
     // ------------------------------------------------------------------
 
+    /** Mensagens de administrador (docs/planos/PLANO_NOTIFICACOES.md, 5.7). */
+    @org.springframework.beans.factory.annotation.Autowired
+    com.primevest.adm.domain.notice.AdminNotices notices;
+
     public synchronized RoundResult runB3Closing(String reason) {
         if (!brApiClient.hasToken()) {
             log.warn("Fechamento B3 ({}): BRAPI_TOKEN vazio — sem token a BRAPI so responde 4 tickers de teste. Rodada nao executada.", reason);
+            notices.sourceUnavailable("Fechamento B3", "BRAPI", "BRAPI_TOKEN vazio — sem token a BRAPI só responde 4 tickers de teste");
             return new RoundResult(0, 0, 0, true);
         }
         List<Asset> assets = openPositions.assetsWithShares(PriceSource.BRAPI);
@@ -134,7 +139,15 @@ public class ClosingPriceService {
                         && !history.symbol().equalsIgnoreCase(asset.getTicker())) {
                     log.warn("Ticker renomeado na B3: {} agora e {} — o catalogo NAO foi trocado; decidir manualmente.",
                             asset.getTicker(), history.symbol());
+                    notices.assetPending(com.primevest.domain.notification.NotificationKind.CATALOGO_TICKER_RENOMEADO,
+                            asset, com.primevest.adm.domain.asset.CatalogAuditService.renameKey(asset.getTicker(),
+                                    history.symbol()),
+                            asset.getTicker().toUpperCase() + " agora é " + history.symbol().toUpperCase(),
+                            "A BRAPI devolveu o histórico com o ticker novo. O ticker do catálogo não é trocado "
+                                    + "sozinho: decida a troca manualmente.");
                 }
+                notices.resolve(com.primevest.domain.notification.NotificationKind.CATALOGO_SEM_COTACAO,
+                        asset.getTicker().toUpperCase());
                 int saved = saveCandles(asset.getId(), history.candles());
                 if (saved > 0) {
                     updated.add(asset.getId());
@@ -143,21 +156,29 @@ public class ClosingPriceService {
             } catch (BrApiException e) {
                 if (e.isAuthOrPlan()) {
                     log.error("Fechamento B3 interrompido em {}: {} — confira o BRAPI_TOKEN e o plano.", asset.getTicker(), e.getMessage());
+                    notices.sourceUnavailable("Fechamento B3", "BRAPI", e.getMessage() + " — confira o BRAPI_TOKEN e o plano");
                     aborted = true;
                     break;
                 }
                 if (e.isRateLimited()) {
                     log.error("Fechamento B3 interrompido em {}: cota ou simultaneidade esgotada ({}).", asset.getTicker(), e.getMessage());
+                    notices.sourceUnavailable("Fechamento B3", "BRAPI", "cota ou simultaneidade esgotada (" + e.getMessage() + ")");
                     aborted = true;
                     break;
                 }
                 if (e.isNotFound()) {
                     log.warn("Fechamento B3: {} sem cotacao na BRAPI (404) — pulado.", asset.getTicker());
+                    notices.assetPending(com.primevest.domain.notification.NotificationKind.CATALOGO_SEM_COTACAO,
+                            asset, asset.getTicker().toUpperCase(),
+                            asset.getTicker().toUpperCase() + " — sem cotação na BRAPI",
+                            "O fechamento respondeu 404 para um ativo em carteira: o preço dele fica parado até a "
+                                    + "cotação voltar (ou o ticker ser corrigido no catálogo).");
                     continue;
                 }
                 log.warn("Fechamento B3: {} falhou: {}", asset.getTicker(), e.getMessage());
                 if (e.status() == 0 && ++networkFailures >= MAX_NETWORK_FAILURES) {
                     log.error("Fechamento B3 interrompido: {} falhas de rede seguidas.", networkFailures);
+                    notices.sourceUnavailable("Fechamento B3", "BRAPI", networkFailures + " falhas de rede seguidas");
                     aborted = true;
                     break;
                 }
@@ -246,6 +267,7 @@ public class ClosingPriceService {
             prices = coinGeckoClient.fetchPricesInBrl(ids);
         } catch (RuntimeException e) {
             log.error("Fechamento cripto ({}) falhou: {}", reason, e.getMessage());
+            notices.sourceUnavailable("Fechamento cripto", "CoinGecko", e.getMessage());
             return new RoundResult(assets.size(), 0, 0, true);
         }
 

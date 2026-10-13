@@ -65,6 +65,9 @@ primevest/
   (tela **Índices**: um card por índice com período e gráfico; `/api/v1/indices`). Base da futura valorização da
   renda fixa
 - ✅ Metas de investimento
+- ✅ Notificações (13/10/2026): caixa estilo e-mail pelo sino do menu — proventos pagos no dia, eventos societários,
+  título vencido liquidado automaticamente, bonificação sem custo ("Informar custo"), alerta de preço abaixo do ideal,
+  "padrão mudou" do Preço Teto, integrações e, para o administrador, rotinas e catálogo (`docs/planos/PLANO_NOTIFICACOES.md`)
 - ✅ Integrações: Binance (chave só de leitura) e B3 — Área do Investidor (CPF + autorização na B3): as negociações
   entram depois de você conferir; proventos e eventos da B3 são conferidos com a carteira. A B3 real depende de contrato
   (Pacote de Acesso); até lá, um simulador com os seus extratos (`docs/planos/PLANO_INTEGRACAO_B3.md`)

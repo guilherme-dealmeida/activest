@@ -68,4 +68,12 @@ public class AssetStockEvent {
     public StockEventStep toStep() {
         return new StockEventStep(dataCom, type, factor, assignedCost);
     }
+
+    /**
+     * O passo para uma posicao: o custo do catalogo, ou, sem ele, o que o usuario informou para a posicao
+     * ({@code stock_event_costs}, V51). Nenhum dos dois = zero provisorio.
+     */
+    public StockEventStep toStep(BigDecimal userCost) {
+        return new StockEventStep(dataCom, type, factor, assignedCost != null ? assignedCost : userCost);
+    }
 }

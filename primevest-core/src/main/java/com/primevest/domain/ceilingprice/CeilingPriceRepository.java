@@ -17,4 +17,9 @@ public interface CeilingPriceRepository extends JpaRepository<CeilingPrice, UUID
      * o dono entra na propria consulta: linha de outro nao chega a ser lida.
      */
     Optional<CeilingPrice> findByIdAndUserId(UUID id, UUID userId);
+
+    /** Cálculos com o alerta de preço ligado (docs/planos/PLANO_NOTIFICACOES.md, 5.5). */
+    List<CeilingPrice> findByAlertEnabledTrue();
+
+    List<CeilingPrice> findByAssetIdIn(java.util.Collection<Long> assetIds);
 }

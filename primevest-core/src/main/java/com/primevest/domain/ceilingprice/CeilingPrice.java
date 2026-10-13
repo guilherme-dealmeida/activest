@@ -71,6 +71,20 @@ public class CeilingPrice {
     @Column(name = "calculated_at", nullable = false)
     private LocalDateTime calculatedAt;
 
+    /** "Alertar preço abaixo do ideal" (V49; docs/planos/PLANO_NOTIFICACOES.md, 5.5). */
+    @Column(name = "alert_enabled", nullable = false)
+    @Builder.Default
+    private boolean alertEnabled = false;
+
+    /** O preço estava abaixo do ideal na última conferência: só avisa de novo depois de voltar acima. */
+    @Column(name = "alert_below_ideal", nullable = false)
+    @Builder.Default
+    private boolean alertBelowIdeal = false;
+
+    /** Último dia avisado: no máximo um aviso por ativo por dia. */
+    @Column(name = "alert_last_on")
+    private java.time.LocalDate alertLastOn;
+
     /** Os quatro lucros, T-3 … T. */
     @OneToMany(mappedBy = "ceilingPrice", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @OrderBy("position ASC")

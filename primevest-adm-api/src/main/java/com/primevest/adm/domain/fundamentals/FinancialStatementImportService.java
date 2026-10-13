@@ -48,6 +48,10 @@ import java.util.concurrent.locks.ReentrantLock;
 @Service
 public class FinancialStatementImportService {
 
+    /** "Catalogo mudou" para a carteira (docs/planos/PLANO_NOTIFICACOES.md: alerta de preco e "padrao mudou"). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.primevest.domain.catalog.CatalogMessaging.CatalogChangePublisher catalogChangePublisher;
+
     public static final int FIRST_YEAR = 2010;
     /** O ITR comeca em 2011 nos dados abertos. */
     private static final int FIRST_ITR_YEAR = 2011;
@@ -170,6 +174,15 @@ public class FinancialStatementImportService {
                 total.shares, byNeighbor, pending == null ? 0 : pending, layoutsSet,
                 series.quarters());
         log.info("Balancos CVM ({}) concluido em {}s: {}", trigger, (System.currentTimeMillis() - started) / 1000, r);
+        // Trimestre novo ou reapresentado: a carteira confere o "padrao mudou" do Preco Teto (lista vazia = todos).
+        if (catalogChangePublisher != null && total.created + total.updated > 0) {
+            try {
+                catalogChangePublisher.publish(new com.primevest.domain.catalog.CatalogChange(
+                        com.primevest.domain.catalog.CatalogChange.Origin.BALANCOS, java.util.Set.of()));
+            } catch (RuntimeException e) {
+                log.warn("Balancos CVM: aviso a carteira nao publicado: {}", e.getMessage());
+            }
+        }
         return r;
     }
 

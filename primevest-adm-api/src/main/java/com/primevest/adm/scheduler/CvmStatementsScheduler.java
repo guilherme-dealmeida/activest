@@ -21,6 +21,10 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(name = "primevest.scheduling.enabled", havingValue = "true", matchIfMissing = true)
 public class CvmStatementsScheduler {
 
+    /** Falha da rotina vira mensagem de administrador (docs/planos/PLANO_NOTIFICACOES.md, 5.7). */
+    @org.springframework.beans.factory.annotation.Autowired
+    com.primevest.adm.domain.notice.AdminNotices notices;
+
     private final FinancialStatementImportService service;
     private final FiiMonthlyImportService fiiMonthly;
 
@@ -37,11 +41,13 @@ public class CvmStatementsScheduler {
             service.importRecent("07:30");
         } catch (RuntimeException e) {
             log.error("Balancos CVM (07:30) falhou: {}", e.getMessage(), e);
+            notices.routineFailed("Balanços CVM (07:30)", e.getMessage());
         }
         try {
             fiiMonthly.importRecent("07:30");
         } catch (RuntimeException e) {
             log.error("Informe FII (07:30) falhou: {}", e.getMessage(), e);
+            notices.routineFailed("Informe FII (07:30)", e.getMessage());
         }
     }
 }

@@ -20,6 +20,11 @@ import {
  * em produção.
  */
 export const portfolioApi = {
+  /** Custo por ação de uma bonificação sem custo da B3 (docs/planos/PLANO_NOTIFICACOES.md, 5.4). */
+  setStockEventCost: async (positionId: string, stockEventId: number, costPerShare: number): Promise<void> => {
+    await apiClient.put(`/portfolio/assets/${positionId}/stock-events/${stockEventId}/cost`, { costPerShare });
+  },
+
   getSummary: async (): Promise<PortfolioSummary> => {
     const { data } = await apiClient.get<PortfolioSummary>('/portfolio/');
     return data;

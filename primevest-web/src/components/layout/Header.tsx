@@ -16,6 +16,7 @@ const routeNames: Record<string, string> = {
   '/goals': 'Minhas Metas',
   '/integrations': 'Integrações',
   '/settings': 'Configurações',
+  '/notifications': 'Notificações',
 };
 
 export const Header = () => {

@@ -176,6 +176,8 @@ export interface PortfolioAssetDetail {
   valuationNote?: string | null;
   /** Passou do vencimento. */
   matured?: boolean;
+  /** Bonificações sem custo atribuído pela B3 que pegam a posição: ícone no preço médio e "Informar custo". */
+  pendingBonusCosts?: PendingBonusCost[];
   /**
    * Emissor do catálogo (companhia ou FII) — link para /emissoras/{ticker}.
    * null = sem emissor (renda fixa, ETF, BDR, cripto). Não confundir com
@@ -277,8 +279,11 @@ export interface TransactionResponse {
   isFullSettlement: boolean;
   /** Criptomoeda: quantidade e preço com até 8 casas. */
   isCrypto: boolean;
-  /** Digitada (MANUAL) ou importada de uma corretora (AUTO). */
-  origin: 'MANUAL' | 'AUTO';
+  /**
+   * Digitada (MANUAL), importada de uma corretora (AUTO) ou criada pelo PrimeVest (SISTEMA: a liquidação automática
+   * do título vencido, docs/planos/PLANO_NOTIFICACOES.md, seção 6).
+   */
+  origin: 'MANUAL' | 'AUTO' | 'SISTEMA';
   /** Importada que o usuário editou; null = idêntica à corretora. */
   editedAt: string | null;
   /** Apelido da conexão de onde veio ("Binance principal"); null nas digitadas. */
@@ -606,6 +611,8 @@ export interface CeilingPriceListItem {
   defaultsChanged: boolean;
   lastQuarterEnd: string | null;
   calculatedAt: string;
+  /** "Alertar preço abaixo do ideal" ligado (docs/planos/PLANO_NOTIFICACOES.md, 5.5). */
+  alertEnabled: boolean;
 }
 
 /** Recusa ao salvar (422). */
@@ -1073,4 +1080,60 @@ export interface IndexChart {
   changePct?: number;
   accumulatedPct?: number;
   points: { date: string; value: number }[];
+}
+
+// ------------------------------------------------------------------ notificações (docs/planos/PLANO_NOTIFICACOES.md)
+
+export type NotificationAudience = 'USER' | 'ADMIN';
+export type NotificationCategory =
+  | 'PROVENTOS' | 'EVENTOS' | 'RENDA_FIXA' | 'PRECO_TETO' | 'INTEGRACOES' | 'CARTEIRA' | 'SISTEMA';
+/** Situação do assunto (pendência). Mensagem informativa vem sem status. */
+export type NotificationStatus = 'NAO_RESOLVIDA' | 'DISPENSADA' | 'RESOLVIDA';
+export type NotificationStateAction = 'READ' | 'UNREAD' | 'ARCHIVE' | 'UNARCHIVE' | 'DELETE';
+
+/** Botão da mensagem: LINK vai para `target`; os demais são ações que a tela conhece (ex.: INFORMAR_CUSTO). */
+export interface NotificationAction {
+  type: 'LINK' | 'INFORMAR_CUSTO' | string;
+  label: string;
+  target?: string | null;
+  params?: Record<string, unknown>;
+}
+
+export interface NotificationItem {
+  id: string;
+  audience: NotificationAudience;
+  kind: string;
+  category: NotificationCategory;
+  severity: 'INFO' | 'ATENCAO';
+  title: string;
+  body: string;
+  refType?: string | null;
+  refId?: string | null;
+  payload?: { lines?: string[]; actions?: NotificationAction[]; data?: Record<string, unknown> } | null;
+  status?: NotificationStatus | null;
+  statusAt?: string | null;
+  read: boolean;
+  archived: boolean;
+  createdAt: string;
+}
+
+export interface NotificationPage {
+  items: NotificationItem[];
+  page: number;
+  size: number;
+  total: number;
+}
+
+export interface NotificationSummary {
+  unread: number;
+  adminUnread: number;
+}
+
+/** Bonificação sem custo da B3 numa posição (docs/planos/PLANO_NOTIFICACOES.md, 5.4). */
+export interface PendingBonusCost {
+  stockEventId: number;
+  dataCom: string;
+  factor: number;
+  newShares: number;
+  label: string;
 }

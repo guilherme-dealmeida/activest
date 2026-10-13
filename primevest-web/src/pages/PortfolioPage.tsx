@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useMemo, useState } from 'react';
+import { BonusCostBadge } from '@/components/notifications/BonusCostBadge';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { clsx } from 'clsx';
@@ -177,8 +178,8 @@ const COLUMNS: Column[] = [
           <span
             className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase bg-danger/15 text-danger"
             title={a.valuationBasis === 'CURVA'
-              ? 'O título venceu e parou de render. Lance o resgate (ícone Vender) para encerrar a aplicação.'
-              : 'O título venceu: o Tesouro paga o resgate na conta da corretora. Lance a venda para encerrar a posição.'}
+              ? 'O título venceu e parou de render. O PrimeVest lança o resgate sozinho na abertura do dia (veja as Notificações); sem curva, lance o resgate pelo ícone Vender.'
+              : 'O título venceu: o PrimeVest lança a venda pelo preço oficial do vencimento na abertura do dia (veja as Notificações).'}
           >
             Vencido
           </span>
@@ -214,7 +215,12 @@ const COLUMNS: Column[] = [
     info: 'Custo médio por cota, considerando todas as compras da posição.',
     align: 'right',
     visible: showAveragePrice,
-    render: (a) => formatUnitPrice(a.averagePrice, a.isCrypto),
+    render: (a) => (
+      <span className="inline-flex items-center justify-end gap-1">
+        {formatUnitPrice(a.averagePrice, a.isCrypto)}
+        <BonusCostBadge asset={a} />
+      </span>
+    ),
   },
   {
     key: 'currentPrice',

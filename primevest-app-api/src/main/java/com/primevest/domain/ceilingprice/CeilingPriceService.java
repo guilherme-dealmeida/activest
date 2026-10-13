@@ -58,6 +58,11 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class CeilingPriceService {
 
+    /** Mensagens do Preço Teto (alerta de preço e "padrão mudou"). Opcional nos testes que montam o serviço. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @org.springframework.context.annotation.Lazy
+    CeilingPriceAlertService alerts;
+
     static final List<String> FIELDS = List.of("shares", "roePct", "payoutPct", "discountRatePct",
             "perpetualGrowthPct", "safetyMarginPct", "price");
     private static final MathContext MC = MathContext.DECIMAL128;
@@ -172,7 +177,7 @@ public class CeilingPriceService {
                     status(reference, r.ceilingPrice(), r.idealPrice()), blocking, warnings,
                     d != null && !changedDefaults(cp, d).isEmpty(),
                     cp.getQuarters().isEmpty() ? null : cp.getQuarters().get(cp.getQuarters().size() - 1).getPeriodEnd(),
-                    cp.getCalculatedAt()));
+                    cp.getCalculatedAt(), cp.isAlertEnabled()));
         }
         out.sort(Comparator.comparing(ListItem::ticker));
         return out;
@@ -224,12 +229,53 @@ public class CeilingPriceService {
                 in.price(), in.notes(), in.confirmWarnings());
         apply(cp, withTicker, d);
         cp = repository.save(cp);
+        // Salvo de novo com os padroes de hoje: o "padrao mudou" acabou (docs/planos/PLANO_NOTIFICACOES.md, 5.6).
+        if (alerts != null) {
+            alerts.resolveDefaultsChanged(cp);
+        }
         return toDetail(cp, d);
     }
 
     @Transactional
     public void delete(UUID userId, UUID id) {
         repository.delete(owned(userId, id));
+    }
+
+    /**
+     * Liga/desliga o alerta de preço abaixo do ideal. Ligado com o preço já abaixo: avisa na próxima atualização do
+     * preço (o estado começa "acima").
+     */
+    @Transactional
+    public boolean setAlert(UUID userId, UUID id, boolean enabled) {
+        CeilingPrice cp = owned(userId, id);
+        cp.setAlertEnabled(enabled);
+        cp.setAlertBelowIdeal(false);
+        repository.save(cp);
+        return enabled;
+    }
+
+    /** O ideal do cálculo gravado e o preço atual do ativo (o mesmo "hoje" da lista). Nulo sem preço. */
+    public record PriceCheck(BigDecimal ideal, BigDecimal price, LocalDate priceDate) {
+    }
+
+    public PriceCheck priceCheck(CeilingPrice cp) {
+        Defaults d = defaults.of(cp.getAsset().getTicker(), cp.getId());
+        CeilingPriceRules.Result r = CeilingPriceRules.calculate(fromEntity(cp).inputs(), limits);
+        BigDecimal price = d == null || d.price() == null ? null : d.price().value();
+        return new PriceCheck(perShare(r.idealPrice()), price, d == null ? null : d.priceDate());
+    }
+
+    /** Campos de balanço cujo padrão mudou desde o "Salvar" (D5: preço e Selic ficam de fora). */
+    public List<String> changedBalanceDefaults(CeilingPrice cp) {
+        Defaults d = defaults.of(cp.getAsset().getTicker(), cp.getId());
+        return changedDefaults(cp, d).stream()
+                .filter(f -> f.equals("quarters") || f.equals("shares") || f.equals("roePct") || f.equals("payoutPct"))
+                .toList();
+    }
+
+    /** O último trimestre que o catálogo tem para o ativo (a chave do "padrão mudou"). */
+    public LocalDate latestQuarterEnd(CeilingPrice cp) {
+        return defaults.of(cp.getAsset().getTicker(), cp.getId()).latestQuarterEnd();
     }
 
     /** Valida (obrigatórios, bloqueios, confirmação dos alertas) e copia as entradas e a origem de cada uma. */
@@ -275,6 +321,8 @@ public class CeilingPriceService {
         cp.setPrice(in.price());
         cp.setNotes(in.notes() == null || in.notes().isBlank() ? null : in.notes().trim());
         cp.setCalculatedAt(LocalDateTime.now(java.time.ZoneId.of("America/Sao_Paulo")));
+        // O ideal pode ter mudado: o alerta reavalia na proxima atualizacao do preco (secao 5.5).
+        cp.setAlertBelowIdeal(false);
 
         Map<String, InputOrigin> origins = new LinkedHashMap<>();
         Map<String, DefaultValue> defs = defaultsByField(d);

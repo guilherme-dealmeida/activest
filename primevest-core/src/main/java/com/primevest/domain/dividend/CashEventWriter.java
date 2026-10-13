@@ -41,6 +41,10 @@ public class CashEventWriter {
     private final AssetRepository assetRepository;
     private final TransactionTemplate tx;
 
+    /** Mensagem de administrador do rotulo desconhecido; opcional nos testes que montam o writer a mao. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.primevest.domain.notification.NotificationService notifications;
+
     public CashEventWriter(AssetCashEventRepository cashEventRepository, AssetRepository assetRepository,
                            PlatformTransactionManager transactionManager) {
         this.cashEventRepository = cashEventRepository;
@@ -124,6 +128,18 @@ public class CashEventWriter {
         if (Boolean.TRUE.equals(created) && d.type() == null) {
             log.warn("Proventos: rotulo desconhecido '{}' em {} (data-com {}) — gravado, mas nao gera provento ate ser mapeado em DividendType.",
                     label, asset.getTicker(), d.dataCom().format(BR));
+            // Uma pendencia por rotulo (docs/planos/PLANO_NOTIFICACOES.md, 5.7): o mapeamento e codigo, entao quem
+            // fecha e o administrador (dispensar) depois de mapear.
+            if (notifications != null) {
+                notifications.notify(com.primevest.domain.notification.NotificationDraft
+                        .of(com.primevest.domain.notification.NotificationKind.CATALOGO_ROTULO_DESCONHECIDO)
+                        .title("Tipo de provento desconhecido: \"" + label + "\"")
+                        .body("A B3 mandou um provento com um rótulo que o PrimeVest não conhece. O evento foi gravado no "
+                                + "catálogo, mas não gera provento na carteira até o rótulo ser mapeado em DividendType. "
+                                + "Primeiro visto em " + asset.getTicker() + " (data-com " + d.dataCom().format(BR) + ").")
+                        .ref("CATALOG", label).key(label.toUpperCase())
+                        .build());
+            }
         }
         return Boolean.TRUE.equals(created);
     }

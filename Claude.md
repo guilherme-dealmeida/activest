@@ -5,7 +5,10 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 12/10/2026 (legendas dos gráficos verticais, com o ideal da estratégia na Alocação — ver
+> **Última revisão**: 13/10/2026 (Notificações: caixa de mensagens estilo e-mail aberta pelo sino do rodapé do menu,
+> mensagens do usuário e de administrador, rotina de abertura do dia [B7] com a liquidação automática do título vencido,
+> "Informar custo" da bonificação e alerta de preço do Preço Teto — ver "Notificações (13/10/2026)" em Pontos de Atenção
+> e `docs/planos/PLANO_NOTIFICACOES.md`). Antes: 12/10/2026 (legendas dos gráficos verticais, com o ideal da estratégia na Alocação — ver
 > "Legendas dos gráficos" em Padrão Visual). No mesmo dia: (Alocação: "pizza de pizza" na aba Carteira de Investimentos — ver "Alocação" em
 > Telas). No mesmo dia: (rebalanceamento e estratégia pelo valor atual, com a valorização, e não mais pelo
 > custo — ver "Rebalanceamento" em Telas). Antes: 11/10/2026 (Rebalanceamento deixou de ser aba da Estratégia e virou tela própria, `/rebalance`,
@@ -522,6 +525,8 @@ em desenvolvimento. **Não versione credenciais reais.**
 | `dividends` | Proventos. **Sem `user_id`** — ver Pontos de Atenção. `total_amount` é o **bruto** (truncado nos centavos, como a B3); `net_amount` é o **líquido** depois do IR retido (V23) |
 | `withholding_tax_rules` | Alíquotas de IR retido na fonte por tipo de provento, tipo de ativo e vigência, com a base legal (V23). Lei nova = migration — ver "IR retido nos proventos" |
 | `ceiling_prices` | Cálculo de preço teto de uma ação (V46, modelo PREÇO TETO V2) — `unique(user_id, asset_id)`. Guarda **só as entradas**, todas `NOT NULL`: `shares`, `roe_pct`, `payout_pct`, `discount_rate_pct`, `perpetual_growth_pct`, `safety_margin_pct` (pontos), `price`, e `inputs_origin` (JSONB: PADRAO/INFORMADO + referência e valor do padrão no "Salvar"). O resultado sai das entradas na leitura (`CeilingPriceRules`) |
+| `notifications`, `notification_states` | Caixa de Notificações (V48): a mensagem com o status do assunto; o estado de cada pessoa à parte — ver "Notificações (13/10/2026)" em Pontos de Atenção |
+| `stock_event_costs` | Custo da bonificação informado pelo usuário (V51), por posição e evento |
 | `ceiling_price_quarters` | Os 4 lucros de um cálculo (V46): valor digitado, unidade, moeda, câmbio, `value_brl` (o que entra na conta) e origem (a fonte saiu na V47). PK `(ceiling_price_id, position)` |
 | `goals` | Metas de investimento |
 | `asset_price_history` | Histórico de cotações. `source` (V29): `BRAPI`, `COINGECKO` ou `B3_COTAHIST` — a série da B3 vence e a BRAPI não a sobrescreve; `TESOURO` (V44): PU de venda do Tesouro Direto desde 2010 |
@@ -574,7 +579,7 @@ coluna.
 > usuário; `getName()` é para lógica interna. `AssetCategory.getDisplayName()`
 > encapsula o fallback description → name.
 
-### Flyway — V1 a V44
+### Flyway — V1 a V51
 
 O Flyway roda do zero no perfil `docker`. No perfil `dev` fica desligado, porque
 o banco local é gerenciado à mão.
@@ -636,6 +641,10 @@ categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, s
 | V45 | docs/planos/PLANO_PRECO_TETO.md (D4): `company_quarters.dividends_paid_q/_ttm` — dividendos + JCP pagos aos acionistas da controladora (DFC, métrica `DIVIDENDOS_PAGOS`), base do payout |
 | V47 | docs/planos/PLANO_PRECO_TETO.md (revisão de 11/10/2026): `ceiling_price_quarters` sem `source_ref` — a fonte do lucro trimestral deixou de existir |
 | V46 | docs/planos/PLANO_PRECO_TETO.md (4.1–4.2): `ceiling_prices` recriada (estava vazia; trava se tiver linha) com as entradas do modelo V2, sem `max_price` e `alert_enabled`; `ceiling_price_quarters` nova |
+| V48 | docs/planos/PLANO_NOTIFICACOES.md (3.1): `notifications` (público, tipo, categoria, gravidade, texto, referência, payload JSONB, status do assunto, `dedup_key` com índices únicos parciais) e `notification_states` (lida/arquivada/excluída por pessoa) |
+| V49 | docs/planos/PLANO_NOTIFICACOES.md (3.2): `ceiling_prices.alert_enabled` (default false), `alert_below_ideal` (default false), `alert_last_on` |
+| V50 | docs/planos/PLANO_NOTIFICACOES.md (3.3): `ck_transactions_origin` aceita `SISTEMA` (venda da liquidação automática; sem `external_id` nem snapshot) |
+| V51 | docs/planos/PLANO_NOTIFICACOES.md (3.4): `stock_event_costs` — custo por ação da bonificação informado pelo usuário para a posição |
 | V43 | docs/planos/PLANO_INDICES_MERCADO.md (X1): `market_indices` (10 índices semeados) e `market_index_values` (vazia; a série vem da adm-api) |
 | V41 | docs/planos/PLANO_CADASTRO_USUARIO.md (seção 5): colunas novas de `users` (celular, CPF cifrado + hash, verificação de e-mail, `password_changed_at`, aceite dos termos, tema), índices únicos de e-mail sem caixa, celular e CPF; o usuário semeado ganha e-mail verificado e o aceite da versão `2026-10-provisorio` |
 
@@ -868,6 +877,18 @@ passo a passo no apêndice A do plano); origens autorizadas `http://localhost` e
 | GET | `/api/v1/ceiling-prices/{id}` | Entradas gravadas, origem de cada uma, resultado, padrões de hoje e `changedDefaults` |
 | POST / PUT | `/api/v1/ceiling-prices[/{id}]` | Grava: entradas obrigatórias; bloqueio ou alerta sem `confirmWarnings` → 422 com os avisos; já existente → 409 |
 | DELETE | `/api/v1/ceiling-prices/{id}` | Exclui |
+| PATCH | `/api/v1/ceiling-prices/{id}/alert` | Coluna "Alerta" (13/10/2026): `{enabled}` liga/desliga "alertar preço abaixo do ideal" |
+
+### Notificações (13/10/2026, `docs/planos/PLANO_NOTIFICACOES.md`)
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/api/v1/notifications?folder=INBOX\|ARCHIVED&audience=&category=&status=&unread=&page=` | A caixa da pessoa (50 por página, mais nova primeiro), sem as excluídas; `status=INFORMATIVA` = sem status; `audience=ADMIN` só para `is_admin` |
+| GET | `/api/v1/notifications/summary` | `{unread, adminUnread}` — não lidas fora de Arquivadas (o sino) |
+| GET | `/api/v1/notifications/{id}` | Detalhe, sem marcar lida |
+| POST | `/api/v1/notifications/{id}/open` | Abrir: o único caminho para "lida" |
+| PATCH | `/api/v1/notifications/state` | Lote `{ids, action: READ\|UNREAD\|ARCHIVE\|UNARCHIVE\|DELETE}` (DELETE é lógico) |
+| PATCH | `/api/v1/notifications/{id}/status` | `{action: DISMISS\|REOPEN}` — só pendência (informativa → 422) |
+| PUT | `/api/v1/portfolio/assets/{id}/stock-events/{eventId}/cost` | "Informar custo" da bonificação sem custo da B3 (`{costPerShare}`) |
 
 ### Goals
 | Método | Endpoint |
@@ -935,6 +956,7 @@ Rotas em `App.tsx`; tudo abaixo de `/login` é protegido por `ProtectedRoute`.
 | `/goals` | Metas |
 | `/integrations` | Integrações (Binance e, com `B3I_ENABLED`, B3): conectar (chave ou CPF + autorização na B3), sincronizar, histórico, excluídas |
 | `/integrations/:id/runs/:runId` | Pré-visualização / resultado de uma sincronização (decidir duplicatas, confirmar) |
+| `/notifications` | Notificações (13/10/2026, `docs/planos/PLANO_NOTIFICACOES.md`): aberta pelo sino do rodapé do menu (que passou a ter duas linhas: foto e nome; sino, Modo, Configurações, Sair), com o número de não lidas no marcador amarelo de Integrações (ponto com o menu recolhido), consulta a cada 60 s. Caixa estilo e-mail (`NotificationsPage`): Entrada/Arquivadas, filtros de categoria, situação, público (admin) e "só não lidas", lista à esquerda e leitura à direita (celular: uma de cada vez), seleção em lote (lida, não lida, arquivar, desarquivar, excluir), ações da mensagem (link, "Informar custo"), Dispensar/Reabrir na pendência |
 | `/settings` | Configurações (05/10/2026): Perfil (foto centralizada com envio e recorte no navegador — `AvatarCropModal`, JPEG/PNG/WebP até 5 MB, ≥ 128 px —, nome, e-mail com troca por código, celular, CPF mascarado), Acesso (alterar/definir senha, vincular/desvincular Google, termos aceitos), Preferências (tema, gravado no usuário), Zona de perigo (excluir conta com código) |
 | `/login` | Login (email/senha + Google), links "Esqueci a senha" e "Criar conta" (só com o cadastro ligado) |
 | `/cadastro` | Criar conta (pública): dados (celular e CPF opcionais) + aceite dos termos → código por e-mail → já entra. Ou Google |
@@ -1406,6 +1428,37 @@ Plano: `docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`. Dois mundos, duas fontes:
   sem curva = como estava. Roda depois de cada transação (após as regras E/F/G), às 21:00, na subida da app-api e no
   "catálogo mudou" INDICES. Valores **brutos** (sem IR/IOF).
 - **`BusinessCalendar`** (core): feriados nacionais calculados; conferido contra as 4.208 datas do CDI 2010–2026.
+
+### Notificações (13/10/2026)
+Plano: `docs/planos/PLANO_NOTIFICACOES.md`. A antiga central de avisos (PENDENCIAS 13) virou a caixa de Notificações.
+
+- **Dois eixos independentes.** O **estado** é de cada pessoa (`notification_states`: lida, arquivada, excluída — lógica;
+  sem linha = não lida na Entrada); o **status** é do assunto (`notifications.status`: nulo = informativa;
+  `NAO_RESOLVIDA` → `RESOLVIDA` pelo sistema, `DISPENSADA`/reabrir pela pessoa). Abrir é o único jeito de "lida";
+  resolver não lê e excluir não resolve.
+- **Quem escreve.** Só o `NotificationService` (core): `notify(NotificationDraft)` com `INSERT … ON CONFLICT DO NOTHING`
+  sobre a `dedup_key` (o tipo + a chave do produtor) — informativa nunca repete; pendência não repete enquanto não for
+  resolvida. Transação própria, e falha só vai para o log: avisar nunca derruba o produtor. As de administrador
+  (`audience = ADMIN`) a própria adm-api grava (`AdminNotices`); as do usuário, a app-api.
+- **Tipos** (`NotificationKind`): provento pago (D0), evento aplicado (data-ex), bonificação sem custo, RF liquidada /
+  sem valor / divergente, preço abaixo do ideal, "padrão mudou", integrações (importou, aguardando, divergência,
+  conexão, falhou), aviso de catálogo para a posição; admin: ticker novo/sumido/renomeado/sem cotação, índice
+  atrasado, rótulo desconhecido, Tesouro sem título, rotina falhou, fonte indisponível.
+- **Quando.** Rotina de abertura do dia [B7] (`DailyOpeningService`, 00:00 e na subida, idempotente); depois do
+  "catálogo mudou" (`CatalogReaction`, chamadas pelo `PositionRefreshService`); no fim de cada execução de integração
+  (`IntegrationNotifier`); a adm-api nas rotinas dela.
+- **Liquidação automática** (`MaturitySettlementService`, revoga a D8 da renda fixa): título vencido vira venda de
+  origem **`SISTEMA`** (V50; selo "Automática" em Transações) pelas regras da venda digitada — RF privada pelo saldo da
+  curva no vencimento com liquidação total, Tesouro pelo PU oficial × as cotas de todos os títulos do ativo. A compra
+  retroativa nasce liquidada (`PositionWrittenEvent`, depois do commit). `SystemWrites` marca a escrita do sistema:
+  dentro dela não há `editedAt`; fora, editar a venda SISTEMA dá `editedAt` e a rotina não a refaz (abre a pendência de
+  divergência se a conta mudar). Venda de Tesouro guarda a origem do grupo no `SaleIntent`.
+- **Bonificação sem custo** (`BonusCostService`): `stock_event_costs` (V51) entra no lugar do zero provisório no
+  `PositionCalculator` (só quando o catálogo não tem `assigned_cost`); ícone na Carteira (`pendingBonusCosts` da
+  linha) e pendência com "Informar custo".
+- **Alerta de preço** (`CeilingPriceAlertService`): `ceiling_prices.alert_enabled/alert_below_ideal/alert_last_on`
+  (V49) — avisa ao cruzar o ideal para baixo, rearma acima, uma por ativo por dia; preço atual = o "hoje" da lista do
+  Preço Teto. O COTAHIST diário passou a publicar `FECHAMENTO` e os balanços `BALANCOS` (origem nova do `CatalogChange`).
 
 ### `dividends` não tem dono próprio
 O dono vem de `portfolio_asset_id`, que é **obrigatório** (`NOT NULL`) e

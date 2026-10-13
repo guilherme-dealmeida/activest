@@ -16,6 +16,7 @@ import { GoalsPage } from '@/pages/GoalsPage';
 import { IntegrationsPage } from '@/pages/IntegrationsPage';
 import { IntegrationRunPage } from '@/pages/IntegrationRunPage';
 import { SettingsPage } from '@/pages/SettingsPage';
+import { NotificationsPage } from '@/pages/NotificationsPage';
 import { IssuerPage } from '@/pages/IssuerPage';
 import { IndicesPage } from '@/pages/IndicesPage';
 import { LoginPage } from '@/pages/LoginPage';
@@ -56,6 +57,7 @@ function App() {
         <Route path="/integrations" element={<IntegrationsPage />} />
         <Route path="/integrations/:id/runs/:runId" element={<IntegrationRunPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
       </Route>
     </Routes>
   );

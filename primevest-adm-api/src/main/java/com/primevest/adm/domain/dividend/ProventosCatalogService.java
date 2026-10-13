@@ -112,6 +112,10 @@ import java.util.regex.Pattern;
 @Service
 public class ProventosCatalogService {
 
+    /** Mensagens de administrador (docs/planos/PLANO_NOTIFICACOES.md, 5.7). */
+    @org.springframework.beans.factory.annotation.Autowired
+    com.primevest.adm.domain.notice.AdminNotices notices;
+
     private static final DateTimeFormatter BR = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final int VALUE_SCALE = CashEventWriter.VALUE_SCALE;
     private static final int HISTORY_PAGE_SIZE = 100;
@@ -381,6 +385,8 @@ public class ProventosCatalogService {
         } catch (B3Exception e) {
             // a B3 caiu: segue com o que ja esta em carga/data/b3/proventos-12m
             log.warn("Proventos: B3 sem resposta para {} ({}) — usando o arquivo em disco", group.issuer(), e.getMessage());
+            notices.sourceUnavailable("Proventos", "B3", "sem resposta para " + group.issuer() + " (" + e.getMessage()
+                    + ") — a rodada seguiu com o arquivo em disco");
             fresh = null;
             b3Down = e;
         }
@@ -803,6 +809,8 @@ public class ProventosCatalogService {
         } catch (RuntimeException e) {
             log.warn("Proventos: busca no FNET de {} ({}) falhou — B3 fica de reserva: {}",
                     assets.get(0).getTicker(), cnpj, e.getMessage());
+            notices.sourceUnavailable("Proventos", "FNET", "busca de " + assets.get(0).getTicker() + " falhou ("
+                    + e.getMessage() + ") — a B3 ficou de reserva");
             return false;
         }
         Set<Long> cached = new HashSet<>(fnetClient.cachedNoticeIds(cnpj));

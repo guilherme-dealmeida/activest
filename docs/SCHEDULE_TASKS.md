@@ -4,7 +4,8 @@
 > `application.yml` dos módulos · revisado em 03/10/2026 (Markdown, caminhos `carga/`) · 05/10/2026 ([A9] índices de
 > mercado, `docs/planos/PLANO_INDICES_MERCADO.md`; [A10] preço do Tesouro e a curva da renda fixa,
 > `docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`) · 10/10/2026 ([A11] cotações do catálogo pelo COTAHIST diário,
-> `docs/planos/PLANO_PRECO_TETO.md`).
+> `docs/planos/PLANO_PRECO_TETO.md`) · 13/10/2026 ([B7] abertura do dia, mensagens de administrador nas rotinas da adm-api,
+> [A5] e [A11] avisando a carteira — `docs/planos/PLANO_NOTIFICACOES.md`).
 
 - **Fuso** de todas as rotinas: `America/Sao_Paulo`.
 - **Cron do Spring:** `segundo minuto hora dia-do-mês mês dia-da-semana`. Os horários ficam em propriedade
@@ -15,12 +16,18 @@
 | Módulo | Papel |
 |---|---|
 | **adm-api** (8081) | rotinas de **catálogo**: preços, proventos, balanços, logos, índices de mercado. Grava só catálogo e avisa a carteira pelo Redis |
-| **app-api** (8080) | rotinas da **carteira**: recálculo das posições e sincronização das corretoras. Única que grava dado de usuário |
+| **app-api** (8080) | rotinas da **carteira**: recálculo das posições, sincronização das corretoras e abertura do dia. Única que grava dado de usuário |
+
+**Notificações (13/10/2026).** As falhas de rotina, as fontes fora do ar e as diferenças de catálogo da adm-api viram
+**mensagens de administrador** na tabela `notifications` (gravadas pela própria adm-api, D1 do
+`docs/planos/PLANO_NOTIFICACOES.md`): no máximo uma por rotina (e fonte) por dia; as de catálogo ficam abertas até a
+rodada seguinte não achar mais a diferença. As mensagens do usuário são da app-api.
 
 ## Linha do tempo de um dia
 
 | Quando | Módulo | Rotina |
 |---|---|---|
+| 00:00 | app | [B7] Abertura do dia (liquidação dos vencidos, proventos e eventos de D0, conferências) |
 | a cada 5 s | app | [B5] Worker da fila de integrações |
 | 06:00, dia 1 | adm | [A7] Logos (mensal) |
 | 07:00, segunda | adm | [A6] Conferência do catálogo (semanal) |
@@ -34,7 +41,7 @@
 | 20:00 | adm | [A4] Proventos e eventos societários + datas de pagamento CVM |
 | 21:00 | app | [B1] Rede de segurança: recálculo de todas as posições |
 | 21:30 | adm | [A11] Cotações do catálogo — COTAHIST diário |
-| ao subir | adm / app | [A3] recuperação do fechamento · [A9] recuperação dos índices · [A10] recuperação do Tesouro · [A11] recuperação das cotações · [B2] verificação da carteira · [B6] recuperação da fila |
+| ao subir | adm / app | [A3] recuperação do fechamento · [A9] recuperação dos índices · [A10] recuperação do Tesouro · [A11] recuperação das cotações · [B2] verificação da carteira · [B6] recuperação da fila · [B7] abertura do dia |
 | por mensagem | adm / app | [A8] "preciso do histórico" · [B3] "catálogo mudou" |
 
 A ordem 19:00 → 20:00 → 21:00 é proposital: o recálculo da carteira roda depois de o catálogo ter recebido os preços e
@@ -132,6 +139,9 @@ recebeu e vai receber.
 **Função.** Ano corrente e anterior. Só baixa o que mudou (`If-Modified-Since`) e só grava documento/mês novo ou
 reapresentado (versão maior). Uma parte falhar não impede a outra.
 
+**Ao fim (desde 13/10/2026).** Com documento novo ou reapresentado, publica "catálogo mudou" (origem `BALANCOS`, lista
+vazia = todos) → a app-api confere o "padrão mudou" dos cálculos de Preço Teto ([B3]).
+
 **Propósito.** Manter balanços, série trimestral e informe de FII em dia para os indicadores (P/L, P/VP, LPA, VPA,
 ROE, payout, DY...).
 
@@ -143,14 +153,14 @@ ROE, payout, DY...).
 | **Classe** | `CatalogAuditScheduler.weeklyAudit` → `CatalogAuditService.run` e `MarketIndexImportService.audit` |
 | **Config** | `primevest.catalog-audit.cron = "0 0 7 * * MON"`; `primevest.catalog-audit.ignored` (tickers fora de propósito) |
 | **Fonte** | lista oficial e renomes da BRAPI |
-| **Grava** | **nada**: cada diferença vira linha WARN no log da adm-api |
+| **Grava** | nada no catálogo: cada diferença vira linha WARN no log **e** mensagem de administrador (`notifications`, 13/10/2026) — ticker novo (uma por rodada, com a lista), sumido e renomeado (uma por ticker), índice atrasado (uma por índice); a rodada seguinte que não acha mais a diferença resolve a mensagem |
 
 **Função.** Aponta (1) ticker novo na B3 que não está no catálogo, (2) ticker sumido (fora da lista **e** cotação
 404), (3) ticker renomeado ainda ativo no catálogo, (4) índice de mercado atrasado — diário sem valor há mais de 7
 dias, mensal sem o mês seguinte 45 dias depois do fim do mês de referência, ou sem série nenhuma (05/10/2026).
 
-**Propósito.** Avisar o administrador de mudanças na bolsa sem alterar o catálogo sozinho. (A central de avisos é a
-`docs/PENDENCIAS.md`, seção 13.)
+**Propósito.** Avisar o administrador de mudanças na bolsa sem alterar o catálogo sozinho. Ticker sumido ou renomeado
+com posição aberta também chega a quem tem a posição ([B7] e [B3], fan-out — `docs/planos/PLANO_NOTIFICACOES.md`, 5.7).
 
 ### [A7] Logos
 
@@ -228,6 +238,7 @@ refaz a curva da renda fixa privada ([B3]).
 | **Config** | `primevest.cotahist-diario.cron = "0 30 8,21 * * *"`; `primevest.cotahist-diario.enabled` |
 | **Fonte** | B3, `COTAHIST_DddMMaaaa.ZIP` (um por pregão, ~0,5 MB, todas as ações e FIIs) |
 | **Grava** | `asset_price_history` (`source = B3_COTAHIST`), `assets.isin`; zips em `carga/data/b3/cotahist/diario` |
+| **Ao fim** | com cotação gravada, publica "catálogo mudou" (`FECHAMENTO`, os ativos que ganharam preço) → alerta de preço do Preço Teto ([B3], 13/10/2026) |
 
 **Função.** Do pregão seguinte ao último gravado pela B3 até hoje, um arquivo por dia útil (fim de semana não vai à B3;
 feriado e arquivo ainda não publicado respondem 404 e ficam para a rodada seguinte). Mesmas regras do zip anual
@@ -277,7 +288,13 @@ cotação.
 
 **Função.** `PROVENTOS` → refaz proventos e valorização das posições dos ativos citados; `FECHAMENTO` → só a
 valorização (inclusive Tesouro, pelo PU oficial); `INDICES` (05/10/2026) → refaz a curva de todos os títulos de renda
-fixa privada em aberto (`FixedIncomeValuation`).
+fixa privada em aberto (`FixedIncomeValuation`); `BALANCOS` (13/10/2026) → nada na carteira.
+
+**Depois do recálculo (13/10/2026, `CatalogReaction`).** As mensagens que dependem do catálogo
+(`docs/planos/PLANO_NOTIFICACOES.md`): `PROVENTOS` → bonificação sem custo vira pendência ("Informar custo");
+`FECHAMENTO` → aviso de catálogo para quem tem a posição (fan-out), alerta de preço abaixo do ideal e liquidação do
+Tesouro vencido que esperava o PU; `INDICES` → liquidação da RF privada vencida que esperava o índice; `BALANCOS` →
+"padrão mudou" do Preço Teto. Uma reação que falha não impede as outras.
 
 **Propósito.** A carteira reage ao catálogo na hora, sem esperar as 21:00.
 
@@ -295,7 +312,9 @@ a leva a `ACTIVE` quando o investidor autorizar) que não tenha execução pende
 `AWAITING_CONFIRMATION`) nem tenha passado do limite de uma consulta por dia da fonte (B3). Quem busca na corretora é o worker [B5]. A execução agendada confirma sozinha
 quando não há nada a decidir (nenhuma possível duplicata) e a conexão já teve uma importação confirmada pelo usuário.
 
-**Propósito.** Trazer as operações novas das fontes (Binance e B3) todo dia. O horário é depois das 8h porque a B3 só
+**Propósito.** Trazer as operações novas das fontes (Binance e B3) todo dia. Desde 13/10/2026 cada execução agendada
+gera a sua mensagem nas Notificações (importou N operações, aguardando confirmação, divergência; falha e problema de
+conexão também na manual). O horário é depois das 8h porque a B3 só
 publica o dia anterior a partir daí (docs/planos/PLANO_INTEGRACAO_B3.md, A6).
 
 ### [B5] Worker da fila de integrações
@@ -323,6 +342,27 @@ usuário responde na hora.
 **Função.** Execução que estava `RUNNING` morreu com a instância anterior: vira `FAILED` na hora.
 
 **Propósito.** A conexão não fica presa esperando o prazo de `stale-minutes`.
+
+### [B7] Abertura do dia (13/10/2026)
+
+| | |
+|---|---|
+| **Quando** | 00:00, todos os dias, **e** na subida da app-api — "meia-noite ou o primeiro horário do dia com o sistema no ar" |
+| **Classe** | `DailyOpeningScheduler.midnight` / `onStartup` → `DailyOpeningService.run` |
+| **Config** | `primevest.abertura.cron = "0 0 0 * * *"`; chave geral `primevest.scheduling.enabled` |
+| **Grava** | `notifications`; `transactions` (venda automática, origem `SISTEMA`) e o que a venda recalcula |
+
+**Função.** Em ordem: (1) **liquidação dos vencidos** (`MaturitySettlementService`): RF privada pelo saldo da curva no
+vencimento, Tesouro pelo PU oficial do vencimento × as cotas de todos os títulos do ativo; sem valor → pendência
+"informe o valor do resgate"; (2) **proventos pagos hoje** — uma mensagem por ativo; (3) **desdobramento, grupamento e
+bonificação com custo** com data-ex hoje; (4) conferências: bonificação sem custo, aviso de catálogo para quem tem a
+posição, alerta de preço e "padrão mudou" do Preço Teto. Uma etapa que falha não impede as outras.
+
+**Sem coluna de controle.** Tudo é idempotente pelas chaves das mensagens: subir duas vezes no dia não duplica nada.
+Mensagem de D0 nunca é retroativa — se o sistema não subir no dia, ela não existe.
+
+**Propósito.** Título vencido não continua rendendo (a D8 da valorização da renda fixa foi revista) e o usuário fica
+sabendo, na caixa de Notificações, do que aconteceu na carteira no dia.
 
 ---
 

@@ -35,7 +35,8 @@ public abstract class CatalogoE2EBase extends FuncionalBase {
     @MockBean protected CoinGeckoClient coinGeckoClient;
 
     @TestConfiguration(proxyBeanMethods = false)
-    @Import({ProventosCatalogService.class, ClosingPriceService.class})
+    @Import({ProventosCatalogService.class, ClosingPriceService.class,
+        com.primevest.adm.domain.notice.AdminNotices.class})
     static class Catalogo {
 
         /**

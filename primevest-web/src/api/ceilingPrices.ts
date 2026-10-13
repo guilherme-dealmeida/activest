@@ -9,6 +9,11 @@ import {
 
 /** Preço Teto pelo modelo PREÇO TETO V2 (docs/planos/PLANO_PRECO_TETO.md, 5.3). */
 export const ceilingPricesApi = {
+  /** Coluna "Alerta": avisar nas Notificações quando o preço atual ficar abaixo do ideal. */
+  setAlert: async (id: string, enabled: boolean) => {
+    const { data } = await apiClient.patch<{ alertEnabled: boolean }>(`/ceiling-prices/${id}/alert`, { enabled });
+    return data;
+  },
   list: async () => {
     const { data } = await apiClient.get<CeilingPriceListItem[]>('/ceiling-prices');
     return data;

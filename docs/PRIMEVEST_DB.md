@@ -5,7 +5,10 @@
 > `market_index_values` (V43, seção 5a — `docs/planos/PLANO_INDICES_MERCADO.md`); V44: `asset_types.price_source` e
 > `asset_price_history.source` aceitam `TESOURO` (preço oficial do Tesouro Direto). Acréscimo de 10/10/2026
 > (`docs/planos/PLANO_PRECO_TETO.md`): V45 `company_quarters.dividends_paid_q/_ttm`; V46 `ceiling_prices` recriada
-> (entradas do modelo PREÇO TETO V2) e `ceiling_price_quarters` (nova). Diagramas em Mermaid: o GitHub e o IntelliJ (plugin Mermaid) renderizam.
+> (entradas do modelo PREÇO TETO V2) e `ceiling_price_quarters` (nova). Acréscimo de 13/10/2026
+> (`docs/planos/PLANO_NOTIFICACOES.md`): V48 `notifications` e `notification_states` (seção 5b); V49
+> `ceiling_prices.alert_enabled/alert_below_ideal/alert_last_on`; V50 `transactions.origin` aceita `SISTEMA` (venda da
+> liquidação automática); V51 `stock_event_costs`. Diagramas em Mermaid: o GitHub e o IntelliJ (plugin Mermaid) renderizam.
 
 **A ideia que organiza o schema:** o *catálogo* é global (o que o instrumento É — `assets`, preços, proventos, emissores; gravado pela **adm-api**), e o *papel* é do usuário (posição, transações, título de renda fixa, proventos recebidos; gravado só pela **app-api**).
 
@@ -20,6 +23,7 @@ Legenda das relações: `||--o{` um para muitos (FK obrigatória) · `|o--o{` um
 5. [Integrações com corretoras](#5-integrações-com-corretoras)
 5a. [Índices de mercado](#5a-índices-de-mercado)
 6. [Descrição das tabelas](#6-descrição-das-tabelas)
+5b. [Notificações](#5b-notificações)
 7. [Regras de exclusão (ON DELETE)](#7-regras-de-exclusão-on-delete)
 
 ## 1. Visão geral
@@ -600,12 +604,63 @@ erDiagram
     market_indices ||--o{ market_index_values : "index_id"
 ```
 
+## 5b. Notificações
+
+Tabelas: `notifications`, `notification_states` (V48, 13/10/2026 — `docs/planos/PLANO_NOTIFICACOES.md`). Dois eixos
+independentes: o **status** do assunto mora na mensagem (nulo = informativa; `NAO_RESOLVIDA`/`DISPENSADA`/`RESOLVIDA`), o
+**estado** de cada pessoa (lida, arquivada, excluída — exclusão lógica) mora em `notification_states` (sem linha = não
+lida, na Entrada). Mensagem de administrador (`audience = ADMIN`) não tem dono: todos os admins a veem, cada um com o
+seu estado. `dedup_key` (prefixada pelo `kind`) barra a repetição no banco: informativa nunca se repete; pendência não
+se repete enquanto não for resolvida (índices únicos parciais).
+
+```mermaid
+erDiagram
+    notifications {
+        uuid id PK "not null"
+        varchar audience "not null USER|ADMIN"
+        uuid user_id FK "obrigatorio em USER"
+        varchar kind "not null"
+        varchar category "not null"
+        varchar severity "not null INFO|ATENCAO"
+        varchar title "not null"
+        text body "not null"
+        varchar ref_type
+        varchar ref_id
+        jsonb payload "lines, actions, data"
+        varchar status "nulo|NAO_RESOLVIDA|DISPENSADA|RESOLVIDA"
+        timestamp status_at
+        uuid status_by
+        varchar dedup_key
+        timestamp created_at "not null"
+    }
+    notification_states {
+        uuid notification_id PK,FK "not null"
+        uuid user_id PK,FK "not null"
+        timestamp read_at
+        timestamp archived_at
+        timestamp deleted_at
+    }
+    stock_event_costs {
+        uuid portfolio_asset_id PK,FK "not null"
+        bigint stock_event_id PK,FK "not null"
+        numeric cost_per_share "not null (18,8)"
+    }
+    users ||--o{ notifications : "user_id"
+    notifications ||--o{ notification_states : "notification_id"
+    users ||--o{ notification_states : "user_id"
+    portfolio_assets ||--o{ stock_event_costs : "portfolio_asset_id"
+    asset_stock_events ||--o{ stock_event_costs : "stock_event_id"
+```
+
 ## 6. Descrição das tabelas
 
 | Domínio | Tabela | Quem grava | Descrição | Unicidade |
 |---|---|---|---|---|
 | Usuário | `ceiling_prices` | app-api | Cálculo de preço teto (modelo PREÇO TETO V2, V46) de uma ação pelo usuário: só as entradas, todas obrigatórias — N (shares), ROE, payout, desconto, perpetuidade, margem de segurança (pontos) e preço — com a origem de cada uma (inputs_origin, JSONB: PADRAO/INFORMADO + referência do padrão). O resultado não é gravado: sai das entradas. Um por (user_id, asset_id). | (user_id, asset_id) |
 | Usuário | `ceiling_price_quarters` | app-api | Os 4 lucros de um cálculo de preço teto (V46): valor digitado, unidade (UNIDADE/MIL/MILHAO/BILHAO), moeda (BRL/USD), câmbio, valor em reais (value_brl, o que entra no cálculo), origem (PADRAO = CVM sem alteração, INFORMADO). A fonte (source_ref) saiu na V47. | (ceiling_price_id, position) |
+| Notificações | `notifications` | app-api e adm-api (as de administrador, D1) | Mensagem da caixa (V48): público, tipo, categoria, gravidade, texto, referência, payload (linhas e ações) e o status do assunto. Repetição barrada pela `dedup_key`. | (audience, user_id, dedup_key) parcial |
+| Notificações | `notification_states` | app-api | Estado de uma mensagem para uma pessoa: lida, arquivada, excluída (lógica). | (notification_id, user_id) |
+| Usuário | `stock_event_costs` | app-api | Custo por ação de uma bonificação que a B3 não informou, digitado pelo usuário para a posição dele (V51, "Informar custo"). | (portfolio_asset_id, stock_event_id) |
 | Usuário | `dividends` | app-api | Proventos da posição, gerados a partir do catálogo (asset_cash_events) × cotas na data-com. Bruto (total_amount), IR retido pela regra vigente e líquido (net_amount). Sem user_id: o dono vem da posição. | — |
 | Usuário | `fixed_income_notes` | app-api | O título de renda fixa do usuário (CDB, Tesouro...): emissor, vencimento, forma de remuneração, indexador e taxa contratada. Copia de asset_terms no lançamento. | — |
 | Usuário | `goals` | app-api | Metas de investimento: valor alvo, valor atual, data e status. | — |
@@ -675,6 +730,11 @@ erDiagram
 | `integration_run_items` | `run_id` | `integration_runs.id` | CASCADE |
 | `integration_runs` | `connection_id` | `integration_connections.id` | CASCADE |
 | `market_index_values` | `index_id` | `market_indices.id` | bloqueia (NO ACTION) |
+| `notifications` | `user_id` | `users.id` | CASCADE |
+| `notification_states` | `notification_id` | `notifications.id` | CASCADE |
+| `notification_states` | `user_id` | `users.id` | CASCADE |
+| `stock_event_costs` | `portfolio_asset_id` | `portfolio_assets.id` | CASCADE |
+| `stock_event_costs` | `stock_event_id` | `asset_stock_events.id` | CASCADE |
 | `portfolio_assets` | `asset_id` | `assets.id` | bloqueia (NO ACTION) |
 | `portfolio_assets` | `note_id` | `fixed_income_notes.id` | bloqueia (NO ACTION) |
 | `portfolio_assets` | `portfolio_id` | `portfolios.id` | CASCADE |

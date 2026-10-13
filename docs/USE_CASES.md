@@ -366,6 +366,9 @@ Prefixo das rotas: `/api/v1`. Investidor = qualquer usuário logado; Admin = `is
 | UC14 | Editar/excluir/restaurar importada | Investidor | Edição marca `editedAt`; exclusão registra para não recriar; restaurar volta aos valores da corretora | `PUT/DELETE /transactions/{id}`, `POST /transactions/{id}/restore`, `GET …/exclusions`, `POST …/exclusions/{id}/restore` |
 | UC15 | Execuções e divergências | Investidor | Histórico de execuções; ativos em que a carteira difere do saldo da corretora | `GET …/runs`, `GET /integrations/connections` |
 | UC16 | Desconectar | Investidor | Apaga a credencial e marca `REVOKED` | `DELETE /integrations/connections/{id}` |
+| UC17 | Notificações | Investidor / Admin | Caixa estilo e-mail aberta pelo sino do menu (docs/planos/PLANO_NOTIFICACOES.md): Entrada/Arquivadas, filtros, abrir (marca lida), marcar não lida, arquivar/desarquivar, excluir (lógica), em lote; dispensar/reabrir pendência; ação da mensagem (link, "Informar custo"); as de administrador só para `is_admin` | `GET /notifications`, `/notifications/summary`, `/notifications/{id}`, `POST /notifications/{id}/open`, `PATCH /notifications/state`, `/notifications/{id}/status` |
+| UC18 | Informar custo da bonificação | Investidor | Bonificação sem custo da B3: valor por ação para a posição; recalcula o preço médio e resolve a pendência | `PUT /portfolio/assets/{id}/stock-events/{eventId}/cost` |
+| UC19 | Alerta de preço do Preço Teto | Investidor | Liga/desliga "alertar preço abaixo do ideal" por cálculo | `PATCH /ceiling-prices/{id}/alert` |
 | UC20 | Carga inicial | Admin | 7 etapas em ordem, retomável (seção 6) | `POST /admin/bootstrap` · `admin.mjs bootstrap` |
 | UC21 | Manter emissores | Admin | Importar emissores, ligar ativos, lista curada de CNPJs de FII, ligação manual, composição de unit | `POST /admin/issuers/import`, `/issuers/link`, `/issuers/fii-cnpjs`, `PUT /admin/assets/{id}/issuer`, `/unit-composition` |
 | UC22 | Disparar rotina de catálogo | Admin | Qualquer rotina na hora (202, resultado no log) | `POST /admin/closing`, `/proventos`, `/logos`, `/catalog-audit`, `/cvm/import`, `/cvm/quarters`, `/cvm/fii-monthly` |
@@ -381,10 +384,11 @@ Prefixo das rotas: `/api/v1`. Investidor = qualquer usuário logado; Admin = `is
 | UC32 | Balanços e informe FII | Agendador | DFP/ITR e informe do ano corrente e anterior | 07:30 diário |
 | UC33 | Recalcular carteira | Agendador | Proventos e valorização de todas as posições; IR pendente na subida | 21:00 diário + subida da app-api |
 | UC34 | Sincronizar corretoras | Agendador | Enfileira as conexões ativas; o worker busca | 06:30 diário; worker a cada 5 s |
-| UC35 | Logos e conferência | Agendador | Logos que faltam; tickers novos/sumidos/renomeados e índices atrasados (só log) | dia 1 06:00; segunda 07:00 |
+| UC35 | Logos e conferência | Agendador | Logos que faltam; tickers novos/sumidos/renomeados e índices atrasados (log e mensagem de administrador desde 13/10/2026) | dia 1 06:00; segunda 07:00 |
 | UC36 | Índices de mercado diários | Agendador | CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, PTAX (SGS do BCB), Ibovespa e IFIX (B3); janela de revisão; recupera na subida (05/10/2026) | 10:00 diário |
 | UC37 | Carregar índices de mercado | Admin | Histórico por índice e ano (padrão 2010 até hoje), ou a rodada incremental | `POST /admin/indices?codes&from&to&recent` |
 | UC39 | Preço do Tesouro | Agendador / Admin | PU de venda oficial de cada título; o Tesouro passa a valer cotas × PU | 08:00 diário; `POST /admin/tesouro` |
 | UC40 | Valorizar renda fixa privada | Agendador | Curva da taxa contratada (CDI, Selic, IPCA…), por transação, índice novo, 21:00 e subida | por evento e 21:00 |
+| UC42 | Abertura do dia | Agendador | Liquida os títulos vencidos (venda SISTEMA), avisa proventos pagos e eventos com data-ex no dia, confere bonificação sem custo, avisos de catálogo, alerta de preço e "padrão mudou" (docs/planos/PLANO_NOTIFICACOES.md, 13/10/2026) | 00:00 diário + subida da app-api |
 | UC41 | Cotações diárias do catálogo | Agendador / Admin | COTAHIST da B3 pregão a pregão para todas as ações e FIIs (sem cota da BRAPI), completando os dias que faltam; recupera na subida (10/10/2026) | 21:30 e 08:30 diário; `POST /admin/b3/cotahist/diario` |
 | UC38 | Consultar índices | Investidor | Tela Índices: um card por índice com período (1D…MAX, de/até) e gráfico; lista, série e acumulado no período (% do índice, spread; nível para Ibovespa/IFIX/dólar) | `/indices`; `GET /indices`, `/indices/{code}/chart`, `/history`, `/accumulated` |
