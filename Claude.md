@@ -5,7 +5,15 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 11/10/2026 (ícones de ação das tabelas no amarelo do tema, numa classe só; Comprar e Vender
+> **Última revisão**: 12/10/2026 (legendas dos gráficos verticais, com o ideal da estratégia na Alocação — ver
+> "Legendas dos gráficos" em Padrão Visual). No mesmo dia: (Alocação: "pizza de pizza" na aba Carteira de Investimentos — ver "Alocação" em
+> Telas). No mesmo dia: (rebalanceamento e estratégia pelo valor atual, com a valorização, e não mais pelo
+> custo — ver "Rebalanceamento" em Telas). Antes: 11/10/2026 (Rebalanceamento deixou de ser aba da Estratégia e virou tela própria, `/rebalance`,
+> com item no menu e um link de uma tela para a outra no canto superior direito do conteúdo — ver "Estratégia" e
+> "Rebalanceamento" em Telas). No mesmo dia: busca por ticker ou nome em Transações e Dividendos, com o efeito do Listar —
+> `LocalAssetSearch`, ver "Busca por ticker ou nome nas listagens" em Padrão Visual). No mesmo dia: Dividendos em duas abas, Histórico de Proventos e Proventos a Receber, sem filtro
+> nem coluna de situação, com busca por ticker ou nome, o ícone Listar e o aviso "Limpar filtro" — ver "Proventos recebidos × a receber"). No mesmo dia: ícones de ação
+> das tabelas no amarelo do tema, numa classe só; Comprar e Vender
 > também em Transações, com o mesmo preset da carteira — ver "Transações" e "Ícones de ação nas tabelas" em Telas).
 > Antes: 10/10/2026 (Preço Teto pelo modelo PREÇO TETO V2: cálculo por ação com padrões do catálogo,
 > entradas gravadas e resultado na leitura; payout pelo fluxo de caixa; cotações de todo o catálogo pelo COTAHIST
@@ -917,12 +925,13 @@ Rotas em `App.tsx`; tudo abaixo de `/login` é protegido por `ProtectedRoute`.
 | `/dashboard` | Pizza de alocação por tipo, cards de resumo |
 | `/portfolio` | Carteira — posição por ativo, com EMISSOR e VENCIMENTO |
 | `/allocation` | Abas "Carteira de Investimentos" e "Por Categoria" |
-| `/strategy` | Abas "Ideal Estratégico" e "Rebalanceamento" |
+| `/strategy` | Estratégia de Investimentos: abas "Ideal Estratégico" e "Estratégia Reserva"; link "Ir para Rebalanceamento" no canto superior direito, na linha das abas |
+| `/rebalance` | Rebalanceamento (11/10/2026, antes aba da Estratégia): reserva e sugestão de aporte por tipo; link "Ir para Estratégia de Investimentos" no canto superior direito |
 | `/transactions` | CRUD completo |
 | `/ceiling-prices`, `/ceiling-prices/:ticker` | Preço Teto (10/10/2026, `docs/planos/PLANO_PRECO_TETO.md`; metodologia em `docs/PRECO_TETO_METODOLOGIA.md`). Lista (`CeilingPricesPage`): teto, ideal e três comparações (preço do cálculo, fechamento de hoje, preço médio da carteira) com margem do teto e do ideal, situação, alertas, ↻ "padrão mudou"; "Novo cálculo" pela busca de ação. Página do ativo (`CeilingPriceDetailPage`, revista pelo Guilherme em 11/10/2026): premissas primeiro, com o padrão de hoje no (i) de cada uma, ↻ por campo e "Restaurar todos os padrões" (só valem ao salvar), g calculado e G só leitura por último; 4 lucros (valor ± com sinal, unidade, BRL/USD, câmbio; sem fonte e sem a referência do documento) e o LL TTM em valor cheio; resultado ao vivo (`/calculate`), alertas, datas, observações (texto livre do usuário, `ceiling_prices.notes`); o cartão de memória de cálculo saiu da tela (a API segue devolvendo `result.steps`); legenda Padrão / Informado (dourado) / Calculado; salvar com alertas pede confirmação; sair com alteração pede confirmação |
 | `/emissoras`, `/emissoras/:ticker` | Emissoras (28/09/2026, `docs/planos/PLANO_TELA_EMISSORES.md`): busca, cabeçalho com os outros tickers do emissor, cotação (atalhos + de/até, período na URL `?periodo=` / `?de=&ate=`), cartões de indicadores com sparkline e histórico em modal (Anual/Trimestral, média, ‹ ›), cadastro e demonstrativos. O ticker é link para cá em Carteira, Dividendos e Preço Teto quando o ativo tem emissor (`issuerId` nos DTOs dessas telas — não confundir com `issuer` da carteira, que é o emissor da nota de renda fixa) |
 | `/indices` | Índices (05/10/2026, `docs/planos/PLANO_INDICES_MERCADO.md`, seção 10): um card por índice, um abaixo do outro, na ordem SELIC, CDI, IPCA, IBOV, IFIX, IGPM, INPC, TR, SELIC_META, USD_PTAX (`IndicesPage`), cada um com o desenho da cotação das Emissoras (`IndexChartCard`: atalhos 1D…MAX — nos mensais IPCA, IGP-M e INPC sem 1D e 7D e com o seletor Mensal (% no mês, barras) / Anual (acumulado em 12 meses, % a.a.) —, 1A padrão, de/até; o período fica no card, não na URL). CDI e Selic aparecem anualizados (% a.a.); mensais em barras; meta Selic em degraus. Resumo: acumulado no período (taxa), variação (Ibovespa, IFIX, dólar), atual/último, mín e máx. Lê `GET /api/v1/indices/{code}/chart` |
-| `/dividends` | Dividendos |
+| `/dividends` | Dividendos (11/10/2026): abas Histórico de Proventos (recebidos) e Proventos a Receber — ver "Proventos recebidos × a receber" |
 | `/goals` | Metas |
 | `/integrations` | Integrações (Binance e, com `B3I_ENABLED`, B3): conectar (chave ou CPF + autorização na B3), sincronizar, histórico, excluídas |
 | `/integrations/:id/runs/:runId` | Pré-visualização / resultado de uma sincronização (decidir duplicatas, confirmar) |
@@ -933,12 +942,18 @@ Rotas em `App.tsx`; tudo abaixo de `/login` é protegido por `ProtectedRoute`.
 | `/termos`, `/privacidade` | Termos de Uso e Política de Privacidade (públicas; texto provisório em `src/content/legal.ts`) |
 
 ### Alocação
-Aba **Carteira de Investimentos**: um card, duas metades iguais — "Alocação da
-Carteira (Por Tipo de Ativo)" à esquerda e "Alocação da Reserva de Emergência"
-à direita (20/09/2026), ambos no mesmo `AllocationPieChart`; em tela estreita
-empilham. O da reserva mostra a distribuição **atual**, reserva `#8a00c4` e
-geração de renda `#7d7e7f`, na **mesma base de valor** do gráfico por tipo
-(valor atual: custo + valorização − resgates, só posição em aberto).
+Aba **Carteira de Investimentos** (gráfico "pizza de pizza" desde 12/10/2026, `components/charts/PieOfPieChart`): um
+card com duas roscas num só gráfico — à esquerda "Alocação da Reserva de Emergência" (reserva `#8a00c4` × geração de
+renda `#7d7e7f`), girada para a fatia da Geração de Renda ficar virada para a direita; à direita, com 75% do tamanho,
+"Alocação da Carteira (Por Tipo de Ativo)", que é essa fatia aberta por tipo. Duas linhas ligam a fatia à segunda
+rosca (das bordas da fatia, ou do topo e da base da rosca quando a fatia passa de meia volta). Total no centro e
+legenda vertical embaixo de cada rosca — na por tipo, com o **ideal da estratégia** de cada tipo à frente (`GET /strategy`,
+chave `['strategy']`, casado pelo nome do tipo; tipo sem ideal fica sem) e, na da reserva, o ideal da Reserva de
+Emergência (`GET /strategy/reservation`, `idealPercentage`: o alvo no Por Porcentagem; no Por Valor, alvo ÷ carteira,
+limitado a 100%); o balão (`AllocationTooltip`) vale nas duas. Geometria em pixels a partir da largura
+medida (`ResizeObserver`); a camada do gráfico é absoluta para não travar a largura mínima do layout. Abaixo de 760 px
+de largura as duas viram `AllocationPieChart` empilhadas, sem as linhas. Ambas na **mesma base de valor** (valor
+atual: custo + valorização − resgates, só posição em aberto). O Dashboard continua com a rosca simples.
 
 **A tela Alocação não conta a reserva** nos gráficos por tipo nem nos de **Por
 Categoria** — mesmo critério do rebalanceamento: a reserva é um bloco próprio,
@@ -953,7 +968,7 @@ mostrando a carteira inteira**, reserva incluída: ele chama o mesmo
 > `excludeReservation` truthy. Por isso as duas telas chamam por arrow.
 
 Não confundir com o donut da aba **Estratégia Reserva**, que mostra a
-distribuição **ideal** e compara aportes pela base de custo da estratégia. A
+distribuição **ideal**; o % Atual da estratégia usa o mesmo valor atual desta tela (desde 12/10/2026). A
 query fica sob `['portfolio', ...]`, então ligar a reserva de um ativo na
 Carteira já atualiza o gráfico.
 
@@ -1020,6 +1035,10 @@ a chave precisa avisar quem está de fora que o estado mudou. Por isso o
   (`validateBuyBeforeMaturity`, na criação com `noteId` e na edição de compra). Mesma regra do selo "Vencido".
 - Trocar o tipo de ativo **mantém a operação** (antes Renda Fixa forçava Compra). O spinner do autocomplete
   desliga quando o texto cai abaixo de 2 caracteres — apagar rápido deixava o loading eterno.
+- **Busca por ticker ou nome** (11/10/2026), primeira da barra de filtros (`LocalAssetSearch`): sobre todos os
+  ativos do extrato, de qualquer tipo. Escolher um ativo é o Listar: ativo com uma posição só filtra como o Listar
+  daquela linha (Tesouro pelo ticker, os demais pela posição); ativo com mais de uma posição (vários títulos do mesmo
+  CDB, ou várias compras do mesmo Tesouro) filtra pelo ticker e mostra todos. Mesmo aviso e mesmo "Limpar filtro".
 - **Filtro depois de salvar** (Nova Transação e edição) e **ícone Listar** em cada linha: o extrato mostra só
   aquela posição, com o mesmo aviso do Listar da carteira e os outros filtros de volta a "Todos". Tesouro Direto
   filtra pelo ticker (`?ticker=`, cada compra é um título); os demais pela posição (`?position=`, que na Renda Fixa
@@ -1047,18 +1066,32 @@ a chave precisa avisar quem está de fora que o estado mudou. Por isso o
   Donut "Distribuição Estratégica Reserva" com a distribuição **ideal**:
   reserva `#8a00c4`, geração de renda `#7d7e7f`, em % no tipo percentual e em
   R$ no tipo valor. Componente em `components/strategy/ReservationStrategyTab`.
-- **Rebalanceamento**: primeiro o card "Rebalanceamento Reserva de Emergência"
+- **Link para o Rebalanceamento** (11/10/2026): no canto superior direito do conteúdo, na linha das abas,
+  "Ir para Rebalanceamento" (`components/ui/PageLink`); a tela de Rebalanceamento tem o inverso, "Ir para Estratégia
+  de Investimentos", no mesmo canto. O cabeçalho (`Header.tsx`) continua só com o título. A aba Ideal Estratégico
+  continua lendo `GET /strategy/rebalance` para o % Atual de cada tipo.
+
+### Rebalanceamento
+Tela própria em `/rebalance` (`RebalancePage`, 11/10/2026; até então era a terceira aba da Estratégia), com item no
+menu logo abaixo de Estratégia. Mesma consulta `['strategy','rebalance']`: tudo o que invalida `['strategy']`
+(Ideal Estratégico, Estratégia Reserva, switch da reserva na Carteira) atualiza a tela.
+- Primeiro o card "Rebalanceamento Reserva de Emergência"
   (Tipo de Estratégia, % Ideal — "—" no tipo valor —, Aportado, Aportar,
   Estratégico, % Carteira, % Diff, Sugestão), depois "Sugestão de Aporte" por
   tipo: Tipo Ativo, % Ideal, Aportado, Aportar, Estratégico, % Carteira,
   % Diff, Sugestão (APORTAR/AGUARDAR).
+- **Base = valor atual** (12/10/2026): Aportado, % Carteira e o total são o valor atual de cada posição — valor
+  aplicado + valorização − resgatado, o mesmo da Alocação (`StrategyHoldings.held`). Até então era o custo, e um tipo
+  que valorizou aparecia abaixo do ideal e recebia sugestão de aporte; o percentual estratégico nunca batia com a
+  carteira de verdade. Vale para os itens por tipo, para a linha da reserva e para o % Atual da Estratégia Reserva e
+  do Ideal Estratégico. A valorização é a gravada (cotação, PU do Tesouro, curva da renda fixa privada).
 
 ### Reserva de emergência — como é calculada
 A reserva **concorre com o resto da carteira**: somam-se as posições com
 `is_reservation = true`, e o restante é a **geração de renda**. As duas contas
 leem de `StrategyHoldings`, que carrega posições e transações uma vez e aplica a
-mesma regra de valor do rebalanceamento (custo menos resgates; posição liquidada
-vale zero). Por isso a reserva nunca entra no rebalanceamento por tipo, em
+mesma regra de valor do rebalanceamento (valor atual: aplicado + valorização − resgatado; posição liquidada
+vale zero; desde 12/10/2026, antes era o custo). Por isso a reserva nunca entra no rebalanceamento por tipo, em
 nenhum dos dois ramos dele: contada lá também, o mesmo CDB apareceria duas vezes.
 
 **Aportar**, em `StrategyReservationService.amountToContribute`:
@@ -1172,7 +1205,7 @@ edição apagaria emissor, vencimento e taxa.
   Carteira até 23/09/2026. Usou `text-white/NN`, `bg-surface-light/NN`,
   `hover:text-white` ou similar numa tela nova? Confira se o override existe.
 - **Menu lateral** (23/09/2026, `Sidebar.tsx`): ordem Dashboard, Carteira,
-  Transações, Alocação, Estratégia, Dividendos, Preço Teto, Emissoras, Índices (05/10/2026, ícone de
+  Transações, Alocação, Estratégia, Rebalanceamento (11/10/2026, ícone de balança), Dividendos, Preço Teto, Emissoras, Índices (05/10/2026, ícone de
   gráfico de linha), Metas, Integrações
   (26/09/2026, com marcador quando uma conexão pede atenção). Recolhível
   pelo botão redondo sobre a borda direita, na altura do logo: 256px ↔ 72px.
@@ -1210,6 +1243,31 @@ edição apagaria emissor, vencimento e taxa.
   no amarelo do tema (`accent`, #c9a84c), em repouso e no hover — o hover só acende um fundo. A classe é uma só,
   `TABLE_ACTION_CLASS` (`components/ui/tableAction.ts`); ação nova em tabela usa ela. Os indicadores de status que
   não são botão (alerta e "padrões mais novos" no Preço Teto) mantêm a cor própria.
+- **Busca por ticker ou nome nas listagens** (`components/ui/LocalAssetSearch.tsx`, 11/10/2026; Dividendos e
+  Transações): o visual e o teclado da busca de Emissoras (`IssuerSearch`), mas as opções vêm da própria listagem, no
+  navegador — um ativo fora dela deixaria a tabela vazia. Sem acento e sem caixa ("Itaú" acha "ITAU"), a partir de 2
+  caracteres, ticker que começa com o texto primeiro; Enter sem destaque escolhe o ticker exato ou a primeira opção.
+  Escolher tem o efeito do ícone Listar da tela.
+- **Ordem das roscas** (`components/charts/donut.ts`, 12/10/2026 — regra para todo gráfico de rosca): fatias e
+  legenda do maior valor para o menor (`byValueDesc`); a primeira fatia começa no topo (12 h) e as demais seguem no
+  sentido horário até a menor fechar no topo (`DONUT_START_ANGLE` 90 → `DONUT_END_ANGLE` −270). Aplicada dentro de
+  `AllocationPieChart`, `CornerLegendDonut` e na rosca de detalhe do `PieOfPieChart`, e na Distribuição Estratégica e
+  na Estratégia Reserva. **Exceção**: a rosca principal do pizza de pizza (Reserva × Geração de Renda) mantém o giro
+  com a fatia aberta virada para a rosca de detalhe; só a legenda dela segue a ordem decrescente.
+- **Legendas dos gráficos de pizza/rosca** (`components/charts/ChartLegend.tsx`, 12/10/2026; Alocação, Dashboard,
+  Ideal Estratégico e Estratégia Reserva): um item abaixo do outro, em colunas alinhadas (cor, nome, valor e, quando
+  houver, "ideal X%"), fonte de 13 px, **fora** do gráfico, embaixo dele — a `Legend` do Recharts saiu de todas. Fora do
+  gráfico ela não toma altura da rosca, e o total fica no centro exato (o antigo `pb-8` compensava a legenda de
+  dentro). Por isso o card da Alocação do Dashboard deixou de ter altura fixa: a rosca tem altura mínima (240 px) e a legenda
+  cresce com os tipos. No `AllocationPieChart` o `ResponsiveContainer` fica numa camada absoluta: com `height: 100%`
+  de um pai sem altura definida ele mede zero e a rosca some (aconteceu no Dashboard em 12/10/2026).
+  Posição: embaixo (padrão; Alocação e Estratégia) ou **no canto inferior direito** (`CornerLegendDonut`; Dashboard,
+  com `legend="corner"` no `AllocationPieChart`, e as roscas da aba Por Categoria, onde nome e % ficam lado a lado, e
+  não mais nas pontas do card). No canto, a rosca é centralizada (320 px de altura) e a legenda sobe para o lado dela
+  só até onde não encosta — calculado pela largura da área, pelo raio e pelo tamanho da legenda; em área estreita ela
+  fica inteira embaixo. Por Categoria: nome do tipo centralizado, branco, negrito, 16 px. Dashboard: card só com o
+  título "Alocação da Carteira" (o subtítulo "Carteira de Investimentos" saiu). Em tela pequena (< `sm`) a da direita desce para baixo.
+  Dashboard (12/10/2026): card da Alocação com 2/5 da linha e Top 5 com 3/5 (`xl:grid-cols-5`; antes 1/3 e 2/3).
 - **Explicações**: `InfoTooltip` (`components/ui/InfoTooltip.tsx`) — ícone (i)
   com balão, no lugar de texto de instrução solto na tela (23/09/2026). Campos
   recebem `info` (`Input`, `MaskedNumberInput` e derivados, `Select`); `Modal`,
@@ -1270,9 +1328,30 @@ Plano completo e conferência contra o extrato da B3 em `docs/planos/PLANO_IR_PR
 - **`GET /dividends/`**: `totalDividends`, `byType`, `totalGross` e `totalTax` são
   do recebido; `totalToReceive`, `toReceiveGross` e `toReceiveTax`, do a receber;
   cada provento traz `received`.
-- **Tela de Dividendos**: cards Total Recebido | Recebido por Tipo | Total a
-  Receber (todos acompanham os filtros), filtro "Situação" e coluna SITUAÇÃO
-  (RECEBIDO verde, A RECEBER cinza — o selo da SUGESTÃO da Estratégia).
+- **Tela de Dividendos** (abas desde 11/10/2026, `DividendsPage`): duas abas no
+  estilo das da Estratégia, sobre o mesmo `GET /dividends/`, separadas pelo
+  `received` de cada provento — por isso a tela não tem mais filtro "Situação"
+  nem coluna SITUAÇÃO.
+  - **Histórico de Proventos** (recebidos): cards Total Recebido | Recebido por
+    Tipo e lista "Histórico de Proventos".
+  - **Proventos a Receber**: cards Total a Receber | A Receber por Tipo (mesma
+    soma por tipo do recebido, só sobre o a receber: Dividendos, JCP,
+    Rendimentos...) e lista "Proventos a Receber".
+  - Ordem padrão por PAGAMENTO (12/10/2026): decrescente no Histórico (o mais
+    recente primeiro) e crescente no A Receber (o próximo a pagar primeiro); sem
+    data de pagamento ("Data não informada") vai para o fim nas duas.
+  - Em cada aba: busca por ticker ou nome e filtros Tipo de Ativo, Ativo e Tipo;
+    os cards acompanham os filtros. A **busca** (`LocalAssetSearch`, ver "Busca por
+    ticker ou nome" em Padrão Visual) procura nos ativos que têm provento na aba (sem acento e sem caixa: "Itaú" acha "ITAU";
+    a partir de 2 caracteres; ticker que começa com o texto vem primeiro).
+    Escolher um ativo (clique ou Enter) tem o mesmo efeito do Listar. As duas abas ficam montadas (a inativa só escondida), então cada uma
+    guarda os seus filtros, página e ordenação ao trocar de aba.
+  - Coluna AÇÕES com o ícone **Listar** (`TABLE_ACTION_CLASS`): filtra a aba pelo
+    Tipo de Ativo e pelo Ativo da linha e volta o filtro Tipo a "Todos" (como o
+    Listar das Transações). Provento sem tipo de ativo fica com o ícone desabilitado.
+  - Com um ativo filtrado (pelo Listar, pela busca ou pelo seletor Ativo), a aba mostra o
+    aviso do Listar das Transações, "Mostrando apenas os proventos de TICKER", com
+    **Limpar filtro**, que volta Tipo de Ativo, Ativo e Tipo a "Todos".
 
 ## 🧾 Extrato de proventos da B3 (25/09/2026; só conferência desde 29/09/2026)
 

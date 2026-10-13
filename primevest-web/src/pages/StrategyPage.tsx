@@ -5,19 +5,20 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { formatCurrency, formatPercentage } from '@/utils/format';
+import { formatPercentage } from '@/utils/format';
 import { clsx } from 'clsx';
 import { Save, Plus, Trash2, RefreshCw } from 'lucide-react';
 import { Strategy, Rebalance } from '@/types';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { ChartLegend } from '@/components/charts/ChartLegend';
+import { byValueDesc, DONUT_END_ANGLE, DONUT_START_ANGLE } from '@/components/charts/donut';
 import { ReservationStrategyTab } from '@/components/strategy/ReservationStrategyTab';
-import { ReservationRebalanceCard } from '@/components/strategy/ReservationRebalanceCard';
 import { STRATEGY_HELP, restoredMessage } from '@/components/strategy/strategyHelp';
-import { REBALANCE_TABLE_CLASS, RebalanceColGroup } from '@/components/strategy/rebalanceColumns';
 import { LabelWithInfo } from '@/components/ui/InfoTooltip';
 import { useToast } from '@/context/ToastContext';
 import { apiMessage } from '@/utils/apiError';
 import { TABLE_ACTION_CLASS } from '@/components/ui/tableAction';
+import { PageLink } from '@/components/ui/PageLink';
 
 const PIE_COLORS = ['#c9a84c', '#38a169', '#e53e3e', '#3182ce', '#805ad5', '#d69e2e', '#ed8936', '#dd6b20'];
 
@@ -57,7 +58,7 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
 export const StrategyPage = () => {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState<'ideal' | 'reserva' | 'rebalanceamento'>('ideal');
+  const [activeTab, setActiveTab] = useState<'ideal' | 'reserva'>('ideal');
   // Local editing state: { assetTypeId -> { value, typeName } }
   const [editingRows, setEditingRows] = useState<Record<number, { value: string; typeName: string }>>({});
   const [selectedTypeToAdd, setSelectedTypeToAdd] = useState<string>('');
@@ -72,6 +73,8 @@ export const StrategyPage = () => {
     queryFn: strategyApi.getAssetTypes
   });
 
+  // O rebalanceamento virou tela própria (RebalancePage, 11/10/2026), mas o Ideal Estratégico ainda lê dele o
+  // % Atual de cada tipo.
   const { data: rebalance, isLoading: loadingRebalance } = useQuery<Rebalance>({
     queryKey: ['strategy', 'rebalance'],
     queryFn: strategyApi.getRebalance
@@ -179,21 +182,18 @@ export const StrategyPage = () => {
 
   // Pie chart data. A cor e a cadastrada no tipo de ativo (asset_types.color_hex);
   // a paleta local so cobre tipo sem cor cadastrada.
-  const pieData = strategyRows
+  // Regra das roscas (donut.ts): do maior para o menor, a partir do topo. A cor da paleta local é escolhida antes de
+  // ordenar, para não mudar a cor de um tipo enquanto o percentual é digitado.
+  const pieData = byValueDesc(strategyRows
     .filter(s => Number(s.value) > 0)
     .map((s, idx) => ({
       name: s.typeName,
       value: Number(s.value),
       color: (assetTypes || []).find(t => t.id === s.assetTypeId)?.colorHex
         || PIE_COLORS[idx % PIE_COLORS.length]
-    }));
+    })));
 
   const totalPct = Object.values(editingRows).reduce((acc, row) => acc + Number(row.value), 0);
-
-  // Totais da aba Rebalanceamento: quanto aportar somado e quanto a carteira
-  // passa a valer depois desses aportes.
-  const totalAportar = (rebalance?.items || []).reduce((acc, item) => acc + item.amountToRebalance, 0);
-  const totalEstrategico = (rebalance?.items || []).reduce((acc, item) => acc + item.idealValue, 0);
 
   // Check if there are unsaved changes
   const hasChanges = (() => {
@@ -214,7 +214,8 @@ export const StrategyPage = () => {
 
   return (
     <div className="space-y-6">
-      {/* Tabs */}
+      {/* Abas à esquerda; à direita, o link para o Rebalanceamento (tela própria desde 11/10/2026) */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex space-x-1 bg-surface p-1 rounded-lg w-fit border border-surface-light">
         <button
           onClick={() => setActiveTab('ideal')}
@@ -234,15 +235,8 @@ export const StrategyPage = () => {
         >
           Estratégia Reserva
         </button>
-        <button
-          onClick={() => setActiveTab('rebalanceamento')}
-          className={clsx(
-            "px-4 py-2 text-sm font-medium rounded-md transition-colors",
-            activeTab === 'rebalanceamento' ? "bg-surface-light text-white" : "text-gray-400 hover:text-white hover:bg-surface-light/50"
-          )}
-        >
-          Rebalanceamento
-        </button>
+      </div>
+      <div className="ml-auto"><PageLink to="/rebalance" label="Ir para Rebalanceamento" /></div>
       </div>
 
       {/* Tab 1: Ideal Estratégico */}
@@ -376,7 +370,8 @@ export const StrategyPage = () => {
           <Card>
             <h3 className="text-lg font-medium text-white mb-4 text-center">Distribuição Estratégica</h3>
             {pieData.length > 0 ? (
-              <div className="h-[400px] w-full relative">
+              <>
+              <div className="h-[340px] w-full relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -385,6 +380,8 @@ export const StrategyPage = () => {
                       cy="50%"
                       innerRadius="55%"
                       outerRadius="80%"
+                      startAngle={DONUT_START_ANGLE}
+                      endAngle={DONUT_END_ANGLE}
                       paddingAngle={2}
                       dataKey="value"
                       stroke="none"
@@ -394,22 +391,18 @@ export const StrategyPage = () => {
                       ))}
                     </Pie>
                     <Tooltip content={<CustomTooltip />} />
-                    <Legend
-                      verticalAlign="bottom"
-                      height={36}
-                      formatter={(value: string, entry) => (
-                        <span className="text-gray-300 ml-1">
-                          {value} ({formatPercentage((entry.payload as unknown as PieSlice).value)})
-                        </span>
-                      )}
-                    />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8">
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                   <span className="text-sm text-gray-400">Total</span>
                   <span className="text-lg font-semibold text-white">{formatPercentage(totalPct)}</span>
                 </div>
               </div>
+              <ChartLegend
+                className="mt-3"
+                items={pieData.map(d => ({ name: d.name, color: d.color, value: formatPercentage(d.value) }))}
+              />
+              </>
             ) : (
               <div className="h-[400px] flex items-center justify-center text-gray-500">
                 <p>Defina os percentuais ideais para visualizar o gráfico</p>
@@ -421,80 +414,6 @@ export const StrategyPage = () => {
 
       {/* Tab 2: Estratégia Reserva */}
       {activeTab === 'reserva' && <ReservationStrategyTab />}
-
-      {/* Tab 3: Rebalanceamento — a reserva primeiro, depois a geração de renda por tipo */}
-      {activeTab === 'rebalanceamento' && (
-        <div className="space-y-6">
-        {rebalance?.reservation && <ReservationRebalanceCard reservation={rebalance.reservation} />}
-        <Card title="Sugestão de Aporte (Rebalanceamento)" titleInfo={STRATEGY_HELP.typeRebalance}>
-          <div className="overflow-x-auto mt-4">
-            <table className={REBALANCE_TABLE_CLASS}>
-              <RebalanceColGroup />
-              <thead className="text-xs text-gray-400 uppercase bg-surface-light border-b border-surface-light">
-                <tr>
-                  <th className="px-4 py-3">Tipo Ativo</th>
-                  <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.idealPercentage}>% Ideal</LabelWithInfo></th>
-                  <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.contributed}>Aportado</LabelWithInfo></th>
-                  <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.toContribute}>Aportar</LabelWithInfo></th>
-                  <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.strategic}>Estratégico</LabelWithInfo></th>
-                  <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.portfolioPercentage}>% Carteira</LabelWithInfo></th>
-                  <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.diffPercentage}>% Diff</LabelWithInfo></th>
-                  <th className="px-4 py-3 text-center"><LabelWithInfo info={STRATEGY_HELP.suggestion}>Sugestão</LabelWithInfo></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-light">
-                {rebalance?.items.map((item, idx) => {
-                  // Valor que o tipo passa a ter depois do aporte sugerido:
-                  // vem do backend, que ja aplica a regra do tipo mais acima do ideal.
-                  const estrategico = item.idealValue;
-                  return (
-                    <tr key={idx} className="hover:bg-surface-light/30">
-                      <td className="px-4 py-3 font-medium text-white">{item.typeName}</td>
-                      <td className="px-4 py-3 text-right">{formatPercentage(item.idealPercentage)}</td>
-                      <td className="px-4 py-3 text-right">{formatCurrency(item.currentValue)}</td>
-                      <td className="px-4 py-3 text-right font-medium">
-                        <span className={item.amountToRebalance > 0 ? "text-success" : item.amountToRebalance < 0 ? "text-danger" : "text-gray-400"}>
-                          {formatCurrency(item.amountToRebalance)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right font-medium text-white">
-                        {formatCurrency(estrategico)}
-                      </td>
-                      <td className="px-4 py-3 text-right">{formatPercentage(item.currentPercentage)}</td>
-                      <td className="px-4 py-3 text-right">
-                        <span className={item.diffPercentage > 0 ? "text-success" : item.diffPercentage < 0 ? "text-danger" : "text-gray-400"}>
-                          {formatPercentage(item.diffPercentage)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={clsx(
-                          "px-2.5 py-1 rounded-full text-xs font-medium border",
-                          item.amountToRebalance > 0 ? "bg-success/20 text-success border-success/30" : "bg-surface-light text-gray-300 border-gray-700"
-                        )}>
-                          {item.amountToRebalance > 0 ? 'APORTAR' : 'AGUARDAR'}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              {rebalance && (
-                <tfoot>
-                  <tr className="border-t border-surface-light">
-                    <td className="px-4 py-3 font-semibold text-white">Total</td>
-                    <td className="px-4 py-3 text-right font-medium text-white">100,00%</td>
-                    <td className="px-4 py-3 text-right font-semibold text-white">{formatCurrency(rebalance.totalPortfolioValue)}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-success">{formatCurrency(totalAportar)}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-white">{formatCurrency(totalEstrategico)}</td>
-                    <td colSpan={3}></td>
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
-        </Card>
-        </div>
-      )}
     </div>
   );
 };

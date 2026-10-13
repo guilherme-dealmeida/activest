@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { clsx } from 'clsx';
 import { RefreshCw, Save } from 'lucide-react';
-import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
+import { ChartLegend } from '@/components/charts/ChartLegend';
+import { byValueDesc, DONUT_END_ANGLE, DONUT_START_ANGLE } from '@/components/charts/donut';
 import { strategyApi } from '@/api/strategy';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -135,7 +137,8 @@ export const ReservationStrategyTab = () => {
         { name: 'Reserva de Emergência', value: draft.percentage, color: RESERVATION_COLOR },
         { name: 'Geração de Renda', value: Math.max(0, 100 - draft.percentage), color: INCOME_COLOR },
       ];
-  const visibleSlices = pieData.filter((d) => d.value > 0);
+  // Regra das roscas (donut.ts): do maior para o menor, a partir do topo.
+  const visibleSlices = byValueDesc(pieData.filter((d) => d.value > 0));
   const formatSlice = (v: number) => (isValue ? formatCurrency(v) : formatPercentage(v));
 
   return (
@@ -255,7 +258,8 @@ export const ReservationStrategyTab = () => {
       <Card>
         <h3 className="text-lg font-medium text-white mb-4 text-center">Distribuição Estratégica Reserva</h3>
         {visibleSlices.length > 0 ? (
-          <div className="h-[400px] w-full relative">
+          <>
+          <div className="h-[340px] w-full relative">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -264,6 +268,8 @@ export const ReservationStrategyTab = () => {
                   cy="50%"
                   innerRadius="55%"
                   outerRadius="80%"
+                  startAngle={DONUT_START_ANGLE}
+                  endAngle={DONUT_END_ANGLE}
                   paddingAngle={visibleSlices.length > 1 ? 2 : 0}
                   dataKey="value"
                   stroke="none"
@@ -273,24 +279,20 @@ export const ReservationStrategyTab = () => {
                   ))}
                 </Pie>
                 <Tooltip content={<SliceTooltip asCurrency={isValue} />} />
-                <Legend
-                  verticalAlign="bottom"
-                  height={36}
-                  formatter={(name: string, entry) => (
-                    <span className="text-gray-300 ml-1">
-                      {name} ({formatSlice((entry.payload as unknown as { value: number }).value)})
-                    </span>
-                  )}
-                />
               </PieChart>
             </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8">
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span className="text-sm text-gray-400">Reserva</span>
               <span className="text-lg font-semibold text-white">
                 {formatSlice(isValue ? draft.value : draft.percentage)}
               </span>
             </div>
           </div>
+          <ChartLegend
+            className="mt-3"
+            items={visibleSlices.map(slice => ({ name: slice.name, color: slice.color, value: formatSlice(slice.value) }))}
+          />
+          </>
         ) : (
           <div className="h-[400px] flex items-center justify-center text-gray-500">
             <p>Defina o valor ideal da reserva para visualizar o gráfico</p>

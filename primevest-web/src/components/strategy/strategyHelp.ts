@@ -13,7 +13,7 @@ export const STRATEGY_HELP = {
   reservationType:
     'Por Porcentagem: a reserva é uma fatia da carteira. Por Valor: a reserva tem um alvo fixo em reais.',
   reservationRebalance: 'A reserva é um bloco próprio e não entra na sugestão por tipo abaixo.',
-  contributed: 'Quanto o bloco vale hoje, pelo custo menos os resgates.',
+  contributed: 'Quanto o bloco vale hoje: valor aplicado + valorização − resgates (o valor atual da Alocação).',
   toContribute:
     'Quanto falta aportar para chegar ao estratégico. Negativo significa acima do alvo, e a tela não sugere venda.',
   strategic: 'Quanto o bloco deve valer depois do aporte sugerido.',

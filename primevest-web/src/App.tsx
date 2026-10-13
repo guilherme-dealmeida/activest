@@ -7,6 +7,7 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { PortfolioPage } from '@/pages/PortfolioPage';
 import { AllocationPage } from '@/pages/AllocationPage';
 import { StrategyPage } from '@/pages/StrategyPage';
+import { RebalancePage } from '@/pages/RebalancePage';
 import { TransactionsPage } from '@/pages/TransactionsPage';
 import { CeilingPricesPage } from '@/pages/CeilingPricesPage';
 import { CeilingPriceDetailPage } from '@/pages/CeilingPriceDetailPage';
@@ -43,6 +44,7 @@ function App() {
         <Route path="/portfolio" element={<PortfolioPage />} />
         <Route path="/allocation" element={<AllocationPage />} />
         <Route path="/strategy" element={<StrategyPage />} />
+        <Route path="/rebalance" element={<RebalancePage />} />
         <Route path="/transactions" element={<TransactionsPage />} />
         <Route path="/ceiling-prices" element={<CeilingPricesPage />} />
         <Route path="/ceiling-prices/:ticker" element={<CeilingPriceDetailPage />} />

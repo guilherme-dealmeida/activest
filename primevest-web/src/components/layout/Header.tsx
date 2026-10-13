@@ -7,6 +7,7 @@ const routeNames: Record<string, string> = {
   '/portfolio': 'Carteira',
   '/allocation': 'Alocação',
   '/strategy': 'Estratégia de Investimentos',
+  '/rebalance': 'Rebalanceamento',
   '/transactions': 'Transações',
   '/ceiling-prices': 'Preço Teto',
   '/emissoras': 'Emissoras',

@@ -66,19 +66,20 @@ export const DashboardPage = () => {
       </div>
 
       {/* Charts & Tables */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-1 bg-surface rounded-lg border border-white/10 p-6">
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+        <div className="xl:col-span-2 bg-surface rounded-lg border border-white/10 p-6">
           <h3 className="text-lg font-semibold text-white mb-4">Alocação da Carteira</h3>
-          <div className="h-80">
+          {/* Sem altura fixa: rosca centralizada e legenda no canto inferior direito (CornerLegendDonut, 12/10/2026). */}
+          <div>
             <AllocationPieChart 
               data={chartData} 
               totalValue={summary?.currentValue || 0}
-              title="Carteira de Investimentos"
+              legend="corner"
             />
           </div>
         </div>
         
-        <div className="xl:col-span-2 bg-surface rounded-lg border border-white/10 p-6">
+        <div className="xl:col-span-3 bg-surface rounded-lg border border-white/10 p-6">
           <h3 className="text-lg font-semibold text-white mb-4">Top 5 Ativos</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

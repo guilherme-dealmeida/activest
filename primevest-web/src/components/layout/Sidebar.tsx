@@ -5,6 +5,7 @@ import {
   Briefcase,
   PieChart,
   Target,
+  Scale,
   ArrowLeftRight,
   TrendingDown,
   DollarSign,
@@ -29,13 +30,15 @@ import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 // Ordem definida em 23/09/2026: o fluxo de uso (ver, lançar, analisar,
-// planejar) e depois as consultas de apoio.
+// planejar) e depois as consultas de apoio. Rebalanceamento logo depois de
+// Estratégia (11/10/2026), quando deixou de ser aba dela.
 const navItems = [
   { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
   { name: 'Carteira', path: '/portfolio', icon: Briefcase },
   { name: 'Transações', path: '/transactions', icon: ArrowLeftRight },
   { name: 'Alocação', path: '/allocation', icon: PieChart },
   { name: 'Estratégia', path: '/strategy', icon: Target },
+  { name: 'Rebalanceamento', path: '/rebalance', icon: Scale },
   { name: 'Dividendos', path: '/dividends', icon: DollarSign },
   { name: 'Preço Teto', path: '/ceiling-prices', icon: TrendingDown },
   { name: 'Emissoras', path: '/emissoras', icon: Building2 },

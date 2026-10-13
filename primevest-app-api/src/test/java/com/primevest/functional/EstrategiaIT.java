@@ -2,6 +2,7 @@ package com.primevest.functional;
 
 import com.primevest.domain.user.User;
 import com.primevest.support.CatalogIds;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -9,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -24,12 +26,28 @@ class EstrategiaIT extends FuncionalBase {
     private long idFii;
     private long idRendaFixa;
 
+    /** Cotacao do catalogo antes do teste, devolvida no fim: o catalogo e compartilhado entre as classes. */
+    private final Map<String, BigDecimal> cotacaoOriginal = new HashMap<>();
+
     @BeforeEach
     void cenario() {
         dono = usuarioComCarteira("dono@primevest.test");
         idAcao = tipoPorNome("ACAO");
         idFii = tipoPorNome("FII");
         idRendaFixa = tipoPorNome("RENDA_FIXA");
+        // A estrategia conta a valorizacao (12/10/2026): sem cotacao a valorizacao e zero e o valor atual e o custo,
+        // como os cenarios abaixo esperam. Quem testa a valorizacao grava a cotacao no proprio teste.
+        for (String ticker : List.of(CatalogIds.ACAO, CatalogIds.FII)) {
+            cotacaoOriginal.put(ticker, jdbc.queryForObject(
+                "SELECT current_price FROM assets WHERE ticker = ?", BigDecimal.class, ticker));
+            jdbc.update("UPDATE assets SET current_price = NULL WHERE ticker = ?", ticker);
+        }
+    }
+
+    @AfterEach
+    void devolveCotacoes() {
+        cotacaoOriginal.forEach((ticker, preco) ->
+            jdbc.update("UPDATE assets SET current_price = ? WHERE ticker = ?", preco, ticker));
     }
 
     private long tipoPorNome(String nome) {
@@ -233,19 +251,42 @@ class EstrategiaIT extends FuncionalBase {
     }
 
     @Test
-    @DisplayName("A base da estrategia e o custo, e a da alocacao e o valor atual")
-    void basesDiferentes() {
+    @DisplayName("A base da estrategia e o valor atual, a mesma da alocacao (12/10/2026; antes era o custo)")
+    void mesmaBaseDaAlocacao() {
         jdbc.update("UPDATE assets SET current_price = 100.00 WHERE ticker = ?", CatalogIds.ACAO);
         lancarComSucesso(dono, compra(CatalogIds.ACAO, "2026-09-01", "100", "80.00"));
         salvarEstrategia(item(idAcao, "100.00"));
 
-        // Estrategia: custo (8.000). Alocacao: valor atual (10.000).
-        assertThat(numero(rebalanceamento().get("totalPortfolioValue"))).isEqualByComparingTo("8000.00");
+        // Custo 8.000 + valorizacao 2.000 = 10.000 nas duas telas.
+        assertThat(numero(rebalanceamento().get("totalPortfolioValue"))).isEqualByComparingTo("10000.00");
 
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> alocacao =
             List.of(get(dono, "/api/v1/portfolio/allocation", Map[].class).getBody())
                 .stream().map(m -> (Map<String, Object>) m).toList();
         assertThat(numero(alocacao.get(0).get("value"))).isEqualByComparingTo("10000.00");
+    }
+
+    @Test
+    @DisplayName("A valorizacao muda a sugestao: o tipo que subiu vira a base e o outro recebe o aporte")
+    void valorizacaoMudaASugestao() {
+        // Pelo custo as duas estao iguais (5.000 x 5.000) e nada seria sugerido. A acao subiu 20%.
+        jdbc.update("UPDATE assets SET current_price = 60.00 WHERE ticker = ?", CatalogIds.ACAO);
+        jdbc.update("UPDATE assets SET current_price = 100.00 WHERE ticker = ?", CatalogIds.FII);
+        lancarComSucesso(dono, compra(CatalogIds.ACAO, "2026-09-01", "100", "50.00"));
+        lancarComSucesso(dono, compra(CatalogIds.FII, "2026-09-01", "50", "100.00"));
+        salvarEstrategia(item(idAcao, "50.00"), item(idFii, "50.00"));
+
+        Map<String, Object> rebalance = rebalanceamento();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> itens = (List<Map<String, Object>>) rebalance.get("items");
+        Map<String, Object> acoes = itens.stream().filter(i -> "Ações".equals(i.get("typeName")))
+            .findFirst().orElseThrow();
+        Map<String, Object> fiis = itens.stream().filter(i -> "FIIs".equals(i.get("typeName")))
+            .findFirst().orElseThrow();
+
+        assertThat(numero(acoes.get("currentValue"))).isEqualByComparingTo("6000.00");
+        assertThat(numero(acoes.get("amountToRebalance"))).isEqualByComparingTo("0.00");
+        assertThat(numero(fiis.get("amountToRebalance"))).isEqualByComparingTo("1000.00");
     }
 }
