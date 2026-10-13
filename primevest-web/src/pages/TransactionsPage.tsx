@@ -18,6 +18,7 @@ import { useSortable } from '@/hooks/useSortable';
 import { isFixedIncomeNote, TESOURO_DIRETO, typeLogo } from '@/utils/assetTypeRules';
 import { AssetLogo } from '@/components/ui/AssetLogo';
 import { TickerLink } from '@/components/issuer/TickerLink';
+import { LocalAssetOption, LocalAssetSearch } from '@/components/ui/LocalAssetSearch';
 import { apiMessage } from '@/utils/apiError';
 import { useToast } from '@/context/ToastContext';
 import { providerName } from '@/utils/integrations';
@@ -245,6 +246,30 @@ export const TransactionsPage = () => {
   /** Ícone Listar da linha: a mesma regra do filtro depois de salvar. */
   const listar = (row: TransactionResponse) => filtrarPor(row, row.ticker);
 
+  // Ativos do extrato para a busca por ticker ou nome — todos os tipos, um por ticker.
+  const searchOptions = useMemo<LocalAssetOption[]>(() => {
+    const byTicker = new Map<string, LocalAssetOption>();
+    enriched.forEach(t => {
+      if (t.ticker && !byTicker.has(t.ticker)) {
+        byTicker.set(t.ticker, { ticker: t.ticker, name: t.assetName ?? '', typeLabel: t.assetType });
+      }
+    });
+    return [...byTicker.values()];
+  }, [enriched]);
+
+  /**
+   * Escolha na busca: o efeito do Listar. Ativo com uma posição só é o Listar
+   * daquela linha (Tesouro pelo ticker, os demais pela posição); ativo com mais
+   * de uma posição — vários títulos do mesmo CDB, por exemplo — filtra pelo
+   * ticker e mostra todos os títulos dele.
+   */
+  const listarTicker = (ticker: string) => {
+    const doAtivo = enriched.filter(t => t.ticker === ticker);
+    if (doAtivo.length === 0) return;
+    const posicoes = new Set(doAtivo.map(t => t.portfolioAssetId));
+    filtrarPor(posicoes.size === 1 ? doAtivo[0] : null, ticker);
+  };
+
   const filtrarPor = (row: TransactionResponse | null, ticker: string) => {
     const params = new URLSearchParams(searchParams);
     params.delete('position');
@@ -359,6 +384,11 @@ export const TransactionsPage = () => {
 
       {/* Filter bar */}
       <div className="flex flex-wrap gap-3 items-end">
+        {/* Busca por ticker ou nome, como em Emissoras e Dividendos: escolher = Listar. */}
+        <div className="w-full sm:w-96">
+          <label className="block text-xs text-gray-400 mb-1">Buscar</label>
+          <LocalAssetSearch options={searchOptions} onSelect={listarTicker} ariaLabel="Buscar transação por ticker ou nome" />
+        </div>
         <div>
           <label className="block text-xs text-gray-400 mb-1">Tipo de Ativo</label>
           <select

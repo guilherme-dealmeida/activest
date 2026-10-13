@@ -1,7 +1,7 @@
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { formatCurrency, formatPercentage } from '@/utils/format';
 import { PortfolioAllocationDetailed } from '@/types';
 import { Card } from '../ui/Card';
+import { CornerLegendDonut } from './CornerLegendDonut';
 
 interface AllocationDetailedChartsProps {
   data: PortfolioAllocationDetailed[];
@@ -111,39 +111,14 @@ export const AllocationDetailedCharts = ({ data }: AllocationDetailedChartsProps
         }));
 
         return (
-          <Card key={typeIdx} title={typeItem.typeName} className="flex flex-col items-center">
-            <div className="w-full h-64 relative">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius="45%"
-                    outerRadius="85%"
-                    paddingAngle={chartData.length > 1 ? 2 : 0}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <ul className="w-full mt-4 text-sm space-y-1.5">
-              {chartData.map((item, idx) => (
-                <li key={idx} className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-                    <span className="text-gray-300 truncate" title={item.name}>{item.name}</span>
-                  </div>
-                  <span className="font-medium text-white flex-shrink-0 tabular-nums">{formatPercentage(item.percentage)}</span>
-                </li>
-              ))}
-            </ul>
+          <Card key={typeIdx} className="flex flex-col">
+            {/* Nome do tipo centralizado, branco e em negrito (12/10/2026): o título padrão do Card é cinza e pequeno. */}
+            <h3 className="text-base font-semibold text-white text-center mb-2">{typeItem.typeName}</h3>
+            <CornerLegendDonut
+              data={chartData}
+              tooltip={<CustomTooltip />}
+              legendItems={chartData.map(item => ({ name: item.name, color: item.color, value: formatPercentage(item.percentage) }))}
+            />
           </Card>
         );
       })}

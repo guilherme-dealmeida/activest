@@ -49,19 +49,25 @@ public class StrategyHoldings {
     public record Holdings(List<PortfolioAsset> assets, Map<UUID, Position> positions) {
 
         /**
-         * O que a posicao ainda tem na carteira.
+         * Quanto a posicao vale hoje na carteira: valor aplicado + valorizacao - resgatado.
          *
-         * <p>Posicao liquidada nao entra: ela virou dinheiro e nao ocupa mais
-         * espaco na alocacao. Na Renda Fixa o valor aplicado nao desconta os
-         * resgates — as regras E e F precisam das duas pontas separadas —,
-         * entao o desconto e feito aqui.</p>
+         * <p>E o valor atual da tela Alocacao ({@code PortfolioService.currentValue}). Ate 12/10/2026 a valorizacao
+         * ficava de fora e o rebalanceamento comparava custo: um tipo que subiu parecia abaixo do ideal e recebia
+         * sugestao de aporte, e o percentual estrategico nunca fechava com a carteira de verdade. A valorizacao e a
+         * gravada em {@code portfolio_assets.appreciation} (cotacao, PU do Tesouro, curva da renda fixa privada).</p>
+         *
+         * <p>Posicao liquidada nao entra: ela virou dinheiro e nao ocupa mais espaco na alocacao (na renda fixa
+         * liquidada a valorizacao gravada e o ganho do resgate, que ja saiu). Na Renda Fixa o valor aplicado nao
+         * desconta os resgates — as regras E e F precisam das duas pontas separadas —, entao o desconto e feito
+         * aqui. Nunca negativo.</p>
          */
         public BigDecimal held(PortfolioAsset pa) {
             Position position = positions.get(pa.getId());
             if (position == null || pa.isSettled()) {
                 return BigDecimal.ZERO;
             }
-            return position.invested().subtract(position.sold()).max(BigDecimal.ZERO);
+            BigDecimal appreciation = pa.getAppreciation() != null ? pa.getAppreciation() : BigDecimal.ZERO;
+            return position.invested().add(appreciation).subtract(position.sold()).max(BigDecimal.ZERO);
         }
 
         /** A carteira inteira: reserva + geracao de renda. */

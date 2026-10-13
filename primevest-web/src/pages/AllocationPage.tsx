@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { portfolioApi } from '@/api/portfolio';
+import { strategyApi } from '@/api/strategy';
 import { Card } from '@/components/ui/Card';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { AllocationPieChart } from '@/components/charts/AllocationPieChart';
+import { PieOfPieChart } from '@/components/charts/PieOfPieChart';
 import { AllocationDetailedCharts } from '@/components/charts/AllocationDetailedCharts';
 import { clsx } from 'clsx';
-import { PortfolioAllocation, PortfolioAllocationDetailed, ReservationAllocation } from '@/types';
+import { PortfolioAllocation, PortfolioAllocationDetailed, ReservationAllocation, Strategy, StrategyReservation } from '@/types';
 import { INCOME_COLOR, RESERVATION_COLOR } from '@/utils/reservation';
 import { LabelWithInfo } from '@/components/ui/InfoTooltip';
 
@@ -33,6 +34,21 @@ export const AllocationPage = () => {
     queryFn: portfolioApi.getReservationAllocation
   });
 
+  // Ideal de cada tipo na estratégia, para a legenda da pizza por tipo (12/10/2026). Mesma chave da tela Estratégia:
+  // salvar o Ideal Estratégico já atualiza a legenda. Tipo sem ideal fica sem a coluna preenchida.
+  const { data: strategy } = useQuery<Strategy[]>({
+    queryKey: ['strategy'],
+    queryFn: strategyApi.get
+  });
+  const idealByType = new Map((strategy ?? []).map(s => [s.assetTypeName, Number(s.targetPercentage)]));
+
+  // Ideal da reserva de emergência, na legenda da rosca da reserva. idealPercentage já resolve os dois tipos: o alvo
+  // no Por Porcentagem; no Por Valor, alvo ÷ carteira (limitado a 100%). Mesma chave da aba Estratégia Reserva.
+  const { data: reservationStrategy } = useQuery<StrategyReservation>({
+    queryKey: ['strategy', 'reservation'],
+    queryFn: strategyApi.getReservation
+  });
+
   if (loadingAlloc || loadingDetailed || loadingReservation) {
     return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent" /></div>;
   }
@@ -41,7 +57,8 @@ export const AllocationPage = () => {
     name: item.typeName,
     value: item.value,
     percentage: item.percentage,
-    color: item.colorHex
+    color: item.colorHex,
+    ideal: idealByType.get(item.typeName)
   })) || [];
 
   const totalValue = allocation?.reduce((acc, item) => acc + item.value, 0) || 0;
@@ -54,7 +71,8 @@ export const AllocationPage = () => {
           name: 'Reserva de Emergência',
           value: reservationAllocation.reservationValue,
           percentage: reservationAllocation.reservationPercentage,
-          color: RESERVATION_COLOR
+          color: RESERVATION_COLOR,
+          ideal: reservationStrategy ? Number(reservationStrategy.idealPercentage) : undefined
         },
         {
           name: 'Geração de Renda',
@@ -89,27 +107,24 @@ export const AllocationPage = () => {
       </div>
 
       {activeTab === 'geral' && (
-        // Um card, duas metades iguais: por tipo à esquerda, reserva à
-        // direita. Em tela estreita os gráficos empilham.
-        <Card className="lg:h-[600px]">
-          <div className="grid h-full grid-cols-1 gap-6 lg:grid-cols-2">
-            <div className="h-[560px] lg:h-full">
-              <AllocationPieChart
-                data={chartData}
-                totalValue={totalValue}
-                title="Alocação da Carteira (Por Tipo de Ativo)"
-                titleInfo="Considera só a geração de renda. A reserva de emergência fica de fora e aparece no gráfico ao lado."
-              />
-            </div>
-            <div className="h-[560px] lg:h-full">
-              <AllocationPieChart
-                data={reservationChartData}
-                totalValue={reservationAllocation?.totalValue ?? 0}
-                title="Alocação da Reserva de Emergência"
-                titleInfo="Quanto da carteira está na reserva hoje, comparado com a geração de renda."
-              />
-            </div>
-          </div>
+        // Pizza de pizza (12/10/2026): a Geração de Renda da pizza da reserva se abre na pizza por tipo, à
+        // direita, ligada por duas linhas. Em tela estreita os gráficos empilham, sem as linhas.
+        <Card>
+          <PieOfPieChart
+            expandedName="Geração de Renda"
+            main={{
+              data: reservationChartData,
+              total: reservationAllocation?.totalValue ?? 0,
+              title: 'Alocação da Reserva de Emergência',
+              titleInfo: 'Quanto da carteira está na reserva hoje, comparado com a geração de renda.'
+            }}
+            detail={{
+              data: chartData,
+              total: totalValue,
+              title: 'Alocação da Carteira (Por Tipo de Ativo)',
+              titleInfo: 'Considera só a geração de renda: é a fatia cinza do gráfico ao lado, aberta por tipo de ativo.'
+            }}
+          />
         </Card>
       )}
 
