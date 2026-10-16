@@ -100,6 +100,10 @@ public class TransactionService {
     private final ImportRulesRegistry importRules;
     /** Logo do ativo na coluna ATIVO da listagem, como na carteira. */
     private final AssetLogos assetLogos;
+    /** Emissoras e distribuidoras de renda fixa (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md). */
+    private final com.primevest.domain.fixedincome.FixedIncomeIssuers fixedIncomeIssuers;
+    /** Aviso da compra de Tesouro importada com distribuidora nao listada (L21). */
+    private final com.primevest.domain.notification.NotificationService notifications;
 
     /**
      * Gets user transactions.
@@ -120,7 +124,9 @@ public class TransactionService {
      * retroativo existe. Titulo sem posicao (sem nenhuma transacao) fica de fora.
      */
     public List<NoteOptionDTO> getNotes(UUID userId, String ticker) {
-        Asset asset = ticker == null ? null : assetRepository.findByTicker(ticker.trim().toUpperCase()).orElse(null);
+        // Tesouro tem ticker com minusculas ("Tesouro IPCA+ 2050"): exato primeiro, depois em maiusculas (CDB)
+        Asset asset = ticker == null || ticker.isBlank() ? null : assetRepository.findByTicker(ticker.trim())
+            .or(() -> assetRepository.findByTicker(ticker.trim().toUpperCase())).orElse(null);
         Portfolio portfolio = portfolioRepository.findFirstByUserId(userId).orElse(null);
         if (asset == null || portfolio == null) {
             return List.of();
@@ -128,9 +134,10 @@ public class TransactionService {
         LocalDate hoje = LocalDate.now();
         return fixedIncomeNoteRepository.findByUserIdAndAssetId(userId, asset.getId()).stream()
             .flatMap(note -> portfolioAssetRepository.findByPortfolioIdAndNoteId(portfolio.getId(), note.getId())
-                .map(pa -> new NoteOptionDTO(note.getId(), note.getIssuer(), note.getMaturityDate(),
+                .map(pa -> new NoteOptionDTO(note.getId(), issuerName(note), note.getMaturityDate(),
                     note.getRateType(), note.getIndexer(), note.getIndexerRate(), pa.isSettled(),
-                    note.getMaturityDate() != null && !note.getMaturityDate().isAfter(hoje)))
+                    note.getMaturityDate() != null && !note.getMaturityDate().isAfter(hoje),
+                    fixedIncomeIssuers.info(note)))
                 .stream())
             .sorted(Comparator.comparing(NoteOptionDTO::maturityDate, Comparator.nullsLast(Comparator.naturalOrder()))
                 .thenComparing(NoteOptionDTO::issuer, Comparator.nullsLast(Comparator.naturalOrder())))
@@ -207,8 +214,14 @@ public class TransactionService {
         if (excludedGroup != null) {
             sales.removeIf(s -> s.groupId().equals(excludedGroup));
         }
+        Long distributorId = dto.distributorId();
+        if (distributorId == null && excludedGroup != null) {
+            // edicao sem trocar a distribuidora: a da venda que esta sendo editada
+            distributorId = treasuryAllocator.salesOf(current).stream()
+                .filter(x -> x.groupId().equals(excludedGroup)).map(SaleIntent::distributorId).findFirst().orElse(null);
+        }
         SaleIntent candidate = new SaleIntent(UUID.randomUUID(), dto.transactionDate(), dto.shares(),
-            dto.pricePerShare(), fee(dto), LocalDateTime.now());
+            dto.pricePerShare(), fee(dto), LocalDateTime.now(), TransactionOrigin.MANUAL, null, distributorId);
         List<TreasuryAllocator.PartPreview> parts =
             treasuryAllocator.preview(portfolio, asset, current, sales, candidate);
         BigDecimal gross = BigDecimal.ZERO;
@@ -284,10 +297,41 @@ public class TransactionService {
             // realocacao: a origem da fonte nao sobreviveria. Lancada pela tela (PLANO_INTEGRACAO_B3, F7).
             throw new BusinessException("Venda de Tesouro Direto não é importada: lance pela tela de transações.");
         }
+        // Compra de Tesouro (F7): a distribuidora e a corretora que a B3 informa, casada pelo nome com o cadastro;
+        // sem correspondencia, "Instituicao nao listada" e um aviso para o usuario corrigir (PLANO_EMISSORAS L21).
+        Long distributorId = null;
+        boolean naoListada = false;
+        if (tipo.isTreasury()) {
+            var d = fixedIncomeIssuers.distributorByName(proposta.participant());
+            naoListada = d.isEmpty();
+            distributorId = d.map(com.primevest.domain.fixedincome.FixedIncomeIssuer::getId)
+                .orElseGet(() -> fixedIncomeIssuers.notListedOrFail().getId());
+        }
         TransactionCreateDTO dto = new TransactionCreateDTO(proposta.ticker(), proposta.type(), proposta.shares(),
             proposta.pricePerShare(), null, proposta.brokerageFee(), proposta.transactionDate(), false, null,
-            null, null, null, null, null, null);
-        return create(userId, dto, origem);
+            null, null, null, null, null, null, distributorId, null);
+        TransactionResponseDTO r = create(userId, dto, origem);
+        if (naoListada) {
+            avisarDistribuidoraNaoListada(userId, r, proposta.participant());
+        }
+        return r;
+    }
+
+    /** L21: o titulo importado ficou com a distribuidora "nao listada" — o usuario corrige pela tela. */
+    private void avisarDistribuidoraNaoListada(UUID userId, TransactionResponseDTO r, String participant) {
+        String fonte = participant == null || participant.isBlank() ? "não informou a corretora"
+            : "informou \"" + participant.strip() + "\", que não está no cadastro";
+        notifications.notify(com.primevest.domain.notification.NotificationDraft
+            .of(com.primevest.domain.notification.NotificationKind.RF_DISTRIBUIDORA_NAO_LISTADA)
+            .user(userId)
+            .title("Distribuidora não listada: " + r.ticker())
+            .body("A compra de " + r.ticker() + " em " + r.transactionDate().format(DATA) + " foi importada da B3, "
+                + "que " + fonte + ". O título ficou com a distribuidora \"Instituição não listada\": corrija-a "
+                + "editando a compra.")
+            .ref("NOTE", r.noteId())
+            .key("note:" + r.noteId())
+            .link("Ver a compra", "/transactions?position=" + r.portfolioAssetId())
+            .build());
     }
 
     private TransactionResponseDTO create(UUID userId, TransactionCreateDTO dto, ImportOrigin origem) {
@@ -316,6 +360,7 @@ public class TransactionService {
         // retroativo existe), entao a data e quem diz se o titulo ainda rendia.
         if (dto.noteId() != null && dto.type() == TransactionType.BUY) {
             validateBuyBeforeMaturity(note, dto.transactionDate());
+            validateSamePaperCode(note, dto.paperCode());
         }
 
         // Com papel, a posicao e do papel: dois CDBs de bancos diferentes sao
@@ -579,14 +624,18 @@ public class TransactionService {
                 "Cada compra de Tesouro Direto é um título novo: não se lança sobre um título existente.");
         }
 
+        var distributor = fixedIncomeIssuers.distributor(dto.distributorId());
         List<Transaction> current = transactionRepository
             .findByPortfolioIdAndAssetId(portfolio.getId(), asset.getId());
-        validateOnePurchasePerDate(current, asset, dto.transactionDate(), null);
+        validateOnePurchasePerDate(current, asset, dto.transactionDate(), null, distributor.getId());
 
         FixedIncomeNote note = FixedIncomeNote.builder()
             .user(userRepository.getReferenceById(userId))
             .asset(asset)
             .purchaseDate(dto.transactionDate())
+            // R6: no Tesouro a emissora e sempre o Tesouro Nacional
+            .issuer(fixedIncomeIssuers.treasury())
+            .distributor(distributor)
             .build();
         applyNoteFields(note, dto);
         note = fixedIncomeNoteRepository.save(note);
@@ -641,13 +690,16 @@ public class TransactionService {
             throw new BusinessException("Informe a quantidade e o preço unitário.");
         }
 
+        // R13: a venda informa a distribuidora e consome so os titulos dela
+        Long distributorId = fixedIncomeIssuers.distributor(dto.distributorId()).getId();
         List<Transaction> current = transactionRepository
             .findByPortfolioIdAndAssetId(portfolio.getId(), asset.getId());
-        positionGuard.validateSellHasPosition(hasPurchase(current), asset.getTicker());
+        positionGuard.validateSellHasPosition(hasPurchase(current.stream()
+            .filter(t -> distributorId.equals(TreasuryAllocator.distributorOf(t))).toList()), asset.getTicker());
 
         SaleIntent nova = new SaleIntent(UUID.randomUUID(), dto.transactionDate(), dto.shares(),
             dto.pricePerShare(), fee(dto), LocalDateTime.now(),
-            SystemWrites.active() ? TransactionOrigin.SISTEMA : TransactionOrigin.MANUAL, null);
+            SystemWrites.active() ? TransactionOrigin.SISTEMA : TransactionOrigin.MANUAL, null, distributorId);
 
         List<Transaction> rows = reallocate(portfolio, asset, nova, null).get(nova.groupId());
         return toResponseDTO(rows.get(0));
@@ -662,10 +714,14 @@ public class TransactionService {
         UUID groupId = groupKey(tx);
         // Liquidacao automatica editada pelo usuario continua SISTEMA, com a marca de editada (secao 6).
         boolean sistema = tx.getOrigin() == TransactionOrigin.SISTEMA;
+        // A distribuidora da venda: a informada na edicao, ou a que ela ja tinha (a do titulo que ela consome)
+        Long distributorId = dto.distributorId() != null
+            ? fixedIncomeIssuers.distributor(dto.distributorId()).getId()
+            : TreasuryAllocator.distributorOf(tx);
         SaleIntent alterada = new SaleIntent(groupId, dto.transactionDate(), dto.shares(),
             dto.pricePerShare(), fee(dto), tx.getCreatedAt(),
             sistema ? TransactionOrigin.SISTEMA : TransactionOrigin.MANUAL,
-            !sistema ? null : SystemWrites.active() ? tx.getEditedAt() : LocalDateTime.now());
+            !sistema ? null : SystemWrites.active() ? tx.getEditedAt() : LocalDateTime.now(), distributorId);
 
         List<Transaction> rows = reallocate(portfolio, asset, alterada, null).get(groupId);
         return toResponseDTO(rows.get(0));
@@ -676,7 +732,23 @@ public class TransactionService {
                                                           Transaction tx, TransactionCreateDTO dto) {
         List<Transaction> current = transactionRepository
             .findByPortfolioIdAndAssetId(portfolio.getId(), asset.getId());
-        validateOnePurchasePerDate(current, asset, dto.transactionDate(), tx.getId());
+        FixedIncomeNote noteAtual = tx.getNote();
+        Long distribuidoraAtual = noteAtual != null && noteAtual.getDistributor() != null
+            ? noteAtual.getDistributor().getId() : null;
+        Long distribuidoraNova = dto.distributorId() != null ? dto.distributorId() : distribuidoraAtual;
+        if (distribuidoraNova != null && !distribuidoraNova.equals(distribuidoraAtual)) {
+            // Troca de distribuidora (PLANO_EMISSORAS_RENDA_FIXA, 5.1): sem venda ligada ao titulo, direta; com
+            // venda, so pela troca com a cascata (o usuario escolhe o que vai junto).
+            UUID tituloId = tx.getPortfolioAsset().getId();
+            boolean temVenda = current.stream().anyMatch(t -> t.getType() == TransactionType.SELL
+                && t.getPortfolioAsset().getId().equals(tituloId));
+            if (temVenda) {
+                throw new BusinessException("Este título tem venda ligada: troque a distribuidora pela tela, "
+                    + "escolhendo as transações que vão junto.");
+            }
+            noteAtual.setDistributor(fixedIncomeIssuers.distributor(distribuidoraNova));
+        }
+        validateOnePurchasePerDate(current, asset, dto.transactionDate(), tx.getId(), distribuidoraNova);
 
         Valores valores = resolveValores(asset, dto);
         tx.setShares(valores.shares());
@@ -700,6 +772,162 @@ public class TransactionService {
         transactionRepository.flush();
         reallocate(portfolio, asset, null, null);
         return toResponseDTO(tx);
+    }
+
+    // ------------------------------------------------------------------
+    // Troca de distribuidora no Tesouro (PLANO_EMISSORAS_RENDA_FIXA, 5.1)
+    // ------------------------------------------------------------------
+
+    /**
+     * A cascata da troca de distribuidora de uma compra de Tesouro: as vendas que consumiram o titulo, as compras que
+     * essas vendas consumiram, e assim por diante, todas na distribuidora atual. Vazia de vendas = troca direta.
+     */
+    public com.primevest.domain.transaction.dto.DistributorChangeDTOs.Preview previewDistributorChange(
+            UUID userId, UUID txId, Long distributorId) {
+        Transaction tx = findOwnedTransaction(userId, txId);
+        PortfolioAsset pa = tx.getPortfolioAsset();
+        if (!isTreasury(pa.getAsset()) || tx.getType() != TransactionType.BUY || tx.getNote() == null) {
+            throw new BusinessException("A troca com a cascata é da compra de Tesouro Direto.");
+        }
+        var to = fixedIncomeIssuers.distributor(distributorId);
+        var from = tx.getNote().getDistributor();
+        List<Transaction> current = transactionRepository
+            .findByPortfolioIdAndAssetId(pa.getPortfolio().getId(), pa.getAsset().getId());
+        Cascade c = cascade(current, pa.getId());
+        List<com.primevest.domain.transaction.dto.DistributorChangeDTOs.Item> items = new ArrayList<>();
+        for (Transaction buy : current) {
+            if (buy.getType() == TransactionType.BUY && c.titles().contains(buy.getPortfolioAsset().getId())) {
+                items.add(new com.primevest.domain.transaction.dto.DistributorChangeDTOs.Item("BUY", buy.getId(),
+                    buy.getTransactionDate(), buy.getShares(), buy.getPricePerShare(), buy.getTotalAmount(),
+                    buy.getId().equals(tx.getId())));
+            }
+        }
+        for (SaleIntent sale : treasuryAllocator.salesOf(current)) {
+            if (c.sales().contains(sale.groupId())) {
+                BigDecimal total = current.stream().filter(t -> groupKey(t).equals(sale.groupId()))
+                    .map(Transaction::getTotalAmount).filter(java.util.Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+                items.add(new com.primevest.domain.transaction.dto.DistributorChangeDTOs.Item("SELL", sale.groupId(),
+                    sale.date(), sale.shares(), sale.pricePerShare(), total, false));
+            }
+        }
+        items.sort(Comparator.comparing(com.primevest.domain.transaction.dto.DistributorChangeDTOs.Item::date)
+            .thenComparing(i -> i.type().equals("BUY") ? 0 : 1));
+        return new com.primevest.domain.transaction.dto.DistributorChangeDTOs.Preview(
+            from != null ? from.getId() : null, from != null ? from.getDisplayName() : null,
+            to.getId(), to.getDisplayName(), pa.getAsset().getTicker(), items);
+    }
+
+    /**
+     * Grava a troca: a compra editada (com os demais campos) e os itens marcados vao para a distribuidora nova; o FIFO
+     * e o IR/IOF de cada parte sao refeitos nas duas pontas. Tudo ou nada: se a conta nao fechar numa delas, nada muda
+     * e a mensagem diz a venda que impediu.
+     */
+    @Transactional
+    public TransactionResponseDTO changeTreasuryDistributor(
+            UUID userId, UUID txId, com.primevest.domain.transaction.dto.DistributorChangeDTOs.Request req) {
+        Transaction tx = findOwnedTransaction(userId, txId);
+        PortfolioAsset pa = tx.getPortfolioAsset();
+        Asset asset = pa.getAsset();
+        Portfolio portfolio = pa.getPortfolio();
+        if (!isTreasury(asset) || tx.getType() != TransactionType.BUY || tx.getNote() == null || req == null
+                || req.purchase() == null) {
+            throw new BusinessException("A troca com a cascata é da compra de Tesouro Direto.");
+        }
+        TransactionCreateDTO dto = req.purchase();
+        var to = fixedIncomeIssuers.distributor(dto.distributorId());
+        List<Transaction> current = transactionRepository
+            .findByPortfolioIdAndAssetId(portfolio.getId(), asset.getId());
+        Cascade c = cascade(current, pa.getId());
+
+        java.util.Set<UUID> buys = new java.util.HashSet<>(req.purchaseIds() == null ? List.of() : req.purchaseIds());
+        buys.add(tx.getId());
+        java.util.Set<UUID> sales = new java.util.HashSet<>(req.saleGroupIds() == null ? List.of() : req.saleGroupIds());
+        Map<UUID, Transaction> byId = current.stream().collect(Collectors.toMap(Transaction::getId, t -> t));
+        for (UUID id : buys) {
+            Transaction b = byId.get(id);
+            if (b == null || b.getType() != TransactionType.BUY || !c.titles().contains(b.getPortfolioAsset().getId())) {
+                throw new BusinessException("Compra fora da cascata desta troca de distribuidora.");
+            }
+        }
+        if (!c.sales().containsAll(sales)) {
+            throw new BusinessException("Venda fora da cascata desta troca de distribuidora.");
+        }
+
+        // As vendas como estao, com a distribuidora de antes; as marcadas passam para a nova.
+        List<SaleIntent> intents = new ArrayList<>();
+        for (SaleIntent s : treasuryAllocator.salesOf(current)) {
+            intents.add(sales.contains(s.groupId()) ? s.withDistributor(to.getId()) : s);
+        }
+        // As compras marcadas mudam de distribuidora (o titulo e a compra, regra H).
+        for (UUID id : buys) {
+            FixedIncomeNote note = byId.get(id).getNote();
+            note.setDistributor(to);
+            fixedIncomeNoteRepository.save(note);
+        }
+        // A compra editada: os demais campos do formulario, como na edicao comum.
+        validateOnePurchasePerDate(current, asset, dto.transactionDate(), tx.getId(), to.getId());
+        for (UUID id : buys) {
+            Transaction b = byId.get(id);
+            if (!b.getId().equals(tx.getId())) {
+                validateOnePurchasePerDate(current, asset, b.getTransactionDate(), b.getId(), to.getId());
+            }
+        }
+        Valores valores = resolveValores(asset, dto);
+        tx.setShares(valores.shares());
+        tx.setPricePerShare(valores.pricePerShare());
+        tx.setTotalAmount(valores.totalAmount());
+        tx.setBrokerageFee(fee(dto));
+        tx.setTransactionDate(dto.transactionDate());
+        FixedIncomeNote note = tx.getNote();
+        note.setPurchaseDate(dto.transactionDate());
+        if (dto.maturityDate() != null || dto.rateType() != null || dto.indexer() != null || dto.indexerRate() != null) {
+            applyNoteFields(note, new TransactionCreateDTO(dto.ticker(), dto.type(), dto.shares(), dto.pricePerShare(),
+                dto.totalAmount(), dto.brokerageFee(), dto.transactionDate(), dto.isReservation(),
+                dto.isFullSettlement(), dto.noteId(), null, dto.maturityDate(), dto.rateType(), dto.indexer(),
+                dto.indexerRate(), null, dto.paperCode()));
+        }
+        fixedIncomeNoteRepository.save(note);
+        transactionRepository.save(tx);
+        transactionRepository.flush();
+
+        List<Transaction> after = transactionRepository
+            .findByPortfolioIdAndAssetId(portfolio.getId(), asset.getId());
+        treasuryAllocator.apply(portfolio, asset, after, intents);
+        refreshTreasuryPositions(portfolio, asset);
+        publicarEscrita(userId, asset.getTicker());
+        return toResponseDTO(tx);
+    }
+
+    /** Titulos (posicoes) e vendas (grupos) ligados ao titulo pela reparticao das vendas, na mesma distribuidora. */
+    private record Cascade(java.util.Set<UUID> titles, java.util.Set<UUID> sales) {}
+
+    private Cascade cascade(List<Transaction> current, UUID startTitle) {
+        Map<UUID, java.util.Set<UUID>> salesByTitle = new HashMap<>();
+        Map<UUID, java.util.Set<UUID>> titlesBySale = new HashMap<>();
+        for (Transaction t : current) {
+            if (t.getType() == TransactionType.SELL) {
+                UUID g = groupKey(t);
+                UUID title = t.getPortfolioAsset().getId();
+                salesByTitle.computeIfAbsent(title, k -> new java.util.HashSet<>()).add(g);
+                titlesBySale.computeIfAbsent(g, k -> new java.util.HashSet<>()).add(title);
+            }
+        }
+        java.util.Set<UUID> titles = new java.util.LinkedHashSet<>();
+        java.util.Set<UUID> sales = new java.util.LinkedHashSet<>();
+        java.util.ArrayDeque<UUID> queue = new java.util.ArrayDeque<>(List.of(startTitle));
+        while (!queue.isEmpty()) {
+            UUID title = queue.poll();
+            if (!titles.add(title)) {
+                continue;
+            }
+            for (UUID g : salesByTitle.getOrDefault(title, java.util.Set.of())) {
+                if (sales.add(g)) {
+                    queue.addAll(titlesBySale.getOrDefault(g, java.util.Set.of()));
+                }
+            }
+        }
+        return new Cascade(titles, sales);
     }
 
     /** Exclusao da venda inteira: as partes sao a mesma operacao. */
@@ -783,16 +1011,18 @@ public class TransactionService {
     }
 
     private void validateOnePurchasePerDate(List<Transaction> current, Asset asset,
-                                            LocalDate date, UUID ignoreTxId) {
+                                            LocalDate date, UUID ignoreTxId, Long distributorId) {
+        // Regra H por ativo, DISTRIBUIDORA e data (PLANO_EMISSORAS_RENDA_FIXA, D3)
         boolean existe = current.stream()
             .filter(tx -> tx.getType() == TransactionType.BUY)
             .filter(tx -> ignoreTxId == null || !tx.getId().equals(ignoreTxId))
+            .filter(tx -> distributorId == null || distributorId.equals(TreasuryAllocator.distributorOf(tx)))
             .anyMatch(tx -> tx.getTransactionDate().equals(date));
 
         if (existe) {
             throw new BusinessException(
                 "Já existe um título de " + asset.getTicker() + " comprado em " + date.format(DATA)
-                + ". Para aplicar mais nessa data, altere a quantidade da compra que já existe.");
+                + " nessa distribuidora. Para aplicar mais nessa data, altere a quantidade da compra que já existe.");
         }
     }
 
@@ -970,7 +1200,9 @@ public class TransactionService {
      * emissor" de "esta tela nem tem esses campos".
      */
     private boolean hasNoteData(TransactionCreateDTO dto) {
-        return dto.issuer() != null
+        return dto.issuerId() != null
+            || dto.distributorId() != null
+            || dto.paperCode() != null
             || dto.maturityDate() != null
             || dto.rateType() != null
             || dto.indexer() != null
@@ -1025,6 +1257,8 @@ public class TransactionService {
         FixedIncomeNote nova = FixedIncomeNote.builder()
             .user(userRepository.getReferenceById(userId))
             .asset(asset)
+            .issuer(fixedIncomeIssuers.issuerFor(asset, dto.issuerId()))
+            .distributor(fixedIncomeIssuers.distributor(dto.distributorId()))
             .build();
         applyNoteFields(nova, dto);
         return fixedIncomeNoteRepository.save(nova);
@@ -1046,7 +1280,18 @@ public class TransactionService {
     private void applyNoteFields(FixedIncomeNote note, TransactionCreateDTO dto) {
         AssetTerms terms = note.getAsset() != null ? note.getAsset().getTerms() : null;
 
-        note.setIssuer(dto.issuer());
+        // Emissora e distribuidora: so trocam quando a requisicao as traz (a nova ja nasce com as duas)
+        if (dto.issuerId() != null && note.getAsset() != null && !note.getAsset().getAssetType().isTreasury()
+                && (note.getIssuer() == null || !dto.issuerId().equals(note.getIssuer().getId()))) {
+            note.setIssuer(fixedIncomeIssuers.issuerFor(note.getAsset(), dto.issuerId()));
+        }
+        if (dto.distributorId() != null && note.getPurchaseDate() == null
+                && (note.getDistributor() == null || !dto.distributorId().equals(note.getDistributor().getId()))) {
+            // Renda fixa: a venda e do proprio titulo e acompanha a troca; a regra de saida pode mudar e as vendas sao
+            // refeitas pelo liquido no recalculo (R16). No Tesouro a troca passa pela cascata (5.1).
+            note.setDistributor(fixedIncomeIssuers.distributor(dto.distributorId()));
+        }
+        applyPaperCode(note, dto.paperCode());
         note.setMaturityDate(dto.maturityDate() != null ? dto.maturityDate()
             : (terms != null ? terms.getMaturityDate() : null));
 
@@ -1072,6 +1317,43 @@ public class TransactionService {
         note.setRateType(rateType);
         note.setIndexer(indexer);
         note.setIndexerRate(dto.indexerRate());
+    }
+
+    /**
+     * Codigo do papel (R8, D4): normalizado; um codigo aponta para um titulo so do usuario. Repetido em outro titulo e
+     * recusado com o titulo certo na mensagem. Nulo na requisicao nao apaga o codigo que o titulo ja tem.
+     */
+    private void applyPaperCode(FixedIncomeNote note, String raw) {
+        String code = com.primevest.domain.fixedincome.FixedIncomeIssuers.normalizePaperCode(raw);
+        if (code == null || code.equals(note.getPaperCode())) {
+            return;
+        }
+        if (note.getUser() != null) {
+            fixedIncomeNoteRepository.findByUserIdAndPaperCode(note.getUser().getId(), code)
+                .filter(other -> !other.getId().equals(note.getId()))
+                .ifPresent(other -> {
+                    throw new BusinessException("Já existe o título " + other.getAsset().getTicker()
+                        + (other.getLabel().isBlank() ? "" : " (" + other.getLabel() + ")")
+                        + " com o código " + code + ": escolha-o para lançar o aporte.");
+                });
+        }
+        note.setPaperCode(code);
+    }
+
+    /** R8: titulo com codigo so recebe aporte do mesmo codigo. */
+    private void validateSamePaperCode(FixedIncomeNote note, String raw) {
+        String code = com.primevest.domain.fixedincome.FixedIncomeIssuers.normalizePaperCode(raw);
+        if (note != null && code != null && note.getPaperCode() != null && !code.equals(note.getPaperCode())) {
+            throw new BusinessException("O título escolhido é do papel " + note.getPaperCode() + "; o aporte com o "
+                + "código " + code + " é de outro papel e vai num título próprio.");
+        }
+    }
+
+    /** Nome de exibicao da emissora (o do grupo, R10); nulo na "nao listada". */
+    private String issuerName(FixedIncomeNote note) {
+        var i = note != null ? note.getIssuer() : null;
+        return i == null || i.getKind() == com.primevest.domain.fixedincome.FixedIncomeIssuerKind.NAO_LISTADA
+            ? null : i.getDisplayName();
     }
 
     // ------------------------------------------------------------------
@@ -1152,14 +1434,15 @@ public class TransactionService {
             tx.getConnection() != null ? tx.getConnection().getLabel() : null,
             tx.getConnection() != null ? tx.getConnection().getProvider().name() : null,
             note != null ? note.getId()           : null,
-            note != null ? note.getIssuer()       : null,
+            issuerName(note),
             note != null ? note.getMaturityDate() : null,
             note != null ? note.getRateType()     : null,
             note != null ? note.getIndexer()      : null,
             note != null ? note.getIndexerRate()  : null,
             asset != null ? assetLogos.logoFlag(asset) : null,
             asset != null && asset.getIssuer() != null ? asset.getIssuer().getId() : null,
-            tx.getNetAmount(), tx.getIncomeTax(), tx.getIofTax(), tx.getSettlementAdjustment()
+            tx.getNetAmount(), tx.getIncomeTax(), tx.getIofTax(), tx.getSettlementAdjustment(),
+            fixedIncomeIssuers.info(note)
         );
     }
 }

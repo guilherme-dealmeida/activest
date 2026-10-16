@@ -170,7 +170,8 @@ docker compose logs -f adm-api      # acompanhar; termina em "Carga inicial (...
 ```
 
 A carga roda, em ordem: emissores (completa o seed com as companhias e os FIIs negociados que não
-estão no catálogo), COTAHIST, proventos (FII pelo FNET, ações pela B3), datas de pagamento pelos
+estão no catálogo), emissoras e distribuidoras de renda fixa (BCB e CVM, completando o seed —
+`docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md`), COTAHIST, proventos (FII pelo FNET, ações pela B3), datas de pagamento pelos
 relatórios de proventos da CVM (2022+), datas de pagamento do levantamento 2010–2026
 (`carga/data/levantamento/datas-pagamento.json`, só onde ainda falta data), balanços com a série
 trimestral, informe mensal de FII, o preço oficial do Tesouro Direto desde 2010 (`tesouro/`) e os índices de mercado desde 2010 (CDI, Selic, IPCA, IGP-M, INPC,

@@ -18,6 +18,8 @@ export const presetFromPosition = (
   operation,
   assetType: type,
   ticker: asset.ticker,
+  // Emissora, distribuidora e código do título; no Tesouro, a distribuidora da linha vira a da venda/compra
+  noteInfo: asset.noteInfo ?? null,
   note: isFixedIncomeNote(type) && asset.noteId
     ? {
         noteId: asset.noteId,
@@ -44,6 +46,7 @@ export const presetFromTransaction = (
   operation,
   assetType: type,
   ticker: row.ticker,
+  noteInfo: row.noteInfo ?? null,
   note: isFixedIncomeNote(type) && row.noteId
     ? {
         noteId: row.noteId,

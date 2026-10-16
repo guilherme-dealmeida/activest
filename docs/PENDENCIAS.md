@@ -2,7 +2,8 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 15/10/2026 — secao 27 (venda de renda fixa, docs/planos/PLANO_VENDA_RENDA_FIXA.md; 27.3 a 27.5
+Ultima atualizacao: 16/10/2026 — secao 28 (emissoras e distribuidoras de renda fixa,
+docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md); 4.3 e 27.1 resolvidos, 27.2 atualizado. Antes: 15/10/2026 — secao 27 (venda de renda fixa, docs/planos/PLANO_VENDA_RENDA_FIXA.md; 27.3 a 27.5
 na implementacao); 26.7 e 26.8 reescritos (a liquidacao automatica sai). Antes: 13/10/2026 — secao 13 (central de avisos) e itens 10.4, 13.2 e 25.1 resolvidos pelas
 notificacoes (docs/planos/PLANO_NOTIFICACOES.md) e secao 26. Antes: 10/10/2026 — secao 25 (preco teto pelo modelo
 PRECO TETO V2, docs/planos/PLANO_PRECO_TETO.md) e 18.11 c (payout passa a vir da DFC). Antes: 05/10/2026 (noite) — 2.1, 2.2, 4.1, 4.2, 10.2, 10.3, 10.4, 23.1 e 23.2 resolvidos
@@ -209,7 +210,10 @@ comprado. Sem o seletor do 4.1, nao ha como informar o noteId.
 Foi escolha consciente: erro claro em vez de dado errado. Mas some assim
 que 4.1 existir.
 
-**4.3** Emissor e texto livre. Virar tabela de emissores quando houver uso o
+**4.3** RESOLVIDO em 16/10/2026 (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md): emissora e distribuidora sairam do
+texto livre para o cadastro fixed_income_issuers (BCB + CVM, por raiz de CNPJ), com grupos (conglomerado prudencial).
+Texto original:
+Emissor e texto livre. Virar tabela de emissores quando houver uso o
 bastante para saber quais nomes voce realmente digita — antes disso a
 lista seria chute.
 
@@ -1088,12 +1092,16 @@ Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
 
 ## 27. VENDA DE RENDA FIXA (docs/planos/PLANO_VENDA_RENDA_FIXA.md, 15/10/2026)
 
-**27.1** Troca de distribuidora (escopo de emissoras de renda fixa): a regra de saida dos lotes (PROPORCIONAL, UEPS,
+**27.1** RESOLVIDO em 16/10/2026 (plano de emissoras, secao 5): a regra de saida e a sale_rule da distribuidora;
+ trocar a distribuidora de um titulo de RF refaz os resgates pela regra nova (aviso na tela quando muda); no Tesouro,
+ modal da cascata, tudo ou nada. Texto original:
+ Troca de distribuidora (escopo de emissoras de renda fixa): a regra de saida dos lotes (PROPORCIONAL, UEPS,
  PEPS) passa a ser atributo da distribuidora. O modal ja decidido no levantamento de emissoras ("quais transacoes quer
  mover de [antiga] para [nova]") tem que refazer os lotes pela regra da distribuidora nova: as vendas ligadas mantem o
  liquido digitado e recalculam bruto, IR e IOF; "a conta fecha" passa a incluir esse recalculo. Ajustar o escopo de
  emissoras quando a venda de renda fixa terminar.
-**27.2** Regra de saida por instituicao — so o Nubank (RDB/caixinha) esta provado (UEPS, conferido no centavo contra o
+**27.2** Regra de saida por instituicao (desde 16/10/2026 e a coluna fixed_income_issuers.sale_rule da distribuidora;
+ so a Nu Financeira esta com UEPS) — so o Nubank (RDB/caixinha) esta provado (UEPS, conferido no centavo contra o
  extrato diario da Caixinha Turbo em 10/10/2026). PicPay (cofrinho), Inter e as demais seguem PROPORCIONAL ate haver
  extrato que prove outra regra; o teste e o mesmo: comparar valor investido, rendimento e IR do extrato depois de
  cada resgate com o que cada regra preve.
@@ -1115,6 +1123,19 @@ Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
  (R9 -> D4): o excesso e rendimento que a curva nao previu e agora paga IR e IOF — gross-up pelas aliquotas dos lotes,
  como na liquidacao total (R8); o ajuste (bruto - saldo da curva) fica em settlement_adjustment e sobra o centavo da
  regra F. Testes: FixedIncomeLotsTest.acimaDoDisponivel e TransacoesIT.resgateParcialDeixaCentavo.
+
+## 28. EMISSORAS E DISTRIBUIDORAS DE RENDA FIXA (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md, 16/10/2026)
+
+**28.1** Logo pelo site da empresa (caminho 2): o BCB e a CVM informam o site; icone pelo dominio com qualidade
+ variavel (testado em 15/10/2026: Nubank 256 px, Opea 192 px, Sicredi 16 px). Hoje o logo da linha de RF e o do
+ ticker curado no grupo (fixed_income_groups.logo_ticker), senao "RF".
+**28.2** Compra de Tesouro importada da B3: a distribuidora e casada pelo NOME do participante (participantName);
+ sem correspondencia fica "Instituicao nao listada" e o usuario recebe a notificacao RF_DISTRIBUIDORA_NAO_LISTADA.
+ Casar pelo CNPJ (participantDocumentNumber da API oficial) quando a integracao trouxer o campo. Idem para RF quando
+ a importacao de RF existir (16.5/16.6).
+**28.3** Cooperativas por sistema (Sicoob, Sicredi, Unicred, pela central): nao tem conglomerado prudencial no BCB,
+ entao cada cooperativa e um grupo dela mesma (ou nenhum). Agrupar pelo sistema exigiria curadoria ou outra fonte.
+**28.4** Regra de saida das demais distribuidoras: ver 27.2.
 
 ## ORDEM SUGERIDA
 

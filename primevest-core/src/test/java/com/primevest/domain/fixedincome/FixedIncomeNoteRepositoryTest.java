@@ -26,6 +26,7 @@ class FixedIncomeNoteRepositoryTest extends JpaTestBase {
     @Autowired private FixedIncomeNoteRepository repository;
     @Autowired private UserRepository userRepository;
     @Autowired private AssetRepository assetRepository;
+    @Autowired private FixedIncomeIssuerRepository issuerRepository;
 
     private User dono;
     private User outro;
@@ -41,7 +42,7 @@ class FixedIncomeNoteRepositoryTest extends JpaTestBase {
     }
 
     private FixedIncomeNote cdbDe(User user, String emissor) {
-        return Fixtures.note(user, cdb, emissor, LocalDate.of(2030, 1, 15),
+        return Fixtures.note(user, cdb, Fixtures.issuer(issuerRepository, emissor), LocalDate.of(2030, 1, 15),
             RateType.POS_FIXADO, Indexer.CDI, new BigDecimal("110.0000"));
     }
 
@@ -65,7 +66,7 @@ class FixedIncomeNoteRepositoryTest extends JpaTestBase {
         repository.saveAndFlush(cdbDe(outro, "Nubank"));
 
         assertThat(repository.findByUserIdOrderByMaturityDateAsc(dono.getId()))
-            .extracting(FixedIncomeNote::getIssuer)
+            .extracting(n -> n.getIssuer().getLegalName())
             .containsExactly("Inter", "BTG");
     }
 
@@ -73,7 +74,7 @@ class FixedIncomeNoteRepositoryTest extends JpaTestBase {
     @DisplayName("findByUserIdAndAssetId separa os titulos por ativo")
     void titulosPorAtivo() {
         repository.save(cdbDe(dono, "BTG"));
-        repository.saveAndFlush(Fixtures.note(dono, tesouro, "Tesouro Nacional", LocalDate.of(2050, 8, 15),
+        repository.saveAndFlush(Fixtures.note(dono, tesouro, Fixtures.issuer(issuerRepository, "Tesouro Nacional"), LocalDate.of(2050, 8, 15),
             RateType.HIBRIDO, Indexer.IPCA, new BigDecimal("7.0900")));
 
         assertThat(repository.findByUserIdAndAssetId(dono.getId(), cdb.getId())).hasSize(1);
@@ -81,14 +82,14 @@ class FixedIncomeNoteRepositoryTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Regra H no banco: dois titulos do mesmo ativo comprados na mesma data violam o indice unico")
+    @DisplayName("Regra H no banco: dois titulos do mesmo ativo e distribuidora comprados na mesma data violam o indice unico")
     void doisTitulosNaMesmaDataDeCompra() {
-        FixedIncomeNote primeiro = Fixtures.note(dono, tesouro, "Tesouro Nacional", LocalDate.of(2050, 8, 15),
+        FixedIncomeNote primeiro = Fixtures.note(dono, tesouro, Fixtures.issuer(issuerRepository, "Tesouro Nacional"), LocalDate.of(2050, 8, 15),
             RateType.HIBRIDO, Indexer.IPCA, new BigDecimal("7.0900"));
         primeiro.setPurchaseDate(LocalDate.of(2026, 9, 1));
         repository.saveAndFlush(primeiro);
 
-        FixedIncomeNote segundo = Fixtures.note(dono, tesouro, "Tesouro Nacional", LocalDate.of(2050, 8, 15),
+        FixedIncomeNote segundo = Fixtures.note(dono, tesouro, Fixtures.issuer(issuerRepository, "Tesouro Nacional"), LocalDate.of(2050, 8, 15),
             RateType.HIBRIDO, Indexer.IPCA, new BigDecimal("7.5000"));
         segundo.setPurchaseDate(LocalDate.of(2026, 9, 1));
 
@@ -107,9 +108,45 @@ class FixedIncomeNoteRepositoryTest extends JpaTestBase {
     }
 
     @Test
+    @DisplayName("Regra H por distribuidora (D3): o mesmo titulo comprado no mesmo dia em duas corretoras convive")
+    void mesmaDataEmDistribuidorasDiferentes() {
+        FixedIncomeNote naNu = Fixtures.note(dono, tesouro, Fixtures.issuer(issuerRepository, "Tesouro Nacional"),
+            LocalDate.of(2050, 8, 15), RateType.HIBRIDO, Indexer.IPCA, new BigDecimal("7.0900"));
+        naNu.setDistributor(Fixtures.issuer(issuerRepository, "Corretora A"));
+        naNu.setPurchaseDate(LocalDate.of(2026, 9, 1));
+        repository.saveAndFlush(naNu);
+
+        FixedIncomeNote naXp = Fixtures.note(dono, tesouro, Fixtures.issuer(issuerRepository, "Tesouro Nacional"),
+            LocalDate.of(2050, 8, 15), RateType.HIBRIDO, Indexer.IPCA, new BigDecimal("7.1000"));
+        naXp.setDistributor(Fixtures.issuer(issuerRepository, "Corretora B"));
+        naXp.setPurchaseDate(LocalDate.of(2026, 9, 1));
+        repository.saveAndFlush(naXp);
+
+        assertThat(repository.findByUserIdAndAssetId(dono.getId(), tesouro.getId())).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("Codigo do papel (D4): unico por usuario; outro usuario pode ter o mesmo papel")
+    void codigoDoPapelUnicoPorUsuario() {
+        FixedIncomeNote minha = cdbDe(dono, "BTG");
+        minha.setPaperCode("CDBA2478FYE");
+        repository.saveAndFlush(minha);
+
+        FixedIncomeNote doOutro = cdbDe(outro, "BTG");
+        doOutro.setPaperCode("CDBA2478FYE");
+        repository.saveAndFlush(doOutro);
+
+        FixedIncomeNote repetida = cdbDe(dono, "Inter");
+        repetida.setPaperCode("CDBA2478FYE");
+        assertThatThrownBy(() -> repository.saveAndFlush(repetida))
+            .isInstanceOf(DataIntegrityViolationException.class)
+            .hasMessageContaining("uk_fixed_income_notes_paper_code");
+    }
+
+    @Test
     @DisplayName("ck_fixed_income_notes_rate_coherence: pos-fixado sem indice e recusado pelo banco")
     void coerenciaDeTaxa() {
-        FixedIncomeNote semIndice = Fixtures.note(dono, cdb, "BTG", LocalDate.of(2030, 1, 15),
+        FixedIncomeNote semIndice = Fixtures.note(dono, cdb, Fixtures.issuer(issuerRepository, "BTG"), LocalDate.of(2030, 1, 15),
             RateType.POS_FIXADO, null, new BigDecimal("110.0000"));
 
         assertThatThrownBy(() -> repository.saveAndFlush(semIndice))

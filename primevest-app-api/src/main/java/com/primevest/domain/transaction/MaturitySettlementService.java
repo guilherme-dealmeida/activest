@@ -319,7 +319,9 @@ public class MaturitySettlementService implements DailyOpeningService.DailyOpeni
 
     private static String label(PortfolioAsset pa) {
         FixedIncomeNote note = pa.getNote();
-        String issuer = note != null && note.getIssuer() != null ? " " + note.getIssuer() : "";
+        String issuer = note != null && note.getIssuer() != null
+                && note.getIssuer().getKind() != com.primevest.domain.fixedincome.FixedIncomeIssuerKind.NAO_LISTADA
+                ? " " + note.getIssuer().getDisplayName() : "";
         return pa.getAsset().getTicker() + issuer;
     }
 

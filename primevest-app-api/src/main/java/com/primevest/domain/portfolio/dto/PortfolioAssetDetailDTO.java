@@ -89,7 +89,13 @@ public record PortfolioAssetDetailDTO(
      */
     BigDecimal estimatedNet,
     /** O titulo aporte a aporte (renda fixa privada) ou o proprio titulo (Tesouro). Vazia fora da renda fixa. */
-    java.util.List<FixedIncomeLot> lots
+    java.util.List<FixedIncomeLot> lots,
+    /**
+     * Emissora e distribuidora do titulo (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md): colunas EMISSORA e
+     * DISTRIBUIDORA (nome do grupo, razao social na dica), logo do grupo da emissora, codigo e garantia.
+     * {@code issuer} acima e o nome de exibicao da emissora.
+     */
+    com.primevest.domain.fixedincome.FixedIncomeIssuers.NoteInfo noteInfo
 ) {
     /**
      * Um aporte ainda aplicado: data, dias corridos, aplicado que resta, saldo bruto, rendimento, aliquotas e

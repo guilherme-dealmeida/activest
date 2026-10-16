@@ -55,9 +55,20 @@ public record TransactionCreateDTO(
 
     // ----- dados do título (renda fixa) -----
     UUID noteId,
-    String issuer,
+    /**
+     * Emissora do título novo: id em fixed_income_issuers, de um tipo aceito pelo produto
+     * (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md, R4). Ignorado no Tesouro (sempre o Tesouro Nacional).
+     */
+    Long issuerId,
     LocalDate maturityDate,
     RateType rateType,
     Indexer indexer,
-    BigDecimal indexerRate
+    BigDecimal indexerRate,
+    /**
+     * Distribuidora (onde foi comprado): obrigatória no título novo de renda fixa e na compra e na VENDA do Tesouro
+     * — a venda do Tesouro consome só os títulos dela (R13).
+     */
+    Long distributorId,
+    /** Código do papel na B3 (ex.: CDBA2478FYE), opcional (R8). */
+    String paperCode
 ) {}

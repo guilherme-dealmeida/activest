@@ -10,7 +10,7 @@ interface ModalProps {
   /** Explicação no (i) ao lado do título. */
   titleInfo?: React.ReactNode;
   /** lg e xl alargam o painel para formulários de duas colunas. */
-  size?: 'md' | 'lg' | 'xl';
+  size?: 'md' | 'lg' | 'xl' | '2xl';
   /**
    * Barra de ações fixa no rodapé, FORA da área que rola.
    *
@@ -31,6 +31,8 @@ const LARGURAS = {
   md: 'max-w-lg',
   lg: 'max-w-2xl',
   xl: 'max-w-4xl',
+  // transação com o quadro do título em duas colunas (TransactionFormModal)
+  '2xl': 'max-w-6xl',
 } as const;
 
 /**

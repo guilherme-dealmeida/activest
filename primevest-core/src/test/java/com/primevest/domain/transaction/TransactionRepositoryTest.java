@@ -34,6 +34,7 @@ class TransactionRepositoryTest extends JpaTestBase {
     @Autowired private PortfolioAssetRepository positionRepository;
     @Autowired private PortfolioRepository portfolioRepository;
     @Autowired private FixedIncomeNoteRepository noteRepository;
+    @Autowired private com.primevest.domain.fixedincome.FixedIncomeIssuerRepository issuerRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private AssetRepository assetRepository;
     @Autowired private EntityManager em;
@@ -56,7 +57,7 @@ class TransactionRepositoryTest extends JpaTestBase {
     }
 
     private PortfolioAsset tituloDoTesouro(LocalDate compra) {
-        FixedIncomeNote note = noteRepository.save(Fixtures.note(dono, tesouro, "Tesouro Nacional",
+        FixedIncomeNote note = noteRepository.save(Fixtures.note(dono, tesouro, Fixtures.issuer(issuerRepository, "Tesouro Nacional"),
             LocalDate.of(2050, 8, 15), RateType.HIBRIDO, Indexer.IPCA, new BigDecimal("7.0900")));
         note.setPurchaseDate(compra);
         return positionRepository.save(Fixtures.position(carteira, tesouro, note));

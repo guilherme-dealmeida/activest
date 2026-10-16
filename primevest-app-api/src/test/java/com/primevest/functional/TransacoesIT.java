@@ -260,7 +260,8 @@ class TransacoesIT extends FuncionalBase {
             corpo.put("type", "BUY");
             corpo.put("transactionDate", data);
             corpo.put("totalAmount", new BigDecimal(valor));
-            corpo.put("issuer", emissor);
+            corpo.put("issuerId", empresaDeTeste(emissor, "BANCO"));
+            corpo.put("distributorId", distribuidoraPadrao());
             corpo.put("maturityDate", "2030-01-15");
             corpo.put("rateType", "POS_FIXADO");
             corpo.put("indexer", "CDI");
@@ -434,7 +435,6 @@ class TransacoesIT extends FuncionalBase {
 
         private Map<String, Object> compraDeTesouro(String data, String cotas, String preco, String taxa) {
             Map<String, Object> corpo = lancamento(TICKER, "BUY", data, cotas, preco);
-            corpo.put("issuer", "Tesouro Nacional");
             corpo.put("indexerRate", new BigDecimal(taxa));
             return corpo;
         }
@@ -675,7 +675,6 @@ class TransacoesIT extends FuncionalBase {
         @DisplayName("Regra K — Tesouro: excluir a unica compra apaga o titulo e libera a data para a regra H")
         void regraK_tesouro() {
             Map<String, Object> compraTesouro = lancamento(CatalogIds.TESOURO_IPCA_2050, "BUY", "2026-09-01", "3", "830.07");
-            compraTesouro.put("issuer", "Tesouro Nacional");
             compraTesouro.put("indexerRate", new BigDecimal("7.09"));
             TransactionResponseDTO compra = lancarComSucesso(dono, compraTesouro);
 

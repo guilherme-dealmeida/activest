@@ -57,6 +57,26 @@ public class TransactionController {
         return ResponseEntity.ok(transactionService.updateTransaction(SecurityUtils.getCurrentUserId(), id, dto));
     }
 
+    /**
+     * Troca de distribuidora de uma compra de Tesouro (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md, 5.1): a cascata das
+     * transacoes ligadas, para o modal.
+     */
+    @GetMapping("/{id}/distributor-change")
+    public ResponseEntity<com.primevest.domain.transaction.dto.DistributorChangeDTOs.Preview> previewDistributorChange(
+            @PathVariable UUID id, @RequestParam Long distributorId) {
+        return ResponseEntity.ok(transactionService.previewDistributorChange(SecurityUtils.getCurrentUserId(), id,
+                distributorId));
+    }
+
+    /** Confirma a troca com os itens marcados (tudo ou nada). */
+    @PostMapping("/{id}/distributor-change")
+    public ResponseEntity<TransactionResponseDTO> changeDistributor(
+            @PathVariable UUID id,
+            @RequestBody com.primevest.domain.transaction.dto.DistributorChangeDTOs.Request body) {
+        return ResponseEntity.ok(transactionService.changeTreasuryDistributor(SecurityUtils.getCurrentUserId(), id,
+                body));
+    }
+
     /** Regra E4: volta a importada aos valores da corretora. */
     @PostMapping("/{id}/restore")
     public ResponseEntity<TransactionResponseDTO> restoreFromSource(@PathVariable UUID id) {

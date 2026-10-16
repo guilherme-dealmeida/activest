@@ -34,6 +34,7 @@ class PortfolioAssetRepositoryTest extends JpaTestBase {
     @Autowired private UserRepository userRepository;
     @Autowired private AssetRepository assetRepository;
     @Autowired private FixedIncomeNoteRepository noteRepository;
+    @Autowired private com.primevest.domain.fixedincome.FixedIncomeIssuerRepository issuerRepository;
     @Autowired private EntityManager em;
 
     private User dono;
@@ -54,7 +55,7 @@ class PortfolioAssetRepositoryTest extends JpaTestBase {
     }
 
     private FixedIncomeNote nota(User user, String emissor) {
-        return noteRepository.save(Fixtures.note(user, cdb, emissor, LocalDate.of(2030, 1, 15),
+        return noteRepository.save(Fixtures.note(user, cdb, Fixtures.issuer(issuerRepository, emissor), LocalDate.of(2030, 1, 15),
             RateType.POS_FIXADO, Indexer.CDI, new BigDecimal("110.0000")));
     }
 
@@ -118,7 +119,7 @@ class PortfolioAssetRepositoryTest extends JpaTestBase {
         List<PortfolioAsset> titulos = repository.findAllByPortfolioIdAndAssetId(carteira.getId(), cdb.getId());
 
         assertThat(titulos).hasSize(2);
-        assertThat(titulos).allSatisfy(pa -> assertThat(pa.getNote().getIssuer()).isNotBlank());
+        assertThat(titulos).allSatisfy(pa -> assertThat(pa.getNote().getIssuer().getLegalName()).isNotBlank());
     }
 
     @Test

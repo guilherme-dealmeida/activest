@@ -15,7 +15,7 @@ import { TABLE_ACTION_CLASS } from '@/components/ui/tableAction';
 import { formatCurrency, formatDate, formatPercentage, formatQuantity, formatUnitPrice, toLocalISODate } from '@/utils/format';
 import { TransactionResponse, TransactionType, AssetType, TransactionCreate, PortfolioAssetDetail } from '@/types';
 import { useSortable } from '@/hooks/useSortable';
-import { isFixedIncomeNote, TESOURO_DIRETO, typeLogo } from '@/utils/assetTypeRules';
+import { isFixedIncomeNote, RENDA_FIXA, TESOURO_DIRETO, typeLogo } from '@/utils/assetTypeRules';
 import { AssetLogo } from '@/components/ui/AssetLogo';
 import { TickerLink } from '@/components/issuer/TickerLink';
 import { LocalAssetOption, LocalAssetSearch } from '@/components/ui/LocalAssetSearch';
@@ -44,15 +44,23 @@ const taxaDoTitulo = (t: TransactionResponse): string | null => {
   }
 };
 
-/** Coluna TÍTULO: "Emissor · venc. dd/mm/aaaa · 110,00% do CDI". null fora da renda fixa. */
-const rotuloDoTitulo = (t: TransactionResponse): string | null => {
+/** Dica da coluna TÍTULO: as razões sociais da emissora e da distribuidora e o código do papel. */
+const dicaDoTitulo = (t: TransactionResponse): string | undefined => {
+  const i = t.noteInfo;
+  if (!i) return undefined;
+  return [i.issuerLegalName ? `Emissora: ${i.issuerLegalName}` : null,
+    i.distributorLegalName ? `Distribuidora: ${i.distributorLegalName}` : null,
+    i.paperCode ? `Código: ${i.paperCode}` : null].filter(Boolean).join('\n') || undefined;
+};
+
+/**
+ * Coluna TÍTULO (renda fixa e Tesouro): a distribuidora — onde o título foi comprado — e, em segunda linha, o índice e
+ * o percentual ("121,00% do CDI"). A emissora e a razão social ficam na dica; o vencimento vai sob a data. null fora
+ * da renda fixa.
+ */
+const rotuloDoTitulo = (t: TransactionResponse): { nome: string | null; taxa: string | null } | null => {
   if (!t.noteId) return null;
-  const partes = [
-    t.issuer || null,
-    t.maturityDate ? `venc. ${formatDate(t.maturityDate)}` : null,
-    taxaDoTitulo(t),
-  ].filter(Boolean);
-  return partes.length ? partes.join(' · ') : null;
+  return { nome: t.noteInfo?.distributorName || null, taxa: taxaDoTitulo(t) };
 };
 
 function getDateFromDaysAgo(days: number): string {
@@ -76,6 +84,9 @@ export const TransactionsPage = () => {
   const [filterAsset, setFilterAsset] = useState('ALL');
   const [filterPeriod, setFilterPeriod] = useState('ALL');
   const [filterOrigin, setFilterOrigin] = useState<'ALL' | 'MANUAL' | 'AUTO' | 'SISTEMA'>('ALL');
+  /** D6: emissora (renda fixa) e distribuidora (renda fixa e Tesouro), pelo nome de exibição. */
+  const [filterIssuer, setFilterIssuer] = useState('ALL');
+  const [filterDistributor, setFilterDistributor] = useState('ALL');
 
   /**
    * Filtro vindo da carteira, pelo ícone Listar.
@@ -184,7 +195,9 @@ export const TransactionsPage = () => {
 
   const enriched = useMemo(() => (transactions || []).map(t => ({
     ...t,
-    assetType: t.assetTypeName || ''
+    assetType: t.assetTypeName || '',
+    // a coluna TÍTULO ordena pela distribuidora, que vem dentro de noteInfo
+    distributorName: t.noteInfo?.distributorName ?? null
   })), [transactions]);
 
   const uniqueTypes = [...new Set(enriched.map(t => t.assetType).filter(Boolean))].sort();
@@ -221,12 +234,27 @@ export const TransactionsPage = () => {
     [doTipo]
   );
 
+  // Emissora e distribuidora (D6): só nos tipos de renda fixa; a emissora fica fora do Tesouro (é sempre o Tesouro
+  // Nacional). As opções são as que aparecem nas transações do tipo.
+  const filtraDistribuidora = !!tipoSelecionado?.fixedIncome;
+  const filtraEmissora = filtrarPorAtivo;
+  const emissorasDoTipo = useMemo(
+    () => [...new Set(doTipo.map(row => row.noteInfo?.issuerName).filter((v): v is string => !!v))].sort(ordenarPt),
+    [doTipo]
+  );
+  const distribuidorasDoTipo = useMemo(
+    () => [...new Set(doTipo.map(row => row.noteInfo?.distributorName).filter((v): v is string => !!v))].sort(ordenarPt),
+    [doTipo]
+  );
+
   // Trocar o tipo zera o filtro dependente: uma categoria de FII não significa
   // nada dentro de Ações, e o filtro preso deixaria a tabela vazia sem motivo.
   const handleTypeChange = (value: string) => {
     setFilterType(value);
     setFilterCategory('ALL');
     setFilterAsset('ALL');
+    setFilterIssuer('ALL');
+    setFilterDistributor('ALL');
     setCurrentPage(1);
   };
 
@@ -246,6 +274,10 @@ export const TransactionsPage = () => {
     if (filtrarPorAtivo) {
       if (filterAsset !== 'ALL' && row.ticker !== filterAsset) return false;
     } else if (filterCategory !== 'ALL' && row.assetCategoryName !== filterCategory) {
+      return false;
+    }
+    if (filtraEmissora && filterIssuer !== 'ALL' && row.noteInfo?.issuerName !== filterIssuer) return false;
+    if (filtraDistribuidora && filterDistributor !== 'ALL' && row.noteInfo?.distributorName !== filterDistributor) {
       return false;
     }
     if (filterPeriod !== 'ALL') {
@@ -320,6 +352,8 @@ export const TransactionsPage = () => {
     setFilterType('ALL');
     setFilterCategory('ALL');
     setFilterAsset('ALL');
+    setFilterIssuer('ALL');
+    setFilterDistributor('ALL');
     setFilterPeriod('ALL');
     setFilterOrigin('ALL');
     setCurrentPage(1);
@@ -469,6 +503,33 @@ export const TransactionsPage = () => {
           </div>
         )}
 
+        {filtraEmissora && (
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Emissora</label>
+            <select
+              value={filterIssuer}
+              onChange={(e) => { setFilterIssuer(e.target.value); setCurrentPage(1); }}
+              className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2"
+            >
+              <option value="ALL">Todas</option>
+              {emissorasDoTipo.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+        )}
+        {filtraDistribuidora && (
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Distribuidora</label>
+            <select
+              value={filterDistributor}
+              onChange={(e) => { setFilterDistributor(e.target.value); setCurrentPage(1); }}
+              className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2"
+            >
+              <option value="ALL">Todas</option>
+              {distribuidorasDoTipo.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+        )}
+
         <div>
           <label className="block text-xs text-gray-400 mb-1">Origem</label>
           <select
@@ -514,8 +575,8 @@ export const TransactionsPage = () => {
                 <th className={`px-4 py-3 cursor-pointer ${getSortClass('ticker')}`} onClick={() => requestSort('ticker')}>
                   ATIVO{getSortIndicator('ticker')}
                 </th>
-                <th className={`px-4 py-3 cursor-pointer ${getSortClass('issuer')}`} onClick={() => requestSort('issuer')}>
-                  TÍTULO{getSortIndicator('issuer')}
+                <th className={`px-4 py-3 cursor-pointer ${getSortClass('distributorName')}`} onClick={() => requestSort('distributorName')}>
+                  TÍTULO{getSortIndicator('distributorName')}
                 </th>
                 <th className={`px-4 py-3 cursor-pointer ${getSortClass('transactionDate')}`} onClick={() => requestSort('transactionDate')}>
                   DATA TRANSAÇÃO{getSortIndicator('transactionDate')}
@@ -532,9 +593,6 @@ export const TransactionsPage = () => {
                 <th className={`px-4 py-3 text-right cursor-pointer ${getSortClass('pricePerShare')}`} onClick={() => requestSort('pricePerShare')}>
                   PREÇO{getSortIndicator('pricePerShare')}
                 </th>
-                <th className={`px-4 py-3 text-right cursor-pointer ${getSortClass('brokerageFee')}`} onClick={() => requestSort('brokerageFee')}>
-                  TAXAS{getSortIndicator('brokerageFee')}
-                </th>
                 <th className={`px-4 py-3 text-right cursor-pointer ${getSortClass('totalAmount')}`} onClick={() => requestSort('totalAmount')}>
                   TOTAL{getSortIndicator('totalAmount')}
                 </th>
@@ -548,7 +606,11 @@ export const TransactionsPage = () => {
                     {/* Logo e link para a emissora, como na carteira. Nome do ativo no hover. */}
                     <div className="flex items-center gap-3" title={row.assetName || undefined}>
                       {(() => {
-                        // Tesouro e Renda Fixa: logo do tipo. Demais: o do ativo (null = tipo sem logo).
+                        // Renda Fixa: o logo do grupo da emissora, quando há (D5 do plano de emissoras), como na
+                        // carteira. Tesouro e o resto da Renda Fixa: logo do tipo. Demais: o do ativo (null = sem logo).
+                        if (nomeDoTipo(row) === RENDA_FIXA && row.noteInfo?.issuerLogoTicker) {
+                          return <AssetLogo ticker={row.noteInfo.issuerLogoTicker} hasLogo size={38} shape="square" />;
+                        }
                         const logoDoTipo = typeLogo(nomeDoTipo(row));
                         if (logoDoTipo) {
                           return <AssetLogo ticker={row.ticker} hasLogo={!!logoDoTipo.src} src={logoDoTipo.src}
@@ -591,18 +653,35 @@ export const TransactionsPage = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-white/70">
-                    {rotuloDoTitulo(row) ?? '—'}
-                    {/* A venda do Tesouro sai dos títulos mais antigos primeiro, e
-                        pode consumir mais de um: cada parte é uma linha, e a marca
-                        diz que elas são a mesma venda. */}
-                    {(row.groupParts ?? 0) > 1 && (
-                      <span className="ml-2 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-normal text-gray-300">
-                        título {row.groupPart}/{row.groupParts}
-                      </span>
+                  <td className="px-4 py-3 text-white/70" title={dicaDoTitulo(row)}>
+                    {(() => {
+                      const titulo = rotuloDoTitulo(row);
+                      if (!titulo) return '—';
+                      return (
+                        <>
+                          <div>
+                            {titulo.nome ?? '—'}
+                            {/* A venda do Tesouro sai dos títulos mais antigos primeiro, e
+                                pode consumir mais de um: cada parte é uma linha, e a marca
+                                diz que elas são a mesma venda. */}
+                            {(row.groupParts ?? 0) > 1 && (
+                              <span className="ml-2 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-normal text-gray-300">
+                                título {row.groupPart}/{row.groupParts}
+                              </span>
+                            )}
+                          </div>
+                          {titulo.taxa && <div className="text-xs text-gray-400">{titulo.taxa}</div>}
+                        </>
+                      );
+                    })()}
+                  </td>
+                  {/* Renda fixa e Tesouro: o vencimento do título em segunda linha */}
+                  <td className="px-4 py-3">
+                    <div>{formatDate(row.transactionDate)}</div>
+                    {row.noteId && row.maturityDate && (
+                      <div className="text-xs text-gray-400">venc. {formatDate(row.maturityDate)}</div>
                     )}
                   </td>
-                  <td className="px-4 py-3">{formatDate(row.transactionDate)}</td>
                   <td className="px-4 py-3 text-gray-400">{row.assetType}</td>
                   <td className="px-4 py-3">
                     <span className={row.type === TransactionType.BUY ? "text-success font-medium" : "text-danger font-medium"}>
@@ -611,7 +690,6 @@ export const TransactionsPage = () => {
                   </td>
                   <td className="px-4 py-3 text-right">{row.shares != null ? formatQuantity(row.shares, row.isCrypto) : '—'}</td>
                   <td className="px-4 py-3 text-right">{row.pricePerShare != null ? formatUnitPrice(row.pricePerShare, row.isCrypto) : '—'}</td>
-                  <td className="px-4 py-3 text-right">{formatCurrency(row.brokerageFee)}</td>
                   {/* Venda de Renda Fixa e de Tesouro: o bruto e, embaixo, o líquido — o que caiu na conta —, como o
                       valor atual da Carteira (PLANO_VENDA_RENDA_FIXA, D4). */}
                   <td className="px-4 py-3 text-right font-medium text-white">
@@ -678,7 +756,7 @@ export const TransactionsPage = () => {
                 </tr>
               ))}
               {paginated.length === 0 && (
-                <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-500">Nenhuma transação encontrada.</td></tr>
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-500">Nenhuma transação encontrada.</td></tr>
               )}
             </tbody>
           </table>

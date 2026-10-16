@@ -41,9 +41,11 @@ import java.util.UUID;
  * Reparticao e dado derivado; aqui ela fica gravada porque a venda precisa
  * apontar para um titulo real — a divida esta registrada em docs/PENDENCIAS.md.</p>
  *
- * <p>A regra H — um titulo por ativo e data — e o que torna o FIFO
+ * <p>A regra H — um titulo por ativo, distribuidora e data — e o que torna o FIFO
  * deterministico: sem ela, dois titulos comprados no mesmo dia nao teriam
- * ordem definida entre si.</p>
+ * ordem definida entre si. Desde o escopo de emissoras (PLANO_EMISSORAS_RENDA_FIXA, R13 e D3) a venda informa a
+ * distribuidora e consome so os titulos dela: o mesmo titulo comprado no mesmo dia em duas corretoras sao dois
+ * titulos, cada um no FIFO da sua.</p>
  *
  * <p>Cada parte e um lote com IR e IOF proprios (docs/planos/PLANO_VENDA_RENDA_FIXA.md, R4): rendimento =
  * (PU da venda - PU da compra do titulo) x cotas, aliquota pela idade do titulo; o liquido da parte e o bruto menos
@@ -67,12 +69,17 @@ public class TreasuryAllocator {
      */
     public record SaleIntent(UUID groupId, LocalDate date, BigDecimal shares,
                              BigDecimal pricePerShare, BigDecimal fee, LocalDateTime createdAt,
-                             TransactionOrigin origin, LocalDateTime editedAt) {
+                             TransactionOrigin origin, LocalDateTime editedAt, Long distributorId) {
 
-        /** Venda digitada pelo usuario. */
+        /** Venda digitada pelo usuario, sem distribuidora (consome qualquer titulo do ativo). */
         public SaleIntent(UUID groupId, LocalDate date, BigDecimal shares, BigDecimal pricePerShare, BigDecimal fee,
                           LocalDateTime createdAt) {
-            this(groupId, date, shares, pricePerShare, fee, createdAt, TransactionOrigin.MANUAL, null);
+            this(groupId, date, shares, pricePerShare, fee, createdAt, TransactionOrigin.MANUAL, null, null);
+        }
+
+        /** A mesma venda em outra distribuidora (troca de distribuidora, PLANO_EMISSORAS_RENDA_FIXA 5.1). */
+        public SaleIntent withDistributor(Long distributor) {
+            return new SaleIntent(groupId, date, shares, pricePerShare, fee, createdAt, origin, editedAt, distributor);
         }
     }
 
@@ -121,7 +128,7 @@ public class TreasuryAllocator {
                     ? TransactionOrigin.SISTEMA : TransactionOrigin.MANUAL;
             sales.add(new SaleIntent(entry.getKey(), first.getTransactionDate(), shares,
                     safe(first.getPricePerShare()), fee, createdAt, origin,
-                    origin == TransactionOrigin.SISTEMA ? first.getEditedAt() : null));
+                    origin == TransactionOrigin.SISTEMA ? first.getEditedAt() : null, distributorOf(first)));
         }
         return sales;
     }
@@ -256,6 +263,10 @@ public class TreasuryAllocator {
             if (pending.signum() <= 0) {
                 break;
             }
+            // R13 (PLANO_EMISSORAS_RENDA_FIXA): a venda so consome os titulos da distribuidora em que foi feita
+            if (sale.distributorId() != null && !sale.distributorId().equals(distributorOf(title))) {
+                continue;
+            }
             LocalDate purchase = purchaseDate(title);
             if (purchase != null && purchase.isAfter(sale.date())) {
                 continue;
@@ -271,10 +282,11 @@ public class TreasuryAllocator {
         }
 
         if (pending.signum() > 0) {
+            String where = sale.distributorId() == null ? "" : " na distribuidora " + distributorName(titles, sale);
             throw new BusinessException(
                 "Saldo insuficiente de " + asset.getTicker() + " em " + sale.date().format(DATA)
                 + ": faltam " + pending.stripTrailingZeros().toPlainString()
-                + " cotas compradas até essa data.");
+                + " cotas compradas até essa data" + where + ".");
         }
         return allocations;
     }
@@ -414,6 +426,24 @@ public class TreasuryAllocator {
             }
         }
         return null;
+    }
+
+    /** Distribuidora do titulo (id), ou nula. */
+    static Long distributorOf(PortfolioAsset title) {
+        return title != null && title.getNote() != null && title.getNote().getDistributor() != null
+                ? title.getNote().getDistributor().getId() : null;
+    }
+
+    /** Distribuidora da parte de venda (a do titulo que ela consome). */
+    static Long distributorOf(Transaction row) {
+        return row != null ? distributorOf(row.getPortfolioAsset()) : null;
+    }
+
+    private String distributorName(List<PortfolioAsset> titles, SaleIntent sale) {
+        return titles.stream()
+                .filter(t -> sale.distributorId().equals(distributorOf(t)))
+                .map(t -> t.getNote().getDistributor().getDisplayName())
+                .findFirst().orElse("escolhida");
     }
 
     private LocalDate purchaseDate(PortfolioAsset title) {

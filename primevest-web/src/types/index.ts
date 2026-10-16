@@ -191,6 +191,70 @@ export interface PortfolioAssetDetail {
   estimatedNet?: number | null;
   /** O título aporte a aporte (renda fixa privada) ou o próprio título (Tesouro). Vazia fora da renda fixa. */
   lots?: FixedIncomeLot[];
+  /** Emissora e distribuidora do título (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md). null fora da renda fixa. */
+  noteInfo?: NoteInfo | null;
+  /** Só na tela: noteInfo.distributorName, para a coluna DISTRIBUIDORA ordenar pelo cabeçalho. */
+  distributorName?: string | null;
+}
+
+/**
+ * Emissora e distribuidora de um título (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md, R10–R12): nome de exibição (o
+ * do grupo: "Nubank"), razão social para a dica, regra de saída da distribuidora, código do papel, logo do grupo da
+ * emissora e o fundo que garante (FGC/FGCOOP; null = sem garantia).
+ */
+export interface NoteInfo {
+  issuerId: number | null;
+  issuerName: string | null;
+  issuerLegalName: string | null;
+  issuerKind: string | null;
+  distributorId: number | null;
+  distributorName: string | null;
+  distributorLegalName: string | null;
+  distributorSaleRule: 'PROPORCIONAL' | 'UEPS' | 'PEPS' | null;
+  paperCode: string | null;
+  issuerLogoTicker: string | null;
+  guarantee: 'FGC' | 'FGCOOP' | null;
+}
+
+/** Empresa do seletor de emissora/distribuidora (GET /fixed-income-issuers). */
+export interface FixedIncomeIssuerOption {
+  id: number;
+  kind: string;
+  /** "Grupo — razão social" */
+  label: string;
+  /** O nome das colunas (o do grupo). */
+  displayName: string;
+  legalName: string;
+  groupName: string | null;
+  status: string | null;
+  /** Inativa, cancelada, liquidada: continua escolhível (lançamento retroativo). */
+  dead: boolean;
+  guarantor: 'FGC' | 'FGCOOP' | 'NENHUM' | null;
+  saleRule: 'PROPORCIONAL' | 'UEPS' | 'PEPS' | null;
+  cnpjRoot: string | null;
+  logoTicker: string | null;
+}
+
+/** Troca de distribuidora de uma compra de Tesouro com venda ligada (plano de emissoras, 5.1). */
+export interface DistributorChangeItem {
+  type: 'BUY' | 'SELL';
+  /** Compra: id da transação; venda: id do grupo da venda. */
+  id: string;
+  date: string;
+  shares: number | null;
+  pricePerShare: number | null;
+  totalAmount: number | null;
+  /** A compra editada: vai sempre. */
+  locked: boolean;
+}
+
+export interface DistributorChangePreview {
+  fromId: number | null;
+  fromName: string | null;
+  toId: number;
+  toName: string;
+  ticker: string;
+  items: DistributorChangeItem[];
 }
 
 /** Um aporte ainda aplicado, com os impostos de um resgate na data do valor. */
@@ -361,6 +425,8 @@ export interface TransactionResponse {
   iofTax?: number | null;
   /** Liquidação total: diferença entre o recebido e a curva, já somada ao bruto (R8). */
   settlementAdjustment?: number | null;
+  /** Emissora e distribuidora do título (plano de emissoras). `issuer` acima é o nome de exibição da emissora. */
+  noteInfo?: NoteInfo | null;
 }
 
 /**
@@ -377,6 +443,7 @@ export interface NoteOption {
   indexerRate: number | null;
   settled: boolean;
   matured: boolean;
+  noteInfo?: NoteInfo | null;
 }
 
 export interface TransactionCreate {
@@ -406,11 +473,16 @@ export interface TransactionCreate {
   // movimentação sobre o mesmo papel. Ausente numa compra de renda fixa
   // significa "papel novo": a nota nasce junto com a transação.
   noteId?: string | null;
-  issuer?: string | null;
+  /** Emissora (fixed_income_issuers), de um tipo aceito pelo produto. Ignorada no Tesouro (Tesouro Nacional). */
+  issuerId?: number | null;
   maturityDate?: string | null;
   rateType?: RateType | null;
   indexer?: Indexer | null;
   indexerRate?: number | null;
+  /** Distribuidora (onde foi comprado): título novo de RF e compra e venda do Tesouro. */
+  distributorId?: number | null;
+  /** Código do papel na B3 (ex.: CDBA2478FYE), opcional. */
+  paperCode?: string | null;
 }
 
 export interface Strategy {

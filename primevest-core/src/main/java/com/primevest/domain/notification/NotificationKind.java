@@ -23,6 +23,11 @@ public enum NotificationKind {
     RF_LIQUIDADA(USER, RENDA_FIXA, INFO, false),
     RF_LIQUIDACAO_SEM_VALOR(USER, RENDA_FIXA, ATENCAO, true),
     RF_LIQUIDACAO_DIVERGENTE(USER, RENDA_FIXA, ATENCAO, true),
+    /**
+     * Compra de Tesouro importada da B3 cuja corretora nao casou com o cadastro: o titulo ficou com a distribuidora
+     * "Instituicao nao listada" (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md, L21).
+     */
+    RF_DISTRIBUIDORA_NAO_LISTADA(USER, RENDA_FIXA, ATENCAO, true),
     PRECO_ABAIXO_IDEAL(USER, PRECO_TETO, INFO, false),
     PRECO_TETO_PADRAO_MUDOU(USER, PRECO_TETO, INFO, true),
     INTEGRACAO_IMPORTOU(USER, INTEGRACOES, INFO, false),

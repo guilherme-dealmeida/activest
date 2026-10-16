@@ -357,3 +357,6 @@ resolve as `RF_LIQUIDACAO_DIVERGENTE` abertas.
   "mesmo assim" tributa o excesso — gross-up pelas alíquotas dos lotes como na R8 (`FixedIncomeLots.overflow`),
   `settlement_adjustment` = bruto − saldo da curva; o gross-up passou a incluir também os lotes ainda sem rendimento
   (R8 e D4).
+- 16/10/2026 — D1 concluída pelo escopo de emissoras (`docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md`, R12): a RF lê a
+  regra de saída de `fixed_income_issuers.sale_rule` da distribuidora do título (`FixedIncomeValuation.saleRule`);
+  PROPORCIONAL é o padrão; a Nu Financeira fica UEPS pela curadoria semeada na V55.

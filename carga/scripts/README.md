@@ -24,6 +24,7 @@ Sem Node na máquina, tudo roda pelos contêineres `data` e `tools` (profile `ca
 | `admin.mjs` | dispara uma rotina de administrador: `bootstrap`, `proventos`, `cvm/proventos`, `closing`, `logos`, `issuers/import`... Login na app-api, rotina na adm-api |
 | `get.mjs` | GET autenticado na app-api, para conferência (`node carga/scripts/get.mjs /api/v1/assets/PETR4/indicators`) |
 | `gerar_seed_emissores.mjs` | regera a migration de seed dos emissores (como a V30) a partir do banco de desenvolvimento, depois de uma curadoria |
+| `gerar_seed_emissoras_rf.mjs` | regera a migration de seed das emissoras e distribuidoras de renda fixa (como a V55) a partir do banco de desenvolvimento, depois da integração BCB + CVM e da curadoria (`docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md`, E3) |
 | `data/data.sh` | `carga/data/` ↔ bucket R2 (rclone), pelo contêiner `data`: `pull [--minimo]`, `push` (só quem tem a chave de escrita — gera os manifests), `status` |
 | `sql/contagens.sql` | contagens do catálogo, para comparar um banco novo com o de desenvolvimento |
 | `sql/datas_pagamento.sql` | cobertura da data de pagamento dos proventos, por ano |

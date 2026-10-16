@@ -16,7 +16,11 @@ public enum CvmDataset {
      * Indice dos documentos eventuais (IPE): de 2022 em diante traz o "Relatorio Proventos", com a
      * data de pagamento que o historico longo da B3 nao tem (docs/planos/PLANO_CARGA_INICIAL.md, 5.2 — P3).
      */
-    IPE("CIA_ABERTA/DOC/IPE/DADOS/ipe_cia_aberta_%d.zip", "ipe");
+    IPE("CIA_ABERTA/DOC/IPE/DADOS/ipe_cia_aberta_%d.zip", "ipe"),
+    /** Informe mensal de CRI (desde 2021): o CNPJ e o nome das securitizadoras (PLANO_EMISSORAS_RENDA_FIXA, 4.1). */
+    SECURIT_CRI("SECURIT/DOC/INF_MENSAL_CRI/DADOS/inf_mensal_cri_%d.zip", "securit"),
+    /** Informe mensal de CRA (desde 2021). */
+    SECURIT_CRA("SECURIT/DOC/INF_MENSAL_CRA/DADOS/inf_mensal_cra_%d.zip", "securit");
 
     private final String pathPattern;
     private final String folder;

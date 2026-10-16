@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { NoteOption, SalePreview, TransactionCreate, TransactionResponse } from '../types';
+import { DistributorChangePreview, NoteOption, SalePreview, TransactionCreate, TransactionResponse } from '../types';
 
 export const transactionsApi = {
   list: async () => { const { data } = await apiClient.get<TransactionResponse[]>('/transactions/'); return data; },
@@ -18,6 +18,18 @@ export const transactionsApi = {
   salePreview: async (txData: TransactionCreate, excludeId?: string | null) => {
     const { data } = await apiClient.post<SalePreview>('/transactions/sale-preview', txData,
       { params: excludeId ? { excludeId } : undefined });
+    return data;
+  },
+  /** Troca de distribuidora de uma compra de Tesouro com venda ligada: a cascata para o modal (plano de emissoras, 5.1). */
+  distributorChangePreview: async (id: string, distributorId: number) => {
+    const { data } = await apiClient.get<DistributorChangePreview>(`/transactions/${id}/distributor-change`,
+      { params: { distributorId } });
+    return data;
+  },
+  /** Confirma a troca com os itens marcados — tudo ou nada. */
+  changeDistributor: async (id: string, purchase: TransactionCreate, purchaseIds: string[], saleGroupIds: string[]) => {
+    const { data } = await apiClient.post<TransactionResponse>(`/transactions/${id}/distributor-change`,
+      { purchase, purchaseIds, saleGroupIds });
     return data;
   },
 };

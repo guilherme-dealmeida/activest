@@ -122,11 +122,13 @@ public class FixedIncomeValuation {
     }
 
     /**
-     * A regra de saida dos lotes do titulo. D1 (b): a distribuidora — onde a regra vai morar — vem com o escopo de
-     * emissoras; ate la, toda renda fixa usa o padrao.
+     * A regra de saida dos lotes do titulo: a da DISTRIBUIDORA dele (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md, R12;
+     * PLANO_VENDA_RENDA_FIXA D1). Padrao PROPORCIONAL; Nu Financeira UEPS.
      */
     public static SaleRule saleRule(PortfolioAsset pa) {
-        return SaleRule.DEFAULT;
+        FixedIncomeNote note = pa != null ? pa.getNote() : null;
+        FixedIncomeIssuer distributor = note != null ? note.getDistributor() : null;
+        return distributor != null && distributor.getSaleRule() != null ? distributor.getSaleRule() : SaleRule.DEFAULT;
     }
 
     /** Os movimentos do titulo para os lotes: compra pelo aplicado, venda pelo liquido (ou pelo bruto, se nao houver). */

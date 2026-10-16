@@ -19,4 +19,7 @@ public interface FixedIncomeNoteRepository extends JpaRepository<FixedIncomeNote
      * um usuário lançar transação sobre o papel de outro — o id vem do cliente.
      */
     Optional<FixedIncomeNote> findByIdAndUserId(UUID id, UUID userId);
+
+    /** O titulo do usuario com o codigo do papel (unico por usuario, R8 do PLANO_EMISSORAS_RENDA_FIXA). */
+    Optional<FixedIncomeNote> findByUserIdAndPaperCode(UUID userId, String paperCode);
 }

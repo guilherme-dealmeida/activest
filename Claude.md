@@ -5,7 +5,11 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 15/10/2026 (Venda de renda fixa pelo líquido: IR e IOF por aporte (V52), bruto calculado pelos
+> **Última revisão**: 16/10/2026 (Emissoras e distribuidoras de renda fixa: cadastro `fixed_income_issuers` e grupos
+> `fixed_income_groups` (V54) alimentados pelo BCB e pela CVM, emissora, distribuidora e código do papel no título, regra
+> de saída da distribuidora, FIFO e regra H do Tesouro por distribuidora, troca de distribuidora com a cascata, RDC no
+> catálogo — ver "Emissoras e distribuidoras de renda fixa (16/10/2026)" em Pontos de Atenção e
+> `docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md`). Antes: 15/10/2026 (Venda de renda fixa pelo líquido: IR e IOF por aporte (V52), bruto calculado pelos
 > lotes do título, IR e IOF por título no Tesouro, prévia da venda, líquido estimado na Carteira; a liquidação automática
 > do título vencido saiu — o PrimeVest só avisa — ver "Venda de renda fixa e Tesouro: líquido, IR e IOF (15/10/2026)" em
 > Pontos de Atenção e `docs/planos/PLANO_VENDA_RENDA_FIXA.md`). Antes: 13/10/2026 (Notificações: caixa de mensagens estilo e-mail aberta pelo sino do rodapé do menu,
@@ -102,7 +106,7 @@ A separação em três lugares, cada um com um dono:
 |--------|------|--------------|
 | `assets` | ninguém (global) | o instrumento: ticker, nome, tipo, categoria |
 | `asset_terms` | ninguém (global) | parâmetros **públicos** do papel, 1:1 com `assets`. Hoje só Tesouro Direto |
-| `fixed_income_notes` | usuário | **o papel**: emissor, vencimento, forma de remuneração e a taxa contratada |
+| `fixed_income_notes` | usuário | **o papel**: emissora e distribuidora (cadastro `fixed_income_issuers`), código do papel, vencimento, forma de remuneração e a taxa contratada |
 
 Por que `asset_terms` existe em vez de continuar como colunas em `assets`:
 "Tesouro IPCA+ 2029" vence em 15/05/2029 e remunera IPCA mais spread para
@@ -335,11 +339,12 @@ Plano, decisões e achados da integração: **`docs/planos/PLANO_BRAPI.md`** (ex
 | Índices de mercado, incremental com janela de revisão (30 dias nos diários, 3 meses nos mensais), com recuperação na subida — `MarketIndexScheduler` (`docs/planos/PLANO_INDICES_MERCADO.md`) | 10:00 | adm-api |
 | Conferência do catálogo e dos índices atrasados (só loga) — `CatalogAuditScheduler` | seg 07:00 | adm-api |
 | Cotações de **todo o catálogo** (ações e FIIs) pelo COTAHIST diário da B3, um arquivo por pregão, completando os que faltam, com recuperação na subida — `B3DailyQuotesScheduler` (`docs/planos/PLANO_PRECO_TETO.md`, 4.5; 10/10/2026) | 21:30 e 08:30 | adm-api |
+| Emissoras e distribuidoras de renda fixa (BCB IF.data + Instituições em funcionamento, CVM intermediários, companhias e securitizadoras) — `FixedIncomeIssuerScheduler` (`primevest.fixed-income-issuers.cron`; `docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md`, 4.2) | dia 1, 05:30 | adm-api |
 | Logos (arquivos em `carga/data/logos/{TICKER}.{ext}` — o arquivo é o estado; só quem não tem arquivo; a subida não procura nada, o ativo novo é procurado no pedido "preciso do histórico") — `LogoScheduler` | dia 1, 06:00 | adm-api (a app-api só lê a pasta, `AssetLogos`) |
 | Recálculo de proventos e valorização de todas as posições — `PositionRefreshScheduler` | 21:00 | app-api |
 | Fila das integrações com corretoras — `IntegrationSyncScheduler` (08:45) e `IntegrationWorker` (5 s) | — | app-api |
 
-Disparo manual para admin, **na adm-api (8081)**: `POST /api/v1/admin/{closing|proventos|catalog-audit|logos|issuers/import|issuers/link|b3/cotahist|b3/cotahist/diario|cvm/import|cvm/quarters|cvm/fii-monthly|cvm/proventos|indices|tesouro|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, datas de pagamento da CVM, balanços, informe de FII, índices de mercado e preço do Tesouro, em ordem — docs/planos/PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
+Disparo manual para admin, **na adm-api (8081)**: `POST /api/v1/admin/{closing|proventos|catalog-audit|logos|issuers/import|issuers/link|fixed-income-issuers|b3/cotahist|b3/cotahist/diario|cvm/import|cvm/quarters|cvm/fii-monthly|cvm/proventos|indices|tesouro|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, datas de pagamento da CVM, balanços, informe de FII, índices de mercado e preço do Tesouro, em ordem — docs/planos/PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
 (`b3/cotahist?from=2010&to=2026`, padrão 2010 até o ano corrente; `cvm/import?from=2010&to=2026&force=false` —
 documento na mesma versão é pulado, `force=true` reprocessa a partir de `carga/data/cvm` sem baixar; ao terminar recalcula
 a série trimestral, que `cvm/quarters` recalcula sozinha; `cvm/fii-monthly?from=2016&to=2026&force=false` — informe
@@ -368,6 +373,7 @@ Todas as fontes abaixo, menos o Google, são da **adm-api** (config em `primeves
 | **FNET** (`FnetClient`, refeito na F8) | Proventos de FII além de 12 meses (avisos estruturados). O histórico sai **só de `carga/data/fnet/{id}.xml`**, por um índice local `CNPJFundo` → avisos (a carga não chama o FNET). **Fonte principal de FII** (D15 do docs/planos/PLANO_CARGA_INICIAL.md): aplicado antes da B3, e o evento que a B3 gravou como reserva passa a ser do FNET quando o aviso chega; quando a B3 mostra um provento mais novo que o último aviso gravado do fundo, o FNET é consultado pelo CNPJ (no máximo uma vez por dia por fundo) e o aviso novo é baixado (PENDENCIAS 18.10 d). A busca por CNPJ e o download ficam no client: aviso baixado vai para `carga/data/fnet` e nunca é baixado de novo; download com timeout de 5 s, até 6 tentativas com espera crescente e no máximo 3 simultâneos; lê os dois formatos de XML (o antigo, 2016–2019, com `ValorProventoCota`). Aviso ligado pelo CNPJ, sem recibo (final 12–19) e sem data-base depois do pagamento | `fnet.*`, `primevest.data.dir` |
 | **Série histórica da B3 — COTAHIST** (`B3HistoricalQuotesClient`) | Preço diário não ajustado de ações (lote padrão e fracionário) e FIIs desde 2010, e o ISIN de cada ticker do catálogo. Zip por ano em `carga/data/b3/cotahist`; desde 10/10/2026 também **um zip por pregão** (`COTAHIST_DddMMaaaa.ZIP`, ~0,5 MB, em `carga/data/b3/cotahist/diario`), pela rotina das 21:30/08:30 — preço de todo o catálogo sem cota da BRAPI. Dia gravado pela B3 não é sobrescrito pela BRAPI (`asset_price_history.source`, V29) | `b3.cotahist-url` |
 | **CVM dados abertos** (`CvmOpenDataClient`) | Emissores (cadastro de companhias, FCA, informe mensal de FII); informe mensal de FII 2016+ em `fii_monthly` (`CvmFiiMonthly`, partes complemento e ativo/passivo, F7); balanços DFP (2010+) e ITR (2011+) (`CvmStatements`); histórico de capital do Formulário de Referência (`CvmFreCapital`, quantidade de ações antes de 2020 e régua da escala depois). Cache em `carga/data/cvm/{cad,fca,fii,dfp,itr,fre}` — o arquivo é o estado (`docs/planos/PLANO_EMPRESAS_BALANCOS.md`) | `cvm.base-url`, `primevest.data.dir` |
+| **Banco Central — IF.data e Instituições em funcionamento** (`BcbInstitutionsClient`, Olinda, sem token) | Cadastro das instituições (vivas e mortas, situação, segmento, conglomerado prudencial e líder) pela última data-base trimestral publicada, e o site da sede. Cache em `carga/data/bcb/ifdata/cadastro_{AnoMes}.json` e `carga/data/bcb/instituicoes/` — `docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md`, 4.1 | `bcb.ifdata-url`, `bcb.institutions-url`, `primevest.data.dir` |
 | **CoinGecko** | Preço de cripto (id em `assets.price_source_ref`) e logos das moedas | `coingecko.base-url` |
 | **Banco Central — API SGS** (`BcbSgsClient`, sem token) | Índices de mercado (`docs/planos/PLANO_INDICES_MERCADO.md`): CDI (série 12), Selic (11), IPCA (433), IGP-M (189), INPC (188), TR (226), meta Selic (432), dólar PTAX venda (1). Uma consulta por ano civil com `dataInicial`/`dataFinal` (série diária recusa janela de mais de 10 anos com 406; 404 = sem valores no período); timeout de 20 s e até 4 tentativas (o SGS às vezes demora). A TR repete o início com fins diferentes: fica o período de um mês cheio. Data futura não entra (a meta Selic vem preenchida até a próxima reunião do Copom). Cache `carga/data/bcb/sgs/{código}/{ano}.json`: ano fechado com arquivo só do disco; o corrente e o anterior sempre da fonte (`IndexYearCache`) | `bcb.sgs-base-url`, `indices.*`, `primevest.data.dir` |
 | **Tesouro Transparente — preços e taxas do Tesouro Direto** (`TesouroPriceClient`, sem token) | `PrecoTaxaTesouroDireto.csv`: todo o histórico desde 2002 num arquivo (~14 MB, ~1 min), atualizado todo dia útil ~07:20 com o D-1; colunas tipo, vencimento, data base, taxas e PU de compra/venda/base. Cache `carga/data/tesouro/` (`PublicFileCache`, só baixa se mudou). `TreasuryPriceService` casa a linha com o título do catálogo por **tipo + vencimento** (`asset_terms`; o ano do ticker nem sempre é o do vencimento: Renda+ 2065 vence em 2084), grava o **PU de venda** (resgate antecipado; sem ele, o PU base) em `asset_price_history` (`source = TESOURO`) e o último em `assets.current_price` | `tesouro.prices-url`, `tesouro.timeout-seconds` |
@@ -408,7 +414,7 @@ primevest/
 ├── .claude/                     # ponte de execução: build.ps1 + logs/ (ver README de lá)
 ├── carga/                       # carga inicial (docs/planos/PLANO_CARGA_INICIAL.md)
 │   ├── data/                    # cache das fontes e dados da carga (ignorado pelo git; cópia no bucket R2)
-│   └── scripts/                 # admin.mjs, get.mjs, gerar_seed_emissores.mjs, data/ (rclone ↔ bucket R2),
+│   └── scripts/                 # admin.mjs, get.mjs, gerar_seed_emissores.mjs, gerar_seed_emissoras_rf.mjs, data/ (rclone ↔ bucket R2),
 │                                # levantamento/, sql/ (conferência)
 │
 ├── pom.xml                      # agregador Maven (docs/planos/PLANO_ADM_API.md): versões, compilador, testes
@@ -520,9 +526,11 @@ em desenvolvimento. **Não versione credenciais reais.**
 | `transactions` | Compras e vendas. Fonte da verdade da posição. `note_id` nulo na renda variável |
 | `assets` | Catálogo global: `ticker`, `name`, `asset_type_id`, `asset_category_id`, `current_price`, `active` |
 | `asset_terms` | Parâmetros públicos do papel, PK = `asset_id`. Só Tesouro Direto hoje |
-| `fixed_income_notes` | **O papel do usuário**: `issuer`, `maturity_date`, `rate_type`, `indexer`, `indexer_rate` |
+| `fixed_income_notes` | **O papel do usuário**: `issuer_id` e `distributor_id` (FK `fixed_income_issuers`, obrigatórias — títulos antigos com "Instituição não listada", V54), `paper_code` (opcional, só A–Z0–9, único por usuário), `maturity_date`, `rate_type`, `indexer`, `indexer_rate`. Regra H do Tesouro: único por `(user_id, asset_id, distributor_id, purchase_date)` |
+| `fixed_income_issuers` | Emissoras e distribuidoras de renda fixa (V54), **1 por raiz de CNPJ** (8 dígitos): `kind` (BANCO, FINANCEIRA, COOPERATIVA, CORRETORA_DISTRIBUIDORA, SECURITIZADORA, COMPANHIA, TESOURO, NAO_LISTADA), razão social, nome comercial, segmento, `status` (a morta nunca sai), `guarantor` (FGC/FGCOOP/NENHUM), `sale_rule` da distribuidora (PROPORCIONAL padrão; Nu Financeira UEPS), `group_id` + `group_source` (BCB/MANUAL). Duas linhas fixas: "Tesouro Nacional" e "Instituição não listada". Alimentada pela rotina `FixedIncomeIssuerImportService` (BCB + CVM); curadoria nunca sobrescrita |
+| `fixed_income_groups` | Grupos = conglomerado prudencial do BCB (`bcb_code`, inclusive os de uma empresa só), `name` + `name_source` (MANUAL não é tocado), `logo_ticker` (logo da linha de RF, D5), `extinct` (só em bases antigas) |
 | `asset_types` | 12 tipos |
-| `asset_categories` | 80 categorias, **um nível só**: unicidade `(asset_type_id, name)` (V31). Ação: setor B3; FII: tipo de fundo (TIJOLO, PAPEL, FOF, HIBRIDO, OUTROS). O segundo nível está no emissor: segmento B3 da ação em `issuers.b3_segment`, segmento de atuação do FII em `issuers.segment` |
+| `asset_categories` | 81 categorias (RDC na V54), **um nível só**; na renda fixa `issuer_kinds` (tipos de emissora que o produto aceita: CDB só BANCO) e `guaranteed` (produto coberto por FGC/FGCoop) — plano de emissoras, 4.4: unicidade `(asset_type_id, name)` (V31). Ação: setor B3; FII: tipo de fundo (TIJOLO, PAPEL, FOF, HIBRIDO, OUTROS). O segundo nível está no emissor: segmento B3 da ação em `issuers.b3_segment`, segmento de atuação do FII em `issuers.segment` |
 | `strategies` | % ideal por tipo — `unique(user_id, asset_type_id)`. É a **geração de renda**: posição de reserva nunca entra (`include_reservation` saiu na V10) |
 | `strategy_reservations` | Estratégia da reserva de emergência — **uma por usuário** (`unique(user_id)`), nunca apagada. `type_reservation` 1 = por percentual (`target_percentage`), 2 = por valor (`target_value`); a outra coluna fica nula, e `ck_strategy_reservations_target` confere |
 | `dividends` | Proventos. **Sem `user_id`** — ver Pontos de Atenção. `total_amount` é o **bruto** (truncado nos centavos, como a B3); `net_amount` é o **líquido** depois do IR retido (V23) |
@@ -582,7 +590,7 @@ coluna.
 > usuário; `getName()` é para lógica interna. `AssetCategory.getDisplayName()`
 > encapsula o fallback description → name.
 
-### Flyway — V1 a V53
+### Flyway — V1 a V55
 
 O Flyway roda do zero no perfil `docker`. No perfil `dev` fica desligado, porque
 o banco local é gerenciado à mão.
@@ -650,6 +658,8 @@ categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, s
 | V51 | docs/planos/PLANO_NOTIFICACOES.md (3.4): `stock_event_costs` — custo por ação da bonificação informado pelo usuário para a posição |
 | V52 | docs/planos/PLANO_VENDA_RENDA_FIXA.md (3.1): `fixed_income_tax_rules` — IR regressivo (4 faixas), IOF regressivo (dias 1–29 e zero do 30º) e as exceções por produto (isenção de IR: LCI, CRI, LCA, CRA, debênture incentivada, LIG, poupança; IOF zero: LCA, CRA, CRI, debênture, debênture incentivada, LF, poupança), com vigência e base legal — 48 linhas |
 | V53 | docs/planos/PLANO_VENDA_RENDA_FIXA.md (3.2): `transactions.net_amount`, `income_tax`, `iof_tax`, `settlement_adjustment`; vendas de renda fixa já gravadas ficam com líquido = total e impostos zero (D2); `ck_transactions_sale_taxes` (líquido, IR e IOF todos nulos ou todos preenchidos) |
+| V54 | docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md (3.1): `fixed_income_groups` e `fixed_income_issuers` (+ as linhas fixas Tesouro Nacional e Instituição não listada), `asset_categories.issuer_kinds`/`guaranteed`, categoria e ativo RDC, `fixed_income_notes.issuer_id`/`distributor_id` (obrigatórias, "Instituição não listada" nos títulos que existiam — REGRAS 8.1) e `paper_code`; regra H por distribuidora; sai o texto livre `issuer` |
+| V55 | docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md (3.2): seed das emissoras e distribuidoras — 292 grupos (98 com nome curado, 2 extintos, 17 com logo) e 6.920 empresas do BCB e da CVM, 32 inativas no grupo antigo, Nu Financeira UEPS. Gerado do banco por `carga/scripts/gerar_seed_emissoras_rf.mjs`; chave natural (código do BCB, raiz do CNPJ), `ON CONFLICT` preserva o que veio da fonte e traz a curadoria |
 | V43 | docs/planos/PLANO_INDICES_MERCADO.md (X1): `market_indices` (10 índices semeados) e `market_index_values` (vazia; a série vem da adm-api) |
 | V41 | docs/planos/PLANO_CADASTRO_USUARIO.md (seção 5): colunas novas de `users` (celular, CPF cifrado + hash, verificação de e-mail, `password_changed_at`, aceite dos termos, tema), índices únicos de e-mail sem caixa, celular e CPF; o usuário semeado ganha e-mail verificado e o aceite da versão `2026-10-provisorio` |
 
@@ -1028,7 +1038,14 @@ a chave precisa avisar quem está de fora que o estado mudou. Por isso o
 
 ### Transações
 - Modal em duas colunas: operação à esquerda, quadro do título à direita, com
-  alturas independentes. Sem isso o quadro esticava o modal inteiro.
+  alturas independentes. Sem isso o quadro esticava o modal inteiro. Desde 16/10/2026 o quadro tem os campos em duas
+  colunas (emissora | distribuidora, código | vencimento, remuneração | índice, taxa) e, com ele, o modal fica mais
+  largo (`size="2xl"`, proporção 5fr/6fr); sem o quadro, a largura é a de antes.
+- Listagem (16/10/2026): TÍTULO mostra a distribuidora do título e, em segunda linha, o índice com o percentual
+  ("121,00% do CDI"); emissora, razão social e código do papel ficam na dica. DATA TRANSAÇÃO traz o vencimento do título
+  em segunda linha. A coluna TAXAS saiu da tabela (a taxa continua no formulário e, na venda, no líquido).
+  Na renda fixa a coluna ATIVO usa o logo do grupo da emissora (`noteInfo.issuerLogoTicker`, D5), como a Carteira;
+  sem logo curado no grupo, fica o "RF".
 - O **tipo de ativo comanda o formulário**: restringe o autocomplete e decide se
   o quadro do título aparece.
 - Autocomplete a partir de 2 caracteres, debounce 300ms, teto de 50 no servidor.
@@ -1490,8 +1507,8 @@ Plano: `docs/planos/PLANO_VENDA_RENDA_FIXA.md`.
   até o resgate, regra do produto (por `asset_id`) vence a geral; sem regra = 0. `FixedIncomeTaxCalculator`: IOF
   primeiro, IR sobre rendimento − IOF, ambos **truncados** no centavo (D3).
 - **Lotes** (`FixedIncomeLots`, core, puro): cada aporte é um lote que rende pelo fator do dia da curva. Venda pelo
-  líquido → bruto por *gross-up* com a regra de saída (`SaleRule`: PROPORCIONAL — o padrão —, UEPS, PEPS; hoje toda RF usa
-  PROPORCIONAL até a distribuidora existir, D1); liquidação total → a diferença entre o recebido e a curva vira
+  líquido → bruto por *gross-up* com a regra de saída (`SaleRule`: PROPORCIONAL — o padrão —, UEPS, PEPS; desde 16/10/2026 é a `sale_rule` da
+  **distribuidora** do título, plano de emissoras R12); liquidação total → a diferença entre o recebido e a curva vira
   **ajuste da liquidação**, somado ao bruto (R8); venda parcial acima do líquido disponível (lançada "mesmo assim",
   R9) → o excesso também é rendimento tributado: gross-up pelas alíquotas dos lotes como na R8, ajuste = bruto − saldo
   da curva, e o título cai para o centavo da regra F (D4) — PENDENCIAS 27.5, 15/10/2026. No gross-up (R8 e D4) entram
@@ -1507,6 +1524,34 @@ Plano: `docs/planos/PLANO_VENDA_RENDA_FIXA.md`.
 - **Carteira**: `estimatedNet` e `lots` em `PortfolioAssetDetailDTO` (via `PositionValuationInfo`): segunda linha
   "líq." sob o valor atual (D5; sem o (i) da base do valor na renda fixa, retirado em 15/10/2026) e, ao clicar, os aportes com dias, aplicado, rendimento, % IOF, alíquota de IR, impostos
   e líquido. No Tesouro, o título é um lote só, pelo PU do dia.
+
+### Emissoras e distribuidoras de renda fixa (16/10/2026)
+Plano: `docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md`.
+
+- **Cadastro, não texto livre.** O título (`fixed_income_notes`) guarda `issuer_id` e `distributor_id` de
+  `fixed_income_issuers` — a empresa é a **raiz do CNPJ** (8 dígitos). O texto livre `issuer` saiu (V54); títulos que já
+  existiam ficaram com "Instituição não listada" nas duas (REGRAS 8.1) e o usuário corrige editando a compra.
+- **Fontes** (adm-api, `FixedIncomeIssuerImportService`): BCB IF.data (bancos, financeiras, cooperativas, corretoras e
+  DTVMs, vivas e mortas, com o conglomerado prudencial = **grupo**), CVM intermediários, companhias abertas
+  (debênture, nota comercial) e securitizadoras (informe mensal de CRI/CRA). A importação **nunca** sobrescreve o que
+  é curadoria: nome do grupo `MANUAL`, vínculo `MANUAL`, `sale_rule` e `logo_ticker`. Empresa que some do BCB mantém o
+  grupo. Mensal (dia 1, 05:30), `POST /api/v1/admin/fixed-income-issuers` e etapa do bootstrap.
+- **Exibição** (R10, `FixedIncomeIssuer.getDisplayName`): colunas mostram o nome do grupo (razão social na dica);
+  seletores mostram "Grupo — razão social" (`IssuerPicker` no front, `GET /api/v1/fixed-income-issuers?role=ISSUER|DISTRIBUTOR&ticker=&q=`);
+  empresa morta continua escolhível, em cinza.
+- **Produto → tipos de emissora** (`asset_categories.issuer_kinds`): CDB só banco; LCI/LCA também cooperativa; RDC só
+  cooperativa; CRI/CRA securitizadora; debênture/nota comercial companhia. Distribuidora: corretora/DTVM, banco,
+  financeira ou cooperativa. "Instituição não listada" vale nas duas.
+- **Código do papel** (D4): opcional, normalizado para A–Z0–9; título com código só recebe aporte com o mesmo código, e
+  um título novo com código que já existe é recusado apontando o título.
+- **Regra de saída** (`SaleRule`) é da **distribuidora** (`FixedIncomeValuation.saleRule`). Trocar a distribuidora de
+  um título de RF refaz os resgates dele pela regra nova (a tela avisa quando a regra muda).
+- **Tesouro por distribuidora**: compra e venda informam a distribuidora (obrigatória); o FIFO (`TreasuryAllocator`)
+  consome só os títulos do ativo **nessa distribuidora**, e a regra H vale por ativo + distribuidora + data (D3). Na
+  venda a tela só oferece as distribuidoras com título aberto (D7). Trocar a distribuidora de uma compra com venda
+  ligada abre o modal da cascata (`DistributorChangeModal`; `GET`/`POST /api/v1/transactions/{id}/distributor-change`),
+  tudo ou nada. Compra de Tesouro importada da B3: distribuidora pelo nome do participante; sem correspondência,
+  "Instituição não listada" e a notificação `RF_DISTRIBUIDORA_NAO_LISTADA`.
 
 ### `dividends` não tem dono próprio
 O dono vem de `portfolio_asset_id`, que é **obrigatório** (`NOT NULL`) e

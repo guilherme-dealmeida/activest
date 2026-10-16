@@ -18,6 +18,7 @@ import java.util.UUID;
  *
  * @param settled a posicao do titulo esta liquidada (resgate total lancado)
  * @param matured o vencimento ja chegou (mesma regra do selo "Vencido" da carteira)
+ * @param issuer  nome de exibicao da emissora (o do grupo, R10)
  */
 public record NoteOptionDTO(
     UUID noteId,
@@ -27,5 +28,7 @@ public record NoteOptionDTO(
     Indexer indexer,
     BigDecimal indexerRate,
     boolean settled,
-    boolean matured
+    boolean matured,
+    /** Emissora, distribuidora, codigo do papel e garantia (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md). */
+    com.primevest.domain.fixedincome.FixedIncomeIssuers.NoteInfo noteInfo
 ) {}

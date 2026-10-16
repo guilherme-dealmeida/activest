@@ -96,5 +96,11 @@ public record TransactionResponseDTO(
     /** IOF da venda. */
     BigDecimal iofTax,
     /** Liquidacao total da renda fixa: bruto menos o saldo da curva (o "ajuste da liquidacao"). */
-    BigDecimal settlementAdjustment
+    BigDecimal settlementAdjustment,
+
+    /**
+     * Emissora e distribuidora do titulo (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md): ids, nome de exibicao, razao
+     * social, regra de saida, codigo do papel, logo e garantia. {@code issuer} acima e o nome de exibicao da emissora.
+     */
+    com.primevest.domain.fixedincome.FixedIncomeIssuers.NoteInfo noteInfo
 ) {}

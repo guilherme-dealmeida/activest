@@ -35,6 +35,9 @@ public class PortfolioService {
     private final DividendCalendar dividendCalendar;
     private final AssetLogos assetLogos;
     private final PositionValuationInfo valuationInfo;
+    /** Emissora e distribuidora do titulo (PLANO_EMISSORAS_RENDA_FIXA). Por campo: os testes de servico nao o usam. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.primevest.domain.fixedincome.FixedIncomeIssuers fixedIncomeIssuers;
 
     public PortfolioService(PortfolioRepository portfolioRepository, PortfolioAssetRepository portfolioAssetRepository,
                             UserRepository userRepository, DividendRepository dividendRepository,
@@ -144,7 +147,7 @@ public class PortfolioService {
                     pa.getAsset().getAssetType().getDescription() != null ? pa.getAsset().getAssetType().getDescription() : pa.getAsset().getAssetType().getName(),
                     pa.getAsset().getAssetCategory() != null ? pa.getAsset().getAssetCategory().getDisplayName() : null,
                     note != null ? note.getId() : null,
-                    note != null ? note.getIssuer() : null,
+                    note != null && note.getIssuer() != null ? note.getIssuer().getDisplayName() : null,
                     note != null ? note.getPurchaseDate() : null,
                     note != null ? note.getMaturityDate() : null,
                     note != null ? note.getRateType() : null,
@@ -176,7 +179,8 @@ public class PortfolioService {
                     info(infos, pa) == null ? List.of() : info(infos, pa).lots().stream()
                         .map(l -> new PortfolioAssetDetailDTO.FixedIncomeLot(l.date(), l.days(), l.applied(),
                             l.balance(), l.income(), l.iofRate(), l.irRate(), l.iof(), l.ir(), l.net()))
-                        .toList()
+                        .toList(),
+                    fixedIncomeIssuers != null ? fixedIncomeIssuers.info(note) : null
                 );
             }).collect(Collectors.toList());
     }

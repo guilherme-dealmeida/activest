@@ -6,7 +6,7 @@ package com.primevest.domain.fixedincome;
  * <p>Nao e regra legal: cada instituicao faz de um jeito. Provado ate aqui: Tesouro Direto e PEPS; o Nubank
  * (RDB/caixinha) e UEPS, conferido no centavo contra o extrato diario (10/10/2026). O padrao e PROPORCIONAL porque,
  * dentro de um titulo, ele fica sempre entre PEPS e UEPS — o erro maximo e menor que o de escolher a regra errada.
- * Onde a regra mora (a distribuidora) vem com o escopo de emissoras (D1); ate la a renda fixa usa o padrao.</p>
+ * A regra mora na distribuidora do titulo ({@code fixed_income_issuers.sale_rule}, PLANO_EMISSORAS_RENDA_FIXA R12).</p>
  */
 public enum SaleRule {
     /** Cada lote cede a mesma fracao do seu saldo bruto. */

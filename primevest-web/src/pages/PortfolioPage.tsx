@@ -108,6 +108,8 @@ const EstimatedNet = ({ asset }: { asset: PortfolioAssetDetail }) => {
  * transações aplica a mesma distinção nos filtros.
  */
 const showIssuer = isFixedIncomeNote;
+// Distribuidora: onde o título foi comprado — renda fixa e Tesouro (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md, seção 7)
+const showDistributor = (type: AssetType) => type.fixedIncome;
 const showMaturity = (type: AssetType) => type.fixedIncome;
 // Só o Tesouro: cada compra é um título novo, e a data da aplicação é o que
 // separa duas linhas do mesmo papel (e a ordem em que a venda os consome).
@@ -188,7 +190,10 @@ const COLUMNS: Column[] = [
       <div className="flex items-center gap-3" title={a.assetName || undefined}>
         {/* Logo à esquerda do ticker (B25). Tesouro e Renda Fixa usam o do tipo;
             nos demais, null = tipo sem logo. */}
-        {logoDoTipo
+        {/* Renda fixa: o logo do grupo da emissora, quando há (D5); senão o "RF" do tipo */}
+        {type.name === RENDA_FIXA && a.noteInfo?.issuerLogoTicker
+          ? <AssetLogo ticker={a.noteInfo.issuerLogoTicker} hasLogo size={38} shape="square" />
+          : logoDoTipo
           ? <AssetLogo ticker={a.ticker} hasLogo={!!logoDoTipo.src} src={logoDoTipo.src} label={logoDoTipo.label} size={38} shape="square" />
           : a.hasLogo !== null && a.hasLogo !== undefined && <AssetLogo ticker={a.ticker} hasLogo={a.hasLogo} size={38} shape="square" />}
         <TickerLink ticker={a.ticker} issuerId={a.issuerId} />
@@ -207,10 +212,25 @@ const COLUMNS: Column[] = [
   // todas "CDB". Emissor e vencimento são o que as distingue.
   {
     key: 'issuer',
-    label: 'EMISSOR',
+    label: 'EMISSORA',
+    info: 'Quem emitiu o título: o nome do grupo. A razão social aparece ao passar o mouse.',
     align: 'left',
     visible: showIssuer,
-    render: (a) => <span className="text-white/70">{a.issuer || '—'}</span>,
+    render: (a) => (
+      <span className="text-white/70" title={a.noteInfo?.issuerLegalName ?? undefined}>{a.issuer || '—'}</span>
+    ),
+  },
+  {
+    key: 'distributorName',
+    label: 'DISTRIBUIDORA',
+    info: 'Onde o título foi comprado. A razão social aparece ao passar o mouse.',
+    align: 'left',
+    visible: showDistributor,
+    render: (a) => (
+      <span className="text-white/70" title={a.noteInfo?.distributorLegalName ?? undefined}>
+        {a.noteInfo?.distributorName || '—'}
+      </span>
+    ),
   },
   {
     key: 'purchaseDate',
@@ -415,7 +435,12 @@ const PortfolioTypeTable = ({ type, assets, reservation, onList, onBuy, onSell }
   const showReservation = type.fixedIncome;
 
   // Começa ordenada por ativo (A→Z); o clique no cabeçalho continua trocando.
-  const { sortedData, requestSort, getSortIndicator, getSortClass } = useSortable(assets, {
+  // A distribuidora vem dentro de noteInfo; o campo plano é o que a ordenação pelo cabeçalho lê
+  const linhas = useMemo(
+    () => assets.map(a => ({ ...a, distributorName: a.noteInfo?.distributorName ?? null })),
+    [assets]
+  );
+  const { sortedData, requestSort, getSortIndicator, getSortClass } = useSortable(linhas, {
     key: 'ticker',
     direction: 'asc',
   });

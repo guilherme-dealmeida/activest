@@ -28,6 +28,7 @@ import java.util.Optional;
 public class CvmOpenDataClient {
 
     static final String COMPANY_REGISTRY = "CIA_ABERTA/CAD/DADOS/cad_cia_aberta.csv";
+    static final String INTERMEDIARY_REGISTRY = "INTERMED/CAD/DADOS/cad_intermed.zip";
     private static final ZoneId ZONE = ZoneId.of("America/Sao_Paulo");
 
     private final PublicFileCache files;
@@ -62,6 +63,17 @@ public class CvmOpenDataClient {
         Path target = dir.resolve("cad").resolve("cad_cia_aberta.csv");
         return fetch(COMPANY_REGISTRY, target, true)
                 .orElseThrow(() -> new CvmException("Cadastro de companhias da CVM indisponivel e sem copia em disco"));
+    }
+
+    /**
+     * Cadastro de participantes intermediarios (corretoras, distribuidoras, bancos com carteira de investimento...),
+     * vivos e cancelados (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md, 4.1). Zip unico, reescrito pela CVM: sempre
+     * pergunta se mudou.
+     */
+    public Path intermediaryRegistry() {
+        Path target = dir.resolve("cad").resolve("cad_intermed.zip");
+        return fetch(INTERMEDIARY_REGISTRY, target, true)
+                .orElseThrow(() -> new CvmException("Cadastro de intermediarios da CVM indisponivel e sem copia em disco"));
     }
 
     /**
