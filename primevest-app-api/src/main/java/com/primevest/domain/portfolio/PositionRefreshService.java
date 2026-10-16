@@ -4,6 +4,7 @@ import com.primevest.domain.catalog.CatalogChange;
 import com.primevest.domain.dividend.DividendRecalculator;
 import com.primevest.domain.dividend.DividendTaxVerifier;
 import com.primevest.domain.fixedincome.FixedIncomeValuation;
+import com.primevest.domain.transaction.TreasuryAllocator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -41,6 +42,7 @@ public class PositionRefreshService {
     private final AppreciationUpdater appreciationUpdater;
     private final DividendTaxVerifier dividendTaxVerifier;
     private final FixedIncomeValuation fixedIncomeValuation;
+    private final TreasuryAllocator treasuryAllocator;
     private final TransactionTemplate tx;
 
     public PositionRefreshService(PortfolioAssetRepository portfolioAssetRepository,
@@ -48,12 +50,14 @@ public class PositionRefreshService {
                                   AppreciationUpdater appreciationUpdater,
                                   DividendTaxVerifier dividendTaxVerifier,
                                   FixedIncomeValuation fixedIncomeValuation,
+                                  TreasuryAllocator treasuryAllocator,
                                   PlatformTransactionManager transactionManager) {
         this.portfolioAssetRepository = portfolioAssetRepository;
         this.dividendRecalculator = dividendRecalculator;
         this.appreciationUpdater = appreciationUpdater;
         this.dividendTaxVerifier = dividendTaxVerifier;
         this.fixedIncomeValuation = fixedIncomeValuation;
+        this.treasuryAllocator = treasuryAllocator;
         this.tx = new TransactionTemplate(transactionManager);
     }
 
@@ -137,6 +141,11 @@ public class PositionRefreshService {
         dividendTaxVerifier.onStartup();
         int updated = appreciationUpdater.refreshAll();
         int curve = refreshFixedIncome();
+        // Vendas de Tesouro gravadas antes da V53: IR, IOF e liquido de cada parte (PLANO_VENDA_RENDA_FIXA, V4).
+        Integer treasury = tx.execute(s -> treasuryAllocator.fillMissingTaxes());
+        if (treasury != null && treasury > 0) {
+            log.info("Tesouro: IR, IOF e liquido calculados em {} partes de venda antigas", treasury);
+        }
         log.info("Valorizacao regravada na subida: {} posicoes com cotacao e {} titulos de renda fixa alterados",
                 updated, curve);
     }

@@ -37,6 +37,16 @@ public class TransactionController {
         return ResponseEntity.ok(transactionService.getNotes(SecurityUtils.getCurrentUserId(), ticker));
     }
 
+    /**
+     * Previa de uma venda de renda fixa ou Tesouro, sem gravar: bruto, IR, IOF, liquido e o disponivel na data
+     * (docs/planos/PLANO_VENDA_RENDA_FIXA.md). {@code excludeId}: a venda em edicao, que fica de fora da conta.
+     */
+    @PostMapping("/sale-preview")
+    public ResponseEntity<com.primevest.domain.transaction.dto.SalePreviewDTO> previewSale(
+            @Valid @RequestBody TransactionCreateDTO dto, @RequestParam(required = false) UUID excludeId) {
+        return ResponseEntity.ok(transactionService.previewSale(SecurityUtils.getCurrentUserId(), dto, excludeId));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<TransactionResponseDTO> getTransactionById(@PathVariable UUID id) {
         return ResponseEntity.ok(transactionService.getTransactionById(SecurityUtils.getCurrentUserId(), id));

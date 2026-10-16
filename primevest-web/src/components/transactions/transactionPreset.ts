@@ -27,6 +27,7 @@ export const presetFromPosition = (
         indexer: asset.indexer,
         indexerRate: asset.indexerRate,
         currentValue: asset.currentValue,
+        estimatedNet: asset.estimatedNet ?? null,
       }
     : null,
 });

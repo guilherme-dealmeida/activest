@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, Pencil, X, RotateCcw, List, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
@@ -90,6 +90,11 @@ export const TransactionsPage = () => {
    * um título novo (uma posição só dela), e o que interessa é o papel inteiro.
    */
   const tickerFilter = searchParams.get('ticker');
+  /**
+   * Link "Lançar liquidação" da mensagem de título vencido (PLANO_VENDA_RENDA_FIXA, D6): abre a venda da posição
+   * preenchida — data do vencimento, liquidação total e o líquido estimado (RF) ou cotas e PU oficial (Tesouro).
+   */
+  const settleParam = searchParams.get('settle');
 
   // Mesma queryKey do AssetTypeSelect, entao nao ha requisicao extra: o cache
   // do React Query e um so. A pagina precisa da lista para reconstruir o tipo
@@ -111,6 +116,38 @@ export const TransactionsPage = () => {
     queryKey: ['portfolio', 'assets'],
     queryFn: portfolioApi.getAssets
   });
+
+  useEffect(() => {
+    if (!settleParam || !positions || !assetTypes) return;
+    const params = new URLSearchParams(searchParams);
+    const numero = (k: string) => {
+      const v = searchParams.get(k);
+      return v != null && v !== '' && !Number.isNaN(Number(v)) ? Number(v) : undefined;
+    };
+    const data = searchParams.get('date') ?? undefined;
+    const valores = { amount: numero('amount'), shares: numero('shares'), price: numero('price') };
+    ['settle', 'date', 'amount', 'shares', 'price'].forEach(k => params.delete(k));
+    setSearchParams(params, { replace: true });
+
+    const position = positions.find(p => p.id === settleParam);
+    const type = position ? assetTypes.find(t => labelOfType(t) === position.typeName) : undefined;
+    if (!position || !type) {
+      showToast('Essa posição não está mais aberta na carteira: a liquidação já foi lançada?', 'info');
+      return;
+    }
+    setEditing(null);
+    setPreset({
+      ...presetFromPosition(TransactionType.SELL, type, position),
+      defaults: {
+        transactionDate: data,
+        totalAmount: valores.amount,
+        shares: valores.shares,
+        pricePerShare: valores.price,
+        fullSettlement: type.name !== TESOURO_DIRETO,
+      },
+    });
+    setIsModalOpen(true);
+  }, [settleParam, positions, assetTypes, searchParams, setSearchParams, showToast]);
 
   // Recebe a linha, e não só o id: o aviso diz o que foi excluído, e numa
   // venda repartida diz que os títulos todos saíram juntos.
@@ -540,8 +577,8 @@ export const TransactionsPage = () => {
                           <span
                             className="ml-2 rounded bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-normal text-blue-400"
                             title={row.editedAt
-                              ? 'Resgate lançado pelo PrimeVest no vencimento do título e editado por você'
-                              : 'Resgate lançado pelo PrimeVest no vencimento do título. Se o valor recebido foi outro, edite.'}
+                              ? 'Resgate lançado pelo PrimeVest no vencimento do título (liquidação automática, que deixou de existir) e editado por você'
+                              : 'Resgate lançado pelo PrimeVest no vencimento do título (liquidação automática, que deixou de existir). Confira com o valor líquido que caiu na sua conta e edite se for outro.'}
                           >
                             Automática{row.editedAt ? ' · editada' : ''}
                           </span>
@@ -575,7 +612,18 @@ export const TransactionsPage = () => {
                   <td className="px-4 py-3 text-right">{row.shares != null ? formatQuantity(row.shares, row.isCrypto) : '—'}</td>
                   <td className="px-4 py-3 text-right">{row.pricePerShare != null ? formatUnitPrice(row.pricePerShare, row.isCrypto) : '—'}</td>
                   <td className="px-4 py-3 text-right">{formatCurrency(row.brokerageFee)}</td>
-                  <td className="px-4 py-3 text-right font-medium text-white">{formatCurrency(row.totalAmount)}</td>
+                  {/* Venda de Renda Fixa e de Tesouro: o bruto e, embaixo, o líquido — o que caiu na conta —, como o
+                      valor atual da Carteira (PLANO_VENDA_RENDA_FIXA, D4). */}
+                  <td className="px-4 py-3 text-right font-medium text-white">
+                    <span className="inline-flex flex-col items-end">
+                      <span>{formatCurrency(row.totalAmount)}</span>
+                      {row.netAmount != null && (
+                        <span className="text-xs font-normal text-gray-400 tabular-nums">
+                          líq. {formatCurrency(row.netAmount)}
+                        </span>
+                      )}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-1">
                       {/* Como o Listar da carteira: Tesouro pelo ticker, os demais pela posição. */}

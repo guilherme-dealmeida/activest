@@ -16,6 +16,10 @@ public enum NotificationKind {
     PROVENTO_PAGO(USER, PROVENTOS, INFO, false),
     EVENTO_APLICADO(USER, EVENTOS, INFO, false),
     BONIFICACAO_SEM_CUSTO(USER, EVENTOS, ATENCAO, true),
+    /** Titulo vencido em aberto: lance a liquidacao (docs/planos/PLANO_VENDA_RENDA_FIXA.md, secao 6). */
+    RF_VENCIDO(USER, RENDA_FIXA, ATENCAO, true),
+    // As tres abaixo eram da liquidacao automatica (revogada pela secao 6 do PLANO_VENDA_RENDA_FIXA): nao sao mais
+    // emitidas; ficam pelas mensagens ja gravadas.
     RF_LIQUIDADA(USER, RENDA_FIXA, INFO, false),
     RF_LIQUIDACAO_SEM_VALOR(USER, RENDA_FIXA, ATENCAO, true),
     RF_LIQUIDACAO_DIVERGENTE(USER, RENDA_FIXA, ATENCAO, true),

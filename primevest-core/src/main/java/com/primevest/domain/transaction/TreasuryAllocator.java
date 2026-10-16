@@ -1,6 +1,9 @@
 package com.primevest.domain.transaction;
 
 import com.primevest.domain.asset.Asset;
+import com.primevest.domain.fixedincome.FixedIncomeTaxCalculator;
+import com.primevest.domain.fixedincome.FixedIncomeTaxRuleRepository;
+import com.primevest.domain.fixedincome.FixedIncomeTaxTable;
 import com.primevest.domain.portfolio.Portfolio;
 import com.primevest.domain.portfolio.PortfolioAsset;
 import com.primevest.domain.portfolio.PortfolioAssetRepository;
@@ -41,6 +44,10 @@ import java.util.UUID;
  * <p>A regra H — um titulo por ativo e data — e o que torna o FIFO
  * deterministico: sem ela, dois titulos comprados no mesmo dia nao teriam
  * ordem definida entre si.</p>
+ *
+ * <p>Cada parte e um lote com IR e IOF proprios (docs/planos/PLANO_VENDA_RENDA_FIXA.md, R4): rendimento =
+ * (PU da venda - PU da compra do titulo) x cotas, aliquota pela idade do titulo; o liquido da parte e o bruto menos
+ * os impostos e a taxa da corretora. Parte com rendimento negativo nao paga imposto.</p>
  */
 @Component
 @RequiredArgsConstructor
@@ -51,6 +58,7 @@ public class TreasuryAllocator {
 
     private final TransactionRepository transactionRepository;
     private final PortfolioAssetRepository portfolioAssetRepository;
+    private final FixedIncomeTaxRuleRepository taxRules;
 
     /**
      * Uma venda como o usuario a lancou, antes de ser repartida entre titulos.
@@ -70,6 +78,14 @@ public class TreasuryAllocator {
 
     /** Uma parte da venda: as cotas que saem de um titulo. */
     private record Allocation(PortfolioAsset position, BigDecimal shares) {}
+
+    /**
+     * Uma parte de uma venda ainda nao gravada (previa): o titulo de onde as cotas saem e os impostos dela.
+     */
+    public record PartPreview(LocalDate purchaseDate, long days, BigDecimal shares, BigDecimal buyPrice,
+                              BigDecimal gross, BigDecimal income, BigDecimal iofRate, BigDecimal irRate,
+                              BigDecimal iof, BigDecimal ir) {
+    }
 
     /**
      * Reconstitui as vendas do usuario a partir das linhas ja gravadas.
@@ -134,9 +150,94 @@ public class TreasuryAllocator {
             allocations.put(sale.groupId(), allocate(asset, titles, remaining, sale));
         }
 
-        Map<UUID, List<Transaction>> rowsByGroup = persist(current, chronological, allocations);
+        Map<UUID, List<Transaction>> rowsByGroup = persist(asset, current, chronological, allocations);
         settleTitles(titles, remaining);
         return rowsByGroup;
+    }
+
+    /**
+     * Previa de uma venda ainda nao gravada: as partes dela pelo FIFO, com IR e IOF, sem gravar nada. As vendas ja
+     * gravadas do ativo ({@code sales}) entram antes na conta, na ordem da data, como em {@link #apply}.
+     */
+    public List<PartPreview> preview(Portfolio portfolio, Asset asset, List<Transaction> current,
+                                     List<SaleIntent> sales, SaleIntent candidate) {
+        List<PortfolioAsset> titles = titlesOf(portfolio, asset);
+        Map<UUID, BigDecimal> remaining = boughtByTitle(titles, current);
+        List<SaleIntent> chronological = new ArrayList<>(sales);
+        chronological.add(candidate);
+        chronological.sort(Comparator.comparing(SaleIntent::date)
+                .thenComparing(SaleIntent::createdAt, Comparator.nullsLast(Comparator.naturalOrder())));
+        Map<UUID, BigDecimal> buyPrices = buyPrices(current);
+        FixedIncomeTaxTable table = new FixedIncomeTaxTable(taxRules.findAll());
+        List<PartPreview> out = new ArrayList<>();
+        for (SaleIntent sale : chronological) {
+            List<Allocation> parts = allocate(asset, titles, remaining, sale);
+            if (sale != candidate) {
+                continue;
+            }
+            for (Allocation part : parts) {
+                BigDecimal gross = part.shares().multiply(sale.pricePerShare())
+                        .setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+                BigDecimal buy = buyPrices.get(part.position().getId());
+                BigDecimal income = buy == null ? BigDecimal.ZERO
+                        : gross.subtract(part.shares().multiply(buy).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+                LocalDate purchase = purchaseDate(part.position());
+                FixedIncomeTaxTable.Rates rates = table.rates(asset.getId(),
+                        purchase != null ? purchase : sale.date(), sale.date());
+                FixedIncomeTaxCalculator.Taxes t = FixedIncomeTaxCalculator.taxes(income, rates);
+                out.add(new PartPreview(purchase, rates.days(), part.shares(), buy, gross, income, rates.iof(),
+                        rates.ir(), t.iof(), t.ir()));
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Vendas de Tesouro gravadas antes da V53 (sem liquido): calcula IR, IOF e liquido de cada parte. Roda na
+     * subida; idempotente (so pega as que faltam).
+     *
+     * @return quantas linhas foram completadas
+     */
+    public int fillMissingTaxes() {
+        List<Transaction> rows = transactionRepository.findTreasurySalesWithoutNet(TransactionType.SELL);
+        if (rows.isEmpty()) {
+            return 0;
+        }
+        FixedIncomeTaxTable table = new FixedIncomeTaxTable(taxRules.findAll());
+        for (Transaction row : rows) {
+            BigDecimal buy = transactionRepository
+                    .findByPortfolioAssetIdOrderByTransactionDateDesc(row.getPortfolioAsset().getId()).stream()
+                    .filter(t -> t.getType() == TransactionType.BUY && t.getPricePerShare() != null)
+                    .map(Transaction::getPricePerShare).findFirst().orElse(null);
+            taxRow(row, buy, purchaseDate(row.getPortfolioAsset()), table, row.getPortfolioAsset().getAsset().getId());
+            transactionRepository.save(row);
+        }
+        return rows.size();
+    }
+
+    /** IR, IOF e liquido de uma parte (linha) de venda do Tesouro. */
+    private void taxRow(Transaction row, BigDecimal buyPrice, LocalDate purchase, FixedIncomeTaxTable table,
+                        Long assetId) {
+        BigDecimal gross = safe(row.getTotalAmount());
+        BigDecimal income = buyPrice == null || row.getShares() == null ? BigDecimal.ZERO
+                : gross.subtract(row.getShares().multiply(buyPrice).setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+        FixedIncomeTaxTable.Rates rates = table.rates(assetId,
+                purchase != null ? purchase : row.getTransactionDate(), row.getTransactionDate());
+        FixedIncomeTaxCalculator.Taxes t = FixedIncomeTaxCalculator.taxes(income, rates);
+        row.setIncomeTax(t.ir());
+        row.setIofTax(t.iof());
+        row.setNetAmount(gross.subtract(t.total()).subtract(safe(row.getBrokerageFee())));
+    }
+
+    /** PU de compra de cada titulo (um titulo, uma compra: regra H). */
+    private Map<UUID, BigDecimal> buyPrices(List<Transaction> current) {
+        Map<UUID, BigDecimal> out = new HashMap<>();
+        for (Transaction tx : current) {
+            if (tx.getType() == TransactionType.BUY && tx.getPricePerShare() != null) {
+                out.putIfAbsent(tx.getPortfolioAsset().getId(), tx.getPricePerShare());
+            }
+        }
+        return out;
     }
 
     /**
@@ -186,8 +287,10 @@ public class TreasuryAllocator {
      * criacao das linhas — o extrato nao se remonta do zero a cada lancamento
      * retroativo em outro titulo.</p>
      */
-    private Map<UUID, List<Transaction>> persist(List<Transaction> current, List<SaleIntent> sales,
+    private Map<UUID, List<Transaction>> persist(Asset asset, List<Transaction> current, List<SaleIntent> sales,
                                                  Map<UUID, List<Allocation>> allocations) {
+        Map<UUID, BigDecimal> buyPrices = buyPrices(current);
+        FixedIncomeTaxTable table = new FixedIncomeTaxTable(taxRules.findAll());
         Map<UUID, List<Transaction>> existing = new HashMap<>();
         for (Transaction tx : current) {
             if (tx.getType() == TransactionType.SELL) {
@@ -224,6 +327,8 @@ public class TreasuryAllocator {
                         .setScale(MONEY_SCALE, RoundingMode.HALF_UP));
                 row.setBrokerageFee(fees.get(i));
                 row.setTransactionDate(sale.date());
+                taxRow(row, buyPrices.get(part.position().getId()), purchaseDate(part.position()), table,
+                        asset.getId());
                 row.setOrigin(sale.origin() == null ? TransactionOrigin.MANUAL : sale.origin());
                 row.setEditedAt(sale.origin() == TransactionOrigin.SISTEMA ? sale.editedAt() : null);
                 saved.add(transactionRepository.save(row));

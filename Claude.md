@@ -5,7 +5,10 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 13/10/2026 (Notificações: caixa de mensagens estilo e-mail aberta pelo sino do rodapé do menu,
+> **Última revisão**: 15/10/2026 (Venda de renda fixa pelo líquido: IR e IOF por aporte (V52), bruto calculado pelos
+> lotes do título, IR e IOF por título no Tesouro, prévia da venda, líquido estimado na Carteira; a liquidação automática
+> do título vencido saiu — o PrimeVest só avisa — ver "Venda de renda fixa e Tesouro: líquido, IR e IOF (15/10/2026)" em
+> Pontos de Atenção e `docs/planos/PLANO_VENDA_RENDA_FIXA.md`). Antes: 13/10/2026 (Notificações: caixa de mensagens estilo e-mail aberta pelo sino do rodapé do menu,
 > mensagens do usuário e de administrador, rotina de abertura do dia [B7] com a liquidação automática do título vencido,
 > "Informar custo" da bonificação e alerta de preço do Preço Teto — ver "Notificações (13/10/2026)" em Pontos de Atenção
 > e `docs/planos/PLANO_NOTIFICACOES.md`). Antes: 12/10/2026 (legendas dos gráficos verticais, com o ideal da estratégia na Alocação — ver
@@ -579,7 +582,7 @@ coluna.
 > usuário; `getName()` é para lógica interna. `AssetCategory.getDisplayName()`
 > encapsula o fallback description → name.
 
-### Flyway — V1 a V51
+### Flyway — V1 a V53
 
 O Flyway roda do zero no perfil `docker`. No perfil `dev` fica desligado, porque
 o banco local é gerenciado à mão.
@@ -645,6 +648,8 @@ categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, s
 | V49 | docs/planos/PLANO_NOTIFICACOES.md (3.2): `ceiling_prices.alert_enabled` (default false), `alert_below_ideal` (default false), `alert_last_on` |
 | V50 | docs/planos/PLANO_NOTIFICACOES.md (3.3): `ck_transactions_origin` aceita `SISTEMA` (venda da liquidação automática; sem `external_id` nem snapshot) |
 | V51 | docs/planos/PLANO_NOTIFICACOES.md (3.4): `stock_event_costs` — custo por ação da bonificação informado pelo usuário para a posição |
+| V52 | docs/planos/PLANO_VENDA_RENDA_FIXA.md (3.1): `fixed_income_tax_rules` — IR regressivo (4 faixas), IOF regressivo (dias 1–29 e zero do 30º) e as exceções por produto (isenção de IR: LCI, CRI, LCA, CRA, debênture incentivada, LIG, poupança; IOF zero: LCA, CRA, CRI, debênture, debênture incentivada, LF, poupança), com vigência e base legal — 48 linhas |
+| V53 | docs/planos/PLANO_VENDA_RENDA_FIXA.md (3.2): `transactions.net_amount`, `income_tax`, `iof_tax`, `settlement_adjustment`; vendas de renda fixa já gravadas ficam com líquido = total e impostos zero (D2); `ck_transactions_sale_taxes` (líquido, IR e IOF todos nulos ou todos preenchidos) |
 | V43 | docs/planos/PLANO_INDICES_MERCADO.md (X1): `market_indices` (10 índices semeados) e `market_index_values` (vazia; a série vem da adm-api) |
 | V41 | docs/planos/PLANO_CADASTRO_USUARIO.md (seção 5): colunas novas de `users` (celular, CPF cifrado + hash, verificação de e-mail, `password_changed_at`, aceite dos termos, tema), índices únicos de e-mail sem caixa, celular e CPF; o usuário semeado ganha e-mail verificado e o aceite da versão `2026-10-provisorio` |
 
@@ -830,7 +835,8 @@ passo a passo no apêndice A do plano); origens autorizadas `http://localhost` e
 | GET | `/api/v1/transactions/` | Listar (data decrescente; cada linha traz `hasLogo` e `issuerId`, como a carteira) |
 | GET | `/api/v1/transactions/notes?ticker=` | Títulos de renda fixa do usuário no ativo, para o seletor da Nova Transação — **todos**, inclusive liquidados e vencidos (`settled`, `matured`); título sem posição fica de fora (07/10/2026) |
 | GET | `/api/v1/transactions/{id}` | Buscar por ID |
-| POST | `/api/v1/transactions/` | Criar (cria a nota se for renda fixa; recalcula proventos) |
+| POST | `/api/v1/transactions/` | Criar (cria a nota se for renda fixa; recalcula proventos). Venda de renda fixa: `totalAmount` é o **líquido** (15/10/2026) |
+| POST | `/api/v1/transactions/sale-preview?excludeId=` | Prévia da venda, sem gravar (15/10/2026): renda fixa pelo líquido (bruto, IOF, IR, ajuste, líquido disponível, `aboveAvailable`, regra de saída, lotes na data); Tesouro por cotas × PU (IR e IOF por título). Na edição, `excludeId` é a própria venda |
 | PUT | `/api/v1/transactions/{id}` | Editar (atualiza a nota; recalcula proventos) |
 | DELETE | `/api/v1/transactions/{id}` | Excluir (recalcula proventos) |
 
@@ -1071,6 +1077,15 @@ a chave precisa avisar quem está de fora que o estado mudou. Por isso o
   Fixa vai o título, com o saldo na curva do "Resgatar tudo"; no Tesouro não (compra = título novo, venda FIFO). Se a
   posição não está mais na carteira (encerrada), `presetFromTransaction` monta o preset da própria linha, sem saldo;
   a venda sem o que vender a API recusa. Depois de salvar, o extrato filtra o lançamento como na Nova Transação.
+- **Venda de renda fixa pelo líquido** (15/10/2026, `docs/planos/PLANO_VENDA_RENDA_FIXA.md`): o campo é "Valor
+  recebido (líquido)"; o "Resgatar tudo" preenche o **líquido estimado** de hoje e marca a liquidação total. Painel
+  "Prévia da venda" (`POST /transactions/sale-preview`, 400 ms depois de parar de digitar): bruto, IOF, IR, líquido,
+  líquido disponível e os aportes; no Tesouro, IR e IOF por título. Venda parcial acima do líquido disponível (R9):
+  "É o resgate total?" com [Sim, resgate total] / [Não, lançar mesmo assim] — não bloqueia. Na lista, a coluna TOTAL
+  das vendas de RF e Tesouro mostra o **bruto** e, numa segunda linha, "líq." — o mesmo formato do valor atual da
+  Carteira (D4, revisto em 15/10/2026: sem (i)). O link
+  "Lançar liquidação" da mensagem de título vencido (`/transactions?settle=<posição>&date=…&amount=…` ou
+  `&shares=…&price=…`) abre a venda preenchida (D6).
 - Colunas: **ATIVO** primeiro (logo e link para a emissora, como na carteira), **TÍTULO** ao lado
   ("Emissor · venc. dd/mm/aaaa · 110,00% do CDI", com o selo "título 1/2" da venda repartida), depois DATA. A
   ordem padrão continua a da API (data decrescente).
@@ -1410,8 +1425,8 @@ apagou as datas que vinham do extrato.
 geraria posição negativa de um papel nunca comprado. **Pela API funciona** — é o
 que os testes de resgate parcial e liquidação total fazem — e, desde 05/10/2026, **pela tela também**: o ícone
 Vender da Carteira lança no título da linha, e a Nova Transação tem o seletor do título na venda de Renda Fixa
-(emissor · vencimento · taxa; desde 07/10/2026 todos os títulos, sem o saldo), com o atalho "Resgatar tudo" (saldo na
-curva + liquidação total).
+(emissor · vencimento · taxa; desde 07/10/2026 todos os títulos, sem o saldo), com o atalho "Resgatar tudo" (desde
+15/10/2026 o líquido estimado + liquidação total; antes, o saldo bruto na curva).
 
 ### Valorização da renda fixa (05/10/2026)
 Plano: `docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`. Dois mundos, duas fontes:
@@ -1426,7 +1441,8 @@ Plano: `docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`. Dois mundos, duas fontes:
   TR sem curva. Referência = último CDI publicado ("atualizado até"). `FixedIncomeSettlement.applyCurve` grava:
   aberto = saldo na curva (valorização = saldo + resgatado − aplicado, nunca negativa); liquidado = ganho do resgate;
   sem curva = como estava. Roda depois de cada transação (após as regras E/F/G), às 21:00, na subida da app-api e no
-  "catálogo mudou" INDICES. Valores **brutos** (sem IR/IOF).
+  "catálogo mudou" INDICES. Valores **brutos** (sem IR/IOF); desde 15/10/2026 a curva corre **aporte a aporte**
+  (`FixedIncomeLots`, mesmo fator do dia da `FixedIncomeCurve`) e a Carteira mostra também o líquido estimado.
 - **`BusinessCalendar`** (core): feriados nacionais calculados; conferido contra as 4.208 datas do CDI 2010–2026.
 
 ### Notificações (13/10/2026)
@@ -1447,18 +1463,50 @@ Plano: `docs/planos/PLANO_NOTIFICACOES.md`. A antiga central de avisos (PENDENCI
 - **Quando.** Rotina de abertura do dia [B7] (`DailyOpeningService`, 00:00 e na subida, idempotente); depois do
   "catálogo mudou" (`CatalogReaction`, chamadas pelo `PositionRefreshService`); no fim de cada execução de integração
   (`IntegrationNotifier`); a adm-api nas rotinas dela.
-- **Liquidação automática** (`MaturitySettlementService`, revoga a D8 da renda fixa): título vencido vira venda de
-  origem **`SISTEMA`** (V50; selo "Automática" em Transações) pelas regras da venda digitada — RF privada pelo saldo da
-  curva no vencimento com liquidação total, Tesouro pelo PU oficial × as cotas de todos os títulos do ativo. A compra
-  retroativa nasce liquidada (`PositionWrittenEvent`, depois do commit). `SystemWrites` marca a escrita do sistema:
-  dentro dela não há `editedAt`; fora, editar a venda SISTEMA dá `editedAt` e a rotina não a refaz (abre a pendência de
-  divergência se a conta mudar). Venda de Tesouro guarda a origem do grupo no `SaleIntent`.
+- **Título vencido — só aviso** (15/10/2026, `docs/planos/PLANO_VENDA_RENDA_FIXA.md`, seção 6; revoga a liquidação
+  automática de 13/10): o `MaturitySettlementService` **não cria nem refaz venda**. Na abertura do dia, quando chega
+  índice/PU e depois de cada gravação do ativo (`PositionWrittenEvent`), abre a pendência **`RF_VENCIDO`** — por título
+  (RF) ou por ativo da carteira (Tesouro) — com o líquido estimado no vencimento (RF; sem curva, "informe o valor
+  recebido") ou cotas × PU oficial (Tesouro) e o link "Lançar liquidação" (formulário preenchido, D6). Resolve sozinha
+  quando a posição fica liquidada. A primeira rodada resolve as pendências antigas `RF_LIQUIDACAO_DIVERGENTE` e
+  `RF_LIQUIDACAO_SEM_VALOR` (D7); `RF_LIQUIDADA` e os três tipos antigos ficam no enum pelas mensagens gravadas. As
+  vendas `SISTEMA` gravadas de 13 a 15/10 ficam como estão (o Guilherme corrige à mão); `SystemWrites` e a origem
+  `SISTEMA` continuam no código por causa delas.
 - **Bonificação sem custo** (`BonusCostService`): `stock_event_costs` (V51) entra no lugar do zero provisório no
   `PositionCalculator` (só quando o catálogo não tem `assigned_cost`); ícone na Carteira (`pendingBonusCosts` da
   linha) e pendência com "Informar custo".
 - **Alerta de preço** (`CeilingPriceAlertService`): `ceiling_prices.alert_enabled/alert_below_ideal/alert_last_on`
   (V49) — avisa ao cruzar o ideal para baixo, rearma acima, uma por ativo por dia; preço atual = o "hoje" da lista do
   Preço Teto. O COTAHIST diário passou a publicar `FECHAMENTO` e os balanços `BALANCOS` (origem nova do `CatalogChange`).
+
+### Venda de renda fixa e Tesouro: líquido, IR e IOF (15/10/2026)
+Plano: `docs/planos/PLANO_VENDA_RENDA_FIXA.md`.
+
+- **Compra pelo bruto, venda pelo líquido.** Na venda de renda fixa o valor digitado (`totalAmount` do
+  `TransactionCreateDTO`) é o **líquido** — o que caiu na conta; o PrimeVest grava `net_amount` = o digitado e calcula
+  `total_amount` (bruto), `income_tax`, `iof_tax` e `settlement_adjustment` (V53). Desvio do plano (seção 5), registrado
+  no andamento: o DTO não ganhou um campo `netAmount`; o `totalAmount` da venda RF é que passou a ser o líquido.
+- **Tabela** `fixed_income_tax_rules` (V52) lida pela `FixedIncomeTaxTable` (core, pura): por dias corridos do aporte
+  até o resgate, regra do produto (por `asset_id`) vence a geral; sem regra = 0. `FixedIncomeTaxCalculator`: IOF
+  primeiro, IR sobre rendimento − IOF, ambos **truncados** no centavo (D3).
+- **Lotes** (`FixedIncomeLots`, core, puro): cada aporte é um lote que rende pelo fator do dia da curva. Venda pelo
+  líquido → bruto por *gross-up* com a regra de saída (`SaleRule`: PROPORCIONAL — o padrão —, UEPS, PEPS; hoje toda RF usa
+  PROPORCIONAL até a distribuidora existir, D1); liquidação total → a diferença entre o recebido e a curva vira
+  **ajuste da liquidação**, somado ao bruto (R8); venda parcial acima do líquido disponível (lançada "mesmo assim",
+  R9) → o excesso também é rendimento tributado: gross-up pelas alíquotas dos lotes como na R8, ajuste = bruto − saldo
+  da curva, e o título cai para o centavo da regra F (D4) — PENDENCIAS 27.5, 15/10/2026. No gross-up (R8 e D4) entram
+  todos os lotes, inclusive os ainda sem rendimento.
+  Caso Nubank (UEPS) conferido no centavo contra o extrato (`FixedIncomeLotsTest`).
+- **Recálculo em cascata** (R10): toda escrita no título refaz os lotes e regrava bruto/IR/IOF/ajuste das vendas
+  (`FixedIncomeValuation.syncSales`), depois as regras E/F/G (`FixedIncomeSettlement.recompute`) e a curva. Também na
+  rodada de valorização e na subida.
+- **Tesouro**: a venda continua cotas × PU, repartida PEPS pelo `TreasuryAllocator`; cada parte ganha IR e IOF pela idade
+  do título (rendimento = (PU venda − PU compra) × cotas; negativo → imposto zero na parte, sem compensação) e
+  `net_amount` = bruto − impostos − taxa. Vendas antigas sem líquido são completadas na subida
+  (`TreasuryAllocator.fillMissingTaxes`).
+- **Carteira**: `estimatedNet` e `lots` em `PortfolioAssetDetailDTO` (via `PositionValuationInfo`): segunda linha
+  "líq." sob o valor atual (D5; sem o (i) da base do valor na renda fixa, retirado em 15/10/2026) e, ao clicar, os aportes com dias, aplicado, rendimento, % IOF, alíquota de IR, impostos
+  e líquido. No Tesouro, o título é um lote só, pelo PU do dia.
 
 ### `dividends` não tem dono próprio
 O dono vem de `portfolio_asset_id`, que é **obrigatório** (`NOT NULL`) e

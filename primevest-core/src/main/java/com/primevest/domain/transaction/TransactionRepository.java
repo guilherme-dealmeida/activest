@@ -19,6 +19,15 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     /** As partes de uma mesma venda do usuario. */
     List<Transaction> findBySaleGroupId(UUID saleGroupId);
 
+    /** Partes de venda do Tesouro sem liquido (gravadas antes da V53): o IR e o IOF delas sao completados na subida. */
+    @Query("""
+        SELECT t FROM Transaction t
+        JOIN FETCH t.portfolioAsset pa
+        JOIN FETCH pa.asset a
+        WHERE t.type = :sell AND t.netAmount IS NULL AND a.assetType.name = 'TESOURO_DIRETO'
+        """)
+    List<Transaction> findTreasurySalesWithoutNet(@Param("sell") TransactionType sell);
+
     /**
      * Transacao pelo id, mas so se ela for do usuario.
      *

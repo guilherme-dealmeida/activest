@@ -80,19 +80,87 @@ class RendaFixaCurvaIT extends FuncionalBase {
         resgate.put("ticker", CatalogIds.CDB);
         resgate.put("type", "SELL");
         resgate.put("transactionDate", "2024-01-16");
-        resgate.put("totalAmount", new BigDecimal("1500.00")); // acima do saldo: o resgate prova o valor (D4)
+        // liquido acima do disponivel, lancado mesmo assim: o resgate prova o valor (D4; PLANO_VENDA_RENDA_FIXA, R9)
+        resgate.put("totalAmount", new BigDecimal("1500.00"));
         resgate.put("noteId", compra.noteId());
         resgate.put("isFullSettlement", false);
         TransactionResponseDTO venda = lancarComSucesso(dono, resgate);
+        TransactionResponseDTO gravada = transacoesDe(dono).stream().filter(t -> t.id().equals(venda.id()))
+            .findFirst().orElseThrow();
+        assertThat(gravada.netAmount()).isEqualByComparingTo("1500.00");
+        // o bruto e o liquido mais o IR e o IOF do rendimento da curva
+        assertThat(gravada.totalAmount()).isEqualByComparingTo(
+            gravada.netAmount().add(gravada.incomeTax()).add(gravada.iofTax()));
+        assertThat(gravada.totalAmount()).isGreaterThan(new BigDecimal("1500.00"));
 
         Map<String, Object> p = posicaoDe(dono, CatalogIds.CDB);
         // sobra o centavo da regra F, rendendo de 16 a 31 de janeiro (12 dias uteis)
         assertThat(numero(p.get("currentValue")).doubleValue()).isCloseTo(0.01, within(0.001));
-        assertThat(numero(p.get("valorization"))).isEqualByComparingTo("500.01");
+        assertThat(numero(p.get("valorization")))
+            .isEqualByComparingTo(gravada.totalAmount().subtract(new BigDecimal("1000.00")).add(new BigDecimal("0.01")));
 
         assertThat(delete(dono, "/api/v1/transactions/" + venda.id()).getStatusCode().is2xxSuccessful()).isTrue();
         Map<String, Object> depois = posicaoDe(dono, CatalogIds.CDB);
         assertThat(numero(depois.get("currentValue")).doubleValue()).isCloseTo(1000 * Math.pow(1.0005, 22), within(0.01));
+    }
+
+    private Map<String, Object> resgateLiquido(Object noteId, String data, String liquido) {
+        Map<String, Object> r = new java.util.HashMap<>();
+        r.put("ticker", CatalogIds.CDB);
+        r.put("type", "SELL");
+        r.put("transactionDate", data);
+        r.put("totalAmount", new BigDecimal(liquido));
+        r.put("noteId", noteId);
+        r.put("isFullSettlement", false);
+        return r;
+    }
+
+    @Test
+    @DisplayName("Previa da venda pelo liquido (PLANO_VENDA_RENDA_FIXA, R9): bruto = liquido + IR + IOF; acima do "
+        + "disponivel ela avisa, e nada e gravado")
+    @SuppressWarnings("unchecked")
+    void previaDaVenda() {
+        TransactionResponseDTO compra = lancarComSucesso(dono, cdb100("2024-01-02", "1000.00"));
+
+        Map<String, Object> dentro = post(dono, "/api/v1/transactions/sale-preview",
+            resgateLiquido(compra.noteId(), "2024-01-16", "500.00"), Map.class).getBody();
+        assertThat(dentro.get("aboveAvailable")).isEqualTo(false);
+        assertThat(numero(dentro.get("net"))).isEqualByComparingTo("500.00");
+        assertThat(numero(dentro.get("gross"))).isEqualByComparingTo(
+            numero(dentro.get("net")).add(numero(dentro.get("ir"))).add(numero(dentro.get("iof"))));
+        assertThat(numero(dentro.get("gross"))).isGreaterThan(new BigDecimal("500.00"));
+        // 10 dias uteis de CDI ate 16/01: bruto 1000 x 1,0005^10; o liquido disponivel tira IOF (14 dias) e IR
+        assertThat(numero(dentro.get("grossBefore")).doubleValue()).isCloseTo(1000 * Math.pow(1.0005, 10), within(0.01));
+        assertThat(numero(dentro.get("availableNet"))).isLessThan(numero(dentro.get("grossBefore")));
+        assertThat((java.util.List<Object>) dentro.get("lots")).hasSize(1);
+
+        Map<String, Object> acima = post(dono, "/api/v1/transactions/sale-preview",
+            resgateLiquido(compra.noteId(), "2024-01-16", "2000.00"), Map.class).getBody();
+        assertThat(acima.get("aboveAvailable")).isEqualTo(true);
+        assertThat(transacoesDe(dono)).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Recalculo em cascata (R10): um aporte retroativo muda o bruto, o IR e o IOF da venda ja gravada; o "
+        + "liquido digitado fica")
+    void cascataRetroativa() {
+        TransactionResponseDTO compra = lancarComSucesso(dono, cdb100("2024-01-02", "1000.00"));
+        TransactionResponseDTO venda = lancarComSucesso(dono, resgateLiquido(compra.noteId(), "2024-01-16", "500.00"));
+        TransactionResponseDTO antes = transacoesDe(dono).stream().filter(t -> t.id().equals(venda.id()))
+            .findFirst().orElseThrow();
+
+        // aporte retroativo em 12/01: um lote de 4 dias (IOF 86%) entra na proporcao da venda de 16/01
+        Map<String, Object> aporte = cdb100("2024-01-12", "1000.00");
+        aporte.put("noteId", compra.noteId());
+        lancarComSucesso(dono, aporte);
+
+        TransactionResponseDTO depois = transacoesDe(dono).stream().filter(t -> t.id().equals(venda.id()))
+            .findFirst().orElseThrow();
+        assertThat(depois.netAmount()).isEqualByComparingTo("500.00");
+        assertThat(depois.totalAmount()).isEqualByComparingTo(
+            depois.netAmount().add(depois.incomeTax()).add(depois.iofTax()));
+        assertThat(depois.iofTax()).isNotEqualByComparingTo(antes.iofTax());
+        assertThat(depois.totalAmount()).isNotEqualByComparingTo(antes.totalAmount());
     }
 
     @Test
@@ -110,19 +178,25 @@ class RendaFixaCurvaIT extends FuncionalBase {
     }
 
     @Test
-    @DisplayName("Vencido: para de render no vencimento e é liquidado pelo sistema no saldo da curva (D8 revista, "
-        + "docs/planos/PLANO_NOTIFICACOES.md, seção 6)")
+    @DisplayName("Vencido: para de render no vencimento e fica na carteira com o selo, à espera da liquidação do usuário "
+        + "(docs/planos/PLANO_VENDA_RENDA_FIXA.md, seção 6)")
+    @SuppressWarnings("unchecked")
     void vencido() {
         Map<String, Object> c = cdb100("2024-01-02", "1000.00");
         c.put("maturityDate", "2024-01-15");
         lancarComSucesso(dono, c);
 
-        // a compra retroativa de um título já vencido nasce liquidada: sai da carteira aberta
-        assertThat(carteiraDe(dono)).noneMatch(p -> CatalogIds.CDB.equals(p.get("ticker")));
-        TransactionResponseDTO venda = transacoesDe(dono).stream()
-            .filter(t -> t.type() == com.primevest.domain.transaction.TransactionType.SELL).findFirst().orElseThrow();
-        assertThat(venda.transactionDate()).isEqualTo(LocalDate.of(2024, 1, 15));
-        assertThat(venda.totalAmount().doubleValue()).isCloseTo(1000 * Math.pow(1.0005, 9), within(0.01));
+        // o sistema nao lanca venda: o titulo fica aberto, vencido, valendo o saldo no vencimento
+        assertThat(transacoesDe(dono)).noneMatch(t -> t.type() == com.primevest.domain.transaction.TransactionType.SELL);
+        Map<String, Object> p = posicaoDe(dono, CatalogIds.CDB);
+        assertThat(p).containsEntry("matured", true);
+        double bruto = 1000 * Math.pow(1.0005, 9);
+        assertThat(numero(p.get("currentValue")).doubleValue()).isCloseTo(bruto, within(0.01));
+        // liquido estimado: o rendimento paga IOF (13 dias, 56%) e IR (22,5% sobre o resto)
+        assertThat(numero(p.get("estimatedNet")).doubleValue()).isLessThan(bruto).isGreaterThan(1000);
+        java.util.List<Map<String, Object>> lotes = (java.util.List<Map<String, Object>>) p.get("lots");
+        assertThat(lotes).hasSize(1);
+        assertThat(numero(lotes.get(0).get("net"))).isEqualByComparingTo(numero(p.get("estimatedNet")));
     }
 
     @Test
@@ -153,5 +227,7 @@ class RendaFixaCurvaIT extends FuncionalBase {
         Map<String, Object> p = posicaoDe(dono, CatalogIds.TESOURO_IPCA_2050);
         assertThat(numero(p.get("valorization"))).isEqualByComparingTo("339.86");
         assertThat(p).containsEntry("valuationBasis", "MERCADO").containsEntry("valuationDate", "2026-10-02");
+        // 31 dias: sem IOF; IR 22,5% de 339,86 = 76,46 (truncado) — liquido 2000,00 − 76,46
+        assertThat(numero(p.get("estimatedNet"))).isEqualByComparingTo("1923.54");
     }
 }

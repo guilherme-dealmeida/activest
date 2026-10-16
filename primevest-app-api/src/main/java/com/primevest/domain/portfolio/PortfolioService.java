@@ -171,6 +171,11 @@ public class PortfolioService {
                     bonus.getOrDefault(pa.getId(), List.of()).stream()
                         .map(b -> new PortfolioAssetDetailDTO.PendingBonusCost(b.stockEventId(), b.dataCom(),
                             b.factor(), b.newShares(), b.label()))
+                        .toList(),
+                    info(infos, pa) != null ? info(infos, pa).estimatedNet() : null,
+                    info(infos, pa) == null ? List.of() : info(infos, pa).lots().stream()
+                        .map(l -> new PortfolioAssetDetailDTO.FixedIncomeLot(l.date(), l.days(), l.applied(),
+                            l.balance(), l.income(), l.iofRate(), l.irRate(), l.iof(), l.ir(), l.net()))
                         .toList()
                 );
             }).collect(Collectors.toList());

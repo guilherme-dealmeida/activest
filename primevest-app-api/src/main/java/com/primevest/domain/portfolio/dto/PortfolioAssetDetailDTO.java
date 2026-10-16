@@ -82,8 +82,24 @@ public record PortfolioAssetDetailDTO(
      * Bonificacoes sem custo atribuido que pegam a posicao (docs/planos/PLANO_NOTIFICACOES.md, 5.4): o icone de
      * atencao ao lado do preco medio e o "Informar custo". Vazia quando nao ha.
      */
-    java.util.List<PendingBonusCost> pendingBonusCosts
+    java.util.List<PendingBonusCost> pendingBonusCosts,
+    /**
+     * Liquido estimado se resgatasse na data do valor: valor atual (bruto) - IOF - IR, aporte a aporte
+     * (docs/planos/PLANO_VENDA_RENDA_FIXA.md, R11). Nulo fora da renda fixa ou sem valor.
+     */
+    BigDecimal estimatedNet,
+    /** O titulo aporte a aporte (renda fixa privada) ou o proprio titulo (Tesouro). Vazia fora da renda fixa. */
+    java.util.List<FixedIncomeLot> lots
 ) {
+    /**
+     * Um aporte ainda aplicado: data, dias corridos, aplicado que resta, saldo bruto, rendimento, aliquotas e
+     * impostos de um resgate na data do valor, e o liquido.
+     */
+    public record FixedIncomeLot(LocalDate date, long days, BigDecimal applied, BigDecimal balance, BigDecimal income,
+                                 BigDecimal iofRate, BigDecimal irRate, BigDecimal iof, BigDecimal ir,
+                                 BigDecimal net) {
+    }
+
     /** Uma bonificacao sem custo: o evento, a data-com, o percentual e as acoes novas na posicao. */
     public record PendingBonusCost(Long stockEventId, LocalDate dataCom, BigDecimal factor, BigDecimal newShares,
                                    String label) {

@@ -253,6 +253,12 @@ conexão; as agendadas geram todas. O marcador do menu continua igual.
 
 ## 6. Liquidação automática do título vencido (revoga a D8 da renda fixa)
 
+> **Revogada em 15/10/2026** pelo `docs/planos/PLANO_VENDA_RENDA_FIXA.md`, seção 6: o valor que cai na conta é o
+> líquido, e só o usuário o sabe. O sistema não cria nem refaz venda; a rotina de abertura só avisa (pendência
+> `RF_VENCIDO`, com o líquido estimado e o link que abre o formulário preenchido) e a mensagem se resolve quando a
+> posição fica liquidada. `RF_LIQUIDADA`, `RF_LIQUIDACAO_SEM_VALOR` e `RF_LIQUIDACAO_DIVERGENTE` deixaram de ser
+> emitidas; as duas pendências abertas foram resolvidas na primeira rodada (D7). O texto abaixo fica como histórico.
+
 | Ponto | Regra |
 |---|---|
 | Quais | posições abertas de **Renda Fixa privada e Tesouro Direto** com vencimento ≤ hoje (no dia do vencimento já está vencido — regra do `validateBuyBeforeMaturity`) |

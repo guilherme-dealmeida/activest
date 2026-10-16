@@ -105,11 +105,9 @@ public final class FixedIncomeCurve {
             return new Result(Status.OK, BigDecimal.ZERO.setScale(2), referenceDate, false, null);
         }
         LocalDate start = sorted.get(0).date();
-        if (isDaily(terms.indexer()) && start.isBefore(daily.firstKey())) {
-            return Result.unsupported("aplicação anterior à série do " + terms.indexer() + " (" + daily.firstKey() + ")");
-        }
-        if (isMonthly(terms.indexer()) && start.withDayOfMonth(1).isBefore(monthly.firstKey())) {
-            return Result.unsupported("aplicação anterior à série do " + terms.indexer() + " (" + monthly.firstKey() + ")");
+        String beforeSeries = beforeSeries(terms, start, daily, monthly);
+        if (beforeSeries != null) {
+            return Result.unsupported(beforeSeries);
         }
 
         LocalDate maturity = terms.maturity();
@@ -124,14 +122,10 @@ public final class FixedIncomeCurve {
             byDay.merge(f.date(), f.amount(), BigDecimal::add);
         }
 
-        BigDecimal rate = terms.rate();
-        BigDecimal spreadDay = BigDecimal.ONE;
-        if (terms.rateType() == RateType.HIBRIDO || terms.rateType() == RateType.PREFIXADO) {
-            spreadDay = new BigDecimal(Math.pow(1 + rate.doubleValue() / 100, 1 / DU_YEAR), MC);
-        }
+        BigDecimal spreadDay = spreadDay(terms);
 
         BigDecimal balance = BigDecimal.ZERO;
-        boolean estimated = false;
+        boolean[] estimated = {false};
         for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
             BigDecimal moved = byDay.get(d);
             if (moved != null) {
@@ -143,46 +137,81 @@ public final class FixedIncomeCurve {
             if (d.isAfter(lastAccrual) || !BusinessCalendar.isBusinessDay(d) || balance.signum() == 0) {
                 continue;
             }
-            BigDecimal factor;
-            if (terms.rateType() == RateType.PREFIXADO) {
-                factor = spreadDay;
-            } else if (isDaily(terms.indexer())) {
-                BigDecimal r = daily.get(d);
-                if (r == null) {
-                    // dia util sem taxa: a serie acabou antes da data de referencia
-                    Map.Entry<LocalDate, BigDecimal> last = daily.lastEntry();
-                    if (d.isAfter(last.getKey())) {
-                        lastAccrual = last.getKey();
-                        continue;
-                    }
-                    r = BigDecimal.ZERO;
-                }
-                BigDecimal day = r.divide(HUNDRED, MC);
-                factor = terms.rateType() == RateType.POS_FIXADO
-                        ? BigDecimal.ONE.add(day.multiply(rate.divide(HUNDRED, MC), MC), MC)
-                        : BigDecimal.ONE.add(day, MC).multiply(spreadDay, MC);
-            } else {
-                LocalDate month = d.withDayOfMonth(1);
-                BigDecimal inflation = monthly.get(month);
-                if (inflation == null) {
-                    inflation = monthly.lastEntry().getValue(); // D5: ultimo publicado
-                    estimated = true;
-                }
-                double i = inflation.doubleValue() / 100;
-                if (terms.rateType() == RateType.POS_FIXADO) {
-                    i = i * rate.doubleValue() / 100;
-                }
-                int du = BusinessCalendar.businessDaysInMonth(d);
-                BigDecimal monthDay = new BigDecimal(Math.pow(1 + i, 1.0 / du), MC);
-                factor = terms.rateType() == RateType.POS_FIXADO ? monthDay : monthDay.multiply(spreadDay, MC);
+            BigDecimal factor = dayFactor(terms, d, daily, monthly, spreadDay, estimated);
+            if (factor == null) {
+                lastAccrual = daily.lastKey(); // dia util sem taxa: a serie acabou antes da data de referencia
+                continue;
             }
             balance = balance.multiply(factor, MC);
         }
         return new Result(matured ? Status.MATURED : Status.OK, balance.setScale(2, RoundingMode.HALF_EVEN),
-                matured ? maturity : lastAccrual, estimated, null);
+                matured ? maturity : lastAccrual, estimated[0], null);
     }
 
-    private static String check(Terms t, NavigableMap<LocalDate, BigDecimal> daily,
+    /** O spread diario do prefixado e do hibrido ({@code (1 + r)^(1/252)}); 1 nos demais. */
+    static BigDecimal spreadDay(Terms terms) {
+        if (terms.rateType() == RateType.HIBRIDO || terms.rateType() == RateType.PREFIXADO) {
+            return new BigDecimal(Math.pow(1 + terms.rate().doubleValue() / 100, 1 / DU_YEAR), MC);
+        }
+        return BigDecimal.ONE;
+    }
+
+    /**
+     * O fator de um dia util — a taxa do dia {@code d} rende de {@code d} para o dia util seguinte. Usado pelo saldo
+     * unico ({@link #value}) e pelos lotes ({@link FixedIncomeLots}), que tem de render igual.
+     *
+     * @param estimated marcado quando usa indice de mes ainda nao divulgado (D5)
+     * @return o fator; nulo quando a serie diaria acabou antes deste dia (o titulo para de render ali)
+     */
+    static BigDecimal dayFactor(Terms terms, LocalDate d, NavigableMap<LocalDate, BigDecimal> daily,
+                                NavigableMap<LocalDate, BigDecimal> monthly, BigDecimal spreadDay, boolean[] estimated) {
+        BigDecimal rate = terms.rate();
+        if (terms.rateType() == RateType.PREFIXADO) {
+            return spreadDay;
+        }
+        if (isDaily(terms.indexer())) {
+            BigDecimal r = daily.get(d);
+            if (r == null) {
+                Map.Entry<LocalDate, BigDecimal> last = daily.lastEntry();
+                if (d.isAfter(last.getKey())) {
+                    return null;
+                }
+                r = BigDecimal.ZERO;
+            }
+            BigDecimal day = r.divide(HUNDRED, MC);
+            return terms.rateType() == RateType.POS_FIXADO
+                    ? BigDecimal.ONE.add(day.multiply(rate.divide(HUNDRED, MC), MC), MC)
+                    : BigDecimal.ONE.add(day, MC).multiply(spreadDay, MC);
+        }
+        LocalDate month = d.withDayOfMonth(1);
+        BigDecimal inflation = monthly.get(month);
+        if (inflation == null) {
+            inflation = monthly.lastEntry().getValue(); // D5: ultimo publicado
+            estimated[0] = true;
+        }
+        double i = inflation.doubleValue() / 100;
+        if (terms.rateType() == RateType.POS_FIXADO) {
+            i = i * rate.doubleValue() / 100;
+        }
+        int du = BusinessCalendar.businessDaysInMonth(d);
+        BigDecimal monthDay = new BigDecimal(Math.pow(1 + i, 1.0 / du), MC);
+        return terms.rateType() == RateType.POS_FIXADO ? monthDay : monthDay.multiply(spreadDay, MC);
+    }
+
+    /** A primeira aplicacao e anterior a serie do indice: sem curva. Nulo = tudo certo. */
+    static String beforeSeries(Terms terms, LocalDate start, NavigableMap<LocalDate, BigDecimal> daily,
+                               NavigableMap<LocalDate, BigDecimal> monthly) {
+        if (isDaily(terms.indexer()) && terms.rateType() != RateType.PREFIXADO && start.isBefore(daily.firstKey())) {
+            return "aplicação anterior à série do " + terms.indexer() + " (" + daily.firstKey() + ")";
+        }
+        if (isMonthly(terms.indexer()) && terms.rateType() != RateType.PREFIXADO
+                && start.withDayOfMonth(1).isBefore(monthly.firstKey())) {
+            return "aplicação anterior à série do " + terms.indexer() + " (" + monthly.firstKey() + ")";
+        }
+        return null;
+    }
+
+    static String check(Terms t, NavigableMap<LocalDate, BigDecimal> daily,
                                 NavigableMap<LocalDate, BigDecimal> monthly) {
         if (t.rateType() == null) {
             return "sem forma de remuneração cadastrada";

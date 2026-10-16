@@ -34,6 +34,8 @@ public record TransactionCreateDTO(
     // Quantidade x preco para a maioria dos tipos; so o valor total para os
     // lancados por valor (Renda Fixa). Qual dos dois e obrigatorio depende do
     // tipo do ativo, que o DTO nao conhece: a regra vive no TransactionService.
+    // Na VENDA de Renda Fixa, totalAmount e o LIQUIDO que o usuario recebeu: o
+    // bruto, o IR e o IOF sao calculados pelos lotes (PLANO_VENDA_RENDA_FIXA, R3).
     @Positive BigDecimal shares,
     @Positive BigDecimal pricePerShare,
     @Positive BigDecimal totalAmount,

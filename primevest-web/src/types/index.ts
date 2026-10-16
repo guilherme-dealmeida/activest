@@ -184,6 +184,55 @@ export interface PortfolioAssetDetail {
    * `issuer` da carteira, que é o emissor da NOTA de renda fixa.
    */
   issuerId: number | null;
+  /**
+   * Líquido estimado se resgatasse na data do valor: valor atual (bruto) − IOF − IR, aporte a aporte
+   * (docs/planos/PLANO_VENDA_RENDA_FIXA.md, R11). null fora da renda fixa ou sem valor.
+   */
+  estimatedNet?: number | null;
+  /** O título aporte a aporte (renda fixa privada) ou o próprio título (Tesouro). Vazia fora da renda fixa. */
+  lots?: FixedIncomeLot[];
+}
+
+/** Um aporte ainda aplicado, com os impostos de um resgate na data do valor. */
+export interface FixedIncomeLot {
+  date: string;
+  /** Dias corridos do aporte até a data do valor. */
+  days: number;
+  /** Aplicado que ainda está no lote. */
+  applied: number | null;
+  /** Saldo bruto do lote. */
+  balance: number;
+  income: number;
+  iofRate: number;
+  irRate: number;
+  iof: number;
+  ir: number;
+  net: number;
+}
+
+/**
+ * POST /transactions/sale-preview: a venda de renda fixa (pelo líquido) ou de Tesouro (cotas × PU) antes de gravar.
+ * Renda fixa: bruto calculado pelos lotes, IR, IOF, o líquido disponível e se o valor passa dele (R9).
+ */
+export interface SalePreview {
+  gross: number;
+  iof: number;
+  ir: number;
+  net: number;
+  /** Ajuste da liquidação total (R8): diferença entre o informado e a curva, somada ao bruto. */
+  adjustment: number | null;
+  /** Renda fixa: o líquido que dá para resgatar na data. null no Tesouro. */
+  availableNet: number | null;
+  /** Renda fixa: o saldo bruto na data, antes da venda. */
+  grossBefore: number | null;
+  /** O líquido informado passa do disponível (R9). */
+  aboveAvailable: boolean;
+  /** PROPORCIONAL, UEPS ou PEPS. */
+  saleRule: string;
+  status: string;
+  reason: string | null;
+  /** Renda fixa: os lotes na data, antes da venda. Tesouro: as partes da venda, por título. */
+  lots: FixedIncomeLot[];
 }
 
 /** Resposta de PATCH /portfolio/assets/{id}/reservation. */
@@ -303,6 +352,15 @@ export interface TransactionResponse {
   hasLogo: boolean | null;
   /** Com emissor, o ticker vira link para a tela de emissoras. */
   issuerId: number | null;
+
+  // Venda de Renda Fixa e de Tesouro (docs/planos/PLANO_VENDA_RENDA_FIXA.md): totalAmount é o BRUTO; netAmount é o
+  // que caiu na conta. Na renda fixa o usuário digita o líquido e o PrimeVest calcula bruto, IR e IOF; no Tesouro
+  // calcula IR e IOF por título. null nas compras e nos demais tipos.
+  netAmount?: number | null;
+  incomeTax?: number | null;
+  iofTax?: number | null;
+  /** Liquidação total: diferença entre o recebido e a curva, já somada ao bruto (R8). */
+  settlementAdjustment?: number | null;
 }
 
 /**

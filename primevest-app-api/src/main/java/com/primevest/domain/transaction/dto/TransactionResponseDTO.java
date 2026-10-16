@@ -83,5 +83,18 @@ public record TransactionResponseDTO(
     /** null = tipo sem logo (renda fixa, Tesouro); senao, se ha arquivo de logo. */
     Boolean hasLogo,
     /** assets.issuer_id: com emissor, o ticker vira link para a tela de emissoras. */
-    Long issuerId
+    Long issuerId,
+
+    // ----- venda de renda fixa e Tesouro (docs/planos/PLANO_VENDA_RENDA_FIXA.md) -----
+    /**
+     * Liquido da venda: o digitado na renda fixa, o calculado no Tesouro. Nulo fora de venda de RF/TD. Na venda de
+     * renda fixa, {@code totalAmount} e o BRUTO calculado a partir dele.
+     */
+    BigDecimal netAmount,
+    /** IR da venda (soma dos lotes/partes). */
+    BigDecimal incomeTax,
+    /** IOF da venda. */
+    BigDecimal iofTax,
+    /** Liquidacao total da renda fixa: bruto menos o saldo da curva (o "ajuste da liquidacao"). */
+    BigDecimal settlementAdjustment
 ) {}

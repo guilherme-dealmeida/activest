@@ -138,6 +138,99 @@ public class TransactionService {
     }
 
     /**
+     * Previa de uma venda de renda fixa ou de Tesouro, sem gravar (docs/planos/PLANO_VENDA_RENDA_FIXA.md, secao 5).
+     *
+     * <p>Renda fixa: o valor do formulario e o LIQUIDO; a previa roda os lotes do titulo ate a data com a venda
+     * candidata no fim e devolve bruto, IR, IOF, o liquido disponivel e se a venda passa dele (R9). Na edicao, a
+     * propria venda ({@code excludeId}) fica de fora. Tesouro: cotas x PU, com IR e IOF por titulo do PEPS.</p>
+     */
+    public com.primevest.domain.transaction.dto.SalePreviewDTO previewSale(UUID userId, TransactionCreateDTO dto,
+                                                                          UUID excludeId) {
+        Asset asset = assetRepository.findByTicker(dto.ticker())
+            .orElseThrow(() -> new BusinessException("Ativo não encontrado no catálogo: " + dto.ticker()));
+        Portfolio portfolio = portfolioRepository.findFirstByUserId(userId)
+            .orElseThrow(() -> new BusinessException("Carteira não encontrada"));
+        if (dto.transactionDate() == null) {
+            throw new BusinessException("Informe a data da venda.");
+        }
+        if (isTreasury(asset)) {
+            return previewTreasurySale(portfolio, asset, dto, excludeId);
+        }
+        if (!isValuedByTotal(asset) || dto.noteId() == null) {
+            throw new BusinessException("A prévia de venda é de Renda Fixa (com o título escolhido) ou Tesouro Direto.");
+        }
+        FixedIncomeNote note = fixedIncomeNoteRepository.findById(dto.noteId())
+            .filter(n -> n.getUser() != null && n.getUser().getId().equals(userId))
+            .orElseThrow(() -> new ResourceNotFoundException("Título não encontrado"));
+        PortfolioAsset pa = portfolioAssetRepository.findByPortfolioIdAndNoteId(portfolio.getId(), note.getId())
+            .orElseThrow(() -> new BusinessException("Esse título não tem posição na carteira."));
+        if (!com.primevest.domain.fixedincome.FixedIncomeValuation.usesCurve(pa)) {
+            throw new BusinessException("Título sem dados de remuneração.");
+        }
+        LocalDate date = dto.transactionDate();
+        List<Transaction> before = positionCalculator.chronologicalTransactions(pa).stream()
+            .filter(t -> excludeId == null || !t.getId().equals(excludeId))
+            .filter(t -> !t.getTransactionDate().isAfter(date))
+            .toList();
+        var series = fixedIncomeValuation.series();
+        List<com.primevest.domain.fixedincome.FixedIncomeLots.Move> moves =
+            new ArrayList<>(com.primevest.domain.fixedincome.FixedIncomeValuation.moves(before));
+        var lotsBefore = fixedIncomeValuation.run(pa, moves, date, series);
+        BigDecimal net = dto.totalAmount() != null ? dto.totalAmount() : BigDecimal.ZERO;
+        moves.add(com.primevest.domain.fixedincome.FixedIncomeLots.Move.sellNet("previa", date, net,
+            Boolean.TRUE.equals(dto.isFullSettlement())));
+        var r = fixedIncomeValuation.run(pa, moves, date, series);
+        var sale = r.sale("previa");
+        return new com.primevest.domain.transaction.dto.SalePreviewDTO(sale.gross(), sale.iof(), sale.ir(),
+            sale.net(), sale.adjustment(), sale.availableNet(), sale.grossBefore(), sale.aboveAvailable(),
+            r.rule().name(), r.status().name(), r.reason(),
+            lotsBefore.lots().stream().map(l -> new com.primevest.domain.transaction.dto.SalePreviewDTO.LotDTO(
+                l.date(), l.days(), l.applied(), l.balance(), l.income(), l.iofRate(), l.irRate(), l.iof(), l.ir(),
+                l.net())).toList());
+    }
+
+    /**
+     * Previa da venda de Tesouro: cotas x PU repartidas pelo PEPS entre os titulos, com IR e IOF por titulo. Na
+     * edicao, o grupo da venda {@code excludeId} fica de fora (e substituido pela candidata).
+     */
+    private com.primevest.domain.transaction.dto.SalePreviewDTO previewTreasurySale(Portfolio portfolio, Asset asset,
+                                                                                   TransactionCreateDTO dto,
+                                                                                   UUID excludeId) {
+        if (dto.shares() == null || dto.pricePerShare() == null) {
+            throw new BusinessException("Informe a quantidade e o preço unitário.");
+        }
+        List<Transaction> current = transactionRepository
+            .findByPortfolioIdAndAssetId(portfolio.getId(), asset.getId());
+        UUID excludedGroup = excludeId == null ? null : current.stream()
+            .filter(t -> t.getId().equals(excludeId)).findFirst().map(this::groupKey).orElse(null);
+        List<SaleIntent> sales = new ArrayList<>(treasuryAllocator.salesOf(current));
+        if (excludedGroup != null) {
+            sales.removeIf(s -> s.groupId().equals(excludedGroup));
+        }
+        SaleIntent candidate = new SaleIntent(UUID.randomUUID(), dto.transactionDate(), dto.shares(),
+            dto.pricePerShare(), fee(dto), LocalDateTime.now());
+        List<TreasuryAllocator.PartPreview> parts =
+            treasuryAllocator.preview(portfolio, asset, current, sales, candidate);
+        BigDecimal gross = BigDecimal.ZERO;
+        BigDecimal iof = BigDecimal.ZERO;
+        BigDecimal ir = BigDecimal.ZERO;
+        List<com.primevest.domain.transaction.dto.SalePreviewDTO.LotDTO> lots = new ArrayList<>();
+        for (TreasuryAllocator.PartPreview p : parts) {
+            gross = gross.add(p.gross());
+            iof = iof.add(p.iof());
+            ir = ir.add(p.ir());
+            BigDecimal applied = p.buyPrice() == null ? null
+                : p.shares().multiply(p.buyPrice()).setScale(2, java.math.RoundingMode.HALF_UP);
+            lots.add(new com.primevest.domain.transaction.dto.SalePreviewDTO.LotDTO(p.purchaseDate(), p.days(),
+                applied, p.gross(), p.income(), p.iofRate(), p.irRate(), p.iof(), p.ir(),
+                p.gross().subtract(p.iof()).subtract(p.ir())));
+        }
+        BigDecimal net = gross.subtract(iof).subtract(ir).subtract(fee(dto));
+        return new com.primevest.domain.transaction.dto.SalePreviewDTO(gross, iof, ir, net, BigDecimal.ZERO,
+            null, null, false, "PEPS", "OK", null, lots);
+    }
+
+    /**
      * Gets transaction by ID.
      */
     public TransactionResponseDTO getTransactionById(UUID userId, UUID txId) {
@@ -259,6 +352,9 @@ public class TransactionService {
             .shares(valores.shares())
             .pricePerShare(valores.pricePerShare())
             .totalAmount(valores.totalAmount())
+            .netAmount(valores.netAmount())
+            .incomeTax(valores.netAmount() != null ? BigDecimal.ZERO : null)
+            .iofTax(valores.netAmount() != null ? BigDecimal.ZERO : null)
             .brokerageFee(fee(dto))
             .transactionDate(dto.transactionDate())
             .fullSettlement(isFullSettlement(asset, dto))
@@ -339,6 +435,11 @@ public class TransactionService {
         tx.setShares(valores.shares());
         tx.setPricePerShare(valores.pricePerShare());
         tx.setTotalAmount(valores.totalAmount());
+        // venda de renda fixa: o digitado e o liquido; bruto, IR e IOF saem dos lotes no recalculo (R3)
+        tx.setNetAmount(valores.netAmount());
+        tx.setIncomeTax(valores.netAmount() != null ? BigDecimal.ZERO : null);
+        tx.setIofTax(valores.netAmount() != null ? BigDecimal.ZERO : null);
+        tx.setSettlementAdjustment(null);
         tx.setBrokerageFee(fee(dto));
         tx.setTransactionDate(dto.transactionDate());
         tx.setFullSettlement(isFullSettlement(asset, dto));
@@ -723,9 +824,13 @@ public class TransactionService {
 
         List<StockEventStep> stockEvents = valuedByTotal ? List.of() : positionCalculator.stockEventsOf(pa.getAsset());
         if (valuedByTotal) {
+            // vendas pelo liquido: bruto, IR e IOF de todas as vendas do titulo refeitos pelos lotes ANTES das
+            // regras E, F e G, que comparam o resgatado (bruto) com o saldo (docs/planos/PLANO_VENDA_RENDA_FIXA.md, R10)
+            com.primevest.domain.fixedincome.FixedIncomeValuation.Series series = fixedIncomeValuation.series();
+            fixedIncomeValuation.syncSales(pa, chronological, series);
             fixedIncomeSettlement.recompute(pa, chronological, vendaLancada);
             // a curva contratada (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, R4) depois das regras da escrita
-            fixedIncomeValuation.apply(pa, chronological, fixedIncomeValuation.series());
+            fixedIncomeValuation.apply(pa, chronological, series);
         } else {
             // Regra B com os desdobramentos, grupamentos e bonificacoes do
             // papel no meio da linha do tempo: o saldo que sobra e o de hoje.
@@ -797,8 +902,11 @@ public class TransactionService {
         return titulo != null && !titulo.isBlank() ? ticker + " (" + titulo + ")" : ticker;
     }
 
-    /** Quantidade, preco unitario e total que a transacao vai gravar. */
-    private record Valores(BigDecimal shares, BigDecimal pricePerShare, BigDecimal totalAmount) {}
+    /**
+     * Quantidade, preco unitario e total que a transacao vai gravar — e, na venda de renda fixa, o liquido digitado
+     * ({@code totalAmount} e so provisorio ali: o bruto sai dos lotes no recalculo).
+     */
+    private record Valores(BigDecimal shares, BigDecimal pricePerShare, BigDecimal totalAmount, BigDecimal netAmount) {}
 
     /**
      * Decide como a transacao e valorada a partir do tipo do ativo.
@@ -821,13 +929,16 @@ public class TransactionService {
             if (dto.totalAmount() == null) {
                 throw new BusinessException("Informe o valor da transação.");
             }
-            return new Valores(null, null, dto.totalAmount());
+            // Venda de renda fixa: o valor digitado e o LIQUIDO recebido (docs/planos/PLANO_VENDA_RENDA_FIXA.md, R3)
+            return dto.type() == TransactionType.SELL
+                ? new Valores(null, null, dto.totalAmount(), dto.totalAmount())
+                : new Valores(null, null, dto.totalAmount(), null);
         }
 
         if (dto.shares() == null || dto.pricePerShare() == null) {
             throw new BusinessException("Informe a quantidade e o preço unitário.");
         }
-        return new Valores(dto.shares(), dto.pricePerShare(), dto.shares().multiply(dto.pricePerShare()));
+        return new Valores(dto.shares(), dto.pricePerShare(), dto.shares().multiply(dto.pricePerShare()), null);
     }
 
     /** O tipo de remuneracao por extenso, para a mensagem sair legivel. */
@@ -1047,7 +1158,8 @@ public class TransactionService {
             note != null ? note.getIndexer()      : null,
             note != null ? note.getIndexerRate()  : null,
             asset != null ? assetLogos.logoFlag(asset) : null,
-            asset != null && asset.getIssuer() != null ? asset.getIssuer().getId() : null
+            asset != null && asset.getIssuer() != null ? asset.getIssuer().getId() : null,
+            tx.getNetAmount(), tx.getIncomeTax(), tx.getIofTax(), tx.getSettlementAdjustment()
         );
     }
 }

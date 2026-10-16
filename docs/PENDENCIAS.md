@@ -2,7 +2,8 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 13/10/2026 — secao 13 (central de avisos) e itens 10.4, 13.2 e 25.1 resolvidos pelas
+Ultima atualizacao: 15/10/2026 — secao 27 (venda de renda fixa, docs/planos/PLANO_VENDA_RENDA_FIXA.md; 27.3 a 27.5
+na implementacao); 26.7 e 26.8 reescritos (a liquidacao automatica sai). Antes: 13/10/2026 — secao 13 (central de avisos) e itens 10.4, 13.2 e 25.1 resolvidos pelas
 notificacoes (docs/planos/PLANO_NOTIFICACOES.md) e secao 26. Antes: 10/10/2026 — secao 25 (preco teto pelo modelo
 PRECO TETO V2, docs/planos/PLANO_PRECO_TETO.md) e 18.11 c (payout passa a vir da DFC). Antes: 05/10/2026 (noite) — 2.1, 2.2, 4.1, 4.2, 10.2, 10.3, 10.4, 23.1 e 23.2 resolvidos
 pela valorizacao da renda fixa (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md) e secao 24. Antes, no mesmo dia: 5.1 resolvido e secao 23 (indices de mercado,
@@ -1074,12 +1075,46 @@ Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
 **26.6** CVM e FII mensal indisponivel por ano (warn de FinancialStatementImportService/FiiMonthlyImportService) nao
  gera mensagem: o ano corrente sem arquivo e normal e encheria a caixa. So a falha da rotina inteira vira mensagem.
 **26.7** Integracao da B3 com renda fixa e Tesouro (16.5/16.6): quando importar vencimento/resgate, o importado tem que
- casar com a venda automatica (duplicata) em vez de somar a ela.
-**26.8** Escopo de venda de renda fixa (do Guilherme, em andamento): a liquidacao automatica usa a venda de hoje
- (TransactionService com liquidacao total); se a venda mudar, MaturitySettlementService acompanha.
+ casar com a venda lancada pelo usuario (duplicata) ou, se ela ainda nao existe, com o titulo vencido aguardando
+ liquidacao (secao 27) — em vez de somar a ela. Reescrito em 15/10/2026: a venda automatica deixa de existir.
+**26.8** Liquidacao automatica do titulo vencido: REVOGADA pelo escopo de venda de renda fixa (secao 27,
+ docs/planos/PLANO_VENDA_RENDA_FIXA.md, 15/10/2026). O titulo vencido para de render e a rotina de abertura do dia so
+ notifica ("vencido, lance a liquidacao"); a mensagem se resolve quando a venda total for lancada. O
+ MaturitySettlementService deixa de gravar venda — feito em 15/10/2026 (pendencia RF_VENCIDO). As liquidacoes automaticas
+ ja gravadas desde 13/10 o Guilherme corrige a mao.
 **26.9** Liquidacao da RF privada espera a curva chegar ao vencimento (o CDI da vespera publicado); ela roda de novo a
  cada "indices mudaram", entao o atraso e de no maximo um dia util.
 **26.10** Tela de notificacoes em tempo real (SSE/WebSocket): por enquanto consulta a cada 60 s (L4).
+
+## 27. VENDA DE RENDA FIXA (docs/planos/PLANO_VENDA_RENDA_FIXA.md, 15/10/2026)
+
+**27.1** Troca de distribuidora (escopo de emissoras de renda fixa): a regra de saida dos lotes (PROPORCIONAL, UEPS,
+ PEPS) passa a ser atributo da distribuidora. O modal ja decidido no levantamento de emissoras ("quais transacoes quer
+ mover de [antiga] para [nova]") tem que refazer os lotes pela regra da distribuidora nova: as vendas ligadas mantem o
+ liquido digitado e recalculam bruto, IR e IOF; "a conta fecha" passa a incluir esse recalculo. Ajustar o escopo de
+ emissoras quando a venda de renda fixa terminar.
+**27.2** Regra de saida por instituicao — so o Nubank (RDB/caixinha) esta provado (UEPS, conferido no centavo contra o
+ extrato diario da Caixinha Turbo em 10/10/2026). PicPay (cofrinho), Inter e as demais seguem PROPORCIONAL ate haver
+ extrato que prove outra regra; o teste e o mesmo: comparar valor investido, rendimento e IR do extrato depois de
+ cada resgate com o que cada regra preve.
+**27.3** Tesouro — rendimento negativo numa parte da venda (titulo comprado mais caro que o PU de venda): a
+ implementacao de 15/10/2026 da imposto zero nessa parte e NAO compensa com as outras partes da mesma venda (plano,
+ 4.4). Conferir se a Receita/B3 compensam dentro da mesma operacao e, se sim, ajustar o TreasuryAllocator.taxRow.
+ Conferido em 15/10/2026: a IN RFB 1.585/2015, art. 46, par. 1o, tributa a "diferenca positiva entre o valor da
+ alienacao, liquido do IOF, e o valor da aplicacao financeira" (titulos publicos entram pelo art. 45, par. unico), e
+ a IN nao preve compensacao de perda em titulo de renda fixa comprado direto — a unica compensacao de pessoa fisica
+ e a de cotas de fundos (art. 15). Cada compra do Tesouro e uma aplicacao: imposto zero na parte com perda, sem
+ compensar, bate com a norma. Fica aberto so o caso de a B3 calcular diferente na pratica (conferir num informe).
+**27.4** Tesouro — taxa de custodia da B3: 0,20% a.a. sobre o valor dos titulos, provisionada por dia (pro rata)
+ desde a liquidacao da compra (D+1) e cobrada so em evento de saida — venda antecipada e vencimento (deduzida do valor
+ recebido) e pagamento de cupom (deduzida dos juros). Tesouro Selic: isento ate R$ 10.000,00 de estoque por CPF,
+ incide so sobre o excedente. Renda+ e Educa+: regras proprias. Vigente desde 31/12/2024 (Oficio Circular B3
+ 014/2024-VPC, fim da cobranca semestral; pagina de tarifas da B3, conferidos em 15/10/2026). O PrimeVest nao a considera (nem na venda, nem no liquido estimado da Carteira). O usuario pode
+ lancar a taxa no campo Taxas da venda, que entra no liquido. Decidir se vale calcular.
+**27.5** RESOLVIDO em 15/10/2026. Venda parcial de renda fixa acima do liquido disponivel lancada "mesmo assim"
+ (R9 -> D4): o excesso e rendimento que a curva nao previu e agora paga IR e IOF — gross-up pelas aliquotas dos lotes,
+ como na liquidacao total (R8); o ajuste (bruto - saldo da curva) fica em settlement_adjustment e sobra o centavo da
+ regra F. Testes: FixedIncomeLotsTest.acimaDoDisponivel e TransacoesIT.resgateParcialDeixaCentavo.
 
 ## ORDEM SUGERIDA
 

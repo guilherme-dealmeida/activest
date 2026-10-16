@@ -25,11 +25,11 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Flyway roda ate a V51 e o schema valida contra as entidades")
+    @DisplayName("Flyway roda ate a V53 e o schema valida contra as entidades")
     void migrationsAplicadas() {
         Number versao = (Number) em.createNativeQuery(
             "SELECT MAX(CAST(version AS NUMERIC)) FROM flyway_schema_history WHERE success").getSingleResult();
-        assertThat(versao.intValue()).isEqualTo(51);
+        assertThat(versao.intValue()).isEqualTo(53);
 
         Number falhas = (Number) em.createNativeQuery(
             "SELECT COUNT(*) FROM flyway_schema_history WHERE NOT success").getSingleResult();
@@ -50,6 +50,8 @@ class SchemaTest extends JpaTestBase {
         assertThat(count("asset_terms")).isEqualTo(130);
         // Regras de IR retido nos proventos (V23)
         assertThat(count("withholding_tax_rules")).isEqualTo(7);
+        // IR e IOF da renda fixa (V52): 4 faixas de IR, 30 de IOF, 14 excecoes por produto
+        assertThat(count("fixed_income_tax_rules")).isEqualTo(48);
         // Indices de mercado (V43, D1): 6 indexadores de renda fixa + meta Selic, PTAX, Ibovespa e IFIX; serie vazia
         assertThat(count("market_indices")).isEqualTo(10);
         assertThat(count("market_indices WHERE code IN ('CDI','SELIC','IPCA','IGPM','INPC','TR')")).isEqualTo(6);
