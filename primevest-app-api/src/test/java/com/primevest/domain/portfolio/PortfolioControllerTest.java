@@ -47,7 +47,6 @@ class PortfolioControllerTest extends MvcTestBase {
         mvc.perform(get("/api/v1/portfolio/allocation")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/v1/portfolio/allocation/detailed")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/v1/portfolio/allocation/reservation")).andExpect(status().isUnauthorized());
-        mvc.perform(get("/api/v1/portfolio/performance")).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -56,13 +55,17 @@ class PortfolioControllerTest extends MvcTestBase {
     void resumo() throws Exception {
         when(portfolioService.getPortfolioSummary(USUARIO)).thenReturn(new PortfolioSummaryDTO(
             UUID.randomUUID(), "Minha Carteira", new BigDecimal("1000.00"), new BigDecimal("1200.00"),
-            new BigDecimal("50.00"), new BigDecimal("250.00"), new BigDecimal("25.00")));
+            new BigDecimal("50.00"), new BigDecimal("250.00"), new BigDecimal("25.00"),
+            new BigDecimal("600.00"), new BigDecimal("50.00"), new BigDecimal("1180.00")));
 
         mvc.perform(get("/api/v1/portfolio/"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.totalInvested").value(1000.00))
             .andExpect(jsonPath("$.currentValue").value(1200.00))
-            .andExpect(jsonPath("$.returnPercentage").value(25.00));
+            .andExpect(jsonPath("$.returnPercentage").value(25.00))
+            .andExpect(jsonPath("$.contributions12m").value(600.00))
+            .andExpect(jsonPath("$.contributionsMonthlyAverage12m").value(50.00))
+            .andExpect(jsonPath("$.currentNetValue").value(1180.00));
     }
 
     @Test

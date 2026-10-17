@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 
 // Pages
 import { DashboardPage } from '@/pages/DashboardPage';
+import { PerformancePage } from '@/pages/PerformancePage';
 import { PortfolioPage } from '@/pages/PortfolioPage';
 import { AllocationPage } from '@/pages/AllocationPage';
 import { StrategyPage } from '@/pages/StrategyPage';
@@ -42,6 +43,7 @@ function App() {
       
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/rentabilidade" element={<PerformancePage />} />
         <Route path="/portfolio" element={<PortfolioPage />} />
         <Route path="/allocation" element={<AllocationPage />} />
         <Route path="/strategy" element={<StrategyPage />} />

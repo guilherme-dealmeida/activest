@@ -1,0 +1,8 @@
+Tipo Titulo;Vencimento do Titulo;Data de Liquidacao da Venda;PU;Quantidade;Valor
+Tesouro IPCA+;15/05/2029;02/10/2026;3952,28;10,50;41498,94
+Tesouro Renda+ Aposentadoria Extra;15/12/2084;02/10/2026;212,00;3,00;636,00
+Tesouro Selic;01/03/2028;01/10/2026;19997,94;1,00;19997,94
+Tesouro Prefixado;01/01/2027;30/09/2026;969,90;0,00;0,00
+Tesouro Prefixado;01/01/2027;25/09/2026;968,10;2,00;1936,20
+Tesouro Inexistente;01/01/2099;02/10/2026;100,00;1,00;100,00
+linha quebrada

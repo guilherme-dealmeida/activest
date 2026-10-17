@@ -214,4 +214,18 @@ class ProventosAReceberIT extends CatalogoE2EBase {
         assertThat(proventosDaCarteira()).isEqualByComparingTo("10.00");
         assertThat(numero(resumo().get("totalToReceive"))).isPositive();
     }
+
+    @Test
+    @DisplayName("Ultimos 12 meses (card Proventos do Dashboard): so o recebido com pagamento depois de hoje - 12 meses")
+    void ultimosDozeMeses() {
+        evento(BBAS3, "DIVIDENDO", "B3", "2025-06-02", "2025-06-10", "0.10");   // pago ha mais de 12 meses
+        evento(BBAS3, "DIVIDENDO", "B3", "2026-03-02", "2026-03-10", "0.30");   // pago dentro da janela
+        evento(BBAS3, "DIVIDENDO", "B3", "2026-09-10", "2026-12-10", "0.50");   // a receber
+        lancarComSucesso(dono, compra(BBAS3, "2025-01-10", "100", "22.00"));
+
+        Map<String, Object> r = resumo();
+        assertThat(numero(r.get("totalDividends"))).isEqualByComparingTo("40.00");
+        assertThat(numero(r.get("last12Months"))).isEqualByComparingTo("30.00");
+        assertThat(numero(r.get("totalToReceive"))).isEqualByComparingTo("50.00");
+    }
 }

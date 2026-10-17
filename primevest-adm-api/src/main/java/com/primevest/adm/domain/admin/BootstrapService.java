@@ -44,6 +44,8 @@ import java.util.function.Supplier;
  *   {@code carga/data/bcb} e {@code carga/data/b3/indices}.</li>
  *   <li><b>preco do Tesouro Direto</b> 2010+ (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, R1): o PU de venda de cada
  *   titulo, de {@code carga/data/tesouro} (ou do Tesouro Transparente, se mudou).</li>
+ *   <li><b>historico de cripto</b> (docs/planos/PLANO_RENTABILIDADE.md, 3.3): {@code carga/data/coingecko/historico}
+ *   e {@code carga/data/binance/klines} — o benchmark BTC e o que estiver em carteira.</li>
  * </ol>
  *
  * <p><b>Retomavel:</b> toda etapa e idempotente e o que ja esta em {@code carga/data/} nao e baixado de novo
@@ -72,6 +74,10 @@ public class BootstrapService {
     private final com.primevest.adm.domain.fixedincome.FixedIncomeIssuerImportService fixedIncomeIssuers;
     private final Clock clock;
     private final AtomicBoolean running = new AtomicBoolean();
+
+    /** Historico de cripto (docs/planos/PLANO_RENTABILIDADE.md, 3.3); opcional para os testes que montam a carga. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.primevest.adm.domain.pricehistory.CryptoHistoryService cryptoHistory;
 
     @org.springframework.beans.factory.annotation.Autowired
     public BootstrapService(IssuerImportService issuers, HistoricalQuotesImportService quotes,
@@ -141,6 +147,9 @@ public class BootstrapService {
             steps.add(step("indices de mercado", () -> indices.importAll(reason)));
             steps.add(step("preco do Tesouro " + TreasuryPriceService.FIRST_YEAR + "+",
                     () -> treasury.importFrom(TreasuryPriceService.FIRST_YEAR, reason)));
+            if (cryptoHistory != null) {
+                steps.add(step("historico de cripto", () -> cryptoHistory.importAll(reason)));
+            }
             Result r = new Result(steps, (System.currentTimeMillis() - started) / 1000);
             log.info("Carga inicial ({}) concluida em {}s{}", trigger, r.seconds(),
                     r.ok() ? "" : " COM FALHA — rode de novo: o que ja entrou e pulado");

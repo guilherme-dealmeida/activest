@@ -36,7 +36,7 @@ public class DividendService {
         Portfolio portfolio = portfolioRepository.findFirstByUserId(userId).orElse(null);
         if (portfolio == null) {
             return new DividendSummaryDTO(BigDecimal.ZERO, Map.of(), List.of(), BigDecimal.ZERO, BigDecimal.ZERO,
-                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
         }
 
         // Proventos da carteira com posicao, ativo e tipo numa consulta so
@@ -70,9 +70,18 @@ public class DividendService {
             .map(d -> toResponseDTO(d, today))
             .collect(Collectors.toList());
 
+        // Ultimos 12 meses: recebidos com pagamento (ou, sem ele, data ex) depois de hoje - 12 meses
+        LocalDate from12m = today.minusMonths(12);
+        List<Dividend> last12 = received.stream()
+            .filter(d -> {
+                LocalDate ref = d.getPaymentDate() != null ? d.getPaymentDate() : d.getExDate();
+                return ref != null && ref.isAfter(from12m);
+            })
+            .toList();
+
         return new DividendSummaryDTO(total, byType, recent, totalGross, totalTax,
             sum(toReceive, Dividend::netOrGross), sum(toReceive, Dividend::getTotalAmount),
-            sum(toReceive, Dividend::getWithholdingTax));
+            sum(toReceive, Dividend::getWithholdingTax), sum(last12, Dividend::netOrGross));
     }
 
     private static BigDecimal sum(List<Dividend> dividends, java.util.function.Function<Dividend, BigDecimal> field) {

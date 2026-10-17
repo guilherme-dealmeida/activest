@@ -6,7 +6,6 @@ import com.primevest.domain.dividend.DividendCalendar;
 import com.primevest.domain.dividend.DividendRepository;
 import com.primevest.domain.dividend.PositionDividendTotal;
 import com.primevest.domain.portfolio.dto.*;
-import com.primevest.domain.portfolio.dto.PortfolioPerformanceDTO.AssetPerformance;
 import com.primevest.domain.user.User;
 import com.primevest.domain.user.UserRepository;
 import com.primevest.exception.BusinessException;
@@ -38,6 +37,9 @@ public class PortfolioService {
     /** Emissora e distribuidora do titulo (PLANO_EMISSORAS_RENDA_FIXA). Por campo: os testes de servico nao o usam. */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     com.primevest.domain.fixedincome.FixedIncomeIssuers fixedIncomeIssuers;
+    /** Aportes dos ultimos 12 meses no resumo (Dashboard, 17/10/2026). Por campo: os testes de servico nao o usam. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.primevest.domain.transaction.TransactionRepository transactionRepository;
 
     public PortfolioService(PortfolioRepository portfolioRepository, PortfolioAssetRepository portfolioAssetRepository,
                             UserRepository userRepository, DividendRepository dividendRepository,
@@ -69,7 +71,14 @@ public class PortfolioService {
 
         BigDecimal totalInvested = BigDecimal.ZERO;
         BigDecimal currentValue = BigDecimal.ZERO;
+        BigDecimal currentNetValue = BigDecimal.ZERO;
         BigDecimal totalDividends = BigDecimal.ZERO;
+
+        // Liquido estimado da renda fixa e do Tesouro (o mesmo da Carteira); os demais tipos entram pelo bruto
+        List<PortfolioAsset> open = assets.stream()
+            .filter(pa -> !pa.isSettled() && positions.get(pa.getId()).hasInvestment())
+            .toList();
+        Map<UUID, PositionValuationInfo.Info> infos = valuationInfo != null ? valuationInfo.of(open) : null;
 
         for (PortfolioAsset pa : assets) {
             Position position = positions.get(pa.getId());
@@ -83,7 +92,10 @@ public class PortfolioService {
                 continue;
             }
             totalInvested = totalInvested.add(safe(position.totalInvested()));
-            currentValue = currentValue.add(currentValue(pa, position));
+            BigDecimal value = currentValue(pa, position);
+            currentValue = currentValue.add(value);
+            PositionValuationInfo.Info info = info(infos, pa);
+            currentNetValue = currentNetValue.add(info != null && info.estimatedNet() != null ? info.estimatedNet() : value);
         }
 
         BigDecimal totalReturn = currentValue.add(totalDividends).subtract(totalInvested);
@@ -92,10 +104,22 @@ public class PortfolioService {
             returnPercentage = totalReturn.divide(totalInvested, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
         }
 
+        // Aportes liquidos: compras - o que as vendas devolveram, com data nos ultimos 12 meses (de hoje - 12 meses,
+        // exclusive, ate hoje), no fuso da B3. Recomprar com o dinheiro de uma venda nao conta como aporte novo.
+        BigDecimal contributions12m = BigDecimal.ZERO;
+        if (transactionRepository != null) {
+            java.time.LocalDate today = dividendCalendar.today();
+            java.time.LocalDate from = today.minusMonths(12);
+            contributions12m = safe(transactionRepository.sumBuysBetween(portfolio.getId(), from, today))
+                .subtract(safe(transactionRepository.sumSalesBetween(portfolio.getId(), from, today)));
+        }
+        BigDecimal monthlyAverage = contributions12m.divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
+
         return new PortfolioSummaryDTO(
             portfolio.getId(), portfolio.getName(),
             totalInvested, currentValue, totalDividends,
-            totalReturn, returnPercentage
+            totalReturn, returnPercentage,
+            contributions12m, monthlyAverage, currentNetValue
         );
     }
 
@@ -379,35 +403,6 @@ public class PortfolioService {
         result.sort(Comparator.comparing(item -> typeOrder.getOrDefault(item.typeName(), Long.MAX_VALUE)));
 
         return result;
-    }
-
-    /**
-     * Gets performance.
-     */
-    public PortfolioPerformanceDTO getPerformance(UUID userId) {
-        PortfolioSummaryDTO summary = getPortfolioSummary(userId);
-        Portfolio portfolio = getOrCreatePortfolio(userId);
-
-        List<PortfolioAsset> assets = portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId());
-        Map<UUID, Position> positions = positionCalculator.positionsOf(portfolio.getId(), assets);
-
-        List<AssetPerformance> assetPerfs = assets.stream()
-            .filter(pa -> !pa.isSettled() && positions.get(pa.getId()).hasInvestment())
-            .map(pa -> {
-                Position position = positions.get(pa.getId());
-                BigDecimal invested = safe(position.totalInvested());
-                BigDecimal currentValue = currentValue(pa, position);
-                BigDecimal returnPct = BigDecimal.ZERO;
-                if (invested.compareTo(BigDecimal.ZERO) > 0) {
-                    returnPct = currentValue.subtract(invested).divide(invested, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
-                }
-                return new AssetPerformance(pa.getAsset().getTicker(), invested, currentValue, returnPct);
-            }).collect(Collectors.toList());
-
-        return new PortfolioPerformanceDTO(
-            summary.totalInvested(), summary.currentValue(), summary.totalDividends(),
-            summary.totalReturn(), summary.returnPercentage(), assetPerfs
-        );
     }
 
     @Transactional

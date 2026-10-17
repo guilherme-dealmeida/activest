@@ -170,6 +170,25 @@ public class FixedIncomeValuation {
                 series.taxes(), pa.getAsset().getId(), saleRule(pa));
     }
 
+    /**
+     * O titulo dia a dia de {@code from} a {@code to} (docs/planos/PLANO_RENTABILIDADE.md, 4.2): bruto e liquido estimado
+     * de cada dia, numa passada so. Nulo se ele nao e de renda fixa privada.
+     */
+    public FixedIncomeLots.Path path(PortfolioAsset pa, List<Transaction> chronological, LocalDate from, LocalDate to,
+                                     Series series) {
+        if (!usesCurve(pa)) {
+            return null;
+        }
+        FixedIncomeNote note = pa.getNote();
+        Indexer idx = note.getIndexer();
+        return FixedIncomeLots.path(
+                new FixedIncomeCurve.Terms(note.getRateType(), idx, note.getIndexerRate(), note.getMaturityDate()),
+                moves(chronological), from, to,
+                FixedIncomeCurve.isDaily(idx) ? series.of(idx) : null,
+                FixedIncomeCurve.isMonthly(idx) ? series.of(idx) : null,
+                series.taxes(), pa.getAsset().getId(), saleRule(pa));
+    }
+
     /** O saldo na curva do titulo (nulo se ele nao e de renda fixa privada). */
     public FixedIncomeCurve.Result value(PortfolioAsset pa, List<Transaction> chronological, Series series) {
         return curveOf(lots(pa, chronological, series));

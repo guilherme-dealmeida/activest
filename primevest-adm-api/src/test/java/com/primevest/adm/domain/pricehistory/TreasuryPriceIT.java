@@ -1,6 +1,7 @@
 package com.primevest.adm.domain.pricehistory;
 
 import com.primevest.adm.integration.tesouro.TesouroPriceClient;
+import com.primevest.adm.integration.tesouro.TesouroSalesClient;
 import com.primevest.support.IntegrationTestBase;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,21 +32,30 @@ class TreasuryPriceIT extends IntegrationTestBase {
     @MockBean
     TesouroPriceClient client;
 
+    @MockBean
+    TesouroSalesClient salesClient;
+
     @Autowired
     TreasuryPriceService service;
 
     @BeforeEach
     void arquivo() throws Exception {
-        Path file = tmp.resolve("PrecoTaxaTesouroDireto.csv");
-        try (InputStream in = getClass().getResourceAsStream("/tesouro/PrecoTaxaTesouroDireto.csv")) {
+        when(client.fetch()).thenReturn(copy("PrecoTaxaTesouroDireto.csv"));
+        when(salesClient.fetch()).thenReturn(copy("VendasTesouroDireto.csv"));
+    }
+
+    private Path copy(String name) throws Exception {
+        Path file = tmp.resolve(name);
+        try (InputStream in = getClass().getResourceAsStream("/tesouro/" + name)) {
             Files.copy(in, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
         }
-        when(client.fetch()).thenReturn(file);
+        return file;
     }
 
     /** O catalogo e compartilhado entre os testes: o preco do Tesouro nao pode vazar para outro cenario. */
     @AfterEach
     void limpar() {
+        jdbc.update("DELETE FROM treasury_offers");
         jdbc.update("DELETE FROM asset_price_history WHERE source = 'TESOURO'");
         jdbc.update("UPDATE assets SET current_price = NULL WHERE asset_type_id = "
                 + "(SELECT id FROM asset_types WHERE name = 'TESOURO_DIRETO')");
@@ -79,6 +89,36 @@ class TreasuryPriceIT extends IntegrationTestBase {
         assertThat(jdbc.queryForObject("SELECT h.close_price FROM asset_price_history h JOIN assets a ON a.id = h.asset_id "
                 + "WHERE a.ticker = 'Tesouro Selic 2028' AND h.reference_date = '2011-01-03'", BigDecimal.class))
                 .isEqualByComparingTo("4567.89");
+    }
+
+    private java.util.Map<String, Object> offer(String ticker) {
+        return jdbc.queryForMap("SELECT o.* FROM treasury_offers o JOIN assets a ON a.id = o.asset_id WHERE a.ticker = ?",
+                ticker);
+    }
+
+    @Test
+    @DisplayName("Oferta (V59): taxa do ultimo dia de cada titulo; a venda = vendeu nos 3 ultimos dias de liquidacao")
+    void oferta() {
+        TreasuryPriceService.Result r = service.importRecent("teste");
+
+        // IPCA+ 2029 e Renda+ 2084 (02/10) e Selic 2028 (01/10); o Prefixado 2027 so vendeu no 4o dia (25/09) e em
+        // 30/09 a quantidade e zero; o titulo fora do catalogo nao conta
+        assertThat(r.onSale()).isEqualTo(3);
+        java.util.Map<String, Object> ipca = offer("Tesouro IPCA+ 2029");
+        assertThat((BigDecimal) ipca.get("buy_rate")).isEqualByComparingTo("7.39");
+        assertThat((BigDecimal) ipca.get("sell_rate")).isEqualByComparingTo("7.51");
+        assertThat(ipca.get("rate_date").toString()).isEqualTo("2026-10-02");
+        assertThat(ipca.get("on_sale")).isEqualTo(true);
+        assertThat(ipca.get("sale_date").toString()).isEqualTo("2026-10-02");
+        assertThat(offer("Tesouro Selic 2028").get("on_sale")).isEqualTo(true);
+        assertThat(offer("Tesouro Prefixado 2027").get("on_sale")).isEqualTo(false);
+
+        // arquivo de vendas fora do ar: a carga segue, a taxa e regravada e a oferta fica a da ultima rodada
+        when(salesClient.fetch()).thenThrow(new com.primevest.adm.integration.PublicFileCache.UnavailableException(
+                "fora do ar", null));
+        TreasuryPriceService.Result semVendas = service.importRecent("teste");
+        assertThat(semVendas.onSale()).isEqualTo(-1);
+        assertThat(offer("Tesouro IPCA+ 2029").get("on_sale")).isEqualTo(true);
     }
 
     @Test

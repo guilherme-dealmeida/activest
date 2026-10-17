@@ -5,7 +5,14 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 16/10/2026 (Emissoras e distribuidoras de renda fixa: cadastro `fixed_income_issuers` e grupos
+> **Última revisão**: 17/10/2026 (Rentabilidade comparativa: tela `/rentabilidade` e `/api/v1/performance/*` com
+> TWR, XIRR, real, % do CDI, contribuição, risco e benchmarks (`benchmarks`, V57); COTAHIST com ETF e BDR; histórico de
+> cripto pela CoinGecko e pela Binance pública (V58); Dashboard pelo mesmo motor; `/portfolio/performance` saiu — ver
+> "Rentabilidade (17/10/2026)" em Pontos de Atenção, `docs/RENTABILIDADE_METODOLOGIA.md` e
+> `docs/planos/PLANO_RENTABILIDADE.md`). No mesmo dia, "Mudanças de tela": Tema, Notificações, Integrações,
+> Configurações e usuário (com Sair) no cabeçalho; menu lateral reordenado e sem Integrações; Dashboard com os cards
+> Patrimônio, Aportes, Rentabilidade e Proventos em linhas e o gráfico de rentabilidade acumulada; prévia da venda em
+> popover; links do Rebalanceamento para as abas da Estratégia (`?aba=`). Antes: 16/10/2026 (Emissoras e distribuidoras de renda fixa: cadastro `fixed_income_issuers` e grupos
 > `fixed_income_groups` (V54) alimentados pelo BCB e pela CVM, emissora, distribuidora e código do papel no título, regra
 > de saída da distribuidora, FIFO e regra H do Tesouro por distribuidora, troca de distribuidora com a cascata, RDC no
 > catálogo — ver "Emissoras e distribuidoras de renda fixa (16/10/2026)" em Pontos de Atenção e
@@ -335,16 +342,17 @@ Plano, decisões e achados da integração: **`docs/planos/PLANO_BRAPI.md`** (ex
 | Fechamento B3 (seg–sex) e cripto (todo dia), com recuperação na subida — `ClosingPriceScheduler` | 19:00 | adm-api → "catálogo mudou" (FECHAMENTO) |
 | Eventos de proventos da B3/FNET de **todo o catálogo** ligado a emissor + o que já esteve em carteira (F8; `primevest.proventos.scope`) — `ProventosScheduler` | 20:00 | adm-api → "catálogo mudou" (PROVENTOS), por emissor |
 | Balanços da CVM (DFP/ITR do ano corrente e do anterior) + série trimestral + informe mensal de FII (F7) — `CvmStatementsScheduler` | 07:30 | adm-api |
-| Preço oficial do Tesouro Direto (PU de venda, Tesouro Transparente), com recuperação na subida — `TreasuryPriceScheduler` (`docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`) | 08:00 | adm-api → "catálogo mudou" (FECHAMENTO) |
+| Preço oficial do Tesouro Direto (PU de venda, Tesouro Transparente), com recuperação na subida — `TreasuryPriceScheduler` (`docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`); desde 17/10/2026 também a taxa do último dia e os títulos à venda (`treasury_offers`, arquivo de vendas; fora do ar, a oferta fica a da última rodada) | 08:00 | adm-api → "catálogo mudou" (FECHAMENTO) |
 | Índices de mercado, incremental com janela de revisão (30 dias nos diários, 3 meses nos mensais), com recuperação na subida — `MarketIndexScheduler` (`docs/planos/PLANO_INDICES_MERCADO.md`) | 10:00 | adm-api |
 | Conferência do catálogo e dos índices atrasados (só loga) — `CatalogAuditScheduler` | seg 07:00 | adm-api |
-| Cotações de **todo o catálogo** (ações e FIIs) pelo COTAHIST diário da B3, um arquivo por pregão, completando os que faltam, com recuperação na subida — `B3DailyQuotesScheduler` (`docs/planos/PLANO_PRECO_TETO.md`, 4.5; 10/10/2026) | 21:30 e 08:30 | adm-api |
+| Cotações de **todo o catálogo** (ações, FIIs e, desde 17/10/2026, ETFs e BDRs) pelo COTAHIST diário da B3, um arquivo por pregão, completando os que faltam, com recuperação na subida — `B3DailyQuotesScheduler` (`docs/planos/PLANO_PRECO_TETO.md`, 4.5; 10/10/2026) | 21:30 e 08:30 | adm-api |
 | Emissoras e distribuidoras de renda fixa (BCB IF.data + Instituições em funcionamento, CVM intermediários, companhias e securitizadoras) e, em seguida, os logos delas por raiz de CNPJ (Open Finance, logos-bancos-br — `FixedIncomeLogoService`, só quem não tem arquivo) — `FixedIncomeIssuerScheduler` (`primevest.fixed-income-issuers.cron`; `docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md`, 4.2) | dia 1, 05:30 | adm-api |
 | Logos (arquivos em `carga/data/logos/{TICKER}.{ext}` — o arquivo é o estado; só quem não tem arquivo; a subida não procura nada, o ativo novo é procurado no pedido "preciso do histórico") — `LogoScheduler` | dia 1, 06:00 | adm-api (a app-api só lê a pasta, `AssetLogos`) |
+| Histórico de preço de cripto (CoinGecko, últimos 365 dias, somado a `carga/data/coingecko/historico`; Binance BTC/BRL desde 13/10/2020 em `carga/data/binance/klines`) de toda cripto que está ou esteve em carteira e do benchmark BTC; só preenche dia sem linha — `CryptoHistoryScheduler` (`docs/planos/PLANO_RENTABILIDADE.md`, 3.3) | 19:30 | adm-api → "catálogo mudou" (FECHAMENTO) |
 | Recálculo de proventos e valorização de todas as posições — `PositionRefreshScheduler` | 21:00 | app-api |
 | Fila das integrações com corretoras — `IntegrationSyncScheduler` (08:45) e `IntegrationWorker` (5 s) | — | app-api |
 
-Disparo manual para admin, **na adm-api (8081)**: `POST /api/v1/admin/{closing|proventos|catalog-audit|logos|issuers/import|issuers/link|fixed-income-issuers|fixed-income-issuers/logos|b3/cotahist|b3/cotahist/diario|cvm/import|cvm/quarters|cvm/fii-monthly|cvm/proventos|indices|tesouro|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, datas de pagamento da CVM, balanços, informe de FII, índices de mercado e preço do Tesouro, em ordem — docs/planos/PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
+Disparo manual para admin, **na adm-api (8081)**: `POST /api/v1/admin/{closing|proventos|catalog-audit|logos|issuers/import|issuers/link|fixed-income-issuers|fixed-income-issuers/logos|b3/cotahist|b3/cotahist/diario|cvm/import|cvm/quarters|cvm/fii-monthly|cvm/proventos|indices|tesouro|cripto/historico|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, datas de pagamento da CVM, balanços, informe de FII, índices de mercado e preço do Tesouro, em ordem — docs/planos/PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
 (`b3/cotahist?from=2010&to=2026`, padrão 2010 até o ano corrente; `cvm/import?from=2010&to=2026&force=false` —
 documento na mesma versão é pulado, `force=true` reprocessa a partir de `carga/data/cvm` sem baixar; ao terminar recalcula
 a série trimestral, que `cvm/quarters` recalcula sozinha; `cvm/fii-monthly?from=2016&to=2026&force=false` — informe
@@ -374,7 +382,8 @@ Todas as fontes abaixo, menos o Google, são da **adm-api** (config em `primeves
 | **Série histórica da B3 — COTAHIST** (`B3HistoricalQuotesClient`) | Preço diário não ajustado de ações (lote padrão e fracionário) e FIIs desde 2010, e o ISIN de cada ticker do catálogo. Zip por ano em `carga/data/b3/cotahist`; desde 10/10/2026 também **um zip por pregão** (`COTAHIST_DddMMaaaa.ZIP`, ~0,5 MB, em `carga/data/b3/cotahist/diario`), pela rotina das 21:30/08:30 — preço de todo o catálogo sem cota da BRAPI. Dia gravado pela B3 não é sobrescrito pela BRAPI (`asset_price_history.source`, V29) | `b3.cotahist-url` |
 | **CVM dados abertos** (`CvmOpenDataClient`) | Emissores (cadastro de companhias, FCA, informe mensal de FII); informe mensal de FII 2016+ em `fii_monthly` (`CvmFiiMonthly`, partes complemento e ativo/passivo, F7); balanços DFP (2010+) e ITR (2011+) (`CvmStatements`); histórico de capital do Formulário de Referência (`CvmFreCapital`, quantidade de ações antes de 2020 e régua da escala depois). Cache em `carga/data/cvm/{cad,fca,fii,dfp,itr,fre}` — o arquivo é o estado (`docs/planos/PLANO_EMPRESAS_BALANCOS.md`) | `cvm.base-url`, `primevest.data.dir` |
 | **Banco Central — IF.data e Instituições em funcionamento** (`BcbInstitutionsClient`, Olinda, sem token) | Cadastro das instituições (vivas e mortas, situação, segmento, conglomerado prudencial e líder) pela última data-base trimestral publicada, e o site da sede. Cache em `carga/data/bcb/ifdata/cadastro_{AnoMes}.json` e `carga/data/bcb/instituicoes/` — `docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md`, 4.1 | `bcb.ifdata-url`, `bcb.institutions-url`, `primevest.data.dir` |
-| **CoinGecko** | Preço de cripto (id em `assets.price_source_ref`) e logos das moedas | `coingecko.base-url` |
+| **CoinGecko** | Preço de cripto (id em `assets.price_source_ref`), logos das moedas e, desde 17/10/2026, o histórico dos últimos 365 dias (`market_chart/range`; antes disso a API gratuita responde 401) | `coingecko.base-url` |
+| **Binance — klines públicos** (`BinanceKlinesClient`, sem chave) | Histórico diário BTC/BRL desde 13/10/2020 para o benchmark e as posições de BTC (`docs/planos/PLANO_RENTABILIDADE.md`, D2). Fonte de catálogo — não é a integração do usuário. Cache `carga/data/binance/klines/{PAR}/{ano}.json` (`IndexYearCache`) | `binance.public-url` |
 | **Banco Central — API SGS** (`BcbSgsClient`, sem token) | Índices de mercado (`docs/planos/PLANO_INDICES_MERCADO.md`): CDI (série 12), Selic (11), IPCA (433), IGP-M (189), INPC (188), TR (226), meta Selic (432), dólar PTAX venda (1). Uma consulta por ano civil com `dataInicial`/`dataFinal` (série diária recusa janela de mais de 10 anos com 406; 404 = sem valores no período); timeout de 20 s e até 4 tentativas (o SGS às vezes demora). A TR repete o início com fins diferentes: fica o período de um mês cheio. Data futura não entra (a meta Selic vem preenchida até a próxima reunião do Copom). Cache `carga/data/bcb/sgs/{código}/{ano}.json`: ano fechado com arquivo só do disco; o corrente e o anterior sempre da fonte (`IndexYearCache`) | `bcb.sgs-base-url`, `indices.*`, `primevest.data.dir` |
 | **Tesouro Transparente — preços e taxas do Tesouro Direto** (`TesouroPriceClient`, sem token) | `PrecoTaxaTesouroDireto.csv`: todo o histórico desde 2002 num arquivo (~14 MB, ~1 min), atualizado todo dia útil ~07:20 com o D-1; colunas tipo, vencimento, data base, taxas e PU de compra/venda/base. Cache `carga/data/tesouro/` (`PublicFileCache`, só baixa se mudou). `TreasuryPriceService` casa a linha com o título do catálogo por **tipo + vencimento** (`asset_terms`; o ano do ticker nem sempre é o do vencimento: Renda+ 2065 vence em 2084), grava o **PU de venda** (resgate antecipado; sem ele, o PU base) em `asset_price_history` (`source = TESOURO`) e o último em `assets.current_price` | `tesouro.prices-url`, `tesouro.timeout-seconds` |
 | **B3 — índices** (`B3IndexClient`) | Fechamento diário do Ibovespa e do IFIX: `indexStatisticsProxy/IndexCall/GetPortfolioDay`, um ano por chamada, numa grade dia × mês com texto pt-BR. Cache `carga/data/b3/indices/{índice}/{ano}.json`, mesma regra | `b3.base-url`, `indices.*` |
@@ -540,7 +549,7 @@ em desenvolvimento. **Não versione credenciais reais.**
 | `stock_event_costs` | Custo da bonificação informado pelo usuário (V51), por posição e evento |
 | `ceiling_price_quarters` | Os 4 lucros de um cálculo (V46): valor digitado, unidade, moeda, câmbio, `value_brl` (o que entra na conta) e origem (a fonte saiu na V47). PK `(ceiling_price_id, position)` |
 | `goals` | Metas de investimento |
-| `asset_price_history` | Histórico de cotações. `source` (V29): `BRAPI`, `COINGECKO` ou `B3_COTAHIST` — a série da B3 vence e a BRAPI não a sobrescreve; `TESOURO` (V44): PU de venda do Tesouro Direto desde 2010 |
+| `asset_price_history` | Histórico de cotações. `source` (V29): `BRAPI`, `COINGECKO` ou `B3_COTAHIST`; `BINANCE` (V58) só preenche dia sem linha — a série da B3 vence e a BRAPI não a sobrescreve; `TESOURO` (V44): PU de venda do Tesouro Direto desde 2010 |
 | `integration_connections` | Conexão do usuário com uma fonte externa (hoje só `BINANCE`); `label` único por usuário, `status`, `consent_accepted_at` (V25) |
 | `integration_credentials` | Credencial **cifrada**, 1:1 com a conexão (`ciphertext`, `iv`, `key_version`, `fingerprint`). Nunca sai na API; apagada na revogação |
 | `integration_cursors` | Onde cada fluxo da fonte parou (`stream`, `cursor_value`) — sincronização incremental |
@@ -554,6 +563,8 @@ em desenvolvimento. **Não versione credenciais reais.**
 | `fii_monthly` | Informe mensal de FII da CVM (V34, F7), cru, uma linha por `(issuer_id, reference_month)` (primeiro dia do mês), 09/2016 em diante, só fundos emissores; `version` é a maior recebida (reapresentação substitui). Do complemento: PL, ativo, cotas, VP por cota, cotistas, taxa de administração, DY e amortização do mês (frações: 0,0068 = 0,68%). Do ativo/passivo: liquidez, total investido, imóveis, imóveis via SPE, recebíveis (CRI/CRA, LCI/LCA, LH, LIG), cotas de FII, passivo e rendimentos a distribuir (÷ cotas = rendimento estimado, **só indicador**, nunca vira `asset_cash_events`). Gravada por `FiiMonthlyImportService` (adm-api) |
 | `integration_crypto_exclusions` | Operação de cripto importada e excluída pelo usuário: a sincronização não recria (regra E2 do plano) |
 | `market_indices` | Cadastro dos índices de mercado (V43, seed): `code` (o mesmo nome do enum `Indexer` para CDI, SELIC, IPCA, IGPM, INPC, TR — a nota acha a série por `fixed_income_notes.indexer`, sem FK; mais SELIC_META, USD_PTAX, IBOV, IFIX), `periodicity` (DIARIA/MENSAL), `unit` (PCT_DIA, PCT_MES, PCT_PERIODO da TR, PCT_ANO da meta, PONTOS, BRL), `source` (BCB_SGS/B3) + `source_ref` (código SGS ou sigla), `history_from` (2010) |
+| `benchmarks` | Catálogo de benchmarks da Rentabilidade (V57, seed): `code`, `name`, `category`, `kind` INDICE (→ `market_index_id`) ou ATIVO (→ `asset_id`: IVVB11, BTC), `accepts_spread` (IPCA + x%), `note`, `default_selected` (só CDI), `sort_order`. Só referência: a série fica onde está |
+| `treasury_offers` | Estado atual de cada título do Tesouro (V59, sem histórico; uma linha por ativo, `ON DELETE CASCADE`): `rate_date`, `buy_rate`/`sell_rate` (taxas da manhã do último dia do `PrecoTaxaTesouroDireto.csv`), `on_sale` (vendeu nos 3 últimos dias de liquidação do `VendasTesouroDireto.csv`) e `sale_date`. Gravada pela carga do Tesouro (adm-api); a app-api lê para o benchmark padrão do Tesouro |
 | `market_index_values` | Série de cada índice, PK `(index_id, reference_date)`, `value` como a fonte publica (mensal no dia 1º; só até hoje). Gravada só pela adm-api (`MarketIndexImportService`); o acumulado **não** é gravado — sai do `MarketIndexCalculator` (core) |
 
 ### Asset Types — 12
@@ -590,7 +601,7 @@ coluna.
 > usuário; `getName()` é para lógica interna. `AssetCategory.getDisplayName()`
 > encapsula o fallback description → name.
 
-### Flyway — V1 a V56
+### Flyway — V1 a V59
 
 O Flyway roda do zero no perfil `docker`. No perfil `dev` fica desligado, porque
 o banco local é gerenciado à mão.
@@ -661,6 +672,9 @@ categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, s
 | V54 | docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md (3.1): `fixed_income_groups` e `fixed_income_issuers` (+ as linhas fixas Tesouro Nacional e Instituição não listada), `asset_categories.issuer_kinds`/`guaranteed`, categoria e ativo RDC, `fixed_income_notes.issuer_id`/`distributor_id` (obrigatórias, "Instituição não listada" nos títulos que existiam — REGRAS 8.1) e `paper_code`; regra H por distribuidora; sai o texto livre `issuer` |
 | V55 | docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md (3.2): seed das emissoras e distribuidoras — 292 grupos (98 com nome curado, 2 extintos, 17 com logo) e 6.920 empresas do BCB e da CVM, 32 inativas no grupo antigo, Nu Financeira UEPS. Gerado do banco por `carga/scripts/gerar_seed_emissoras_rf.mjs`; chave natural (código do BCB, raiz do CNPJ), `ON CONFLICT` preserva o que veio da fonte e traz a curadoria |
 | V56 | Título e posição no mesmo produto: `portfolio_assets (note_id, asset_id)` → `fixed_income_notes (id, asset_id)` com `ON UPDATE CASCADE` (trocar o produto do título leva a posição; trocar só a posição é recusado). PENDENCIAS 28.5 |
+| V57 | docs/planos/PLANO_RENTABILIDADE.md (3.1, D1): `benchmarks` — CDI, Selic, IPCA, IPCA + x%, Ibovespa, IFIX (índices) e IVVB11 (proxy S&P 500 em BRL), BTC (ativos), resolvidos por `code` e `ticker` |
+| V58 | docs/planos/PLANO_RENTABILIDADE.md (3.2, D2): `asset_price_history.source` aceita `BINANCE` |
+| V59 | docs/planos/PLANO_RENTABILIDADE.md (andamento, 17/10/2026): `treasury_offers` — taxa do último dia e oferta de cada título do Tesouro |
 | V43 | docs/planos/PLANO_INDICES_MERCADO.md (X1): `market_indices` (10 índices semeados) e `market_index_values` (vazia; a série vem da adm-api) |
 | V41 | docs/planos/PLANO_CADASTRO_USUARIO.md (seção 5): colunas novas de `users` (celular, CPF cifrado + hash, verificação de e-mail, `password_changed_at`, aceite dos termos, tema), índices únicos de e-mail sem caixa, celular e CPF; o usuário semeado ganha e-mail verificado e o aceite da versão `2026-10-provisorio` |
 
@@ -836,7 +850,6 @@ passo a passo no apêndice A do plano); origens autorizadas `http://localhost` e
 | GET | `/api/v1/portfolio/allocation` | Alocação por tipo. `excludeReservation=true` tira a reserva de emergência (tela Alocação); sem ele, carteira inteira (Dashboard) |
 | GET | `/api/v1/portfolio/allocation/detailed` | Alocação por tipo e categoria — **sempre sem** a reserva de emergência |
 | GET | `/api/v1/portfolio/allocation/reservation` | Reserva de emergência × geração de renda, pelo valor atual |
-| GET | `/api/v1/portfolio/performance` | Rentabilidade |
 | GET | `/api/v1/portfolio/dividends` | Dividendos da carteira |
 | PATCH | `/api/v1/portfolio/assets/{id}/reservation` | Liga/desliga a reserva de emergência da posição (só renda fixa) |
 
@@ -913,6 +926,20 @@ passo a passo no apêndice A do plano); origens autorizadas `http://localhost` e
 | GET / POST | `/api/v1/goals/` |
 | PUT / DELETE | `/api/v1/goals/{id}` |
 
+### Rentabilidade (17/10/2026, `docs/planos/PLANO_RENTABILIDADE.md`)
+Parâmetros comuns: `range=1M|6M|YTD|1A|5A|MAX` (padrão MAX) ou `from`/`to`; `type` (nome do tipo), `category` (id), `position` (id da posição — de outro dono: 404); `reservation=WITH|WITHOUT`; `basis=NET|GROSS` (padrão NET); `benchmarks=CDI,IBOV,IPCA_MAIS:6` (padrão CDI; até 8; código desconhecido ou taxa inválida: 422). Retornos em pontos percentuais; toda resposta traz `coverage` (período efetivo, dia-base, `available`, `unavailable` = ativos sem preço, `gaps`, `realUntil`, `basisApplies`). `GET /api/v1/portfolio/performance` (sem uso) saiu.
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/api/v1/performance/benchmarks` | Catálogo (V57) com fonte, periodicidade, primeira e última data; `defaultsByType` (D4, lista por tipo, o primeiro é o principal — Tesouro: `IPCA`, `IPCA_MAIS:<taxa>`) e `treasuryIpca` (título, vencimento, taxa e data) |
+| GET | `/api/v1/performance/summary` | Cards: TWR, benchmark principal e diferença (p.p.), real e IPCA até o último publicado, % do CDI, XIRR (≥ 12 meses), valores inicial e final, aportes, retiradas, proventos, resultado |
+| GET | `/api/v1/performance/series` | Acumulado da carteira e dos benchmarks por ponto (densidade diária/semanal/mensal), com marcas de indisponível, último negócio e estimado |
+| GET | `/api/v1/performance/periodic?granularity=MONTH|QUARTER|YEAR` | Retorno por período (o MONTH com `range=MAX` é o mapa de calor) |
+| GET | `/api/v1/performance/table` | Mês, ano, 12 meses e período por indicador, com a diferença para a carteira |
+| GET | `/api/v1/performance/breakdown?level=TYPE|CATEGORY|POSITION|ISSUER` | Rentabilidade individual, resultado em R$, contribuição em p.p. (Cariño, soma o TWR), peso médio, encerrada |
+| GET | `/api/v1/performance/wealth` | Patrimônio nominal e corrigido pelo IPCA, investido nominal e corrigido, proventos e resultado acumulados |
+| GET | `/api/v1/performance/risk` | Volatilidade, máximo drawdown (pico e vale), Sharpe, Sortino (≥ 12 meses, sem lacuna) |
+
 ### Índices de mercado (05/10/2026)
 `docs/planos/PLANO_INDICES_MERCADO.md` (X5). Autenticado; só leitura do catálogo (`MarketIndexQueryService`).
 
@@ -960,21 +987,22 @@ Rotas em `App.tsx`; tudo abaixo de `/login` é protegido por `ProtectedRoute`.
 
 | Rota | Tela |
 |------|------|
-| `/dashboard` | Pizza de alocação por tipo, cards de resumo |
+| `/dashboard` | Cards em linhas (17/10/2026, `StatCard` em `DashboardPage`: a 1ª em destaque; as demais com rótulo e valor na mesma linha, exceto em Aportes e Rentabilidade, onde o valor fica embaixo do rótulo, à esquerda — `stacked`), nesta ordem: **Patrimônio** (valor atual bruto; valor líquido — `currentNetValue`: renda fixa e Tesouro pelo líquido estimado de resgate, IR e IOF, os demais pelo bruto —; valor investido), **Aportes** (aportes líquidos dos últimos 12 meses = compras − o que as vendas devolveram, líquido na RF e no Tesouro; média mensal = ÷ 12 — `contributions12m` e `contributionsMonthlyAverage12m` de `GET /portfolio/`), **Rentabilidade** (TWR **bruto** de 12 meses e desde o início, cada um com o resultado em R$; levam a `/rentabilidade` e `/rentabilidade?periodo=MAX`) e **Proventos** (líquido recebido nos últimos 12 meses — `last12Months` de `GET /dividends/`, pagamento ou, sem ele, data ex —, totais recebidos e a receber; levam a `/dividends` e `/dividends?aba=a-receber`). Abaixo, pizza de alocação por tipo e Top 5 (coluna Rentabilidade = clássica, como na Carteira, e embaixo "TWR: x%" bruto desde o início) e, por último, o card "Rentabilidade acumulada" da tela Rentabilidade (`CumulativeCard`) sem filtros na tela: carteira total com reserva, bruto, 12 meses, CDI. Tudo de rentabilidade no Dashboard é em base bruta (17/10/2026) |
+| `/rentabilidade` | Rentabilidade (17/10/2026, `docs/planos/PLANO_RENTABILIDADE.md`, `PerformancePage`): filtros numa faixa (1ª linha tipo → categoria → ativo; 2ª período, com/sem reserva e bruto/líquido; 3ª até 5 benchmarks com IPCA + x%; padrões desde 17/10/2026: **12M** e **bruto**), aviso de cobertura, 6 cards, acumulado, barras por período, comparativo, "Quem fez o resultado" (classe/categoria/ativo/emissora, clique desce um nível), mapa de calor mês × ano, patrimônio nominal × real, risco. Filtros na URL (`?tipo=&categoria=&ativo=&reserva=sem&base=liquido&periodo=&de=&ate=&indices=`; sem `periodo` = 12M, `periodo=MAX` = desde o início; sem `base` = bruto); sem `indices`, só o CDI — desde 17/10/2026 a última seleção de benchmarks não é mais lembrada no navegador (a D10 guardava em `localStorage`, `primevest-rentabilidade-benchmarks`, chave que a tela agora apaga) |
 | `/portfolio` | Carteira — posição por ativo, com EMISSOR e VENCIMENTO |
 | `/allocation` | Abas "Carteira de Investimentos" e "Por Categoria" |
-| `/strategy` | Estratégia de Investimentos: abas "Ideal Estratégico" e "Estratégia Reserva"; link "Ir para Rebalanceamento" no canto superior direito, na linha das abas |
-| `/rebalance` | Rebalanceamento (11/10/2026, antes aba da Estratégia): reserva e sugestão de aporte por tipo; link "Ir para Estratégia de Investimentos" no canto superior direito |
+| `/strategy` | Estratégia de Investimentos: abas "Ideal Estratégico" e "Estratégia Reserva" (aba na URL desde 17/10/2026: `?aba=reserva`; sem o parâmetro, Ideal Estratégico); link "Ir para Rebalanceamento" no canto superior direito, na linha das abas |
+| `/rebalance` | Rebalanceamento (11/10/2026, antes aba da Estratégia): reserva e sugestão de aporte por tipo; desde 17/10/2026 cada card tem o seu link à direita do título — "Ir para Estratégia Reserva" (`/strategy?aba=reserva`) e "Ir para Ideal Estratégico" (`/strategy`); o "Ir para Estratégia de Investimentos" saiu |
 | `/transactions` | CRUD completo |
 | `/ceiling-prices`, `/ceiling-prices/:ticker` | Preço Teto (10/10/2026, `docs/planos/PLANO_PRECO_TETO.md`; metodologia em `docs/PRECO_TETO_METODOLOGIA.md`). Lista (`CeilingPricesPage`): teto, ideal e três comparações (preço do cálculo, fechamento de hoje, preço médio da carteira) com margem do teto e do ideal, situação, alertas, ↻ "padrão mudou"; "Novo cálculo" pela busca de ação. Página do ativo (`CeilingPriceDetailPage`, revista pelo Guilherme em 11/10/2026): premissas primeiro, com o padrão de hoje no (i) de cada uma, ↻ por campo e "Restaurar todos os padrões" (só valem ao salvar), g calculado e G só leitura por último; 4 lucros (valor ± com sinal, unidade, BRL/USD, câmbio; sem fonte e sem a referência do documento) e o LL TTM em valor cheio; resultado ao vivo (`/calculate`), alertas, datas, observações (texto livre do usuário, `ceiling_prices.notes`); o cartão de memória de cálculo saiu da tela (a API segue devolvendo `result.steps`); legenda Padrão / Informado (dourado) / Calculado; salvar com alertas pede confirmação; sair com alteração pede confirmação |
 | `/emissoras`, `/emissoras/:ticker` | Emissoras (28/09/2026, `docs/planos/PLANO_TELA_EMISSORES.md`): busca, cabeçalho com os outros tickers do emissor, cotação (atalhos + de/até, período na URL `?periodo=` / `?de=&ate=`), cartões de indicadores com sparkline e histórico em modal (Anual/Trimestral, média, ‹ ›), cadastro e demonstrativos. O ticker é link para cá em Carteira, Dividendos e Preço Teto quando o ativo tem emissor (`issuerId` nos DTOs dessas telas — não confundir com `issuer` da carteira, que é o emissor da nota de renda fixa) |
 | `/indices` | Índices (05/10/2026, `docs/planos/PLANO_INDICES_MERCADO.md`, seção 10): um card por índice, um abaixo do outro, na ordem SELIC, CDI, IPCA, IBOV, IFIX, IGPM, INPC, TR, SELIC_META, USD_PTAX (`IndicesPage`), cada um com o desenho da cotação das Emissoras (`IndexChartCard`: atalhos 1D…MAX — nos mensais IPCA, IGP-M e INPC sem 1D e 7D e com o seletor Mensal (% no mês, barras) / Anual (acumulado em 12 meses, % a.a.) —, 1A padrão, de/até; o período fica no card, não na URL). CDI e Selic aparecem anualizados (% a.a.); mensais em barras; meta Selic em degraus. Resumo: acumulado no período (taxa), variação (Ibovespa, IFIX, dólar), atual/último, mín e máx. Lê `GET /api/v1/indices/{code}/chart` |
-| `/dividends` | Dividendos (11/10/2026): abas Histórico de Proventos (recebidos) e Proventos a Receber — ver "Proventos recebidos × a receber" |
+| `/dividends` | Dividendos (11/10/2026): abas Histórico de Proventos (recebidos) e Proventos a Receber (aba na URL desde 17/10/2026: `?aba=a-receber`) — ver "Proventos recebidos × a receber" |
 | `/goals` | Metas |
 | `/integrations` | Integrações (Binance e, com `B3I_ENABLED`, B3): conectar (chave ou CPF + autorização na B3), sincronizar, histórico, excluídas |
 | `/integrations/:id/runs/:runId` | Pré-visualização / resultado de uma sincronização (decidir duplicatas, confirmar) |
-| `/notifications` | Notificações (13/10/2026, `docs/planos/PLANO_NOTIFICACOES.md`): aberta pelo sino do rodapé do menu (que passou a ter duas linhas: foto e nome; sino, Modo, Configurações, Sair), com o número de não lidas no marcador amarelo de Integrações (ponto com o menu recolhido), consulta a cada 60 s. Caixa estilo e-mail (`NotificationsPage`): Entrada/Arquivadas, filtros de categoria, situação, público (admin) e "só não lidas", lista à esquerda e leitura à direita (celular: uma de cada vez), seleção em lote (lida, não lida, arquivar, desarquivar, excluir), ações da mensagem (link, "Informar custo"), Dispensar/Reabrir na pendência |
-| `/settings` | Configurações (05/10/2026): Perfil (foto centralizada com envio e recorte no navegador — `AvatarCropModal`, JPEG/PNG/WebP até 5 MB, ≥ 128 px —, nome, e-mail com troca por código, celular, CPF mascarado), Acesso (alterar/definir senha, vincular/desvincular Google, termos aceitos), Preferências (tema, gravado no usuário), Zona de perigo (excluir conta com código) |
+| `/notifications` | Notificações (13/10/2026, `docs/planos/PLANO_NOTIFICACOES.md`): aberta pelo sino do cabeçalho (até 17/10/2026 ficava no rodapé do menu lateral), com o número de não lidas no marcador amarelo, consulta a cada 60 s. Caixa estilo e-mail (`NotificationsPage`): Entrada/Arquivadas, filtros de categoria, situação, público (admin) e "só não lidas", lista à esquerda e leitura à direita (celular: uma de cada vez), seleção em lote (lida, não lida, arquivar, desarquivar, excluir), ações da mensagem (link, "Informar custo"), Dispensar/Reabrir na pendência |
+| `/settings` | Configurações (05/10/2026): Perfil (foto centralizada com envio e recorte no navegador — `AvatarCropModal`, JPEG/PNG/WebP até 5 MB, ≥ 128 px —, nome, e-mail com troca por código, celular, CPF mascarado), Acesso (alterar/definir senha — botão amarelo com ícone de chave desde 17/10/2026 —, vincular/desvincular Google, termos aceitos), Preferências (tema, gravado no usuário), Zona de perigo (excluir conta com código; botão com ícone de lixeira) |
 | `/login` | Login (email/senha + Google), links "Esqueci a senha" e "Criar conta" (só com o cadastro ligado) |
 | `/cadastro` | Criar conta (pública): dados (celular e CPF opcionais) + aceite dos termos → código por e-mail → já entra. Ou Google |
 | `/esqueci-senha` | Esqueci a senha (pública): e-mail → código + nova senha |
@@ -1096,9 +1124,11 @@ a chave precisa avisar quem está de fora que o estado mudou. Por isso o
   posição não está mais na carteira (encerrada), `presetFromTransaction` monta o preset da própria linha, sem saldo;
   a venda sem o que vender a API recusa. Depois de salvar, o extrato filtra o lançamento como na Nova Transação.
 - **Venda de renda fixa pelo líquido** (15/10/2026, `docs/planos/PLANO_VENDA_RENDA_FIXA.md`): o campo é "Valor
-  recebido (líquido)"; o "Resgatar tudo" preenche o **líquido estimado** de hoje e marca a liquidação total. Painel
+  recebido (líquido)"; o "Resgatar tudo" preenche o **líquido estimado** de hoje e marca a liquidação total.
   "Prévia da venda" (`POST /transactions/sale-preview`, 400 ms depois de parar de digitar): bruto, IOF, IR, líquido,
-  líquido disponível e os aportes; no Tesouro, IR e IOF por título. Venda parcial acima do líquido disponível (R9):
+  líquido disponível e os aportes; no Tesouro, IR e IOF por título. Desde 17/10/2026 abre num **popover**
+  (`components/ui/Popover.tsx`) pelo ícone ao lado de "Líquido" ("Total bruto" no Tesouro); o erro do cálculo e o aviso
+  de "passa do líquido disponível" continuam no formulário. Cancelar e Salvar do modal têm ícone (X e disquete). Venda parcial acima do líquido disponível (R9):
   "É o resgate total?" com [Sim, resgate total] / [Não, lançar mesmo assim] — não bloqueia. Na lista, a coluna TOTAL
   das vendas de RF e Tesouro mostra o **bruto** e, numa segunda linha, "líq." — o mesmo formato do valor atual da
   Carteira (D4, revisto em 15/10/2026: sem (i)). O link
@@ -1122,8 +1152,8 @@ a chave precisa avisar quem está de fora que o estado mudou. Por isso o
   reserva `#8a00c4`, geração de renda `#7d7e7f`, em % no tipo percentual e em
   R$ no tipo valor. Componente em `components/strategy/ReservationStrategyTab`.
 - **Link para o Rebalanceamento** (11/10/2026): no canto superior direito do conteúdo, na linha das abas,
-  "Ir para Rebalanceamento" (`components/ui/PageLink`); a tela de Rebalanceamento tem o inverso, "Ir para Estratégia
-  de Investimentos", no mesmo canto. O cabeçalho (`Header.tsx`) continua só com o título. A aba Ideal Estratégico
+  "Ir para Rebalanceamento" (`components/ui/PageLink`). O caminho inverso, desde 17/10/2026, sai de cada card do
+  Rebalanceamento para a aba correspondente (`?aba=reserva` ou a aba padrão), pela prop `action` do `Card`. A aba Ideal Estratégico
   continua lendo `GET /strategy/rebalance` para o % Atual de cada tipo.
 
 ### Rebalanceamento
@@ -1259,14 +1289,16 @@ edição apagaria emissor, vencimento e taxa.
   sobre branco e apagava EMISSOR, APLICAÇÃO, VENCIMENTO e REMUNERAÇÃO na
   Carteira até 23/09/2026. Usou `text-white/NN`, `bg-surface-light/NN`,
   `hover:text-white` ou similar numa tela nova? Confira se o override existe.
-- **Menu lateral** (23/09/2026, `Sidebar.tsx`): ordem Dashboard, Carteira,
-  Transações, Alocação, Estratégia, Rebalanceamento (11/10/2026, ícone de balança), Dividendos, Preço Teto, Emissoras, Índices (05/10/2026, ícone de
-  gráfico de linha), Metas, Integrações
-  (26/09/2026, com marcador quando uma conexão pede atenção). Recolhível
-  pelo botão redondo sobre a borda direita, na altura do logo: 256px ↔ 72px.
-  Recolhido mostra só "PV", os ícones (nome no `title`/`aria-label`) e o rodapé
-  empilhado. A escolha fica em `localStorage` (`primevest-sidebar-collapsed`),
-  como o tema.
+- **Menu lateral** (`Sidebar.tsx`, ordem de 17/10/2026): Dashboard, Carteira, Transações, Dividendos, Rentabilidade,
+  Alocação, Estratégia, Rebalanceamento (ícone de balança), Preço Teto, Metas, Emissoras, Índices (ícone de gráfico de
+  linha). Integrações saiu do menu e o rodapé (usuário, sino, Modo, Configurações, Sair) também. Recolhível pelo botão
+  redondo sobre a borda direita, na altura do logo: 256px ↔ 72px. Recolhido mostra só "PV" e os ícones (nome no
+  `title`/`aria-label`). A escolha fica em `localStorage` (`primevest-sidebar-collapsed`), como o tema.
+- **Cabeçalho** (`Header.tsx`, 17/10/2026): título da tela à esquerda; à direita, nesta ordem, Tema (sol/lua),
+  Notificações (sino com o número de não lidas), Integrações (com o número de conexões que pedem atenção),
+  Configurações e o usuário (foto + nome), que abre um menu com "Sair". Os dois contadores consultam a cada 60 s.
+- **Popover** (`components/ui/Popover.tsx`, 17/10/2026): painel ancorado num ícone, aberto por clique, que fica até
+  clicar fora, Esc ou clicar no ícone de novo — para conteúdo maior que o (i) e menor que um modal (prévia da venda).
 - **CORS** (`CorsConfig`): `localhost` e `127.0.0.1`, portas 5173 e 3000. Para
   o navegador são origens diferentes; até 23/09/2026 só `localhost` valia, e
   abrir a tela por `127.0.0.1` fazia o login falhar com 403 — exibido como
@@ -1560,6 +1592,52 @@ Plano: `docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md`.
   catálogo). Logo de um título: ticker curado do grupo → arquivo da emissora → arquivo da líder do
   grupo → arquivo de outra empresa do grupo (as ativas primeiro). Servido em `GET /api/v1/fixed-income-issuers/logos/{raiz}`, público como `/assets/*/logo` e com a mesma CSP.
 
+### Rentabilidade (17/10/2026)
+Plano: `docs/planos/PLANO_RENTABILIDADE.md`; fórmulas: `docs/RENTABILIDADE_METODOLOGIA.md`.
+
+- **Nada é gravado.** `PortfolioTimelineBuilder` monta a carteira dia a dia (pregões da B3 = dias com Ibovespa, mais
+  hoje) com transações, eventos societários, proventos, `asset_price_history`, a curva da renda fixa
+  (`FixedIncomeLots.path`, uma passada) e o preço atual no ponto de hoje. O último ponto bate com a Carteira (centavo
+  por posição).
+- **Um motor** (`PerformanceService`): cards, gráficos, tabelas e o Dashboard leem as mesmas funções (`ReturnMath`,
+  `BenchmarkSeries`, `Xirr`, `RiskMetrics`). TWR com compras no começo do dia e vendas e proventos no fim; provento no
+  pregão ex (dia seguinte à data-com).
+- **Lacuna não some**: posição exposta sem preço (além de 5 pregões sem negócio, D3) deixa o dia indisponível —
+  TWR, XIRR, contribuição e risco ficam nulos e a tela diz o ativo. Filtrar sem ele faz o número voltar.
+- **Cache em memória** por usuário, refeito quando muda a "impressão digital" (uma consulta de contagens e máximos:
+  transações, posições, proventos, preços dos ativos da carteira, índices, custos de bonificação) ou em 6 h. Não usa o
+  `RedisCacheManager` (JSON sem datas, e ler os vetores seria mais lento que calcular).
+- **Conferência independente**: `node carga/scripts/conferencia/rentabilidade.mjs` recalcula direto das tabelas, por
+  classe (exceto renda fixa privada), TWR, CDI, % do CDI, IPCA, real e valor final, e compara com a API.
+- **Carteira** (revisto em 17/10/2026, à noite): três números, cada um com o nome do que mede.
+  **VALORIZAÇÃO** em R$ e, embaixo, em % (valorização ÷ aplicado — em ação, preço atual ÷ preço médio − 1; a
+  "Variação" do Investidor10). **RENTABILIDADE** (antes "RESULTADO S/ INVESTIDO", e antes ainda "RENT. %"): a clássica,
+  (valorização + proventos) ÷ aplicado — a "Rentabilidade" do Investidor10, ordena a coluna — e, embaixo, "TWR: x%",
+  o TWR bruto desde o início da posição (`/performance/breakdown?level=POSITION&range=MAX&basis=GROSS`, a mesma
+  consulta do Top 5 do Dashboard, chave `POSITIONS_TWR_KEY` em `utils/returns.ts`). Totais da aba: as mesmas contas
+  sobre as somas (até então o total da coluna somava proventos e as linhas não) e o TWR do **tipo** (`level=TYPE`);
+  com alguma flag desligada o TWR do total vira "—" (TWR não se soma). Sem número do motor (falta de preço) ou ainda
+  carregando: "TWR: —". Depois de venda parcial, os proventos de toda a vida da posição ficam sobre o custo restante
+  (a % clássica pode inflar) — mantido como no Investidor10, dito no (i). O Top 5 do Dashboard segue o mesmo formato
+  (clássica em cima, TWR embaixo).
+- **Comparativo com índice atrasado** (IPCA sai ~10 dias depois do mês): a linha encadeia o índice até o último dado
+  publicado (`ReturnMath.chainUntilGap`), marca `*` e informa a data (`TableRowDTO.until`); a coluna de diferença
+  compara a carteira no mesmo intervalo, não no período inteiro.
+- **Com/sem reserva** só aparece em Carteira total e nos tipos que podem ser reserva (`fixedIncome`); trocar para outro
+  tipo limpa o parâmetro `reserva`.
+- **Benchmark padrão do Tesouro**: IPCA e IPCA + a taxa de compra do Tesouro IPCA+ (sem juros semestrais) **à venda**
+  que vence primeiro (`BenchmarkData.treasuryIpca`, `treasury_offers`), aplicada ao período inteiro. "À venda" vem do
+  arquivo de vendas do Tesouro Transparente: o de preços traz taxa de todos os títulos, inclusive os que saíram da
+  prateleira (em 15/10/2026 o IPCA+ 2029 tinha taxa, mas só 2032, 2040 e 2050 venderam). Sem taxa gravada, só IPCA.
+  Renda fixa privada continua só com o CDI.
+- **IPCA + x% no seletor "Adicionar"** (17/10/2026): o campo da taxa vem preenchido com essa mesma taxa do Tesouro
+  IPCA+ à venda que vence primeiro (`catalog.treasuryIpca.rate`) — o mesmo valor de quando se escolhe Tesouro Direto —
+  até o usuário digitar; sem taxa gravada, 6%.
+- **Índice × ativo que o replica**: o índice mede de fechamento a fechamento; a carteira conta a compra a partir do
+  preço pago (R5). No dia da compra a diferença entre o preço e o fechamento entra na rentabilidade — uma carteira só
+  de BTC comprado em dias de queda rende diferente do BTC/BRL (12M em 17/10/2026: −15,00% × −23,41%). Decidido manter
+  (17/10/2026) e avisar na tela (último item do quadro de informações).
+
 ### `dividends` não tem dono próprio
 O dono vem de `portfolio_asset_id`, que é **obrigatório** (`NOT NULL`) e
 **cascateia** (FK `ON DELETE CASCADE`), desde o segundo reset das migrations
@@ -1648,7 +1726,7 @@ não "quando o usuário mexeu nesta posição" — para a segunda pergunta, o qu
 
 ### Testes — existem desde 22/09/2026
 
-**Em 10/10/2026 (Preço Teto, payout pela DFC, COTAHIST diário): core 158; integration 103; adm-api 89 + 40; app-api 189 + 199 — todos verdes em `mvn verify` (~6 min).** Antes, em 05/10/2026, noite (valorização da renda fixa): 521 unitários + 231 de integração, por módulo: core 158; integration 103; adm-api 88 + 38; app-api 172 + 193, todos verdes em `mvn clean verify` (~7 min). Na F11 (28/09/2026) eram 394 + 180.
+**Em 17/10/2026, à noite ("Mudanças de tela": `DashboardResumoIT` — aportes compras − vendas em 12 meses, valor líquido do Patrimônio — e os proventos de 12 meses no `ProventosAReceberIT`): core 190; integration 103; adm-api 116 + 49; app-api 210 + 256 — todos verdes em `mvn clean verify` (~7 min).** Antes, no mesmo dia (Rentabilidade, com o padrão do Tesouro e a V59): core 190; integration 103; adm-api 116 + 49; app-api 210 + 251. Antes, na entrega da Rentabilidade: core 189; integration 103; adm-api 116 + 48; app-api 210 + 250. Antes, em 10/10/2026 (Preço Teto, payout pela DFC, COTAHIST diário): core 158; integration 103; adm-api 89 + 40; app-api 189 + 199 — todos verdes em `mvn verify` (~6 min).** Antes, em 05/10/2026, noite (valorização da renda fixa): 521 unitários + 231 de integração, por módulo: core 158; integration 103; adm-api 88 + 38; app-api 172 + 193, todos verdes em `mvn clean verify` (~7 min). Na F11 (28/09/2026) eram 394 + 180.
 O suporte comum (container do PostgreSQL, bases, fixtures, `application-test.yml`) vem do
 test-jar do core. A app-api tem a adm-api **só no classpath de teste**, para os testes de ponta a ponta de
 proventos e fechamento (`CatalogoE2EBase`: fonte mockada → catálogo pela adm-api → recálculo pela app-api →

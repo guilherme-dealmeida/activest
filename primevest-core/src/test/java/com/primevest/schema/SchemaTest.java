@@ -25,15 +25,34 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Flyway roda ate a V56 e o schema valida contra as entidades")
+    @DisplayName("Flyway roda ate a V59 e o schema valida contra as entidades")
     void migrationsAplicadas() {
         Number versao = (Number) em.createNativeQuery(
             "SELECT MAX(CAST(version AS NUMERIC)) FROM flyway_schema_history WHERE success").getSingleResult();
-        assertThat(versao.intValue()).isEqualTo(56);
+        assertThat(versao.intValue()).isEqualTo(59);
 
         Number falhas = (Number) em.createNativeQuery(
             "SELECT COUNT(*) FROM flyway_schema_history WHERE NOT success").getSingleResult();
         assertThat(falhas.intValue()).isZero();
+    }
+
+    @Test
+    @DisplayName("Benchmarks (V57): 6 indices e 2 ativos (IVVB11, BTC), so o CDI pre-selecionado; V58 aceita BINANCE")
+    void benchmarks() {
+        assertThat(count("benchmarks WHERE kind = 'INDICE'")).isEqualTo(6);
+        assertThat(count("benchmarks WHERE kind = 'ATIVO'")).isEqualTo(2);
+        assertThat(count("benchmarks WHERE default_selected")).isEqualTo(1);
+        assertThat(count("benchmarks WHERE accepts_spread")).isEqualTo(1);
+        assertThat(em.createNativeQuery("SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+                + "WHERE conname = 'ck_price_history_source'").getSingleResult().toString()).contains("BINANCE");
+    }
+
+    @Test
+    @DisplayName("Oferta do Tesouro (V59): tabela vazia, uma linha por titulo, apagada com o ativo")
+    void ofertaDoTesouro() {
+        assertThat(count("treasury_offers")).isZero();
+        assertThat(em.createNativeQuery("SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+                + "WHERE conname = 'fk_treasury_offers_asset'").getSingleResult().toString()).contains("CASCADE");
     }
 
     @Test

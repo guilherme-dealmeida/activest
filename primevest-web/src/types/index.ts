@@ -118,6 +118,12 @@ export interface PortfolioSummary {
   totalDividends: number;
   totalReturn: number;
   returnPercentage: number;
+  /** Aportes líquidos dos últimos 12 meses: compras − o que as vendas devolveram (card Aportes do Dashboard). */
+  contributions12m: number;
+  /** Média mensal dos aportes dos últimos 12 meses. */
+  contributionsMonthlyAverage12m: number;
+  /** Valor atual líquido estimado: renda fixa e Tesouro pelo líquido de resgate (IR e IOF); os demais pelo bruto. */
+  currentNetValue: number;
 }
 
 export interface PortfolioAssetDetail {
@@ -195,6 +201,13 @@ export interface PortfolioAssetDetail {
   noteInfo?: NoteInfo | null;
   /** Só na tela: noteInfo.distributorName, para a coluna DISTRIBUIDORA ordenar pelo cabeçalho. */
   distributorName?: string | null;
+  /**
+   * Só na tela (17/10/2026): rentabilidade clássica, (valorização + proventos) ÷ valor aplicado, em %. É a que a
+   * coluna RENTABILIDADE da Carteira mostra e ordena; a mesma conta da "Rentabilidade" do Investidor10.
+   */
+  classicReturn?: number | null;
+  /** Só na tela: TWR bruto desde o início da posição (`/performance/breakdown`), em %. null = indisponível. */
+  twr?: number | null;
 }
 
 /**
@@ -339,15 +352,6 @@ export interface PortfolioAllocationDetailed {
   totalValue: number;
   percentage: number;
   categories: CategoryAllocation[];
-}
-
-export interface PortfolioPerformance {
-  totalInvested: number;
-  currentValue: number;
-  totalDividends: number;
-  totalReturn: number;
-  returnPercentage: number;
-  assets: { ticker: string; invested: number; currentValue: number; returnPct: number }[];
 }
 
 export enum TransactionType {
@@ -829,6 +833,8 @@ export interface DividendSummary {
   totalToReceive: number;
   toReceiveGross: number;
   toReceiveTax: number;
+  /** Líquido recebido nos últimos 12 meses (pagamento; sem ele, data ex). */
+  last12Months: number;
 }
 
 export type GoalStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED';

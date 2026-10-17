@@ -145,6 +145,68 @@ public final class FixedIncomeLots {
     public static Result run(FixedIncomeCurve.Terms terms, List<Move> moves, LocalDate referenceDate,
                              NavigableMap<LocalDate, BigDecimal> daily, NavigableMap<LocalDate, BigDecimal> monthly,
                              FixedIncomeTaxTable taxes, Long assetId, SaleRule rule) {
+        return walk(terms, moves, referenceDate, daily, monthly, taxes, assetId, rule, null);
+    }
+
+    // ------------------------------------------------------------------ caminho diario (PLANO_RENTABILIDADE, 4.2)
+
+    /**
+     * O titulo num dia: saldo bruto (soma dos lotes, 2 casas) e liquido estimado se resgatado nesse dia (IR e IOF de
+     * cada lote pela idade dele no dia).
+     *
+     * @param estimated algum mes de indice ate este dia foi estimado pelo ultimo publicado (D5 da valorizacao)
+     */
+    public record DayValue(BigDecimal gross, BigDecimal net, boolean estimated) {
+    }
+
+    /**
+     * O caminho do titulo dia a dia (corridos), do primeiro movimento ate {@code to}.
+     *
+     * @param status UNSUPPORTED = sem curva (TR, serie ausente): os valores nao rendem e nao servem de preco
+     * @param days   valor ao fim de cada dia (depois dos movimentos e do rendimento do dia — o mesmo que
+     *               {@link #run} daria com esse dia como data de referencia); dias antes do primeiro movimento nao
+     *               aparecem
+     */
+    public record Path(FixedIncomeCurve.Status status, String reason, NavigableMap<LocalDate, DayValue> days) {
+    }
+
+    /**
+     * Numa passada so, o que {@link #run} daria para cada dia de {@code from} a {@code to} (refazer a curva para cada
+     * data seria quadratico). Depois da ultima taxa publicada o valor fica parado, como na Carteira.
+     */
+    public static Path path(FixedIncomeCurve.Terms terms, List<Move> moves, LocalDate from, LocalDate to,
+                            NavigableMap<LocalDate, BigDecimal> daily, NavigableMap<LocalDate, BigDecimal> monthly,
+                            FixedIncomeTaxTable taxes, Long assetId, SaleRule rule) {
+        FixedIncomeTaxTable table = taxes != null ? taxes : FixedIncomeTaxTable.empty();
+        java.util.TreeMap<LocalDate, DayValue> days = new java.util.TreeMap<>();
+        Result r = walk(terms, moves, to, daily, monthly, taxes, assetId, rule, (d, lots, estimated) -> {
+            if (d.isBefore(from) || d.isAfter(to)) {
+                return;
+            }
+            BigDecimal gross = BigDecimal.ZERO;
+            BigDecimal net = BigDecimal.ZERO;
+            for (Open lot : lots) {
+                BigDecimal b = money(lot.balance);
+                if (b.signum() <= 0) {
+                    continue;
+                }
+                gross = gross.add(lot.balance, MC);
+                FixedIncomeTaxTable.Rates rates = table.rates(assetId, lot.date, d);
+                net = net.add(b.subtract(FixedIncomeTaxCalculator.taxes(money(lot.income()), rates).total()));
+            }
+            days.put(d, new DayValue(money(gross), net.setScale(MONEY, RoundingMode.HALF_EVEN), estimated));
+        });
+        return new Path(r.status(), r.reason(), days);
+    }
+
+    /** Fim de cada dia da caminhada: os lotes como estao e se ja houve indice estimado. */
+    private interface DayObserver {
+        void day(LocalDate date, List<Open> lots, boolean estimated);
+    }
+
+    private static Result walk(FixedIncomeCurve.Terms terms, List<Move> moves, LocalDate referenceDate,
+                               NavigableMap<LocalDate, BigDecimal> daily, NavigableMap<LocalDate, BigDecimal> monthly,
+                               FixedIncomeTaxTable taxes, Long assetId, SaleRule rule, DayObserver observer) {
         SaleRule saleRule = rule != null ? rule : SaleRule.DEFAULT;
         FixedIncomeTaxTable table = taxes != null ? taxes : FixedIncomeTaxTable.empty();
         List<Move> sorted = new ArrayList<>(moves);
@@ -168,6 +230,9 @@ public final class FixedIncomeLots {
             LocalDate start = sorted.get(0).date();
             LocalDate lastMove = sorted.get(sorted.size() - 1).date();
             LocalDate end = lastMove.isAfter(lastAccrual) ? lastMove : lastAccrual;
+            if (observer != null && referenceDate.isAfter(end)) {
+                end = referenceDate; // o caminho vai ate o fim do periodo, mesmo parado
+            }
             BigDecimal spreadDay = accrues ? FixedIncomeCurve.spreadDay(terms) : BigDecimal.ONE;
             int next = 0;
             int seq = 0;
@@ -183,18 +248,20 @@ public final class FixedIncomeLots {
                         }
                     }
                 }
-                if (!accrues || d.isAfter(lastAccrual) || !BusinessCalendar.isBusinessDay(d)) {
-                    continue;
-                }
-                BigDecimal factor = FixedIncomeCurve.dayFactor(terms, d, daily, monthly, spreadDay, estimated);
-                if (factor == null) {
-                    lastAccrual = daily.lastKey(); // a serie acabou antes da data de referencia
-                    continue;
-                }
-                for (Open lot : lots) {
-                    if (lot.balance.signum() > 0) {
-                        lot.balance = lot.balance.multiply(factor, MC);
+                if (accrues && !d.isAfter(lastAccrual) && BusinessCalendar.isBusinessDay(d)) {
+                    BigDecimal factor = FixedIncomeCurve.dayFactor(terms, d, daily, monthly, spreadDay, estimated);
+                    if (factor == null) {
+                        lastAccrual = daily.lastKey(); // a serie acabou antes da data de referencia
+                    } else {
+                        for (Open lot : lots) {
+                            if (lot.balance.signum() > 0) {
+                                lot.balance = lot.balance.multiply(factor, MC);
+                            }
+                        }
                     }
+                }
+                if (observer != null) {
+                    observer.day(d, lots, estimated[0]);
                 }
             }
         }

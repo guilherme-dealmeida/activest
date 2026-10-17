@@ -21,6 +21,8 @@ import { formatCurrency, formatDate, formatPercentage, formatQuantity, formatUni
 import { RENDA_FIXA, TESOURO_DIRETO, isFixedIncomeNote, typeLogo } from '@/utils/assetTypeRules';
 import { apiMessage } from '@/utils/apiError';
 import { TickerLink } from '@/components/issuer/TickerLink';
+import { performanceApi } from '@/api/performance';
+import { POSITIONS_TWR_KEY, classicReturn } from '@/utils/returns';
 
 /** "17,5%" — alíquota (0,175) em percentual. */
 const pct = (v: number) => `${(v * 100).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%`;
@@ -177,6 +179,13 @@ interface Column {
   render: (asset: PortfolioAssetDetail, type: AssetType) => ReactNode;
   visible?: (type: AssetType) => boolean;
 }
+
+/** Segunda linha da RENTABILIDADE: "TWR: x%", ou "TWR: —" quando o motor não tem o número (falta de preço). */
+const TwrLine = ({ value, title }: { value: number | null | undefined; title?: string }) => (
+  value == null
+    ? <span className="text-xs font-normal text-gray-400" title={title ?? 'TWR indisponível: falta preço em algum dia do período (detalhes na tela Rentabilidade).'}>TWR: —</span>
+    : <span className={clsx('text-xs font-normal tabular-nums', getReturnColor(value))} title={title}>TWR: {formatPercentage(value)}</span>
+);
 
 const COLUMNS: Column[] = [
   {
@@ -346,20 +355,38 @@ const COLUMNS: Column[] = [
     render: (a) => formatCurrency(a.totalDividends),
   },
   {
+    // 17/10/2026: em reais e, embaixo, em % (a "Variação" do Investidor10). Ordena pelo valor em reais.
     key: 'valorization',
     label: 'VALORIZAÇÃO',
-    info: 'Quanto a posição ganhou ou perdeu em relação ao valor aplicado.',
+    info: 'Quanto a posição ganhou ou perdeu em relação ao valor aplicado, sem os proventos. Embaixo, em percentual: '
+      + 'valorização ÷ valor aplicado (em ações, preço atual ÷ preço médio − 1).',
     align: 'right',
-    render: (a) => <span className={getReturnColor(a.valorization)}>{formatCurrency(a.valorization)}</span>,
+    render: (a) => (
+      <span className="inline-flex flex-col items-end">
+        <span className={getReturnColor(a.valorization)}>{formatCurrency(a.valorization)}</span>
+        {a.valuationBasis === 'SEM_CURVA'
+          ? <span className="text-xs text-gray-400" title={a.valuationNote ?? undefined}>—</span>
+          : <span className={clsx('text-xs tabular-nums', getReturnColor(a.returnPercentage))}>{formatPercentage(a.returnPercentage)}</span>}
+      </span>
+    ),
   },
   {
-    key: 'returnPercentage',
-    label: 'RENT. %',
-    info: 'Valorização dividida pelo valor aplicado.',
+    // 17/10/2026, antes "RESULTADO S/ INVESTIDO": a rentabilidade clássica e, embaixo, o TWR. Ordena pela clássica.
+    key: 'classicReturn',
+    label: 'RENTABILIDADE',
+    info: 'Rentabilidade com os proventos: (valorização + proventos) ÷ valor aplicado. Depois de uma venda parcial, os '
+      + 'proventos de toda a vida da posição ficam sobre o custo que restou, e a % pode parecer maior. '
+      + 'Embaixo, o TWR bruto desde a primeira compra: a rentabilidade no tempo, que não depende de quando nem de '
+      + 'quanto você aportou — a que se compara com CDI e Ibovespa (tela Rentabilidade).',
     align: 'right',
-    render: (a) => (a.valuationBasis === 'SEM_CURVA'
-      ? <span className="text-gray-400" title={a.valuationNote ?? undefined}>—</span>
-      : <span className={getReturnColor(a.returnPercentage)}>{formatPercentage(a.returnPercentage)}</span>),
+    render: (a) => (
+      <span className="inline-flex flex-col items-end">
+        {a.valuationBasis === 'SEM_CURVA' || a.classicReturn == null
+          ? <span className="text-gray-400" title={a.valuationNote ?? undefined}>—</span>
+          : <span className={getReturnColor(a.classicReturn)}>{formatPercentage(a.classicReturn)}</span>}
+        <TwrLine value={a.twr} />
+      </span>
+    ),
   },
 ];
 
@@ -423,12 +450,18 @@ interface TableProps {
   type: AssetType;
   assets: PortfolioAssetDetail[];
   reservation: ReservationControl;
+  /** TWR bruto desde o início por posição (id → %); ausente = ainda carregando ou sem número. */
+  twrByPosition: Map<string, number | null>;
+  /** TWR bruto desde o início do tipo inteiro (a aba), para a linha de Totais. */
+  typeTwr: number | null | undefined;
+  /** Alguma flag desligada: o TWR do tipo não vale para o subconjunto (TWR não se soma). */
+  partial?: boolean;
   onList: (asset: PortfolioAssetDetail) => void;
   onBuy: (asset: PortfolioAssetDetail) => void;
   onSell: (asset: PortfolioAssetDetail) => void;
 }
 
-const PortfolioTypeTable = ({ type, assets, reservation, onList, onBuy, onSell }: TableProps) => {
+const PortfolioTypeTable = ({ type, assets, reservation, twrByPosition, typeTwr, partial, onList, onBuy, onSell }: TableProps) => {
   // Regra (A): só renda fixa compõe reserva de emergência. A condição é a
   // coluna fixed_income do tipo, e não uma lista de nomes — Renda Fixa e
   // Tesouro Direto hoje, e qualquer tipo novo marcado assim amanhã.
@@ -437,8 +470,13 @@ const PortfolioTypeTable = ({ type, assets, reservation, onList, onBuy, onSell }
   // Começa ordenada por ativo (A→Z); o clique no cabeçalho continua trocando.
   // A distribuidora vem dentro de noteInfo; o campo plano é o que a ordenação pelo cabeçalho lê
   const linhas = useMemo(
-    () => assets.map(a => ({ ...a, distributorName: a.noteInfo?.distributorName ?? null })),
-    [assets]
+    () => assets.map(a => ({
+      ...a,
+      distributorName: a.noteInfo?.distributorName ?? null,
+      classicReturn: classicReturn(a.valorization, a.totalDividends, a.totalInvested),
+      twr: twrByPosition.get(a.id) ?? null,
+    })),
+    [assets, twrByPosition]
   );
   const { sortedData, requestSort, getSortIndicator, getSortClass } = useSortable(linhas, {
     key: 'ticker',
@@ -452,8 +490,10 @@ const PortfolioTypeTable = ({ type, assets, reservation, onList, onBuy, onSell }
   const totalCurrent = assets.reduce((sum, a) => sum + a.currentValue, 0);
   const totalDividends = assets.reduce((sum, a) => sum + a.totalDividends, 0);
   const totalValorization = assets.reduce((sum, a) => sum + a.valorization, 0);
-  const totalReturn =
-    totalInvested > 0 ? ((totalCurrent + totalDividends - totalInvested) / totalInvested) * 100 : 0;
+  // Totais (17/10/2026): as mesmas contas das linhas, sobre as somas. Até então o total da coluna somava os proventos
+  // e as linhas não — a mesma coluna fazia duas contas.
+  const totalValorizationPct = totalInvested > 0 ? (totalValorization / totalInvested) * 100 : 0;
+  const totalClassic = classicReturn(totalValorization, totalDividends, totalInvested) ?? 0;
   // Liquido estimado da aba: o do titulo quando ha, senao o proprio valor (sem curva, nao ha estimativa).
   const hasNet = assets.some((a) => a.estimatedNet != null);
   const totalNet = assets.reduce((sum, a) => sum + (a.estimatedNet ?? a.currentValue), 0);
@@ -470,8 +510,20 @@ const PortfolioTypeTable = ({ type, assets, reservation, onList, onBuy, onSell }
       )
       : formatCurrency(totalCurrent),
     totalDividends: formatCurrency(totalDividends),
-    valorization: <span className={getReturnColor(totalValorization)}>{formatCurrency(totalValorization)}</span>,
-    returnPercentage: <span className={getReturnColor(totalReturn)}>{formatPercentage(totalReturn)}</span>,
+    valorization: (
+      <span className="inline-flex flex-col items-end">
+        <span className={getReturnColor(totalValorization)}>{formatCurrency(totalValorization)}</span>
+        <span className={clsx('text-xs font-normal tabular-nums', getReturnColor(totalValorizationPct))}>{formatPercentage(totalValorizationPct)}</span>
+      </span>
+    ),
+    classicReturn: (
+      <span className="inline-flex flex-col items-end">
+        <span className={getReturnColor(totalClassic)}>{formatPercentage(totalClassic)}</span>
+        {partial
+          ? <TwrLine value={null} title="TWR do tipo inteiro: com flags desligadas ele não vale para as posições mostradas (TWR não se soma). Ligue todas as flags para vê-lo." />
+          : <TwrLine value={typeTwr} title={`TWR bruto desde o início de ${type.description}, o mesmo da tela Rentabilidade.`} />}
+      </span>
+    ),
   };
   // "Totais" ocupa as colunas até a primeira que tem total.
   const labelSpan = columns.findIndex((c) => c.key in footer);
@@ -593,7 +645,7 @@ const PortfolioTypeTable = ({ type, assets, reservation, onList, onBuy, onSell }
  * cada troca de tipo (key pelo type.id) — é o mesmo mecanismo que devolve a
  * ordenação ao padrão, e faz com que toda aba comece com tudo ligado.
  */
-const PortfolioTypeSection = ({ type, assets, reservation, onList, onBuy, onSell }: TableProps) => {
+const PortfolioTypeSection = ({ type, assets, reservation, twrByPosition, typeTwr, onList, onBuy, onSell }: TableProps) => {
   const [offKeys, setOffKeys] = useState<Set<string>>(new Set());
 
   // Só entram na fila as chaves que têm posição nesta aba.
@@ -621,6 +673,9 @@ const PortfolioTypeSection = ({ type, assets, reservation, onList, onBuy, onSell
           type={type}
           assets={visible}
           reservation={reservation}
+          twrByPosition={twrByPosition}
+          typeTwr={typeTwr}
+          partial={visible.length < assets.length}
           onList={onList}
           onBuy={onBuy}
           onSell={onSell}
@@ -653,6 +708,21 @@ export const PortfolioPage = () => {
     queryKey: ['assets', 'types'],
     queryFn: assetsApi.getTypes,
   });
+
+  // TWR bruto desde o início (2ª linha da RENTABILIDADE): por posição — mesma consulta do Top 5 do Dashboard — e por
+  // tipo, para os Totais da aba. Não segura a tela: enquanto carrega, a linha mostra "TWR: —".
+  const { data: positionsTwr } = useQuery({
+    queryKey: POSITIONS_TWR_KEY,
+    queryFn: () => performanceApi.breakdown({ range: 'MAX', basis: 'GROSS' }, 'POSITION'),
+  });
+  const { data: typesTwr } = useQuery({
+    queryKey: ['performance', 'types', 'MAX', 'bruto'],
+    queryFn: () => performanceApi.breakdown({ range: 'MAX', basis: 'GROSS' }, 'TYPE'),
+  });
+  const twrByPosition = useMemo(
+    () => new Map((positionsTwr?.rows ?? []).filter(r => r.positionId).map(r => [r.positionId as string, r.individual])),
+    [positionsTwr]
+  );
 
   /**
    * Liga e desliga a reserva de emergência da posição.
@@ -748,6 +818,8 @@ export const PortfolioPage = () => {
             type={activeTab.type}
             assets={activeTab.assets}
             reservation={reservation}
+            twrByPosition={twrByPosition}
+            typeTwr={typesTwr?.rows.find(r => r.typeName === activeTab.type.name)?.individual}
             onList={(asset) => navigate(`/transactions?position=${asset.id}`)}
             onBuy={(asset) => setPreset(presetFromPosition(TransactionType.BUY, activeTab.type, asset))}
             onSell={(asset) => setPreset(presetFromPosition(TransactionType.SELL, activeTab.type, asset))}

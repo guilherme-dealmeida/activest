@@ -108,6 +108,39 @@ public class CoinGeckoClient {
         return images;
     }
 
+    /** Um ponto do historico: instante e preco em reais. */
+    public record HistoryPoint(java.time.Instant at, BigDecimal price) {
+    }
+
+    /**
+     * Historico de preco em reais entre dois instantes ({@code /coins/{id}/market_chart/range}) — docs/planos/
+     * PLANO_RENTABILIDADE.md, 3.3. Na API gratuita so os <b>ultimos 365 dias</b> respondem (antes disso, 401); com
+     * janela acima de 90 dias os pontos sao diarios (00:00 UTC), abaixo disso horarios.
+     */
+    public List<HistoryPoint> fetchHistoryBrl(String coinId, java.time.Instant from, java.time.Instant to) {
+        Map<String, Object> response = call(() -> webClient.get()
+                .uri(uri -> uri.path("/coins/{id}/market_chart/range")
+                        .queryParam("vs_currency", "brl")
+                        .queryParam("from", from.getEpochSecond())
+                        .queryParam("to", to.getEpochSecond())
+                        .build(coinId))
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .timeout(timeout)
+                .block());
+        List<HistoryPoint> points = new ArrayList<>();
+        Object prices = response != null ? response.get("prices") : null;
+        if (prices instanceof List<?> list) {
+            for (Object item : list) {
+                if (item instanceof List<?> pair && pair.size() >= 2 && pair.get(0) != null && pair.get(1) != null) {
+                    long ms = ((Number) pair.get(0)).longValue();
+                    points.add(new HistoryPoint(java.time.Instant.ofEpochMilli(ms), new BigDecimal(pair.get(1).toString())));
+                }
+            }
+        }
+        return points;
+    }
+
     private <T> T call(java.util.function.Supplier<T> request) {
         try {
             return request.get();

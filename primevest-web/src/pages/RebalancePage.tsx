@@ -13,7 +13,8 @@ import { PageLink } from '@/components/ui/PageLink';
 
 /**
  * Rebalanceamento (11/10/2026): era a terceira aba de Estratégia de Investimentos e virou tela própria, com item no
- * menu. O conteúdo é o mesmo: a reserva primeiro, depois a geração de renda por tipo. A chave da consulta continua
+ * menu. O conteúdo é o mesmo: a reserva primeiro, depois a geração de renda por tipo. Cada card tem, à direita, o
+ * link para a aba da Estratégia correspondente (17/10/2026). A chave da consulta continua
  * ['strategy', 'rebalance'], então salvar o Ideal Estratégico, a Estratégia Reserva ou ligar a reserva na Carteira
  * (todos invalidam ['strategy']) já atualiza esta tela.
  */
@@ -33,11 +34,15 @@ export const RebalancePage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <PageLink to="/strategy" label="Ir para Estratégia de Investimentos" />
-      </div>
-      {rebalance?.reservation && <ReservationRebalanceCard reservation={rebalance.reservation} />}
-      <Card title="Sugestão de Aporte (Rebalanceamento)" titleInfo={STRATEGY_HELP.typeRebalance}>
+      {/* Desde 17/10/2026 cada card leva à aba da Estratégia que o alimenta (antes um link só, para a tela) */}
+      {rebalance?.reservation && (
+        <ReservationRebalanceCard
+          reservation={rebalance.reservation}
+          action={<PageLink to="/strategy?aba=reserva" label="Ir para Estratégia Reserva" />}
+        />
+      )}
+      <Card title="Sugestão de Aporte (Rebalanceamento)" titleInfo={STRATEGY_HELP.typeRebalance}
+        action={<PageLink to="/strategy" label="Ir para Ideal Estratégico" />}>
         <div className="overflow-x-auto mt-4">
           <table className={REBALANCE_TABLE_CLASS}>
             <RebalanceColGroup />

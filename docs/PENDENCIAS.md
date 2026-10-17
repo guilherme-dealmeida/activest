@@ -2,7 +2,9 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 16/10/2026 — secao 28 (emissoras e distribuidoras de renda fixa, escopo finalizado; 28.1 e 28.5 no fechamento;
+Ultima atualizacao: 17/10/2026 — secao 29 (rentabilidade comparativa, docs/planos/PLANO_RENTABILIDADE.md); 20.3, 23.3 e
+24.5 resolvidos. No mesmo dia, "Mudancas de tela" (cabecalho, menu, Dashboard, popover da previa da venda,
+links do Rebalanceamento): secao 30. Antes: 16/10/2026 — secao 28 (emissoras e distribuidoras de renda fixa, escopo finalizado; 28.1 e 28.5 no fechamento;
 docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md); 4.3 e 27.1 resolvidos, 27.2 atualizado. Antes: 15/10/2026 — secao 27 (venda de renda fixa, docs/planos/PLANO_VENDA_RENDA_FIXA.md; 27.3 a 27.5
 na implementacao); 26.7 e 26.8 reescritos (a liquidacao automatica sai). Antes: 13/10/2026 — secao 13 (central de avisos) e itens 10.4, 13.2 e 25.1 resolvidos pelas
 notificacoes (docs/planos/PLANO_NOTIFICACOES.md) e secao 26. Antes: 10/10/2026 — secao 25 (preco teto pelo modelo
@@ -930,7 +932,9 @@ preco teto", que vira o proximo e consome este. Fases F1 a F11 no plano.
  2026: 22 de 1.185. FII: ~100% em todos os anos (FNET).
 **20.2** Relatorio de proventos parcelado com parcela "a definir": fica sem data
  ate a B3 (12 meses) ou uma reapresentacao do relatorio trazer.
-**20.3** Historico de preco de cripto (CoinGecko) nao e refeito num ambiente
+**20.3** RESOLVIDO em 17/10/2026 (docs/planos/PLANO_RENTABILIDADE.md, 3.3): CryptoHistoryService grava os ultimos 365 dias da
+ CoinGecko (somados a carga/data/coingecko/historico, que guarda o que sai da janela) e o BTC/BRL da Binance desde
+ 13/10/2020 (carga/data/binance/klines), rotina 19:30 e etapa do bootstrap. Texto original: Historico de preco de cripto (CoinGecko) nao e refeito num ambiente
  novo: o grafico comeca na data da carga. Fora do escopo da carga.
 **20.4** Bucket: o push e manual (docker compose --profile carga run --rm data
  push) na maquina de quem tem a chave de escrita. Se ficar esquecido, o
@@ -1003,8 +1007,8 @@ A adm-api nao avisa a app-api quando um indice muda (D8). O resultado da
 Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
  do IPCA+ no mes corrente e para projecao de CDI. Fica no escopo da valorizacao.
 **23.3** FEITO em 05/10/2026 (D7 revista pelo Guilherme): menu e tela Indices, um card
- por indice com periodo e grafico (plano, secao 10). Fica para o escopo de rentabilidade
- so a comparacao da carteira com CDI, IPCA, Ibovespa e IFIX.
+ por indice com periodo e grafico (plano, secao 10). A comparacao da carteira com CDI, IPCA, Ibovespa e IFIX
+ saiu em 17/10/2026 (tela Rentabilidade, secao 29).
 **23.4** Poupanca (SGS 195, rendimento por dia de aniversario) ficou de fora (D1).
  Entra so com seed numa migration e a regra de aniversario no calculador.
 **23.5** Historico antes de 2010: POST /api/v1/admin/indices?from=2000 (ou outro ano)
@@ -1025,7 +1029,7 @@ Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
 **24.3** IR, IOF e taxas: valores brutos (regra do projeto). Tambem nao ha valor liquido estimado.
 **24.4** O IPCA+ privado usa o mes distribuido pelos dias uteis (D6); o metodo do aniversario (dia 15) daria
  diferenca pequena, so na renda fixa privada (o Tesouro vem pelo preco).
-**24.5** Rentabilidade historica da carteira e comparacao com CDI/IPCA/Ibovespa: escopo de rentabilidade.
+**24.5** RESOLVIDO em 17/10/2026: rentabilidade historica da carteira e comparacao com CDI/IPCA/Ibovespa (secao 29).
 **24.6** Duas subidas seguidas da adm-api (hot reload) podem baixar o CSV do Tesouro ao mesmo tempo e uma falhar no
  ".part"; a proxima rodada completa. Sem efeito com uma instancia so.
 
@@ -1146,6 +1150,38 @@ Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
  V56 a FK composta (note_id, asset_id) os mantem iguais (trocar o produto do titulo leva a posicao; trocar so a posicao
  e recusado). Remover a duplicacao — o titulo ler o produto da posicao — mexe na regra H, nas buscas por ativo e nos
  testes; fica para quando houver outro motivo para mexer nessas pecas.
+
+## 29. RENTABILIDADE (docs/planos/PLANO_RENTABILIDADE.md, 17/10/2026)
+
+**29.1** Indice composto pela estrategia (L7): benchmark ponderado pelo Ideal Estrategico (ex.: 40% IFIX + 30% IBOV
+ + 30% CDI). Precisa de metodologia propria (rebalanceamento do indice, reserva).
+**29.2** Indices ANBIMA (IMA-B, IMA-B 5, IMA-B 5+, IRF-M), IBrX e IDIV: fonte nova; nao entraram (levantamento, item 3).
+**29.3** BTC antes de 13/10/2020 (D2): so por BTCUSDT x PTAX, que seria serie reconstruida — fora. S&P 500 oficial
+ (em dolar e convertido) tambem: hoje o proxy e o IVVB11.
+**29.4** Historico da marca de reserva (D9): "Sem reserva" usa a marca de hoje para toda a historia. Guardar quando a
+ posicao virou reserva seria uma tabela a mais.
+**29.5** Selecao de benchmarks gravada no usuario (D10): hoje URL + localStorage; Metas pode precisar.
+**29.6** Comparacao em base equivalente com a carteira liquida (L10): um "CDI liquido" exigiria aplicar a tabela de
+ IR/IOF a um investimento hipotetico com os mesmos fluxos. Hoje a tela avisa e oferece a base bruta.
+**29.7** Tipos de preco MANUAL (Stock, REIT, ETF internacional, Fundos, Outros) nao tem serie: posicao deles deixa o
+ periodo indisponivel na carteira consolidada (R10). Precisa de fonte de preco por tipo.
+**29.8** Desdobramento de BDR/ETF que o catalogo nao conhece (os eventos sao buscados so para ativo ligado a emissor)
+ distorce a serie no dia do evento — o mesmo problema ja afeta o valor de hoje.
+**29.9** Cripto sem par em reais na Binance (so o BTC usa a Binance): fora da janela de 365 dias da CoinGecko, so o
+ que estiver no arquivo de carga/data/coingecko/historico. A rotina das 19:30 soma a janela ao arquivo todo dia.
+**29.10** Testes E2E da tela (Playwright, "caminho 3"): escopo futuro do Guilherme.
+
+## 30. MUDANCAS DE TELA (17/10/2026)
+
+**30.1** RESOLVIDO (17/10/2026): Aportes do Dashboard passaram a ser compras - o que as vendas devolveram (liquido na
+ renda fixa e no Tesouro, valor da venda nos demais) nos ultimos 12 meses; media = total / 12.
+**30.4** RESOLVIDO (17/10/2026): testes de integracao dos numeros novos do Dashboard (DashboardResumoIT: aportes
+ compras - vendas, janela de 12 meses com o dia de corte, aporte negativo, valor liquido com e sem renda fixa;
+ ProventosAReceberIT.ultimosDozeMeses) e conferencia no tema claro do menu do usuario e do popover da previa da venda.
+**30.3** RESOLVIDO (17/10/2026): Carteira com VALORIZACAO (R$ + %) e RENTABILIDADE (classica com proventos + TWR
+ embaixo); o total da coluna deixou de misturar contas (linhas sem proventos, total com).
+**30.2** RESOLVIDO (17/10/2026): toda rentabilidade do Dashboard em base bruta (cards, Top 5 e grafico); a tela
+ Rentabilidade abre em bruto e 12M.
 
 ## ORDEM SUGERIDA
 
