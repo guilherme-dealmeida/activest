@@ -160,6 +160,12 @@ primevest:
     # Pasta fora do banco (B18). No Docker e o volume ./data/logos.
     dir: ${LOGOS_DIR:../carga/data/logos}
     cron: "0 0 6 1 * *"
+  # Logos das emissoras e distribuidoras de renda fixa por raiz de CNPJ, em logos/rf (docs/planos/
+  # PLANO_EMISSORAS_RENDA_FIXA.md, Adendo A). Rodam junto da rotina mensal de emissoras. O logos-bancos-br vai com a
+  # versao fixa: trocar a versao e decisao, nao atualizacao automatica.
+  fixed-income-logos:
+    open-finance-url: https://data.directory.openbankingbrasil.org.br/participants
+    logos-bancos-br-url: https://cdn.jsdelivr.net/npm/logos-bancos-br@0.8.0/
 
 logging:
   level:

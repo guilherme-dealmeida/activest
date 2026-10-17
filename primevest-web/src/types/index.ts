@@ -212,7 +212,8 @@ export interface NoteInfo {
   distributorLegalName: string | null;
   distributorSaleRule: 'PROPORCIONAL' | 'UEPS' | 'PEPS' | null;
   paperCode: string | null;
-  issuerLogoTicker: string | null;
+  /** Logo do grupo da emissora (ticker curado) ou da própria empresa por raiz de CNPJ — plano de emissoras, Adendo A. */
+  issuerLogoUrl: string | null;
   guarantee: 'FGC' | 'FGCOOP' | null;
 }
 
@@ -232,7 +233,7 @@ export interface FixedIncomeIssuerOption {
   guarantor: 'FGC' | 'FGCOOP' | 'NENHUM' | null;
   saleRule: 'PROPORCIONAL' | 'UEPS' | 'PEPS' | null;
   cnpjRoot: string | null;
-  logoTicker: string | null;
+  logoUrl: string | null;
 }
 
 /** Troca de distribuidora de uma compra de Tesouro com venda ligada (plano de emissoras, 5.1). */

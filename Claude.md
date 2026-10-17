@@ -339,12 +339,12 @@ Plano, decisões e achados da integração: **`docs/planos/PLANO_BRAPI.md`** (ex
 | Índices de mercado, incremental com janela de revisão (30 dias nos diários, 3 meses nos mensais), com recuperação na subida — `MarketIndexScheduler` (`docs/planos/PLANO_INDICES_MERCADO.md`) | 10:00 | adm-api |
 | Conferência do catálogo e dos índices atrasados (só loga) — `CatalogAuditScheduler` | seg 07:00 | adm-api |
 | Cotações de **todo o catálogo** (ações e FIIs) pelo COTAHIST diário da B3, um arquivo por pregão, completando os que faltam, com recuperação na subida — `B3DailyQuotesScheduler` (`docs/planos/PLANO_PRECO_TETO.md`, 4.5; 10/10/2026) | 21:30 e 08:30 | adm-api |
-| Emissoras e distribuidoras de renda fixa (BCB IF.data + Instituições em funcionamento, CVM intermediários, companhias e securitizadoras) — `FixedIncomeIssuerScheduler` (`primevest.fixed-income-issuers.cron`; `docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md`, 4.2) | dia 1, 05:30 | adm-api |
+| Emissoras e distribuidoras de renda fixa (BCB IF.data + Instituições em funcionamento, CVM intermediários, companhias e securitizadoras) e, em seguida, os logos delas por raiz de CNPJ (Open Finance, logos-bancos-br — `FixedIncomeLogoService`, só quem não tem arquivo) — `FixedIncomeIssuerScheduler` (`primevest.fixed-income-issuers.cron`; `docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md`, 4.2) | dia 1, 05:30 | adm-api |
 | Logos (arquivos em `carga/data/logos/{TICKER}.{ext}` — o arquivo é o estado; só quem não tem arquivo; a subida não procura nada, o ativo novo é procurado no pedido "preciso do histórico") — `LogoScheduler` | dia 1, 06:00 | adm-api (a app-api só lê a pasta, `AssetLogos`) |
 | Recálculo de proventos e valorização de todas as posições — `PositionRefreshScheduler` | 21:00 | app-api |
 | Fila das integrações com corretoras — `IntegrationSyncScheduler` (08:45) e `IntegrationWorker` (5 s) | — | app-api |
 
-Disparo manual para admin, **na adm-api (8081)**: `POST /api/v1/admin/{closing|proventos|catalog-audit|logos|issuers/import|issuers/link|fixed-income-issuers|b3/cotahist|b3/cotahist/diario|cvm/import|cvm/quarters|cvm/fii-monthly|cvm/proventos|indices|tesouro|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, datas de pagamento da CVM, balanços, informe de FII, índices de mercado e preço do Tesouro, em ordem — docs/planos/PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
+Disparo manual para admin, **na adm-api (8081)**: `POST /api/v1/admin/{closing|proventos|catalog-audit|logos|issuers/import|issuers/link|fixed-income-issuers|fixed-income-issuers/logos|b3/cotahist|b3/cotahist/diario|cvm/import|cvm/quarters|cvm/fii-monthly|cvm/proventos|indices|tesouro|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, datas de pagamento da CVM, balanços, informe de FII, índices de mercado e preço do Tesouro, em ordem — docs/planos/PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
 (`b3/cotahist?from=2010&to=2026`, padrão 2010 até o ano corrente; `cvm/import?from=2010&to=2026&force=false` —
 documento na mesma versão é pulado, `force=true` reprocessa a partir de `carga/data/cvm` sem baixar; ao terminar recalcula
 a série trimestral, que `cvm/quarters` recalcula sozinha; `cvm/fii-monthly?from=2016&to=2026&force=false` — informe
@@ -590,7 +590,7 @@ coluna.
 > usuário; `getName()` é para lógica interna. `AssetCategory.getDisplayName()`
 > encapsula o fallback description → name.
 
-### Flyway — V1 a V55
+### Flyway — V1 a V56
 
 O Flyway roda do zero no perfil `docker`. No perfil `dev` fica desligado, porque
 o banco local é gerenciado à mão.
@@ -660,6 +660,7 @@ categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, s
 | V53 | docs/planos/PLANO_VENDA_RENDA_FIXA.md (3.2): `transactions.net_amount`, `income_tax`, `iof_tax`, `settlement_adjustment`; vendas de renda fixa já gravadas ficam com líquido = total e impostos zero (D2); `ck_transactions_sale_taxes` (líquido, IR e IOF todos nulos ou todos preenchidos) |
 | V54 | docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md (3.1): `fixed_income_groups` e `fixed_income_issuers` (+ as linhas fixas Tesouro Nacional e Instituição não listada), `asset_categories.issuer_kinds`/`guaranteed`, categoria e ativo RDC, `fixed_income_notes.issuer_id`/`distributor_id` (obrigatórias, "Instituição não listada" nos títulos que existiam — REGRAS 8.1) e `paper_code`; regra H por distribuidora; sai o texto livre `issuer` |
 | V55 | docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md (3.2): seed das emissoras e distribuidoras — 292 grupos (98 com nome curado, 2 extintos, 17 com logo) e 6.920 empresas do BCB e da CVM, 32 inativas no grupo antigo, Nu Financeira UEPS. Gerado do banco por `carga/scripts/gerar_seed_emissoras_rf.mjs`; chave natural (código do BCB, raiz do CNPJ), `ON CONFLICT` preserva o que veio da fonte e traz a curadoria |
+| V56 | Título e posição no mesmo produto: `portfolio_assets (note_id, asset_id)` → `fixed_income_notes (id, asset_id)` com `ON UPDATE CASCADE` (trocar o produto do título leva a posição; trocar só a posição é recusado). PENDENCIAS 28.5 |
 | V43 | docs/planos/PLANO_INDICES_MERCADO.md (X1): `market_indices` (10 índices semeados) e `market_index_values` (vazia; a série vem da adm-api) |
 | V41 | docs/planos/PLANO_CADASTRO_USUARIO.md (seção 5): colunas novas de `users` (celular, CPF cifrado + hash, verificação de e-mail, `password_changed_at`, aceite dos termos, tema), índices únicos de e-mail sem caixa, celular e CPF; o usuário semeado ganha e-mail verificado e o aceite da versão `2026-10-provisorio` |
 
@@ -1044,8 +1045,8 @@ a chave precisa avisar quem está de fora que o estado mudou. Por isso o
 - Listagem (16/10/2026): TÍTULO mostra a distribuidora do título e, em segunda linha, o índice com o percentual
   ("121,00% do CDI"); emissora, razão social e código do papel ficam na dica. DATA TRANSAÇÃO traz o vencimento do título
   em segunda linha. A coluna TAXAS saiu da tabela (a taxa continua no formulário e, na venda, no líquido).
-  Na renda fixa a coluna ATIVO usa o logo do grupo da emissora (`noteInfo.issuerLogoTicker`, D5), como a Carteira;
-  sem logo curado no grupo, fica o "RF".
+  Na renda fixa a coluna ATIVO usa o logo da emissora (`noteInfo.issuerLogoUrl`, D5), como a Carteira; sem logo, fica
+  o "RF".
 - O **tipo de ativo comanda o formulário**: restringe o autocomplete e decide se
   o quadro do título aparece.
 - Autocomplete a partir de 2 caracteres, debounce 300ms, teto de 50 no servidor.
@@ -1552,6 +1553,12 @@ Plano: `docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md`.
   ligada abre o modal da cascata (`DistributorChangeModal`; `GET`/`POST /api/v1/transactions/{id}/distributor-change`),
   tudo ou nada. Compra de Tesouro importada da B3: distribuidora pelo nome do participante; sem correspondência,
   "Instituição não listada" e a notificação `RF_DISTRIBUIDORA_NAO_LISTADA`.
+- **Logos** (Adendo A do plano): por raiz de CNPJ em `carga/data/logos/rf/{raiz}.{svg|png}` (`FixedIncomeLogos`, o
+  arquivo é o estado), baixados pela adm-api (`FixedIncomeLogoService`) do diretório de participantes do Open Finance
+  Brasil (a instituição publica o próprio logo) e, sem ele, do pacote `logos-bancos-br` (versão fixa na configuração);
+  SVG com script não entra; PNG com margem transparente é recortado (a marca ocupa o quadro, como os logos do
+  catálogo). Logo de um título: ticker curado do grupo → arquivo da emissora → arquivo da líder do
+  grupo → arquivo de outra empresa do grupo (as ativas primeiro). Servido em `GET /api/v1/fixed-income-issuers/logos/{raiz}`, público como `/assets/*/logo` e com a mesma CSP.
 
 ### `dividends` não tem dono próprio
 O dono vem de `portfolio_asset_id`, que é **obrigatório** (`NOT NULL`) e

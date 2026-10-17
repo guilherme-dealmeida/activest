@@ -213,7 +213,7 @@ public class AssetLogoService {
     }
 
     /** Extensao pelo tipo da resposta; nulo = nao e imagem (pagina de erro, JSON...). */
-    static String extension(MediaType type, byte[] body) {
+    public static String extension(MediaType type, byte[] body) {
         if (body == null || body.length < 50) {
             return null;
         }

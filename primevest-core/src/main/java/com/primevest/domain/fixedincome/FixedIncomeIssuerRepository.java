@@ -15,6 +15,15 @@ public interface FixedIncomeIssuerRepository extends JpaRepository<FixedIncomeIs
 
     Optional<FixedIncomeIssuer> findByCnpjRoot(String cnpjRoot);
 
+    /** Todas as raizes do cadastro (as duas linhas fixas nao tem). */
+    @Query("select i.cnpjRoot from FixedIncomeIssuer i where i.cnpjRoot is not null")
+    List<String> findAllCnpjRoots();
+
+    /** Raizes das empresas de um grupo, as ativas primeiro: o logo do grupo quando a emissora e a lider nao tem. */
+    @Query("select i.cnpjRoot from FixedIncomeIssuer i join i.group g where g.id = :groupId and i.cnpjRoot is not null "
+        + "order by case when i.status = 'ATIVA' then 0 else 1 end, i.cnpjRoot")
+    List<String> findCnpjRootsByGroupId(@Param("groupId") Long groupId);
+
     /** As linhas fixas (TESOURO, NAO_LISTADA): uma de cada, pelo indice parcial da V54. */
     Optional<FixedIncomeIssuer> findFirstByKind(FixedIncomeIssuerKind kind);
 

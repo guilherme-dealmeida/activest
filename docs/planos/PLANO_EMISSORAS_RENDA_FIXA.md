@@ -376,6 +376,28 @@ Resumo do que vale: **D1 (b)** só os segmentos da 4.3; **D2** tabela 4.4 aceita
 
 ---
 
+## Adendo A — logos por raiz de CNPJ (16/10/2026)
+
+Pedido do Guilherme depois da E7: o logo só existia pelo ticker de uma ação (`fixed_income_groups.logo_ticker`), e
+quase nenhuma emissora de renda fixa tem ação na B3 (planilha `docs/emissores/Logos_Emissoras_RF_2026-10-16.xlsx`:
+272 grupos sem logo). Fontes levantadas no mesmo dia:
+
+| Ordem | Fonte | Chave | Formato | Observação |
+|---|---|---|---|---|
+| 1 | Diretório de participantes do Open Finance Brasil (`data.directory.openbankingbrasil.org.br/participants`, campo `AuthorisationServers[].CustomerFriendlyLogoUri`) | CNPJ (`RegistrationNumber`) | SVG | oficial: a instituição publica o próprio logo; 105 organizações em 16/10, cobrindo 55 empresas ativas do cadastro |
+| 2 | `logos-bancos-br` (npm, jsDelivr), `data/logo-urls.min.json` (ISPB → arquivo) | ISPB = raiz do CNPJ | PNG 256×256 normalizado | listas do BCB (STR, Pix) + o diretório acima; versão fixa na configuração |
+| — | Brandfetch (por domínio), Bancos-em-SVG | domínio / nome | — | fora: termos de armazenamento não claros; sem chave |
+
+| # | Regra |
+|---|---|
+| A1 | O arquivo é o estado (como os logos do catálogo): `carga/data/logos/rf/{raiz}.{svg\|png}`, sem coluna nova |
+| A2 | Rotina na adm-api (`FixedIncomeLogoService`): para cada raiz do cadastro e cada líder de grupo, a primeira fonte que tiver logo; só quem não tem arquivo (mensal, junto da rotina de emissoras) ou tudo de novo (`POST /api/v1/admin/fixed-income-issuers/logos?all=true`). Fonte fora do ar não falha a rotina |
+| A3 | SVG só entra sem script (`<script`, `on…=`, `javascript:`, `<foreignObject`); a API serve com a mesma CSP dos logos do catálogo |
+| A4 | Logo de um título (D5, pela emissora): o ticker curado do grupo; senão o arquivo da própria emissora; senão o da líder do grupo; senão o de outra empresa do grupo, as ativas primeiro (acrescentado no fechamento). "Instituição não listada" e Tesouro Nacional não têm |
+| A5 | `GET /api/v1/fixed-income-issuers/logos/{raiz}`, público como `/assets/*/logo` (a tela usa `<img src>`); o DTO passa a levar a URL (`issuerLogoUrl`/`logoUrl`) em vez do ticker |
+
+---
+
 ## 13. Andamento
 
 - 16/10/2026 — plano criado a partir do levantamento (seção 10).
@@ -420,3 +442,20 @@ Resumo do que vale: **D1 (b)** só os segmentos da 4.3; **D2** tabela 4.4 aceita
   distribuidora de título aberto (já escolhida), busca de emissora filtrada pelo produto (CDB só bancos, empresa em
   liquidação em cinza), busca de distribuidora pelo grupo ("nubank" → Nu Financeira, Nu Invest e a Nu DTVM inativa),
   filtros de Emissora e Distribuidora em Transações.
+- 16/10/2026 — Adendo A (logos por raiz de CNPJ) aprovado pelo Guilherme como parte deste escopo e implementado:
+  `FixedIncomeLogos` (core, pasta `carga/data/logos/rf`), `FixedIncomeLogoService` (adm-api; Open Finance → logos-bancos-br
+  0.8.0; SVG com script recusado), passo de logos na rotina mensal de emissoras e
+  `POST /api/v1/admin/fixed-income-issuers/logos`, `GET /api/v1/fixed-income-issuers/logos/{raiz}` público com CSP,
+  `issuerLogoUrl`/`logoUrl` no lugar do ticker nos DTOs, telas com o logo pela URL. Primeira rodada no banco de
+  desenvolvimento: 105 raízes no Open Finance e 467 no logos-bancos-br; 443 logos gravados (60 do Open Finance, 383 do
+  pacote); recusados por script/HTML: Losango, Bradesco Financiamentos (Losango), Uniprime (2) e Ágora — ficam com o
+  PNG do pacote quando ele tem. O PicPay passou a ter logo (arquivo do PicPay Bank).
+- 16/10/2026 — conferência do Guilherme: o logo do PicPay (PNG do logos-bancos-br) parecia menor que os outros — o pacote
+  normaliza com margem transparente. A rotina passou a recortar a margem do PNG e centralizar a marca num quadrado
+  (`trimTransparentMargin`); as 383 imagens do pacote foram baixadas de novo. Na mesma conferência, os FIIs sem logo
+  (só 66 de 347 tinham arquivo): a BRAPI tem o ícone deles (em geral o da gestora/administradora, o mesmo arquivo
+  para vários fundos), mas não estavam em disco — a rotina mensal só procura quem falta, no dia 1, e a causa da falta
+  anterior não foi apurada. A rodada completa de logos do catálogo (`POST /admin/logos`) levou a 312 de 347.
+- 16/10/2026 — fechamento, a pedido do Guilherme: V56 (FK composta título × posição no mesmo produto, `ON UPDATE
+  CASCADE`; achado da troca de CDB para RDB feita só na posição; remover a duplicação ficou na PENDENCIAS 28.5) e o
+  quarto passo do logo (A4: outra empresa do grupo). Rodada completa de testes no fim.

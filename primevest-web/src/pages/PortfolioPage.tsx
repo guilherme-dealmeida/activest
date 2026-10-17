@@ -191,8 +191,8 @@ const COLUMNS: Column[] = [
         {/* Logo à esquerda do ticker (B25). Tesouro e Renda Fixa usam o do tipo;
             nos demais, null = tipo sem logo. */}
         {/* Renda fixa: o logo do grupo da emissora, quando há (D5); senão o "RF" do tipo */}
-        {type.name === RENDA_FIXA && a.noteInfo?.issuerLogoTicker
-          ? <AssetLogo ticker={a.noteInfo.issuerLogoTicker} hasLogo size={38} shape="square" />
+        {type.name === RENDA_FIXA && a.noteInfo?.issuerLogoUrl
+          ? <AssetLogo ticker={a.ticker} hasLogo src={a.noteInfo.issuerLogoUrl} label="RF" size={38} shape="square" />
           : logoDoTipo
           ? <AssetLogo ticker={a.ticker} hasLogo={!!logoDoTipo.src} src={logoDoTipo.src} label={logoDoTipo.label} size={38} shape="square" />
           : a.hasLogo !== null && a.hasLogo !== undefined && <AssetLogo ticker={a.ticker} hasLogo={a.hasLogo} size={38} shape="square" />}

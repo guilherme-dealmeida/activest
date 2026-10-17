@@ -608,8 +608,9 @@ export const TransactionsPage = () => {
                       {(() => {
                         // Renda Fixa: o logo do grupo da emissora, quando há (D5 do plano de emissoras), como na
                         // carteira. Tesouro e o resto da Renda Fixa: logo do tipo. Demais: o do ativo (null = sem logo).
-                        if (nomeDoTipo(row) === RENDA_FIXA && row.noteInfo?.issuerLogoTicker) {
-                          return <AssetLogo ticker={row.noteInfo.issuerLogoTicker} hasLogo size={38} shape="square" />;
+                        if (nomeDoTipo(row) === RENDA_FIXA && row.noteInfo?.issuerLogoUrl) {
+                          return <AssetLogo ticker={row.ticker} hasLogo src={row.noteInfo.issuerLogoUrl} label="RF"
+                            size={38} shape="square" />;
                         }
                         const logoDoTipo = typeLogo(nomeDoTipo(row));
                         if (logoDoTipo) {

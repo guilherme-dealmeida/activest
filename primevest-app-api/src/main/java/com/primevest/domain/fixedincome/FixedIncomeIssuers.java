@@ -30,12 +30,60 @@ public class FixedIncomeIssuers {
             FixedIncomeIssuerKind.CORRETORA_DISTRIBUIDORA, FixedIncomeIssuerKind.BANCO,
             FixedIncomeIssuerKind.FINANCEIRA, FixedIncomeIssuerKind.COOPERATIVA);
 
+    /** Logo por raiz de CNPJ: {@code GET /api/v1/fixed-income-issuers/logos/{raiz}} (Adendo A do plano). */
+    public static final String LOGO_PATH = "/api/v1/fixed-income-issuers/logos/";
+
     private final FixedIncomeIssuerRepository repository;
     private final AssetLogos logos;
+    private final FixedIncomeLogos rfLogos;
 
-    public FixedIncomeIssuers(FixedIncomeIssuerRepository repository, AssetLogos logos) {
+    public FixedIncomeIssuers(FixedIncomeIssuerRepository repository, AssetLogos logos, FixedIncomeLogos rfLogos) {
         this.repository = repository;
         this.logos = logos;
+        this.rfLogos = rfLogos;
+    }
+
+    /** Logo de um grupo pelo arquivo de outra empresa dele, guardado por um minuto (a listagem pede um por linha). */
+    private final java.util.Map<Long, GroupLogo> groupLogos = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long GROUP_LOGO_MILLIS = 60_000;
+
+    private record GroupLogo(String root, long at) {
+    }
+
+    /**
+     * Logo de uma empresa de renda fixa para as telas (D5 e A4 do plano): o ticker curado do grupo; senao o arquivo da
+     * propria empresa (carga/data/logos/rf); senao o da lider do grupo; senao o de outra empresa do grupo (as ativas
+     * primeiro). Tesouro Nacional e "nao listada" nao tem.
+     */
+    public String logoUrl(FixedIncomeIssuer i) {
+        if (i == null || i.getKind() == FixedIncomeIssuerKind.TESOURO
+                || i.getKind() == FixedIncomeIssuerKind.NAO_LISTADA) {
+            return null;
+        }
+        FixedIncomeGroup g = i.getGroup();
+        if (g != null && g.getLogoTicker() != null && logos.hasLogo(g.getLogoTicker())) {
+            return "/api/v1/assets/" + AssetLogos.fileStem(g.getLogoTicker()) + "/logo";
+        }
+        if (rfLogos.hasLogo(i.getCnpjRoot())) {
+            return LOGO_PATH + i.getCnpjRoot();
+        }
+        if (g != null && rfLogos.hasLogo(g.getLeaderCnpjRoot())) {
+            return LOGO_PATH + g.getLeaderCnpjRoot();
+        }
+        String member = g != null && g.getId() != null ? groupMemberLogo(g.getId()) : null;
+        return member != null ? LOGO_PATH + member : null;
+    }
+
+    private String groupMemberLogo(Long groupId) {
+        long now = System.currentTimeMillis();
+        GroupLogo cached = groupLogos.get(groupId);
+        if (cached != null && now - cached.at() < GROUP_LOGO_MILLIS) {
+            return cached.root();
+        }
+        String root = repository.findCnpjRootsByGroupId(groupId).stream()
+                .filter(rfLogos::hasLogo).findFirst().orElse(null);
+        groupLogos.put(groupId, new GroupLogo(root, now));
+        return root;
     }
 
     /**
@@ -125,7 +173,7 @@ public class FixedIncomeIssuers {
      */
     public record NoteInfo(Long issuerId, String issuerName, String issuerLegalName, String issuerKind,
                            Long distributorId, String distributorName, String distributorLegalName,
-                           String distributorSaleRule, String paperCode, String issuerLogoTicker, String guarantee) {
+                           String distributorSaleRule, String paperCode, String issuerLogoUrl, String guarantee) {
         public static final NoteInfo NONE = new NoteInfo(null, null, null, null, null, null, null, null, null, null,
                 null);
     }
@@ -136,11 +184,7 @@ public class FixedIncomeIssuers {
         }
         FixedIncomeIssuer i = note.getIssuer();
         FixedIncomeIssuer d = note.getDistributor();
-        String logo = null;
-        if (i != null && i.getGroup() != null && i.getGroup().getLogoTicker() != null
-                && logos.hasLogo(i.getGroup().getLogoTicker())) {
-            logo = i.getGroup().getLogoTicker();
-        }
+        String logo = logoUrl(i);
         String guarantee = null;
         AssetCategory c = note.getAsset() != null ? note.getAsset().getAssetCategory() : null;
         if (i != null && c != null && c.isGuaranteed() && i.getGuarantor() != null
@@ -184,7 +228,7 @@ public class FixedIncomeIssuers {
             return null;
         }
         FixedIncomeGroup g = i.getGroup();
-        String logo = g != null && g.getLogoTicker() != null && logos.hasLogo(g.getLogoTicker()) ? g.getLogoTicker() : null;
+        String logo = logoUrl(i);
         return new FixedIncomeIssuerDTO(i.getId(), i.getKind().name(), i.getSelectorLabel(), i.getDisplayName(),
                 i.getLegalName(), g != null ? g.getName() : null, i.getStatus(), i.isDead(),
                 i.getGuarantor() != null ? i.getGuarantor().name() : null,

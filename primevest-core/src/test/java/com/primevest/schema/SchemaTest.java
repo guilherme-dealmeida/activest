@@ -25,11 +25,11 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Flyway roda ate a V55 e o schema valida contra as entidades")
+    @DisplayName("Flyway roda ate a V56 e o schema valida contra as entidades")
     void migrationsAplicadas() {
         Number versao = (Number) em.createNativeQuery(
             "SELECT MAX(CAST(version AS NUMERIC)) FROM flyway_schema_history WHERE success").getSingleResult();
-        assertThat(versao.intValue()).isEqualTo(55);
+        assertThat(versao.intValue()).isEqualTo(56);
 
         Number falhas = (Number) em.createNativeQuery(
             "SELECT COUNT(*) FROM flyway_schema_history WHERE NOT success").getSingleResult();

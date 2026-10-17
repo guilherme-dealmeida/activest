@@ -73,6 +73,33 @@ class PortfolioAssetRepositoryTest extends JpaTestBase {
     }
 
     @Test
+    @DisplayName("V56: posicao e titulo no mesmo produto — trocar so a posicao e recusado; trocar o titulo leva a posicao")
+    void tituloEPosicaoNoMesmoProduto() {
+        PortfolioAsset posicao = repository.saveAndFlush(Fixtures.position(carteira, cdb, nota(dono, "BTG")));
+        Asset rdb = CatalogIds.asset(assetRepository, "RDB");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> em.createNativeQuery(
+                "UPDATE portfolio_assets SET asset_id = :a WHERE id = :id")
+                .setParameter("a", rdb.getId()).setParameter("id", posicao.getId()).executeUpdate())
+            .isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    @DisplayName("V56: trocar o produto do titulo leva a posicao junto (ON UPDATE CASCADE)")
+    void trocaDoProdutoNoTitulo() {
+        FixedIncomeNote nota = nota(dono, "Nu");
+        PortfolioAsset posicao = repository.saveAndFlush(Fixtures.position(carteira, cdb, nota));
+        Asset rdb = CatalogIds.asset(assetRepository, "RDB");
+
+        em.createNativeQuery("UPDATE fixed_income_notes SET asset_id = :a WHERE id = :id")
+            .setParameter("a", rdb.getId()).setParameter("id", nota.getId()).executeUpdate();
+
+        Object ativo = em.createNativeQuery("SELECT asset_id FROM portfolio_assets WHERE id = :id")
+            .setParameter("id", posicao.getId()).getSingleResult();
+        assertThat(((Number) ativo).longValue()).isEqualTo(rdb.getId());
+    }
+
+    @Test
     @DisplayName("Dois CDBs do mesmo ativo sao duas posicoes, cada uma achada pelo seu titulo")
     void duasPosicoesDoMesmoAtivoComTitulosDiferentes() {
         FixedIncomeNote btg = nota(dono, "BTG");

@@ -148,6 +148,87 @@ class EmissorasRendaFixaIT extends FuncionalBase {
     }
 
     // ------------------------------------------------------------------
+    // Logo por raiz de CNPJ (Adendo A)
+    // ------------------------------------------------------------------
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.primevest.domain.fixedincome.FixedIncomeLogos logosRf;
+
+    @Nested
+    @DisplayName("Logo por raiz de CNPJ (Adendo A)")
+    class Logo {
+
+        @Test
+        @DisplayName("Emissora com arquivo em logos/rf: o titulo traz a URL, servida sem token e com a CSP dos logos")
+        void logoDaEmissora() throws Exception {
+            Long banco = empresaDeTeste("Banco Com Logo", "BANCO");
+            String raiz = jdbc.queryForObject("SELECT cnpj_root FROM fixed_income_issuers WHERE id = ?", String.class,
+                banco);
+            java.nio.file.Path rf = java.nio.file.Files.createDirectories(logosRf.dir());
+            java.nio.file.Files.writeString(rf.resolve(raiz + ".svg"),
+                "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1 1\"><rect width=\"1\" height=\"1\"/></svg>");
+            logosRf.reindex();
+            try {
+                Map<String, Object> corpo = aplicacaoEmCdb(CatalogIds.CDB, "2026-09-01", "1000.00", "Banco Com Logo");
+                TransactionResponseDTO criada = lancarComSucesso(dono, corpo);
+
+                String url = "/api/v1/fixed-income-issuers/logos/" + raiz;
+                assertThat(criada.noteInfo().issuerLogoUrl()).isEqualTo(url);
+
+                ResponseEntity<byte[]> logo = rest.getForEntity(url, byte[].class);
+                assertThat(logo.getStatusCode()).isEqualTo(HttpStatus.OK);
+                assertThat(logo.getHeaders().getContentType().toString()).isEqualTo("image/svg+xml");
+                assertThat(logo.getHeaders().getFirst("Content-Security-Policy")).contains("sandbox");
+                assertThat(rest.getForEntity("/api/v1/fixed-income-issuers/logos/00000001", byte[].class)
+                    .getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+            } finally {
+                java.nio.file.Files.deleteIfExists(rf.resolve(raiz + ".svg"));
+                logosRf.reindex();
+            }
+        }
+
+        @Test
+        @DisplayName("Emissora e lider sem arquivo: vale o arquivo de outra empresa do grupo")
+        void logoDeOutraEmpresaDoGrupo() throws Exception {
+            Long emissora = empresaDeTeste("Banco Do Grupo Sem Logo", "BANCO");
+            Long irma = empresaDeTeste("Financeira Do Grupo Com Logo", "FINANCEIRA");
+            String raizIrma = jdbc.queryForObject("SELECT cnpj_root FROM fixed_income_issuers WHERE id = ?",
+                String.class, irma);
+            Long grupo = jdbc.queryForObject("""
+                INSERT INTO fixed_income_groups (bcb_code, name, name_source, leader_cnpj_root)
+                VALUES ('C9' || floor(random() * 1000000)::text, 'Grupo De Teste', 'MANUAL', '99999998') RETURNING id""",
+                Long.class);
+            jdbc.update("UPDATE fixed_income_issuers SET group_id = ?, group_source = 'MANUAL' WHERE id IN (?, ?)",
+                grupo, emissora, irma);
+            java.nio.file.Path rf = java.nio.file.Files.createDirectories(logosRf.dir());
+            java.nio.file.Files.writeString(rf.resolve(raizIrma + ".svg"),
+                "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1 1\"><rect width=\"1\" height=\"1\"/></svg>");
+            logosRf.reindex();
+            try {
+                TransactionResponseDTO criada = lancarComSucesso(dono,
+                    aplicacaoEmCdb(CatalogIds.CDB, "2026-09-01", "1000.00", "Banco Do Grupo Sem Logo"));
+
+                assertThat(criada.noteInfo().issuerLogoUrl())
+                    .isEqualTo("/api/v1/fixed-income-issuers/logos/" + raizIrma);
+            } finally {
+                java.nio.file.Files.deleteIfExists(rf.resolve(raizIrma + ".svg"));
+                logosRf.reindex();
+                jdbc.update("UPDATE fixed_income_issuers SET group_id = NULL, group_source = NULL WHERE id IN (?, ?)",
+                    emissora, irma);
+            }
+        }
+
+        @Test
+        @DisplayName("Sem arquivo e sem ticker no grupo: o titulo fica sem logo (a tela mostra RF)")
+        void semLogo() {
+            TransactionResponseDTO criada = lancarComSucesso(dono,
+                aplicacaoEmCdb(CatalogIds.CDB, "2026-09-01", "1000.00", "Banco Sem Logo"));
+
+            assertThat(criada.noteInfo().issuerLogoUrl()).isNull();
+        }
+    }
+
+    // ------------------------------------------------------------------
     // Codigo do papel (D4)
     // ------------------------------------------------------------------
 

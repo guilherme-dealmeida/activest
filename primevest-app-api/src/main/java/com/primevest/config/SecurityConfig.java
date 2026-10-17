@@ -39,6 +39,9 @@ public class SecurityConfig {
                 // Logo do ativo: a tela carrega por <img src>, que nao manda o
                 // token. E a marca da empresa, dado publico do catalogo.
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/assets/*/logo").permitAll()
+                // Logo de emissora de renda fixa por raiz de CNPJ (plano de emissoras, Adendo A): mesmo motivo
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/fixed-income-issuers/logos/*")
+                .permitAll()
                 .anyRequest().authenticated()
             )
             // Sem token, ou com token vencido, a resposta e 401 — nao o 403 que o

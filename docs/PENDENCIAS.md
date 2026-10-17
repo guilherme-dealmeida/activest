@@ -1126,7 +1126,10 @@ Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
 
 ## 28. EMISSORAS E DISTRIBUIDORAS DE RENDA FIXA (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md, 16/10/2026)
 
-**28.1** Logo pelo site da empresa (caminho 2): o BCB e a CVM informam o site; icone pelo dominio com qualidade
+**28.1** PARCIAL em 16/10/2026 (plano de emissoras, Adendo A): logos por raiz de CNPJ do Open Finance Brasil e do
+ logos-bancos-br. Fica aberto o resto (cooperativas, securitizadoras, companhias sem ação): planilha
+ docs/emissores/Logos_Emissoras_RF_2026-10-16.xlsx. Texto original:
+ Logo pelo site da empresa (caminho 2): o BCB e a CVM informam o site; icone pelo dominio com qualidade
  variavel (testado em 15/10/2026: Nubank 256 px, Opea 192 px, Sicredi 16 px). Hoje o logo da linha de RF e o do
  ticker curado no grupo (fixed_income_groups.logo_ticker), senao "RF".
 **28.2** Compra de Tesouro importada da B3: a distribuidora e casada pelo NOME do participante (participantName);
@@ -1136,6 +1139,10 @@ Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
 **28.3** Cooperativas por sistema (Sicoob, Sicredi, Unicred, pela central): nao tem conglomerado prudencial no BCB,
  entao cada cooperativa e um grupo dela mesma (ou nenhum). Agrupar pelo sistema exigiria curadoria ou outra fonte.
 **28.4** Regra de saida das demais distribuidoras: ver 27.2.
+**28.5** O produto do titulo esta em dois lugares (fixed_income_notes.asset_id e portfolio_assets.asset_id). Desde a
+ V56 a FK composta (note_id, asset_id) os mantem iguais (trocar o produto do titulo leva a posicao; trocar so a posicao
+ e recusado). Remover a duplicacao — o titulo ler o produto da posicao — mexe na regra H, nas buscas por ativo e nos
+ testes; fica para quando houver outro motivo para mexer nessas pecas.
 
 ## ORDEM SUGERIDA
 

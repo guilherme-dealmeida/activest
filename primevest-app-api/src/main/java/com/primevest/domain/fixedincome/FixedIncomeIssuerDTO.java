@@ -6,7 +6,7 @@ package com.primevest.domain.fixedincome;
  * @param label        rotulo do seletor: "Grupo — razao social"
  * @param displayName  nome das colunas: o do grupo; sem grupo, o comercial; sem ele, a razao social
  * @param dead         empresa morta (inativa, cancelada, liquidada): continua escolhivel (lancamento retroativo)
- * @param logoTicker   ticker cujo logo o grupo usa, quando o arquivo existe (L22)
+ * @param logoUrl      endereco do logo (ticker do grupo ou arquivo por raiz de CNPJ — Adendo A); nulo sem logo
  */
 public record FixedIncomeIssuerDTO(
     Long id,
@@ -20,6 +20,6 @@ public record FixedIncomeIssuerDTO(
     String guarantor,
     String saleRule,
     String cnpjRoot,
-    String logoTicker
+    String logoUrl
 ) {
 }
