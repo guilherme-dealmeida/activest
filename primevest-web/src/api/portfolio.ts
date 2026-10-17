@@ -4,7 +4,6 @@ import {
   PortfolioAssetDetail,
   PortfolioAllocation,
   PortfolioAllocationDetailed,
-  PortfolioPerformance,
   PortfolioAssetReservation,
   ReservationAllocation,
 } from '@/types';
@@ -54,11 +53,6 @@ export const portfolioApi = {
 
   getReservationAllocation: async (): Promise<ReservationAllocation> => {
     const { data } = await apiClient.get<ReservationAllocation>('/portfolio/allocation/reservation');
-    return data;
-  },
-
-  getPerformance: async (): Promise<PortfolioPerformance> => {
-    const { data } = await apiClient.get<PortfolioPerformance>('/portfolio/performance');
     return data;
   },
 

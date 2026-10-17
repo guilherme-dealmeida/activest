@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Save, User as UserIcon, Mail, CreditCard, KeyRound, Moon, Sun, ShieldAlert, FileText, Camera } from 'lucide-react';
+import { Save, User as UserIcon, Mail, CreditCard, KeyRound, Moon, Sun, ShieldAlert, FileText, Camera, Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
@@ -278,7 +278,8 @@ export const SettingsPage = () => {
                 onChange={(e) => setSenhaConfirma(e.target.value)}
                 error={senhaConfirma && senhaNova !== senhaConfirma ? 'As senhas não conferem.' : undefined} />
             </div>
-            <Button type="submit" variant="outline" disabled={!senhaOk} isLoading={trocandoSenha}>
+            <Button type="submit" disabled={!senhaOk} isLoading={trocandoSenha}>
+              {!trocandoSenha && <KeyRound className="h-4 w-4 mr-2" />}
               {user.hasPassword ? 'Alterar senha' : 'Definir senha'}
             </Button>
           </form>
@@ -346,7 +347,10 @@ export const SettingsPage = () => {
       <Section title="Zona de perigo" icon={<ShieldAlert className="h-4 w-4" />} danger>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <p className="text-sm text-gray-300">Excluir a conta apaga definitivamente todos os seus dados no PrimeVest.</p>
-          <Button type="button" variant="danger" onClick={() => setExcluirModal(true)}>Excluir conta</Button>
+          <Button type="button" variant="danger" onClick={() => setExcluirModal(true)}>
+            <Trash2 className="h-4 w-4 mr-2" />
+            Excluir conta
+          </Button>
         </div>
       </Section>
 

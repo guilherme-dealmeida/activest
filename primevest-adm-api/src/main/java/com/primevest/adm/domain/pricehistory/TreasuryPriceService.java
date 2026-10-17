@@ -2,6 +2,7 @@ package com.primevest.adm.domain.pricehistory;
 
 import com.primevest.adm.integration.PublicFileCache;
 import com.primevest.adm.integration.tesouro.TesouroPriceClient;
+import com.primevest.adm.integration.tesouro.TesouroSalesClient;
 import com.primevest.domain.catalog.CatalogChange;
 import com.primevest.domain.catalog.CatalogMessaging.CatalogChangePublisher;
 import lombok.extern.slf4j.Slf4j;
@@ -63,7 +64,23 @@ public class TreasuryPriceService {
                 close_price = EXCLUDED.close_price, source = 'TESOURO', updated_at = now()
             WHERE asset_price_history.close_price IS DISTINCT FROM EXCLUDED.close_price""";
 
+    /** Taxa do ultimo dia de cada titulo e se esta a venda (V59; benchmark padrao do Tesouro na Rentabilidade). */
+    private static final String UPSERT_OFFER = """
+            INSERT INTO treasury_offers (asset_id, rate_date, buy_rate, sell_rate, on_sale, sale_date)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT (asset_id) DO UPDATE SET
+                rate_date = EXCLUDED.rate_date, buy_rate = EXCLUDED.buy_rate, sell_rate = EXCLUDED.sell_rate,
+                on_sale = EXCLUDED.on_sale, sale_date = EXCLUDED.sale_date, updated_at = now()""";
+    /** Arquivo de vendas fora do ar: so a taxa muda, a oferta fica a da ultima rodada. */
+    private static final String UPSERT_RATE = """
+            INSERT INTO treasury_offers (asset_id, rate_date, buy_rate, sell_rate, on_sale, sale_date)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT (asset_id) DO UPDATE SET
+                rate_date = EXCLUDED.rate_date, buy_rate = EXCLUDED.buy_rate, sell_rate = EXCLUDED.sell_rate,
+                updated_at = now()""";
+
     private final TesouroPriceClient client;
+    private final TesouroSalesClient sales;
     private final JdbcTemplate jdbc;
     private final TransactionTemplate tx;
     private final CatalogChangePublisher publisher;
@@ -71,14 +88,15 @@ public class TreasuryPriceService {
     private final ReentrantLock running = new ReentrantLock();
 
     @Autowired
-    public TreasuryPriceService(TesouroPriceClient client, JdbcTemplate jdbc, PlatformTransactionManager txm,
-                                CatalogChangePublisher publisher) {
-        this(client, jdbc, txm, publisher, Clock.system(ZONE));
+    public TreasuryPriceService(TesouroPriceClient client, TesouroSalesClient sales, JdbcTemplate jdbc,
+                                PlatformTransactionManager txm, CatalogChangePublisher publisher) {
+        this(client, sales, jdbc, txm, publisher, Clock.system(ZONE));
     }
 
-    TreasuryPriceService(TesouroPriceClient client, JdbcTemplate jdbc, PlatformTransactionManager txm,
-                         CatalogChangePublisher publisher, Clock clock) {
+    TreasuryPriceService(TesouroPriceClient client, TesouroSalesClient sales, JdbcTemplate jdbc,
+                         PlatformTransactionManager txm, CatalogChangePublisher publisher, Clock clock) {
         this.client = client;
+        this.sales = sales;
         this.jdbc = jdbc;
         this.tx = new TransactionTemplate(txm);
         this.publisher = publisher;
@@ -90,13 +108,15 @@ public class TreasuryPriceService {
      * @param rows       dias gravados ou regravados
      * @param lastDate   data base mais recente do arquivo
      * @param priced     titulos cujo preco atual mudou (avisados a app-api)
+     * @param onSale     titulos do catalogo a venda hoje (arquivo de vendas); -1 se o arquivo estava fora do ar
      * @param unmatched  tipo + vencimento do arquivo sem titulo no catalogo
      */
-    public record Result(int titles, int rows, LocalDate lastDate, int priced, List<String> unmatched) {
+    public record Result(int titles, int rows, LocalDate lastDate, int priced, int onSale, List<String> unmatched) {
         @Override
         public String toString() {
             return titles + " titulos, " + rows + " dias gravados, ultimo " + lastDate + ", " + priced
-                    + " precos atuais novos" + (unmatched.isEmpty() ? "" : ", sem titulo no catalogo: " + unmatched.size());
+                    + " precos atuais novos, " + (onSale < 0 ? "oferta sem atualizar" : onSale + " a venda")
+                    + (unmatched.isEmpty() ? "" : ", sem titulo no catalogo: " + unmatched.size());
         }
     }
 
@@ -152,10 +172,15 @@ public class TreasuryPriceService {
             List<Object[]> batch = new ArrayList<>();
             Map<Long, TreeMap<LocalDate, BigDecimal>> latest = new HashMap<>();
             Set<String> unmatched = new TreeSet<>();
+            Map<Long, TesouroPriceClient.Row> lastRow = new HashMap<>();
             LocalDate[] lastDate = {null};
             TesouroPriceClient.read(file, row -> {
                 if (lastDate[0] == null || row.date().isAfter(lastDate[0])) {
                     lastDate[0] = row.date();
+                }
+                Long assetId = catalog.get(new Key(row.type(), row.maturity()));
+                if (assetId != null) {
+                    lastRow.merge(assetId, row, (a, b) -> b.date().isAfter(a.date()) ? b : a);
                 }
                 if (row.date().isBefore(from)) {
                     return;
@@ -164,7 +189,6 @@ public class TreasuryPriceService {
                 if (pu == null) {
                     return;
                 }
-                Long assetId = catalog.get(new Key(row.type(), row.maturity()));
                 if (assetId == null) {
                     unmatched.add(row.type() + " " + row.maturity());
                     return;
@@ -206,7 +230,8 @@ public class TreasuryPriceService {
             if (!priced.isEmpty()) {
                 publisher.publish(new CatalogChange(CatalogChange.Origin.FECHAMENTO, priced));
             }
-            Result r = new Result(latest.size(), written, lastDate[0], priced.size(), List.copyOf(unmatched));
+            int onSale = offers(lastRow, catalog, trigger);
+            Result r = new Result(latest.size(), written, lastDate[0], priced.size(), onSale, List.copyOf(unmatched));
             log.info("Tesouro ({}) desde {} em {}s: {}", trigger, from, (System.currentTimeMillis() - started) / 1000, r);
             if (!unmatched.isEmpty()) {
                 log.warn("Tesouro: titulos do arquivo sem titulo no catalogo (entram por migration): {}", unmatched);
@@ -223,5 +248,35 @@ public class TreasuryPriceService {
         } finally {
             running.unlock();
         }
+    }
+
+    /**
+     * Taxa do ultimo dia de cada titulo e a oferta de hoje ({@code treasury_offers}, V59). O arquivo de vendas fora
+     * do ar nao derruba a carga: a taxa e gravada e a oferta fica a da ultima rodada (devolve -1).
+     */
+    private int offers(Map<Long, TesouroPriceClient.Row> lastRow, Map<Key, Long> catalog, String trigger) {
+        TesouroSalesClient.OnSale onSale;
+        try {
+            onSale = TesouroSalesClient.onSale(sales.fetch());
+        } catch (PublicFileCache.UnavailableException | java.io.UncheckedIOException e) {
+            log.warn("Tesouro ({}): arquivo de vendas indisponivel, oferta sem atualizar: {}", trigger, e.getMessage());
+            onSale = null;
+        }
+        Set<Long> selling = new HashSet<>();
+        if (onSale != null) {
+            onSale.titles().forEach(t -> {
+                Long id = catalog.get(new Key(t.type(), t.maturity()));
+                if (id != null) {
+                    selling.add(id);
+                }
+            });
+        }
+        LocalDate saleDate = onSale != null ? onSale.lastDate() : null;
+        List<Object[]> rows = new ArrayList<>();
+        lastRow.forEach((id, row) -> rows.add(new Object[]{id, Date.valueOf(row.date()), row.buyRate(), row.sellRate(),
+                selling.contains(id), saleDate != null ? Date.valueOf(saleDate) : null}));
+        String sql = onSale != null ? UPSERT_OFFER : UPSERT_RATE;
+        tx.executeWithoutResult(s -> jdbc.batchUpdate(sql, rows));
+        return onSale != null ? selling.size() : -1;
     }
 }

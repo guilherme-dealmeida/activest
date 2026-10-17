@@ -71,6 +71,13 @@ coingecko:
   base-url: https://api.coingecko.com/api/v3
   timeout-seconds: 20
 
+# Binance publica (klines, sem chave): historico de cripto antes da janela de 365 dias da CoinGecko
+# (docs/planos/PLANO_RENTABILIDADE.md, D2). Nao e a integracao do usuario (primevest-integration).
+binance:
+  public-url: https://api.binance.com
+  timeout-seconds: 20
+  attempts: 4
+
 # Site da B3 (proventos e eventos societarios), FNET e cadastro da CVM — sem token.
 b3:
   base-url: https://sistemaswebb3-listados.b3.com.br
@@ -103,6 +110,8 @@ bcb:
 # (~14 MB, ~1 min), cache em ${primevest.data.dir}/tesouro, so baixado de novo quando muda.
 tesouro:
   prices-url: https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/PrecoTaxaTesouroDireto.csv
+  # Vendas diarias (~7,5 MB): quais titulos o Tesouro oferece hoje (benchmark padrao do Tesouro na Rentabilidade)
+  sales-url: https://www.tesourotransparente.gov.br/ckan/dataset/f0468ecc-ae97-4287-89c2-6d8139fb4343/resource/e5f90e3a-8f8d-4895-9c56-4bb2f7877920/download/vendastesourodireto.csv
   timeout-seconds: 180
 indices:
   timeout-seconds: 20
@@ -134,6 +143,10 @@ primevest:
     # Balancos (DFP/ITR) do ano corrente e do anterior; a CVM atualiza de madrugada.
     enabled: true
     cron: "0 30 7 * * *"
+  cripto-historico:
+    # Historico de preco de cripto (PLANO_RENTABILIDADE, 3.3): CoinGecko 365 dias + Binance BTC/BRL, todo dia as 19:30.
+    enabled: true
+    cron: "0 30 19 * * *"
   tesouro:
     # PU de venda do Tesouro Direto todo dia as 08:00 (o arquivo sai ~07:20 com o D-1), com recuperacao na subida.
     enabled: true

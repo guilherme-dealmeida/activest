@@ -112,6 +112,11 @@ import java.util.regex.Pattern;
 @Service
 public class ProventosCatalogService {
 
+    /** Historico de preco de cripto no pedido "preciso do historico" (docs/planos/PLANO_RENTABILIDADE.md, 3.3). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.primevest.adm.domain.pricehistory.CryptoHistoryService cryptoHistory;
+
+
     /** Mensagens de administrador (docs/planos/PLANO_NOTIFICACOES.md, 5.7). */
     @org.springframework.beans.factory.annotation.Autowired
     com.primevest.adm.domain.notice.AdminNotices notices;
@@ -280,6 +285,15 @@ public class ProventosCatalogService {
             a.getAssetType().getName();
             return a;
         }).orElse(null));
+        if (asset != null && asset.getAssetType().getPriceSource() == PriceSource.COINGECKO && cryptoHistory != null) {
+            // Cripto nao tem provento; o pedido serve para trazer o historico de preco (PLANO_RENTABILIDADE, 3.3).
+            try {
+                cryptoHistory.importAsset(asset.getId(), "sob demanda");
+            } catch (RuntimeException e) {
+                log.error("Historico de cripto sob demanda de {} falhou: {}", asset.getTicker(), e.getMessage());
+            }
+            return;
+        }
         if (asset == null || asset.getAssetType().getPriceSource() != PriceSource.BRAPI) {
             return;
         }

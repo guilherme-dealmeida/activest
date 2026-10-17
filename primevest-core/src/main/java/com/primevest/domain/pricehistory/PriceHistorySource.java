@@ -13,5 +13,10 @@ public enum PriceHistorySource {
     /** Serie historica oficial da B3 (COTAHIST), carregada pelo admin desde 2010. */
     B3_COTAHIST,
     /** PU de venda do Tesouro Direto (Tesouro Transparente, V44). */
-    TESOURO
+    TESOURO,
+    /**
+     * Historico de cripto da Binance (klines diario publico, V58 — docs/planos/PLANO_RENTABILIDADE.md, D2). So
+     * preenche datas sem linha: nunca sobrescreve a CoinGecko.
+     */
+    BINANCE
 }

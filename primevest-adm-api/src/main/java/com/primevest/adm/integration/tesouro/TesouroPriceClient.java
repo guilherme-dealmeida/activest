@@ -36,8 +36,12 @@ public class TesouroPriceClient {
     static final String FILE_NAME = "PrecoTaxaTesouroDireto.csv";
     private static final DateTimeFormatter BR = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    /** Uma linha: o titulo (tipo + vencimento), o dia e os PUs de venda (resgate) e base. */
-    public record Row(String type, LocalDate maturity, LocalDate date, BigDecimal sellPu, BigDecimal basePu) {
+    /**
+     * Uma linha: o titulo (tipo + vencimento), o dia, as taxas de compra e de venda da manha (% a.a.; nula quando
+     * zero) e os PUs de venda (resgate) e base.
+     */
+    public record Row(String type, LocalDate maturity, LocalDate date, BigDecimal buyRate, BigDecimal sellRate,
+                      BigDecimal sellPu, BigDecimal basePu) {
     }
 
     private final PublicFileCache files;
@@ -89,7 +93,7 @@ public class TesouroPriceClient {
         }
         try {
             return new Row(c[0].trim(), LocalDate.parse(c[1].trim(), BR), LocalDate.parse(c[2].trim(), BR),
-                    number(c[6]), number(c[7]));
+                    number(c[3]), number(c[4]), number(c[6]), number(c[7]));
         } catch (RuntimeException e) {
             return null;
         }

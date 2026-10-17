@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { strategyApi } from '@/api/strategy';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -58,7 +59,14 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
 export const StrategyPage = () => {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState<'ideal' | 'reserva'>('ideal');
+  // Aba na URL (`?aba=reserva`, 17/10/2026): o Rebalanceamento leva direto a cada uma.
+  const [params, setParams] = useSearchParams();
+  const activeTab: 'ideal' | 'reserva' = params.get('aba') === 'reserva' ? 'reserva' : 'ideal';
+  const setActiveTab = (tab: 'ideal' | 'reserva') => {
+    const next = new URLSearchParams(params);
+    if (tab === 'reserva') next.set('aba', 'reserva'); else next.delete('aba');
+    setParams(next, { replace: true });
+  };
   // Local editing state: { assetTypeId -> { value, typeName } }
   const [editingRows, setEditingRows] = useState<Record<number, { value: string; typeName: string }>>({});
   const [selectedTypeToAdd, setSelectedTypeToAdd] = useState<string>('');

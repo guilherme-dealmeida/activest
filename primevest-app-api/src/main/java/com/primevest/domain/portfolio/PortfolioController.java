@@ -71,11 +71,6 @@ public class PortfolioController {
         return ResponseEntity.ok(portfolioService.getAllocationDetailed(SecurityUtils.getCurrentUserId()));
     }
 
-    @GetMapping("/performance")
-    public ResponseEntity<PortfolioPerformanceDTO> getPerformance() {
-        return ResponseEntity.ok(portfolioService.getPerformance(SecurityUtils.getCurrentUserId()));
-    }
-    
     @GetMapping("/dividends")
     public ResponseEntity<Object> getDividends() {
         return ResponseEntity.ok().build();

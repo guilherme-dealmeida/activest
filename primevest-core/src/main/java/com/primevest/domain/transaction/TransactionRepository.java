@@ -122,4 +122,30 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
 
     @Query("SELECT MIN(t.transactionDate) FROM Transaction t WHERE t.portfolioAsset.asset.id = :assetId")
     java.time.LocalDate findEarliestDateByAssetId(@Param("assetId") Long assetId);
+
+    /**
+     * Soma das compras (aportes) da carteira com data em ({@code from}, {@code to}] — card Aportes do Dashboard
+     * (17/10/2026). Vale o valor da compra ({@code total_amount}).
+     */
+    @Query("""
+        SELECT COALESCE(SUM(t.totalAmount), 0) FROM Transaction t
+        WHERE t.portfolioAsset.portfolio.id = :portfolioId AND t.type = com.primevest.domain.transaction.TransactionType.BUY
+          AND t.transactionDate > :from AND t.transactionDate <= :to
+        """)
+    java.math.BigDecimal sumBuysBetween(@Param("portfolioId") UUID portfolioId,
+                                        @Param("from") java.time.LocalDate from,
+                                        @Param("to") java.time.LocalDate to);
+
+    /**
+     * Soma do que as vendas da carteira devolveram com data em ({@code from}, {@code to}]: o liquido onde ele existe
+     * (renda fixa e Tesouro), o valor da venda nos demais. Descontado das compras no card Aportes (17/10/2026).
+     */
+    @Query("""
+        SELECT COALESCE(SUM(COALESCE(t.netAmount, t.totalAmount)), 0) FROM Transaction t
+        WHERE t.portfolioAsset.portfolio.id = :portfolioId AND t.type = com.primevest.domain.transaction.TransactionType.SELL
+          AND t.transactionDate > :from AND t.transactionDate <= :to
+        """)
+    java.math.BigDecimal sumSalesBetween(@Param("portfolioId") UUID portfolioId,
+                                         @Param("from") java.time.LocalDate from,
+                                         @Param("to") java.time.LocalDate to);
 }

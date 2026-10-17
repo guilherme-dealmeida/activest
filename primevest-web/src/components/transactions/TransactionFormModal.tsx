@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Receipt, Save, X } from 'lucide-react';
 import { transactionsApi } from '@/api/transactions';
 import { assetsApi } from '@/api/assets';
 import { portfolioApi } from '@/api/portfolio';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { MaskedNumberInput } from '@/components/ui/MaskedNumberInput';
 import { Modal } from '@/components/ui/Modal';
+import { Popover } from '@/components/ui/Popover';
 import { InfoTooltip, LabelWithInfo } from '@/components/ui/InfoTooltip';
 import { useToast } from '@/context/ToastContext';
 import { apiMessage } from '@/utils/apiError';
@@ -105,25 +106,15 @@ const SALE_RULE_LABEL: Record<string, string> = {
 };
 
 /**
- * Painel da prévia da venda: bruto, IOF, IR e líquido, o líquido disponível (Renda Fixa) e os lotes — os aportes do
- * título na data (RF) ou as partes da venda por título (Tesouro).
+ * Prévia da venda: bruto, IOF, IR e líquido, o líquido disponível (Renda Fixa) e os lotes — os aportes do título na
+ * data (RF) ou as partes da venda por título (Tesouro). Desde 17/10/2026 abre num popover pelo ícone ao lado do
+ * Líquido (Total bruto, no Tesouro); o erro do cálculo e o aviso de "passa do disponível" continuam no formulário.
  */
-const SalePreviewPanel = ({ preview, loading, error, treasury, fee }: {
-  preview: SalePreview | undefined; loading: boolean; error: string | null; treasury: boolean; fee: number;
+const SalePreviewPanel = ({ preview, loading, treasury, fee }: {
+  preview: SalePreview | undefined; loading: boolean; treasury: boolean; fee: number;
 }) => {
-  if (error) {
-    return (
-      <div className="sm:col-span-2 rounded-md border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
-        {error}
-      </div>
-    );
-  }
   if (!preview) {
-    return (
-      <div className="sm:col-span-2 rounded-md border border-surface-light px-4 py-3 text-sm text-gray-400">
-        {loading ? 'Calculando IR e IOF…' : null}
-      </div>
-    );
+    return <p className="text-gray-400">{loading ? 'Calculando IR e IOF…' : 'Preencha a venda para ver a prévia.'}</p>;
   }
   const linha = (rotulo: string, valor: number | null | undefined, destaque = false) => (
     <div className="flex items-baseline justify-between gap-4">
@@ -134,13 +125,12 @@ const SalePreviewPanel = ({ preview, loading, error, treasury, fee }: {
     </div>
   );
   return (
-    <div className={`sm:col-span-2 rounded-md border border-surface-light bg-surface-light/20 px-4 py-3 text-sm ${loading ? 'opacity-60' : ''}`}>
-      <div className="mb-2 flex items-center gap-2 text-gray-300">
-        <span className="font-medium">Prévia da venda</span>
-        <InfoTooltip content={treasury
+    <div className={loading ? 'opacity-60' : ''}>
+      <p className="mb-3 text-xs text-gray-400">
+        {treasury
           ? 'IR e IOF calculados por título, do mais antigo para o mais novo, sobre o rendimento (PU de venda − PU de compra). O líquido desconta também as taxas.'
-          : `O valor digitado é o líquido. O PrimeVest calcula o bruto pela curva, tirando dos aportes pela regra de saída (${SALE_RULE_LABEL[preview.saleRule] ?? preview.saleRule}), com o IOF e o IR de cada aporte.`} />
-      </div>
+          : `O valor digitado é o líquido. O PrimeVest calcula o bruto pela curva, tirando dos aportes pela regra de saída (${SALE_RULE_LABEL[preview.saleRule] ?? preview.saleRule}), com o IOF e o IR de cada aporte.`}
+      </p>
       <div className="grid gap-1">
         {linha('Bruto', preview.gross)}
         {linha('IOF', preview.iof)}
@@ -150,11 +140,6 @@ const SalePreviewPanel = ({ preview, loading, error, treasury, fee }: {
         {linha('Líquido', preview.net, true)}
         {!treasury && linha('Líquido disponível estimado na data', preview.availableNet)}
       </div>
-      {preview.aboveAvailable && (
-        <p className="mt-2 text-xs text-accent">
-          O valor passa do líquido disponível estimado. Se é o resgate total, marque “Liquidação total”.
-        </p>
-      )}
       {preview.lots.length > 0 && (
         <table className="mt-3 w-full text-xs tabular-nums">
           <thead className="text-gray-500">
@@ -762,6 +747,10 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       ? 'A venda é do ativo, não de um título. As cotas saem dos títulos mais antigos primeiro, e o sistema divide a operação entre eles.'
       : undefined;
 
+  // Prévia da venda (Renda Fixa e Tesouro): no popover do ícone ao lado do Líquido / Total bruto
+  const temPrevia = isVenda && (isValorTotal || isTesouro) && !!(previewPayload || preview);
+  const previaAtual = debouncedKey === previewKey ? preview : undefined;
+
   return (
     <>
     <Modal
@@ -773,8 +762,14 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       size={mostraDadosTitulo ? '2xl' : 'xl'}
       footer={
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" form={FORM_ID} isLoading={isSaving}>Salvar</Button>
+          <Button type="button" variant="ghost" onClick={onClose}>
+            <X className="h-4 w-4 mr-2" />
+            Cancelar
+          </Button>
+          <Button type="submit" form={FORM_ID} isLoading={isSaving}>
+            {!isSaving && <Save className="h-4 w-4 mr-2" />}
+            Salvar
+          </Button>
         </div>
       }
     >
@@ -960,30 +955,46 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
           {/* Total é resultado, não campo: uma linha de leitura ocupa metade
               da altura de um input com rótulo e texto de apoio. */}
           <div className="sm:col-span-2 flex items-baseline justify-between gap-4 rounded-md border border-surface-light bg-surface-light/40 px-4 py-3">
-            <span className="text-sm text-gray-400">
+            <span className="inline-flex items-center text-sm text-gray-400">
               <LabelWithInfo
                 info={selectedType && !isValorTotal
                   ? (isTesouro && isVenda
-                      ? 'Quantidade × preço unitário: o valor bruto. IR e IOF de cada título estão na prévia abaixo.'
+                      ? 'Quantidade × preço unitário: o valor bruto. IR e IOF de cada título estão na prévia da venda (ícone ao lado).'
                       : 'Quantidade × preço unitário. As taxas não entram no total.')
                   : undefined}
               >
                 {isValorTotal && isVenda ? 'Líquido' : isTesouro && isVenda ? 'Total bruto' : 'Total'}
               </LabelWithInfo>
+              {temPrevia && (
+                <Popover
+                  label="Prévia da venda"
+                  title="Prévia da venda"
+                  trigger={<Receipt className="h-4 w-4" />}
+                  className="ml-1.5"
+                >
+                  <SalePreviewPanel
+                    preview={previaAtual}
+                    loading={previewLoading || debouncedKey !== previewKey}
+                    treasury={isTesouro}
+                    fee={formData.brokerageFee ?? 0}
+                  />
+                </Popover>
+              )}
             </span>
             <span className="text-lg font-semibold tabular-nums text-white">
               {formatCurrency(computedTotal)}
             </span>
           </div>
 
-          {isVenda && (isValorTotal || isTesouro) && (previewPayload || preview) && (
-            <SalePreviewPanel
-              preview={debouncedKey === previewKey ? preview : undefined}
-              loading={previewLoading || debouncedKey !== previewKey}
-              error={previewError ? (apiMessage(previewError) ?? 'Não foi possível calcular a prévia.') : null}
-              treasury={isTesouro}
-              fee={formData.brokerageFee ?? 0}
-            />
+          {temPrevia && previewError && (
+            <div className="sm:col-span-2 rounded-md border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+              {apiMessage(previewError) ?? 'Não foi possível calcular a prévia.'}
+            </div>
+          )}
+          {temPrevia && previaAtual?.aboveAvailable && (
+            <p className="sm:col-span-2 text-xs text-accent">
+              O valor passa do líquido disponível estimado. Se é o resgate total, marque “Liquidação total”.
+            </p>
           )}
 
           {perguntaTotal && (

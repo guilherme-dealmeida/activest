@@ -23,7 +23,9 @@ import java.util.Set;
  * (docs/planos/PLANO_EMPRESAS_BALANCOS.md, F2).
  *
  * <ul>
- *   <li>So ACAO (lote padrao e fracionario) e FII do catalogo.</li>
+ *   <li>ACAO (lote padrao e fracionario), FII, e desde 17/10/2026 ETF e BDR do catalogo (docs/planos/
+ *   PLANO_RENTABILIDADE.md, 3.3: a Rentabilidade precisa do preco de cada pregao, e a BRAPI so traz o dos
+ *   ativos em carteira a partir do dia em que entraram).</li>
  *   <li>O ticker do arquivo casa com o do catalogo; linha a vista com ticker que
  *   o catalogo nao tem casa pelo ISIN, quando o ISIN e de um ativo do catalogo
  *   (ticker renomeado com o mesmo ISIN). Os anos sao lidos do mais recente para
@@ -47,7 +49,7 @@ public class HistoricalQuotesImportService {
     com.primevest.domain.catalog.CatalogMessaging.CatalogChangePublisher catalogChangePublisher;
 
     public static final int FIRST_YEAR = 2010;
-    private static final Set<String> TYPES = Set.of("ACAO", "FII");
+    private static final Set<String> TYPES = Set.of("ACAO", "FII", "ETF", "BDR");
     private static final int BATCH = 5000;
     private static final String UPSERT = """
             INSERT INTO asset_price_history

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
+  TrendingUp,
   Briefcase,
   PieChart,
   Target,
@@ -10,43 +11,30 @@ import {
   TrendingDown,
   DollarSign,
   Flag,
-  Plug,
   Building2,
   LineChart,
-  LogOut,
-  Bell,
-  Settings,
-  Sun,
-  Moon,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/context/AuthContext';
-import { UserAvatar } from '@/components/ui/UserAvatar';
-import { integrationsApi } from '@/api/integrations';
-import { notificationsApi } from '@/api/notifications';
-import { needsAttention } from '@/utils/integrations';
 import { useTheme } from '@/context/ThemeContext';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-// Ordem definida em 23/09/2026: o fluxo de uso (ver, lançar, analisar,
-// planejar) e depois as consultas de apoio. Rebalanceamento logo depois de
-// Estratégia (11/10/2026), quando deixou de ser aba dela.
+// Ordem definida em 17/10/2026 (escopo "Mudanças de tela"). Integrações saiu do menu e foi para o cabeçalho, junto
+// de Tema, Notificações, Configurações e do usuário (antes no rodapé deste menu).
 const navItems = [
   { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
   { name: 'Carteira', path: '/portfolio', icon: Briefcase },
   { name: 'Transações', path: '/transactions', icon: ArrowLeftRight },
+  { name: 'Dividendos', path: '/dividends', icon: DollarSign },
+  { name: 'Rentabilidade', path: '/rentabilidade', icon: TrendingUp },
   { name: 'Alocação', path: '/allocation', icon: PieChart },
   { name: 'Estratégia', path: '/strategy', icon: Target },
   { name: 'Rebalanceamento', path: '/rebalance', icon: Scale },
-  { name: 'Dividendos', path: '/dividends', icon: DollarSign },
   { name: 'Preço Teto', path: '/ceiling-prices', icon: TrendingDown },
+  { name: 'Metas', path: '/goals', icon: Flag },
   { name: 'Emissoras', path: '/emissoras', icon: Building2 },
   { name: 'Índices', path: '/indices', icon: LineChart },
-  { name: 'Metas', path: '/goals', icon: Flag },
-  { name: 'Integrações', path: '/integrations', icon: Plug },
 ];
 
 /**
@@ -66,10 +54,8 @@ const readCollapsed = () => {
 };
 
 export const Sidebar = () => {
-  const { user, logout } = useAuth();
-  const { toggleTheme, isDark } = useTheme();
+  const { isDark } = useTheme();
   const location = useLocation();
-  const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(readCollapsed);
 
   useEffect(() => {
@@ -79,36 +65,6 @@ export const Sidebar = () => {
       // Sem armazenamento a escolha vale só para esta visita.
     }
   }, [collapsed]);
-
-  // Marcador em Integrações: pré-visualização esperando decisão, divergência
-  // de saldo ou chave com problema. Consulta leve, a cada minuto.
-  const { data: connections } = useQuery({
-    queryKey: ['integrations'],
-    queryFn: integrationsApi.list,
-    refetchInterval: 60_000,
-  });
-  const attention = (connections ?? []).filter(needsAttention).length;
-
-  // Sino das notificações (docs/planos/PLANO_NOTIFICACOES.md, 5.1): não lidas fora de Arquivadas, mesmo ritmo e
-  // mesmo marcador de Integrações.
-  const { data: summary } = useQuery({
-    queryKey: ['notifications', 'summary'],
-    queryFn: notificationsApi.summary,
-    refetchInterval: 60_000,
-  });
-  const unread = summary?.unread ?? 0;
-  const unreadTitle = unread === 0
-    ? 'Notificações'
-    : `Notificações · ${unread} não lida${unread === 1 ? '' : 's'}`;
-
-  const userName = user?.name ?? '';
-
-  const footerButton = clsx(
-    'p-1.5 rounded-md transition-colors',
-    isDark
-      ? 'text-gray-400 hover:text-white hover:bg-white/5'
-      : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100'
-  );
 
   return (
     <div className={clsx(
@@ -164,8 +120,6 @@ export const Sidebar = () => {
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname.startsWith(item.path);
-          const badge = item.path === '/integrations' && attention > 0;
-          const badgeTitle = `${attention} integraç${attention === 1 ? 'ão pede' : 'ões pedem'} atenção`;
 
           return (
             <NavLink
@@ -173,7 +127,7 @@ export const Sidebar = () => {
               to={item.path}
               // Recolhido o nome não aparece: vira dica no mouse e rótulo para
               // leitor de tela.
-              title={collapsed ? (badge ? `${item.name} · ${badgeTitle}` : item.name) : undefined}
+              title={collapsed ? item.name : undefined}
               aria-label={collapsed ? item.name : undefined}
               className={twMerge(
                 clsx(
@@ -200,109 +154,12 @@ export const Sidebar = () => {
                       : 'text-gray-400 group-hover:text-gray-600'
                 )}
               />
-              {badge && collapsed && (
-                <span
-                  className={clsx('absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-yellow-400 ring-2', isDark ? 'ring-[#111111]' : 'ring-white')}
-                  aria-hidden
-                />
-              )}
               </span>
               {!collapsed && item.name}
-              {badge && !collapsed && (
-                <span
-                  className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-yellow-400/20 text-yellow-500 text-xs font-semibold flex items-center justify-center"
-                  title={badgeTitle}
-                  aria-label={badgeTitle}
-                >
-                  {attention}
-                </span>
-              )}
             </NavLink>
           );
         })}
       </nav>
-
-      {/* Rodapé em duas linhas (13/10/2026): 1ª foto e nome; 2ª sino, Modo, Configurações e Sair. Recolhido, tudo em
-          coluna. */}
-      <div className={clsx(
-        'p-4 border-t overflow-hidden transition-colors duration-300',
-        isDark ? 'border-white/10' : 'border-gray-200'
-      )}>
-        <div className={clsx('flex items-center', collapsed && 'justify-center')}>
-          {/* A foto do usuário (enviada, do Google ou a inicial) — a mesma de Configurações. */}
-          <UserAvatar user={user} className="h-8 w-8" textClassName="text-sm" title={collapsed ? userName : undefined} />
-          {!collapsed && (
-            <div className="ml-3 flex-1 min-w-0">
-              <p className={clsx(
-                'text-sm font-medium truncate',
-                isDark ? 'text-white' : 'text-gray-900'
-              )} title={userName}>
-                {userName}
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className={clsx('flex items-center mt-3', collapsed ? 'flex-col gap-2' : 'justify-between px-1')}>
-          {/* Notificações */}
-          <button
-            onClick={() => navigate('/notifications')}
-            className={twMerge(footerButton, 'relative', location.pathname.startsWith('/notifications') && 'text-accent')}
-            title={unreadTitle}
-            aria-label={unreadTitle}
-          >
-            <Bell className="h-4 w-4" />
-            {unread > 0 && (collapsed ? (
-              <span
-                className={clsx('absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-yellow-400 ring-2', isDark ? 'ring-[#111111]' : 'ring-white')}
-                aria-hidden
-              />
-            ) : (
-              <span
-                className="absolute -top-1.5 -right-2.5 min-w-[18px] h-[18px] px-1 rounded-full bg-yellow-400/20 text-yellow-500 text-[10px] font-semibold flex items-center justify-center"
-                aria-hidden
-              >
-                {unread > 99 ? '99+' : unread}
-              </span>
-            ))}
-          </button>
-
-          {/* Theme Toggle */}
-          <button
-            onClick={toggleTheme}
-            className={clsx(
-              'p-1.5 rounded-md transition-colors',
-              isDark
-                ? 'text-gray-400 hover:text-yellow-400 hover:bg-white/5'
-                : 'text-gray-400 hover:text-blue-600 hover:bg-gray-100'
-            )}
-            title={isDark ? 'Modo Claro' : 'Modo Escuro'}
-            aria-label={isDark ? 'Modo Claro' : 'Modo Escuro'}
-          >
-            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </button>
-
-          {/* Settings */}
-          <button
-            onClick={() => navigate('/settings')}
-            className={twMerge(footerButton, location.pathname === '/settings' && 'text-accent')}
-            title="Configurações"
-            aria-label="Configurações"
-          >
-            <Settings className="h-4 w-4" />
-          </button>
-
-          {/* Logout */}
-          <button
-            onClick={logout}
-            className={footerButton}
-            title="Sair"
-            aria-label="Sair"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
     </div>
   );
 };

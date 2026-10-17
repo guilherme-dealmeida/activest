@@ -73,6 +73,7 @@ public class AdminController {
     private final TreasuryPriceService treasuryPriceService;
     private final com.primevest.adm.domain.fixedincome.FixedIncomeIssuerImportService fixedIncomeIssuerImportService;
     private final com.primevest.adm.domain.fixedincome.FixedIncomeLogoService fixedIncomeLogoService;
+    private final com.primevest.adm.domain.pricehistory.CryptoHistoryService cryptoHistoryService;
 
     @PostMapping("/catalog-audit")
     public ResponseEntity<Map<String, String>> catalogAudit() {
@@ -330,6 +331,16 @@ public class AdminController {
             return start("tesouro", () -> treasuryPriceService.importRecent("sob demanda"));
         }
         return start("tesouro", () -> treasuryPriceService.importFrom(from, "sob demanda"));
+    }
+
+    /**
+     * Historico de preco de cripto (docs/planos/PLANO_RENTABILIDADE.md, 3.3): CoinGecko nos ultimos 365 dias (somado ao
+     * arquivo de carga/data/coingecko/historico) e Binance BTC/BRL antes disso, para toda cripto que esta ou ja esteve
+     * em carteira e para o benchmark BTC. So preenche dias sem linha.
+     */
+    @PostMapping("/cripto/historico")
+    public ResponseEntity<Map<String, String>> cryptoHistory() {
+        return start("historico de cripto", () -> cryptoHistoryService.importAll("sob demanda"));
     }
 
     @PostMapping("/proventos")

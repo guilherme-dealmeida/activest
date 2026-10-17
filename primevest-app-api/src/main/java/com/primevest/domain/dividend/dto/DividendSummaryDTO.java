@@ -27,5 +27,10 @@ public record DividendSummaryDTO(
     /** Bruto a receber. */
     BigDecimal toReceiveGross,
     /** IR a reter no que falta receber. */
-    BigDecimal toReceiveTax
+    BigDecimal toReceiveTax,
+    /**
+     * Liquido recebido nos ultimos 12 meses (pagamento de hoje - 12 meses, exclusive, ate hoje; sem data de
+     * pagamento, vale a data ex) — card Proventos do Dashboard (17/10/2026).
+     */
+    BigDecimal last12Months
 ) {}

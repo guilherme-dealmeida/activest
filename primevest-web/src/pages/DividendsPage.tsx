@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { dividendsApi } from '@/api/dividends';
 import { Card } from '@/components/ui/Card';
 import { AssetLogo } from '@/components/ui/AssetLogo';
@@ -98,10 +99,17 @@ const TAB_TEXTS: Record<DividendTab, { total: string; byType: string; emptyByTyp
  * calcula o total com as cotas que havia na data-com.
  *
  * Duas abas sobre o mesmo resumo (`GET /dividends/`): Histórico de Proventos
- * (recebidos) e Proventos a Receber (11/10/2026).
+ * (recebidos) e Proventos a Receber (11/10/2026). A aba fica na URL (`?aba=a-receber`, 17/10/2026): o card Proventos
+ * do Dashboard leva direto a ela.
  */
 export const DividendsPage = () => {
-  const [activeTab, setActiveTab] = useState<DividendTab>('received');
+  const [params, setParams] = useSearchParams();
+  const activeTab: DividendTab = params.get('aba') === 'a-receber' ? 'toReceive' : 'received';
+  const setActiveTab = (tab: DividendTab) => {
+    const next = new URLSearchParams(params);
+    if (tab === 'toReceive') next.set('aba', 'a-receber'); else next.delete('aba');
+    setParams(next, { replace: true });
+  };
 
   const { data: summary, isLoading } = useQuery<DividendSummary>({
     queryKey: ['dividends', 'summary'],

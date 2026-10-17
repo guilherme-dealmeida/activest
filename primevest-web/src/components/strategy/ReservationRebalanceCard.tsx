@@ -1,3 +1,4 @@
+import type React from 'react';
 import { clsx } from 'clsx';
 import { Card } from '@/components/ui/Card';
 import { ReservationRebalance } from '@/types';
@@ -18,8 +19,8 @@ const signColor = (n: number) => (n > 0 ? 'text-success' : n < 0 ? 'text-danger'
  * alvo, em vermelho: a tela mostra o excesso, não manda vender — e a
  * Sugestão fica AGUARDAR, como na tabela por tipo.
  */
-export const ReservationRebalanceCard = ({ reservation }: { reservation: ReservationRebalance }) => (
-  <Card title="Rebalanceamento Reserva de Emergência" titleInfo={STRATEGY_HELP.reservationRebalance}>
+export const ReservationRebalanceCard = ({ reservation, action }: { reservation: ReservationRebalance; action?: React.ReactNode }) => (
+  <Card title="Rebalanceamento Reserva de Emergência" titleInfo={STRATEGY_HELP.reservationRebalance} action={action}>
     <div className="overflow-x-auto mt-4">
       <table className={REBALANCE_TABLE_CLASS}>
         <RebalanceColGroup />

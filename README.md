@@ -62,13 +62,22 @@ primevest/
   preço médio — ver `docs/PRECO_TETO_METODOLOGIA.md` e `docs/planos/PLANO_PRECO_TETO.md`
 - ✅ Acompanhamento de proventos (dividendos, JCP, rendimentos), com abas de histórico (recebidos) e a receber
 - ✅ Atualização automática de cotações (BrAPI + CoinGecko para a carteira; COTAHIST diário da B3 para todas as
-  ações e FIIs do catálogo, às 21:30 e 08:30)
+  ações, FIIs, ETFs e BDRs do catálogo, às 21:30 e 08:30; histórico de cripto às 19:30)
 - ✅ Índices de mercado desde 2010 — CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, dólar PTAX, Ibovespa e IFIX —,
   atualizados todo dia às 10:00 (Banco Central e B3), com consulta da série e do acumulado no período
   (tela **Índices**: um card por índice com período e gráfico; `/api/v1/indices`). Base da futura valorização da
   renda fixa
+- ✅ Rentabilidade (17/10/2026): a carteira contra CDI, Selic, IPCA, IPCA + x%, Ibovespa, IFIX, IVVB11 (proxy do
+  S&P 500 em reais) e Bitcoin — TWR, % do CDI, rentabilidade real, retorno pessoal (XIRR), barras por período, tabela
+  comparativa, contribuição por classe/categoria/ativo/emissora, mapa de calor, patrimônio nominal × real e risco
+  (volatilidade, drawdown, Sharpe, Sortino); recorte por tipo, categoria, ativo, com/sem reserva, bruto/líquido. Lacuna
+  de preço nunca é escondida: o período fica indisponível e a tela diz o ativo (`docs/RENTABILIDADE_METODOLOGIA.md`,
+  `docs/planos/PLANO_RENTABILIDADE.md`)
+- ✅ Dashboard (17/10/2026): cards Patrimônio (atual bruto, líquido e investido), Aportes (compras − vendas em 12
+  meses e média mensal), Rentabilidade bruta (12 meses e desde o início, em % e R$) e Proventos (12 meses, totais e a
+  receber), mais o gráfico de rentabilidade acumulada de 12 meses contra o CDI
 - ✅ Metas de investimento
-- ✅ Notificações (13/10/2026): caixa estilo e-mail pelo sino do menu — proventos pagos no dia, eventos societários,
+- ✅ Notificações (13/10/2026): caixa estilo e-mail pelo sino do cabeçalho — proventos pagos no dia, eventos societários,
   título vencido (aviso com o líquido estimado e a venda preenchida — desde 15/10/2026 o PrimeVest não liquida
   sozinho), bonificação sem custo ("Informar custo"), alerta de preço abaixo do ideal,
   "padrão mudou" do Preço Teto, integrações e, para o administrador, rotinas e catálogo (`docs/planos/PLANO_NOTIFICACOES.md`)
@@ -153,7 +162,7 @@ Nada depende de pasta fora do projeto (`docs/planos/PLANO_CARGA_INICIAL.md`).
    leitura** do bucket R2 (`S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`).
 2. **Pasta `carga/data/`** (fora do git, ~1,4 GB) baixada do bucket `primevest-data` (Cloudflare R2):
    `cvm/`, `b3/cotahist/`, `b3/proventos/`, `b3/proventos-12m/`, `b3/indices/`, `bcb/`, `fnet/`, `levantamento/`,
-   `logos/` e `tesouro/`. Com ela a
+   `logos/`, `tesouro/`, `coingecko/` e `binance/` (histórico de cripto). Com ela a
    carga lê quase tudo do disco; sem ela baixa ~2 GB da CVM e da B3, e perde o que as fontes não
    devolvem mais (avisos antigos do FNET, datas de pagamento que já saíram da janela da B3 e as
    datas levantadas de 2010–2026, que só existem em `levantamento/`).
@@ -218,7 +227,8 @@ node carga/scripts/b3investidor/conferir.mjs --api http://localhost:8082 --mock 
 | API | Uso | Docs |
 |-----|-----|------|
 | **BrAPI** | Cotações B3 (Ações, FIIs, ETFs) | [brapi.dev](https://brapi.dev) |
-| **CoinGecko** | Cotações Crypto | [coingecko.com](https://www.coingecko.com/en/api) |
+| **CoinGecko** | Cotações Crypto e histórico dos últimos 365 dias | [coingecko.com](https://www.coingecko.com/en/api) |
+| **Binance (pública)** | Histórico diário BTC/BRL desde 13/10/2020 (klines, sem chave) — benchmark da Rentabilidade | [binance-docs.github.io](https://binance-docs.github.io/apidocs/spot/en/) |
 | **Banco Central — SGS** | Índices: CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, dólar PTAX (sem token) | [dadosabertos.bcb.gov.br](https://dadosabertos.bcb.gov.br) |
 | **Site da B3** | Proventos, eventos societários, série histórica (COTAHIST) e os índices Ibovespa e IFIX | [b3.com.br](https://www.b3.com.br) |
 | **Tesouro Transparente** | Preço e taxa diários dos títulos do Tesouro Direto (PU de resgate) | [tesourotransparente.gov.br](https://www.tesourotransparente.gov.br) |
