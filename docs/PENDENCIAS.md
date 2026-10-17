@@ -2,7 +2,7 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 16/10/2026 — secao 28 (emissoras e distribuidoras de renda fixa,
+Ultima atualizacao: 16/10/2026 — secao 28 (emissoras e distribuidoras de renda fixa, escopo finalizado; 28.1 e 28.5 no fechamento;
 docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md); 4.3 e 27.1 resolvidos, 27.2 atualizado. Antes: 15/10/2026 — secao 27 (venda de renda fixa, docs/planos/PLANO_VENDA_RENDA_FIXA.md; 27.3 a 27.5
 na implementacao); 26.7 e 26.8 reescritos (a liquidacao automatica sai). Antes: 13/10/2026 — secao 13 (central de avisos) e itens 10.4, 13.2 e 25.1 resolvidos pelas
 notificacoes (docs/planos/PLANO_NOTIFICACOES.md) e secao 26. Antes: 10/10/2026 — secao 25 (preco teto pelo modelo
@@ -1127,8 +1127,11 @@ Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
 ## 28. EMISSORAS E DISTRIBUIDORAS DE RENDA FIXA (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md, 16/10/2026)
 
 **28.1** PARCIAL em 16/10/2026 (plano de emissoras, Adendo A): logos por raiz de CNPJ do Open Finance Brasil e do
- logos-bancos-br. Fica aberto o resto (cooperativas, securitizadoras, companhias sem ação): planilha
- docs/emissores/Logos_Emissoras_RF_2026-10-16.xlsx. Texto original:
+ logos-bancos-br (443 arquivos em carga/data/logos/rf). Fica aberto o que nenhuma fonte cobriu — 207 grupos e 844
+ empresas sem grupo (quase todas cooperativas, companhias de debenture e securitizadoras) — na planilha
+ docs/emissores/Logos_Emissoras_RF_2026-10-16.xlsx, para busca manual do Guilherme (colunas amarelas: ticker da
+ controladora ou URL do logo oficial). Preenchida, o logo vai para carga/data/logos/rf/{raiz do CNPJ} (ou o ticker
+ para fixed_income_groups.logo_ticker, numa migration de curadoria) e sobe no data push. Texto original:
  Logo pelo site da empresa (caminho 2): o BCB e a CVM informam o site; icone pelo dominio com qualidade
  variavel (testado em 15/10/2026: Nubank 256 px, Opea 192 px, Sicredi 16 px). Hoje o logo da linha de RF e o do
  ticker curado no grupo (fixed_income_groups.logo_ticker), senao "RF".

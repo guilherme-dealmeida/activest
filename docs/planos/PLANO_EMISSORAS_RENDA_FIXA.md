@@ -1,7 +1,8 @@
 # PrimeVest — Plano de Emissoras e Distribuidoras de Renda Fixa
 
-> Fase: **implementado** (plano criado em 16/10/2026; D1–D8 respondidas no mesmo dia, todas pela recomendação;
-> E1–E7 concluídas em 16/10/2026 — seção 13).
+> Fase: **finalizado** (plano criado em 16/10/2026; D1–D8 respondidas no mesmo dia, todas pela recomendação;
+> E1–E7 e Adendo A concluídos em 16/10/2026 — seção 13). Ficou aberto na PENDENCIAS: 28.1 (logos sem fonte, busca
+> manual), 28.2, 28.3, 28.4 e 28.5.
 > Origem: ESCOPO "Emissoras de Renda Fixa PrimeVest", levantamento de 08–16/10/2026 (seção 10). Curadoria dos grupos em
 > `docs/emissores/Curadoria_Grupos_RF_2026-10-09.xlsx`. Liga com `docs/planos/PLANO_VENDA_RENDA_FIXA.md` (D1 dele: a
 > regra de saída passa a ser lida da distribuidora). Pendências ligadas: `docs/PENDENCIAS.md` 4.3, 16.5, 16.6, 26.7,
@@ -459,3 +460,5 @@ quase nenhuma emissora de renda fixa tem ação na B3 (planilha `docs/emissores/
 - 16/10/2026 — fechamento, a pedido do Guilherme: V56 (FK composta título × posição no mesmo produto, `ON UPDATE
   CASCADE`; achado da troca de CDB para RDB feita só na posição; remover a duplicação ficou na PENDENCIAS 28.5) e o
   quarto passo do logo (A4: outra empresa do grupo). Rodada completa de testes no fim.
+- 16/10/2026 — escopo finalizado pelo Guilherme. A busca manual dos logos que nenhuma fonte cobriu (207 grupos e 844
+  empresas, planilha de 16/10) foi para a PENDENCIAS 28.1.
