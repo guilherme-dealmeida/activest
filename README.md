@@ -51,6 +51,9 @@ primevest/
   oficial do Tesouro** (atualizado todo dia) e **renda fixa privada pela curva da taxa contratada** (% do CDI, CDI +
   spread, prefixado, IPCA + spread), valores brutos — ver `docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`
 - ✅ Venda de renda fixa pela Nova Transação (escolhendo o título) ou pela Carteira, com "Resgatar tudo"
+- ✅ Venda de renda fixa pelo **valor líquido** (15/10/2026): o PrimeVest calcula o bruto, o IR (tabela regressiva) e o
+  IOF aporte a aporte, com prévia antes de gravar; no Tesouro, IR e IOF por título; a Carteira mostra o líquido
+  estimado de cada título — ver `docs/planos/PLANO_VENDA_RENDA_FIXA.md`
 - ✅ Gráficos de alocação (pizza por tipo e por categoria)
 - ✅ Estratégia de alocação com % ideal e tela própria de Rebalanceamento (sugestão de aporte)
 - ✅ Preço Teto e Preço Ideal de ações pelo modelo PREÇO TETO V2 (10/10/2026): lucros dos 4 últimos trimestres
@@ -66,7 +69,8 @@ primevest/
   renda fixa
 - ✅ Metas de investimento
 - ✅ Notificações (13/10/2026): caixa estilo e-mail pelo sino do menu — proventos pagos no dia, eventos societários,
-  título vencido liquidado automaticamente, bonificação sem custo ("Informar custo"), alerta de preço abaixo do ideal,
+  título vencido (aviso com o líquido estimado e a venda preenchida — desde 15/10/2026 o PrimeVest não liquida
+  sozinho), bonificação sem custo ("Informar custo"), alerta de preço abaixo do ideal,
   "padrão mudou" do Preço Teto, integrações e, para o administrador, rotinas e catálogo (`docs/planos/PLANO_NOTIFICACOES.md`)
 - ✅ Integrações: Binance (chave só de leitura) e B3 — Área do Investidor (CPF + autorização na B3): as negociações
   entram depois de você conferir; proventos e eventos da B3 são conferidos com a carteira. A B3 real depende de contrato
@@ -166,7 +170,8 @@ docker compose logs -f adm-api      # acompanhar; termina em "Carga inicial (...
 ```
 
 A carga roda, em ordem: emissores (completa o seed com as companhias e os FIIs negociados que não
-estão no catálogo), COTAHIST, proventos (FII pelo FNET, ações pela B3), datas de pagamento pelos
+estão no catálogo), emissoras e distribuidoras de renda fixa (BCB e CVM, completando o seed —
+`docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md`), COTAHIST, proventos (FII pelo FNET, ações pela B3), datas de pagamento pelos
 relatórios de proventos da CVM (2022+), datas de pagamento do levantamento 2010–2026
 (`carga/data/levantamento/datas-pagamento.json`, só onde ainda falta data), balanços com a série
 trimestral, informe mensal de FII, o preço oficial do Tesouro Direto desde 2010 (`tesouro/`) e os índices de mercado desde 2010 (CDI, Selic, IPCA, IGP-M, INPC,

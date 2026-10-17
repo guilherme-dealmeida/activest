@@ -25,13 +25,16 @@ import static org.assertj.core.api.Assertions.within;
 
 /**
  * Rotina de abertura do dia [B7] e as mensagens que ela produz (docs/planos/PLANO_NOTIFICACOES.md, N6–N8): provento
- * pago em D0, evento com data-ex hoje, bonificação sem custo com "Informar custo" e a liquidação automática do título
- * vencido.
+ * pago em D0, evento com data-ex hoje, bonificação sem custo com "Informar custo" e o aviso do título vencido
+ * (docs/planos/PLANO_VENDA_RENDA_FIXA.md, seção 6: a liquidação automática saiu).
  */
 class AberturaDoDiaIT extends FuncionalBase {
 
     @Autowired
     DailyOpeningService abertura;
+
+    @Autowired
+    com.primevest.domain.notification.NotificationService notificacoes;
 
     private User dono;
 
@@ -173,86 +176,85 @@ class AberturaDoDiaIT extends FuncionalBase {
         assertThat(r.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
-    // ------------------------------------------------------------------ liquidação automática
+    // ------------------------------------------------------------------ título vencido (PLANO_VENDA_RENDA_FIXA, 6)
+
+    private Map<String, Object> liquidacao(Object noteId, String data, BigDecimal liquido) {
+        Map<String, Object> v = new HashMap<>();
+        v.put("ticker", CatalogIds.CDB);
+        v.put("type", "SELL");
+        v.put("transactionDate", data);
+        v.put("totalAmount", liquido);
+        v.put("isFullSettlement", true);
+        v.put("noteId", noteId);
+        return v;
+    }
 
     @Test
-    @DisplayName("Compra retroativa de CDB já vencido nasce liquidada pela curva, com origem SISTEMA e sem mensagem")
-    void retroativaNasceLiquidada() {
+    @DisplayName("Compra retroativa de CDB já vencido: nenhuma venda; pendência RF_VENCIDO com o líquido estimado e o link preenchido")
+    void retroativaVencidaAvisa() {
         cdi(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 31));
         lancarComSucesso(dono, cdb("2024-01-02", "1000.00", "2024-01-15"));
 
-        List<TransactionResponseDTO> txs = transacoesDe(dono);
-        TransactionResponseDTO venda = txs.stream().filter(t -> t.type().name().equals("SELL")).findFirst().orElseThrow();
-        assertThat(venda.origin().name()).isEqualTo("SISTEMA");
-        assertThat(venda.transactionDate()).isEqualTo(LocalDate.of(2024, 1, 15));
-        assertThat(venda.totalAmount().doubleValue()).isCloseTo(1000 * Math.pow(1.0005, 9), within(0.01));
-        assertThat(carteiraDe(dono)).noneMatch(p -> CatalogIds.CDB.equals(p.get("ticker")));
+        assertThat(transacoesDe(dono)).noneMatch(t -> t.type().name().equals("SELL"));
+        assertThat(carteiraDe(dono)).anyMatch(p -> CatalogIds.CDB.equals(p.get("ticker")));
+        List<Map<String, Object>> m = mensagens("RF_VENCIDO");
+        assertThat(m).hasSize(1);
+        assertThat(m.get(0).get("status")).isEqualTo("NAO_RESOLVIDA");
+        assertThat((String) m.get(0).get("title")).isEqualTo("CDB BANCO TESTE — vencido em 15/01/2024, lance a liquidação");
+        assertThat((String) m.get(0).get("body")).contains("líquido estimado");
+        assertThat((String) m.get(0).get("payload")).contains("/transactions?settle=").contains("date=2024-01-15")
+            .contains("amount=");
         assertThat(mensagens("RF_LIQUIDADA")).isEmpty();
     }
 
     @Test
-    @DisplayName("Abertura liquida o CDB que venceu e manda a mensagem; venda excluída volta na rodada seguinte")
-    void aberturaLiquida() {
+    @DisplayName("Liquidação lançada pelo líquido: bruto pela curva, IR e IOF calculados; a pendência se resolve")
+    void liquidacaoPeloLiquidoResolve() {
+        cdi(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 31));
+        lancarComSucesso(dono, cdb("2024-01-02", "1000.00", "2024-01-15"));
+        Object noteId = transacoesDe(dono).get(0).noteId();
+
+        // 13 dias: IOF 56% do rendimento; IR 22,5% sobre o rendimento menos o IOF (truncados)
+        double bruto = Math.floor(1000 * Math.pow(1.0005, 9) * 100 + 0.5) / 100;
+        double rendimento = bruto - 1000;
+        double iof = Math.floor(rendimento * 0.56 * 100) / 100;
+        double ir = Math.floor((rendimento - iof) * 0.225 * 100) / 100;
+        BigDecimal liquido = BigDecimal.valueOf(bruto - iof - ir).setScale(2, java.math.RoundingMode.HALF_UP);
+
+        lancarComSucesso(dono, liquidacao(noteId, "2024-01-15", liquido));
+
+        TransactionResponseDTO venda = transacoesDe(dono).stream().filter(t -> t.type().name().equals("SELL"))
+            .findFirst().orElseThrow();
+        assertThat(venda.origin().name()).isEqualTo("MANUAL");
+        assertThat(venda.netAmount()).isEqualByComparingTo(liquido);
+        assertThat(venda.totalAmount().doubleValue()).isCloseTo(bruto, within(0.02));
+        assertThat(venda.iofTax().doubleValue()).isCloseTo(iof, within(0.02));
+        assertThat(venda.incomeTax().doubleValue()).isCloseTo(ir, within(0.02));
+        assertThat(carteiraDe(dono)).noneMatch(p -> CatalogIds.CDB.equals(p.get("ticker")));
+        assertThat(mensagens("RF_VENCIDO").get(0).get("status")).isEqualTo("RESOLVIDA");
+    }
+
+    @Test
+    @DisplayName("Abertura avisa o CDB que venceu, uma vez só, e não lança venda; resolve as pendências antigas (D7)")
+    void aberturaAvisa() {
         cdi(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 31));
         lancarComSucesso(dono, cdb("2024-01-02", "1000.00", "2030-01-15"));
         // o título "venceu": o vencimento passa para 15/01/2024
         jdbc.update("UPDATE fixed_income_notes SET maturity_date = DATE '2024-01-15'");
+        notificacoes.notify(com.primevest.domain.notification.NotificationDraft
+            .of(com.primevest.domain.notification.NotificationKind.RF_LIQUIDACAO_DIVERGENTE).user(dono.getId())
+            .title("antiga").body("antiga").key("antiga").build());
 
         abertura.run(LocalDate.of(2026, 10, 13), "teste");
-
-        List<Map<String, Object>> m = mensagens("RF_LIQUIDADA");
-        assertThat(m).hasSize(1);
-        assertThat((String) m.get(0).get("title")).isEqualTo("CDB BANCO TESTE — vencido e liquidado");
-        TransactionResponseDTO venda = transacoesDe(dono).stream().filter(t -> t.type().name().equals("SELL"))
-            .findFirst().orElseThrow();
-        assertThat(venda.origin().name()).isEqualTo("SISTEMA");
-
-        // excluída pelo usuário: a rodada seguinte liquida de novo (a mensagem não se repete)
-        delete(dono, "/api/v1/transactions/" + venda.id());
-        assertThat(transacoesDe(dono)).noneMatch(t -> t.type().name().equals("SELL"));
         abertura.run(LocalDate.of(2026, 10, 14), "dia seguinte");
-        assertThat(transacoesDe(dono)).anyMatch(t -> t.type().name().equals("SELL") && t.origin().name().equals("SISTEMA"));
-        assertThat(mensagens("RF_LIQUIDADA")).hasSize(1);
+
+        assertThat(mensagens("RF_VENCIDO")).hasSize(1);
+        assertThat(transacoesDe(dono)).noneMatch(t -> t.type().name().equals("SELL"));
+        assertThat(mensagens("RF_LIQUIDACAO_DIVERGENTE").get(0).get("status")).isEqualTo("RESOLVIDA");
     }
 
     @Test
-    @DisplayName("Venda automática não editada é refeita quando a curva muda; editada à mão fica e abre a pendência de divergência")
-    void vendaEditadaDiverge() {
-        cdi(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 31));
-        lancarComSucesso(dono, cdb("2024-01-02", "1000.00", "2024-01-15"));
-        TransactionResponseDTO venda = transacoesDe(dono).stream().filter(t -> t.type().name().equals("SELL"))
-            .findFirst().orElseThrow();
-
-        // o CDI foi corrigido pela fonte: a venda automatica (nao editada) e refeita no valor novo
-        jdbc.update("UPDATE market_index_values SET value = 0.06 WHERE index_id = "
-            + "(SELECT id FROM market_indices WHERE code = 'CDI')");
-        abertura.run(LocalDate.of(2026, 10, 13), "teste");
-        TransactionResponseDTO refeita = transacoesDe(dono).stream().filter(t -> t.id().equals(venda.id()))
-            .findFirst().orElseThrow();
-        assertThat(refeita.totalAmount().doubleValue()).isCloseTo(1000 * Math.pow(1.0006, 9), within(0.01));
-        assertThat(refeita.editedAt()).isNull();
-        assertThat(mensagens("RF_LIQUIDACAO_DIVERGENTE")).isEmpty();
-
-        // o usuario edita a venda: ganha a marca e a rotina nao mexe mais nela
-        Map<String, Object> edit = new HashMap<>();
-        edit.put("ticker", CatalogIds.CDB);
-        edit.put("type", "SELL");
-        edit.put("transactionDate", "2024-01-15");
-        edit.put("totalAmount", new BigDecimal("1004.00"));
-        edit.put("isFullSettlement", true);
-        assertThat(put(dono, "/api/v1/transactions/" + venda.id(), edit, Map.class).getStatusCode())
-            .isEqualTo(HttpStatus.OK);
-        assertThat(transacoesDe(dono).stream().filter(t -> t.id().equals(venda.id())).findFirst().orElseThrow()
-            .editedAt()).isNotNull();
-
-        abertura.run(LocalDate.of(2026, 10, 14), "teste");
-        assertThat(mensagens("RF_LIQUIDACAO_DIVERGENTE")).hasSize(1);
-        assertThat(transacoesDe(dono).stream().filter(t -> t.id().equals(venda.id())).findFirst().orElseThrow()
-            .totalAmount()).isEqualByComparingTo("1004.00");
-    }
-
-    @Test
-    @DisplayName("CDB vencido sem curva (TR): sem transação, pendência para informar o valor do resgate")
+    @DisplayName("CDB vencido sem curva (TR): sem transação, pendência RF_VENCIDO para informar o valor recebido")
     void semCurvaViraPendencia() {
         Map<String, Object> c = cdb("2024-01-02", "1000.00", "2024-01-15");
         c.put("rateType", "HIBRIDO");
@@ -261,8 +263,10 @@ class AberturaDoDiaIT extends FuncionalBase {
         lancarComSucesso(dono, c);
 
         assertThat(transacoesDe(dono)).noneMatch(t -> t.type().name().equals("SELL"));
-        List<Map<String, Object>> m = mensagens("RF_LIQUIDACAO_SEM_VALOR");
+        List<Map<String, Object>> m = mensagens("RF_VENCIDO");
         assertThat(m).hasSize(1);
         assertThat(m.get(0).get("status")).isEqualTo("NAO_RESOLVIDA");
+        assertThat((String) m.get(0).get("body")).contains("não tem como calcular");
+        assertThat(mensagens("RF_LIQUIDACAO_SEM_VALOR")).isEmpty();
     }
 }

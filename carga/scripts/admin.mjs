@@ -3,6 +3,10 @@
 // Uso (na raiz do projeto, ou pelo conteiner: docker compose --profile carga run --rm tools node carga/scripts/admin.mjs ...):
 //   node carga/scripts/admin.mjs bootstrap          carga inicial num banco vazio (README.md)
 //   node carga/scripts/admin.mjs issuers/import     emissores: companhias, FIIs e classificacao B3
+//   node carga/scripts/admin.mjs fixed-income-issuers   emissoras e distribuidoras de renda fixa (BCB + CVM;
+//                                                    docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md)
+//   node carga/scripts/admin.mjs fixed-income-issuers/logos   logos de renda fixa por raiz de CNPJ (so quem falta;
+//                                                    "fixed-income-issuers/logos?all=true" baixa tudo de novo)
 //   node carga/scripts/admin.mjs logos | closing | proventos | catalog-audit | cvm/proventos
 //   node carga/scripts/admin.mjs indices            indices de mercado 2010+ (docs/planos/PLANO_INDICES_MERCADO.md)
 //   node carga/scripts/admin.mjs "indices?codes=CDI,IPCA&from=2024"   so alguns indices / anos

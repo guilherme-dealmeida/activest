@@ -15,10 +15,13 @@ import { apiMessage } from '@/utils/apiError';
 import { AssetTypeSelect } from '@/components/forms/AssetTypeSelect';
 import { TickerAutocomplete } from '@/components/forms/TickerAutocomplete';
 import { FixedIncomeFields, FixedIncomeValues } from '@/components/forms/FixedIncomeFields';
+import { IssuerPick, distributorPickOf, issuerPickOf } from '@/components/forms/issuerPick';
+import { DistributorChangeModal } from '@/components/transactions/DistributorChangeModal';
 import { formatCurrency, formatDate, toLocalISODate } from '@/utils/format';
 import { CRYPTO_DECIMALS, isCryptoType } from '@/utils/assetTypeRules';
 import {
-  Asset, AssetType, Indexer, RateType, TransactionCreate, TransactionResponse, TransactionType
+  Asset, AssetType, DistributorChangePreview, Indexer, NoteInfo, RateType, SalePreview, TransactionCreate,
+  TransactionResponse, TransactionType
 } from '@/types';
 
 /**
@@ -38,7 +41,7 @@ const RENDA_FIXA = 'RENDA_FIXA';
 const FORM_ID = 'transaction-form';
 
 const EMPTY_FIXED_INCOME: FixedIncomeValues = {
-  assetCategoryId: null, issuer: '', maturityDate: '',
+  assetCategoryId: null, issuer: null, distributor: null, paperCode: '', maturityDate: '',
   rateType: null, indexer: null, indexerRate: null
 };
 
@@ -55,6 +58,11 @@ export interface TransactionPreset {
   assetType: AssetType;
   ticker: string;
   /**
+   * Emissora, distribuidora e código do título da linha clicada. Na Renda Fixa preenchem o quadro do título; no
+   * Tesouro a distribuidora da linha já vem escolhida na compra e na venda.
+   */
+  noteInfo?: NoteInfo | null;
+  /**
    * O título da posição. Vai no payload como noteId, e é isso que faz a compra
    * cair na MESMA aplicação em vez de criar outra linha na carteira.
    *
@@ -70,8 +78,110 @@ export interface TransactionPreset {
     indexerRate: number | null;
     /** Saldo atual do título (curva), para o "resgatar tudo". */
     currentValue?: number | null;
+    /** Líquido estimado do título hoje (bruto − IR − IOF): o valor do "resgatar tudo" (PLANO_VENDA_RENDA_FIXA, R3). */
+    estimatedNet?: number | null;
+  } | null;
+  /**
+   * Valores iniciais do formulário. O link "Lançar liquidação" da mensagem de título vencido (D6) abre a venda com a
+   * data do vencimento, a liquidação total marcada e o líquido estimado (RF) ou as cotas e o PU oficial (Tesouro).
+   */
+  defaults?: {
+    transactionDate?: string;
+    totalAmount?: number;
+    shares?: number;
+    pricePerShare?: number;
+    fullSettlement?: boolean;
   } | null;
 }
+
+/** "17,5%" — alíquota (0,175) em percentual. */
+const pct = (v: number | null | undefined) =>
+  v == null ? '—' : `${(v * 100).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%`;
+
+const SALE_RULE_LABEL: Record<string, string> = {
+  PROPORCIONAL: 'proporcional entre os aportes',
+  UEPS: 'último aporte primeiro (UEPS)',
+  PEPS: 'primeiro aporte primeiro (PEPS)',
+};
+
+/**
+ * Painel da prévia da venda: bruto, IOF, IR e líquido, o líquido disponível (Renda Fixa) e os lotes — os aportes do
+ * título na data (RF) ou as partes da venda por título (Tesouro).
+ */
+const SalePreviewPanel = ({ preview, loading, error, treasury, fee }: {
+  preview: SalePreview | undefined; loading: boolean; error: string | null; treasury: boolean; fee: number;
+}) => {
+  if (error) {
+    return (
+      <div className="sm:col-span-2 rounded-md border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+        {error}
+      </div>
+    );
+  }
+  if (!preview) {
+    return (
+      <div className="sm:col-span-2 rounded-md border border-surface-light px-4 py-3 text-sm text-gray-400">
+        {loading ? 'Calculando IR e IOF…' : null}
+      </div>
+    );
+  }
+  const linha = (rotulo: string, valor: number | null | undefined, destaque = false) => (
+    <div className="flex items-baseline justify-between gap-4">
+      <span className={destaque ? 'text-gray-200' : 'text-gray-400'}>{rotulo}</span>
+      <span className={`tabular-nums ${destaque ? 'font-semibold text-white' : 'text-gray-200'}`}>
+        {valor == null ? '—' : formatCurrency(valor)}
+      </span>
+    </div>
+  );
+  return (
+    <div className={`sm:col-span-2 rounded-md border border-surface-light bg-surface-light/20 px-4 py-3 text-sm ${loading ? 'opacity-60' : ''}`}>
+      <div className="mb-2 flex items-center gap-2 text-gray-300">
+        <span className="font-medium">Prévia da venda</span>
+        <InfoTooltip content={treasury
+          ? 'IR e IOF calculados por título, do mais antigo para o mais novo, sobre o rendimento (PU de venda − PU de compra). O líquido desconta também as taxas.'
+          : `O valor digitado é o líquido. O PrimeVest calcula o bruto pela curva, tirando dos aportes pela regra de saída (${SALE_RULE_LABEL[preview.saleRule] ?? preview.saleRule}), com o IOF e o IR de cada aporte.`} />
+      </div>
+      <div className="grid gap-1">
+        {linha('Bruto', preview.gross)}
+        {linha('IOF', preview.iof)}
+        {linha('IR', preview.ir)}
+        {treasury && fee > 0 && linha('Taxas', fee)}
+        {!!preview.adjustment && linha('Ajuste sobre a curva (no bruto)', preview.adjustment)}
+        {linha('Líquido', preview.net, true)}
+        {!treasury && linha('Líquido disponível estimado na data', preview.availableNet)}
+      </div>
+      {preview.aboveAvailable && (
+        <p className="mt-2 text-xs text-accent">
+          O valor passa do líquido disponível estimado. Se é o resgate total, marque “Liquidação total”.
+        </p>
+      )}
+      {preview.lots.length > 0 && (
+        <table className="mt-3 w-full text-xs tabular-nums">
+          <thead className="text-gray-500">
+            <tr>
+              <th className="text-left font-normal">{treasury ? 'Título de' : 'Aporte'}</th>
+              <th className="text-right font-normal">Dias</th>
+              <th className="text-right font-normal">{treasury ? 'Bruto' : 'Saldo bruto'}</th>
+              <th className="text-right font-normal">IOF</th>
+              <th className="text-right font-normal">IR</th>
+            </tr>
+          </thead>
+          <tbody className="text-gray-300">
+            {preview.lots.map((l, i) => (
+              <tr key={i}>
+                <td>{formatDate(l.date)}</td>
+                <td className="text-right">{l.days}</td>
+                <td className="text-right">{formatCurrency(l.balance)}</td>
+                <td className="text-right" title={pct(l.iofRate)}>{formatCurrency(l.iof)}</td>
+                <td className="text-right" title={pct(l.irRate)}>{formatCurrency(l.ir)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+};
 
 /** "110% do CDI", "CDI + 2%", "12,5% a.a." — rótulo curto da remuneração na lista de títulos. */
 const rateLabel = (rateType: RateType | null, indexer: Indexer | null, rate: number | null) => {
@@ -105,7 +215,9 @@ interface Props {
  */
 const termosDoCatalogo = (asset: Asset | null): FixedIncomeValues => asset ? {
   assetCategoryId: asset.categoryId ?? null,
-  issuer: '',
+  issuer: null,
+  distributor: null,
+  paperCode: '',
   maturityDate: asset.maturityDate ?? '',
   rateType: asset.rateType ?? null,
   indexer: asset.indexer ?? null,
@@ -180,7 +292,8 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
         // quantidade e as taxas do grupo, não as da linha clicada.
         shares: editing.groupShares ?? editing.shares ?? 0,
         pricePerShare: editing.pricePerShare ?? 0,
-        totalAmount: editing.totalAmount ?? 0,
+        // Venda de Renda Fixa: o que se digita é o LÍQUIDO; o bruto é calculado (PLANO_VENDA_RENDA_FIXA, R3).
+        totalAmount: editing.netAmount ?? editing.totalAmount ?? 0,
         brokerageFee: editing.groupBrokerageFee ?? editing.brokerageFee ?? 0,
         transactionDate: editing.transactionDate
       });
@@ -189,12 +302,14 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       // uma posição já registrada.
       setFixedIncome(editing.noteId ? {
         assetCategoryId: null,
-        issuer: editing.issuer ?? '',
+        issuer: issuerPickOf(editing.noteInfo),
+        distributor: distributorPickOf(editing.noteInfo),
+        paperCode: editing.noteInfo?.paperCode ?? '',
         maturityDate: editing.maturityDate ?? '',
         rateType: editing.rateType ?? null,
         indexer: editing.indexer ?? null,
         indexerRate: editing.indexerRate ?? null
-      } : EMPTY_FIXED_INCOME);
+      } : { ...EMPTY_FIXED_INCOME, distributor: distributorPickOf(editing.noteInfo) });
       return;
     }
 
@@ -203,22 +318,27 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       setTickerInput(preset.ticker);
       setMatchedAsset(null);
       setEditingNoteId(preset.note?.noteId ?? null);
-      setFullSettlement(false);
+      setFullSettlement(preset.defaults?.fullSettlement ?? false);
       setPickedNoteId(null);
       setFormData({
         ticker: preset.ticker,
         type: preset.operation,
-        shares: 0, pricePerShare: 0, totalAmount: 0, brokerageFee: 0,
-        transactionDate: toLocalISODate()
+        shares: preset.defaults?.shares ?? 0,
+        pricePerShare: preset.defaults?.pricePerShare ?? 0,
+        totalAmount: preset.defaults?.totalAmount ?? 0,
+        brokerageFee: 0,
+        transactionDate: preset.defaults?.transactionDate ?? toLocalISODate()
       });
       setFixedIncome(preset.note ? {
         assetCategoryId: null,
-        issuer: preset.note.issuer ?? '',
+        issuer: issuerPickOf(preset.noteInfo),
+        distributor: distributorPickOf(preset.noteInfo),
+        paperCode: preset.noteInfo?.paperCode ?? '',
         maturityDate: preset.note.maturityDate ?? '',
         rateType: preset.note.rateType ?? null,
         indexer: preset.note.indexer ?? null,
         indexerRate: preset.note.indexerRate ?? null
-      } : EMPTY_FIXED_INCOME);
+      } : { ...EMPTY_FIXED_INCOME, distributor: distributorPickOf(preset.noteInfo) });
       return;
     }
 
@@ -344,10 +464,88 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
    * no vencimento ou depois é recusado, aqui e na API).
    */
   const titulos = escolheTitulo && matchedAsset ? (notas ?? []) : [];
+
+  /**
+   * Venda do Tesouro (D7): a distribuidora sai das que têm título aberto do ativo — vender onde não há título nunca
+   * fecha. A da venda editada entra mesmo que os títulos dela já tenham sido liquidados por ela.
+   */
+  const tickerTesouro = isTesouro ? (matchedAsset?.ticker ?? editing?.ticker ?? preset?.ticker ?? '') : '';
+  const { data: notasTesouro } = useQuery({
+    queryKey: ['transactions', 'notes', tickerTesouro],
+    queryFn: () => transactionsApi.notes(tickerTesouro),
+    enabled: isOpen && isTesouro && isVenda && !!tickerTesouro,
+  });
+  const distribuidorasTesouro: IssuerPick[] | undefined = isTesouro && isVenda
+    ? (() => {
+        const mapa = new Map<number, IssuerPick>();
+        for (const n of notasTesouro ?? []) {
+          const d = distributorPickOf(n.noteInfo);
+          if (d && !n.settled) mapa.set(d.id, d);
+        }
+        const atual = fixedIncome.distributor;
+        if (atual && !mapa.has(atual.id)) mapa.set(atual.id, atual);
+        return [...mapa.values()].sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+      })()
+    : undefined;
+  // Uma distribuidora só: já vem escolhida
+  const unicaDistribuidora = distribuidorasTesouro?.length === 1 ? distribuidorasTesouro[0] : null;
+  useEffect(() => {
+    if (unicaDistribuidora && !fixedIncome.distributor) {
+      setFixedIncome(prev => ({ ...prev, distributor: unicaDistribuidora }));
+    }
+  }, [unicaDistribuidora, fixedIncome.distributor]);
   const picked = titulos.find(p => p.noteId === pickedNoteId) ?? null;
-  /** Saldo do título para o "resgatar tudo": o da linha da Carteira ou o do título escolhido. */
-  const saldoTitulo = preset?.note?.currentValue
-    ?? (picked ? positions?.find(p => p.noteId === picked.noteId)?.currentValue ?? null : null);
+  /**
+   * O "resgatar tudo" preenche o LÍQUIDO estimado do título hoje (o valor digitado na venda é o que cai na conta): o da
+   * linha da Carteira ou o do título escolhido. Sem estimativa (título sem curva), não aparece.
+   */
+  const liquidoTitulo = preset?.note?.estimatedNet
+    ?? (picked ? positions?.find(p => p.noteId === picked.noteId)?.estimatedNet ?? null : null);
+
+  /**
+   * Prévia da venda (PLANO_VENDA_RENDA_FIXA, seção 5): Renda Fixa pelo líquido digitado, com o título; Tesouro por
+   * cotas × PU. Espera o usuário parar de digitar; erro da API aparece no painel, sem toast.
+   */
+  const previewNoteId = isValorTotal
+    ? (editingNoteId ?? preset?.note?.noteId ?? picked?.noteId ?? null)
+    : null;
+  const previewPayload: TransactionCreate | null = !isOpen || !isVenda || !formData.ticker || !formData.transactionDate
+    ? null
+    : isValorTotal
+      ? (previewNoteId && (formData.totalAmount || 0) > 0
+          ? {
+              ticker: formData.ticker, type: TransactionType.SELL, shares: null, pricePerShare: null,
+              totalAmount: formData.totalAmount, brokerageFee: formData.brokerageFee ?? 0,
+              transactionDate: formData.transactionDate, noteId: previewNoteId, isFullSettlement: fullSettlement
+            }
+          : null)
+      : isTesouro && (formData.shares || 0) > 0 && (formData.pricePerShare || 0) > 0
+        ? {
+            ticker: formData.ticker, type: TransactionType.SELL, shares: formData.shares,
+            pricePerShare: formData.pricePerShare, totalAmount: null, brokerageFee: formData.brokerageFee ?? 0,
+            transactionDate: formData.transactionDate, distributorId: fixedIncome.distributor?.id ?? null
+          }
+        : null;
+  const previewKey = previewPayload ? JSON.stringify(previewPayload) : null;
+  const [debouncedKey, setDebouncedKey] = useState<string | null>(null);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedKey(previewKey), 400);
+    return () => clearTimeout(t);
+  }, [previewKey]);
+  const {
+    data: preview, error: previewError, isFetching: previewLoading
+  } = useQuery<SalePreview>({
+    queryKey: ['transactions', 'sale-preview', debouncedKey, editing?.id ?? null],
+    queryFn: () => transactionsApi.salePreview(JSON.parse(debouncedKey!) as TransactionCreate, editing?.id),
+    enabled: !!debouncedKey && debouncedKey === previewKey,
+    retry: false,
+  });
+  /** R9: o líquido passa do disponível e a venda não está marcada como liquidação total — pergunta antes de gravar. */
+  const [perguntaTotal, setPerguntaTotal] = useState(false);
+  /** Troca de distribuidora do Tesouro com venda ligada: o modal da cascata (seção 5.1 do plano de emissoras). */
+  const [cascata, setCascata] = useState<{ preview: DistributorChangePreview; payload: TransactionCreate } | null>(null);
+  useEffect(() => { if (!isOpen) setCascata(null); }, [isOpen]);
+  useEffect(() => { setPerguntaTotal(false); }, [previewKey, isOpen]);
 
   /**
    * "Novo Título" desfaz a escolha por inteiro. Na compra o quadro volta ao estado de
@@ -359,7 +557,9 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     setPickedNoteId(p ? noteId : null);
     setFixedIncome(p ? {
       assetCategoryId: matchedAsset?.categoryId ?? null,
-      issuer: p.issuer ?? '',
+      issuer: issuerPickOf(p.noteInfo),
+      distributor: distributorPickOf(p.noteInfo),
+      paperCode: p.noteInfo?.paperCode ?? '',
       maturityDate: p.maturityDate ?? '',
       rateType: p.rateType,
       indexer: p.indexer,
@@ -449,8 +649,30 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
 
   const grupo = editing?.groupParts && editing.groupParts > 1 ? editing.groupParts : null;
 
+  /**
+   * R16: na edição de um título de renda fixa, a distribuidora nova com outra regra de saída recalcula os resgates
+   * do título (o líquido fica; bruto, IR e IOF são refeitos). O aviso aparece antes de salvar.
+   */
+  const regraAntes = editing && isValorTotal ? (editing.noteInfo?.distributorSaleRule ?? null) : null;
+  const regraDepois = fixedIncome.distributor?.saleRule ?? null;
+  const avisoRegraDeSaida = regraAntes && regraDepois && regraAntes !== regraDepois
+    && fixedIncome.distributor?.id !== editing?.noteInfo?.distributorId
+    ? `A regra de saída passa de ${SALE_RULE_LABEL[regraAntes] ?? regraAntes} para ${SALE_RULE_LABEL[regraDepois] ?? regraDepois}. `
+      + 'Os resgates deste título serão recalculados: o líquido recebido fica; bruto, IR e IOF são refeitos.'
+    : null;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // R9: venda parcial de Renda Fixa acima do líquido disponível. Não bloqueia: pergunta se é o resgate total.
+    if (isValorTotal && isVenda && !fullSettlement && preview?.aboveAvailable && debouncedKey === previewKey) {
+      setPerguntaTotal(true);
+      return;
+    }
+    enviar(fullSettlement);
+  };
+
+  const enviar = (liquidacaoTotal: boolean) => {
+    setPerguntaTotal(false);
 
     // Renda Fixa manda o valor total e anula quantidade e preço; os demais
     // tipos mandam quantidade e preço e deixam o total para a API calcular.
@@ -475,7 +697,10 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     // que editar a quantidade de um CDB deixa de apagar o emissor e a taxa.
     const dadosTitulo = mostraDadosTitulo && !(isTesouro && isVenda)
       ? {
-          issuer: fixedIncome.issuer || null,
+          // No Tesouro a emissora é sempre o Tesouro Nacional (a API ignora); o código do papel é da renda fixa
+          issuerId: isTesouro ? null : (fixedIncome.issuer?.id ?? null),
+          distributorId: fixedIncome.distributor?.id ?? null,
+          paperCode: isTesouro ? null : (fixedIncome.paperCode || null),
           maturityDate: fixedIncome.maturityDate || null,
           rateType: fixedIncome.rateType,
           indexer: fixedIncome.indexer,
@@ -489,10 +714,32 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       // O Tesouro nunca manda título: cada compra é um novo e a venda é do
       // ativo.
       noteId: !isTesouro && !editing ? (preset?.note?.noteId ?? (escolheTitulo ? (picked?.noteId ?? null) : null)) : null,
-      isFullSettlement: isValorTotal && isVenda ? fullSettlement : null
+      isFullSettlement: isValorTotal && isVenda ? liquidacaoTotal : null,
+      // A venda do Tesouro informa a distribuidora: o FIFO consome só os títulos dela (R13)
+      ...(isTesouro && isVenda ? { distributorId: fixedIncome.distributor?.id ?? null } : {})
     };
 
+    if (isTesouro && !fixedIncome.distributor) {
+      showToast('Informe a distribuidora (onde o título foi comprado).', 'error');
+      return;
+    }
+
     if (editing) {
+      // Compra de Tesouro com distribuidora nova: com venda ligada, a troca é pela cascata (seção 5.1 do plano)
+      const novaDistribuidora = fixedIncome.distributor?.id ?? null;
+      if (isTesouro && !isVenda && novaDistribuidora != null
+          && novaDistribuidora !== (editing.noteInfo?.distributorId ?? null)) {
+        transactionsApi.distributorChangePreview(editing.id, novaDistribuidora)
+          .then(previa => {
+            if (previa.items.some(i => i.type === 'SELL')) {
+              setCascata({ preview: previa, payload });
+            } else {
+              updateMutation.mutate({ id: editing.id, txData: payload });
+            }
+          })
+          .catch((e: unknown) => showToast(apiMessage(e) ?? 'Não foi possível conferir a troca de distribuidora.', 'error'));
+        return;
+      }
       updateMutation.mutate({ id: editing.id, txData: payload });
       return;
     }
@@ -516,12 +763,14 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       : undefined;
 
   return (
+    <>
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title={modalTitle}
       titleInfo={modalTitleInfo}
-      size="xl"
+      // Com o quadro do título (agora em duas colunas de campos), o modal ganha largura; sem ele, fica como era
+      size={mostraDadosTitulo ? '2xl' : 'xl'}
       footer={
         <div className="flex justify-end gap-3">
           <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
@@ -531,15 +780,16 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     >
       {/*
         Duas colunas de alturas independentes: a transação inteira à esquerda,
-        o quadro do título à direita. A proporção 3fr/2fr existe porque a
-        esquerda ainda se divide em dois campos por linha — repartida meio a
-        meio, cada campo ficava com uns 165px e Quantidade/Preço espremiam.
+        o quadro do título à direita. Os dois lados se dividem em dois campos
+        por linha (o quadro desde que ganhou emissora, distribuidora e código),
+        por isso o modal fica mais largo com o quadro e a proporção é 5fr/6fr:
+        a esquerda mantém a largura de antes e Quantidade/Preço não espremem.
         Sem o quadro, a esquerda ocupa a largura toda.
       */}
       <form
         id={FORM_ID}
         onSubmit={handleSubmit}
-        className={`grid grid-cols-1 gap-6 ${mostraDadosTitulo ? 'lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start' : ''}`}
+        className={`grid grid-cols-1 gap-6 ${mostraDadosTitulo ? 'lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-start' : ''}`}
       >
         {/* Coluna da transação */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 content-start">
@@ -625,6 +875,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
                 {titulos.map(p => (
                   <option key={p.noteId} value={p.noteId}>
                     {[p.issuer || 'Sem emissor',
+                      p.noteInfo?.paperCode || null,
                       p.maturityDate ? `venc. ${formatDate(p.maturityDate)}` : 'sem vencimento',
                       rateLabel(p.rateType, p.indexer, p.indexerRate),
                       p.settled ? 'liquidado' : (p.matured ? 'vencido' : null)].filter(Boolean).join(' · ')}
@@ -637,7 +888,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
           {isValorTotal ? (
             <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
               <CurrencyInput
-                label="Valor"
+                label={isVenda ? 'Valor recebido (líquido)' : 'Valor'}
                 value={formData.totalAmount ?? 0}
                 onChange={(v) => setFormData({ ...formData, totalAmount: v })}
                 required
@@ -656,16 +907,16 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
                   <InfoTooltip content="Marque quando este resgate encerra a aplicação. A posição é zerada e a valorização é ajustada para o valor resgatado." />
                 </label>
               )}
-              {isVenda && saldoTitulo != null && saldoTitulo > 0 && (
+              {isVenda && liquidoTitulo != null && liquidoTitulo > 0 && (
                 <button
                   type="button"
                   onClick={() => {
-                    setFormData({ ...formData, totalAmount: Math.round(saldoTitulo * 100) / 100 });
+                    setFormData({ ...formData, totalAmount: Math.round(liquidoTitulo * 100) / 100 });
                     setFullSettlement(true);
                   }}
                   className="sm:col-span-2 justify-self-start text-xs text-accent hover:underline"
                 >
-                  Resgatar tudo — saldo na curva {formatCurrency(saldoTitulo)}
+                  Resgatar tudo — líquido estimado hoje {formatCurrency(liquidoTitulo)}
                 </button>
               )}
             </div>
@@ -712,16 +963,48 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
             <span className="text-sm text-gray-400">
               <LabelWithInfo
                 info={selectedType && !isValorTotal
-                  ? 'Quantidade × preço unitário. As taxas não entram no total.'
+                  ? (isTesouro && isVenda
+                      ? 'Quantidade × preço unitário: o valor bruto. IR e IOF de cada título estão na prévia abaixo.'
+                      : 'Quantidade × preço unitário. As taxas não entram no total.')
                   : undefined}
               >
-                Total
+                {isValorTotal && isVenda ? 'Líquido' : isTesouro && isVenda ? 'Total bruto' : 'Total'}
               </LabelWithInfo>
             </span>
             <span className="text-lg font-semibold tabular-nums text-white">
               {formatCurrency(computedTotal)}
             </span>
           </div>
+
+          {isVenda && (isValorTotal || isTesouro) && (previewPayload || preview) && (
+            <SalePreviewPanel
+              preview={debouncedKey === previewKey ? preview : undefined}
+              loading={previewLoading || debouncedKey !== previewKey}
+              error={previewError ? (apiMessage(previewError) ?? 'Não foi possível calcular a prévia.') : null}
+              treasury={isTesouro}
+              fee={formData.brokerageFee ?? 0}
+            />
+          )}
+
+          {perguntaTotal && (
+            <div className="sm:col-span-2 rounded-md border border-accent/40 bg-accent/10 px-4 py-3 text-sm">
+              <p className="font-medium text-accent">É o resgate total?</p>
+              <p className="mt-1 text-gray-300">
+                O valor informado passa do líquido disponível estimado
+                {preview?.availableNet != null ? ` (${formatCurrency(preview.availableNet)})` : ''}.
+                Se este resgate encerra a aplicação, marque como liquidação total: a diferença entra no bruto como
+                ajuste da liquidação.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button type="button" size="sm" onClick={() => { setFullSettlement(true); enviar(true); }}>
+                  Sim, resgate total
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => enviar(false)}>
+                  Não, lançar mesmo assim
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Coluna do título — só para tipos com remuneração contratada */}
@@ -733,10 +1016,30 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
             readOnly={tituloSomenteLeitura}
             showIssuer={!isTesouro}
             showRate={!(isTesouro && isVenda)}
+            ticker={matchedAsset?.ticker ?? editing?.ticker ?? preset?.ticker ?? null}
+            distributorReadOnly={isTesouro && isVenda ? false : undefined}
+            distributorOptions={distribuidorasTesouro}
+            distributorWarning={avisoRegraDeSaida}
             onChange={(patch) => setFixedIncome(prev => ({ ...prev, ...patch }))}
           />
         )}
       </form>
     </Modal>
+    {cascata && editing && (
+      <DistributorChangeModal
+        transactionId={editing.id}
+        preview={cascata.preview}
+        purchase={cascata.payload}
+        onCancel={() => setCascata(null)}
+        onDone={(saved) => {
+          setCascata(null);
+          invalidate();
+          onClose();
+          onSaved?.(saved, cascata.payload);
+          showToast(`Distribuidora de ${saved?.ticker ?? cascata.payload.ticker} trocada para ${cascata.preview.toName}.`, 'success');
+        }}
+      />
+    )}
+    </>
   );
 };

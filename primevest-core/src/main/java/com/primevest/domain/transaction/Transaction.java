@@ -64,6 +64,29 @@ public class Transaction {
     @Column(name = "brokerage_fee", precision = 18, scale = 2)
     private BigDecimal brokerageFee;
 
+    /**
+     * Venda de renda fixa e de Tesouro (V53, docs/planos/PLANO_VENDA_RENDA_FIXA.md): o LIQUIDO. Na renda fixa e o que
+     * o usuario digitou — a fonte; o bruto ({@link #totalAmount}) e calculado dele pelos lotes e regravado a cada
+     * recalculo. No Tesouro e calculado (bruto - IR - IOF - taxa). Nulo nos demais.
+     */
+    @Column(name = "net_amount", precision = 18, scale = 2)
+    private BigDecimal netAmount;
+
+    /** IR da venda de renda fixa ou Tesouro (soma dos lotes/partes). Anda junto com {@link #netAmount}. */
+    @Column(name = "income_tax", precision = 18, scale = 2)
+    private BigDecimal incomeTax;
+
+    /** IOF da venda de renda fixa ou Tesouro. Anda junto com {@link #netAmount}. */
+    @Column(name = "iof_tax", precision = 18, scale = 2)
+    private BigDecimal iofTax;
+
+    /**
+     * Liquidacao total da renda fixa: bruto menos o saldo da curva na data (o "ajuste da liquidacao", R8). Mostra o
+     * quanto o PrimeVest errou contra o banco; negativo quando o banco pagou menos.
+     */
+    @Column(name = "settlement_adjustment", precision = 18, scale = 2)
+    private BigDecimal settlementAdjustment;
+
     @Column(name = "transaction_date", nullable = false)
     private LocalDate transactionDate;
 

@@ -36,19 +36,23 @@ class BootstrapServiceTest {
     private final PaymentDateSurveyService levantamento = mock(PaymentDateSurveyService.class);
     private final MarketIndexImportService indices = mock(MarketIndexImportService.class);
     private final TreasuryPriceService tesouro = mock(TreasuryPriceService.class);
+    private final com.primevest.adm.domain.fixedincome.FixedIncomeIssuerImportService emissorasRf =
+            mock(com.primevest.adm.domain.fixedincome.FixedIncomeIssuerImportService.class);
     private final BootstrapService service = new BootstrapService(issuers, quotes, proventos, statements, fii, datas,
-            levantamento, indices, tesouro,
+            levantamento, indices, tesouro, emissorasRf,
             Clock.fixed(Instant.parse("2026-09-28T12:00:00Z"), ZoneId.of("America/Sao_Paulo")));
 
     @Test
-    @DisplayName("Ordem: emissores, COTAHIST (ISIN), proventos (eventos societarios), datas de pagamento (CVM e levantamento), balancos (escala EVENTO), informe de FII, indices, Tesouro")
+    @DisplayName("Ordem: emissores, emissoras de renda fixa, COTAHIST (ISIN), proventos (eventos societarios), datas de pagamento (CVM e levantamento), balancos (escala EVENTO), informe de FII, indices, Tesouro")
     void ordem() {
         when(proventos.syncAll(anyString())).thenReturn(new ProventosCatalogService.SyncResult(654, 0, 0, 0));
 
         BootstrapService.Result r = service.run("teste");
 
-        InOrder o = inOrder(issuers, quotes, proventos, datas, levantamento, statements, fii, indices, tesouro);
+        InOrder o = inOrder(issuers, emissorasRf, quotes, proventos, datas, levantamento, statements, fii, indices,
+                tesouro);
         o.verify(issuers).importAll(anyString());
+        o.verify(emissorasRf).importAll(anyString());
         o.verify(quotes).importYears(eq(2010), eq(2026), anyString());
         o.verify(proventos).syncAll(anyString());
         o.verify(datas).run(eq(2022), eq(2026), anyString());
@@ -57,7 +61,7 @@ class BootstrapServiceTest {
         o.verify(fii).importYears(eq(2016), eq(2026), eq(false), anyString());
         o.verify(indices).importAll(anyString());
         o.verify(tesouro).importFrom(eq(2010), anyString());
-        assertThat(r.steps()).hasSize(9);
+        assertThat(r.steps()).hasSize(10);
     }
 
     @Test
@@ -69,9 +73,9 @@ class BootstrapServiceTest {
         BootstrapService.Result r = service.run("teste");
 
         assertThat(r.ok()).isFalse();
-        assertThat(r.steps().get(1).ok()).isFalse();
-        assertThat(r.steps().get(1).summary()).isEqualTo("B3 fora");
-        assertThat(r.steps().get(2).ok()).isTrue();
+        assertThat(r.steps().get(2).ok()).isFalse();
+        assertThat(r.steps().get(2).summary()).isEqualTo("B3 fora");
+        assertThat(r.steps().get(3).ok()).isTrue();
         org.mockito.Mockito.verify(fii).importYears(eq(2016), eq(2026), eq(false), anyString());
     }
 }

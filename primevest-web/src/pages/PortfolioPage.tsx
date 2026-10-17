@@ -9,7 +9,8 @@ import { assetsApi } from '@/api/assets';
 import { AssetLogo } from '@/components/ui/AssetLogo';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Switch } from '@/components/ui/Switch';
-import { InfoTooltip, LabelWithInfo } from '@/components/ui/InfoTooltip';
+import { LabelWithInfo } from '@/components/ui/InfoTooltip';
+import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/context/ToastContext';
 import { TransactionFormModal, TransactionPreset } from '@/components/transactions/TransactionFormModal';
 import { presetFromPosition } from '@/components/transactions/transactionPreset';
@@ -20,6 +21,80 @@ import { formatCurrency, formatDate, formatPercentage, formatQuantity, formatUni
 import { RENDA_FIXA, TESOURO_DIRETO, isFixedIncomeNote, typeLogo } from '@/utils/assetTypeRules';
 import { apiMessage } from '@/utils/apiError';
 import { TickerLink } from '@/components/issuer/TickerLink';
+
+/** "17,5%" — alíquota (0,175) em percentual. */
+const pct = (v: number) => `${(v * 100).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%`;
+
+/**
+ * Segunda linha do VALOR ATUAL na renda fixa (docs/planos/PLANO_VENDA_RENDA_FIXA.md, D5): o líquido estimado de um
+ * resgate hoje. O clique abre o título aporte a aporte, com o IOF e o IR de cada um (seção 7, detalhe da posição).
+ */
+const EstimatedNet = ({ asset }: { asset: PortfolioAssetDetail }) => {
+  const [open, setOpen] = useState(false);
+  const lots = asset.lots ?? [];
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="text-xs text-gray-400 hover:text-accent hover:underline tabular-nums"
+        title="Líquido estimado de um resgate hoje (sem IR e IOF). Clique para ver os aportes."
+      >
+        líq. {formatCurrency(asset.estimatedNet ?? 0)}
+      </button>
+      <Modal
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        title={`${asset.ticker}${asset.issuer ? ` ${asset.issuer}` : ''} — aportes`}
+        size="xl"
+      >
+        <p className="mb-4 text-sm text-gray-400">
+          Cada aporte rende e é tributado pela própria idade: o IOF até o 29º dia, o IR pela tabela regressiva
+          ({asset.valuationDate ? `resgate estimado em ${formatDate(asset.valuationDate)}` : 'resgate estimado hoje'}).
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm tabular-nums">
+            <thead className="text-xs text-gray-500">
+              <tr className="border-b border-white/10">
+                <th className="py-2 px-2 text-left font-medium">{asset.lots?.length === 1 && !asset.noteId ? 'Título de' : 'Aporte'}</th>
+                <th className="py-2 px-2 text-right font-medium">Dias</th>
+                <th className="py-2 px-2 text-right font-medium">Aplicado</th>
+                <th className="py-2 px-2 text-right font-medium">Rendimento</th>
+                <th className="py-2 px-2 text-right font-medium">% IOF</th>
+                <th className="py-2 px-2 text-right font-medium">Alíq. IR</th>
+                <th className="py-2 px-2 text-right font-medium">IR + IOF</th>
+                <th className="py-2 px-2 text-right font-medium">Líquido</th>
+              </tr>
+            </thead>
+            <tbody className="text-gray-200">
+              {lots.map((l, i) => (
+                <tr key={i} className="border-b border-white/5">
+                  <td className="py-2 px-2">{formatDate(l.date)}</td>
+                  <td className="py-2 px-2 text-right">{l.days}</td>
+                  <td className="py-2 px-2 text-right">{l.applied == null ? '—' : formatCurrency(l.applied)}</td>
+                  <td className="py-2 px-2 text-right">{formatCurrency(l.income)}</td>
+                  <td className="py-2 px-2 text-right">{pct(l.iofRate)}</td>
+                  <td className="py-2 px-2 text-right">{pct(l.irRate)}</td>
+                  <td className="py-2 px-2 text-right">{formatCurrency(l.iof + l.ir)}</td>
+                  <td className="py-2 px-2 text-right">{formatCurrency(l.net)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="font-semibold">
+                <td className="py-2 px-2" colSpan={3}>Total (bruto {formatCurrency(asset.currentValue)})</td>
+                <td className="py-2 px-2 text-right">{formatCurrency(lots.reduce((s, l) => s + l.income, 0))}</td>
+                <td className="py-2 px-2" colSpan={2} />
+                <td className="py-2 px-2 text-right">{formatCurrency(lots.reduce((s, l) => s + l.iof + l.ir, 0))}</td>
+                <td className="py-2 px-2 text-right">{formatCurrency(asset.estimatedNet ?? 0)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </Modal>
+    </>
+  );
+};
 
 /**
  * Colunas que só fazem sentido para alguns tipos de ativo.
@@ -33,6 +108,8 @@ import { TickerLink } from '@/components/issuer/TickerLink';
  * transações aplica a mesma distinção nos filtros.
  */
 const showIssuer = isFixedIncomeNote;
+// Distribuidora: onde o título foi comprado — renda fixa e Tesouro (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md, seção 7)
+const showDistributor = (type: AssetType) => type.fixedIncome;
 const showMaturity = (type: AssetType) => type.fixedIncome;
 // Só o Tesouro: cada compra é um título novo, e a data da aplicação é o que
 // separa duas linhas do mesmo papel (e a ordem em que a venda os consome).
@@ -69,27 +146,6 @@ const RATE_TYPE_LABELS: Record<RateType, string> = {
 };
 
 /** "12,50% a.a." no prefixado, "110,00% do CDI" no pós, "IPCA + 6,00% a.a." no híbrido. */
-/**
- * De onde vem o valor atual de um título de renda fixa (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, seção 5): a curva
- * contratada (CDB, LCI...), o preço oficial do Tesouro ou nenhuma (o motivo). null fora da renda fixa.
- */
-const valuationInfo = (a: PortfolioAssetDetail): string | null => {
-  const data = a.valuationDate ? formatDate(a.valuationDate) : null;
-  switch (a.valuationBasis) {
-    case 'CURVA':
-      return `Curva da taxa contratada (${formatRate(a)}), atualizada até ${data}${a.matured ? ', o vencimento' : ''}. `
-        + 'Valor bruto, sem IR e IOF.' + (a.valuationNote ? ` Obs.: ${a.valuationNote}.` : '');
-    case 'MERCADO':
-      return `Preço oficial do Tesouro (PU de resgate antecipado) de ${data}: cotas × preço. Pode ficar abaixo do `
-        + 'aplicado quando a taxa de mercado sobe. Valor bruto, sem IR e IOF.';
-    case 'SEM_CURVA':
-      return `Sem curva: ${a.valuationNote ?? 'dados do título incompletos'}. O valor fica em aplicado − resgatado `
-        + '(mais o ganho já comprovado por resgate).';
-    default:
-      return null;
-  }
-};
-
 const formatRate = (a: PortfolioAssetDetail): string => {
   if (a.indexerRate == null || !a.rateType) return '—';
   const rate = formatPercentage(a.indexerRate);
@@ -134,7 +190,10 @@ const COLUMNS: Column[] = [
       <div className="flex items-center gap-3" title={a.assetName || undefined}>
         {/* Logo à esquerda do ticker (B25). Tesouro e Renda Fixa usam o do tipo;
             nos demais, null = tipo sem logo. */}
-        {logoDoTipo
+        {/* Renda fixa: o logo do grupo da emissora, quando há (D5); senão o "RF" do tipo */}
+        {type.name === RENDA_FIXA && a.noteInfo?.issuerLogoUrl
+          ? <AssetLogo ticker={a.ticker} hasLogo src={a.noteInfo.issuerLogoUrl} label="RF" size={38} shape="square" />
+          : logoDoTipo
           ? <AssetLogo ticker={a.ticker} hasLogo={!!logoDoTipo.src} src={logoDoTipo.src} label={logoDoTipo.label} size={38} shape="square" />
           : a.hasLogo !== null && a.hasLogo !== undefined && <AssetLogo ticker={a.ticker} hasLogo={a.hasLogo} size={38} shape="square" />}
         <TickerLink ticker={a.ticker} issuerId={a.issuerId} />
@@ -153,10 +212,25 @@ const COLUMNS: Column[] = [
   // todas "CDB". Emissor e vencimento são o que as distingue.
   {
     key: 'issuer',
-    label: 'EMISSOR',
+    label: 'EMISSORA',
+    info: 'Quem emitiu o título: o nome do grupo. A razão social aparece ao passar o mouse.',
     align: 'left',
     visible: showIssuer,
-    render: (a) => <span className="text-white/70">{a.issuer || '—'}</span>,
+    render: (a) => (
+      <span className="text-white/70" title={a.noteInfo?.issuerLegalName ?? undefined}>{a.issuer || '—'}</span>
+    ),
+  },
+  {
+    key: 'distributorName',
+    label: 'DISTRIBUIDORA',
+    info: 'Onde o título foi comprado. A razão social aparece ao passar o mouse.',
+    align: 'left',
+    visible: showDistributor,
+    render: (a) => (
+      <span className="text-white/70" title={a.noteInfo?.distributorLegalName ?? undefined}>
+        {a.noteInfo?.distributorName || '—'}
+      </span>
+    ),
   },
   {
     key: 'purchaseDate',
@@ -178,8 +252,8 @@ const COLUMNS: Column[] = [
           <span
             className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase bg-danger/15 text-danger"
             title={a.valuationBasis === 'CURVA'
-              ? 'O título venceu e parou de render. O PrimeVest lança o resgate sozinho na abertura do dia (veja as Notificações); sem curva, lance o resgate pelo ícone Vender.'
-              : 'O título venceu: o PrimeVest lança a venda pelo preço oficial do vencimento na abertura do dia (veja as Notificações).'}
+              ? 'O título venceu e parou de render. Lance a liquidação com o valor que caiu na sua conta (veja as Notificações, ou o ícone Vender).'
+              : 'O título venceu. Lance a liquidação (veja as Notificações, ou o ícone Vender).'}
           >
             Vencido
           </span>
@@ -252,12 +326,14 @@ const COLUMNS: Column[] = [
   {
     key: 'currentValue',
     label: 'VALOR ATUAL',
-    info: 'Valor aplicado + valorização − resgatado. Na renda fixa, valor bruto (sem IR e IOF).',
+    info: 'Valor aplicado + valorização − resgatado. Na renda fixa, valor bruto; embaixo, o líquido estimado de um '
+      + 'resgate hoje (sem IR e IOF), com os aportes ao clicar.',
     align: 'right',
     render: (a) => (
-      <span className="inline-flex items-center justify-end gap-1">
-        {formatCurrency(a.currentValue)}
-        {valuationInfo(a) && <InfoTooltip content={valuationInfo(a)!} />}
+      // Sem o (i) da base do valor na renda fixa (retirado a pedido em 15/10/2026): bruto e, embaixo, o líquido.
+      <span className="inline-flex flex-col items-end">
+        <span>{formatCurrency(a.currentValue)}</span>
+        {a.estimatedNet != null && <EstimatedNet asset={a} />}
       </span>
     ),
   },
@@ -359,7 +435,12 @@ const PortfolioTypeTable = ({ type, assets, reservation, onList, onBuy, onSell }
   const showReservation = type.fixedIncome;
 
   // Começa ordenada por ativo (A→Z); o clique no cabeçalho continua trocando.
-  const { sortedData, requestSort, getSortIndicator, getSortClass } = useSortable(assets, {
+  // A distribuidora vem dentro de noteInfo; o campo plano é o que a ordenação pelo cabeçalho lê
+  const linhas = useMemo(
+    () => assets.map(a => ({ ...a, distributorName: a.noteInfo?.distributorName ?? null })),
+    [assets]
+  );
+  const { sortedData, requestSort, getSortIndicator, getSortClass } = useSortable(linhas, {
     key: 'ticker',
     direction: 'asc',
   });
@@ -373,11 +454,21 @@ const PortfolioTypeTable = ({ type, assets, reservation, onList, onBuy, onSell }
   const totalValorization = assets.reduce((sum, a) => sum + a.valorization, 0);
   const totalReturn =
     totalInvested > 0 ? ((totalCurrent + totalDividends - totalInvested) / totalInvested) * 100 : 0;
+  // Liquido estimado da aba: o do titulo quando ha, senao o proprio valor (sem curva, nao ha estimativa).
+  const hasNet = assets.some((a) => a.estimatedNet != null);
+  const totalNet = assets.reduce((sum, a) => sum + (a.estimatedNet ?? a.currentValue), 0);
 
   const footer: Partial<Record<keyof PortfolioAssetDetail, ReactNode>> = {
     totalInvested: formatCurrency(totalInvested),
     totalSold: formatCurrency(totalSold),
-    currentValue: formatCurrency(totalCurrent),
+    currentValue: hasNet
+      ? (
+        <span className="inline-flex flex-col items-end">
+          <span>{formatCurrency(totalCurrent)}</span>
+          <span className="text-xs font-normal text-gray-400 tabular-nums">líq. {formatCurrency(totalNet)}</span>
+        </span>
+      )
+      : formatCurrency(totalCurrent),
     totalDividends: formatCurrency(totalDividends),
     valorization: <span className={getReturnColor(totalValorization)}>{formatCurrency(totalValorization)}</span>,
     returnPercentage: <span className={getReturnColor(totalReturn)}>{formatPercentage(totalReturn)}</span>,

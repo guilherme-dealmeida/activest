@@ -3,10 +3,17 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { PercentInput } from '@/components/ui/PercentInput';
 import { LabelWithInfo } from '@/components/ui/InfoTooltip';
+import { IssuerPicker } from '@/components/forms/IssuerPicker';
+import { IssuerPick } from '@/components/forms/issuerPick';
 
 export interface FixedIncomeValues {
   assetCategoryId: number | null;
-  issuer: string;
+  /** Emissora (fixed_income_issuers): obrigatória no título de renda fixa; no Tesouro é o Tesouro Nacional. */
+  issuer: IssuerPick | null;
+  /** Distribuidora: onde o título foi comprado (RF e Tesouro). */
+  distributor: IssuerPick | null;
+  /** Código do papel na distribuidora (opcional; só letras e números). */
+  paperCode: string;
   maturityDate: string;
   rateType: RateType | null;
   indexer: Indexer | null;
@@ -43,6 +50,14 @@ interface Props {
    * pelo FIFO.
    */
   showRate?: boolean;
+  /** Produto do título: a emissora é filtrada pelos tipos que ele aceita (CDB só bancos). */
+  ticker?: string | null;
+  /** A distribuidora se escolhe mesmo com o resto travado: é o caso da venda do Tesouro. */
+  distributorReadOnly?: boolean;
+  /** Venda do Tesouro: só as distribuidoras com título aberto do ativo (D7). */
+  distributorOptions?: IssuerPick[];
+  /** Aviso abaixo da distribuidora (a regra de saída muda, na edição de RF). */
+  distributorWarning?: string | null;
   onChange: (patch: Partial<FixedIncomeValues>) => void;
 }
 
@@ -81,7 +96,8 @@ function rateLabel(rateType: RateType | null, indexer: Indexer | null): { label:
  * apareciam na busca de todo mundo.
  */
 export const FixedIncomeFields = ({
-  values, lockedTerms, readOnly = false, showIssuer = true, showRate = true, onChange
+  values, lockedTerms, readOnly = false, showIssuer = true, showRate = true, ticker,
+  distributorReadOnly, distributorOptions, distributorWarning, onChange
 }: Props) => {
   const precisaIndice = values.rateType === 'POS_FIXADO' || values.rateType === 'HIBRIDO';
   const { label, hint } = rateLabel(values.rateType, values.indexer);
@@ -106,13 +122,46 @@ export const FixedIncomeFields = ({
         </LabelWithInfo>
       </p>
 
+      {/* Duas colunas de campos: com emissora, distribuidora e código, o quadro numa coluna só ficava mais alto que
+          a transação inteira. Os pares saem na ordem de leitura: emissora | distribuidora, código | vencimento,
+          remuneração | índice e a taxa. Em tela estreita volta a uma coluna. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
       {showIssuer && (
-        <Input
-          label="Emissor"
-          placeholder="Ex: Banco BTG"
+        <IssuerPicker
+          label="Emissora"
+          info="Quem emitiu o título e deve o dinheiro. A lista mostra só as empresas que emitem este produto."
+          role="ISSUER"
+          ticker={ticker}
           value={values.issuer}
           disabled={readOnly}
-          onChange={(e) => onChange({ issuer: e.target.value })}
+          onChange={(issuer) => onChange({ issuer })}
+        />
+      )}
+
+      <div>
+        <IssuerPicker
+          label="Distribuidora"
+          info={distributorOptions
+            ? 'Onde o título foi comprado. Na venda aparecem só as distribuidoras com título aberto deste ativo.'
+            : 'Onde o título foi comprado (corretora, banco ou cooperativa). É ela que define a regra de saída dos resgates.'}
+          role="DISTRIBUTOR"
+          value={values.distributor}
+          options={distributorOptions}
+          disabled={distributorReadOnly ?? readOnly}
+          onChange={(distributor) => onChange({ distributor })}
+        />
+        {distributorWarning && <p className="mt-1 text-xs text-accent">{distributorWarning}</p>}
+      </div>
+
+      {showIssuer && (
+        <Input
+          label="Código do papel"
+          info="Opcional. O código do título na distribuidora (ex: CDB0123ABCD). Com código, o aporte só entra no título de mesmo código."
+          placeholder="Ex: CDB0123ABCD"
+          maxLength={40}
+          value={values.paperCode}
+          disabled={readOnly}
+          onChange={(e) => onChange({ paperCode: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })}
         />
       )}
 
@@ -139,7 +188,6 @@ export const FixedIncomeFields = ({
         {RATE_TYPES.map(rt => <option key={rt.value} value={rt.value}>{rt.label}</option>)}
       </Select>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {precisaIndice && (
           <Select
             label="Índice"

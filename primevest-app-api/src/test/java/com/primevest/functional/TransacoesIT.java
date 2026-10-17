@@ -260,7 +260,8 @@ class TransacoesIT extends FuncionalBase {
             corpo.put("type", "BUY");
             corpo.put("transactionDate", data);
             corpo.put("totalAmount", new BigDecimal(valor));
-            corpo.put("issuer", emissor);
+            corpo.put("issuerId", empresaDeTeste(emissor, "BANCO"));
+            corpo.put("distributorId", distribuidoraPadrao());
             corpo.put("maturityDate", "2030-01-15");
             corpo.put("rateType", "POS_FIXADO");
             corpo.put("indexer", "CDI");
@@ -334,28 +335,43 @@ class TransacoesIT extends FuncionalBase {
         }
 
         @Test
-        @DisplayName("Resgate que alcanca o saldo corrige a valorizacao e deixa o centavo da regra F")
+        @DisplayName("Resgate que passa do disponivel: o excedente paga IR (PENDENCIAS 27.5), a valorizacao e corrigida "
+            + "e sobra o centavo da regra F")
         void resgateParcialDeixaCentavo() {
             TransactionResponseDTO aplicacao = lancarComSucesso(dono, aplicacao("2026-01-10", "1000.00", "BTG"));
 
             lancarComSucesso(dono, resgate("2026-09-10", "1050.00", aplicacao.noteId(), false));
 
+            // sem CDI no banco de teste, a curva nao rende: os 50,00 liquidos a mais sao rendimento tributado a 20%
+            // (243 dias) -> bruto 1050 / ... = 1000 + 50 / 0,8 = 1062,50; IR 12,50; valorizacao 62,50 + o centavo
+            TransactionResponseDTO venda = transacoesDe(dono).stream()
+                .filter(t -> "SELL".equals(t.type().name())).findFirst().orElseThrow();
+            assertThat(venda.totalAmount()).isEqualByComparingTo("1062.50");
+            assertThat(venda.incomeTax()).isEqualByComparingTo("12.50");
             Map<String, Object> posicao = posicaoDe(dono, CatalogIds.CDB);
-            assertThat(new BigDecimal(posicao.get("valorization").toString())).isEqualByComparingTo("50.01");
+            assertThat(new BigDecimal(posicao.get("valorization").toString())).isEqualByComparingTo("62.51");
             assertThat(posicao.get("isSettled")).isEqualTo(false);
         }
 
         @Test
-        @DisplayName("Liquidacao total zera a posicao e grava o ganho realizado")
+        @DisplayName("Liquidacao total pelo liquido: bruto = liquido + IR + IOF, posicao zerada e ganho bruto realizado")
         void liquidacaoTotal() {
             TransactionResponseDTO aplicacao = lancarComSucesso(dono, aplicacao("2026-01-10", "1000.00", "BTG"));
 
             lancarComSucesso(dono, resgate("2026-09-10", "1120.00", aplicacao.noteId(), true));
 
             assertThat(carteiraDe(dono)).isEmpty();
+            TransactionResponseDTO venda = transacoesDe(dono).stream()
+                .filter(t -> "SELL".equals(t.type().name())).findFirst().orElseThrow();
+            // o valor digitado e o liquido (PLANO_VENDA_RENDA_FIXA, R3): 243 dias, IR de 20% e sem IOF
+            assertThat(venda.netAmount()).isEqualByComparingTo("1120.00");
+            assertThat(venda.iofTax()).isEqualByComparingTo("0");
+            assertThat(venda.totalAmount()).isEqualByComparingTo(
+                venda.netAmount().add(venda.incomeTax()).add(venda.iofTax()));
+            assertThat(venda.incomeTax()).isPositive();
             assertThat(jdbc.queryForObject(
                 "SELECT appreciation FROM portfolio_assets LIMIT 1", BigDecimal.class))
-                .isEqualByComparingTo("120.00");
+                .isEqualByComparingTo(venda.totalAmount().subtract(new BigDecimal("1000.00")));
             assertThat(jdbc.queryForObject(
                 "SELECT is_settled FROM portfolio_assets LIMIT 1", Boolean.class)).isTrue();
         }
@@ -419,7 +435,6 @@ class TransacoesIT extends FuncionalBase {
 
         private Map<String, Object> compraDeTesouro(String data, String cotas, String preco, String taxa) {
             Map<String, Object> corpo = lancamento(TICKER, "BUY", data, cotas, preco);
-            corpo.put("issuer", "Tesouro Nacional");
             corpo.put("indexerRate", new BigDecimal(taxa));
             return corpo;
         }
@@ -543,6 +558,44 @@ class TransacoesIT extends FuncionalBase {
                 "SELECT COALESCE(SUM(shares), 0) FROM transactions WHERE type = 'SELL'", BigDecimal.class))
                 .isEqualByComparingTo("5");
         }
+
+        @Test
+        @DisplayName("IR e IOF por titulo (PLANO_VENDA_RENDA_FIXA, 4.4): a venda de 17/09 paga IOF de 16 dias numa parte "
+            + "e de 2 dias na outra; a previa da os mesmos numeros sem gravar")
+        @SuppressWarnings("unchecked")
+        void impostosPorTitulo() {
+            lancarComSucesso(dono, compraDeTesouro("2026-09-01", "3", "830.07", "7.09"));
+            lancarComSucesso(dono, compraDeTesouro("2026-09-15", "4", "830.10", "7.50"));
+
+            // previa: nada gravado
+            Map<String, Object> previa = post(dono, "/api/v1/transactions/sale-preview",
+                vendaDeTesouro("2026-09-17", "5", "850.00"), Map.class).getBody();
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM transactions WHERE type = 'SELL'", Long.class))
+                .isZero();
+            assertThat(numero(previa.get("gross"))).isEqualByComparingTo("4250.00");
+            // titulo de 01/09: 3 x (850 - 830,07) = 59,79; IOF 46% = 27,50; IR 22,5% de 32,29 = 7,26
+            // titulo de 15/09: 2 x (850 - 830,10) = 39,80; IOF 93% = 37,01; IR 22,5% de 2,79 = 0,62
+            assertThat(numero(previa.get("iof"))).isEqualByComparingTo("64.51");
+            assertThat(numero(previa.get("ir"))).isEqualByComparingTo("7.88");
+            assertThat(numero(previa.get("net"))).isEqualByComparingTo("4177.61");
+            assertThat((List<Object>) previa.get("lots")).hasSize(2);
+
+            lancarComSucesso(dono, vendaDeTesouro("2026-09-17", "5", "850.00"));
+
+            List<Map<String, Object>> partes = jdbc.queryForList("""
+                SELECT t.shares, t.total_amount, t.iof_tax, t.income_tax, t.net_amount
+                FROM transactions t JOIN portfolio_assets pa ON pa.id = t.portfolio_asset_id
+                JOIN fixed_income_notes n ON n.id = pa.note_id
+                WHERE t.type = 'SELL' ORDER BY n.purchase_date
+                """);
+            assertThat(partes).hasSize(2);
+            assertThat(numero(partes.get(0).get("iof_tax"))).isEqualByComparingTo("27.50");
+            assertThat(numero(partes.get(0).get("income_tax"))).isEqualByComparingTo("7.26");
+            assertThat(numero(partes.get(0).get("net_amount"))).isEqualByComparingTo("2515.24");
+            assertThat(numero(partes.get(1).get("iof_tax"))).isEqualByComparingTo("37.01");
+            assertThat(numero(partes.get(1).get("income_tax"))).isEqualByComparingTo("0.62");
+            assertThat(numero(partes.get(1).get("net_amount"))).isEqualByComparingTo("1662.37");
+        }
     }
 
     // ------------------------------------------------------------------
@@ -622,7 +675,6 @@ class TransacoesIT extends FuncionalBase {
         @DisplayName("Regra K — Tesouro: excluir a unica compra apaga o titulo e libera a data para a regra H")
         void regraK_tesouro() {
             Map<String, Object> compraTesouro = lancamento(CatalogIds.TESOURO_IPCA_2050, "BUY", "2026-09-01", "3", "830.07");
-            compraTesouro.put("issuer", "Tesouro Nacional");
             compraTesouro.put("indexerRate", new BigDecimal("7.09"));
             TransactionResponseDTO compra = lancarComSucesso(dono, compraTesouro);
 

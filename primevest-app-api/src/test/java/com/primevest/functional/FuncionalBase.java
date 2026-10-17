@@ -74,7 +74,29 @@ public abstract class FuncionalBase extends IntegrationTestBase {
         corpo.put("transactionDate", data);
         corpo.put("shares", new BigDecimal(cotas));
         corpo.put("pricePerShare", new BigDecimal(preco));
+        // Tesouro Direto: compra e venda informam a distribuidora (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md, R13)
+        if (ticker.startsWith("Tesouro")) {
+            corpo.put("distributorId", distribuidoraPadrao());
+        }
         return corpo;
+    }
+
+    /** A corretora dos testes (emissoras de renda fixa): criada uma vez, achada pela raiz do CNPJ. */
+    protected Long distribuidoraPadrao() {
+        return empresaDeTeste("Corretora de Teste", "CORRETORA_DISTRIBUIDORA");
+    }
+
+    /** Empresa de renda fixa de teste pelo nome ("99" + 6 digitos do nome como raiz do CNPJ). */
+    protected Long empresaDeTeste(String nome, String tipo) {
+        String raiz = "99" + String.format("%06d", Math.floorMod(nome.hashCode(), 1_000_000));
+        List<Long> ids = jdbc.queryForList("SELECT id FROM fixed_income_issuers WHERE cnpj_root = ?", Long.class, raiz);
+        if (!ids.isEmpty()) {
+            return ids.get(0);
+        }
+        return jdbc.queryForObject("""
+            INSERT INTO fixed_income_issuers (kind, cnpj_root, legal_name, status, guarantor)
+            VALUES (?, ?, ?, 'ATIVA', CASE WHEN ? IN ('BANCO', 'FINANCEIRA') THEN 'FGC' ELSE 'NENHUM' END)
+            RETURNING id""", Long.class, tipo, raiz, nome, tipo);
     }
 
     /** Aplicacao em renda fixa: valor total e os dados do titulo. */
@@ -84,7 +106,8 @@ public abstract class FuncionalBase extends IntegrationTestBase {
         corpo.put("type", "BUY");
         corpo.put("transactionDate", data);
         corpo.put("totalAmount", new BigDecimal(valor));
-        corpo.put("issuer", emissor);
+        corpo.put("issuerId", empresaDeTeste(emissor, "BANCO"));
+        corpo.put("distributorId", distribuidoraPadrao());
         corpo.put("maturityDate", "2030-01-15");
         corpo.put("rateType", "POS_FIXADO");
         corpo.put("indexer", "CDI");

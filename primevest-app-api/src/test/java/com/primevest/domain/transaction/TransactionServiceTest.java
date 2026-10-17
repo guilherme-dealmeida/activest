@@ -77,6 +77,26 @@ class TransactionServiceTest {
     @Mock private com.primevest.domain.integration.IntegrationCryptoExclusionRepository cryptoExclusionRepository;
     @Mock private com.primevest.domain.integration.source.MovementJson movementJson;
     @Mock private com.primevest.domain.asset.AssetLogos assetLogos;
+    @Mock private com.primevest.domain.fixedincome.FixedIncomeIssuers fixedIncomeIssuers;
+    @Mock private com.primevest.domain.notification.NotificationService notifications;
+
+    /** Empresas de renda fixa do teste, pelo nome (PLANO_EMISSORAS_RENDA_FIXA). */
+    private final java.util.Map<String, com.primevest.domain.fixedincome.FixedIncomeIssuer> empresas =
+        new java.util.HashMap<>();
+    private static final Long DISTRIBUIDORA = 900L;
+
+    private com.primevest.domain.fixedincome.FixedIncomeIssuer empresa(String nome) {
+        return empresas.computeIfAbsent(nome, n -> {
+            var i = com.primevest.domain.fixedincome.FixedIncomeIssuer.builder()
+                .kind(com.primevest.domain.fixedincome.FixedIncomeIssuerKind.BANCO).legalName(n).build();
+            i.setId(100L + empresas.size());
+            return i;
+        });
+    }
+
+    private Long emissor(String nome) {
+        return empresa(nome).getId();
+    }
 
     /** O guard entra de verdade: as regras A e B sao dele, e ja tem teste proprio. */
     private final PositionGuard positionGuard = new PositionGuard();
@@ -94,7 +114,17 @@ class TransactionServiceTest {
             assetRepository, fixedIncomeNoteRepository, userRepository, dividendRecalculator, positionCalculator,
             appreciationUpdater, positionGuard, fixedIncomeSettlement, fixedIncomeValuation, treasuryAllocator, eventPublisher,
             cryptoExclusionRepository, movementJson,
-            new com.primevest.domain.integration.pipeline.ImportRulesRegistry(java.util.List.of()), assetLogos);
+            new com.primevest.domain.integration.pipeline.ImportRulesRegistry(java.util.List.of()), assetLogos,
+            fixedIncomeIssuers, notifications);
+        var distribuidora = com.primevest.domain.fixedincome.FixedIncomeIssuer.builder()
+            .kind(com.primevest.domain.fixedincome.FixedIncomeIssuerKind.CORRETORA_DISTRIBUIDORA)
+            .legalName("Corretora").build();
+        distribuidora.setId(DISTRIBUIDORA);
+        when(fixedIncomeIssuers.distributor(DISTRIBUIDORA)).thenReturn(distribuidora);
+        when(fixedIncomeIssuers.issuerFor(any(), any())).thenAnswer(i -> empresas.values().stream()
+            .filter(e -> e.getId().equals(i.getArgument(1))).findFirst().orElse(null));
+        when(fixedIncomeIssuers.info(any()))
+            .thenReturn(com.primevest.domain.fixedincome.FixedIncomeIssuers.NoteInfo.NONE);
 
         userId = UUID.randomUUID();
         carteira = Portfolio.builder().name("Minha Carteira").build();
@@ -160,7 +190,7 @@ class TransactionServiceTest {
     private static TransactionCreateDTO compraDeAcao(String cotas, String preco) {
         return new TransactionCreateDTO("PETR4", TransactionType.BUY, new BigDecimal(cotas),
             new BigDecimal(preco), null, null, LocalDate.of(2026, 9, 1), null, null,
-            null, null, null, null, null, null);
+            null, null, null, null, null, null, null, null);
     }
 
     @Nested
@@ -174,7 +204,7 @@ class TransactionServiceTest {
 
             assertThatThrownBy(() -> service.createTransaction(userId,
                 new TransactionCreateDTO("XXXX9", TransactionType.BUY, BigDecimal.ONE, BigDecimal.TEN, null,
-                    null, LocalDate.of(2026, 9, 1), null, null, null, null, null, null, null, null)))
+                    null, LocalDate.of(2026, 9, 1), null, null, null, null, null, null, null, null, null, null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Ativo não encontrado no catálogo: XXXX9")
                 .hasMessageContaining("Selecione um ativo existente na busca");
@@ -216,7 +246,7 @@ class TransactionServiceTest {
             posicaoExistente(acao, null);
             TransactionCreateDTO comTotalErrado = new TransactionCreateDTO("PETR4", TransactionType.BUY,
                 new BigDecimal("10"), new BigDecimal("30.00"), new BigDecimal("999999.00"), null,
-                LocalDate.of(2026, 9, 1), null, null, null, null, null, null, null, null);
+                LocalDate.of(2026, 9, 1), null, null, null, null, null, null, null, null, null, null);
 
             service.createTransaction(userId, comTotalErrado);
 
@@ -232,7 +262,7 @@ class TransactionServiceTest {
 
             assertThatThrownBy(() -> service.createTransaction(userId,
                 new TransactionCreateDTO("PETR4", TransactionType.BUY, null, new BigDecimal("30.00"), null,
-                    null, LocalDate.of(2026, 9, 1), null, null, null, null, null, null, null, null)))
+                    null, LocalDate.of(2026, 9, 1), null, null, null, null, null, null, null, null, null, null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("Informe a quantidade e o preço unitário.");
         }
@@ -242,8 +272,8 @@ class TransactionServiceTest {
         void rendaFixaComQuantidade() {
             assertThatThrownBy(() -> service.createTransaction(userId,
                 new TransactionCreateDTO("CDB", TransactionType.BUY, new BigDecimal("1"), new BigDecimal("1000.00"),
-                    null, null, LocalDate.of(2026, 9, 1), null, null, null, "BTG", LocalDate.of(2030, 1, 15),
-                    RateType.POS_FIXADO, Indexer.CDI, new BigDecimal("110.0000"))))
+                    null, null, LocalDate.of(2026, 9, 1), null, null, null, emissor("BTG"), LocalDate.of(2030, 1, 15),
+                    RateType.POS_FIXADO, Indexer.CDI, new BigDecimal("110.0000"), DISTRIBUIDORA, null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("Renda Fixa é lançada pelo valor total, sem quantidade nem preço unitário.");
         }
@@ -253,8 +283,8 @@ class TransactionServiceTest {
         void rendaFixaSemValor() {
             assertThatThrownBy(() -> service.createTransaction(userId,
                 new TransactionCreateDTO("CDB", TransactionType.BUY, null, null, null, null,
-                    LocalDate.of(2026, 9, 1), null, null, null, "BTG", LocalDate.of(2030, 1, 15),
-                    RateType.POS_FIXADO, Indexer.CDI, new BigDecimal("110.0000"))))
+                    LocalDate.of(2026, 9, 1), null, null, null, emissor("BTG"), LocalDate.of(2030, 1, 15),
+                    RateType.POS_FIXADO, Indexer.CDI, new BigDecimal("110.0000"), DISTRIBUIDORA, null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("Informe o valor da transação.");
         }
@@ -285,7 +315,7 @@ class TransactionServiceTest {
             assertThatThrownBy(() -> service.createTransaction(userId,
                 new TransactionCreateDTO("PETR4", TransactionType.SELL, new BigDecimal("10"),
                     new BigDecimal("30.00"), null, null, LocalDate.of(2026, 9, 1), null, null,
-                    null, null, null, null, null, null)))
+                    null, null, null, null, null, null, null, null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("Não há posição de PETR4 na carteira para vender.");
 
@@ -301,7 +331,7 @@ class TransactionServiceTest {
             assertThatThrownBy(() -> service.createTransaction(userId,
                 new TransactionCreateDTO("PETR4", TransactionType.SELL, new BigDecimal("10"),
                     new BigDecimal("30.00"), null, null, LocalDate.of(2026, 9, 1), null, null,
-                    null, null, null, null, null, null)))
+                    null, null, null, null, null, null, null, null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("Não há posição de PETR4 na carteira para vender.");
         }
@@ -327,7 +357,7 @@ class TransactionServiceTest {
 
         private FixedIncomeNote nota() {
             FixedIncomeNote note = FixedIncomeNote.builder()
-                .asset(cdb).issuer("BTG").maturityDate(LocalDate.of(2030, 1, 15))
+                .asset(cdb).issuer(empresa("BTG")).maturityDate(LocalDate.of(2030, 1, 15))
                 .rateType(RateType.POS_FIXADO).indexer(Indexer.CDI).indexerRate(new BigDecimal("110.0000"))
                 .build();
             note.setId(UUID.randomUUID());
@@ -340,7 +370,7 @@ class TransactionServiceTest {
             assertThatThrownBy(() -> service.createTransaction(userId,
                 new TransactionCreateDTO("PETR4", TransactionType.BUY, new BigDecimal("10"),
                     new BigDecimal("30.00"), null, null, LocalDate.of(2026, 9, 1), null, true,
-                    null, null, null, null, null, null)))
+                    null, null, null, null, null, null, null, null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("Liquidação total só existe em venda de Renda Fixa.");
         }
@@ -353,7 +383,7 @@ class TransactionServiceTest {
             assertThatThrownBy(() -> service.createTransaction(userId,
                 new TransactionCreateDTO("PETR4", TransactionType.BUY, new BigDecimal("10"),
                     new BigDecimal("30.00"), null, null, LocalDate.of(2026, 9, 1), null, null,
-                    UUID.randomUUID(), null, null, null, null, null)))
+                    UUID.randomUUID(), null, null, null, null, null, null, null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Título informado para um ativo que não é de renda fixa: PETR4");
         }
@@ -366,7 +396,7 @@ class TransactionServiceTest {
 
             assertThatThrownBy(() -> service.createTransaction(userId,
                 new TransactionCreateDTO("CDB", TransactionType.BUY, null, null, new BigDecimal("1000.00"),
-                    null, LocalDate.of(2026, 9, 1), null, null, noteId, null, null, null, null, null)))
+                    null, LocalDate.of(2026, 9, 1), null, null, noteId, null, null, null, null, null, DISTRIBUIDORA, null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("Título não encontrado");
         }
@@ -381,7 +411,7 @@ class TransactionServiceTest {
 
             assertThatThrownBy(() -> service.createTransaction(userId,
                 new TransactionCreateDTO("CDB", TransactionType.BUY, null, null, new BigDecimal("1000.00"),
-                    null, LocalDate.of(2026, 9, 1), null, null, deOutroAtivo.getId(), null, null, null, null, null)))
+                    null, LocalDate.of(2026, 9, 1), null, null, deOutroAtivo.getId(), null, null, null, null, null, DISTRIBUIDORA, null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("O título selecionado pertence a outro ativo: PETR4");
         }
@@ -395,7 +425,7 @@ class TransactionServiceTest {
             for (LocalDate data : List.of(LocalDate.of(2030, 1, 15), LocalDate.of(2030, 2, 1))) {
                 assertThatThrownBy(() -> service.createTransaction(userId,
                     new TransactionCreateDTO("CDB", TransactionType.BUY, null, null, new BigDecimal("1000.00"),
-                        null, data, null, null, nota.getId(), null, null, null, null, null)))
+                        null, data, null, null, nota.getId(), null, null, null, null, null, DISTRIBUIDORA, null)))
                     .isInstanceOf(BusinessException.class)
                     .hasMessage("Título vencido para a data de transação escolhida");
             }
@@ -406,7 +436,7 @@ class TransactionServiceTest {
         void vendaSemNoteId() {
             assertThatThrownBy(() -> service.createTransaction(userId,
                 new TransactionCreateDTO("CDB", TransactionType.SELL, null, null, new BigDecimal("500.00"),
-                    null, LocalDate.of(2026, 9, 1), null, null, null, null, null, null, null, null)))
+                    null, LocalDate.of(2026, 9, 1), null, null, null, null, null, null, null, null, DISTRIBUIDORA, null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("Venda de renda fixa precisa apontar qual título está sendo vendido.");
         }
@@ -422,12 +452,13 @@ class TransactionServiceTest {
 
             service.createTransaction(userId, new TransactionCreateDTO("CDB", TransactionType.BUY, null, null,
                 new BigDecimal("1000.00"), null, LocalDate.of(2026, 9, 1), null, null, null,
-                "BTG", LocalDate.of(2030, 1, 15), RateType.POS_FIXADO, Indexer.CDI, new BigDecimal("110.0000")));
+                emissor("BTG"), LocalDate.of(2030, 1, 15), RateType.POS_FIXADO, Indexer.CDI, new BigDecimal("110.0000"), DISTRIBUIDORA, null));
 
             ArgumentCaptor<FixedIncomeNote> captor = ArgumentCaptor.forClass(FixedIncomeNote.class);
             verify(fixedIncomeNoteRepository).save(captor.capture());
             FixedIncomeNote criada = captor.getValue();
-            assertThat(criada.getIssuer()).isEqualTo("BTG");
+            assertThat(criada.getIssuer().getLegalName()).isEqualTo("BTG");
+            assertThat(criada.getDistributor().getId()).isEqualTo(DISTRIBUIDORA);
             assertThat(criada.getIndexerRate()).isEqualByComparingTo("110.0000");
             assertThat(criada.getMaturityDate()).isEqualTo(LocalDate.of(2030, 1, 15));
         }
@@ -449,7 +480,7 @@ class TransactionServiceTest {
 
             service.createTransaction(userId, new TransactionCreateDTO("CDB", TransactionType.BUY, null, null,
                 new BigDecimal("1000.00"), null, LocalDate.of(2026, 9, 1), null, null, null,
-                "Tesouro Nacional", null, null, null, new BigDecimal("7.0900")));
+                emissor("Tesouro Nacional"), null, null, null, new BigDecimal("7.0900"), DISTRIBUIDORA, null));
 
             ArgumentCaptor<FixedIncomeNote> captor = ArgumentCaptor.forClass(FixedIncomeNote.class);
             verify(fixedIncomeNoteRepository).save(captor.capture());
@@ -468,7 +499,7 @@ class TransactionServiceTest {
 
             service.createTransaction(userId, new TransactionCreateDTO("CDB", TransactionType.BUY, null, null,
                 new BigDecimal("1000.00"), null, LocalDate.of(2026, 9, 1), null, null, null,
-                "BTG", LocalDate.of(2030, 1, 15), RateType.PREFIXADO, Indexer.CDI, new BigDecimal("12.5000")));
+                emissor("BTG"), LocalDate.of(2030, 1, 15), RateType.PREFIXADO, Indexer.CDI, new BigDecimal("12.5000"), DISTRIBUIDORA, null));
 
             ArgumentCaptor<FixedIncomeNote> captor = ArgumentCaptor.forClass(FixedIncomeNote.class);
             verify(fixedIncomeNoteRepository).save(captor.capture());
@@ -480,8 +511,8 @@ class TransactionServiceTest {
         void posFixadoSemIndice() {
             assertThatThrownBy(() -> service.createTransaction(userId,
                 new TransactionCreateDTO("CDB", TransactionType.BUY, null, null, new BigDecimal("1000.00"),
-                    null, LocalDate.of(2026, 9, 1), null, null, null, "BTG", LocalDate.of(2030, 1, 15),
-                    RateType.POS_FIXADO, null, new BigDecimal("110.0000"))))
+                    null, LocalDate.of(2026, 9, 1), null, null, null, emissor("BTG"), LocalDate.of(2030, 1, 15),
+                    RateType.POS_FIXADO, null, new BigDecimal("110.0000"), DISTRIBUIDORA, null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("Remuneração pós-fixada precisa de um índice (CDI, IPCA, ...).");
         }
@@ -491,8 +522,8 @@ class TransactionServiceTest {
         void indiceSemForma() {
             assertThatThrownBy(() -> service.createTransaction(userId,
                 new TransactionCreateDTO("CDB", TransactionType.BUY, null, null, new BigDecimal("1000.00"),
-                    null, LocalDate.of(2026, 9, 1), null, null, null, "BTG", LocalDate.of(2030, 1, 15),
-                    null, Indexer.CDI, new BigDecimal("110.0000"))))
+                    null, LocalDate.of(2026, 9, 1), null, null, null, emissor("BTG"), LocalDate.of(2030, 1, 15),
+                    null, Indexer.CDI, new BigDecimal("110.0000"), DISTRIBUIDORA, null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("Informe como o título remunera antes de escolher o índice.");
         }
@@ -511,9 +542,9 @@ class TransactionServiceTest {
 
             service.updateTransaction(userId, existente.getId(), new TransactionCreateDTO("CDB",
                 TransactionType.BUY, null, null, new BigDecimal("1500.00"), null,
-                LocalDate.of(2026, 9, 1), null, null, null, null, null, null, null, null));
+                LocalDate.of(2026, 9, 1), null, null, null, null, null, null, null, null, null, null));
 
-            assertThat(note.getIssuer()).isEqualTo("BTG");
+            assertThat(note.getIssuer().getLegalName()).isEqualTo("BTG");
             assertThat(note.getMaturityDate()).isEqualTo(LocalDate.of(2030, 1, 15));
             assertThat(note.getIndexerRate()).isEqualByComparingTo("110.0000");
             verify(fixedIncomeNoteRepository, never()).save(any(FixedIncomeNote.class));
@@ -533,10 +564,10 @@ class TransactionServiceTest {
 
             service.updateTransaction(userId, existente.getId(), new TransactionCreateDTO("CDB",
                 TransactionType.BUY, null, null, new BigDecimal("1000.00"), null,
-                LocalDate.of(2026, 9, 1), null, null, null, "Inter", LocalDate.of(2031, 5, 10),
-                RateType.POS_FIXADO, Indexer.CDI, new BigDecimal("105.0000")));
+                LocalDate.of(2026, 9, 1), null, null, null, emissor("Inter"), LocalDate.of(2031, 5, 10),
+                RateType.POS_FIXADO, Indexer.CDI, new BigDecimal("105.0000"), DISTRIBUIDORA, null));
 
-            assertThat(note.getIssuer()).isEqualTo("Inter");
+            assertThat(note.getIssuer().getLegalName()).isEqualTo("Inter");
             assertThat(note.getIndexerRate()).isEqualByComparingTo("105.0000");
             verify(fixedIncomeNoteRepository).save(note);
         }
@@ -558,7 +589,7 @@ class TransactionServiceTest {
         }
 
         private FixedIncomeNote titulo(Asset asset) {
-            FixedIncomeNote note = FixedIncomeNote.builder().asset(asset).issuer("BTG").build();
+            FixedIncomeNote note = FixedIncomeNote.builder().asset(asset).issuer(empresa("BTG")).build();
             note.setId(UUID.randomUUID());
             return note;
         }

@@ -184,6 +184,120 @@ export interface PortfolioAssetDetail {
    * `issuer` da carteira, que é o emissor da NOTA de renda fixa.
    */
   issuerId: number | null;
+  /**
+   * Líquido estimado se resgatasse na data do valor: valor atual (bruto) − IOF − IR, aporte a aporte
+   * (docs/planos/PLANO_VENDA_RENDA_FIXA.md, R11). null fora da renda fixa ou sem valor.
+   */
+  estimatedNet?: number | null;
+  /** O título aporte a aporte (renda fixa privada) ou o próprio título (Tesouro). Vazia fora da renda fixa. */
+  lots?: FixedIncomeLot[];
+  /** Emissora e distribuidora do título (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md). null fora da renda fixa. */
+  noteInfo?: NoteInfo | null;
+  /** Só na tela: noteInfo.distributorName, para a coluna DISTRIBUIDORA ordenar pelo cabeçalho. */
+  distributorName?: string | null;
+}
+
+/**
+ * Emissora e distribuidora de um título (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md, R10–R12): nome de exibição (o
+ * do grupo: "Nubank"), razão social para a dica, regra de saída da distribuidora, código do papel, logo do grupo da
+ * emissora e o fundo que garante (FGC/FGCOOP; null = sem garantia).
+ */
+export interface NoteInfo {
+  issuerId: number | null;
+  issuerName: string | null;
+  issuerLegalName: string | null;
+  issuerKind: string | null;
+  distributorId: number | null;
+  distributorName: string | null;
+  distributorLegalName: string | null;
+  distributorSaleRule: 'PROPORCIONAL' | 'UEPS' | 'PEPS' | null;
+  paperCode: string | null;
+  /** Logo do grupo da emissora (ticker curado) ou da própria empresa por raiz de CNPJ — plano de emissoras, Adendo A. */
+  issuerLogoUrl: string | null;
+  guarantee: 'FGC' | 'FGCOOP' | null;
+}
+
+/** Empresa do seletor de emissora/distribuidora (GET /fixed-income-issuers). */
+export interface FixedIncomeIssuerOption {
+  id: number;
+  kind: string;
+  /** "Grupo — razão social" */
+  label: string;
+  /** O nome das colunas (o do grupo). */
+  displayName: string;
+  legalName: string;
+  groupName: string | null;
+  status: string | null;
+  /** Inativa, cancelada, liquidada: continua escolhível (lançamento retroativo). */
+  dead: boolean;
+  guarantor: 'FGC' | 'FGCOOP' | 'NENHUM' | null;
+  saleRule: 'PROPORCIONAL' | 'UEPS' | 'PEPS' | null;
+  cnpjRoot: string | null;
+  logoUrl: string | null;
+}
+
+/** Troca de distribuidora de uma compra de Tesouro com venda ligada (plano de emissoras, 5.1). */
+export interface DistributorChangeItem {
+  type: 'BUY' | 'SELL';
+  /** Compra: id da transação; venda: id do grupo da venda. */
+  id: string;
+  date: string;
+  shares: number | null;
+  pricePerShare: number | null;
+  totalAmount: number | null;
+  /** A compra editada: vai sempre. */
+  locked: boolean;
+}
+
+export interface DistributorChangePreview {
+  fromId: number | null;
+  fromName: string | null;
+  toId: number;
+  toName: string;
+  ticker: string;
+  items: DistributorChangeItem[];
+}
+
+/** Um aporte ainda aplicado, com os impostos de um resgate na data do valor. */
+export interface FixedIncomeLot {
+  date: string;
+  /** Dias corridos do aporte até a data do valor. */
+  days: number;
+  /** Aplicado que ainda está no lote. */
+  applied: number | null;
+  /** Saldo bruto do lote. */
+  balance: number;
+  income: number;
+  iofRate: number;
+  irRate: number;
+  iof: number;
+  ir: number;
+  net: number;
+}
+
+/**
+ * POST /transactions/sale-preview: a venda de renda fixa (pelo líquido) ou de Tesouro (cotas × PU) antes de gravar.
+ * Renda fixa: bruto calculado pelos lotes, IR, IOF, o líquido disponível e se o valor passa dele (R9).
+ */
+export interface SalePreview {
+  gross: number;
+  iof: number;
+  ir: number;
+  net: number;
+  /** Ajuste da liquidação total (R8): diferença entre o informado e a curva, somada ao bruto. */
+  adjustment: number | null;
+  /** Renda fixa: o líquido que dá para resgatar na data. null no Tesouro. */
+  availableNet: number | null;
+  /** Renda fixa: o saldo bruto na data, antes da venda. */
+  grossBefore: number | null;
+  /** O líquido informado passa do disponível (R9). */
+  aboveAvailable: boolean;
+  /** PROPORCIONAL, UEPS ou PEPS. */
+  saleRule: string;
+  status: string;
+  reason: string | null;
+  /** Renda fixa: os lotes na data, antes da venda. Tesouro: as partes da venda, por título. */
+  lots: FixedIncomeLot[];
 }
 
 /** Resposta de PATCH /portfolio/assets/{id}/reservation. */
@@ -303,6 +417,17 @@ export interface TransactionResponse {
   hasLogo: boolean | null;
   /** Com emissor, o ticker vira link para a tela de emissoras. */
   issuerId: number | null;
+
+  // Venda de Renda Fixa e de Tesouro (docs/planos/PLANO_VENDA_RENDA_FIXA.md): totalAmount é o BRUTO; netAmount é o
+  // que caiu na conta. Na renda fixa o usuário digita o líquido e o PrimeVest calcula bruto, IR e IOF; no Tesouro
+  // calcula IR e IOF por título. null nas compras e nos demais tipos.
+  netAmount?: number | null;
+  incomeTax?: number | null;
+  iofTax?: number | null;
+  /** Liquidação total: diferença entre o recebido e a curva, já somada ao bruto (R8). */
+  settlementAdjustment?: number | null;
+  /** Emissora e distribuidora do título (plano de emissoras). `issuer` acima é o nome de exibição da emissora. */
+  noteInfo?: NoteInfo | null;
 }
 
 /**
@@ -319,6 +444,7 @@ export interface NoteOption {
   indexerRate: number | null;
   settled: boolean;
   matured: boolean;
+  noteInfo?: NoteInfo | null;
 }
 
 export interface TransactionCreate {
@@ -348,11 +474,16 @@ export interface TransactionCreate {
   // movimentação sobre o mesmo papel. Ausente numa compra de renda fixa
   // significa "papel novo": a nota nasce junto com a transação.
   noteId?: string | null;
-  issuer?: string | null;
+  /** Emissora (fixed_income_issuers), de um tipo aceito pelo produto. Ignorada no Tesouro (Tesouro Nacional). */
+  issuerId?: number | null;
   maturityDate?: string | null;
   rateType?: RateType | null;
   indexer?: Indexer | null;
   indexerRate?: number | null;
+  /** Distribuidora (onde foi comprado): título novo de RF e compra e venda do Tesouro. */
+  distributorId?: number | null;
+  /** Código do papel na B3 (ex.: CDBA2478FYE), opcional. */
+  paperCode?: string | null;
 }
 
 export interface Strategy {

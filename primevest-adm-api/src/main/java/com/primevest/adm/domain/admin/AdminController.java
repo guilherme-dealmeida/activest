@@ -71,6 +71,8 @@ public class AdminController {
     private final PaymentDateSurveyService paymentDateSurveyService;
     private final MarketIndexImportService marketIndexImportService;
     private final TreasuryPriceService treasuryPriceService;
+    private final com.primevest.adm.domain.fixedincome.FixedIncomeIssuerImportService fixedIncomeIssuerImportService;
+    private final com.primevest.adm.domain.fixedincome.FixedIncomeLogoService fixedIncomeLogoService;
 
     @PostMapping("/catalog-audit")
     public ResponseEntity<Map<String, String>> catalogAudit() {
@@ -100,6 +102,24 @@ public class AdminController {
     @PostMapping("/issuers/import")
     public ResponseEntity<Map<String, String>> issuersImport() {
         return start("emissores", () -> issuerImportService.importAll("sob demanda"));
+    }
+
+    /**
+     * Emissoras e distribuidoras de renda fixa: BCB (IF.data) + CVM (intermediarios, companhias abertas, informes de
+     * CRI/CRA). docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md, secao 4.
+     */
+    @PostMapping("/fixed-income-issuers")
+    public ResponseEntity<Map<String, String>> fixedIncomeIssuers() {
+        return start("emissoras de renda fixa", () -> fixedIncomeIssuerImportService.importAll("sob demanda"));
+    }
+
+    /**
+     * Logos das emissoras e distribuidoras de renda fixa por raiz de CNPJ (Open Finance, logos-bancos-br), em
+     * carga/data/logos/rf. {@code all=true} baixa de novo quem as fontes tiverem. Plano de emissoras, Adendo A.
+     */
+    @PostMapping("/fixed-income-issuers/logos")
+    public ResponseEntity<Map<String, String>> fixedIncomeLogos(@RequestParam(defaultValue = "false") boolean all) {
+        return start("logos de renda fixa", () -> fixedIncomeLogoService.sync(!all, "sob demanda"));
     }
 
     /** Ligacao ativo -> emissor: acoes (FCA, raiz, B3) e FIIs (ISIN). docs/planos/PLANO_EMPRESAS_BALANCOS.md, F3. */

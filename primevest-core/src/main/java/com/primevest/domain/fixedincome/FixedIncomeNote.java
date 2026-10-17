@@ -51,12 +51,28 @@ public class FixedIncomeNote {
     private Asset asset;
 
     /**
-     * Quem emitiu. Texto livre por enquanto: virar tabela de emissores é uma
-     * decisão que depende de saber quais nomes o usuário realmente digita, e
-     * essa lista só existe depois de um tempo de uso.
+     * Quem emitiu: empresa do cadastro de renda fixa (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md, L10). No Tesouro
+     * Direto e sempre o Tesouro Nacional; nos titulos anteriores a V54, "Instituicao nao listada" ate o usuario
+     * corrigir.
      */
-    @Column
-    private String issuer;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "issuer_id", nullable = false)
+    private FixedIncomeIssuer issuer;
+
+    /**
+     * Onde foi comprado (corretora, DTVM, banco...). E dela a regra de saida dos lotes na venda de renda fixa
+     * (R12) e, no Tesouro, o FIFO da venda e por ativo e distribuidora (R13).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "distributor_id", nullable = false)
+    private FixedIncomeIssuer distributor;
+
+    /**
+     * Codigo do papel na B3 (ex.: CDBA2478FYE), opcional. Titulo com codigo so recebe aporte do mesmo codigo, e um
+     * codigo aponta para um titulo so do usuario (R8, D4).
+     */
+    @Column(name = "paper_code", length = 30)
+    private String paperCode;
 
     @Column(name = "maturity_date")
     private LocalDate maturityDate;
@@ -118,8 +134,9 @@ public class FixedIncomeNote {
      */
     public String getLabel() {
         StringBuilder sb = new StringBuilder();
-        if (issuer != null && !issuer.isBlank()) {
-            sb.append(issuer);
+        String emissora = issuer != null ? issuer.getDisplayName() : null;
+        if (emissora != null && !emissora.isBlank() && issuer.getKind() != FixedIncomeIssuerKind.NAO_LISTADA) {
+            sb.append(emissora);
         }
         if (maturityDate != null) {
             if (sb.length() > 0) sb.append(" · ");

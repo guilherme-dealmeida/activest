@@ -26,12 +26,17 @@ import java.util.NavigableMap;
 import java.util.TreeMap;
 
 /**
- * A curva da renda fixa privada aplicada a carteira (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, R4): junta o titulo
- * (nota), as transacoes e as series dos indices e grava a valorizacao pelo {@link FixedIncomeSettlement#applyCurve}.
+ * A curva da renda fixa privada aplicada a carteira (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, R4), aporte a aporte
+ * (docs/planos/PLANO_VENDA_RENDA_FIXA.md, V2/V3): junta o titulo (nota), as transacoes, as series dos indices e a
+ * tabela de IR e IOF, roda os {@link FixedIncomeLots} e grava a valorizacao pelo {@link FixedIncomeSettlement#applyCurve}.
  * So a app-api chama (e dado do usuario). Tesouro nao passa aqui: e valorizado pelo preco oficial, como cotacao.
  *
- * <p>As series sao carregadas uma vez por rodada ({@link Series}); a data de referencia e o ultimo CDI publicado (D14)
- * — sem CDI carregado, o ultimo dia util antes de hoje.</p>
+ * <p>Venda de renda fixa e lancada pelo LIQUIDO (R3): o bruto, o IR e o IOF de cada venda sao derivados dos lotes e
+ * regravados por {@link #syncSales} a cada escrita no titulo e a cada rodada (R10) — editar uma compra antiga refaz
+ * todas as vendas seguintes.</p>
+ *
+ * <p>As series e a tabela de impostos sao carregadas uma vez por rodada ({@link Series}); a data de referencia e o
+ * ultimo CDI publicado (D14) — sem CDI carregado, o ultimo dia util antes de hoje.</p>
  */
 @Slf4j
 @Component
@@ -46,21 +51,25 @@ public class FixedIncomeValuation {
     private final PositionCalculator positionCalculator;
     private final FixedIncomeSettlement settlement;
     private final PortfolioAssetRepository portfolioAssetRepository;
+    private final FixedIncomeTaxRuleRepository taxRules;
 
     public FixedIncomeValuation(MarketIndexRepository indices, MarketIndexValueRepository values,
                                 PositionCalculator positionCalculator, FixedIncomeSettlement settlement,
-                                PortfolioAssetRepository portfolioAssetRepository) {
+                                PortfolioAssetRepository portfolioAssetRepository,
+                                FixedIncomeTaxRuleRepository taxRules) {
         this.indices = indices;
         this.values = values;
         this.positionCalculator = positionCalculator;
         this.settlement = settlement;
         this.portfolioAssetRepository = portfolioAssetRepository;
+        this.taxRules = taxRules;
     }
 
-    /** As series de uma rodada, carregadas sob demanda e reaproveitadas entre os titulos. */
+    /** As series e a tabela de impostos de uma rodada, carregadas sob demanda e reaproveitadas entre os titulos. */
     public final class Series {
         private final Map<Indexer, NavigableMap<LocalDate, BigDecimal>> cache = new EnumMap<>(Indexer.class);
         private final LocalDate reference;
+        private FixedIncomeTaxTable taxes;
 
         private Series() {
             NavigableMap<LocalDate, BigDecimal> cdi = of(Indexer.CDI);
@@ -78,6 +87,14 @@ public class FixedIncomeValuation {
         /** Data de referencia da rodada (o ultimo CDI publicado). */
         public LocalDate reference() {
             return reference;
+        }
+
+        /** As regras de IR e IOF (V52), uma vez por rodada. */
+        public FixedIncomeTaxTable taxes() {
+            if (taxes == null) {
+                taxes = new FixedIncomeTaxTable(taxRules.findAll());
+            }
+            return taxes;
         }
 
         NavigableMap<LocalDate, BigDecimal> of(Indexer indexer) {
@@ -104,23 +121,108 @@ public class FixedIncomeValuation {
         return type != null && type.isValuedByTotal() && pa.getNote() != null;
     }
 
-    /** O saldo na curva do titulo (nulo se ele nao e de renda fixa privada). */
-    public FixedIncomeCurve.Result value(PortfolioAsset pa, List<Transaction> chronological, Series series) {
-        if (!usesCurve(pa)) {
-            return null;
-        }
-        FixedIncomeNote note = pa.getNote();
-        List<FixedIncomeCurve.Flow> flows = new ArrayList<>();
+    /**
+     * A regra de saida dos lotes do titulo: a da DISTRIBUIDORA dele (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md, R12;
+     * PLANO_VENDA_RENDA_FIXA D1). Padrao PROPORCIONAL; Nu Financeira UEPS.
+     */
+    public static SaleRule saleRule(PortfolioAsset pa) {
+        FixedIncomeNote note = pa != null ? pa.getNote() : null;
+        FixedIncomeIssuer distributor = note != null ? note.getDistributor() : null;
+        return distributor != null && distributor.getSaleRule() != null ? distributor.getSaleRule() : SaleRule.DEFAULT;
+    }
+
+    /** Os movimentos do titulo para os lotes: compra pelo aplicado, venda pelo liquido (ou pelo bruto, se nao houver). */
+    public static List<FixedIncomeLots.Move> moves(List<Transaction> chronological) {
+        List<FixedIncomeLots.Move> moves = new ArrayList<>();
         for (Transaction tx : chronological) {
             BigDecimal v = tx.getTotalAmount() != null ? tx.getTotalAmount() : BigDecimal.ZERO;
-            flows.add(new FixedIncomeCurve.Flow(tx.getTransactionDate(), tx.getType() == TransactionType.BUY ? v : v.negate()));
+            if (tx.getType() == TransactionType.BUY) {
+                moves.add(FixedIncomeLots.Move.buy(tx.getId(), tx.getTransactionDate(), v));
+            } else if (tx.getNetAmount() != null) {
+                moves.add(FixedIncomeLots.Move.sellNet(tx.getId(), tx.getTransactionDate(), tx.getNetAmount(),
+                        tx.isFullSettlement()));
+            } else {
+                moves.add(FixedIncomeLots.Move.sellGross(tx.getId(), tx.getTransactionDate(), v,
+                        tx.isFullSettlement()));
+            }
         }
+        return moves;
+    }
+
+    /** O titulo aporte a aporte na data de referencia da rodada (nulo se ele nao e de renda fixa privada). */
+    public FixedIncomeLots.Result lots(PortfolioAsset pa, List<Transaction> chronological, Series series) {
+        return usesCurve(pa) ? run(pa, moves(chronological), series.reference(), series) : null;
+    }
+
+    /**
+     * Os lotes com movimentos quaisquer — a previa de uma venda ainda nao gravada (R9) usa isto com a venda
+     * candidata no fim.
+     */
+    public FixedIncomeLots.Result run(PortfolioAsset pa, List<FixedIncomeLots.Move> moves, LocalDate reference,
+                                      Series series) {
+        FixedIncomeNote note = pa.getNote();
         Indexer idx = note.getIndexer();
-        return FixedIncomeCurve.value(
+        return FixedIncomeLots.run(
                 new FixedIncomeCurve.Terms(note.getRateType(), idx, note.getIndexerRate(), note.getMaturityDate()),
-                flows, series.reference(),
+                moves, reference,
                 FixedIncomeCurve.isDaily(idx) ? series.of(idx) : null,
-                FixedIncomeCurve.isMonthly(idx) ? series.of(idx) : null);
+                FixedIncomeCurve.isMonthly(idx) ? series.of(idx) : null,
+                series.taxes(), pa.getAsset().getId(), saleRule(pa));
+    }
+
+    /** O saldo na curva do titulo (nulo se ele nao e de renda fixa privada). */
+    public FixedIncomeCurve.Result value(PortfolioAsset pa, List<Transaction> chronological, Series series) {
+        return curveOf(lots(pa, chronological, series));
+    }
+
+    static FixedIncomeCurve.Result curveOf(FixedIncomeLots.Result lots) {
+        if (lots == null) {
+            return null;
+        }
+        if (lots.status() == FixedIncomeCurve.Status.UNSUPPORTED) {
+            return FixedIncomeCurve.Result.unsupported(lots.reason());
+        }
+        return new FixedIncomeCurve.Result(lots.status(), lots.balance(), lots.referenceDate(), lots.estimated(), null);
+    }
+
+    /**
+     * Regrava bruto, IR, IOF e ajuste das vendas de renda fixa a partir do liquido (R3, R8, R10). As entidades sao
+     * as gerenciadas da transacao em curso: a alteracao vai ao banco no commit.
+     *
+     * @return se alguma venda mudou
+     */
+    public boolean syncSales(PortfolioAsset pa, List<Transaction> chronological, Series series) {
+        FixedIncomeLots.Result r = lots(pa, chronological, series);
+        return r != null && syncSales(chronological, r);
+    }
+
+    static boolean syncSales(List<Transaction> chronological, FixedIncomeLots.Result r) {
+        boolean changed = false;
+        for (Transaction tx : chronological) {
+            if (tx.getType() != TransactionType.SELL) {
+                continue;
+            }
+            FixedIncomeLots.SaleOutcome out = r.sale(tx.getId());
+            if (out == null) {
+                continue;
+            }
+            BigDecimal adjustment = tx.isFullSettlement() ? out.adjustment() : null;
+            if (!same(tx.getTotalAmount(), out.gross()) || !same(tx.getIncomeTax(), out.ir())
+                    || !same(tx.getIofTax(), out.iof()) || !same(tx.getNetAmount(), out.net())
+                    || !same(tx.getSettlementAdjustment(), adjustment)) {
+                tx.setTotalAmount(out.gross());
+                tx.setNetAmount(out.net());
+                tx.setIncomeTax(out.ir());
+                tx.setIofTax(out.iof());
+                tx.setSettlementAdjustment(adjustment);
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    private static boolean same(BigDecimal a, BigDecimal b) {
+        return a == null ? b == null : b != null && a.compareTo(b) == 0;
     }
 
     /** Aplica a curva numa posicao ja carregada (sem gravar). Depois de uma transacao e nas rodadas. */
@@ -128,27 +230,42 @@ public class FixedIncomeValuation {
         if (!usesCurve(pa)) {
             return false;
         }
-        return settlement.applyCurve(pa, chronological, value(pa, chronological, series));
+        FixedIncomeLots.Result r = lots(pa, chronological, series);
+        boolean sales = syncSales(chronological, r);
+        return settlement.applyCurve(pa, chronological, curveOf(r)) || sales;
     }
 
     /**
-     * Rodada: aplica e grava a curva nas posicoes de renda fixa privada em aberto. Erro numa posicao e registrado e
-     * nao para as outras. Chamar dentro de uma transacao (navega nota, ativo e transacoes).
+     * Rodada: regrava as vendas e a curva nas posicoes de renda fixa privada. Erro numa posicao e registrado e nao
+     * para as outras. Chamar dentro de uma transacao (navega nota, ativo e transacoes).
      *
-     * @return posicoes cuja valorizacao mudou
+     * <p>A posicao liquidada tambem passa aqui: as vendas dela podem ter mudado de bruto (lancadas pelo liquido, D2),
+     * e a valorizacao da liquidada e a do resgate (regra ja existente), refeita pelo {@code recompute}.</p>
+     *
+     * @return posicoes cuja valorizacao ou vendas mudaram
      */
     public int refresh(Collection<PortfolioAsset> positions) {
         Series series = null;
         int changed = 0;
         for (PortfolioAsset pa : positions) {
-            if (!usesCurve(pa) || pa.isSettled()) {
+            if (!usesCurve(pa)) {
                 continue;
             }
             try {
                 if (series == null) {
                     series = series();
                 }
-                if (apply(pa, positionCalculator.chronologicalTransactions(pa), series)) {
+                List<Transaction> chronological = positionCalculator.chronologicalTransactions(pa);
+                boolean mudou;
+                if (pa.isSettled()) {
+                    mudou = syncSales(pa, chronological, series);
+                    if (mudou) {
+                        settlement.recompute(pa, chronological, false);
+                    }
+                } else {
+                    mudou = apply(pa, chronological, series);
+                }
+                if (mudou) {
                     portfolioAssetRepository.save(pa);
                     changed++;
                 }
@@ -159,7 +276,7 @@ public class FixedIncomeValuation {
         return changed;
     }
 
-    /** Todas as posicoes de renda fixa privada em aberto, de todas as carteiras. */
+    /** Todas as posicoes de renda fixa privada, de todas as carteiras. */
     public int refreshAll() {
         return refresh(portfolioAssetRepository.findAllWithAsset());
     }

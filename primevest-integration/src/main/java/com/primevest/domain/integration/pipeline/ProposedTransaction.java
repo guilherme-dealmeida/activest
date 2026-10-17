@@ -20,6 +20,8 @@ import java.time.LocalDateTime;
  * @param sourceValue        o valor em reais que a fonte informou
  * @param roundingDifference quanto o PrimeVest vai registrar a mais (+) ou a
  *                           menos (-) que a fonte, por arredondamento (4.5)
+ * @param participant        instituicao na fonte (corretora), quando ela informa: a distribuidora do titulo do
+ *                           Tesouro importado (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md, L21)
  */
 public record ProposedTransaction(
     Long assetId,
@@ -33,8 +35,18 @@ public record ProposedTransaction(
     String externalId,
     BigDecimal grossQuantity,
     BigDecimal sourceValue,
-    BigDecimal roundingDifference
+    BigDecimal roundingDifference,
+    String participant
 ) {
+    /** Sem a instituicao da fonte. */
+    public ProposedTransaction(Long assetId, String ticker, TransactionType type, BigDecimal shares,
+                               BigDecimal pricePerShare, BigDecimal brokerageFee, LocalDate transactionDate,
+                               LocalDateTime executedAt, String externalId, BigDecimal grossQuantity,
+                               BigDecimal sourceValue, BigDecimal roundingDifference) {
+        this(assetId, ticker, type, shares, pricePerShare, brokerageFee, transactionDate, executedAt, externalId,
+            grossQuantity, sourceValue, roundingDifference, null);
+    }
+
     /** O total que o TransactionService vai gravar: quantidade x preco, 2 casas. */
     public BigDecimal totalAmount() {
         return shares.multiply(pricePerShare).setScale(2, RoundingMode.HALF_UP);

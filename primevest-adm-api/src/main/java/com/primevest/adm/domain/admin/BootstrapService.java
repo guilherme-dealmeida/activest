@@ -69,6 +69,7 @@ public class BootstrapService {
     private final PaymentDateSurveyService surveyDates;
     private final MarketIndexImportService indices;
     private final TreasuryPriceService treasury;
+    private final com.primevest.adm.domain.fixedincome.FixedIncomeIssuerImportService fixedIncomeIssuers;
     private final Clock clock;
     private final AtomicBoolean running = new AtomicBoolean();
 
@@ -77,16 +78,19 @@ public class BootstrapService {
                             ProventosCatalogService proventos, FinancialStatementImportService statements,
                             FiiMonthlyImportService fiiMonthly, CvmPaymentDateService paymentDates,
                             PaymentDateSurveyService surveyDates, MarketIndexImportService indices,
-                            TreasuryPriceService treasury) {
+                            TreasuryPriceService treasury,
+                            com.primevest.adm.domain.fixedincome.FixedIncomeIssuerImportService fixedIncomeIssuers) {
         this(issuers, quotes, proventos, statements, fiiMonthly, paymentDates, surveyDates, indices, treasury,
-                Clock.system(ZONE));
+                fixedIncomeIssuers, Clock.system(ZONE));
     }
 
     BootstrapService(IssuerImportService issuers, HistoricalQuotesImportService quotes,
                      ProventosCatalogService proventos, FinancialStatementImportService statements,
                      FiiMonthlyImportService fiiMonthly, CvmPaymentDateService paymentDates,
                      PaymentDateSurveyService surveyDates, MarketIndexImportService indices,
-                     TreasuryPriceService treasury, Clock clock) {
+                     TreasuryPriceService treasury,
+                     com.primevest.adm.domain.fixedincome.FixedIncomeIssuerImportService fixedIncomeIssuers,
+                     Clock clock) {
         this.issuers = issuers;
         this.quotes = quotes;
         this.proventos = proventos;
@@ -96,6 +100,7 @@ public class BootstrapService {
         this.surveyDates = surveyDates;
         this.indices = indices;
         this.treasury = treasury;
+        this.fixedIncomeIssuers = fixedIncomeIssuers;
         this.clock = clock;
     }
 
@@ -122,6 +127,7 @@ public class BootstrapService {
             List<Step> steps = new ArrayList<>();
             log.info("Carga inicial ({}): emissores, COTAHIST, proventos, datas de pagamento, balancos, informe de FII, indices e Tesouro", trigger);
             steps.add(step("emissores", () -> issuers.importAll(reason)));
+            steps.add(step("emissoras de renda fixa", () -> fixedIncomeIssuers.importAll(reason)));
             steps.add(step("COTAHIST " + HistoricalQuotesImportService.FIRST_YEAR + "-" + year,
                     () -> quotes.importYears(HistoricalQuotesImportService.FIRST_YEAR, year, reason)));
             steps.add(step("proventos", () -> proventos.syncAll(reason)));

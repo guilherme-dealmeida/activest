@@ -25,11 +25,11 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Flyway roda ate a V51 e o schema valida contra as entidades")
+    @DisplayName("Flyway roda ate a V56 e o schema valida contra as entidades")
     void migrationsAplicadas() {
         Number versao = (Number) em.createNativeQuery(
             "SELECT MAX(CAST(version AS NUMERIC)) FROM flyway_schema_history WHERE success").getSingleResult();
-        assertThat(versao.intValue()).isEqualTo(51);
+        assertThat(versao.intValue()).isEqualTo(56);
 
         Number falhas = (Number) em.createNativeQuery(
             "SELECT COUNT(*) FROM flyway_schema_history WHERE NOT success").getSingleResult();
@@ -37,19 +37,50 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
+    @DisplayName("Emissoras de renda fixa (V54): as duas linhas fixas e os tipos aceitos por produto")
+    void emissorasDeRendaFixa() {
+        assertThat(count("fixed_income_issuers WHERE kind = 'TESOURO'")).isEqualTo(1);
+        assertThat(count("fixed_income_issuers WHERE kind = 'NAO_LISTADA'")).isEqualTo(1);
+        // 16 produtos de renda fixa com tipos aceitos; as 6 categorias do Tesouro aceitam so TESOURO
+        assertThat(count("asset_categories WHERE issuer_kinds IS NOT NULL")).isEqualTo(22);
+        assertThat(count("asset_categories WHERE issuer_kinds = 'TESOURO'")).isEqualTo(6);
+        assertThat(count("asset_categories WHERE guaranteed")).isEqualTo(8);
+        assertThat(em.createNativeQuery("SELECT issuer_kinds FROM asset_categories WHERE name = 'CDB'")
+            .getSingleResult()).isEqualTo("BANCO");
+    }
+
+    @Test
+    @DisplayName("Seed das emissoras de renda fixa (V55): empresas, grupos e a curadoria, sem rede")
+    void seedDasEmissoras() {
+        // 6920 empresas do BCB e da CVM + as 2 linhas fixas da V54
+        assertThat(count("fixed_income_issuers")).isEqualTo(6922);
+        assertThat(count("fixed_income_groups")).isEqualTo(292);
+        assertThat(count("fixed_income_groups WHERE name_source = 'MANUAL'")).isEqualTo(98);
+        assertThat(count("fixed_income_groups WHERE extinct")).isEqualTo(2);
+        assertThat(count("fixed_income_groups WHERE logo_ticker IS NOT NULL")).isEqualTo(17);
+        // inativas ligadas ao grupo que tinham (planilha de curadoria, aba "Inativas — grupo antigo")
+        assertThat(count("fixed_income_issuers WHERE group_source = 'MANUAL'")).isEqualTo(32);
+        assertThat(em.createNativeQuery("SELECT g.name || '|' || i.sale_rule FROM fixed_income_issuers i "
+            + "JOIN fixed_income_groups g ON g.id = i.group_id WHERE i.cnpj_root = '30680829'")
+            .getSingleResult()).isEqualTo("Nubank|UEPS");
+    }
+
+    @Test
     @DisplayName("O catalogo semeado tem os numeros esperados de uma subida limpa")
     void catalogoSemeado() {
         assertThat(count("asset_types")).isEqualTo(12);
         // 165 linhas (name, segment) consolidadas em uma por (tipo, name) na V31:
-        // ACAO 11, BDR 20, CRIPTO 14, ETF 9, FII 5, RENDA_FIXA 15, TESOURO_DIRETO 6
-        assertThat(count("asset_categories")).isEqualTo(80);
+        // ACAO 11, BDR 20, CRIPTO 14, ETF 9, FII 5, RENDA_FIXA 15 (+ RDC na V54), TESOURO_DIRETO 6
+        assertThat(count("asset_categories")).isEqualTo(81);
         // nenhum ativo perdeu a categoria na consolidacao
         assertThat(count("assets WHERE asset_category_id IS NULL")).isZero();
-        // 1264 + 23 novos da B3 (V15) + 219 ETFs (V17) + 892 BDRs (V18) + 227 criptos (V19)
-        assertThat(count("assets")).isEqualTo(2625);
+        // 1264 + 23 novos da B3 (V15) + 219 ETFs (V17) + 892 BDRs (V18) + 227 criptos (V19) + RDC (V54)
+        assertThat(count("assets")).isEqualTo(2626);
         assertThat(count("asset_terms")).isEqualTo(130);
         // Regras de IR retido nos proventos (V23)
         assertThat(count("withholding_tax_rules")).isEqualTo(7);
+        // IR e IOF da renda fixa (V52): 4 faixas de IR, 30 de IOF, 14 excecoes por produto
+        assertThat(count("fixed_income_tax_rules")).isEqualTo(48);
         // Indices de mercado (V43, D1): 6 indexadores de renda fixa + meta Selic, PTAX, Ibovespa e IFIX; serie vazia
         assertThat(count("market_indices")).isEqualTo(10);
         assertThat(count("market_indices WHERE code IN ('CDI','SELIC','IPCA','IGPM','INPC','TR')")).isEqualTo(6);

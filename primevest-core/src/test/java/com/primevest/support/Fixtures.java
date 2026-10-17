@@ -67,12 +67,32 @@ public final class Fixtures {
         return pa;
     }
 
-    public static FixedIncomeNote note(User user, Asset asset, String issuer, LocalDate maturity,
+    /**
+     * Empresa de renda fixa de teste (emissora e distribuidora), achada ou criada pelo nome. A raiz do CNPJ sai do
+     * nome ("99" + 6 digitos), fora das faixas reais usadas nos testes.
+     */
+    public static com.primevest.domain.fixedincome.FixedIncomeIssuer issuer(
+            com.primevest.domain.fixedincome.FixedIncomeIssuerRepository repo, String name) {
+        if ("Tesouro Nacional".equals(name)) {
+            return repo.findFirstByKind(com.primevest.domain.fixedincome.FixedIncomeIssuerKind.TESOURO).orElseThrow();
+        }
+        String root = "99" + String.format("%06d", Math.floorMod(name.hashCode(), 1_000_000));
+        return repo.findByCnpjRoot(root).orElseGet(() -> repo.save(
+            com.primevest.domain.fixedincome.FixedIncomeIssuer.builder()
+                .kind(com.primevest.domain.fixedincome.FixedIncomeIssuerKind.BANCO)
+                .cnpjRoot(root).legalName(name).status("ATIVA")
+                .guarantor(com.primevest.domain.fixedincome.Guarantor.FGC).build()));
+    }
+
+    /** Titulo com a mesma empresa como emissora e distribuidora. */
+    public static FixedIncomeNote note(User user, Asset asset,
+                                       com.primevest.domain.fixedincome.FixedIncomeIssuer issuer, LocalDate maturity,
                                        RateType rateType, Indexer indexer, BigDecimal rate) {
         return FixedIncomeNote.builder()
             .user(user)
             .asset(asset)
             .issuer(issuer)
+            .distributor(issuer)
             .maturityDate(maturity)
             .rateType(rateType)
             .indexer(indexer)

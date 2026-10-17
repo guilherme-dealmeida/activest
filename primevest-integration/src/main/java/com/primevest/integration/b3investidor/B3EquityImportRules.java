@@ -158,7 +158,7 @@ public final class B3EquityImportRules implements ImportRules {
         BigDecimal diferenca = total.subtract(m.quoteAmount().setScale(MONEY_SCALE, RoundingMode.HALF_UP));
         return Result.ok(new ProposedTransaction(asset.get().getId(), asset.get().getTicker(), tipoTx, shares, price,
             BigDecimal.ZERO, m.tradeDate(), LocalDateTime.ofInstant(m.executedAt(), ZoneOffset.UTC), m.externalId(),
-            shares, m.quoteAmount(), diferenca));
+            shares, m.quoteAmount(), diferenca, m.participant()));
     }
 
     /** Renda variavel listada na B3: os tipos cotados pelo fechamento da bolsa (acao, FII, ETF, BDR). */
