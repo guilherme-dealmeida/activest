@@ -93,6 +93,7 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
         SELECT a FROM Asset a
         LEFT JOIN FETCH a.terms t
         WHERE a.issuer IS NOT NULL
+          AND a.issuer.kind IN :kinds
           AND a.active = true
           AND (LOWER(a.ticker) LIKE LOWER(CONCAT('%', :query, '%'))
             OR LOWER(a.name)   LIKE LOWER(CONCAT('%', :query, '%')))
@@ -103,7 +104,9 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
                ELSE 3 END,
           a.ticker
         """)
-    List<Asset> searchWithIssuerByTickerOrName(@Param("query") String query, Pageable pageable);
+    List<Asset> searchWithIssuerByTickerOrName(@Param("query") String query,
+                                               @Param("kinds") java.util.Collection<com.primevest.domain.issuer.IssuerKind> kinds,
+                                               Pageable pageable);
 
     /** Ativos ativos com o tipo carregado — base da conferencia do catalogo. */
     @Query("SELECT a FROM Asset a JOIN FETCH a.assetType WHERE a.active = true")

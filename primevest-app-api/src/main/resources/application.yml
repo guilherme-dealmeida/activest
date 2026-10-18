@@ -201,6 +201,13 @@ primevest:
     # Rotina diaria confirma sozinha quando nao ha nada a decidir (nenhuma
     # possivel duplicata) e a conexao ja teve uma importacao confirmada pelo usuario.
     auto-confirm-scheduled: true
+  # Listagem de emissoras (docs/planos/PLANO_LISTAGEM_EMISSORAS.md, F4): quando o preco, o balanco (acao) ou o
+  # informe (FII) recebem a marca de "dado antigo".
+  emissoras:
+    dado-antigo:
+      preco-dias: 7
+      balanco-meses: 6
+      informe-meses: 3
   logos:
     # Pasta fora do banco (B18), so leitura aqui; quem baixa e a adm-api. No Docker: ./data/logos.
     dir: ${LOGOS_DIR:../carga/data/logos}

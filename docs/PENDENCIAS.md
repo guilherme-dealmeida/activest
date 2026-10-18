@@ -2,7 +2,8 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 17/10/2026 — secao 29 (rentabilidade comparativa, docs/planos/PLANO_RENTABILIDADE.md); 20.3, 23.3 e
+Ultima atualizacao: 17/10/2026 — secao 32 (listagem de emissoras implementada). No mesmo dia: secao 31 (novos indicadores de acoes, escopo futuro saido da listagem de
+emissoras, docs/planos/PLANO_LISTAGEM_EMISSORAS.md). No mesmo dia: secao 29 (rentabilidade comparativa, docs/planos/PLANO_RENTABILIDADE.md); 20.3, 23.3 e
 24.5 resolvidos. No mesmo dia, "Mudancas de tela" (cabecalho, menu, Dashboard, popover da previa da venda,
 links do Rebalanceamento): secao 30. Antes: 16/10/2026 — secao 28 (emissoras e distribuidoras de renda fixa, escopo finalizado; 28.1 e 28.5 no fechamento;
 docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md); 4.3 e 27.1 resolvidos, 27.2 atualizado. Antes: 15/10/2026 — secao 27 (venda de renda fixa, docs/planos/PLANO_VENDA_RENDA_FIXA.md; 27.3 a 27.5
@@ -1182,6 +1183,50 @@ Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
  embaixo); o total da coluna deixou de misturar contas (linhas sem proventos, total com).
 **30.2** RESOLVIDO (17/10/2026): toda rentabilidade do Dashboard em base bruta (cards, Top 5 e grafico); a tela
  Rentabilidade abre em bruto e 12M.
+
+## 31. NOVOS INDICADORES DE ACOES (escopo futuro, aberto em 17/10/2026)
+
+Saiu do levantamento da listagem de emissoras (docs/planos/PLANO_LISTAGEM_EMISSORAS.md, A3). Escopo proprio, ainda
+sem plano. Todos os indicadores abaixo ganham historico desde 2010 e o modal com sparkline, como os de hoje.
+
+31.1 Patrimonio liquido como cartao na pagina da emissora (acao: PL da controladora; FII: PL do informe). A listagem
+ja calcula o valor.
+
+31.2 Indicadores com os dados que ja estao na base (so calculo): P/Receita (PSR), Margem Liquida, Margem EBIT, P/EBIT,
+EV/EBIT, P/Ativo, Giro Ativos, ROA, Divida Liquida / EBIT, Divida Bruta / Patrimonio, Patrimonio / Ativos,
+Passivos / Ativos (ativo total - PL), CAGR Receitas 5 anos e CAGR Lucros 5 anos (vazio com lucro negativo no inicio ou
+no fim).
+
+31.3 Indicadores que pedem contas novas dos arquivos da CVM ja baixados (carga/data/cvm, 2010-2026) e o reprocessamento
+dos balancos (~7 min, sem download): Margem Bruta (DRE 3.03), Margem EBITDA, EV/EBITDA, P/EBITDA e Divida Liquida /
+EBITDA (depreciacao e amortizacao da DVA 7.04.01), Liquidez Corrente, P/Cap. Giro e P/Ativo Circ. Liq. (BPA 1.01 e
+BPP 2.01), ROIC (IR/CSLL e resultado antes dos tributos, DRE 3.07 e 3.08).
+
+31.4 Bancos (17) e seguradoras (2) nao tem EBIT, caixa e divida no formato comercial: indicadores de EBIT/EBITDA,
+divida, margens e capital de giro ficam "nao se aplica" para eles.
+
+31.5 Quando existirem, os indicadores novos podem virar colunas e filtros da listagem de emissoras.
+
+## 32. LISTAGEM DE EMISSORAS (docs/planos/PLANO_LISTAGEM_EMISSORAS.md, 17/10/2026)
+
+Escopo implementado em 17/10/2026. Fica registrado:
+
+32.1 Fracionarios que so existem no mercado fracionario (17 em 17/10/2026: EKTR3F, FRIO3F, GPAR3F, SNSY3F...) ficam na
+lista: o catalogo nao tem o lote padrao deles, entao nao ha linha duplicada (D9 tira so o fracionario cujo lote padrao
+esta na lista). Confirmado pelo Guilherme em 17/10/2026. Se o catalogo passar a ter o lote padrao, a linha do
+fracionario sai sozinha.
+
+32.2 Indicadores estranhos que a lista ordenada deixa a vista vem dos balancos importados, nao da listagem (a pagina
+da emissora mostra o mesmo). Diagnostico de 17/10/2026:
+  a) TIMS3 (P/L ~3.311): o DFP 2025 da TIM (documento 17209) entrou com todas as contas zeradas (lucro, PL, receita,
+     ativo). O lucro de 12 meses dos trimestres seguintes e montado a partir do anual, entao 1T26 e 2T26 ficaram com
+     R$ 19 mi e R$ 13 mi em vez de ~R$ 3 bi. O ITR de 30/09/2025 tambem so tem o individual (consolidated = false).
+     Mais uma companhia tem o DFP 2025 com PL zerado. A investigar na importacao da CVM (adm-api): versao do
+     documento, demonstracao consolidada x individual, ou o arquivo da CVM veio assim.
+  b) AGXY3 (P/L ~0,01): ultimo balanco de 30/09/2025 (marca de dado antigo) com lucro de 12 meses de R$ 1,2 bi para
+     16,7 mi acoes — ganho nao recorrente de empresa em recuperacao judicial; o numero e o do balanco.
+
+32.3 Os indicadores novos e o PL na pagina da emissora estao na secao 31.
 
 ## ORDEM SUGERIDA
 

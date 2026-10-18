@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { Asset, AssetCategory, AssetType, PriceRange, PriceSeries } from '../types';
+import { Asset, AssetCategory, AssetType, IssuerKind, PriceRange, PriceSeries } from '../types';
 
 export const assetsApi = {
   getAll: async (typeId?: number, query?: string) => {
@@ -10,8 +10,9 @@ export const assetsApi = {
     return data;
   },
   /** Autocomplete só com ativos ligados a emissor (tela de emissoras). */
-  searchWithIssuer: async (query: string) => {
-    const { data } = await apiClient.get<Asset[]>('/assets/', { params: { query, withIssuer: 'true' } });
+  /** Ações e FIIs ligados a emissor; `issuerKind` restringe a um tipo (COMPANY = só ações, no Preço Teto). */
+  searchWithIssuer: async (query: string, issuerKind?: IssuerKind) => {
+    const { data } = await apiClient.get<Asset[]>('/assets/', { params: { query, withIssuer: 'true', issuerKind } });
     return data;
   },
   /** Cotação histórica ajustada: por atalho ou por período (de/até, AAAA-MM-DD). */

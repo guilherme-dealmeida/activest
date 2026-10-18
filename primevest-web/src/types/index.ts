@@ -1047,6 +1047,36 @@ export interface AssetIndicators {
   indicators: IndicatorItem[];
 }
 
+/**
+ * GET /assets/indicators?kind= — uma linha da listagem de emissoras (docs/planos/PLANO_LISTAGEM_EMISSORAS.md, 4.2).
+ * Os indicadores são os mesmos de GET /assets/{ticker}/indicators.
+ */
+export interface IssuerListingRow {
+  ticker: string;
+  /** Ação: nome de pregão (sem ele, o nome do ativo); FII: nome do ativo. */
+  name: string;
+  /** Razão social (hover). */
+  legalName: string | null;
+  issuerId: number;
+  hasLogo: boolean;
+  /** Setor e subsetor B3 (só ação). */
+  sector: string | null;
+  subsector: string | null;
+  /** Segmento B3 (ação) ou do fundo (FII). */
+  segment: string | null;
+  price: number | null;
+  priceDate: string | null;
+  /** Sem pregão há mais de 7 dias corridos. */
+  priceStale: boolean;
+  /** Fim do trimestre do balanço (ação) ou do mês do informe (FII). */
+  basePeriodEnd: string | null;
+  /** Balanço com mais de 6 meses ou informe com mais de 3. */
+  baseStale: boolean;
+  /** Patrimônio líquido em R$. */
+  equity: number | null;
+  indicators: IndicatorItem[];
+}
+
 export interface IndicatorPoint {
   /** "2025", "2T26" ou "Atual". */
   label: string;

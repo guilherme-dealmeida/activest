@@ -85,6 +85,7 @@ export const CeilingPricesPage = () => {
           <IssuerSearch
             placeholder="Ação para calcular (ex: VALE3, PETR4)"
             addLabel="Calcular preço teto da ação"
+            issuerKind="COMPANY"
             onSelect={ticker => navigate(`/ceiling-prices/${encodeURIComponent(ticker)}`)}
           />
         </div>

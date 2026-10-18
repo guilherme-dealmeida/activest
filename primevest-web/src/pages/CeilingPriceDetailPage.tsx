@@ -12,7 +12,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { AssetLogo } from '@/components/ui/AssetLogo';
 import { TickerLink } from '@/components/issuer/TickerLink';
 import { LabelWithInfo } from '@/components/ui/InfoTooltip';
-import { SignedNumberInput } from '@/components/ceilingprice/SignedNumberInput';
+import { SignedNumberInput } from '@/components/ui/SignedNumberInput';
 import { IDEAL_PRICE_INFO, bigMoney, pct, signedPct } from '@/components/ceilingprice/ceilingFormat';
 import { useToast } from '@/context/ToastContext';
 import { formatCurrency, formatDate } from '@/utils/format';

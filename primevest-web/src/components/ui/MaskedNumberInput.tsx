@@ -17,6 +17,14 @@ export interface MaskedNumberInputProps
   decimals?: number;
   /** Símbolo colado ao campo: 'R$' à esquerda, '%' à direita. */
   adornment?: { text: string; side: 'left' | 'right' };
+  /**
+   * Campo que pode ficar vazio (filtros): `value` nulo mostra o campo vazio, o zero aparece como "0,00" e apagar
+   * tudo chama {@link onClear} em vez de mandar 0. Sem isso, vazio e zero são a mesma coisa — o que serve aos
+   * formulários, onde o campo vazio vale zero, mas não a um filtro, onde vazio é "sem filtro" e zero é um limite.
+   */
+  allowEmpty?: boolean;
+  /** Com {@link allowEmpty}: o usuário apagou o campo. */
+  onClear?: () => void;
 }
 
 /**
@@ -36,7 +44,8 @@ export interface MaskedNumberInputProps
  * máscara: se precisar de outra unidade, embrulhe este componente.
  */
 export const MaskedNumberInput = React.forwardRef<HTMLInputElement, MaskedNumberInputProps>(
-  ({ className, label, error, hint, info, value, onChange, decimals = 2, adornment, id, disabled, ...props }, ref) => {
+  ({ className, label, error, hint, info, value, onChange, decimals = 2, adornment, allowEmpty = false, onClear, id,
+     disabled, ...props }, ref) => {
     // O useId e chamado incondicionalmente: encurtar com `id || useId()` mudava
     // a quantidade de hooks conforme a prop, o que quebra a ordem entre renders.
     const generatedId = React.useId();
@@ -48,8 +57,9 @@ export const MaskedNumberInput = React.forwardRef<HTMLInputElement, MaskedNumber
       requestAnimationFrame(() => el.setSelectionRange(el.value.length, el.value.length));
     };
 
-    const display = value
-      ? value.toLocaleString('pt-BR', {
+    const shown = allowEmpty ? value !== null && value !== undefined : !!value;
+    const display = shown
+      ? (value as number).toLocaleString('pt-BR', {
           minimumFractionDigits: decimals,
           maximumFractionDigits: decimals,
         })
@@ -59,6 +69,13 @@ export const MaskedNumberInput = React.forwardRef<HTMLInputElement, MaskedNumber
       // 15 dígitos cobrem NUMERIC(18,2) com folga e evitam estourar o Number.
       // Com 8 casas (quantidade de cripto) o teto é 9.999.999,99999999.
       const digits = e.target.value.replace(/\D/g, '').slice(0, 15);
+      // Com allowEmpty: apagar tudo esvazia; apagar de novo um campo que já está em zero também (sem isso o
+      // backspace num "0,00" volta sempre para "0,00").
+      const deletingZero = Number(digits) === 0 && value === 0 && e.target.value.length < display.length;
+      if (allowEmpty && (!digits || deletingZero)) {
+        onClear?.();
+        return;
+      }
       onChange(digits ? Number(digits) / 10 ** decimals : 0);
     };
 

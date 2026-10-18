@@ -1,7 +1,6 @@
 import { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Building2 } from 'lucide-react';
 import { indicatorsApi } from '@/api/indicators';
 import { issuersApi } from '@/api/issuers';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -11,13 +10,15 @@ import { PriceChart } from '@/components/issuer/PriceChart';
 import { IndicatorGrid } from '@/components/issuer/IndicatorGrid';
 import { IssuerRegistry } from '@/components/issuer/IssuerRegistry';
 import { FinancialStatements } from '@/components/issuer/FinancialStatements';
+import { IssuerListing } from '@/components/issuer/IssuerListing';
 import { apiMessage } from '@/utils/apiError';
 
 const status = (error: unknown): number | undefined =>
   (error as { response?: { status?: number } } | null)?.response?.status;
 
 /**
- * Tela de Emissoras (docs/planos/PLANO_TELA_EMISSORES.md): a partir de um ticker, o
+ * Tela de Emissoras (docs/planos/PLANO_TELA_EMISSORES.md): sem ticker, a listagem do catálogo em abas
+ * (docs/planos/PLANO_LISTAGEM_EMISSORAS.md); a partir de um ticker, o
  * emissor (companhia ou FII), a cotação, os indicadores com histórico, o
  * cadastro e os demonstrativos. A URL é o estado: /emissoras/PETR4?periodo=5A.
  */
@@ -41,21 +42,23 @@ export const IssuerPage = () => {
     staleTime: 10 * 60_000,
   });
 
-  // mantém o período da cotação ao trocar de ticker pela busca
-  const goTo = (t: string) => navigate(`/emissoras/${encodeURIComponent(t)}${location.search}`);
+  // Leva só o período da cotação para a emissora: os filtros da listagem (docs/planos/PLANO_LISTAGEM_EMISSORAS.md,
+  // 5.4) ficam na URL da lista, e o "voltar" do navegador os devolve.
+  const goTo = (t: string) => {
+    const from = new URLSearchParams(location.search);
+    const keep = new URLSearchParams();
+    for (const k of ['periodo', 'de', 'ate']) {
+      const v = from.get(k);
+      if (v) keep.set(k, v);
+    }
+    const q = keep.toString();
+    navigate(`/emissoras/${encodeURIComponent(t)}${q ? `?${q}` : ''}`);
+  };
 
   let content: ReactNode = null;
   if (!ticker) {
-    content = (
-      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-white/10 py-16 text-center">
-        <Building2 className="h-10 w-10 text-accent" />
-        <p className="text-white font-medium">Busque uma ação ou um FII</p>
-        <p className="max-w-md text-sm text-gray-400">
-          Cotação, indicadores com histórico, cadastro e demonstrativos do emissor — companhias abertas e fundos
-          imobiliários ligados ao catálogo.
-        </p>
-      </div>
-    );
+    // Sem ticker: a listagem de emissoras (Ações e FIIs) no lugar do aviso vazio, com a busca ao lado das abas
+    content = <IssuerListing onOpen={goTo} />;
   } else if (current.isLoading) {
     content = <div className="flex h-64 items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent" /></div>;
   } else if (current.isError) {
@@ -93,7 +96,8 @@ export const IssuerPage = () => {
 
   return (
     <div className="space-y-6">
-      <IssuerSearch onSelect={goTo} />
+      {/* Na listagem a busca fica ao lado das abas (com o "+", como em Preço Teto); na emissora, no topo. */}
+      {ticker && <IssuerSearch onSelect={goTo} />}
       {content}
     </div>
   );

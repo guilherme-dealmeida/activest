@@ -76,12 +76,31 @@ public class IndicatorService {
 
     public AssetIndicatorsDTO current(String ticker) {
         Context ctx = context(ticker);
+        boolean company = ctx.asset.kind == IssuerKind.COMPANY;
+        return currentOf(ctx, company ? quarters(ctx.asset.issuerId) : List.of(),
+                company ? List.of() : months(ctx.asset.issuerId)).indicators();
+    }
+
+    /**
+     * O "Atual" de um ticker com o que vai junto na listagem de emissoras
+     * (docs/planos/PLANO_LISTAGEM_EMISSORAS.md, 4.1).
+     *
+     * @param priceDate data do preco atual ({@code price_updated_at} da BRAPI ou o dia do ultimo fechamento)
+     * @param equity    patrimonio liquido da base: PL da controladora do ultimo balanco (acao) ou PL do ultimo
+     *                  informe (FII); nulo sem base
+     */
+    public record CurrentSnapshot(long assetId, AssetIndicatorsDTO indicators, LocalDate priceDate,
+                                  BigDecimal equity) {
+    }
+
+    private CurrentSnapshot currentOf(Context ctx, List<QuarterRow> quarters, List<MonthRow> months) {
         List<AssetIndicatorsDTO.Item> items = new ArrayList<>();
         LocalDate base;
+        BigDecimal equity;
         if (ctx.asset.kind == IssuerKind.COMPANY) {
-            List<QuarterRow> quarters = quarters(ctx.asset.issuerId);
             CurrentCompany cc = currentCompany(ctx, quarters);
             base = cc.basis().periodEnd();
+            equity = quarters.isEmpty() ? null : quarters.get(quarters.size() - 1).equityParent;
             for (Indicator i : Indicator.values()) {
                 if (i.appliesTo(IssuerKind.COMPANY)) {
                     Value v = cc.value(i);
@@ -89,9 +108,9 @@ public class IndicatorService {
                 }
             }
         } else {
-            List<MonthRow> months = months(ctx.asset.issuerId);
             FundBasis basis = currentFund(ctx, months);
             base = basis.month() == null ? null : basis.month().plusMonths(1).minusDays(1);
+            equity = months.isEmpty() ? null : months.get(months.size() - 1).netAssets;
             for (Indicator i : Indicator.values()) {
                 if (i.appliesTo(IssuerKind.FII)) {
                     Value v = IndicatorRules.fund(i, basis);
@@ -99,8 +118,112 @@ public class IndicatorService {
                 }
             }
         }
-        return new AssetIndicatorsDTO(ctx.asset.ticker, ctx.asset.issuerId, ctx.asset.kind, ctx.currentPrice, base,
-                items);
+        return new CurrentSnapshot(ctx.asset.id, new AssetIndicatorsDTO(ctx.asset.ticker, ctx.asset.issuerId,
+                ctx.asset.kind, ctx.currentPrice, base, items), ctx.currentPriceDate, equity);
+    }
+
+    // ------------------------------------------------------------------ listagem (lote)
+
+    /** Os ativos da listagem de uma aba: ativos, ligados a emissor do tipo pedido. */
+    private static final String LISTED_ASSETS = """
+            SELECT a.id FROM assets a JOIN issuers i ON i.id = a.issuer_id WHERE a.active AND i.kind = ?""";
+
+    /**
+     * O "Atual" de todos os tickers de uma aba da listagem de emissoras (docs/planos/PLANO_LISTAGEM_EMISSORAS.md,
+     * 4.1): ativos ligados a emissor do tipo, <b>sem os fracionarios</b> cujo lote padrao esta na mesma lista
+     * (D9 — PETR4F e PETR4 dariam a mesma linha). Le tudo em poucas consultas por conjunto e calcula com
+     * <b>o mesmo codigo</b> de {@link #current(String)}: so a origem dos dados muda. Ordem: a do ticker.
+     */
+    public List<CurrentSnapshot> currentAll(IssuerKind kind) {
+        record Row(long id, String ticker, long issuerId, String shareClass, BigDecimal currentPrice,
+                   LocalDate updatedAt, LocalDate lastDate, BigDecimal lastClose) {
+        }
+        List<Row> assets = jdbc.query("""
+                SELECT a.id, a.ticker, a.issuer_id, a.share_class, a.current_price, a.price_updated_at,
+                       lc.reference_date AS last_date, lc.close_price AS last_close
+                FROM assets a JOIN issuers i ON i.id = a.issuer_id
+                LEFT JOIN LATERAL (SELECT h.reference_date, h.close_price FROM asset_price_history h
+                                   WHERE h.asset_id = a.id AND h.close_price IS NOT NULL
+                                   ORDER BY h.reference_date DESC LIMIT 1) lc ON true
+                WHERE a.active AND i.kind = ?
+                ORDER BY upper(a.ticker)""",
+                (rs, i) -> {
+                    java.sql.Timestamp at = rs.getTimestamp("price_updated_at");
+                    java.sql.Date last = rs.getDate("last_date");
+                    return new Row(rs.getLong("id"), rs.getString("ticker"), rs.getLong("issuer_id"),
+                            rs.getString("share_class"), rs.getBigDecimal("current_price"),
+                            at == null ? null : at.toLocalDateTime().toLocalDate(),
+                            last == null ? null : last.toLocalDate(), rs.getBigDecimal("last_close"));
+                }, kind.name());
+        java.util.Set<String> tickers = new java.util.HashSet<>();
+        assets.forEach(a -> tickers.add(a.ticker.trim().toUpperCase()));
+
+        Map<Long, Integer> units = new java.util.HashMap<>();
+        jdbc.query("SELECT asset_id, COALESCE(SUM(quantity), 0) AS q FROM unit_compositions GROUP BY asset_id",
+                rs -> { units.put(rs.getLong("asset_id"), rs.getInt("q")); });
+        Map<Long, List<StockEvent>> stock = new java.util.HashMap<>();
+        jdbc.query("SELECT asset_id, data_com, type, factor FROM asset_stock_events WHERE asset_id IN ("
+                        + LISTED_ASSETS + ") ORDER BY asset_id, data_com",
+                rs -> {
+                    stock.computeIfAbsent(rs.getLong("asset_id"), k -> new ArrayList<>()).add(new StockEvent(
+                            rs.getDate("data_com").toLocalDate(), rs.getString("type"), rs.getBigDecimal("factor")));
+                }, kind.name());
+        // so o que cabe nos 12 meses de hoje: e o unico uso do provento no "Atual"
+        Map<Long, List<CashEvent>> cash = new java.util.HashMap<>();
+        jdbc.query("SELECT asset_id, data_com, value_per_share FROM asset_cash_events WHERE asset_id IN ("
+                        + LISTED_ASSETS + ") AND type IN ('DIVIDENDO', 'JCP', 'RENDIMENTO') AND data_com >= ?"
+                        + " ORDER BY asset_id, data_com",
+                rs -> {
+                    cash.computeIfAbsent(rs.getLong("asset_id"), k -> new ArrayList<>()).add(new CashEvent(
+                            rs.getDate("data_com").toLocalDate(), rs.getBigDecimal("value_per_share")));
+                }, kind.name(), java.sql.Date.valueOf(LocalDate.now(clock).minusYears(1)));
+        Map<Long, List<QuarterRow>> quarters = new java.util.HashMap<>();
+        Map<Long, List<MonthRow>> months = new java.util.HashMap<>();
+        String issuers = "SELECT a.issuer_id FROM assets a JOIN issuers i ON i.id = a.issuer_id"
+                + " WHERE a.active AND i.kind = ?";
+        if (kind == IssuerKind.COMPANY) {
+            jdbc.query(QUARTERS_SELECT + " WHERE q.issuer_id IN (" + issuers + ") ORDER BY q.issuer_id, q.period_end",
+                    rs -> {
+                        quarters.computeIfAbsent(rs.getLong("issuer_id"), k -> new ArrayList<>()).add(quarterRow(rs));
+                    }, kind.name());
+        } else {
+            // so o ultimo informe de cada fundo: e o unico que o "Atual" le
+            jdbc.query("SELECT DISTINCT ON (issuer_id) issuer_id, " + MONTH_COLUMNS
+                            + " FROM fii_monthly WHERE issuer_id IN (" + issuers + ")"
+                            + " ORDER BY issuer_id, reference_month DESC",
+                    rs -> {
+                        months.computeIfAbsent(rs.getLong("issuer_id"), k -> new ArrayList<>()).add(monthRow(rs));
+                    }, kind.name());
+        }
+
+        List<CurrentSnapshot> out = new ArrayList<>();
+        for (Row a : assets) {
+            String base = baseTicker(a.ticker);
+            if (!base.equals(a.ticker.trim().toUpperCase())) {
+                if (tickers.contains(base)) {
+                    continue; // fracionario: a linha do lote padrao ja esta na lista
+                }
+                // fracionario sem o lote padrao na lista (raro): o caminho de um ticker, que resolve o lote
+                out.add(currentOf(context(a.ticker), quarters.getOrDefault(a.issuerId, List.of()),
+                        months.getOrDefault(a.issuerId, List.of())));
+                continue;
+            }
+            int unitShares = "UNIT".equals(a.shareClass) ? units.getOrDefault(a.id, 0) : 1;
+            BigDecimal price;
+            LocalDate priceDate;
+            if (a.currentPrice != null) {
+                price = a.currentPrice;
+                priceDate = a.updatedAt != null ? a.updatedAt : a.lastDate;
+            } else {
+                price = a.lastClose;
+                priceDate = a.lastClose == null ? null : a.lastDate;
+            }
+            Context ctx = new Context(new AssetRow(a.id, a.ticker, a.issuerId, kind, a.shareClass, a.id, unitShares),
+                    price, priceDate, stock.getOrDefault(a.id, List.of()), cash.getOrDefault(a.id, List.of()));
+            out.add(currentOf(ctx, quarters.getOrDefault(a.issuerId, List.of()),
+                    months.getOrDefault(a.issuerId, List.of())));
+        }
+        return out;
     }
 
     public IndicatorHistoryDTO history(String ticker, Indicator indicator, Period period) {
@@ -359,7 +482,7 @@ public class IndicatorService {
 
     private record MonthRow(LocalDate month, BigDecimal navPerShare, Integer shareholders, BigDecimal realEstate,
                             BigDecimal realEstateCompanies, BigDecimal receivables, BigDecimal totalInvested,
-                            BigDecimal liabilities, BigDecimal totalAssets) {
+                            BigDecimal liabilities, BigDecimal totalAssets, BigDecimal netAssets) {
     }
 
     private record StockEvent(LocalDate dataCom, String type, BigDecimal factor) {
@@ -377,6 +500,20 @@ public class IndicatorService {
         final LocalDate currentPriceDate;
         final List<StockEvent> stockEvents;
         final List<CashEvent> cashEvents;
+
+        /**
+         * Com os dados ja lidos (listagem em lote): so o "Atual", que nao usa a serie de fechamentos —
+         * {@link #priceAt} fica sem preco.
+         */
+        Context(AssetRow asset, BigDecimal currentPrice, LocalDate currentPriceDate, List<StockEvent> stockEvents,
+                List<CashEvent> cashEvents) {
+            this.asset = asset;
+            this.closes = new TreeMap<>();
+            this.currentPrice = currentPrice;
+            this.currentPriceDate = currentPriceDate;
+            this.stockEvents = stockEvents;
+            this.cashEvents = cashEvents;
+        }
 
         Context(AssetRow asset) {
             this.asset = asset;
@@ -495,29 +632,37 @@ public class IndicatorService {
         return out;
     }
 
+    private static final String QUARTERS_SELECT = """
+            SELECT q.issuer_id, q.period_end, d.doc_type, q.net_income_parent_ttm, q.equity_parent,
+                   q.shares_outstanding, q.dividends_paid_ttm
+            FROM company_quarters q JOIN cvm_documents d ON d.id = q.source_doc_id""";
+
+    private static final String MONTH_COLUMNS = """
+            reference_month, nav_per_share, shareholders, real_estate_total, real_estate_companies,
+            receivables_total, total_invested, liabilities_total, total_assets, net_assets""";
+
+    private static QuarterRow quarterRow(java.sql.ResultSet rs) throws java.sql.SQLException {
+        return new QuarterRow(rs.getDate("period_end").toLocalDate(), "DFP".equals(rs.getString("doc_type")),
+                rs.getBigDecimal("net_income_parent_ttm"), rs.getBigDecimal("equity_parent"),
+                (Long) rs.getObject("shares_outstanding", Long.class), rs.getBigDecimal("dividends_paid_ttm"));
+    }
+
+    private static MonthRow monthRow(java.sql.ResultSet rs) throws java.sql.SQLException {
+        return new MonthRow(rs.getDate("reference_month").toLocalDate(), rs.getBigDecimal("nav_per_share"),
+                (Integer) rs.getObject("shareholders", Integer.class), rs.getBigDecimal("real_estate_total"),
+                rs.getBigDecimal("real_estate_companies"), rs.getBigDecimal("receivables_total"),
+                rs.getBigDecimal("total_invested"), rs.getBigDecimal("liabilities_total"),
+                rs.getBigDecimal("total_assets"), rs.getBigDecimal("net_assets"));
+    }
+
     private List<QuarterRow> quarters(long issuerId) {
-        return jdbc.query("""
-                SELECT q.period_end, d.doc_type, q.net_income_parent_ttm, q.equity_parent, q.shares_outstanding,
-                       q.dividends_paid_ttm
-                FROM company_quarters q JOIN cvm_documents d ON d.id = q.source_doc_id
-                WHERE q.issuer_id = ? ORDER BY q.period_end""",
-                (rs, i) -> new QuarterRow(rs.getDate("period_end").toLocalDate(), "DFP".equals(rs.getString("doc_type")),
-                        rs.getBigDecimal("net_income_parent_ttm"), rs.getBigDecimal("equity_parent"),
-                        (Long) rs.getObject("shares_outstanding", Long.class), rs.getBigDecimal("dividends_paid_ttm")),
-                issuerId);
+        return jdbc.query(QUARTERS_SELECT + " WHERE q.issuer_id = ? ORDER BY q.period_end",
+                (rs, i) -> quarterRow(rs), issuerId);
     }
 
     private List<MonthRow> months(long issuerId) {
-        return jdbc.query("""
-                SELECT reference_month, nav_per_share, shareholders, real_estate_total, real_estate_companies,
-                       receivables_total, total_invested, liabilities_total, total_assets
-                FROM fii_monthly WHERE issuer_id = ? ORDER BY reference_month""",
-                (rs, i) -> new MonthRow(rs.getDate("reference_month").toLocalDate(), rs.getBigDecimal("nav_per_share"),
-                        (Integer) rs.getObject("shareholders", Integer.class), rs.getBigDecimal("real_estate_total"),
-                        rs.getBigDecimal("real_estate_companies"), rs.getBigDecimal("receivables_total"),
-                        rs.getBigDecimal("total_invested"), rs.getBigDecimal("liabilities_total"),
-                        rs.getBigDecimal("total_assets")),
-                issuerId);
+        return jdbc.query("SELECT " + MONTH_COLUMNS + " FROM fii_monthly WHERE issuer_id = ? ORDER BY reference_month",
+                (rs, i) -> monthRow(rs), issuerId);
     }
 
     private int unitShares(long assetId) {
