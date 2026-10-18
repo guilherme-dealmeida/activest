@@ -23,7 +23,7 @@ interface Props {
 /**
  * Campo numérico com sinal: a máscara do projeto ({@link MaskedNumberInput}, que só lê dígitos) com um botão ± —
  * prejuízo trimestral e premissa negativa entram como são (Preço Teto); faixa de indicador que pode ser negativo
- * (filtros da listagem de emissoras). Com o campo vazio ou em zero, o sinal escolhido fica guardado e vale para o
+ * (filtros da listagem de ativos). Com o campo vazio ou em zero, o sinal escolhido fica guardado e vale para o
  * número que for digitado.
  */
 export const SignedNumberInput = ({ value, onChange, decimals = 2, adornment, allowNegative = true, allowEmpty,

@@ -20,7 +20,7 @@ const routeNames: Record<string, string> = {
   '/rebalance': 'Rebalanceamento',
   '/transactions': 'Transações',
   '/ceiling-prices': 'Preço Teto',
-  '/emissoras': 'Emissoras',
+  '/ativos': 'Ativos',
   '/indices': 'Índices',
   '/dividends': 'Dividendos e Proventos',
   '/goals': 'Minhas Metas',

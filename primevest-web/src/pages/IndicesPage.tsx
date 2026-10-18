@@ -6,7 +6,7 @@ const ORDER: IndexCode[] = ['SELIC', 'CDI', 'IPCA', 'IBOV', 'IFIX', 'IGPM', 'INP
 
 /**
  * Tela Índices (docs/planos/PLANO_INDICES_MERCADO.md, adendo de 05/10/2026): um card por índice, um abaixo do
- * outro, cada um com o seu período e gráfico (o desenho da cotação das Emissoras).
+ * outro, cada um com o seu período e gráfico (o desenho da cotação de Ativos).
  */
 export const IndicesPage = () => (
   <div className="space-y-6">

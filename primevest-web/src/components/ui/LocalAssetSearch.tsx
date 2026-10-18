@@ -23,7 +23,7 @@ const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toU
 
 /**
  * Busca por ticker ou nome sobre a listagem da própria tela (Dividendos e
- * Transações), com o visual e o teclado da busca de Emissoras (`IssuerSearch`).
+ * Transações), com o visual e o teclado da busca da tela Ativos (`IssuerSearch`).
  * A diferença é a fonte: aqui as opções vêm da tela, no navegador — um ativo
  * fora da listagem deixaria a tabela vazia. Nas duas telas escolher um ativo
  * tem o efeito do ícone Listar.
@@ -34,7 +34,7 @@ export const LocalAssetSearch = ({ options, onSelect, ariaLabel = 'Buscar ativo 
   const [highlight, setHighlight] = useState(-1);
   const boxRef = useRef<HTMLDivElement>(null);
 
-  // A partir de 2 caracteres, como em Emissoras. Ticker que começa com o texto vem primeiro.
+  // A partir de 2 caracteres, como na tela Ativos. Ticker que começa com o texto vem primeiro.
   const matches = useMemo(() => {
     const q = normalizar(value.trim());
     if (q.length < 2) return [];

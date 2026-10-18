@@ -9,7 +9,7 @@ export const assetsApi = {
     const { data } = await apiClient.get<Asset[]>('/assets/', { params });
     return data;
   },
-  /** Autocomplete só com ativos ligados a emissor (tela de emissoras). */
+  /** Autocomplete só com ativos ligados a emissor (tela Ativos). */
   /** Ações e FIIs ligados a emissor; `issuerKind` restringe a um tipo (COMPANY = só ações, no Preço Teto). */
   searchWithIssuer: async (query: string, issuerKind?: IssuerKind) => {
     const { data } = await apiClient.get<Asset[]>('/assets/', { params: { query, withIssuer: 'true', issuerKind } });

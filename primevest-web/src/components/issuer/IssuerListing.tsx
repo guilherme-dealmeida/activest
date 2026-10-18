@@ -7,7 +7,7 @@ import { ListingTab, TAB_LABEL } from '@/utils/issuerListing';
 const TABS: ListingTab[] = ['acoes', 'fiis'];
 
 /**
- * Listagem de emissoras no lugar do aviso vazio de /emissoras (docs/planos/PLANO_LISTAGEM_EMISSORAS.md, 5.1):
+ * Listagem de ativos (antes "Emissoras", renomeada em 18/10/2026) no lugar do aviso vazio de /ativos (docs/planos/PLANO_LISTAGEM_EMISSORAS.md, 5.1):
  * abas Ações e FIIs, no estilo das abas de Dividendos. A aba fica na URL (`?aba=fiis`); cada aba guarda os seus
  * filtros, ordem e página nos parâmetros com o prefixo dela.
  */
@@ -39,9 +39,9 @@ export const IssuerListing = ({ onOpen }: { onOpen: (ticker: string) => void }) 
             </button>
           ))}
         </div>
-        {/* Busca da emissora no lugar da de cima, com o "+" e o comportamento da de Preço Teto */}
+        {/* Busca do ativo no lugar da de cima, com o "+" e o comportamento da de Preço Teto */}
         <div className="w-full max-w-md">
-          <IssuerSearch onSelect={onOpen} addLabel="Abrir emissora" />
+          <IssuerSearch onSelect={onOpen} addLabel="Abrir ativo" />
         </div>
       </div>
       <IssuerListingTable key={tab} tab={tab} />

@@ -203,8 +203,8 @@ export const IssuerListingTable = ({ tab }: { tab: ListingTab }) => {
                 </td>
                 {columns.map(c => <NumericCell key={c.key} row={row} column={c} tab={tab} />)}
                 <td className="px-3 py-3 text-center">
-                  <Link to={`/emissoras/${encodeURIComponent(row.ticker)}`} className={`inline-flex ${TABLE_ACTION_CLASS}`}
-                    title="Abrir emissora" aria-label={`Abrir emissora ${row.ticker}`}>
+                  <Link to={`/ativos/${encodeURIComponent(row.ticker)}`} className={`inline-flex ${TABLE_ACTION_CLASS}`}
+                    title="Abrir ativo" aria-label={`Abrir ativo ${row.ticker}`}>
                     <Building2 className="h-4 w-4" />
                   </Link>
                 </td>

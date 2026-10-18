@@ -20,7 +20,8 @@ const status = (error: unknown): number | undefined =>
  * Tela de Emissoras (docs/planos/PLANO_TELA_EMISSORES.md): sem ticker, a listagem do catálogo em abas
  * (docs/planos/PLANO_LISTAGEM_EMISSORAS.md); a partir de um ticker, o
  * emissor (companhia ou FII), a cotação, os indicadores com histórico, o
- * cadastro e os demonstrativos. A URL é o estado: /emissoras/PETR4?periodo=5A.
+ * cadastro e os demonstrativos. A URL é o estado: /ativos/PETR4?periodo=5A. A tela se chamava Emissoras até
+ * 18/10/2026 (/emissoras redireciona para /ativos).
  */
 export const IssuerPage = () => {
   const { ticker: raw } = useParams();
@@ -52,12 +53,12 @@ export const IssuerPage = () => {
       if (v) keep.set(k, v);
     }
     const q = keep.toString();
-    navigate(`/emissoras/${encodeURIComponent(t)}${q ? `?${q}` : ''}`);
+    navigate(`/ativos/${encodeURIComponent(t)}${q ? `?${q}` : ''}`);
   };
 
   let content: ReactNode = null;
   if (!ticker) {
-    // Sem ticker: a listagem de emissoras (Ações e FIIs) no lugar do aviso vazio, com a busca ao lado das abas
+    // Sem ticker: a listagem de ativos (Ações e FIIs) no lugar do aviso vazio, com a busca ao lado das abas
     content = <IssuerListing onOpen={goTo} />;
   } else if (current.isLoading) {
     content = <div className="flex h-64 items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent" /></div>;
@@ -70,7 +71,7 @@ export const IssuerPage = () => {
         <p className="text-white font-medium">
           {naoEncontrado ? `Não achamos o ticker ${ticker}.`
             : semEmissor ? `${ticker} não tem emissor cadastrado.`
-            : 'Não foi possível carregar a emissora.'}
+            : 'Não foi possível carregar o ativo.'}
         </p>
         <p className="mt-1 text-sm text-gray-400">
           {naoEncontrado ? 'Confira o código ou use a busca acima.'

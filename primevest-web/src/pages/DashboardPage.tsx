@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { LabelWithInfo } from '@/components/ui/InfoTooltip';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { formatCurrency, formatPercentage, getReturnColor } from '@/utils/format';
-import { Wallet, TrendingUp, PiggyBank, DollarSign } from 'lucide-react';
+import { Briefcase, TrendingUp, PiggyBank, HandCoins } from 'lucide-react';
 import { AllocationPieChart } from '@/components/charts/AllocationPieChart';
 import { CumulativeCard } from '@/components/performance/CumulativeCard';
 import { PerformanceSummary } from '@/types/performance';
@@ -161,7 +161,7 @@ export const DashboardPage = () => {
         <StatCard
           title="Patrimônio"
           titleInfo="Valor atual (bruto) das posições em aberto — cotação, PU do Tesouro, curva da renda fixa —; o valor líquido, com o IR e o IOF estimados de um resgate hoje na renda fixa e no Tesouro (nos demais tipos é o próprio valor atual); e quanto foi investido nelas."
-          icon={<Wallet className="h-5 w-5" />}
+          icon={<Briefcase className="h-5 w-5" />}
           lines={[
             { label: 'Valor atual', value: formatCurrency(summary?.currentValue || 0) },
             { label: 'Valor líquido', value: formatCurrency(summary?.currentNetValue || 0) },
@@ -189,7 +189,7 @@ export const DashboardPage = () => {
         <StatCard
           title="Proventos"
           titleInfo="Proventos líquidos (bruto onde não há IR): recebidos nos últimos 12 meses, recebidos desde o início e os anunciados com pagamento futuro."
-          icon={<DollarSign className="h-5 w-5" />}
+          icon={<HandCoins className="h-5 w-5" />}
           lines={[
             { label: 'Últimos 12 meses', value: formatCurrency(dividends?.last12Months || 0), to: '/dividends' },
             { label: 'Totais', value: formatCurrency(dividends?.totalDividends || 0), to: '/dividends' },

@@ -3,15 +3,15 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   TrendingUp,
-  Briefcase,
+  Wallet,
   PieChart,
   Target,
   Scale,
   ArrowLeftRight,
   TrendingDown,
-  DollarSign,
+  HandCoins,
   Flag,
-  Building2,
+  CandlestickChart,
   LineChart,
   PanelLeftClose,
   PanelLeftOpen,
@@ -24,16 +24,16 @@ import { twMerge } from 'tailwind-merge';
 // de Tema, Notificações, Configurações e do usuário (antes no rodapé deste menu).
 const navItems = [
   { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-  { name: 'Carteira', path: '/portfolio', icon: Briefcase },
+  { name: 'Carteira', path: '/portfolio', icon: Wallet },
   { name: 'Transações', path: '/transactions', icon: ArrowLeftRight },
-  { name: 'Dividendos', path: '/dividends', icon: DollarSign },
+  { name: 'Dividendos', path: '/dividends', icon: HandCoins },
   { name: 'Rentabilidade', path: '/rentabilidade', icon: TrendingUp },
   { name: 'Alocação', path: '/allocation', icon: PieChart },
   { name: 'Estratégia', path: '/strategy', icon: Target },
   { name: 'Rebalanceamento', path: '/rebalance', icon: Scale },
   { name: 'Preço Teto', path: '/ceiling-prices', icon: TrendingDown },
   { name: 'Metas', path: '/goals', icon: Flag },
-  { name: 'Emissoras', path: '/emissoras', icon: Building2 },
+  { name: 'Ativos', path: '/ativos', icon: CandlestickChart },
   { name: 'Índices', path: '/indices', icon: LineChart },
 ];
 

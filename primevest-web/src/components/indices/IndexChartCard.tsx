@@ -60,7 +60,7 @@ const tooltipDate = (iso: string, monthly: boolean) => {
 };
 
 /**
- * Card de um índice na tela Índices — o mesmo desenho do gráfico de cotação das Emissoras (atalhos 1D…MAX, 1A
+ * Card de um índice na tela Índices — o mesmo desenho do gráfico de cotação de Ativos (atalhos 1D…MAX, 1A
  * padrão, período de/até; nos mensais sem 1D e 7D). Diário em área (meta Selic em degraus); mensal em barras, porque a variação do mês pode
  * ser negativa. O período fica no card: cada índice tem o seu.
  */

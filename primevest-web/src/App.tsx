@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { useAuth } from '@/context/AuthContext';
 
@@ -51,8 +51,11 @@ function App() {
         <Route path="/transactions" element={<TransactionsPage />} />
         <Route path="/ceiling-prices" element={<CeilingPricesPage />} />
         <Route path="/ceiling-prices/:ticker" element={<CeilingPriceDetailPage />} />
-        <Route path="/emissoras" element={<IssuerPage />} />
-        <Route path="/emissoras/:ticker" element={<IssuerPage />} />
+        <Route path="/ativos" element={<IssuerPage />} />
+        <Route path="/ativos/:ticker" element={<IssuerPage />} />
+        {/* A tela se chamava Emissoras (18/10/2026): links salvos, histórico e notificações antigas continuam valendo */}
+        <Route path="/emissoras" element={<LegacyIssuerRedirect />} />
+        <Route path="/emissoras/:ticker" element={<LegacyIssuerRedirect />} />
         <Route path="/indices" element={<IndicesPage />} />
         <Route path="/dividends" element={<DividendsPage />} />
         <Route path="/goals" element={<GoalsPage />} />
@@ -64,5 +67,12 @@ function App() {
     </Routes>
   );
 }
+
+/** /emissoras[/TICKER][?...] → /ativos[/TICKER][?...], mantendo filtros e período. */
+const LegacyIssuerRedirect = () => {
+  const { ticker } = useParams();
+  const { search } = useLocation();
+  return <Navigate to={`/ativos${ticker ? `/${encodeURIComponent(ticker)}` : ''}${search}`} replace />;
+};
 
 export default App;

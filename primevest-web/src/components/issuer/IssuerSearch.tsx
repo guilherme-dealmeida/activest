@@ -7,19 +7,19 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 interface Props {
   /** Chamado com o ticker escolhido (lista ou Enter). */
   onSelect: (ticker: string) => void;
-  /** Texto do campo vazio (padrão: o da tela de emissoras). */
+  /** Texto do campo vazio (padrão: o da tela Ativos). */
   placeholder?: string;
   /**
    * Rótulo do botão "+" no fim do campo (ex: "Calcular preço teto"). Sem ele o botão não aparece.
    * O "+" faz o mesmo que o Enter: abre a opção destacada ou o ticker digitado, se ele existir na busca.
    */
   addLabel?: string;
-  /** Só um tipo de emissor: COMPANY = só ações (Preço Teto). Sem ele, ações e FIIs (Emissoras). */
+  /** Só um tipo de emissor: COMPANY = só ações (Preço Teto). Sem ele, ações e FIIs (tela Ativos). */
   issuerKind?: IssuerKind;
 }
 
 /**
- * Busca da tela de emissoras: só ações e FIIs ligados a emissor (B3 do
+ * Busca da tela Ativos: só ações e FIIs ligados a emissor (B3 do
  * docs/planos/PLANO_TELA_EMISSORES.md). Mesma mecânica do TickerAutocomplete, sem tipo
  * obrigatório; Enter sem escolher na lista abre o ticker digitado só quando ele
  * aparece nas opções — texto que não é ticker não faz nada.
@@ -104,7 +104,7 @@ export const IssuerSearch = ({ onSelect, placeholder = 'Buscar ticker ou nome (e
           ref={inputRef}
           type="text"
           autoComplete="off"
-          aria-label="Buscar emissora por ticker ou nome"
+          aria-label="Buscar ativo por ticker ou nome"
           value={value}
           onChange={(e) => setValue(e.target.value.toUpperCase())}
           onKeyDown={(e) => {

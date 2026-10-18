@@ -185,7 +185,7 @@ export interface PortfolioAssetDetail {
   /** Bonificações sem custo atribuído pela B3 que pegam a posição: ícone no preço médio e "Informar custo". */
   pendingBonusCosts?: PendingBonusCost[];
   /**
-   * Emissor do catálogo (companhia ou FII) — link para /emissoras/{ticker}.
+   * Emissor do catálogo (companhia ou FII) — link para /ativos/{ticker}.
    * null = sem emissor (renda fixa, ETF, BDR, cripto). Não confundir com
    * `issuer` da carteira, que é o emissor da NOTA de renda fixa.
    */
@@ -419,7 +419,7 @@ export interface TransactionResponse {
 
   /** Coluna ATIVO, igual à carteira. null = tipo sem logo (renda fixa, Tesouro). */
   hasLogo: boolean | null;
-  /** Com emissor, o ticker vira link para a tela de emissoras. */
+  /** Com emissor, o ticker vira link para a tela Ativos. */
   issuerId: number | null;
 
   // Venda de Renda Fixa e de Tesouro (docs/planos/PLANO_VENDA_RENDA_FIXA.md): totalAmount é o BRUTO; netAmount é o
@@ -723,7 +723,7 @@ export interface CeilingPriceListItem {
   id: string;
   ticker: string;
   assetName: string;
-  /** Emissor do catálogo — link para /emissoras/{ticker}. */
+  /** Emissor do catálogo — link para /ativos/{ticker}. */
   issuerId: number | null;
   hasLogo: boolean | null;
   ceilingPrice: number | null;
@@ -814,7 +814,7 @@ export interface DividendResponse {
   /** Mesma regra da carteira: null = tipo sem logo; false = iniciais. */
   hasLogo: boolean | null;
   /**
-   * Emissor do catálogo (companhia ou FII) — link para /emissoras/{ticker}.
+   * Emissor do catálogo (companhia ou FII) — link para /ativos/{ticker}.
    * null = sem emissor (renda fixa, ETF, BDR, cripto). Não confundir com
    * `issuer` da carteira, que é o emissor da NOTA de renda fixa.
    */

@@ -1,5 +1,7 @@
 # PrimeVest — Plano da listagem de emissoras (Ações e FIIs)
 
+> **Nota de 18/10/2026:** a tela passou a se chamar **Ativos** (menu, cabeçalho e rota `/ativos`; `/emissoras` redireciona). Este plano mantém o nome e os termos da época.
+
 > Fase: **escopo encerrado em 18/10/2026** pelo Guilherme; implementado em 17/10/2026 (L1–L6), com os ajustes da conferência — andamento na seção 9. Execução autorizada no mesmo dia, depois do
 > plano fechado.
 > Origem: pedido de 12/10/2026 (ESCOPO "Listagem em tela de emissoras Primevest", ETAPA Levantamento), com as
