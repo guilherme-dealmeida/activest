@@ -2,6 +2,8 @@ package com.primevest.domain.indicator;
 
 import com.primevest.domain.indicator.dto.AssetIndicatorsDTO;
 import com.primevest.domain.indicator.dto.IndicatorHistoryDTO;
+import com.primevest.domain.indicator.dto.IssuerListingRowDTO;
+import com.primevest.domain.issuer.IssuerKind;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,9 +25,20 @@ import java.util.Locale;
 public class IndicatorController {
 
     private final IndicatorService service;
+    private final IssuerListingService listing;
 
-    public IndicatorController(IndicatorService service) {
+    public IndicatorController(IndicatorService service, IssuerListingService listing) {
         this.service = service;
+        this.listing = listing;
+    }
+
+    /**
+     * Listagem de emissoras: o "Atual" de todos os tickers de uma aba ({@code kind=COMPANY} ou {@code FII}), ja na
+     * ordem padrao (docs/planos/PLANO_LISTAGEM_EMISSORAS.md, 4.2).
+     */
+    @GetMapping("/indicators")
+    public ResponseEntity<List<IssuerListingRowDTO>> listing(@RequestParam String kind) {
+        return ResponseEntity.ok(listing.list(parse(IssuerKind.class, kind, "Tipo de emissor")));
     }
 
     /** Indicadores atuais: ultimo balanco ou informe com o preco atual. */

@@ -67,6 +67,10 @@ primevest/
   atualizados todo dia às 10:00 (Banco Central e B3), com consulta da série e do acumulado no período
   (tela **Índices**: um card por índice com período e gráfico; `/api/v1/indices`). Base da futura valorização da
   renda fixa
+- ✅ Ativos (tela "Emissoras" até 18/10/2026): **listagem do catálogo** (17/10/2026) em abas Ações e FIIs, com logo, nome, setor/segmento, os
+  indicadores de cada tipo e o patrimônio líquido (ordem padrão), colunas ordenáveis, filtros por nome, setor e faixa
+  de indicador, estado na URL e marca de dado antigo (`docs/planos/PLANO_LISTAGEM_EMISSORAS.md`); e a página de cada
+  ativo, com cotação, indicadores com histórico, cadastro e demonstrativos (`docs/planos/PLANO_TELA_EMISSORES.md`)
 - ✅ Rentabilidade (17/10/2026): a carteira contra CDI, Selic, IPCA, IPCA + x%, Ibovespa, IFIX, IVVB11 (proxy do
   S&P 500 em reais) e Bitcoin — TWR, % do CDI, rentabilidade real, retorno pessoal (XIRR), barras por período, tabela
   comparativa, contribuição por classe/categoria/ativo/emissora, mapa de calor, patrimônio nominal × real e risco

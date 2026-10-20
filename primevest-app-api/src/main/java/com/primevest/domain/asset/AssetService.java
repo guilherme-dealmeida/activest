@@ -108,10 +108,15 @@ public class AssetService {
         return found.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
-    /** Busca so entre ativos ligados a emissor (tela de emissoras, B3). */
+    /**
+     * Busca so entre ativos ligados a emissor (tela de emissoras, B3). {@code kind} restringe ao tipo de emissor
+     * (COMPANY = acoes, no Preco Teto — 18/10/2026); nulo, acoes e FIIs.
+     */
     @Transactional(readOnly = true)
-    public List<AssetResponseDTO> searchAssetsWithIssuer(String query) {
-        return assetRepository.searchWithIssuerByTickerOrName(query, PageRequest.of(0, LIMITE_BUSCA))
+    public List<AssetResponseDTO> searchAssetsWithIssuer(String query, com.primevest.domain.issuer.IssuerKind kind) {
+        java.util.List<com.primevest.domain.issuer.IssuerKind> kinds = kind == null
+            ? java.util.List.of(com.primevest.domain.issuer.IssuerKind.values()) : java.util.List.of(kind);
+        return assetRepository.searchWithIssuerByTickerOrName(query, kinds, PageRequest.of(0, LIMITE_BUSCA))
             .stream().map(this::toDTO).collect(Collectors.toList());
     }
 

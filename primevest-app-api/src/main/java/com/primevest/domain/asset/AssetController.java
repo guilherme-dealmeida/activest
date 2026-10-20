@@ -54,10 +54,11 @@ public class AssetController {
     public ResponseEntity<List<AssetResponseDTO>> listAssets(
             @RequestParam(required = false) Long typeId,
             @RequestParam(required = false) String query,
-            @RequestParam(defaultValue = "false") boolean withIssuer) {
+            @RequestParam(defaultValue = "false") boolean withIssuer,
+            @RequestParam(required = false) com.primevest.domain.issuer.IssuerKind issuerKind) {
         if (query != null && !query.isEmpty() && withIssuer) {
-            // tela de emissoras: so acoes e FIIs ligados a emissor
-            return ResponseEntity.ok(assetService.searchAssetsWithIssuer(query));
+            // tela de emissoras: so acoes e FIIs ligados a emissor; issuerKind=COMPANY so acoes (Preco Teto)
+            return ResponseEntity.ok(assetService.searchAssetsWithIssuer(query, issuerKind));
         }
         if (query != null && !query.isEmpty()) {
             // typeId junto com query restringe o autocomplete ao tipo escolhido

@@ -1,8 +1,13 @@
 import { apiClient } from './client';
-import { AssetIndicators, IndicatorCode, IndicatorHistory, IndicatorPeriod } from '../types';
+import { AssetIndicators, IndicatorCode, IndicatorHistory, IndicatorPeriod, IssuerKind, IssuerListingRow } from '../types';
 
 /** Indicadores de ações e FIIs (app-api, F9 do docs/planos/PLANO_EMPRESAS_BALANCOS.md). */
 export const indicatorsApi = {
+  /** Listagem de emissoras: uma aba inteira, já na ordem do PL decrescente (PLANO_LISTAGEM_EMISSORAS, 4.2). */
+  listing: async (kind: IssuerKind) => {
+    const { data } = await apiClient.get<IssuerListingRow[]>('/assets/indicators', { params: { kind } });
+    return data;
+  },
   current: async (ticker: string) => {
     const { data } = await apiClient.get<AssetIndicators>(`/assets/${encodeURIComponent(ticker)}/indicators`);
     return data;

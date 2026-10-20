@@ -49,7 +49,7 @@ public class AdminNotices {
             .title(title).body(body)
             .ref("ASSET", asset == null ? null : asset.getId()).key(key)
             .data("ticker", asset == null ? key : asset.getTicker())
-            .link("Ver emissora", asset == null ? "/emissoras" : "/emissoras/" + asset.getTicker())
+            .link("Ver ativo", asset == null ? "/ativos" : "/ativos/" + asset.getTicker())
             .build());
     }
 

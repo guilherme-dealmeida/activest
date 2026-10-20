@@ -1,5 +1,7 @@
 # PrimeVest — Plano da Tela de Emissoras e Indicadores
 
+> **Nota de 18/10/2026:** a tela passou a se chamar **Ativos** (menu, cabeçalho e rota `/ativos`; `/emissoras` redireciona). Este plano mantém o nome e os termos da época.
+
 > Fase: **implementado em 28/09/2026** (T1–T9) — andamento na seção 8
 > Consome a F9 do `docs/planos/PLANO_EMPRESAS_BALANCOS.md` (indicadores e emissor já expostos pela app-api).
 > Branch de trabalho: `TRACK_01-ajustes_crud_inicial`. **Todas as decisões tomadas em 28/09/2026** (seção 7).

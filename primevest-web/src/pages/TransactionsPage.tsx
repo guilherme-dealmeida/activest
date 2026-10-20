@@ -455,7 +455,7 @@ export const TransactionsPage = () => {
 
       {/* Filter bar */}
       <div className="flex flex-wrap gap-3 items-end">
-        {/* Busca por ticker ou nome, como em Emissoras e Dividendos: escolher = Listar. */}
+        {/* Busca por ticker ou nome, como na tela Ativos e em Dividendos: escolher = Listar. */}
         <div className="w-full sm:w-96">
           <label className="block text-xs text-gray-400 mb-1">Buscar</label>
           <LocalAssetSearch options={searchOptions} onSelect={listarTicker} ariaLabel="Buscar transação por ticker ou nome" />

@@ -3,15 +3,15 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   TrendingUp,
-  Briefcase,
+  Wallet,
   PieChart,
   Target,
   Scale,
   ArrowLeftRight,
   TrendingDown,
-  DollarSign,
+  HandCoins,
   Flag,
-  Building2,
+  CandlestickChart,
   LineChart,
   PanelLeftClose,
   PanelLeftOpen,
@@ -24,16 +24,16 @@ import { twMerge } from 'tailwind-merge';
 // de Tema, Notificações, Configurações e do usuário (antes no rodapé deste menu).
 const navItems = [
   { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-  { name: 'Carteira', path: '/portfolio', icon: Briefcase },
+  { name: 'Carteira', path: '/portfolio', icon: Wallet },
   { name: 'Transações', path: '/transactions', icon: ArrowLeftRight },
-  { name: 'Dividendos', path: '/dividends', icon: DollarSign },
+  { name: 'Dividendos', path: '/dividends', icon: HandCoins },
   { name: 'Rentabilidade', path: '/rentabilidade', icon: TrendingUp },
   { name: 'Alocação', path: '/allocation', icon: PieChart },
   { name: 'Estratégia', path: '/strategy', icon: Target },
   { name: 'Rebalanceamento', path: '/rebalance', icon: Scale },
   { name: 'Preço Teto', path: '/ceiling-prices', icon: TrendingDown },
   { name: 'Metas', path: '/goals', icon: Flag },
-  { name: 'Emissoras', path: '/emissoras', icon: Building2 },
+  { name: 'Ativos', path: '/ativos', icon: CandlestickChart },
   { name: 'Índices', path: '/indices', icon: LineChart },
 ];
 
@@ -98,20 +98,10 @@ export const Sidebar = () => {
         isDark ? 'border-white/10' : 'border-gray-200'
       )}>
         {collapsed ? (
-          <h1
-            className={clsx('text-2xl font-bold tracking-tight', isDark ? 'text-white' : 'text-gray-900')}
-            title="PrimeVest"
-          >
-            P<span className="text-accent">V</span>
-          </h1>
+          <img src={isDark ? '/images/gv2.png' : '/images/v1.png'} alt="Activest — Disciplina leva à liberdade" className="mx-auto w-full max-w-[320px] h-auto object-contain" />
         ) : (
           <>
-            <h1 className={clsx('text-2xl font-bold tracking-tight whitespace-nowrap', isDark ? 'text-white' : 'text-gray-900')}>
-              Prime<span className="text-accent">Vest</span>
-            </h1>
-            <p className={clsx('text-[10px] uppercase tracking-[0.2em] mt-1 whitespace-nowrap', isDark ? 'text-gray-500' : 'text-gray-400')}>
-              Disciplina leva à liberdade
-            </p>
+             <img src={isDark ? '/images/activest2.png' : '/images/activest1.png'} alt="Activest — Disciplina leva à liberdade" className="mx-auto w-full max-w-[320px] h-auto object-contain" />
           </>
         )}
       </div>

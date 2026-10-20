@@ -123,6 +123,22 @@ class TelaEmissorasIT extends FuncionalBase {
     }
 
     @Test
+    @DisplayName("Busca do Preco Teto: issuerKind=COMPANY so traz acoes (18/10/2026)")
+    @SuppressWarnings("unchecked")
+    void buscaSoAcoes() {
+        List<Map<String, Object>> tudo = get(user, "/api/v1/assets/?query=HGLG&withIssuer=true", List.class).getBody();
+        List<Map<String, Object>> acoes = get(user, "/api/v1/assets/?query=HGLG&withIssuer=true&issuerKind=COMPANY",
+                List.class).getBody();
+        List<Map<String, Object>> petr = get(user, "/api/v1/assets/?query=PETR&withIssuer=true&issuerKind=COMPANY",
+                List.class).getBody();
+        assertThat(tudo.stream().map(a -> a.get("ticker"))).contains("HGLG11");
+        assertThat(acoes).isEmpty();
+        assertThat(petr.stream().map(a -> a.get("ticker"))).contains("PETR4");
+        assertThat(get(user, "/api/v1/assets/?query=PETR&withIssuer=true&issuerKind=XYZ", String.class).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
     @DisplayName("B5: 1D = fechamento anterior -> ultimo; MAX desde o primeiro pregao; periodo especifico; resumo")
     void cotacao() {
         Map<String, Object> d1 = cotacao("PETR4", "?range=1D");

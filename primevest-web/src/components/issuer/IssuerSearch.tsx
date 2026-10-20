@@ -1,28 +1,30 @@
 import { useEffect, useRef, useState } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { assetsApi } from '@/api/assets';
-import { Asset } from '@/types';
+import { Asset, IssuerKind } from '@/types';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 interface Props {
   /** Chamado com o ticker escolhido (lista ou Enter). */
   onSelect: (ticker: string) => void;
-  /** Texto do campo vazio (padrão: o da tela de emissoras). */
+  /** Texto do campo vazio (padrão: o da tela Ativos). */
   placeholder?: string;
   /**
    * Rótulo do botão "+" no fim do campo (ex: "Calcular preço teto"). Sem ele o botão não aparece.
-   * O "+" faz o mesmo que o Enter: abre a opção destacada ou o ticker digitado.
+   * O "+" faz o mesmo que o Enter: abre a opção destacada ou o ticker digitado, se ele existir na busca.
    */
   addLabel?: string;
+  /** Só um tipo de emissor: COMPANY = só ações (Preço Teto). Sem ele, ações e FIIs (tela Ativos). */
+  issuerKind?: IssuerKind;
 }
 
 /**
- * Busca da tela de emissoras: só ações e FIIs ligados a emissor (B3 do
+ * Busca da tela Ativos: só ações e FIIs ligados a emissor (B3 do
  * docs/planos/PLANO_TELA_EMISSORES.md). Mesma mecânica do TickerAutocomplete, sem tipo
- * obrigatório; Enter sem escolher na lista vai direto ao ticker digitado — a
- * própria tela avisa se ele não existe ou não tem emissor.
+ * obrigatório; Enter sem escolher na lista abre o ticker digitado só quando ele
+ * aparece nas opções — texto que não é ticker não faz nada.
  */
-export const IssuerSearch = ({ onSelect, placeholder = 'Buscar ticker ou nome (ex: PETR4, HGLG11, Itaú)', addLabel }: Props) => {
+export const IssuerSearch = ({ onSelect, placeholder = 'Buscar ticker ou nome (ex: PETR4, HGLG11, Itaú)', addLabel, issuerKind }: Props) => {
   const [value, setValue] = useState('');
   const [options, setOptions] = useState<Asset[]>([]);
   const [open, setOpen] = useState(false);
@@ -33,26 +35,34 @@ export const IssuerSearch = ({ onSelect, placeholder = 'Buscar ticker ou nome (e
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    // O searching volta a false também aqui (mesma correção do TickerAutocomplete): a limpeza deste efeito cancela a
+    // busca agendada, e era o finally dela que desligava o spinner. Apagar o texto, escolher uma opção ou abrir pelo
+    // "+" antes dos 300 ms deixava o loading eterno (18/10/2026).
     const q = value.trim();
     if (q.length < 2) {
-      setOptions([]); setOpen(false); return;
+      setOptions([]); setOpen(false); setSearching(false); return;
     }
+    let cancelled = false;
     setSearching(true);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       try {
-        const results = await assetsApi.searchWithIssuer(q);
+        const results = await assetsApi.searchWithIssuer(q, issuerKind);
+        if (cancelled) return; // resposta de um texto que já mudou
         setOptions(results);
         setOpen(results.length > 0);
         setHighlight(-1);
       } catch {
-        setOptions([]); setOpen(false);
+        if (!cancelled) { setOptions([]); setOpen(false); }
       } finally {
-        setSearching(false);
+        if (!cancelled) setSearching(false);
       }
     }, 300);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [value]);
+    return () => {
+      cancelled = true;
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [value, issuerKind]);
 
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
@@ -71,9 +81,19 @@ export const IssuerSearch = ({ onSelect, placeholder = 'Buscar ticker ou nome (e
     onSelect(t);
   };
 
+  /**
+   * Enter ou "+": abre a opção destacada, ou o ticker digitado quando ele está entre as opções da busca. Texto que
+   * não é um ticker do catálogo (um nome, "COPASA") não faz nada — antes ia para a tela do ticker e caía em "Não
+   * achamos o ticker" (18/10/2026). A lista continua aberta para escolher.
+   */
   const submit = () => {
     if (!value.trim()) { inputRef.current?.focus(); return; }
-    go(open && highlight >= 0 ? options[highlight].ticker : value);
+    if (open && highlight >= 0 && options[highlight]) { go(options[highlight].ticker); return; }
+    const typed = value.trim().toUpperCase();
+    const exact = options.find(o => o.ticker.toUpperCase() === typed);
+    if (exact) { go(exact.ticker); return; }
+    if (options.length > 0) setOpen(true);
+    inputRef.current?.focus();
   };
 
   return (
@@ -84,7 +104,7 @@ export const IssuerSearch = ({ onSelect, placeholder = 'Buscar ticker ou nome (e
           ref={inputRef}
           type="text"
           autoComplete="off"
-          aria-label="Buscar emissora por ticker ou nome"
+          aria-label="Buscar ativo por ticker ou nome"
           value={value}
           onChange={(e) => setValue(e.target.value.toUpperCase())}
           onKeyDown={(e) => {
