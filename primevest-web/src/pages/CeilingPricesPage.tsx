@@ -122,7 +122,6 @@ export const CeilingPricesPage = () => {
                       <AssetLogo ticker={row.ticker} hasLogo={!!row.hasLogo} />
                       <div>
                         <TickerLink ticker={row.ticker} issuerId={row.issuerId} className="font-medium text-white" />
-                        <div className="text-xs text-gray-500 truncate max-w-[180px]">{row.assetName}</div>
                       </div>
                     </div>
                   </td>

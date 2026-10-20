@@ -98,20 +98,10 @@ export const Sidebar = () => {
         isDark ? 'border-white/10' : 'border-gray-200'
       )}>
         {collapsed ? (
-          <h1
-            className={clsx('text-2xl font-bold tracking-tight', isDark ? 'text-white' : 'text-gray-900')}
-            title="PrimeVest"
-          >
-            P<span className="text-accent">V</span>
-          </h1>
+          <img src={isDark ? '/images/gv2.png' : '/images/v1.png'} alt="Activest — Disciplina leva à liberdade" className="mx-auto w-full max-w-[320px] h-auto object-contain" />
         ) : (
           <>
-            <h1 className={clsx('text-2xl font-bold tracking-tight whitespace-nowrap', isDark ? 'text-white' : 'text-gray-900')}>
-              Prime<span className="text-accent">Vest</span>
-            </h1>
-            <p className={clsx('text-[10px] uppercase tracking-[0.2em] mt-1 whitespace-nowrap', isDark ? 'text-gray-500' : 'text-gray-400')}>
-              Disciplina leva à liberdade
-            </p>
+             <img src={isDark ? '/images/activest2.png' : '/images/activest1.png'} alt="Activest — Disciplina leva à liberdade" className="mx-auto w-full max-w-[320px] h-auto object-contain" />
           </>
         )}
       </div>
