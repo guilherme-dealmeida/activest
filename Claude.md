@@ -5,7 +5,10 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 18/10/2026 (a tela Emissoras passou a se chamar **Ativos**: menu com ícone de candlestick, rota
+> **Última revisão**: 21/10/2026 (correção dos proventos: parcelas da B3, recibos, avisos retificados do FNET com a
+> situação de cada aviso em `carga/data/fnet/status`, outra classe do fundo, histórico da B3 por nome sem barra; a
+> conferência por extrato saiu — ver "Proventos: parcelas, recibos e avisos retificados (21/10/2026)" em Pontos de
+> Atenção e `docs/planos/PLANO_CORRECAO_PROVENTOS.md`). Antes: 18/10/2026 (a tela Emissoras passou a se chamar **Ativos**: menu com ícone de candlestick, rota
 > `/ativos` e `/ativos/:ticker`, com `/emissoras` redirecionando — ver a linha de `/ativos` em Telas). Antes: 17/10/2026, noite (listagem de emissoras: `/emissoras` sem ticker mostra o catálogo em abas Ações e
 > FIIs, com `GET /api/v1/assets/indicators?kind=` — ver "Emissoras" em Telas e `docs/planos/PLANO_LISTAGEM_EMISSORAS.md`).
 > No mesmo dia: (Rentabilidade comparativa: tela `/rentabilidade` e `/api/v1/performance/*` com
@@ -154,7 +157,7 @@ Plano e histórico: **`docs/planos/PLANO_ADM_API.md`**. O backend é um Maven mu
 | `primevest-core` | — | Biblioteca: **todas** as entidades JPA e repositórios, as regras de posição e de proventos usadas pelos dois lados (`PositionCalculator`, `DividendRecalculator`, `AppreciationUpdater`, `CashEventWriter`…), as migrations do Flyway, a validação do JWT, o tratamento de erro e o contrato das mensagens (`CatalogChange`, `CatalogMessaging`) |
 | `primevest-integration` | — | Biblioteca (03/10/2026, `docs/planos/PLANO_INTEGRACAO_B3.md`): **integrações com fontes do investidor** — contrato da fonte (`SourceConnector`, `ImportedMovement`), credenciais cifradas (`SourceCredentials`: chave de API ou CPF; `CredentialCipher`, `CredentialVault`), pipeline de importação (`ImportPipeline` + as regras de cada fonte, `ImportRules`) e os conectores (`integration/binance/`, `integration/b3investidor/`). Pacotes com o mesmo nome de antes. Só a app-api depende dele; a orquestração (serviço, fila, confirmação) continua na app-api, porque grava pelo `TransactionService` |
 | `primevest-app-api` | 8080 | **A carteira**: login, transações, carteira, proventos do usuário, estratégia, metas, preço teto, integrações com corretoras. O front só fala com ela |
-| `primevest-adm-api` | 8081 | **Rotinas de administrador — o catálogo**: emissores, balanços e série trimestral da CVM, COTAHIST, fechamento diário (BRAPI/CoinGecko), eventos de proventos (B3/FNET), índices de mercado (SGS/B3), logos, conferência do catálogo, todo o `/api/v1/admin/*` (exceto o extrato). Classes em `com.primevest.adm.*` |
+| `primevest-adm-api` | 8081 | **Rotinas de administrador — o catálogo**: emissores, balanços e série trimestral da CVM, COTAHIST, fechamento diário (BRAPI/CoinGecko), eventos de proventos (B3/FNET), índices de mercado (SGS/B3), logos, conferência do catálogo, todo o `/api/v1/admin/*`. Classes em `com.primevest.adm.*` |
 
 **A regra:** a adm-api grava **só catálogo** (`asset_cash_events`, `asset_stock_events`, `asset_price_history`, `assets`, `issuers`, balanços, `company_quarters`, `fii_monthly`, `market_index_values`);
 a app-api é a **única que grava dado de usuário** (`dividends`, valorização em `portfolio_assets`, transações…). Mesmo
@@ -355,22 +358,20 @@ Plano, decisões e achados da integração: **`docs/planos/PLANO_BRAPI.md`** (ex
 | Recálculo de proventos e valorização de todas as posições — `PositionRefreshScheduler` | 21:00 | app-api |
 | Fila das integrações com corretoras — `IntegrationSyncScheduler` (08:45) e `IntegrationWorker` (5 s) | — | app-api |
 
-Disparo manual para admin, **na adm-api (8081)**: `POST /api/v1/admin/{closing|proventos|catalog-audit|logos|issuers/import|issuers/link|fixed-income-issuers|fixed-income-issuers/logos|b3/cotahist|b3/cotahist/diario|cvm/import|cvm/quarters|cvm/fii-monthly|cvm/proventos|indices|tesouro|cripto/historico|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, datas de pagamento da CVM, balanços, informe de FII, índices de mercado e preço do Tesouro, em ordem — docs/planos/PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
+Disparo manual para admin, **na adm-api (8081)**: `POST /api/v1/admin/{closing|proventos|proventos/fnet-status|catalog-audit|logos|issuers/import|issuers/link|fixed-income-issuers|fixed-income-issuers/logos|b3/cotahist|b3/cotahist/diario|cvm/import|cvm/quarters|cvm/fii-monthly|cvm/proventos|indices|tesouro|cripto/historico|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, datas de pagamento da CVM, balanços, informe de FII, índices de mercado e preço do Tesouro, em ordem — docs/planos/PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
 (`b3/cotahist?from=2010&to=2026`, padrão 2010 até o ano corrente; `cvm/import?from=2010&to=2026&force=false` —
 documento na mesma versão é pulado, `force=true` reprocessa a partir de `carga/data/cvm` sem baixar; ao terminar recalcula
 a série trimestral, que `cvm/quarters` recalcula sozinha; `cvm/fii-monthly?from=2016&to=2026&force=false` — informe
 mensal de FII em `fii_monthly`, mês na mesma versão é pulado; `indices?codes=CDI,IPCA&from=2010&to=2026` — padrão: todos,
-2010 até o ano corrente; código desconhecido 400; `recent=true` = a rodada incremental das 10:00). Na **app-api (8080)** só
-`POST /api/v1/admin/proventos/extrato` (importação da carteira). Script: `node carga/scripts/admin.mjs <rotina> [--json corpo.json]`
+2010 até o ano corrente; código desconhecido 400; `recent=true` = a rodada incremental das 10:00; `proventos/fnet-status` =
+situação de cada aviso do FNET em `carga/data/fnet/status`, 21/10/2026). Script: `node carga/scripts/admin.mjs <rotina> [--json corpo.json]`
 (ou `docker compose --profile carga run --rm tools node carga/scripts/admin.mjs <rotina>`) — login na app-api com a
-`PRIMEVEST_SENHA` do `.env` e disparo na adm-api (ou na app-api, para o extrato); portas do `.env` (`API_PORT`, `ADM_API_PORT`).
+`PRIMEVEST_SENHA` do `.env` e disparo na adm-api; portas do `.env` (`API_PORT`, `ADM_API_PORT`).
 Curadoria dos emissores (F3): `POST /api/v1/admin/issuers/fii-cnpjs` (lista `[{ticker, cnpj}]`, liga FII como `MANUAL`,
 síncrono) e `PUT /api/v1/admin/assets/{id}/issuer` (`{issuerId | cnpj, shareClass}`; CNPJ que não é emissor vem do
 cadastro da CVM; `shareClass` nula para o que não é ação; sem `issuerId` e sem `cnpj` desfaz) e
 `PUT /api/v1/admin/assets/{id}/unit-composition` (`{"ON":1,"PNA":2}`; só ativo ligado como UNIT). Ambos gravam
 `MANUAL`, que a rotina de ligação nunca sobrescreve. `admin.mjs` aceita `--method PUT --body '<json>'`.
-Importação do extrato de proventos da B3 (admin, síncrona, app-api):
-`POST /api/v1/admin/proventos/extrato` — ver "Extrato de proventos da B3".
 
 Todas as fontes abaixo, menos o Google, são da **adm-api** (config em `primevest-adm-api/src/main/resources/application.yml`).
 
@@ -483,7 +484,7 @@ primevest/
 │       │   ├── domain/          # controllers, serviços e DTOs de auth (AuthService, SignupService,
 │       │   │                    # PasswordResetService, AccountFactory; verification/: códigos no Redis,
 │       │   │                    # RateLimiter; mail/: AccountMailer SMTP), user (UserService, UserCpfService), asset, portfolio
-│       │   │                    # (PositionRefreshService), transaction, dividend (extrato),
+│       │   │                    # (PositionRefreshService), transaction, dividend,
 │       │   │                    # strategy, goal, ceilingprice, integration (orquestração das
 │       │   │                    # corretoras: IntegrationService, controller, worker, DTOs)
 │       │   └── scheduler/       # IntegrationSyncScheduler, PositionRefreshScheduler
@@ -604,7 +605,7 @@ coluna.
 > usuário; `getName()` é para lógica interna. `AssetCategory.getDisplayName()`
 > encapsula o fallback description → name.
 
-### Flyway — V1 a V59
+### Flyway — V1 a V60
 
 O Flyway roda do zero no perfil `docker`. No perfil `dev` fica desligado, porque
 o banco local é gerenciado à mão.
@@ -678,6 +679,7 @@ categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, s
 | V57 | docs/planos/PLANO_RENTABILIDADE.md (3.1, D1): `benchmarks` — CDI, Selic, IPCA, IPCA + x%, Ibovespa, IFIX (índices) e IVVB11 (proxy S&P 500 em BRL), BTC (ativos), resolvidos por `code` e `ticker` |
 | V58 | docs/planos/PLANO_RENTABILIDADE.md (3.2, D2): `asset_price_history.source` aceita `BINANCE` |
 | V59 | docs/planos/PLANO_RENTABILIDADE.md (andamento, 17/10/2026): `treasury_offers` — taxa do último dia e oferta de cada título do Tesouro |
+| V60 | docs/planos/PLANO_CORRECAO_PROVENTOS.md (C7, 21/10/2026): limpeza dos proventos indevidos do catálogo (classes A–E), pela chave natural (ticker, tipo, data-com, valor, parcela, fonte, referência); apaga os `dividends` AUTO ligados e solta os MANUAL |
 | V43 | docs/planos/PLANO_INDICES_MERCADO.md (X1): `market_indices` (10 índices semeados) e `market_index_values` (vazia; a série vem da adm-api) |
 | V41 | docs/planos/PLANO_CADASTRO_USUARIO.md (seção 5): colunas novas de `users` (celular, CPF cifrado + hash, verificação de e-mail, `password_changed_at`, aceite dos termos, tema), índices únicos de e-mail sem caixa, celular e CPF; o usuário semeado ganha e-mail verificado e o aceite da versão `2026-10-provisorio` |
 
@@ -1449,33 +1451,28 @@ Plano completo e conferência contra o extrato da B3 em `docs/planos/PLANO_IR_PR
     aviso do Listar das Transações, "Mostrando apenas os proventos de TICKER", com
     **Limpar filtro**, que volta Tipo de Ativo, Ativo e Tipo a "Todos".
 
-## 🧾 Extrato de proventos da B3 (25/09/2026; só conferência desde 29/09/2026)
+## 🧾 Origem dos eventos de proventos e das datas de pagamento
 
-**Desde 29/09/2026 o extrato não grava nada** (`docs/planos/PLANO_CARGA_INICIAL.md`, regra C e D13; V38):
-evento do catálogo vem de integração — FNET, B3 e relatórios de proventos da CVM. O que só o
-extrato de um usuário tem é dado dele. A fonte `EXTRATO_B3` e as origens de data `EXTRATO_B3` e
-`DEDUZIDA` saíram do catálogo; a V38 passou os 18 eventos de FII para `FNET` (os avisos estavam em
-`carga/data/fnet`), tirou do catálogo os 3 de PETR4 (os proventos do usuário ficaram como `MANUAL`) e
-apagou as datas que vinham do extrato.
+**Evento do catálogo vem só das fontes de catálogo** (`docs/planos/PLANO_CARGA_INICIAL.md`, regra C): B3 (recente e
+histórico longo) e FNET; `asset_cash_events.source` só aceita `B3`, `B3_HISTORICO` e `FNET`. Provento que nenhuma fonte
+tem é lançamento manual do usuário (`dividends.origin = MANUAL`) — hoje, 3 rendimentos Selic de PETR4 de 2026 (a B3 não
+publicou; o valor só existe no Comunicado ao Mercado da Petrobras — PENDENCIAS 33.1).
 
-- **Entrada**: `POST /api/v1/admin/proventos/extrato` (só admin, app-api), corpo `{lines[]}`
-  (ativo, tipo, pagamento, cotas, líquido; opcionais bruto e data-com). Serviço:
-  `ExtratoProventosImportService`, `@Transactional(readOnly = true)`.
-- **Cada linha** vira um status: `JA_EXISTE` (provento da carteira com o mesmo pagamento, cotas e
-  líquido); `SEM_DATA` (o provento existe, mas o evento do catálogo está sem data de pagamento — a
-  integração ainda não trouxe); `SEM_EVENTO` (o catálogo não tem o provento); `RECUSADO`.
 - **Origem da data** (`asset_cash_events.payment_date_source`): nula = da fonte do evento; `CVM`
   = relatório de proventos da CVM; `LEVANTAMENTO` = levantamento 2010–2026 (`carga/data/levantamento`). A data da
-  fonte do evento substitui as duas (`CashEventWriter`); a CVM roda antes do levantamento na carga.
+  fonte do evento substitui as duas (`CashEventWriter`); a CVM roda antes do levantamento na carga. Desde 21/10/2026
+  a data que a própria B3 muda depois de publicada também substitui a gravada (ALUP 05/10 → 02/10/2026); "a definir"
+  (31/12/9999) chega sem data e não apaga a existente (PENDENCIAS 33.5).
 - **Tela**: PAGAMENTO com sublinhado pontilhado e hover quando a data veio da CVM ou do levantamento
   (`paymentDateSource` no `DividendResponseDTO`); sem data, "Data não informada" (D16).
-- A carteira passou a vir da B3 pela API da Área do Investidor (`docs/planos/PLANO_INTEGRACAO_B3.md`; o que falta
-  na PENDENCIAS 16). A integração usa esta mesma conferência para os proventos que a B3 informa. Nada fora do
-  projeto é necessário para subir o PrimeVest.
+- A carteira vem da B3 pela API da Área do Investidor (`docs/planos/PLANO_INTEGRACAO_B3.md`; o que falta na PENDENCIAS
+  16). Os proventos que a B3 informa por ela são só **conferidos** com a carteira (`ProventosConferencia`, na
+  integração): já está, está sem data de pagamento no catálogo, não está (o catálogo não tem o evento) ou não dá para
+  conferir — vira o motivo do item; nada é gravado.
 - **`GlobalExceptionHandler`** trata `ResponseStatusException` com o status e o
   motivo da própria exceção. Antes ela caía no handler genérico e virava 500 —
   inclusive o 403 dos endpoints de admin.
-- Testes: `ExtratoProventosIT` (6 cenários) e `PaymentDateSourceIT` (2: CVM cede à B3; FNET assume a reserva da B3).
+- Testes: `ProventosConferenciaIT` (5) e `PaymentDateSourceIT` (2: CVM cede à B3; FNET assume a reserva da B3).
 
 ## ⚠️ Pontos de Atenção
 
@@ -1647,6 +1644,69 @@ Plano: `docs/planos/PLANO_RENTABILIDADE.md`; fórmulas: `docs/RENTABILIDADE_METO
   de BTC comprado em dias de queda rende diferente do BTC/BRL (12M em 17/10/2026: −15,00% × −23,41%). Decidido manter
   (17/10/2026) e avisar na tela (último item do quadro de informações).
 
+### Proventos: parcelas, recibos e avisos retificados (21/10/2026)
+
+Plano: `docs/planos/PLANO_CORRECAO_PROVENTOS.md` (origem: `docs/planos/PLANO_INVESTIGACAO_PROVENTOS_DUPLICADOS.md`).
+Regras da rotina de proventos (`ProventosCatalogService`, adm-api):
+
+- **Tolerância de valor só entre fontes diferentes** (R1). O mesmo provento escrito com outras casas pelo FNET e pela B3
+  (1,03999999900318 × 1,04) completa o evento; dentro da família B3 (B3 e `B3_HISTORICO`) valores quase iguais são
+  **parcelas diferentes** — a B3 põe o arredondamento na última (KLBN 0,04559717225 × 3 e 0,04559717224) — e cada uma
+  fica como veio. O valor exato, se já existe, sempre vence. A parcela (`seq`) é numerada pelo valor que vai ser
+  gravado (R2). Antes disso, a 2ª rodada sobre um catálogo já carregado duplicava parcelas (KLBN, RECV3, TRIS3, 02/10)
+  e, num banco novo, a última parcela podia sumir.
+- **Recibo de subscrição e outra classe do fundo ficam fora** (R3): provento do aviso do FNET com ISIN de recibo ou
+  direito (7º caractere "R" ou "D": `BRTRXFR02E15`, `BRXPMLD02M12`) — mesmo com o ticker da cota, que o administrador
+  repete nas linhas dos recibos (ARRI11) — ou ticker com final diferente de 11 que não é de nenhum ativo do fundo
+  (TRXF26). Antes só os finais 12 a 19 do ticker eram filtrados.
+- **Outro papel no dia do rendimento da cota fica fora** (R9): se o fundo tem, no mesmo pagamento, a linha da própria
+  cota (ISIN do ativo ou ticker do fundo), linha com ISIN e ticker de outro papel é de outra classe ou de outro fundo
+  (XLPR11: aviso de ANGC11, R$ 770, no mesmo CNPJ; LPLP11 e SPG211: outra classe no mesmo aviso).
+- **Situação do aviso no FNET** (R5): a lista de avisos de um fundo traz `status` — `AC` ativo, `IC` inativo, `CC`
+  cancelado (o fundo corrigiu a data-base e publicou outro, ou retirou). Fica em `carga/data/fnet/status/{CNPJ}.json`
+  (arquivo é o estado, como os XML; vai para o bucket), gravado a cada busca do fundo e, para todos, por
+  `POST /api/v1/admin/proventos/fnet-status[?missing=true]` (uma busca por vez, com pausa: o FNET segura buscas
+  seguidas). Aviso inativo não vira evento; o evento que ele já gerou é atualizado no lugar pelo aviso ativo do mesmo
+  fundo, tipo, pagamento e valor (id preservado). Fundo ainda sem arquivo de situação: o aviso mais novo com data-base
+  até 7 dias da anterior é a retificação (conferido onde há situação: antigo inativo/cancelado em 7 de 8 pares). A busca para no `recordsTotal`: o FNET
+  não responde página vazia (fundo com exatamente 100 avisos travava até o tempo limite).
+  - **A retificação que só muda o pagamento** (R10): mesma data-base e valor, outro pagamento (MXRF11 1025775 →
+    1026624, 07/11 → 14/11/2025) — com o aviso antigo inativo/cancelado, o evento recebe o pagamento e a referência do
+    aviso ativo (id preservado). Sem a situação, nada muda (o aviso novo bate na chave do evento).
+  - **A situação vale pelo id do aviso, em qualquer arquivo** (R11, `FnetClient.inactiveNoticeIds()`): o administrador
+    às vezes publica o aviso sob o CNPJ de **outro** fundo e depois o inativa; o XML traz o CNPJ do fundo certo
+    (CYCR11 1073779 listado sob CBOP11; PVBI11 980533 sob PLAG11).
+- **Linha de outro ISIN no dia da cota** (R12): se o fundo tem, no mesmo pagamento, a linha com o **ISIN** da própria
+  cota, linha com outro ISIN é de outro papel **mesmo com o ticker do fundo** (EURO11, 19/04/2017: recibo com ISIN
+  malformado BREURO01M15, sem o "R", com o ticker EURO11, ao lado da cota BREUROCTF011).
+- **Ticker de outra classe ao lado da linha da cota** (R13): no aviso que tem a linha do ticker do fundo, linha com
+  ticker de outra classe do mesmo fundo (mesma raiz, outro final) é da outra classe **mesmo com o ISIN da cota**
+  (URPR11, aviso 1335853: URPR11 R$ 0,30 e URPR13 R$ 0,078, as duas com BRURPRCTF002). Sozinha no dia, vale a linha
+  (EXES11, 20/10/2022: o rendimento da cota publicado só com o ticker EXES13).
+- **Limpeza do que já estava gravado: V60** (`V60__limpeza_proventos_indevidos.sql`, 21/10/2026): 536 eventos do dev
+  (A 17, B 202, C 294, D 1, E 22) e 2 do teste (URPR13, EURO11), pela chave natural (ticker, tipo, data-com, valor,
+  parcela, fonte, referência), saídos da conferência `carga/scripts/conferencia/proventos.mjs --sql`. Proventos AUTO
+  ligados saem (3 do Guilherme, R$ 31,98: KLBN4 2 × 13,67 e TRXF11 4,64); o recálculo refaz pelos eventos certos.
+  Conferência depois: A–E zero no dev e no teste.
+- **Reserva da B3 absorvida pelo FNET mesmo com outra data-com** (R6): FII — mesmo tipo, pagamento e valor.
+- **ISIN de outro fundo** (R7): com o ticker do fundo no aviso, vale o ticker (BRIP11 publicou rendimento com o ISIN de
+  VCRI11); sem ele, o ISIN da cota de outro ativo do catálogo, de outro emissor, tira o provento (incorporação).
+- **Histórico longo da B3 por nome de pregão sem barra** (G): `GetListedCashDividends` devolve 0 para "KLABIN S/A" e
+  219 para "KLABIN SA" (`historyQueryName`); histórico vazio em disco de quem tem provento nos 12 meses é buscado de
+  novo (R8). Era a PENDENCIAS 19.1 (17 ações sem histórico).
+- **Conferência independente:** `node carga/scripts/conferencia/proventos.mjs [--detalhe] [--cotahist] [--sql]` —
+  classes A a E direto das tabelas e dos arquivos; código de saída 1 se houver erro. `--sql` imprime a chave natural de
+  cada evento indevido (a lista da migration de limpeza).
+- Testes: `CorrecaoProventosIT` (24; respostas reais da B3 e avisos reais do FNET).
+- **Reler todos os avisos do FNET:** `POST /api/v1/admin/proventos?fnet=todos` (`admin.mjs "proventos?fnet=todos"`). A
+  rotina normal só lê o aviso que ainda não gerou evento; depois de uma limpeza de dados (V60) o aviso ativo que já
+  tinha outra linha gravada não voltava a ser lido (CJCT11, HAAA11, MAXR11, PLRI11). Reler é idempotente: a linha que o
+  próprio aviso já gravou não duplica, mesmo com o valor da B3 (`fromSameNotice`).
+- Conferência independente: `node carga/scripts/conferencia/proventos.mjs [--detalhe] [--sql]` — A–E têm de dar 0.
+- **Rotina semanal [A12]** (`FnetStatusScheduler`, domingo 03:00, `primevest.fnet-status.cron`): situação dos avisos de
+  todos os fundos no FNET (~1 h) e depois os proventos com `fnet=todos` — é o que faz R10/R11 entrarem sem esperar
+  aviso novo do fundo (PENDENCIAS 33.3).
+
 ### `dividends` não tem dono próprio
 O dono vem de `portfolio_asset_id`, que é **obrigatório** (`NOT NULL`) e
 **cascateia** (FK `ON DELETE CASCADE`), desde o segundo reset das migrations
@@ -1735,7 +1795,7 @@ não "quando o usuário mexeu nesta posição" — para a segunda pergunta, o qu
 
 ### Testes — existem desde 22/09/2026
 
-**Em 17/10/2026, mais tarde (listagem de emissoras: `ListagemEmissorasIT`): core 190; integration 103; adm-api 116 + 49; app-api 210 + 261 — todos verdes em `mvn clean verify` (~6 min).** Antes, no mesmo dia, à noite ("Mudanças de tela": `DashboardResumoIT` — aportes compras − vendas em 12 meses, valor líquido do Patrimônio — e os proventos de 12 meses no `ProventosAReceberIT`): core 190; integration 103; adm-api 116 + 49; app-api 210 + 256 — todos verdes em `mvn clean verify` (~7 min). Antes, no mesmo dia (Rentabilidade, com o padrão do Tesouro e a V59): core 190; integration 103; adm-api 116 + 49; app-api 210 + 251. Antes, na entrega da Rentabilidade: core 189; integration 103; adm-api 116 + 48; app-api 210 + 250. Antes, em 10/10/2026 (Preço Teto, payout pela DFC, COTAHIST diário): core 158; integration 103; adm-api 89 + 40; app-api 189 + 199 — todos verdes em `mvn verify` (~6 min).** Antes, em 05/10/2026, noite (valorização da renda fixa): 521 unitários + 231 de integração, por módulo: core 158; integration 103; adm-api 88 + 38; app-api 172 + 193, todos verdes em `mvn clean verify` (~7 min). Na F11 (28/09/2026) eram 394 + 180.
+**Em 21/10/2026 (correção dos proventos: `CorrecaoProventosIT` 24, `ProventosConferenciaIT` 5; `ExtratoProventosIT` saiu): core 190; integration 103; adm-api 116 + 73; app-api 210 + 261 — todos verdes em `mvn clean verify`.** Depois, no mesmo dia (rotina semanal [A12] e data da B3 que muda — `FnetStatusSchedulerTest` 3, `PaymentDateSourceIT` 5): core 190; integration 103; adm-api 119 + 73; app-api 210 + 263 — verdes. Antes, **em 17/10/2026, mais tarde (listagem de emissoras: `ListagemEmissorasIT`): core 190; integration 103; adm-api 116 + 49; app-api 210 + 261 — todos verdes em `mvn clean verify` (~6 min).** Antes, no mesmo dia, à noite ("Mudanças de tela": `DashboardResumoIT` — aportes compras − vendas em 12 meses, valor líquido do Patrimônio — e os proventos de 12 meses no `ProventosAReceberIT`): core 190; integration 103; adm-api 116 + 49; app-api 210 + 256 — todos verdes em `mvn clean verify` (~7 min). Antes, no mesmo dia (Rentabilidade, com o padrão do Tesouro e a V59): core 190; integration 103; adm-api 116 + 49; app-api 210 + 251. Antes, na entrega da Rentabilidade: core 189; integration 103; adm-api 116 + 48; app-api 210 + 250. Antes, em 10/10/2026 (Preço Teto, payout pela DFC, COTAHIST diário): core 158; integration 103; adm-api 89 + 40; app-api 189 + 199 — todos verdes em `mvn verify` (~6 min).** Antes, em 05/10/2026, noite (valorização da renda fixa): 521 unitários + 231 de integração, por módulo: core 158; integration 103; adm-api 88 + 38; app-api 172 + 193, todos verdes em `mvn clean verify` (~7 min). Na F11 (28/09/2026) eram 394 + 180.
 O suporte comum (container do PostgreSQL, bases, fixtures, `application-test.yml`) vem do
 test-jar do core. A app-api tem a adm-api **só no classpath de teste**, para os testes de ponta a ponta de
 proventos e fechamento (`CatalogoE2EBase`: fonte mockada → catálogo pela adm-api → recálculo pela app-api →

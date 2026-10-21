@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<DadosEconomicoFinanceiros>
+	<DadosGerais>
+		<NomeFundo>FII SMART REAL ESTATE - FII RL</NomeFundo>
+		<CNPJFundo>53730029000195</CNPJFundo>
+		<NomeAdministrador>PLANNER CORRETORA DE VALORES S.A.</NomeAdministrador>
+		<CNPJAdministrador>00806535000154</CNPJAdministrador>
+		<ResponsavelInformacao>Eduardo José da Silva</ResponsavelInformacao>
+		<TelefoneContato>(11) 3014-6014</TelefoneContato>
+		<DataInformacao>2026-05-26</DataInformacao>
+		<Ano>2026</Ano>
+	</DadosGerais>
+	<InformeRendimentos>
+		<Provento>
+			<CodISIN>BRSMRECTF001</CodISIN>
+			<CodNegociacao>SMRE11</CodNegociacao>
+			<Rendimento>
+				<AtoSocietarioAprovacao/>
+				<DataBase>2026-05-29</DataBase>
+				<ValorProvento>1.0117181108539</ValorProvento>
+				<DataPagamento>2026-06-10</DataPagamento>
+				<PeriodoReferencia>Maio</PeriodoReferencia>
+				<RendimentoIsentoIR>Sim</RendimentoIsentoIR>
+			</Rendimento>
+		</Provento>
+	</InformeRendimentos>
+</DadosEconomicoFinanceiros>

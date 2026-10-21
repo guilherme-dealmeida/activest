@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<DadosEconomicoFinanceiros>
+	<DadosGerais>
+		<NomeFundo>AUTONOMY EDIFÍCIOS CORPORATIVOS FII</NomeFundo>
+		<CNPJFundo>35765826000126</CNPJFundo>
+		<NomeAdministrador>BRL TRUST DTVM S.A.</NomeAdministrador>
+		<CNPJAdministrador>13486793000142</CNPJAdministrador>
+		<ResponsavelInformacao>Bruno Camargo</ResponsavelInformacao>
+		<TelefoneContato>11 48712239</TelefoneContato>
+		<DataInformacao>2025-12-30</DataInformacao>
+		<Ano>2025</Ano>
+	</DadosGerais>
+	<InformeRendimentos>
+		<Provento>
+			<CodISIN>BRAIECCTF009</CodISIN>
+			<CodNegociacao>AIEC11</CodNegociacao>
+			<Rendimento>
+				<AtoSocietarioAprovacao/>
+				<DataBase>2025-12-30</DataBase>
+				<ValorProvento>0.34</ValorProvento>
+				<DataPagamento>2026-01-09</DataPagamento>
+				<PeriodoReferencia>Dezembro</PeriodoReferencia>
+				<RendimentoIsentoIR>Sim</RendimentoIsentoIR>
+			</Rendimento>
+		</Provento>
+	</InformeRendimentos>
+</DadosEconomicoFinanceiros>

@@ -15,8 +15,8 @@ import java.time.format.DateTimeFormatter;
 /**
  * Grava um evento de provento no catalogo ({@link AssetCashEvent}), ou completa o que ja
  * existe — a mesma noticia vinda de outra fonte (V22). So a rotina de proventos da adm-api
- * (B3, historico, FNET) grava aqui: evento do catalogo vem de integracao, nunca de importacao
- * (docs/planos/PLANO_CARGA_INICIAL.md, regra C — o extrato da B3 nao grava mais no catalogo).
+ * (B3, historico, FNET) grava aqui: evento do catalogo vem de integracao com as fontes de catalogo
+ * (docs/planos/PLANO_CARGA_INICIAL.md, regra C).
  *
  * <p>Precedencia na mesma noticia: a data de pagamento que veio de outra fonte
  * ({@link PaymentDateSource}, ex.: relatorio de proventos da CVM) cede a data da propria fonte do
@@ -73,13 +73,6 @@ public class CashEventWriter {
                         existing.setIncomeTaxExempt(d.incomeTaxExempt());
                     }
                     dirty = true;
-                } else if (existing.getSource() == CashEventSource.FNET && d.source() == CashEventSource.FNET
-                        && d.sourceRef() != null && !d.sourceRef().equals(existing.getSourceRef())
-                        && (existing.getSourceRef() == null || !existing.getSourceRef().matches("\\d+"))) {
-                    // evento do FNET sem o id do aviso (reclassificado pela V38, que deixou a referencia
-                    // da linha do extrato): guarda o aviso
-                    existing.setSourceRef(d.sourceRef());
-                    dirty = true;
                 }
                 if (existing.getPaymentDate() == null && d.paymentDate() != null) {
                     existing.setPaymentDate(d.paymentDate());
@@ -89,6 +82,13 @@ public class CashEventWriter {
                     // a data veio de outra fonte (CVM, levantamento); a da fonte do evento manda
                     existing.setPaymentDate(d.paymentDate());
                     existing.setPaymentDateSource(null);
+                    dirty = true;
+                } else if (existing.getSource() == CashEventSource.B3 && d.source() == CashEventSource.B3
+                        && d.paymentDate() != null && !d.paymentDate().equals(existing.getPaymentDate())) {
+                    // PENDENCIAS 33.5: a B3 mudou a data do proprio provento (ALUP 05/10 -> 02/10/2026; GEPA e VITT3
+                    // de 31/12/2027 para a data marcada): a data nova vale. "A definir" (31/12/9999) chega sem data e
+                    // nao apaga a que existe
+                    existing.setPaymentDate(d.paymentDate());
                     dirty = true;
                 }
                 if (existing.getApprovedOn() == null && d.approvedOn() != null) {

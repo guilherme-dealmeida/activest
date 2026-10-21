@@ -56,6 +56,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -89,7 +90,8 @@ import java.util.regex.Pattern;
  * antes da B3, e quando a B3 mostra um provento mais novo que o ultimo aviso gravado o FNET e
  * consultado pelo CNPJ (no maximo uma vez por dia por fundo) e o aviso novo e baixado; a B3 fica
  * de reserva para o fundo sem aviso. O aviso e ligado pelo CNPJ
- * do emissor, nao pelo ticker (renomeacoes); recibo de subscricao (final 12 a 19) e
+ * do emissor, nao pelo ticker (renomeacoes); recibo de subscricao e outra classe (ISIN e ticker, R3 do
+ * docs/planos/PLANO_CORRECAO_PROVENTOS.md), aviso inativo ou cancelado no FNET (R5) e
  * aviso com data-base depois do pagamento ficam de fora (1.5 do plano). ETF nao tem
  * fonte alem dos 12 meses: o que faltar e lancamento manual. No escopo HELD o
  * historico so e buscado quando uma posicao comeca antes do evento mais antigo
@@ -117,6 +119,10 @@ public class ProventosCatalogService {
     com.primevest.adm.domain.pricehistory.CryptoHistoryService cryptoHistory;
 
 
+    /** Pausa entre as buscas da situacao dos avisos no FNET (o FNET segura buscas seguidas). */
+    @org.springframework.beans.factory.annotation.Value("${fnet.status-pause-millis:3000}")
+    long fnetStatusPauseMillis = 3000;
+
     /** Mensagens de administrador (docs/planos/PLANO_NOTIFICACOES.md, 5.7). */
     @org.springframework.beans.factory.annotation.Autowired
     com.primevest.adm.domain.notice.AdminNotices notices;
@@ -126,8 +132,13 @@ public class ProventosCatalogService {
     private static final int HISTORY_PAGE_SIZE = 100;
     /** Sincronizacao disparada por transacao nao repete o mesmo emissor antes disso. */
     private static final long ON_DEMAND_COOLDOWN_SECONDS = 6 * 3600;
-    /** Recibo de subscricao e direito (PLAG13, APTO14...): o provento nao e da cota. */
-    private static final Pattern RECEIPT = Pattern.compile("[A-Z]{4}1[2-9]");
+    /**
+     * ISIN de recibo de subscricao ou direito no FNET (BRTRXFR02E15, BRALZRR27M17, BRXPMLD02M12): o 7o caractere e
+     * "R" ou "D" (a cota e "CTF"). O provento e do recibo, nao da cota (docs/planos/PLANO_CORRECAO_PROVENTOS.md, R3).
+     */
+    private static final Pattern RECEIPT_ISIN = Pattern.compile("BR[A-Z0-9]{4}[RD].*");
+    /** Ticker de fundo: 4 letras, 2 digitos (11 = cota; 12 a 19, 20+ = recibos, direitos e outras classes). */
+    private static final Pattern FUND_TICKER = Pattern.compile("([A-Z]{4})(\\d{2})[A-Z]?");
     /** FNET e B3 escrevem o mesmo valor com casas diferentes (1.03999999900318 x 1.04). */
     private static final BigDecimal SAME_VALUE_TOLERANCE = new BigDecimal("0.000001");
     /** Especie do historico longo → final do ticker. */
@@ -217,16 +228,31 @@ public class ProventosCatalogService {
      * ja em carteira). Se outra rodada estiver rodando, desiste e devolve {@code null}.
      */
     public SyncResult syncAll(String reason) {
+        return syncAll(reason, false);
+    }
+
+    /**
+     * {@code allNotices}: le de novo <b>todos</b> os avisos do FNET em disco, inclusive os que ja geraram evento (gravar e
+     * absorver sao idempotentes). Para depois de uma limpeza (V60): o aviso ativo que ja tinha uma linha gravada (a
+     * amortizacao, por exemplo) nao era relido e a outra linha (o rendimento) que saiu junto com o evento indevido nao
+     * voltava (CJCT11, HAAA11, MAXR11, PLRI11 em 21/10/2026).
+     */
+    public SyncResult syncAll(String reason, boolean allNotices) {
         if (!fullRun.tryLock()) {
             log.warn("Proventos ({}): ja existe uma rodada completa em andamento; nada feito", reason);
             return null;
         }
+        rereadAllNotices = allNotices;
         try {
-            return runAll(reason);
+            return runAll(reason + (allNotices ? ", todos os avisos do FNET" : ""));
         } finally {
+            rereadAllNotices = false;
             fullRun.unlock();
         }
     }
+
+    /** Rodada com {@code syncAll(reason, true)}: o FNET de cada fundo e relido inteiro do disco. */
+    private volatile boolean rereadAllNotices;
 
     private SyncResult runAll(String reason) {
         List<IssuerGroup> groups = groups(scopeAssets());
@@ -441,12 +467,20 @@ public class ProventosCatalogService {
             }
             for (Asset asset : targets) {
                 DividendType type = DividendType.fromSourceLabel(d.label());
-                // a mesma amortizacao ja gravada pelo FNET com outras casas: completa, nao duplica
-                BigDecimal v = type == null ? value : sameValue(asset, type, dataCom, value);
+                LocalDate payment = B3Values.date(d.paymentDate());
+                // R1 (docs/planos/PLANO_CORRECAO_PROVENTOS.md): a mesma amortizacao ja gravada pelo FNET com outras
+                // casas completa, nao duplica. Dentro da propria B3 valores quase iguais sao parcelas diferentes (a
+                // ultima leva o arredondamento: KLBN 0,04559717225 x 3 e 0,04559717224) e ficam como vieram.
+                BigDecimal v = type == null ? value : sameValue(asset, type, dataCom, value, CashEventSource.B3);
+                if (fii && type != null && fnetHasSamePayment(asset, type, payment, v)) {
+                    // R6: o FNET ja tem este provento (mesmo pagamento e valor) com outra data-base: a B3 era reserva
+                    continue;
+                }
                 CashEventData data = new CashEventData(type, d.label(), dataCom,
-                        B3Values.date(d.paymentDate()), v, B3Values.date(d.approvedOn()),
+                        payment, v, B3Values.date(d.approvedOn()),
                         B3Values.trim(d.relatedTo()), B3Values.trim(d.isinCode()), null, CashEventSource.B3, null,
-                        installments.next(asset.getId(), type, d.label(), dataCom, value));
+                        // R2: a parcela e numerada pelo valor que vai ser gravado (a chave do evento)
+                        installments.next(asset.getId(), type, d.label(), dataCom, v));
                 if (cashEventWriter.save(asset, data)) {
                     c.cash++;
                 }
@@ -605,6 +639,13 @@ public class ProventosCatalogService {
         }
         Path file = companyHistoryFile(group.issuer());
         List<B3HistoryPage.Item> items = readCompanyHistory(file);
+        if (items != null && items.isEmpty() && supplement != null && !supplement.cash().isEmpty()) {
+            // R8 (docs/planos/PLANO_CORRECAO_PROVENTOS.md): historico vazio de quem tem provento nos 12 meses nao e
+            // "nunca pagou" — era o nome de pregao com barra (KLABIN S/A, PENDENCIAS 19.1): busca de novo
+            log.info("Proventos: historico longo de {} vazio em disco, mas a B3 mostra proventos recentes — buscando de novo",
+                    group.issuer());
+            items = null;
+        }
         if (items == null) {
             B3Supplement sup = supplement;
             if (sup == null) {
@@ -622,9 +663,10 @@ public class ProventosCatalogService {
 
     private List<B3HistoryPage.Item> fetchCompanyHistory(String tradingName) {
         List<B3HistoryPage.Item> items = new ArrayList<>();
+        String query = historyQueryName(tradingName);
         for (int page = 1; page <= 100; page++) {
             pause();
-            B3HistoryPage result = b3Client.cashDividendsHistory(tradingName, page, HISTORY_PAGE_SIZE);
+            B3HistoryPage result = b3Client.cashDividendsHistory(query, page, HISTORY_PAGE_SIZE);
             items.addAll(result.items());
             Integer totalPages = result.page() != null ? result.page().totalPages() : null;
             if (result.items().isEmpty() || totalPages == null || page >= totalPages) {
@@ -673,6 +715,15 @@ public class ProventosCatalogService {
         }
         log.info("Proventos: historico longo de {} gravado — {} eventos novos", group.issuer(), saved);
         return saved;
+    }
+
+    /**
+     * Nome de pregao como o historico da B3 o encontra: sem a barra. "KLABIN S/A", "AMBEV S/A" e "CURY S/A" devolvem
+     * lista vazia; "KLABIN SA", 219 lancamentos (conferido em 21/10/2026 — a causa das 17 acoes sem historico da
+     * PENDENCIAS 19.1; docs/planos/PLANO_CORRECAO_PROVENTOS.md, G).
+     */
+    static String historyQueryName(String tradingName) {
+        return tradingName.replace("/", "").replaceAll("\\s+", " ").trim();
     }
 
     /** {@code carga/data/b3/proventos/{EMISSOR}.json}: todas as paginas do historico da B3. */
@@ -735,11 +786,29 @@ public class ProventosCatalogService {
         List<Long> ids = fnetClient.cachedNoticeIds(cnpj);
         Set<String> known = new HashSet<>();
         assets.forEach(a -> known.addAll(cashEventRepository.findFnetRefs(a.getId())));
-        List<Long> missing = ids.stream().filter(id -> !known.contains(String.valueOf(id))).sorted().toList();
+        List<Long> missing = ids.stream().filter(id -> rereadAllNotices || !known.contains(String.valueOf(id)))
+                .sorted().toList();
         if (missing.isEmpty()) {
             return true;
         }
-        FnetClient.Batch batch = fnetClient.incomeNotices(missing);
+        // D5/R5: aviso inativo ou cancelado no FNET (o fundo publicou outro no lugar, ou retirou) nao vira evento
+        // R11: a situacao vale pelo id do aviso, em qualquer arquivo (aviso listado no FNET sob o CNPJ de outro fundo)
+        Set<Long> inactive = fnetClient.inactiveNoticeIds();
+        boolean statusKnown = fnetClient.hasStatus(cnpj);
+        FnetClient.Batch batch = fnetClient.incomeNotices(missing.stream().filter(i -> !inactive.contains(i)).toList());
+        // R9: dias de pagamento em que o fundo ja tem a linha da propria cota (ISIN do ativo ou ticker do fundo), neste
+        // lote ou ja gravada — no mesmo dia, linha com ISIN e ticker de outro papel e de outra classe ou de outro fundo
+        Set<LocalDate> ownPayments = ownPaymentDates(assets, batch, false);
+        // R12: dias com a linha do ISIN da propria cota — ai, linha com outro ISIN e de outro papel mesmo com o ticker
+        // do fundo (EURO11, 19/04/2017: recibo BREURO01M15 de R$ 1,56 com o ticker EURO11, ao lado da cota a R$ 1,23)
+        Set<LocalDate> ownIsinPayments = ownPaymentDates(assets, batch, true);
+        // R13: dias com a linha do ticker do fundo no lote — ai, linha com ticker de outra classe do fundo (mesma raiz,
+        // outro final) e da outra classe mesmo com o ISIN da cota (URPR11, aviso 1335853: URPR11 0,30 e URPR13 0,078,
+        // as duas linhas com BRURPRCTF002)
+        Set<LocalDate> ownTickerPayments = new HashSet<>();
+        batch.notices().values().forEach(n -> n.proventos().stream()
+                .filter(p -> p.paymentDate() != null && tickerOfGroup(assets, p))
+                .forEach(p -> ownTickerPayments.add(p.paymentDate())));
         int saved = 0;
         int otherFund = 0;
         int invalid = 0;
@@ -751,7 +820,20 @@ public class ProventosCatalogService {
                 continue;
             }
             for (FnetProvento p : notice.proventos()) {
-                if (p.ticker() != null && RECEIPT.matcher(p.ticker()).matches()) {
+                if (otherClass(assets, p)) {
+                    // R3: recibo de subscricao, direito ou outra classe do fundo — o provento nao e da cota
+                    continue;
+                }
+                if (p.paymentDate() != null && ownPayments.contains(p.paymentDate()) && !ownLine(assets, p)) {
+                    // R9: XLPR11 (30/01/2026): o aviso de ANGC11 (R$ 770, outra classe do mesmo CNPJ) ao lado do de
+                    // XLPR11; LPLP11 e SPG211: linhas de outra classe no mesmo aviso
+                    continue;
+                }
+                if (p.paymentDate() != null && p.isin() != null && ownIsinPayments.contains(p.paymentDate())
+                        && !ownIsin(assets, p)) {
+                    continue;
+                }
+                if (p.paymentDate() != null && ownTickerPayments.contains(p.paymentDate()) && otherClassTicker(assets, p)) {
                     continue;
                 }
                 if (p.paymentDate() != null && p.dataBase().isAfter(p.paymentDate())) {
@@ -766,8 +848,18 @@ public class ProventosCatalogService {
                     continue;
                 }
                 DividendType type = p.amortization() ? DividendType.AMORTIZACAO : DividendType.RENDIMENTO;
+                if (fromSameNotice(target, type, p, id)) {
+                    // a linha ja gravada por este aviso (talvez com o valor de outra fonte, quando o FNET completou a
+                    // B3): reler o aviso nao a duplica
+                    continue;
+                }
+                BigDecimal v = sameValue(target, type, p.dataBase(), p.value(), CashEventSource.FNET);
+                if (absorb(target, type, p, v, id, inactive, statusKnown)) {
+                    saved++;
+                    continue;
+                }
                 CashEventData data = new CashEventData(type, type.name(), p.dataBase(), p.paymentDate(),
-                        sameValue(target, type, p.dataBase(), p.value()), null, p.referencePeriod(),
+                        v, null, p.referencePeriod(),
                         p.isin() != null ? p.isin() : target.getIsin(), p.incomeTaxExempt(), CashEventSource.FNET,
                         String.valueOf(id),
                         // Cada aviso e um documento; o mesmo aviso republicado
@@ -840,6 +932,52 @@ public class ProventosCatalogService {
         return loadFund(cnpj, assets, c);
     }
 
+    /**
+     * Situacao no FNET (ativo, inativo, cancelado) dos avisos de todos os fundos com aviso em {@code carga/data/fnet}
+     * (D5 do docs/planos/PLANO_CORRECAO_PROVENTOS.md). Grava {@code carga/data/fnet/status/{CNPJ}.json}; a rotina
+     * diaria atualiza o arquivo de cada fundo sempre que busca aviso novo. {@code onlyMissing}: so os fundos ainda sem
+     * arquivo (retomar depois de falhas).
+     *
+     * <p>O FNET segura as buscas seguidas do mesmo endereco (a resposta nao vem ate o tempo limite): uma busca por vez,
+     * com pausa entre os fundos ({@code fnet.status-pause-millis}) e uma pausa longa depois de cada falha.</p>
+     */
+    public int refreshFnetStatus(String reason, boolean onlyMissing) {
+        java.util.List<String> cnpjs = fnetClient.cachedCnpjs().stream()
+                .filter(c -> !onlyMissing || !fnetClient.hasStatus(c)).toList();
+        log.info("Proventos: situacao dos avisos no FNET ({}) — {} fundos{}", reason, cnpjs.size(),
+                onlyMissing ? " sem arquivo de situacao" : "");
+        int ok = 0;
+        int fail = 0;
+        for (String cnpj : cnpjs) {
+            try {
+                fnetClient.incomeNoticeIds(cnpj);
+                ok++;
+                sleepQuietly(fnetStatusPauseMillis);
+            } catch (RuntimeException e) {
+                fail++;
+                log.warn("Proventos: situacao dos avisos de {} nao obtida: {}", cnpj, e.getMessage());
+                sleepQuietly(fnetStatusPauseMillis * 10);
+            }
+            if ((ok + fail) % 25 == 0) {
+                log.info("Proventos: situacao no FNET — {} de {} fundos ({} falhas)", ok + fail, cnpjs.size(), fail);
+            }
+        }
+        log.info("Proventos: situacao dos avisos no FNET concluida — {} fundos, {} falhas (missing=true retoma as falhas)",
+                ok, fail);
+        return fail;
+    }
+
+    private static void sleepQuietly(long millis) {
+        if (millis <= 0) {
+            return;
+        }
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     /** Data-com mais recente que a B3 (resposta + arquivo) mostra para o grupo. */
     private static LocalDate latestB3DataCom(B3Supplement supplement) {
         if (supplement == null) {
@@ -853,7 +991,15 @@ public class ProventosCatalogService {
      * O ativo do provento: fundo com uma cota negociada leva tudo (o ticker do aviso pode
      * ser o de antes da renomeacao); com mais de uma, pelo ISIN ou pelo ticker.
      */
-    private static Asset target(List<Asset> assets, FnetProvento p) {
+    private Asset target(List<Asset> assets, FnetProvento p) {
+        if (p.isin() != null && !tickerOfGroup(assets, p) && isinOfOtherIssuer(assets, p.isin())) {
+            // R7: ISIN da cota de outro ativo do catalogo, de outro emissor, sem o ticker deste fundo (incorporacao:
+            // o aviso paga a cota do fundo incorporado). Com o ticker do fundo, vale o ticker: BRIP11 publicou o
+            // rendimento de 07/02/2025 (R$ 36,85) com o ISIN de VCRI11, do mesmo administrador
+            log.debug("Proventos: aviso do FNET de {} com o ISIN {} de outro fundo do catalogo — fora",
+                    assets.get(0).getTicker(), p.isin());
+            return null;
+        }
         List<Asset> quotas = assets.stream().filter(a -> !a.getTicker().toUpperCase().endsWith("F")).toList();
         if (quotas.size() == 1) {
             return quotas.get(0);
@@ -880,20 +1026,228 @@ public class ProventosCatalogService {
     }
 
     /**
-     * O mesmo provento ja gravado por outra fonte com outras casas (FNET 1.03999999900318,
-     * B3 1.04): usa o valor gravado, para o {@link CashEventWriter} completar em vez de
-     * duplicar.
+     * O mesmo provento ja gravado por <b>outra fonte</b> com outras casas (FNET 1.03999999900318, B3 1.04): usa
+     * o valor gravado, para o {@link CashEventWriter} completar em vez de duplicar (R1 do
+     * docs/planos/PLANO_CORRECAO_PROVENTOS.md). O valor exato, se ja existe, vence. Dentro da mesma familia de
+     * fontes (B3 e o historico longo da B3; ou o FNET) valores quase iguais sao parcelas diferentes e nao se
+     * confundem — foi o que duplicou as parcelas de KLBN, RECV3 e TRIS3 em 02/10/2026.
      */
-    private BigDecimal sameValue(Asset asset, DividendType type, LocalDate dataCom, BigDecimal value) {
-        List<BigDecimal> existing = jdbc.queryForList("""
-                SELECT value_per_share FROM asset_cash_events WHERE asset_id = ? AND type = ? AND data_com = ?""",
-                BigDecimal.class, asset.getId(), type.name(), java.sql.Date.valueOf(dataCom));
-        for (BigDecimal v : existing) {
-            if (v.subtract(value).abs().compareTo(SAME_VALUE_TOLERANCE) <= 0) {
+    private BigDecimal sameValue(Asset asset, DividendType type, LocalDate dataCom, BigDecimal value,
+                                 CashEventSource source) {
+        BigDecimal scaled = value.setScale(VALUE_SCALE, RoundingMode.HALF_UP);
+        List<Map<String, Object>> existing = jdbc.queryForList("""
+                SELECT value_per_share, source FROM asset_cash_events
+                WHERE asset_id = ? AND type = ? AND data_com = ? ORDER BY value_per_share, id""",
+                asset.getId(), type.name(), java.sql.Date.valueOf(dataCom));
+        for (Map<String, Object> row : existing) {
+            if (((BigDecimal) row.get("value_per_share")).compareTo(scaled) == 0) {
+                return value;
+            }
+        }
+        boolean fromFnet = source == CashEventSource.FNET;
+        for (Map<String, Object> row : existing) {
+            boolean rowFnet = CashEventSource.FNET.name().equals(row.get("source"));
+            BigDecimal v = (BigDecimal) row.get("value_per_share");
+            if (rowFnet != fromFnet && v.subtract(value).abs().compareTo(SAME_VALUE_TOLERANCE) <= 0) {
                 return v;
             }
         }
         return value;
+    }
+
+    /** O evento desta linha ja foi gravado por este mesmo aviso (mesmo tipo e data-base, valor dentro da tolerancia). */
+    private boolean fromSameNotice(Asset asset, DividendType type, FnetProvento p, long noticeId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("""
+                SELECT EXISTS (SELECT 1 FROM asset_cash_events WHERE asset_id = ? AND type = ? AND data_com = ?
+                  AND source = 'FNET' AND source_ref = ? AND abs(value_per_share - ?) <= ?)""", Boolean.class,
+                asset.getId(), type.name(), java.sql.Date.valueOf(p.dataBase()), String.valueOf(noticeId), p.value(),
+                SAME_VALUE_TOLERANCE));
+    }
+
+    /** R6: o FNET ja gravou o provento (mesmo tipo, pagamento e valor), ainda que com outra data-base. */
+    private boolean fnetHasSamePayment(Asset asset, DividendType type, LocalDate payment, BigDecimal value) {
+        if (payment == null) {
+            return false;
+        }
+        return Boolean.TRUE.equals(jdbc.queryForObject("""
+                SELECT EXISTS (SELECT 1 FROM asset_cash_events WHERE asset_id = ? AND type = ? AND source = 'FNET'
+                  AND payment_date = ? AND abs(value_per_share - ?) <= ?)""", Boolean.class,
+                asset.getId(), type.name(), java.sql.Date.valueOf(payment), value, SAME_VALUE_TOLERANCE));
+    }
+
+    /**
+     * R5 e R6 (docs/planos/PLANO_CORRECAO_PROVENTOS.md): o aviso traz um provento (mesmo tipo, pagamento e valor)
+     * que ja esta gravado — pela B3, como reserva, com outra data-com; ou por um aviso que o FNET marcou depois como
+     * inativo ou cancelado (o fundo corrigiu a data-base, ou so republicou o aviso). O evento e o mesmo: e atualizado
+     * no lugar, passando a apontar para o aviso ativo, com o id preservado (os proventos da carteira acompanham no
+     * recalculo), em vez de nascer um segundo.
+     *
+     * <p>R10: a retificacao que so muda o pagamento (MXRF11: aviso 1025775 pagava em 07/11/2025, o 1026624 o trocou
+     * por 14/11/2025, mesma data-base e valor) chega com a mesma chave do evento ja gravado pelo aviso inativo: e o
+     * mesmo evento, com o pagamento novo — so quando o FNET marcou o aviso antigo como inativo ou cancelado.</p>
+     *
+     * @return se o provento foi absorvido por um evento existente
+     */
+    private boolean absorb(Asset asset, DividendType type, FnetProvento p, BigDecimal value, long noticeId,
+                           Set<Long> inactive, boolean statusKnown) {
+        if (p.paymentDate() == null) {
+            return false;
+        }
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                SELECT id, source, source_ref, data_com, payment_date FROM asset_cash_events
+                WHERE asset_id = ? AND type = ? AND abs(value_per_share - ?) <= ?
+                  AND (payment_date = ? OR (source = 'FNET' AND data_com = ?
+                       AND payment_date IS DISTINCT FROM ?)) ORDER BY id""",
+                asset.getId(), type.name(), value, SAME_VALUE_TOLERANCE, java.sql.Date.valueOf(p.paymentDate()),
+                java.sql.Date.valueOf(p.dataBase()), java.sql.Date.valueOf(p.paymentDate()));
+        for (Map<String, Object> row : rows) {
+            String source = (String) row.get("source");
+            String ref = (String) row.get("source_ref");
+            boolean samePayment = row.get("payment_date") != null
+                    && ((java.sql.Date) row.get("payment_date")).toLocalDate().equals(p.paymentDate());
+            if (!samePayment) {
+                // R10: so o aviso que o FNET marcou como inativo ou cancelado cede o pagamento
+                boolean replacedRef = CashEventSource.FNET.name().equals(source) && ref != null
+                        && ref.matches("\\d+") && !ref.equals(String.valueOf(noticeId))
+                        && inactive.contains(Long.valueOf(ref));
+                if (!replacedRef) {
+                    continue;
+                }
+            }
+            boolean sameDate = ((java.sql.Date) row.get("data_com")).toLocalDate().equals(p.dataBase());
+            // a reserva da B3 com a mesma data-com o CashEventWriter ja passa para o FNET (D15)
+            boolean reserve = CashEventSource.B3.name().equals(source) && !sameDate;
+            boolean fnetRef = CashEventSource.FNET.name().equals(source) && ref != null && ref.matches("\\d+")
+                    && !ref.equals(String.valueOf(noticeId));
+            // sem o arquivo de situacao do fundo: o aviso mais novo com a data-base ate 7 dias da anterior e a
+            // retificacao (conferido onde ha situacao: o antigo inativo ou cancelado em 7 de 8 pares)
+            long gap = Math.abs(java.time.temporal.ChronoUnit.DAYS.between(
+                    ((java.sql.Date) row.get("data_com")).toLocalDate(), p.dataBase()));
+            // R11: a situacao conhecida (em qualquer arquivo) vale; o arquivo do fundo, quando existe, e completo
+            boolean replaced = fnetRef && (inactive.contains(Long.valueOf(ref))
+                    || (!statusKnown && Long.parseLong(ref) < noticeId && gap <= 7));
+            if (!reserve && !replaced) {
+                continue;
+            }
+            try {
+                jdbc.update("""
+                        UPDATE asset_cash_events SET data_com = ?, payment_date = ?, value_per_share = ?, seq = 1,
+                          source = 'FNET', source_ref = ?, isin = COALESCE(?, isin),
+                          related_to = COALESCE(?, related_to), income_tax_exempt = COALESCE(?, income_tax_exempt),
+                          payment_date_source = NULL, fetched_at = now()
+                        WHERE id = ?""",
+                        java.sql.Date.valueOf(p.dataBase()), java.sql.Date.valueOf(p.paymentDate()),
+                        value.setScale(VALUE_SCALE, RoundingMode.HALF_UP), String.valueOf(noticeId), p.isin(),
+                        p.referencePeriod(), p.incomeTaxExempt(), row.get("id"));
+            } catch (org.springframework.dao.DuplicateKeyException e) {
+                return false;
+            }
+            log.info("Proventos: {} {} pago em {} — aviso {} do FNET {} (data-com {}{})", asset.getTicker(), type,
+                    p.paymentDate().format(BR), noticeId, reserve ? "substitui a reserva da B3" : "substitui o aviso "
+                            + ref + ", inativo no FNET", p.dataBase().format(BR),
+                    samePayment ? "" : "; pagamento era " + row.get("payment_date"));
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * R3: o provento do aviso e de outra classe do fundo — recibo de subscricao ou direito (ISIN com "R" no 7o
+     * caractere, mesmo com o ticker da cota; ou ticker com final diferente de 11 que nao e de nenhum ativo do grupo,
+     * como TRXF26).
+     */
+    static boolean otherClass(List<Asset> assets, FnetProvento p) {
+        String isin = p.isin() == null ? null : p.isin().trim().toUpperCase();
+        String ticker = p.ticker() == null ? null : p.ticker().trim().toUpperCase();
+        for (Asset a : assets) {
+            if (isin != null && isin.equalsIgnoreCase(a.getIsin())) {
+                return false;
+            }
+        }
+        if (isin != null && RECEIPT_ISIN.matcher(isin).matches()) {
+            // o ISIN de recibo vence o ticker: o administrador repete o ticker da cota nas linhas dos recibos
+            // (ARRI11, aviso 709290: cota 0,10 e recibos R28, R29 e R30 0,03, todos "ARRI11")
+            return true;
+        }
+        if (tickerOfGroup(assets, p)) {
+            return false;
+        }
+        if (ticker != null) {
+            Matcher m = FUND_TICKER.matcher(ticker);
+            return m.matches() && !"11".equals(m.group(2));
+        }
+        return false;
+    }
+
+    /** A linha do aviso e da propria cota: ISIN de um ativo do grupo ou ticker do fundo. */
+    private static boolean ownLine(List<Asset> assets, FnetProvento p) {
+        return ownIsin(assets, p) || tickerOfGroup(assets, p);
+    }
+
+    /**
+     * R13: ticker de outra classe do proprio fundo — mesma raiz de um ativo do grupo e outro final (URPR13 de URPR11).
+     * Sozinho no dia, vale a linha (EXES11, 20/10/2022: o rendimento da cota publicado com o ticker EXES13).
+     */
+    private static boolean otherClassTicker(List<Asset> assets, FnetProvento p) {
+        if (p.ticker() == null || tickerOfGroup(assets, p)) {
+            return false;
+        }
+        Matcher m = FUND_TICKER.matcher(p.ticker().trim().toUpperCase());
+        return m.matches() && assets.stream().anyMatch(a -> baseTicker(a.getTicker()).startsWith(m.group(1)));
+    }
+
+    /** O ISIN da linha e o de um ativo do grupo. */
+    private static boolean ownIsin(List<Asset> assets, FnetProvento p) {
+        return p.isin() != null && assets.stream().anyMatch(a -> p.isin().trim().equalsIgnoreCase(a.getIsin()));
+    }
+
+    /**
+     * R9/R12: pagamentos do fundo com a linha da propria cota — no lote e nos eventos ja gravados com o ISIN do ativo.
+     * {@code isinOnly}: so as linhas com o ISIN de um ativo do grupo (sem contar o ticker).
+     */
+    private Set<LocalDate> ownPaymentDates(List<Asset> assets, FnetClient.Batch batch, boolean isinOnly) {
+        Set<LocalDate> dates = new HashSet<>();
+        for (FnetNotice notice : batch.notices().values()) {
+            for (FnetProvento p : notice.proventos()) {
+                if (p.paymentDate() != null && (isinOnly ? ownIsin(assets, p) : ownLine(assets, p))) {
+                    dates.add(p.paymentDate());
+                }
+            }
+        }
+        for (Asset a : assets) {
+            if (a.getIsin() != null) {
+                dates.addAll(jdbc.queryForList("""
+                        SELECT DISTINCT payment_date FROM asset_cash_events
+                        WHERE asset_id = ? AND isin = ? AND payment_date IS NOT NULL""", LocalDate.class,
+                        a.getId(), a.getIsin()));
+            }
+        }
+        return dates;
+    }
+
+    /** O ticker do provento e o de um ativo do grupo (MAXR11B conta como MAXR11). */
+    private static boolean tickerOfGroup(List<Asset> assets, FnetProvento p) {
+        if (p.ticker() == null) {
+            return false;
+        }
+        String t = p.ticker().trim().toUpperCase();
+        Matcher m = FUND_TICKER.matcher(t);
+        String base = m.matches() ? m.group(1) + m.group(2) : t;
+        return assets.stream().anyMatch(a -> baseTicker(a.getTicker()).equals(base));
+    }
+
+    /** R7: o ISIN e da cota de outro ativo do catalogo, ligado a outro emissor. */
+    private boolean isinOfOtherIssuer(List<Asset> assets, String isin) {
+        String code = isin.trim().toUpperCase();
+        if (assets.stream().anyMatch(a -> code.equalsIgnoreCase(a.getIsin()))) {
+            return false;
+        }
+        Integer n = jdbc.queryForObject("""
+                SELECT count(*) FROM assets o
+                WHERE o.isin = ? AND o.issuer_id IS NOT NULL
+                  AND o.issuer_id IS DISTINCT FROM (SELECT issuer_id FROM assets WHERE id = ?)""",
+                Integer.class, code, assets.get(0).getId());
+        return n != null && n > 0;
     }
 
     // ------------------------------------------------------------------

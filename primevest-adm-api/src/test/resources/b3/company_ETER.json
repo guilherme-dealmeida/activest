@@ -1,0 +1,60 @@
+[
+ {
+  "tradingName": "ETERNIT     ",
+  "code": "ETER",
+  "codeCVM": "5762",
+  "cashDividends": [
+   {
+    "assetIssued": "BRETERACNOR3",
+    "paymentDate": "22/06/2026",
+    "rate": "0,08535843599",
+    "relatedTo": "Anual/2025",
+    "approvedOn": "24/03/2026",
+    "isinCode": "BRETERACNOR3",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "30/03/2026",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRETERACNOR3",
+    "paymentDate": "18/09/2026",
+    "rate": "0,08535843598",
+    "relatedTo": "Anual/2025",
+    "approvedOn": "24/03/2026",
+    "isinCode": "BRETERACNOR3",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "30/03/2026",
+    "remarks": ""
+   }
+  ],
+  "stockDividends": [
+   {
+    "assetIssued": "BRETERACNOR3",
+    "factor": "5,00000000000",
+    "approvedOn": "25/04/2007",
+    "isinCode": "BRETERACNOR3",
+    "label": "BONIFICACAO",
+    "lastDatePrior": "25/04/2007",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRETERACNOR3",
+    "factor": "100,00000000000",
+    "approvedOn": "24/09/2014",
+    "isinCode": "BRETERACNOR3",
+    "label": "DESDOBRAMENTO",
+    "lastDatePrior": "25/09/2014",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRETERACNOR3",
+    "factor": "0,16666666667",
+    "approvedOn": "27/09/2018",
+    "isinCode": "BRETERACNOR3",
+    "label": "GRUPAMENTO",
+    "lastDatePrior": "26/10/2018",
+    "remarks": ""
+   }
+  ]
+ }
+]

@@ -4,7 +4,7 @@
 > `application.yml` dos módulos · revisado em 03/10/2026 (Markdown, caminhos `carga/`) · 05/10/2026 ([A9] índices de
 > mercado, `docs/planos/PLANO_INDICES_MERCADO.md`; [A10] preço do Tesouro e a curva da renda fixa,
 > `docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`) · 10/10/2026 ([A11] cotações do catálogo pelo COTAHIST diário,
-> `docs/planos/PLANO_PRECO_TETO.md`) · 13/10/2026 ([B7] abertura do dia, mensagens de administrador nas rotinas da adm-api,
+> `docs/planos/PLANO_PRECO_TETO.md`) · 21/10/2026 ([A4] situação dos avisos do FNET, recibos e retificações; [A12] situação semanal dos avisos do FNET — `docs/planos/PLANO_CORRECAO_PROVENTOS.md`, PENDENCIAS 33.3) · 13/10/2026 ([B7] abertura do dia, mensagens de administrador nas rotinas da adm-api,
 > [A5] e [A11] avisando a carteira — `docs/planos/PLANO_NOTIFICACOES.md`).
 
 - **Fuso** de todas as rotinas: `America/Sao_Paulo`.
@@ -28,6 +28,7 @@ rodada seguinte não achar mais a diferença. As mensagens do usuário são da a
 | Quando | Módulo | Rotina |
 |---|---|---|
 | 00:00 | app | [B7] Abertura do dia (liquidação dos vencidos, proventos e eventos de D0, conferências) |
+| 03:00, domingo | adm | [A12] Situação dos avisos do FNET + proventos relendo todos os avisos (semanal) |
 | a cada 5 s | app | [B5] Worker da fila de integrações |
 | 06:00, dia 1 | adm | [A7] Logos (mensal) |
 | 07:00, segunda | adm | [A6] Conferência do catálogo (semanal) |
@@ -107,7 +108,7 @@ hora, em segundo plano.
 | **Classe** | `ProventosScheduler.syncProventos` → `ProventosCatalogService.syncAll` → `CvmPaymentDateService.run(ano anterior, ano corrente)` |
 | **Config** | `primevest.proventos.cron = "0 0 20 * * *"`; `primevest.proventos.enabled` (liga/desliga a rotina e o sob demanda); `primevest.proventos.scope = ALL` (todo ativo ligado a emissor + o que já esteve em carteira) ou `HELD` (só o que já esteve em carteira); `primevest.proventos.pause-millis = 1000` |
 | **Fontes** | B3 (proventos ~12 meses, desdobramentos, grupamentos, bonificações), FNET (avisos de FII — fonte principal do FII), CVM "Relatórios Proventos" (data de pagamento de ação, 2022+) |
-| **Grava** | `asset_cash_events`, `asset_stock_events`; arquivos em `carga/data/` (`b3/proventos-12m`, `fnet`, `cvm/ipe`, `cvm/proventos`) |
+| **Grava** | `asset_cash_events`, `asset_stock_events`; arquivos em `carga/data/` (`b3/proventos-12m`, `fnet`, `fnet/status` — situação de cada aviso no FNET, 21/10/2026 —, `cvm/ipe`, `cvm/proventos`) |
 | **Ao fim** | publica "catálogo mudou" (origem `PROVENTOS`) → a app-api refaz proventos e valorização das posições envolvidas |
 
 **Função.**
@@ -115,8 +116,11 @@ hora, em segundo plano.
 1. Por **emissor** (PETR3 e PETR4 são uma chamada só): busca na B3 os proventos e eventos societários e grava no
    catálogo; o acumulado de 12 meses fica em disco para a data de pagamento não se perder.
 2. FII: aplica os avisos do FNET em disco antes da B3; se a B3 mostrar provento mais novo que o último aviso, consulta
-   o FNET pelo CNPJ (no máximo 1×/dia por fundo).
-3. Histórico longo: ação pelo histórico da B3 (guardado por emissor em disco), FII pelo FNET.
+   o FNET pelo CNPJ (no máximo 1×/dia por fundo) e grava a situação de cada aviso (`fnet/status`). Aviso inativo ou
+   cancelado não vira evento, e o que ele já gerou passa para o aviso ativo; recibo, direito e outra classe ficam fora
+   (`docs/planos/PLANO_CORRECAO_PROVENTOS.md`).
+3. Histórico longo: ação pelo histórico da B3 (guardado por emissor em disco; pedido com o nome de pregão sem barra,
+   e de novo se o arquivo estiver vazio e houver provento nos 12 meses), FII pelo FNET.
 4. Completa a data de pagamento que só o relatório da CVM tem (ano corrente e anterior; o índice IPE só é baixado se
    mudou).
 
@@ -247,6 +251,24 @@ feriado e arquivo ainda não publicado respondem 404 e ficam para a rodada segui
 **Propósito.** Preço de **todo o catálogo** atualizado sem cota da BRAPI (o fechamento [A1] só cobre a carteira): base
 do preço do Preço Teto e da tela de Emissoras (`docs/planos/PLANO_PRECO_TETO.md`, 4.5 e D6). Primeira rodada
 (10/10/2026): 26/09 a 09/10, 10 pregões, 9.909 cotações.
+
+### [A12] Situação dos avisos do FNET (semanal)
+
+| | |
+|---|---|
+| **Quando** | 03:00, todo domingo (21/10/2026) |
+| **Classe** | `FnetStatusScheduler.weekly` → `ProventosCatalogService.refreshFnetStatus("semanal", false)` e depois `syncAll("semanal", true)` |
+| **Config** | `primevest.fnet-status.cron = "0 0 3 * * SUN"`; `fnet.status-pause-millis` (3 s entre fundos); desliga junto com `primevest.proventos.enabled` |
+| **Fonte** | lista de avisos de cada fundo no FNET (`pesquisarGerenciadorDocumentosDados`: `status` AC/IC/CC) e os XML em `carga/data/fnet` |
+| **Grava** | `carga/data/fnet/status/{CNPJ}.json` (situação de cada aviso) e, na rodada de proventos, o que mudou nos eventos (R10: pagamento retificado; R11: aviso inativado sob o CNPJ de outro fundo) |
+
+**Função.** (1) Relê a situação de todos os fundos com aviso em disco (~1 h: uma busca por vez, com pausa — o FNET
+segura buscas seguidas; quem falhar fica com o arquivo anterior). (2) Roda a rodada de proventos relendo **todos** os
+avisos em disco (`fnet=todos`, ~40 min), idempotente: absorve as retificações e não duplica.
+
+**Propósito.** A rotina diária [A4] só relê a situação do fundo quando a B3 mostra provento novo; a retificação que só
+muda o pagamento e o aviso inativado depois ficavam esperando (`docs/PENDENCIAS.md` 33.3,
+`docs/planos/PLANO_CORRECAO_PROVENTOS.md`). Os arquivos de situação novos vão para o bucket no `data push`.
 
 ---
 

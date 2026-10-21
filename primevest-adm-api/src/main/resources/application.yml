@@ -139,6 +139,10 @@ primevest:
     scope: ALL
     # Pausa entre chamadas a B3/FNET: o site e publico e nao documentado.
     pause-millis: 1000
+  fnet-status:
+    # Situacao dos avisos do FNET de todos os fundos + proventos relendo todos os avisos (PENDENCIAS 33.3):
+    # domingo 03:00, sem pregao e sem outra rotina; ~1h30. Desliga junto com proventos.enabled.
+    cron: "0 0 3 * * SUN"
   cvm-statements:
     # Balancos (DFP/ITR) do ano corrente e do anterior; a CVM atualiza de madrugada.
     enabled: true

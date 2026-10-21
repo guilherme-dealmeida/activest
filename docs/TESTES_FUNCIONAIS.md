@@ -2,7 +2,8 @@
 
 > Gerado em 02/10/2026 lendo direto o código de teste (classes `*IT`) · revisado em 03/10/2026 (Markdown) · 05/10/2026
 > (cadastro de usuário: `CadastroUsuarioIT`, `CadastroDesligadoIT`; `IntegracoesB3IT` e o 11º teste de `IntegracoesIT`
-> entraram na lista) · 10/10/2026 (Preço Teto: `PrecoTetoIT`; COTAHIST diário: 2 testes em `HistoricalQuotesImportIT`). Contagens conferidas no `mvn clean verify` de 05/10/2026.
+> entraram na lista) · 10/10/2026 (Preço Teto: `PrecoTetoIT`; COTAHIST diário: 2 testes em `HistoricalQuotesImportIT`) · 21/10/2026
+> (`CorrecaoProventosIT` e `ProventosConferenciaIT` entram; `ExtratoProventosIT` sai — `docs/planos/PLANO_CORRECAO_PROVENTOS.md`). Contagens conferidas no `mvn clean verify` de 05/10/2026.
 
 **O que é "funcional" aqui:** as classes `*IT`, rodadas pelo Failsafe no `mvn clean verify`. Sobem o Spring inteiro contra PostgreSQL 17 de verdade (Testcontainers, com Flyway e `ddl-auto: validate`) e exercitam a API por HTTP ou o serviço com o banco real. Fontes externas (B3, FNET, CVM, BRAPI, CoinGecko, Binance) são mockadas: nenhum teste depende de rede. Rotinas agendadas e mensagens Redis ficam desligadas no perfil de teste; os testes de ponta a ponta ligam adm-api e app-api direto (`CatalogoE2EBase`).
 
@@ -21,21 +22,22 @@ mvn -pl primevest-app-api -am verify   # um módulo
 |---|---|---|
 | adm-api | [PaymentDateSurveyIT](#paymentdatesurveyit-2) | 2 |
 | adm-api | [ProventosCatalogoIT](#proventoscatalogoit-6) | 6 |
+| adm-api | [CorrecaoProventosIT](#correcaoproventosit-24) | 24 |
 | adm-api | [FiiMonthlyImportIT](#fiimonthlyimportit-3) | 3 |
 | adm-api | [FinancialStatementImportIT](#financialstatementimportit-6) | 6 |
 | adm-api | [IssuerImportIT](#issuerimportit-2) | 2 |
 | adm-api | [IssuerLinkIT](#issuerlinkit-5) | 5 |
 | adm-api | [HistoricalQuotesImportIT](#historicalquotesimportit-6) | 6 |
-| app-api | [PaymentDateSourceIT](#paymentdatesourceit-3) | 3 |
+| app-api | [PaymentDateSourceIT](#paymentdatesourceit-5) | 5 |
 | app-api | [AlocacaoIT](#alocacaoit-6) | 6 |
 | app-api | [CadastroDesligadoIT](#cadastrodesligadoit-1) | 1 |
 | app-api | [CadastroUsuarioIT](#cadastrousuarioit-14) | 14 |
 | app-api | [CarteiraIT](#carteirait-13) | 13 |
 | app-api | [EstrategiaIT](#estrategiait-13) | 13 |
 | app-api | [EventosSocietariosIT](#eventossocietariosit-5) | 5 |
-| app-api | [ExtratoProventosIT](#extratoproventosit-6) | 6 |
 | app-api | [FechamentoIT](#fechamentoit-8) | 8 |
 | app-api | [IndicadoresIT](#indicadoresit-9) | 9 |
+| app-api | [ProventosConferenciaIT](#proventosconferenciait-5) | 5 |
 | app-api | [IntegracoesB3IT](#integracoesb3it-6) | 6 |
 | app-api | [IntegracoesConfirmacaoIT](#integracoesconfirmacaoit-9) | 9 |
 | app-api | [IntegracoesFilaIT](#integracoesfilait-9) | 9 |
@@ -75,6 +77,39 @@ F8 do docs/planos/PLANO_EMPRESAS_BALANCOS.md: a rodada de proventos cobre o cata
 | 4 | FII que ainda nao distribuiu (APXR11): B3 sem proventos e nada em disco — sem falha, zero eventos | `fundoSemDistribuicao` |
 | 5 | AMORTIZACAO RF da B3 e amortizacao: completa a do FNET (outras casas) e entra quando so a B3 tem | `amortizacaoRf` |
 | 6 | Historico da B3 em disco (F10): baixado uma vez por emissor; sem evento gravado, relido do arquivo | `historicoDaEmpresaEmDisco` |
+
+### CorrecaoProventosIT (24)
+
+`primevest-adm-api/src/test/java/com/primevest/adm/domain/dividend/CorrecaoProventosIT.java`
+
+docs/planos/PLANO_CORRECAO_PROVENTOS.md (21/10/2026): as classes de erro da investigacao de proventos, com as respostas reais da B3 (KLBN, RECV, TRIS, ETER, PETR) e os avisos reais do FNET (TRXF11, AIEC11, SMRE11, BRIP11, ARRI11, XLPR11, MXRF11, CYCR11, EURO11, URPR11, EXES11).
+
+| # | Teste | Método |
+|---|---|---|
+| 1 | A — KLBN: parcelas com a ultima arredondada (…225 x 3 e …224) nao duplicam nem somem, em duas rodadas | `parcelasDaB3ComArredondamento` |
+| 2 | A — RECV3, TRIS3 e ETER3: a parcela de valor menor nao vira duplicata das outras | `outrasParcelas` |
+| 3 | B — TRXF11: o aviso traz a cota e quatro recibos (TRXF13, 14, 15 e 26); so a cota entra | `reciboDeSubscricao` |
+| 4 | B — ARRI11: recibos com o ticker da cota no aviso (R30 0,03) ficam fora; vale o ISIN | `reciboComOTickerDaCota` |
+| 5 | C — AIEC11: aviso retificado (data-base corrigida); o inativo no FNET nao vira evento | `avisoRetificadoInativo` |
+| 6 | C — AIEC11: o aviso antigo ja gravado vira o novo no lugar (mesmo id) quando o FNET o marca inativo | `avisoRetificadoDepoisDeGravado` |
+| 7 | C — aviso republicado (mesma data-base): o evento passa a apontar para o aviso ativo, sem duplicar | `avisoRepublicado` |
+| 8 | C — MXRF11: a retificacao que so muda o pagamento (07/11 -> 14/11/2025) atualiza o evento no lugar | `retificacaoMudaSoOPagamento` |
+| 9 | C — MXRF11: sem o aviso antigo inativo no FNET, pagamento diferente nao muda o evento | `pagamentoDiferenteSemSituacaoNaoMuda` |
+| 10 | C — CYCR11: aviso listado no FNET sob o CNPJ de outro fundo (CBOP11) e inativado vale pela situacao | `avisoInativoListadoSobOutroCnpj` |
+| 11 | C — CYCR11: o evento ja gravado pelo aviso listado sob outro CNPJ passa para o aviso ativo | `avisoDeOutroCnpjJaGravadoPassaParaOAtivo` |
+| 12 | C — a busca no FNET grava a situacao de cada aviso em carga/data/fnet/status | `situacaoGravadaNaBusca` |
+| 13 | C — fundo com exatamente 100 avisos: a busca para no total (o FNET nao responde a pagina vazia) | `buscaParaNoTotal` |
+| 14 | D — SMRE11: a reserva da B3 (data-com 01/06) e absorvida pelo aviso do FNET (data-base 29/05) | `reservaDaB3AbsorvidaPeloFnet` |
+| 15 | D — SMRE11: com o aviso do FNET gravado, a B3 com outra data-com nao grava a reserva | `b3NaoDuplicaOFnet` |
+| 15a | C8 — reler todos os avisos (fnet=todos) refaz a linha que faltava e nao duplica a que o FNET completou | `releituraDeTodosOsAvisos` |
+| 16 | E — BRIP11: aviso com o ticker do fundo e o ISIN de VCRI11 (erro de preenchimento) vale pelo ticker | `isinDeOutroFundoComOTickerDoFundo` |
+| 17 | E — sem o ticker do fundo, o ISIN da cota de outro fundo do catalogo (incorporacao) fica fora | `isinDeOutroFundoSemTicker` |
+| 18 | E — XLPR11: aviso de outra classe do mesmo CNPJ (ANGC11, R$ 770) no dia do rendimento da cota fica fora | `outraClasseNoDiaDaCota` |
+| 19 | E — EURO11: no dia da cota (ISIN BREUROCTF011, R$ 1,23), o recibo BREURO01M15 com o ticker EURO11 fica fora | `reciboComOTickerNoDiaDaCota` |
+| 20 | B — URPR11: a linha de URPR13 (R$ 0,078) com o ISIN da cota, no aviso da cota (R$ 0,30), fica fora | `outraClasseComOIsinDaCota` |
+| 21 | B — EXES11: rendimento da cota publicado so com o ticker EXES13 (sem a linha de EXES11) fica | `tickerDeOutraClasseSozinhoNoDia` |
+| 22 | G — KLABIN S/A: o historico e pedido a B3 sem a barra (KLABIN SA); com a barra ela devolve vazio | `nomeDePregaoComBarra` |
+| 23 | G — historico vazio em disco de quem tem provento nos 12 meses: busca de novo e grava | `historicoVazioBuscaDeNovo` |
 
 ### FiiMonthlyImportIT (3)
 
@@ -145,7 +180,7 @@ F2 do docs/planos/PLANO_EMPRESAS_BALANCOS.md: serie historica da B3 em asset_pri
 
 ## Módulo app-api (carteira — porta 8080) — 20 classes, 181 testes
 
-### PaymentDateSourceIT (3)
+### PaymentDateSourceIT (5)
 
 `primevest-app-api/src/test/java/com/primevest/domain/dividend/PaymentDateSourceIT.java`
 
@@ -155,7 +190,9 @@ Precedencia no `CashEventWriter` (docs/planos/PLANO_CARGA_INICIAL.md): a data de
 |---|---|---|
 | 1 | Data da CVM e substituida pela data da B3, e a origem volta a nula | `oficialSubstituiCvm` |
 | 2 | Data do levantamento (V39) tambem cede a data da B3 | `oficialSubstituiLevantamento` |
-| 3 | FII: o aviso do FNET assume o provento gravado pela B3 como reserva (fonte, aviso e data) | `fnetAssumeReservaDaB3` |
+| 3 | A B3 muda a data do proprio provento: a data nova vale; 'a definir' (sem data) nao apaga a que existe | `b3MudaAPropriaData` |
+| 4 | O historico longo da B3 (sem data) nao mexe na data que a B3 recente gravou | `historicoNaoMexeNaData` |
+| 5 | FII: o aviso do FNET assume o provento gravado pela B3 como reserva (fonte, aviso e data) | `fnetAssumeReservaDaB3` |
 
 ### AlocacaoIT (6)
 
@@ -263,21 +300,6 @@ Desdobramento, grupamento e bonificacao pela API, do jeito que a tela ve (docs/p
 | 3 | Bonificacao sem custo informado (B27): cotas novas na hora, com custo zero provisorio | `bonificacaoSemCusto_entraComCustoZeroProvisorio` |
 | 4 | Grupamento 10:1 com fracao: sobra a parte inteira e a fracao sai do custo | `grupamentoComFracao` |
 | 5 | Provento com data-com depois do desdobramento e pago sobre as cotas novas | `proventoDepoisDoDesdobramento` |
-
-### ExtratoProventosIT (6)
-
-`primevest-app-api/src/test/java/com/primevest/functional/ExtratoProventosIT.java`
-
-Conferencia do extrato de proventos da B3: POST /admin/proventos/extrato. So le — nada vai para o catalogo nem para a carteira (docs/planos/PLANO_CARGA_INICIAL.md, D13): cada linha ja existe, existe sem data de pagamento no catalogo, nao tem evento no catalogo, ou e recusada.
-
-| # | Teste | Método |
-|---|---|---|
-| 1 | Ja existe: o provento da carteira tem o mesmo pagamento, cotas e liquido | `jaExiste` |
-| 2 | Sem data: o provento existe, mas o evento do catalogo nao tem pagamento — nada e gravado | `semData` |
-| 3 | Sem evento: nada no PrimeVest — o extrato nao cria evento no catalogo | `semEvento` |
-| 4 | Tres linhas iguais no mesmo dia (ISAE4) que ja existem: tres JA_EXISTE | `tresLinhasIguaisJaExistentes` |
-| 5 | Recusa: ativo fora do catalogo e linha incompleta | `recusa` |
-| 6 | So administrador | `soAdministrador` |
 
 ### FechamentoIT (8)
 
@@ -428,6 +450,20 @@ Proventos recebidos x a receber, de ponta a ponta. Recebido = pagamento ate hoje
 | 5 | Posicao so com provento futuro (o caso TIMS3) mostra zero na Carteira | `soProventoFuturo` |
 | 6 | Resumo: recebido e a receber separados, e os dois somam tudo | `resumoSeparado` |
 | 7 | Sem data de pagamento: recebido se veio do historico longo; a receber se veio da fonte recente | `semDataConformeAOrigem` |
+
+### ProventosConferenciaIT (5)
+
+`primevest-app-api/src/test/java/com/primevest/functional/ProventosConferenciaIT.java`
+
+Conferencia dos proventos que a Area do Investidor da B3 informa pela API com os proventos da carteira (docs/planos/PLANO_INTEGRACAO_B3.md, 6.8 e C3). So le — nada vai para o catalogo nem para a carteira.
+
+| # | Teste | Método |
+|---|---|---|
+| 1 | Ja existe: o provento da carteira tem o mesmo pagamento, cotas e liquido | `jaExiste` |
+| 2 | Sem data: o provento existe, mas o evento do catalogo nao tem pagamento — nada e gravado | `semData` |
+| 3 | Sem evento: o catalogo nao tem o provento — a conferencia nao cria evento | `semEvento` |
+| 4 | Tres proventos iguais no mesmo dia (ISAE4) que ja existem: tres conferidos | `tresIguaisJaExistentes` |
+| 5 | Nao conferido: ativo fora do catalogo e tipo que a B3 informa sem correspondencia | `naoConferido` |
 
 ### ProventosIT (6)
 

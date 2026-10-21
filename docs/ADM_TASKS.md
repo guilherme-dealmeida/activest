@@ -1,12 +1,13 @@
 # PrimeVest — Endpoints administrativos
 
-> Gerado em 02/10/2026 a partir de `AdminController` (adm-api) e `ExtratoProventosController` (app-api) · revisado em
-> 03/10/2026 (Markdown, caminhos `carga/`) · 05/10/2026 ([18] índices de mercado, [19] preço do Tesouro).
+> Gerado em 02/10/2026 a partir de `AdminController` (adm-api) · revisado em 03/10/2026 (Markdown, caminhos `carga/`) ·
+> 05/10/2026 ([18] índices de mercado, [19] preço do Tesouro) · 21/10/2026 ([17] situação dos avisos do FNET, no lugar
+> da antiga conferência por extrato, removida — `docs/planos/PLANO_CORRECAO_PROVENTOS.md`).
 
 | Tema | Como funciona |
 |---|---|
 | **Acesso** | JWT de usuário com `users.is_admin = true`. Sem token: 401. Usuário comum: 403 "Somente administrador.". O login é sempre na app-api (`POST /api/v1/auth/login`, porta 8080); a adm-api (8081) só valida o mesmo token |
-| **Execução** | as **rotinas** rodam em segundo plano (thread virtual) e respondem na hora `202 Accepted` com `{"status":"iniciada","rotina":"<nome>","resultado":"no log da API"}`. O resultado sai no log: `docker compose logs -f adm-api`. Exceções síncronas: `fii-cnpjs`, `assets/{id}/issuer`, `assets/{id}/unit-composition` e `proventos/extrato` |
+| **Execução** | as **rotinas** rodam em segundo plano (thread virtual) e respondem na hora `202 Accepted` com `{"status":"iniciada","rotina":"<nome>","resultado":"no log da API"}`. O resultado sai no log: `docker compose logs -f adm-api`. Exceções síncronas: `fii-cnpjs`, `assets/{id}/issuer` e `assets/{id}/unit-composition` |
 | **Idempotência** | todas as rotinas podem ser rodadas de novo: o que já está gravado é pulado ou regravado com o mesmo valor; o que já está em `carga/data/` não é baixado de novo |
 | **Swagger** | http://localhost:8081/swagger-ui.html |
 
@@ -36,7 +37,7 @@ Prefixo das rotas: `/api/v1/admin`.
 | 07 | POST | `/b3/cotahist?from&to` | adm | 202 | Preços |
 | 07b | POST | `/b3/cotahist/diario?from&to` | adm | 202 | Preços (pregão a pregão) |
 | 08 | POST | `/closing` | adm | 202 | Preços |
-| 09 | POST | `/proventos` | adm | 202 | Proventos |
+| 09 | POST | `/proventos[?fnet=todos]` | adm | 202 | Proventos (`fnet=todos` relê todos os avisos do FNET em disco, inclusive os já gravados — depois de uma limpeza como a V60) |
 | 10 | POST | `/cvm/proventos?from&to` | adm | 202 | Proventos (datas) |
 | 11 | POST | `/proventos/levantamento` | adm | 202 | Proventos (datas) |
 | 12 | POST | `/cvm/import?from&to&force` | adm | 202 | Balanços |
@@ -44,7 +45,7 @@ Prefixo das rotas: `/api/v1/admin`.
 | 14 | POST | `/cvm/fii-monthly?from&to&force` | adm | 202 | Informe FII |
 | 15 | POST | `/logos` | adm | 202 | Logos |
 | 16 | POST | `/catalog-audit` | adm | 202 | Conferência |
-| 17 | POST | `/proventos/extrato` | **app** | 200 | Carteira (conferência) |
+| 17 | POST | `/proventos/fnet-status` | adm | 202 | Proventos (FNET) |
 | 18 | POST | `/indices?codes&from&to&recent` | adm | 202 (400 com código desconhecido) | Índices de mercado |
 | 19 | POST | `/tesouro?from&recent` | adm | 202 | Preço do Tesouro |
 
@@ -205,18 +206,18 @@ FNET nem CVM; linha `A_DEFINIR` não grava nada. Mesma etapa do bootstrap.
 
 **Propósito.** Datas de pagamento que nenhuma fonte automática traz (2010–2021), aplicadas num banco que já existe.
 
-### [17] `POST /api/v1/admin/proventos/extrato` — app-api, síncrono
+### [17] `POST /api/v1/admin/proventos/fnet-status` (21/10/2026)
 
-**Serviço:** `ExtratoProventosImportService.importFor(usuário logado)` · **Corpo:** linhas do extrato de proventos da
-Área do Investidor da B3
+**Serviço:** `ProventosCatalogService.refreshFnetStatus` · **Grava:** `carga/data/fnet/status/{CNPJ}.json` (nada no banco)
 
-**Resposta:** 200 com a situação de cada linha (`JA_EXISTE`, sem data, sem evento, recusada...).
+**Função.** Para cada fundo com aviso em `carga/data/fnet`, busca no FNET a lista dos avisos de rendimentos e
+amortizações e grava a situação de cada um: `AC` ativo, `IC` inativo, `CC` cancelado. Uma busca por fundo (3 a 10 s);
+falha de um fundo só vira log, e rodar de novo pega as falhas. A rotina diária atualiza o arquivo do fundo sempre que
+busca aviso novo.
 
-**Função.** **Só conferência** (desde 29/09/2026): compara o extrato com os proventos da carteira de quem chama. Nada é
-gravado — evento de catálogo vem de integração.
-
-**Propósito.** Conferir a carteira contra a B3. Fica na app-api por ser dado de usuário; continua exigindo admin até
-virar tela (escopo de importações).
+**Propósito.** Aviso inativo ou cancelado (o fundo corrigiu a data-base e publicou outro, ou retirou o aviso) não vira
+evento, e o evento que ele já tinha gerado é substituído no lugar pelo aviso novo (`docs/planos/PLANO_CORRECAO_PROVENTOS.md`,
+D5/R5). Num banco novo os arquivos chegam pelo bucket, como os XML.
 
 ---
 

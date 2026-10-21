@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<DadosEconomicoFinanceiros>
+	<DadosGerais>
+		<NomeFundo>TRX REAL ESTATE FII</NomeFundo>
+		<CNPJFundo>28548288000152</CNPJFundo>
+		<NomeAdministrador>BRL TRUST DTVM S.A.</NomeAdministrador>
+		<CNPJAdministrador>13486793000142</CNPJAdministrador>
+		<ResponsavelInformacao>Vinicius Oliveira dos Santos</ResponsavelInformacao>
+		<TelefoneContato>11 48712239</TelefoneContato>
+		<DataInformacao>2025-12-30</DataInformacao>
+		<Ano>2025</Ano>
+	</DadosGerais>
+	<InformeRendimentos>
+		<Provento>
+			<CodISIN>BRTRXFCTF003</CodISIN>
+			<CodNegociacao>TRXF11</CodNegociacao>
+			<Rendimento>
+				<AtoSocietarioAprovacao/>
+				<DataBase>2025-12-30</DataBase>
+				<ValorProvento>1</ValorProvento>
+				<DataPagamento>2026-01-15</DataPagamento>
+				<PeriodoReferencia>Dezembro</PeriodoReferencia>
+				<RendimentoIsentoIR>Sim</RendimentoIsentoIR>
+			</Rendimento>
+		</Provento>
+		<Provento>
+			<CodISIN>BRTRXFR69M15</CodISIN>
+			<CodNegociacao>TRXF13</CodNegociacao>
+			<Rendimento>
+				<AtoSocietarioAprovacao/>
+				<DataBase>2025-12-30</DataBase>
+				<ValorProvento>0.9292</ValorProvento>
+				<DataPagamento>2026-01-15</DataPagamento>
+				<PeriodoReferencia>Dezembro</PeriodoReferencia>
+				<RendimentoIsentoIR>Sim</RendimentoIsentoIR>
+			</Rendimento>
+		</Provento>
+		<Provento>
+			<CodISIN>BRTRXFR70M12</CodISIN>
+			<CodNegociacao>TRXF14</CodNegociacao>
+			<Rendimento>
+				<AtoSocietarioAprovacao/>
+				<DataBase>2025-12-30</DataBase>
+				<ValorProvento>0.9292</ValorProvento>
+				<DataPagamento>2026-01-15</DataPagamento>
+				<PeriodoReferencia>Dezembro</PeriodoReferencia>
+				<RendimentoIsentoIR>Sim</RendimentoIsentoIR>
+			</Rendimento>
+		</Provento>
+		<Provento>
+			<CodISIN>BRTRXFR02E15</CodISIN>
+			<CodNegociacao>TRXF26</CodNegociacao>
+			<Rendimento>
+				<AtoSocietarioAprovacao/>
+				<DataBase>2025-12-30</DataBase>
+				<ValorProvento>0.9292</ValorProvento>
+				<DataPagamento>2026-01-15</DataPagamento>
+				<PeriodoReferencia>Dezembro</PeriodoReferencia>
+				<RendimentoIsentoIR>Sim</RendimentoIsentoIR>
+			</Rendimento>
+		</Provento>
+		<Provento>
+			<CodISIN>BRTRXFR71M11</CodISIN>
+			<CodNegociacao>TRXF15</CodNegociacao>
+			<Rendimento>
+				<AtoSocietarioAprovacao/>
+				<DataBase>2025-12-30</DataBase>
+				<ValorProvento>0.2655</ValorProvento>
+				<DataPagamento>2026-01-15</DataPagamento>
+				<PeriodoReferencia>Dezembro</PeriodoReferencia>
+				<RendimentoIsentoIR>Sim</RendimentoIsentoIR>
+			</Rendimento>
+		</Provento>
+	</InformeRendimentos>
+</DadosEconomicoFinanceiros>

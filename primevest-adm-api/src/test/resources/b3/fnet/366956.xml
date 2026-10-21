@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<DadosEconomicoFinanceiros>
+	<DadosGerais>
+		<NomeFundo>EXES CRI FII</NomeFundo>
+		<CNPJFundo>41076851000103</CNPJFundo>
+		<NomeAdministrador>BTG Pactual Serviços Financeiros S.A. DTVM</NomeAdministrador>
+		<CNPJAdministrador>59281253000123</CNPJAdministrador>
+		<ResponsavelInformacao>Beatriz Spitzl</ResponsavelInformacao>
+		<TelefoneContato>(11) 3383-2513</TelefoneContato>
+		<DataInformacao>2022-10-20</DataInformacao>
+		<Ano>2022</Ano>
+	</DadosGerais>
+	<InformeRendimentos>
+		<Provento>
+			<CodISIN>BREXESCTF006</CodISIN>
+			<CodNegociacao>EXES13</CodNegociacao>
+			<Rendimento>
+				<AtoSocietarioAprovacao/>
+				<DataBase>2022-10-20</DataBase>
+				<ValorProvento>0.81</ValorProvento>
+				<DataPagamento>2022-10-27</DataPagamento>
+				<PeriodoReferencia>Setembro-2022</PeriodoReferencia>
+				<RendimentoIsentoIR>Sim</RendimentoIsentoIR>
+			</Rendimento>
+		</Provento>
+	</InformeRendimentos>
+</DadosEconomicoFinanceiros>

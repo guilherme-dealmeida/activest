@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<DadosEconomicoFinanceiros>
+	<DadosGerais>
+		<NomeFundo>BRIO REAL ESTATE III FII</NomeFundo>
+		<CNPJFundo>34895752000180</CNPJFundo>
+		<NomeAdministrador>BRL TRUST DTVM S.A.</NomeAdministrador>
+		<CNPJAdministrador>13486793000142</CNPJAdministrador>
+		<ResponsavelInformacao>Juliana Marcondes</ResponsavelInformacao>
+		<TelefoneContato>11 2892 6007</TelefoneContato>
+		<DataInformacao>2025-02-07</DataInformacao>
+		<Ano>2025</Ano>
+	</DadosGerais>
+	<InformeRendimentos>
+		<Provento>
+			<CodISIN>BRVCRICTF007</CodISIN>
+			<CodNegociacao>BRIP11</CodNegociacao>
+			<Rendimento>
+				<AtoSocietarioAprovacao/>
+				<DataBase>2025-02-07</DataBase>
+				<ValorProvento>36.85</ValorProvento>
+				<DataPagamento>2025-02-14</DataPagamento>
+				<PeriodoReferencia>Janeiro</PeriodoReferencia>
+				<RendimentoIsentoIR>Sim</RendimentoIsentoIR>
+			</Rendimento>
+		</Provento>
+	</InformeRendimentos>
+</DadosEconomicoFinanceiros>

@@ -2,7 +2,8 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 17/10/2026 — secao 32 (listagem de emissoras implementada). No mesmo dia: secao 31 (novos indicadores de acoes, escopo futuro saido da listagem de
+Ultima atualizacao: 21/10/2026 — secao 33 (correcao dos proventos, docs/planos/PLANO_CORRECAO_PROVENTOS.md);
+19.1 e 20.5 resolvidos; 3.4, 3.5, 14 e 18.6 reescritos (sem a conferencia por extrato, que saiu). Antes: 17/10/2026 — secao 32 (listagem de emissoras implementada). No mesmo dia: secao 31 (novos indicadores de acoes, escopo futuro saido da listagem de
 emissoras, docs/planos/PLANO_LISTAGEM_EMISSORAS.md). No mesmo dia: secao 29 (rentabilidade comparativa, docs/planos/PLANO_RENTABILIDADE.md); 20.3, 23.3 e
 24.5 resolvidos. No mesmo dia, "Mudancas de tela" (cabecalho, menu, Dashboard, popover da previa da venda,
 links do Rebalanceamento): secao 30. Antes: 16/10/2026 — secao 28 (emissoras e distribuidoras de renda fixa, escopo finalizado; 28.1 e 28.5 no fechamento;
@@ -18,14 +19,13 @@ docs/planos/PLANO_CARGA_INICIAL.md) e 18.10 d resolvido. Antes: 28/09/2026 (noit
 resolvido e secao 19 (tela de Emissoras, docs/planos/PLANO_TELA_EMISSORES.md). Antes, no mesmo dia: itens 14.1
 (resolvido), 18.9 b e 18.10 (F7 e F8). Antes: 27/09/2026 — secao 18 (docs/planos/PLANO_EMPRESAS_BALANCOS.md:
 emissores, balancos e indicadores); itens 11.1, 11.2, 11.6 e 14.1 encaminhados
-para o plano. Antes: 25/09/2026 — secao 16 (extrato da B3 pelo PrimeVest, saiu
+para o plano. Antes: 25/09/2026 — secao 16 (integracao com a B3, saiu
 do plano de cripto). Antes, no mesmo dia: secao 15 (cripto sem valor em reais,
-docs/planos/PLANO_CRIPTO_BINANCE.md). Antes, no mesmo dia: itens 3.4 e 3.5 baixados (extrato de proventos
-da B3, V24). Antes: 24/09/2026 — itens 3.5 a 3.8 (IR retido nos proventos,
+docs/planos/PLANO_CRIPTO_BINANCE.md). Antes, no mesmo dia: itens 3.4 e 3.5 baixados. Antes: 24/09/2026 — itens 3.5 a 3.8 (IR retido nos proventos,
 docs/planos/PLANO_IR_PROVENTOS.md). Antes, no mesmo dia: item 3.4 (provento de acao sem
 data de pagamento) e secao 14 (rotinas: proventos sob demanda
-travando as threads e fechamento no meio do pregao), vista na carga do
-extrato B3. Antes, no mesmo dia: execucao do docs/planos/PLANO_BRAPI.md: baixados 3.2,
+travando as threads e fechamento no meio do pregao), vista na carga de
+transacoes. Antes, no mesmo dia: execucao do docs/planos/PLANO_BRAPI.md: baixados 3.2,
 6.1, 6.2, 6.4, 11.3 e 11.4; 11.1 atualizado. Antes, no mesmo dia: secao 13
 (central de avisos, adiada do docs/planos/PLANO_BRAPI.md). Antes: 18/09/2026 — itens 9.1 a 9.8, a secao 12 (lint) e o
 segundo reset das migrations.
@@ -134,13 +134,12 @@ provento e um fato do usuario, nao da posicao.
 Impacto hoje: nenhum, a base nao tem provento orfao. Mas a primeira
 exclusao de posicao cria um.
 
-**3.4** FEITO em 25/09/2026 — Provento de acao sem data de pagamento (24/09/2026)
-Resolvido pelo extrato de proventos da Area do Investidor
-(POST /admin/proventos/extrato, V24): 22 datas completadas com origem
-EXTRATO_B3 e as 2as parcelas de JCP da CMIG4 (data-com 25/03/2025 e
-23/06/2025) com pagamento DEDUZIDO em 30/12/2026, ainda a receber. A
-origem fica em asset_cash_events.payment_date_source e aparece no hover;
-fonte oficial que trouxer a data depois a substitui. Historico abaixo.
+**3.4** RESOLVIDO — Provento de acao sem data de pagamento (24/09/2026)
+As datas vem dos relatorios de proventos da CVM e do levantamento 2010–2026
+(asset_cash_events.payment_date_source = CVM ou LEVANTAMENTO, com hover na
+tela; docs/planos/PLANO_CARGA_INICIAL.md); a data da fonte do evento, quando
+chega, substitui as duas. O que segue sem data esta no 20.6 e no 20.8.
+Historico abaixo.
 24 dos 203 proventos da carteira estao com payment_date nulo. Todos sao
 de acao (BBAS3, CMIG4, SAPR4, CXSE3, BRBI11), com data-com entre
 dez/2024 e ago/2025. FII nao tem o problema: o FNET traz o pagamento.
@@ -162,19 +161,9 @@ dez/2024 e ago/2025. FII nao tem o problema: o FNET traz o pagamento.
   (proventos sao somente leitura). Nao estimar a data: sem fonte, fica
   nula.
 
-**3.5** FEITO em 25/09/2026 (para o que esta no extrato) — IR retido:
-rendimentos que a integracao nao traz (24/09/2026)
-Os 3 rendimentos de PETR4 (data-com 22/12/2025, bruto 0,45, 0,45 e
-0,26) entraram pelo extrato como eventos EXTRATO_B3, junto com 18
-rendimentos de FII sem aviso no FNET. Rendimento futuro desse tipo so
-entra com um extrato novo: a integracao continua sem essa fonte.
-Historico abaixo.
-O extrato da B3 mostra "Rendimento" (atualizacao pela Selic) de PETR4
-em 20/02/2026 (R$ 0,35) e 20/03/2026 (R$ 0,35 e R$ 0,21) que nao
-existem em asset_cash_events: a B3 nao os publica nos dados da
-empresa. So existem no extrato do investidor.
-Caminho: importar o Excel de Movimentacao da Area do Investidor
-(docs/planos/PLANO_IR_PROVENTOS.md, secao 9) — escopo futuro.
+**3.5** Rendimentos (atualizacao pela Selic) que a B3 nao publica — ver 33.1.
+Os 3 de PETR4 (data-com 22/12/2025; pagos em 20/02/2026, R$ 0,35, e
+20/03/2026, R$ 0,35 e R$ 0,21) estao na carteira como MANUAL.
 
 **3.6** IR retido: prazo real do "rendimento" de acoes (24/09/2026)
 A atualizacao pela Selic segue a tabela regressiva de renda fixa, que
@@ -599,7 +588,7 @@ FEITO em 24/09/2026: custo zero provisorio no calculo
 (CorporateActionApplier) e WARN no log quando a rotina grava uma
 bonificacao que pega alguma posicao.
 
-## 14. ROTINAS EXTERNAS — achados da carga do extrato B3 (24/09/2026)
+## 14. ROTINAS EXTERNAS — achados da carga de transacoes de 24/09/2026
 
 Os dois apareceram na carga de 88 transacoes pela API (feita por scripts
 avulsos, fora do repositorio). Nenhum foi corrigido.
@@ -631,7 +620,7 @@ inclusive o fechamento.
   FNET com timeout de 5 s e ate 6 tentativas; avisos gravados em
   carga/data/fnet e nunca baixados de novo. Teste de 27/09 com HGLG11: 100 de
   100 avisos obtidos, inclusive os 9 meses (12/2024 a 08/2025) que
-  tinham sido completados pelo extrato — o FNET tinha o dado, o cliente
+  estavam sem aviso no catalogo — o FNET tinha o dado, o cliente
   e que falhava.
 - RESOLVIDO em 28/09/2026 (F8): sem synchronized; pedido sob demanda
   numa fila unica (um executor, sem repetir ativo) no lugar de uma
@@ -686,7 +675,7 @@ Quando tratar: depois da primeira versao estavel, ou quando aparecer um usuario
 (ou conta) que opere fora de BRL. O ponto comum dos tres primeiros itens e um
 servico de "valor em reais no instante T" — resolver uma vez, servir a todos.
 
-## 16. INTEGRACAO COM A B3 (docs/planos/PLANO_INTEGRACAO_B3.md; antes "importacao de extrato da B3", 25/09/2026)
+## 16. INTEGRACAO COM A B3 (docs/planos/PLANO_INTEGRACAO_B3.md, 25/09/2026)
 
 **Situacao em 03/10/2026:** F1 a F8 do PLANO_INTEGRACAO_B3 executadas. A integracao
 e pela API da Area do Investidor (nao por arquivo): modulo primevest-integration,
@@ -789,9 +778,7 @@ preco teto", que vira o proximo e consome este. Fases F1 a F11 no plano.
  27/09/2026) e gravada no seed V30: 369 companhias, 346 FIIs, 1.139
  ligacoes, 36 linhas de composicao de units.
 
-**18.6** Relacao com a secao 16 (extrato da B3): os proventos de FII com mais
- de 12 meses passam a vir da integracao (FNET refeito). O extrato deixa
- de ser necessario para isso e fica so para o escopo de importacoes.
+**18.6** Os proventos de FII com mais de 12 meses vem do FNET (refeito na F8).
 
 **18.7** Balancos (F5, 28/09/2026): quantidade de acoes sem escala conferida
  (share_counts.scale_status = 'REVISAR') em 119 de 19.349 documentos —
@@ -898,7 +885,10 @@ preco teto", que vira o proximo e consome este. Fases F1 a F11 no plano.
 
 ## 19. TELA DE EMISSORAS (docs/planos/PLANO_TELA_EMISSORES.md, 28/09/2026)
 
-**19.1** Historico de proventos da B3 faltando em 17 acoes com provento recente
+**19.1** RESOLVIDO em 21/10/2026 (docs/planos/PLANO_CORRECAO_PROVENTOS.md, G): o historico da B3
+ nao acha nome de pregao com barra ("KLABIN S/A" devolve 0; "KLABIN SA", 219) — o nome vai sem a barra, e
+ historico vazio de quem tem provento nos 12 meses e buscado de novo. Texto original:
+ Historico de proventos da B3 faltando em 17 acoes com provento recente
  (achado na conferencia da tela, 28/09): ABEV3, ALPK3, AUAU3, CURY3,
  ENJU3, EQMA3B, HBRE3, KLBN3, KLBN4, KLBN11, MRSA3B/5B/6B, OFSA3, OPCT3,
  RENT4, WEST3 — so tem eventos "B3" (12 meses), nenhum "B3_HISTORICO".
@@ -941,8 +931,9 @@ preco teto", que vira o proximo e consome este. Fases F1 a F11 no plano.
  push) na maquina de quem tem a chave de escrita. Se ficar esquecido, o
  que so a origem tinha (avisos novos do FNET, 12 meses da B3, relatorios
  da CVM) fica so na carga/data/ local ate o proximo push.
-**20.5** Importacao de extrato: desde a V38 so confere (JA_EXISTE, SEM_DATA,
- SEM_EVENTO). Importar a carteira por arquivo continua na secao 16.
+**20.5** RESOLVIDO em 21/10/2026: nao existe conferencia nem importacao de proventos por
+ arquivo (docs/planos/PLANO_CORRECAO_PROVENTOS.md, D2-1b). A integracao com a Area do Investidor
+ (API) so confere os proventos que a B3 informa com os da carteira.
 **20.6** Relatorios de proventos da CVM (2022+) que nao completaram data: ~400
  eventos de acao por ano de 2023 a 2025 seguem sem data, e 113 dos 3.412
  relatorios nao foram lidos (formato fora do padrao). A olhar caso a caso:
@@ -1227,6 +1218,53 @@ da emissora mostra o mesmo). Diagnostico de 17/10/2026:
      16,7 mi acoes — ganho nao recorrente de empresa em recuperacao judicial; o numero e o do balanco.
 
 32.3 Os indicadores novos e o PL na pagina da emissora estao na secao 31.
+
+## 33. CORRECAO DOS PROVENTOS (docs/planos/PLANO_CORRECAO_PROVENTOS.md, 21/10/2026)
+
+Origem: docs/planos/PLANO_INVESTIGACAO_PROVENTOS_DUPLICADOS.md (2026 do Guilherme R$ 31,94 acima do Investidor10).
+Corrigidos no codigo e limpos: parcelas da B3 duplicadas (A), recibo de subscricao na cota (B), aviso do FNET
+retificado gravado duas vezes (C), reserva da B3 nao absorvida pelo FNET (D), ISIN de outro fundo sem o ticker do
+fundo (E) e historico longo da B3 vazio para nome de pregao com barra (G, era o 19.1).
+
+**33.1** Rendimento (atualizacao pela Selic) de acao que a B3 nao publica (classe F): PETR4 data-com
+ 22/12/2025 (3T25) — a B3 publicou o de 16/04/2025 e o de 22/04/2026, mas nao este, em nenhum dos dois servicos; os
+ relatorios de proventos da CVM marcam "Havera atualizacao: Sim" sem o valor. O valor so esta no Comunicado ao
+ Mercado da Petrobras (IPE de 12/02/2026 e 16/03/2026, texto livre). Hoje: os 3 do Guilherme ficam MANUAL (decisao
+ D2-1a); outros donos de PETR4 nao recebem. Caminho, se valer: leitor de Comunicado ao Mercado por empresa.
+
+**33.2** Aviso retificado que ANTECIPA a data-base: a rotina so busca aviso novo no FNET quando a B3 mostra
+ provento com data-com depois do ultimo aviso gravado. Se a retificacao muda a data-base para antes, a busca nao
+ dispara e o evento fica com a data-base antiga (1 a 3 dias) ate a proxima busca do fundo — sem duplicar (o aviso
+ novo, quando chega, substitui o antigo no lugar, R5).
+
+**33.3** ~~(21/10/2026) A situacao de um aviso (ativo/inativo) so era relida quando a rotina buscava avisos do fundo.~~
+ **Resolvido em 21/10/2026:** rotina semanal [A12] (`FnetStatusScheduler`, domingo 03:00 — docs/SCHEDULE_TASKS.md):
+ situacao de todos os fundos e depois os proventos relendo todos os avisos (`fnet=todos`). Os arquivos de situacao
+ novos sobem para o bucket no `data push`.
+
+**33.4** (21/10/2026) Historico longo da B3 vazio para emissores do balcao organizado: EQMA (EQMA3B) e MRSA (MRSA3B,
+ 5B, 6B) — `GetListedCashDividends` devolve 0 lancamentos (arquivo `[]`); ficam so os 12 meses da B3 (2 e 6 eventos).
+ Os outros 6 sem `B3_HISTORICO` (ALPK, AUAU, ENJU, HBRE, OPCT, WEST) nao sao falha: o historico deles so tem os
+ proventos que a B3 recente ja gravou. NAVT segue sem resposta da B3 (fundo; `GetListedSupplementFunds` vazio).
+ Levantado em 21/10/2026 (fica para depois, decisao do Guilherme): a CVM tem o "Relatorio Proventos" das duas
+ (MRS: 11 de 2022 a 2025; EQMA: 4 de 2023 e 2024 — ISIN, valor, data-com e pagamento), hoje usado so para completar
+ data de evento existente; antes de 2022 so ha o historico do Investidor10 (planilha do Guilherme de 21/10/2026, 2017 a
+ 2026, com pontos a conferir: MRSA 2019 e 2020 com dois proventos de mesmo valor e mesmo pagamento; 2022 com
+ pagamento igual a data-com). Provento MANUAL nao serve: e dado do usuario, por posicao, so no banco (nao vai para
+ `carga/data` nem volta em ambiente novo), e ninguem tem as duas na carteira.
+
+**33.5** (21/10/2026) Data de pagamento que a B3 muda depois de publicada: a comparacao do dev com a carga nova
+ (21/10) achou 14 eventos da B3 com o pagamento antigo no dev (ALUP 05/10 x 02/10/2026; GEPA "a definir" 31/12/2027 x
+ 09/10/2026; JSLG3) e 124 do historico longo sem data no dev que a carga nova recebeu dos relatorios da CVM e do
+ levantamento. Conferido em 21/10/2026: (a) `/cvm/proventos?from=2022` no dev completou as 124 do historico longo
+ (sem data 10.750 -> 10.626); `/proventos/levantamento` nao tinha nada novo. A rotina das 20:00 so roda a CVM do ano
+ corrente e do anterior; o levantamento so roda na carga inicial ou sob demanda. (b) O `CashEventWriter` **nao**
+ atualiza o pagamento quando a propria fonte o muda (so completa data vazia ou troca a data de outra fonte): 14 eventos
+ da B3 no dev — ALUP3/4/11 (+F) 05/10 -> 02/10/2026, GEPA3/4 (+F) 31/12/2027 -> 23/07 e 09/10/2026, JSLG3 (+F)
+ 31/12 -> 28/12/2026, VITT3 (+F) 31/12/2027 -> 21/10/2026; nenhum com provento de usuario hoje. **Resolvido em 21/10/2026:** no
+ `CashEventWriter`, a data nova da propria B3 substitui a gravada; "a definir" (31/12/9999, lido como sem data)
+ nao apaga a que existe (`PaymentDateSourceIT`, 2 testes novos). Rotina de proventos rodada no dev em 21/10/2026: os 14
+ eventos ficaram com a data nova (VITT3/VITT3F 21/10/2026); conferencia A-E = 0; totais do Guilherme inalterados.
 
 ## ORDEM SUGERIDA
 

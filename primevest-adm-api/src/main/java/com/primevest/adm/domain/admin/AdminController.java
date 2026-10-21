@@ -38,9 +38,7 @@ import java.util.Map;
  * Disparo manual das rotinas externas (docs/planos/PLANO_BRAPI.md: "semanal e sob
  * demanda"). So para usuario com {@code is_admin}.
  *
- * <p>adm-api (docs/planos/PLANO_ADM_API.md, 10): so rotinas de catalogo. O extrato de
- * proventos ({@code /proventos/extrato}) e importacao da carteira e ficou na
- * app-api ({@code ExtratoProventosController}).</p>
+ * <p>adm-api (docs/planos/PLANO_ADM_API.md, 10): so rotinas de catalogo.</p>
  *
  * <p>As rotinas rodam em segundo plano e respondem 202: o resultado sai no log
  * da adm-api (no Docker, {@code docker compose logs -f adm-api}).</p>
@@ -343,9 +341,24 @@ public class AdminController {
         return start("historico de cripto", () -> cryptoHistoryService.importAll("sob demanda"));
     }
 
+    /**
+     * Rodada de proventos. {@code fnet=todos}: rele todos os avisos do FNET em disco, inclusive os que ja geraram evento
+     * (depois de uma limpeza de dados como a V60 — docs/planos/PLANO_CORRECAO_PROVENTOS.md, C8).
+     */
     @PostMapping("/proventos")
-    public ResponseEntity<Map<String, String>> proventos() {
-        return start("proventos", () -> proventosCatalogService.syncAll("sob demanda"));
+    public ResponseEntity<Map<String, String>> proventos(@RequestParam(defaultValue = "") String fnet) {
+        boolean all = "todos".equalsIgnoreCase(fnet);
+        return start("proventos", () -> proventosCatalogService.syncAll("sob demanda", all));
+    }
+
+    /**
+     * Situacao no FNET de todos os avisos em disco (ativo, inativo, cancelado), em
+     * {@code carga/data/fnet/status} — docs/planos/PLANO_CORRECAO_PROVENTOS.md, D5/R5. {@code missing=true}: so os
+     * fundos ainda sem arquivo (retoma as falhas).
+     */
+    @PostMapping("/proventos/fnet-status")
+    public ResponseEntity<Map<String, String>> fnetStatus(@RequestParam(defaultValue = "false") boolean missing) {
+        return start("situacao dos avisos do FNET", () -> proventosCatalogService.refreshFnetStatus("sob demanda", missing));
     }
 
     private User requireAdmin() {

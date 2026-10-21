@@ -12,9 +12,12 @@
 //   node carga/scripts/admin.mjs "indices?codes=CDI,IPCA&from=2024"   so alguns indices / anos
 //   node carga/scripts/admin.mjs "indices?recent=true"                rodada incremental (a da rotina das 10:00)
 //   node carga/scripts/admin.mjs tesouro            preco oficial do Tesouro 2010+ (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md)
+//   node carga/scripts/admin.mjs "proventos?fnet=todos"   rele todos os avisos do FNET em disco (depois de limpeza de dados)
+//   node carga/scripts/admin.mjs proventos/fnet-status   situacao (ativo/inativo/cancelado) de cada aviso do FNET em disco
+//                                                    (docs/planos/PLANO_CORRECAO_PROVENTOS.md, D5)
 //
 // Duas APIs (docs/planos/PLANO_ADM_API.md): o login e na app-api (API_PORT, 8080); as rotinas de
-// catalogo na adm-api (ADM_API_PORT, 8081). Na app-api so o extrato.
+// catalogo na adm-api (ADM_API_PORT, 8081).
 // Opcoes: --api URL  --adm URL  (padrao: PRIMEVEST_API_URL / PRIMEVEST_ADM_URL, senao localhost nas portas do env)
 //         --email guilhermeunatec@gmail.com
 //         --json arquivo.json   corpo da requisicao
@@ -22,7 +25,7 @@
 //   ex.: node carga/scripts/admin.mjs assets/123/unit-composition --method PUT --body '{"ON":1,"PNA":2}'
 // Senha: PRIMEVEST_SENHA do ambiente ou do .env do projeto; sem ela, pedida no terminal.
 // As rotinas rodam em segundo plano na API (resposta 202); o resultado sai no
-// log: docker logs -f primevest-adm-api (extrato: primevest-app-api)
+// log: docker logs -f primevest-adm-api
 import { readFileSync } from 'node:fs';
 import { apiUrls, loadEnv, option } from './lib/env.mjs';
 
@@ -30,8 +33,6 @@ const args = process.argv.slice(2);
 const ROTINA = args.find((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--')));
 const ENV = loadEnv();
 const { api: API, adm: ADM } = apiUrls(ENV, args);
-// rotinas que ficaram na app-api (carteira); o resto e da adm-api (docs/planos/PLANO_ADM_API.md)
-const NA_APP = ['proventos/extrato'];
 const EMAIL = option(args, '--email', ENV.PRIMEVEST_EMAIL || 'guilhermeunatec@gmail.com');
 const JSON_FILE = option(args, '--json', null);
 const BODY = option(args, '--body', null);
@@ -97,7 +98,7 @@ async function main() {
   }
   const { accessToken } = await login.json();
   const corpo = JSON_FILE ? readFileSync(JSON_FILE, 'utf8') : BODY;
-  const destino = NA_APP.includes(ROTINA) ? API : ADM;
+  const destino = ADM;
   const r = await fetch(`${destino}/api/v1/admin/${ROTINA}`, {
     method: METHOD,
     headers: corpo

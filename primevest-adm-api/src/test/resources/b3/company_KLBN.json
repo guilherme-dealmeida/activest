@@ -1,0 +1,230 @@
+[
+ {
+  "tradingName": "KLABIN S/A  ",
+  "code": "KLBN",
+  "codeCVM": "12653",
+  "cashDividends": [
+   {
+    "assetIssued": "BRKLBNACNOR2",
+    "paymentDate": "19/11/2025",
+    "rate": "0,05215774063",
+    "relatedTo": "3º Trimestre/2025",
+    "approvedOn": "03/11/2025",
+    "isinCode": "BRKLBNACNOR2",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "07/11/2025",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRKLBNACNPR9",
+    "paymentDate": "19/11/2025",
+    "rate": "0,05215774063",
+    "relatedTo": "3º Trimestre/2025",
+    "approvedOn": "03/11/2025",
+    "isinCode": "BRKLBNACNPR9",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "07/11/2025",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRKLBNCDAM18",
+    "paymentDate": "19/11/2025",
+    "rate": "0,26078870315",
+    "relatedTo": "3º Trimestre/2025",
+    "approvedOn": "03/11/2025",
+    "isinCode": "BRKLBNCDAM18",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "07/11/2025",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRKLBNACNOR2",
+    "paymentDate": "27/02/2026",
+    "rate": "0,04559717225",
+    "relatedTo": "3º Trimestre/2025",
+    "approvedOn": "08/12/2025",
+    "isinCode": "BRKLBNACNOR2",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "15/12/2025",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRKLBNACNOR2",
+    "paymentDate": "20/05/2026",
+    "rate": "0,04559717225",
+    "relatedTo": "3º Trimestre/2025",
+    "approvedOn": "08/12/2025",
+    "isinCode": "BRKLBNACNOR2",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "15/12/2025",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRKLBNACNOR2",
+    "paymentDate": "19/08/2026",
+    "rate": "0,04559717225",
+    "relatedTo": "3º Trimestre/2025",
+    "approvedOn": "08/12/2025",
+    "isinCode": "BRKLBNACNOR2",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "15/12/2025",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRKLBNACNOR2",
+    "paymentDate": "12/11/2026",
+    "rate": "0,04559717224",
+    "relatedTo": "3º Trimestre/2025",
+    "approvedOn": "08/12/2025",
+    "isinCode": "BRKLBNACNOR2",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "15/12/2025",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRKLBNACNPR9",
+    "paymentDate": "27/02/2026",
+    "rate": "0,04559717225",
+    "relatedTo": "3º Trimestre/2025",
+    "approvedOn": "08/12/2025",
+    "isinCode": "BRKLBNACNPR9",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "15/12/2025",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRKLBNACNPR9",
+    "paymentDate": "20/05/2026",
+    "rate": "0,04559717225",
+    "relatedTo": "3º Trimestre/2025",
+    "approvedOn": "08/12/2025",
+    "isinCode": "BRKLBNACNPR9",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "15/12/2025",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRKLBNACNPR9",
+    "paymentDate": "19/08/2026",
+    "rate": "0,04559717225",
+    "relatedTo": "3º Trimestre/2025",
+    "approvedOn": "08/12/2025",
+    "isinCode": "BRKLBNACNPR9",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "15/12/2025",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRKLBNACNPR9",
+    "paymentDate": "12/11/2026",
+    "rate": "0,04559717224",
+    "relatedTo": "3º Trimestre/2025",
+    "approvedOn": "08/12/2025",
+    "isinCode": "BRKLBNACNPR9",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "15/12/2025",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRKLBNCDAM18",
+    "paymentDate": "27/02/2026",
+    "rate": "0,22798586124",
+    "relatedTo": "3º Trimestre/2025",
+    "approvedOn": "08/12/2025",
+    "isinCode": "BRKLBNCDAM18",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "15/12/2025",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRKLBNCDAM18",
+    "paymentDate": "20/05/2026",
+    "rate": "0,22798586124",
+    "relatedTo": "3º Trimestre/2025",
+    "approvedOn": "08/12/2025",
+    "isinCode": "BRKLBNCDAM18",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "15/12/2025",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRKLBNCDAM18",
+    "paymentDate": "19/08/2026",
+    "rate": "0,22798586124",
+    "relatedTo": "3º Trimestre/2025",
+    "approvedOn": "08/12/2025",
+    "isinCode": "BRKLBNCDAM18",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "15/12/2025",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRKLBNCDAM18",
+    "paymentDate": "12/11/2026",
+    "rate": "0,22798586123",
+    "relatedTo": "3º Trimestre/2025",
+    "approvedOn": "08/12/2025",
+    "isinCode": "BRKLBNCDAM18",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "15/12/2025",
+    "remarks": ""
+   }
+  ],
+  "stockDividends": [
+   {
+    "assetIssued": "BRKLBNACNOR2",
+    "factor": "400,00000000000",
+    "approvedOn": "20/03/2014",
+    "isinCode": "BRKLBNACNOR2",
+    "label": "DESDOBRAMENTO",
+    "lastDatePrior": "24/03/2014",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRKLBNACNPR9",
+    "factor": "400,00000000000",
+    "approvedOn": "20/03/2014",
+    "isinCode": "BRKLBNACNPR9",
+    "label": "DESDOBRAMENTO",
+    "lastDatePrior": "24/03/2014",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRKLBNCDAM18",
+    "factor": "400,00000000000",
+    "approvedOn": "20/03/2014",
+    "isinCode": "BRKLBNCDAM18",
+    "label": "DESDOBRAMENTO",
+    "lastDatePrior": "24/03/2014",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRKLBNACNOR2",
+    "factor": "1,00000000000",
+    "approvedOn": "08/12/2025",
+    "isinCode": "BRKLBNACNOR2",
+    "label": "BONIFICACAO",
+    "lastDatePrior": "17/12/2025",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRKLBNACNPR9",
+    "factor": "1,00000000000",
+    "approvedOn": "08/12/2025",
+    "isinCode": "BRKLBNACNPR9",
+    "label": "BONIFICACAO",
+    "lastDatePrior": "17/12/2025",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRKLBNCDAM18",
+    "factor": "1,00000000000",
+    "approvedOn": "08/12/2025",
+    "isinCode": "BRKLBNCDAM18",
+    "label": "BONIFICACAO",
+    "lastDatePrior": "17/12/2025",
+    "remarks": ""
+   }
+  ]
+ }
+]
