@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<DadosEconomicoFinanceiros>
+	<DadosGerais>
+		<NomeFundo>CYRELA CRÉDITO - FUNDO DE INVESTIMENTO IMOBILIÁRIO</NomeFundo>
+		<CNPJFundo>36501233000115</CNPJFundo>
+		<NomeAdministrador>BANCO GENIAL S.A.</NomeAdministrador>
+		<CNPJAdministrador>45246410000155</CNPJAdministrador>
+		<ResponsavelInformacao>Cilene Ono</ResponsavelInformacao>
+		<TelefoneContato>11 3923 8390</TelefoneContato>
+		<DataInformacao>2025-12-30</DataInformacao>
+		<Ano>2025</Ano>
+	</DadosGerais>
+	<InformeRendimentos>
+		<Provento>
+			<CodISIN>BRCYCRCTF004</CodISIN>
+			<CodNegociacao>CYCR11</CodNegociacao>
+			<Rendimento>
+				<AtoSocietarioAprovacao/>
+				<DataBase>2025-12-30</DataBase>
+				<ValorProvento>0.106</ValorProvento>
+				<DataPagamento>2026-01-15</DataPagamento>
+				<PeriodoReferencia>DEZEMBRO</PeriodoReferencia>
+				<RendimentoIsentoIR>Sim</RendimentoIsentoIR>
+			</Rendimento>
+		</Provento>
+	</InformeRendimentos>
+</DadosEconomicoFinanceiros>

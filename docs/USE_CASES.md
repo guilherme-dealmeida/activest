@@ -25,7 +25,7 @@
 | Ator | Quem é | Por onde entra |
 |---|---|---|
 | **Investidor** | Usuário logado, dono da carteira | Front (5173) → app-api (8080) |
-| **Administrador** | Usuário com `users.is_admin = true` | `carga/scripts/admin.mjs` / Swagger → adm-api (8081); extrato na app-api |
+| **Administrador** | Usuário com `users.is_admin = true` | `carga/scripts/admin.mjs` / Swagger → adm-api (8081) |
 | **Mantenedor (produtor de dados)** | Quem tem a chave de escrita do bucket R2 (hoje, o Guilherme) | contêiner `data` (`data push`) |
 | **Agendador** | O relógio das APIs (`@Scheduled`, fuso de São Paulo) | rotinas da adm-api e da app-api |
 | **Fontes externas** | B3, FNET, CVM, BRAPI, CoinGecko, Binance | chamadas da adm-api (catálogo) e da app-api (só Binance) |
@@ -55,7 +55,6 @@ flowchart LR
         uc09(["UC09 Emissoras e indicadores"])
         uc10(["UC10 Integrar corretora"])
         uc11(["UC11 Perfil do usuário"])
-        uc23(["UC23 Conferir extrato de proventos"])
         uc33(["UC33 Recalcular carteira"])
         uc34(["UC34 Sincronizar corretoras"])
     end
@@ -64,6 +63,7 @@ flowchart LR
         uc20(["UC20 Carga inicial"])
         uc21(["UC21 Manter emissores"])
         uc22(["UC22 Disparar rotinas de catálogo"])
+        uc23(["UC23 Situação dos avisos do FNET"])
         uc30(["UC30 Fechamento diário de preços"])
         uc31(["UC31 Proventos diários"])
         uc32(["UC32 Balanços e informe de FII"])
@@ -298,10 +298,10 @@ flowchart LR
         uc35(["UC35 Logos (dia 1, 06:00)<br/>e conferência do catálogo (seg 07:00)"])
         uc28(["UC28 Recarregar série histórica<br/>COTAHIST"])
         uc29(["UC29 Completar datas de pagamento<br/>CVM · levantamento"])
+        uc23(["UC23 Situação dos avisos do FNET"])
     end
 
     subgraph APP["app-api (carteira)"]
-        uc23(["UC23 Conferir extrato de proventos<br/>(só conferência, nada gravado)"])
         uc33(["UC33 Recalcular carteira<br/>21:00 + na subida"])
     end
 
@@ -372,7 +372,7 @@ Prefixo das rotas: `/api/v1`. Investidor = qualquer usuário logado; Admin = `is
 | UC20 | Carga inicial | Admin | 7 etapas em ordem, retomável (seção 6) | `POST /admin/bootstrap` · `admin.mjs bootstrap` |
 | UC21 | Manter emissores | Admin | Importar emissores, ligar ativos, lista curada de CNPJs de FII, ligação manual, composição de unit | `POST /admin/issuers/import`, `/issuers/link`, `/issuers/fii-cnpjs`, `PUT /admin/assets/{id}/issuer`, `/unit-composition` |
 | UC22 | Disparar rotina de catálogo | Admin | Qualquer rotina na hora (202, resultado no log) | `POST /admin/closing`, `/proventos`, `/logos`, `/catalog-audit`, `/cvm/import`, `/cvm/quarters`, `/cvm/fii-monthly` |
-| UC23 | Conferir extrato de proventos | Admin | Compara o extrato da B3 com os proventos da própria carteira; nada é gravado | `POST /admin/proventos/extrato` (app-api) |
+| UC23 | Situação dos avisos do FNET | Admin | Grava se cada aviso de rendimento de FII está ativo, inativo ou cancelado no FNET; aviso inativo não vira provento (21/10/2026, `docs/planos/PLANO_CORRECAO_PROVENTOS.md`) | `POST /admin/proventos/fnet-status` |
 | UC24 | Publicar dados no bucket | Mantenedor | Sobe o que é novo em `carga/data/` e regrava os manifests; nunca apaga no bucket | `docker compose --profile carga run --rm data push` |
 | UC25 | Baixar dados do bucket | Admin | Baixa `carga/data/` na primeira subida | `… data pull [--minimo]` |
 | UC26 | Subir o ambiente | Admin | db, redis, app-api, adm-api, web; migrations ao subir | `docker compose up -d --build` |

@@ -63,6 +63,32 @@ class PaymentDateSourceIT extends com.primevest.functional.FuncionalBase {
     }
 
     @Test
+    @DisplayName("A B3 muda a data do proprio provento: a data nova vale; 'a definir' (sem data) nao apaga a que existe")
+    void b3MudaAPropriaData() {
+        Asset cmig = assetRepository.findByTicker("CMIG4").orElseThrow();
+        cashEventWriter.save(cmig, dado(CashEventSource.B3, "2026-10-05"));
+
+        cashEventWriter.save(cmig, dado(CashEventSource.B3, "2026-10-02"));
+        assertThat(evento("CMIG4")).containsEntry("payment_date", java.sql.Date.valueOf("2026-10-02"))
+            .containsEntry("payment_date_source", null);
+
+        cashEventWriter.save(cmig, dado(CashEventSource.B3, null));
+        assertThat(evento("CMIG4")).containsEntry("payment_date", java.sql.Date.valueOf("2026-10-02"));
+    }
+
+    @Test
+    @DisplayName("O historico longo da B3 (sem data) nao mexe na data que a B3 recente gravou")
+    void historicoNaoMexeNaData() {
+        Asset cmig = assetRepository.findByTicker("CMIG4").orElseThrow();
+        cashEventWriter.save(cmig, dado(CashEventSource.B3, "2026-10-05"));
+
+        cashEventWriter.save(cmig, dado(CashEventSource.B3_HISTORICO, null));
+
+        assertThat(evento("CMIG4")).containsEntry("payment_date", java.sql.Date.valueOf("2026-10-05"))
+            .containsEntry("source", "B3");
+    }
+
+    @Test
     @DisplayName("FII: o aviso do FNET assume o provento gravado pela B3 como reserva (fonte, aviso e data)")
     void fnetAssumeReservaDaB3() {
         Asset hglg = assetRepository.findByTicker("HGLG11").orElseThrow();

@@ -50,8 +50,8 @@ public class AssetCashEvent {
     private LocalDate paymentDate;
 
     /**
-     * De onde veio a data de pagamento, quando nao da fonte do evento (V24):
-     * extrato da B3 ou deduzida. Nulo = oficial.
+     * De onde veio a data de pagamento, quando nao da fonte do evento: relatorio de proventos da CVM ou
+     * levantamento 2010–2026 ({@link PaymentDateSource}). Nulo = a da propria fonte do evento.
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_date_source")

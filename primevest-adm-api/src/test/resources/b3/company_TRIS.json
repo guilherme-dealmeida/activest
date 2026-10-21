@@ -1,0 +1,73 @@
+[
+ {
+  "tradingName": "TRISUL      ",
+  "code": "TRIS",
+  "codeCVM": "21130",
+  "cashDividends": [
+   {
+    "assetIssued": "BRTRISACNOR4",
+    "paymentDate": "28/11/2025",
+    "rate": "0,55673851000",
+    "relatedTo": "3º Trimestre/2025",
+    "approvedOn": "13/11/2025",
+    "isinCode": "BRTRISACNOR4",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "18/11/2025",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRTRISACNOR4",
+    "paymentDate": "30/04/2026",
+    "rate": "0,14274479090",
+    "relatedTo": "Anual/2025",
+    "approvedOn": "19/12/2025",
+    "isinCode": "BRTRISACNOR4",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "26/12/2025",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRTRISACNOR4",
+    "paymentDate": "29/05/2026",
+    "rate": "0,14274479090",
+    "relatedTo": "Anual/2025",
+    "approvedOn": "19/12/2025",
+    "isinCode": "BRTRISACNOR4",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "26/12/2025",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRTRISACNOR4",
+    "paymentDate": "30/06/2026",
+    "rate": "0,14274479080",
+    "relatedTo": "Anual/2025",
+    "approvedOn": "19/12/2025",
+    "isinCode": "BRTRISACNOR4",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "26/12/2025",
+    "remarks": ""
+   }
+  ],
+  "stockDividends": [
+   {
+    "assetIssued": "BRTRISACNOR4",
+    "factor": "100,00000000000",
+    "approvedOn": "26/04/2018",
+    "isinCode": "BRTRISACNOR4",
+    "label": "DESDOBRAMENTO",
+    "lastDatePrior": "27/04/2018",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRTRISACNOR4",
+    "factor": "30,00789775700",
+    "approvedOn": "09/12/2025",
+    "isinCode": "BRTRISACNOR4",
+    "label": "BONIFICACAO",
+    "lastDatePrior": "12/12/2025",
+    "remarks": ""
+   }
+  ]
+ }
+]

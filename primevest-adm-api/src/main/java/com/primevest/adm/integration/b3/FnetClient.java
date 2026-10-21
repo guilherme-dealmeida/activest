@@ -23,6 +23,7 @@ import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -87,6 +88,13 @@ public class FnetClient {
     private final ExecutorService downloads;
     /** CNPJ -> ids dos avisos em disco. Montado na primeira consulta; download novo entra nele. */
     private volatile Map<String, Set<Long>> index;
+    /**
+     * Avisos inativos ou cancelados de todos os arquivos de situacao; refeito quando um arquivo e gravado, no reindex
+     * e a cada {@link #STATUS_CACHE_MILLIS} (arquivos copiados por fora, como no {@code data pull}).
+     */
+    private volatile Set<Long> allInactive;
+    private volatile long allInactiveAt;
+    private static final long STATUS_CACHE_MILLIS = 5 * 60 * 1000L;
 
     @Autowired
     public FnetClient(WebClient.Builder builder,
@@ -137,9 +145,25 @@ public class FnetClient {
     public record Batch(Map<Long, FnetNotice> notices, Set<Long> failed, Set<Long> unreadable, int downloaded) {
     }
 
-    /** Ids dos avisos de rendimentos e amortizacoes de um fundo, todas as paginas. */
+    /**
+     * Situacao de um aviso no FNET (D5 do docs/planos/PLANO_CORRECAO_PROVENTOS.md): {@code AC} ativo; {@code IC}
+     * inativo e {@code CC} cancelado — o fundo publicou outro no lugar (data-base corrigida) ou retirou o aviso.
+     */
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
+    public record NoticeStatus(long id, String status, Integer versao, String modalidade, String dataEntrega) {
+        public boolean active() {
+            return status == null || "AC".equals(status);
+        }
+    }
+
+    /**
+     * Ids dos avisos de rendimentos e amortizacoes de um fundo, todas as paginas. A situacao de cada um
+     * (ativo, inativo, cancelado) fica em {@code carga/data/fnet/status/{CNPJ}.json} — o arquivo e o estado
+     * (F10), como os XML, e um banco novo o recebe do bucket.
+     */
     public List<Long> incomeNoticeIds(String cnpj) {
         List<Long> ids = new ArrayList<>();
+        List<NoticeStatus> statuses = new ArrayList<>();
         for (int start = 0; start < 5000; start += PAGE) {
             final int s = start;
             String body = getWithRetry(uri -> uri.path("/pesquisarGerenciadorDocumentosDados")
@@ -151,25 +175,116 @@ public class FnetClient {
                     .queryParam("idTipoDocumento", 41)
                     .queryParam("idEspecieDocumento", 0)
                     .build(), "busca de " + cnpj, searchTimeout, searchAttempts);
-            JsonNode data;
+            JsonNode root;
             try {
-                data = objectMapper.readTree(body).path("data");
+                root = objectMapper.readTree(body);
             } catch (Exception e) {
                 throw new B3Exception("FNET respondeu fora do formato esperado: " + e.getMessage(), e);
             }
+            JsonNode data = root.path("data");
             if (!data.isArray() || data.isEmpty()) {
                 break;
             }
             data.forEach(d -> {
                 if (d.hasNonNull("id")) {
                     ids.add(d.get("id").asLong());
+                    statuses.add(new NoticeStatus(d.get("id").asLong(), text(d, "status"),
+                            d.hasNonNull("versao") ? d.get("versao").asInt() : null, text(d, "modalidade"),
+                            text(d, "dataEntrega")));
                 }
             });
-            if (data.size() < PAGE) {
+            // pagina alem do total nao e pedida: o FNET nao responde pagina vazia (a busca fica parada ate o
+            // tempo limite) — o fundo com exatamente 100 avisos falhava na segunda pagina
+            int total = root.path("recordsTotal").asInt(-1);
+            if (data.size() < PAGE || (total >= 0 && ids.size() >= total)) {
                 break;
             }
         }
+        writeStatus(cnpj, statuses);
         return ids;
+    }
+
+    private static String text(JsonNode node, String field) {
+        return node.hasNonNull(field) ? node.get(field).asText() : null;
+    }
+
+    /** Avisos do fundo marcados no FNET como inativos ou cancelados (vazio sem arquivo de situacao). */
+    public Set<Long> inactiveNoticeIds(String cnpj) {
+        Path file = statusFile(cnpj);
+        if (!Files.isRegularFile(file)) {
+            return Set.of();
+        }
+        try {
+            NoticeStatus[] all = objectMapper.readValue(file.toFile(), NoticeStatus[].class);
+            Set<Long> inactive = new HashSet<>();
+            for (NoticeStatus st : all) {
+                if (!st.active()) {
+                    inactive.add(st.id());
+                }
+            }
+            return inactive;
+        } catch (IOException e) {
+            log.warn("FNET: situacao dos avisos em {} ilegivel ({}) — todos tratados como ativos", file, e.getMessage());
+            return Set.of();
+        }
+    }
+
+    /**
+     * R11 (docs/planos/PLANO_CORRECAO_PROVENTOS.md): avisos inativos ou cancelados de <b>todos</b> os fundos com
+     * arquivo de situacao. O aviso pode estar listado no FNET sob o CNPJ de outro fundo (publicado por engano pelo
+     * administrador e depois inativado) e trazer no XML o CNPJ do fundo certo: CYCR11 (1073779, sob o CNPJ de CBOP11)
+     * e PVBI11 (980533, sob o de PLAG11). A situacao vale pelo id do aviso, qualquer que seja o arquivo.
+     */
+    public Set<Long> inactiveNoticeIds() {
+        Set<Long> cached = allInactive;
+        if (cached != null && System.currentTimeMillis() - allInactiveAt < STATUS_CACHE_MILLIS) {
+            return cached;
+        }
+        Set<Long> all = new HashSet<>();
+        Path dir = cacheDir.resolve("status");
+        if (Files.isDirectory(dir)) {
+            try (Stream<Path> files = Files.list(dir)) {
+                files.filter(f -> f.getFileName().toString().endsWith(".json"))
+                        .forEach(f -> all.addAll(inactiveNoticeIds(f.getFileName().toString().replace(".json", ""))));
+            } catch (IOException e) {
+                log.warn("FNET: arquivos de situacao em {} ilegiveis ({})", dir, e.getMessage());
+            }
+        }
+        Set<Long> built = Set.copyOf(all);
+        allInactive = built;
+        allInactiveAt = System.currentTimeMillis();
+        return built;
+    }
+
+    /** O fundo ja tem o arquivo de situacao dos avisos. */
+    public boolean hasStatus(String cnpj) {
+        return Files.isRegularFile(statusFile(cnpj));
+    }
+
+    /** CNPJs com aviso em {@code carga/data/fnet}. */
+    public Set<String> cachedCnpjs() {
+        return new java.util.TreeSet<>(index().keySet());
+    }
+
+    private Path statusFile(String cnpj) {
+        return cacheDir.resolve("status").resolve(cnpj(cnpj) + ".json");
+    }
+
+    private void writeStatus(String cnpj, List<NoticeStatus> statuses) {
+        if (statuses.isEmpty()) {
+            return;
+        }
+        Path file = statusFile(cnpj);
+        try {
+            Files.createDirectories(file.getParent());
+            Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
+            List<NoticeStatus> sorted = statuses.stream().sorted(java.util.Comparator.comparingLong(NoticeStatus::id)).toList();
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(tmp.toFile(), sorted);
+            Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
+            allInactive = null;
+        } catch (IOException e) {
+            log.warn("FNET: situacao dos avisos de {} nao gravada em {}: {}", cnpj, file, e.getMessage());
+        }
     }
 
     /**
@@ -203,6 +318,7 @@ public class FnetClient {
             }
         }
         index = built;
+        allInactive = null;
         log.info("FNET: indice de {} — {} avisos de {} fundos", cacheDir, files, built.size());
         return files;
     }

@@ -1,8 +1,8 @@
 package com.primevest.domain.dividend;
 
 /**
- * Fonte de um evento de provento do catalogo (V20). So integracao: o extrato do investidor
- * ({@code EXTRATO_B3}) deixou de ser fonte do catalogo em 29/09/2026 (V38, docs/planos/PLANO_CARGA_INICIAL.md).
+ * Fonte de um evento de provento do catalogo (V20). So integracao com as fontes de catalogo: a B3 (recente e
+ * historico longo) e o FNET (docs/planos/PLANO_CARGA_INICIAL.md, regra C).
  */
 public enum CashEventSource {
     /** Proventos recentes (~12 meses) do site da B3, com data de pagamento (acumulados em carga/data/b3/proventos-12m). */

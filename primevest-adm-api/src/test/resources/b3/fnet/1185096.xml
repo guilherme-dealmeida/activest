@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<DadosEconomicoFinanceiros>
+	<DadosGerais>
+		<NomeFundo>DEVANT PROPERTIES FII RESPONSABILIDADE LIMITADA</NomeFundo>
+		<CNPJFundo>42922127000108</CNPJFundo>
+		<NomeAdministrador>QORE DISTRIBUIDORA DE TÍTULOS E VALORES MOBILIÁRIOS LTDA</NomeAdministrador>
+		<CNPJAdministrador>62264924000152</CNPJAdministrador>
+		<ResponsavelInformacao>Nileide Abreu</ResponsavelInformacao>
+		<TelefoneContato>11 4858-3270</TelefoneContato>
+		<DataInformacao>2026-05-08</DataInformacao>
+		<Ano>2026</Ano>
+	</DadosGerais>
+	<InformeRendimentos>
+		<Provento>
+			<CodISIN>BRDPROCTF005</CodISIN>
+			<CodNegociacao>DPRO11</CodNegociacao>
+			<Rendimento>
+				<AtoSocietarioAprovacao/>
+				<DataBase>2026-05-11</DataBase>
+				<ValorProvento>0.06</ValorProvento>
+				<DataPagamento>2026-05-15</DataPagamento>
+				<PeriodoReferencia>30/04/2026</PeriodoReferencia>
+				<RendimentoIsentoIR>Sim</RendimentoIsentoIR>
+			</Rendimento>
+		</Provento>
+	</InformeRendimentos>
+</DadosEconomicoFinanceiros>

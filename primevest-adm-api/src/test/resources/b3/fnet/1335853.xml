@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<DadosEconomicoFinanceiros>
+  <DadosGerais>
+    <NomeFundo>FII URCA  </NomeFundo>
+    <CNPJFundo>34508872000187</CNPJFundo>
+    <NomeAdministrador>VORTX DTVM LTDA</NomeAdministrador>
+    <CNPJAdministrador>22610500000188</CNPJAdministrador>
+    <ResponsavelInformacao>Rafael Crepaldi</ResponsavelInformacao>
+    <TelefoneContato>(11) 3164-7177</TelefoneContato>
+    <DataInformacao>2026-09-30</DataInformacao>
+    <Ano>2026</Ano>
+  </DadosGerais>
+  <InformeRendimentos>
+    <Provento>
+      <CodISIN>BRURPRCTF002</CodISIN>
+      <CodNegociacao>URPR11</CodNegociacao>
+      <Rendimento>
+        <AtoSocietarioAprovacao>30/09/2026</AtoSocietarioAprovacao>
+        <DataBase>2026-09-30</DataBase>
+        <ValorProvento>0.30</ValorProvento>
+        <DataPagamento>2026-10-15</DataPagamento>
+        <PeriodoReferencia>09-2026</PeriodoReferencia>
+        <RendimentoIsentoIR>Sim</RendimentoIsentoIR>
+      </Rendimento>
+    </Provento>
+    <Provento>
+      <CodISIN>BRURPRCTF002</CodISIN>
+      <CodNegociacao>URPR13</CodNegociacao>
+      <Rendimento>
+        <AtoSocietarioAprovacao>30/09/2026</AtoSocietarioAprovacao>
+        <DataBase>2026-09-30</DataBase>
+        <ValorProvento>0.078</ValorProvento>
+        <DataPagamento>2026-10-15</DataPagamento>
+        <PeriodoReferencia>09-2026</PeriodoReferencia>
+        <RendimentoIsentoIR>Sim</RendimentoIsentoIR>
+      </Rendimento>
+    </Provento>
+  </InformeRendimentos>
+</DadosEconomicoFinanceiros>

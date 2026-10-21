@@ -60,7 +60,10 @@ primevest/
   da CVM, crescimento sustentável (ROE × (1 − payout)), 3 períodos + perpetuidade descontados pela Selic, margem de
   segurança; padrões do catálogo editáveis, alertas e comparação com o fechamento do dia e o
   preço médio — ver `docs/PRECO_TETO_METODOLOGIA.md` e `docs/planos/PLANO_PRECO_TETO.md`
-- ✅ Acompanhamento de proventos (dividendos, JCP, rendimentos), com abas de histórico (recebidos) e a receber
+- ✅ Acompanhamento de proventos (dividendos, JCP, rendimentos), com abas de histórico (recebidos) e a receber. O
+  catálogo de proventos vem da B3 e do FNET (21/10/2026: sem parcelas duplicadas, recibos de subscrição, avisos
+  retificados nem outra classe do fundo; conferência independente em `carga/scripts/conferencia/proventos.mjs` —
+  `docs/planos/PLANO_CORRECAO_PROVENTOS.md`)
 - ✅ Atualização automática de cotações (BrAPI + CoinGecko para a carteira; COTAHIST diário da B3 para todas as
   ações, FIIs, ETFs e BDRs do catálogo, às 21:30 e 08:30; histórico de cripto às 19:30)
 - ✅ Índices de mercado desde 2010 — CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, dólar PTAX, Ibovespa e IFIX —,

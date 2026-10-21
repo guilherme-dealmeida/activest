@@ -1,0 +1,65 @@
+[
+ {
+  "tradingName": "PETRORECSA  ",
+  "code": "RECV",
+  "codeCVM": "25780",
+  "cashDividends": [
+   {
+    "assetIssued": "BRRECVACNOR3",
+    "paymentDate": "31/12/2026",
+    "rate": "0,34132300000",
+    "relatedTo": "Anual/2025",
+    "approvedOn": "18/12/2025",
+    "isinCode": "BRRECVACNOR3",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "08/01/2026",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRRECVACNOR3",
+    "paymentDate": "31/12/2027",
+    "rate": "0,34132300000",
+    "relatedTo": "Anual/2025",
+    "approvedOn": "18/12/2025",
+    "isinCode": "BRRECVACNOR3",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "08/01/2026",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRRECVACNOR3",
+    "paymentDate": "31/12/2028",
+    "rate": "0,34132200000",
+    "relatedTo": "Anual/2025",
+    "approvedOn": "18/12/2025",
+    "isinCode": "BRRECVACNOR3",
+    "label": "DIVIDENDO",
+    "lastDatePrior": "08/01/2026",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRRECVACNOR3",
+    "paymentDate": "28/05/2026",
+    "rate": "0,34074800000",
+    "relatedTo": "1º Trimestre/2026",
+    "approvedOn": "07/05/2026",
+    "isinCode": "BRRECVACNOR3",
+    "label": "JRS CAP PROPRIO",
+    "lastDatePrior": "18/05/2026",
+    "remarks": ""
+   },
+   {
+    "assetIssued": "BRRECVACNOR3",
+    "paymentDate": "27/08/2026",
+    "rate": "0,34073600000",
+    "relatedTo": "2º Trimestre/2026",
+    "approvedOn": "06/08/2026",
+    "isinCode": "BRRECVACNOR3",
+    "label": "JRS CAP PROPRIO",
+    "lastDatePrior": "17/08/2026",
+    "remarks": ""
+   }
+  ],
+  "stockDividends": []
+ }
+]

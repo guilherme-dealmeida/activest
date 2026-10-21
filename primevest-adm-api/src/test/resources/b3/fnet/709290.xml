@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<DadosEconomicoFinanceiros>
+	<DadosGerais>
+		<NomeFundo>OPEN K ATIVOS E RECEBIVEIS IMOBILIARIOS</NomeFundo>
+		<CNPJFundo>32006821000121</CNPJFundo>
+		<NomeAdministrador>OLIVEIRA TRUST DTVM S.A.</NomeAdministrador>
+		<CNPJAdministrador>36113876000191</CNPJAdministrador>
+		<ResponsavelInformacao>OLIVEIRA TRUST DTVM S.A.</ResponsavelInformacao>
+		<TelefoneContato>(21) 3514-0000</TelefoneContato>
+		<DataInformacao>2024-07-31</DataInformacao>
+		<Ano>2024</Ano>
+	</DadosGerais>
+	<InformeRendimentos>
+		<Provento>
+			<CodISIN>BRARRICTF009</CodISIN>
+			<CodNegociacao>ARRI11</CodNegociacao>
+			<Rendimento>
+				<AtoSocietarioAprovacao>REGULAMENTO</AtoSocietarioAprovacao>
+				<DataBase>2024-07-31</DataBase>
+				<ValorProvento>0.1</ValorProvento>
+				<DataPagamento>2024-08-07</DataPagamento>
+				<PeriodoReferencia>AGOSTO</PeriodoReferencia>
+				<RendimentoIsentoIR>Sim</RendimentoIsentoIR>
+			</Rendimento>
+		</Provento>
+		<Provento>
+			<CodISIN>BRARRIR28M11</CodISIN>
+			<CodNegociacao>ARRI11</CodNegociacao>
+			<Rendimento>
+				<AtoSocietarioAprovacao>REGULAMENTO</AtoSocietarioAprovacao>
+				<DataBase>2024-07-31</DataBase>
+				<ValorProvento>0.1</ValorProvento>
+				<DataPagamento>2024-08-07</DataPagamento>
+				<PeriodoReferencia>AGOSTO</PeriodoReferencia>
+				<RendimentoIsentoIR>Sim</RendimentoIsentoIR>
+			</Rendimento>
+		</Provento>
+		<Provento>
+			<CodISIN>BRARRIR29M10</CodISIN>
+			<CodNegociacao>ARRI11</CodNegociacao>
+			<Rendimento>
+				<AtoSocietarioAprovacao>REGULAMENTO</AtoSocietarioAprovacao>
+				<DataBase>2024-07-31</DataBase>
+				<ValorProvento>0.1</ValorProvento>
+				<DataPagamento>2024-08-07</DataPagamento>
+				<PeriodoReferencia>AGOSTO</PeriodoReferencia>
+				<RendimentoIsentoIR>Sim</RendimentoIsentoIR>
+			</Rendimento>
+		</Provento>
+		<Provento>
+			<CodISIN>BRARRIR30M17</CodISIN>
+			<CodNegociacao>ARRI11</CodNegociacao>
+			<Rendimento>
+				<AtoSocietarioAprovacao>REGULAMENTO</AtoSocietarioAprovacao>
+				<DataBase>2024-07-31</DataBase>
+				<ValorProvento>0.03</ValorProvento>
+				<DataPagamento>2024-08-07</DataPagamento>
+				<PeriodoReferencia>AGOSTO</PeriodoReferencia>
+				<RendimentoIsentoIR>Sim</RendimentoIsentoIR>
+			</Rendimento>
+		</Provento>
+	</InformeRendimentos>
+</DadosEconomicoFinanceiros>

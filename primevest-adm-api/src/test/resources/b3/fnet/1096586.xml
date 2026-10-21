@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<DadosEconomicoFinanceiros>
+	<DadosGerais>
+		<NomeFundo>XLPR FII</NomeFundo>
+		<CNPJFundo>35689733000160</CNPJFundo>
+		<NomeAdministrador>BRL TRUST DTVM S.A.</NomeAdministrador>
+		<CNPJAdministrador>13486793000142</CNPJAdministrador>
+		<ResponsavelInformacao>Leandro Schimith</ResponsavelInformacao>
+		<TelefoneContato>11 48712239</TelefoneContato>
+		<DataInformacao>2026-01-30</DataInformacao>
+		<Ano>2026</Ano>
+	</DadosGerais>
+	<InformeRendimentos>
+		<Provento>
+			<CodISIN>BRRRCICTF005</CodISIN>
+			<CodNegociacao>XLPR11</CodNegociacao>
+			<Rendimento>
+				<AtoSocietarioAprovacao/>
+				<DataBase>2026-01-30</DataBase>
+				<ValorProvento>0.520550314785254</ValorProvento>
+				<DataPagamento>2026-02-13</DataPagamento>
+				<PeriodoReferencia>01/2026</PeriodoReferencia>
+				<RendimentoIsentoIR>Sim</RendimentoIsentoIR>
+			</Rendimento>
+		</Provento>
+	</InformeRendimentos>
+</DadosEconomicoFinanceiros>
