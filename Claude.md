@@ -5,7 +5,11 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 22/10/2026 (**Tarefas**: as rotinas viraram tarefas no banco — tipos, tarefas, atributos,
+> **Última revisão**: 22/10/2026, noite (**Fonte do Tesouro e cache dos arquivos públicos**: download só vira arquivo
+> depois da conferência do conteúdo, recusa da fonte vira rodada `FAILED` + `FONTE_INDISPONIVEL`, fonte parada abre a
+> pendência `FONTE_DESATUALIZADA`, identificação `PrimeVest/1.0` nas chamadas — ver "Fonte do Tesouro e cache dos
+> arquivos públicos (22/10/2026)" em Pontos de Atenção e `docs/planos/PLANO_FONTE_TESOURO.md`). No mesmo dia:
+> (**Tarefas**: as rotinas viraram tarefas no banco — tipos, tarefas, atributos,
 > rodadas e log —, agendadas pelo banco, com Run, Stop cooperativo e a tela `/tasks` só para administrador, API
 > `/api/v1/tasks` na adm-api; ver "Tarefas (22/10/2026)" em Pontos de Atenção e `docs/planos/PLANO_TAREFAS.md`).
 > Antes: 21/10/2026 (correção dos proventos: parcelas da B3, recibos, avisos retificados do FNET com a
@@ -353,7 +357,7 @@ são os do seed (V62):
 | Fechamento B3 (seg–sex) e cripto (todo dia), com recuperação na subida — tarefas `B3_CLOSING` e `CRYPTO_CLOSING` | 19:00 | adm-api → "catálogo mudou" (FECHAMENTO) |
 | Eventos de proventos da B3/FNET de **todo o catálogo** ligado a emissor + o que já esteve em carteira (F8; `primevest.proventos.scope`) — tarefa `DIVIDENDS_SYNC` | 20:00 | adm-api → "catálogo mudou" (PROVENTOS), por emissor |
 | Balanços da CVM (DFP/ITR do ano corrente e do anterior) + série trimestral + informe mensal de FII (F7) — tarefa `CVM_STATEMENTS_IMPORT` | 07:30 | adm-api |
-| Preço oficial do Tesouro Direto (PU de venda, Tesouro Transparente), com recuperação na subida — tarefa `TREASURY_PRICES` (`docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`); desde 17/10/2026 também a taxa do último dia e os títulos à venda (`treasury_offers`, arquivo de vendas; fora do ar, a oferta fica a da última rodada) | 08:00 | adm-api → "catálogo mudou" (FECHAMENTO) |
+| Preço oficial do Tesouro Direto (PU de venda, Tesouro Transparente), com recuperação na subida — tarefa `TREASURY_PRICES` (`docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`); desde 17/10/2026 também a taxa do último dia e os títulos à venda (`treasury_offers`, arquivo de vendas; fora do ar, a oferta fica a da última rodada); desde 22/10/2026 a fonte que recusa termina a rodada `FAILED` (`docs/planos/PLANO_FONTE_TESOURO.md`) | 08:00 | adm-api → "catálogo mudou" (FECHAMENTO) |
 | Índices de mercado, incremental com janela de revisão (30 dias nos diários, 3 meses nos mensais), com recuperação na subida — tarefa `MARKET_INDICES` (`docs/planos/PLANO_INDICES_MERCADO.md`) | 10:00 | adm-api |
 | Conferência do catálogo e dos índices atrasados (só loga) — tarefa `CATALOG_AUDIT` | seg 07:00 | adm-api |
 | Cotações de **todo o catálogo** (ações, FIIs e, desde 17/10/2026, ETFs e BDRs) pelo COTAHIST diário da B3, um arquivo por pregão, completando os que faltam, com recuperação na subida — tarefa `B3_DAILY_QUOTES` (`docs/planos/PLANO_PRECO_TETO.md`, 4.5; 10/10/2026) | 21:30 e 08:30 | adm-api |
@@ -399,7 +403,7 @@ Todas as fontes abaixo, menos o Google, são da **adm-api** (config em `primeves
 | **CoinGecko** | Preço de cripto (id em `assets.price_source_ref`), logos das moedas e, desde 17/10/2026, o histórico dos últimos 365 dias (`market_chart/range`; antes disso a API gratuita responde 401) | `coingecko.base-url` |
 | **Binance — klines públicos** (`BinanceKlinesClient`, sem chave) | Histórico diário BTC/BRL desde 13/10/2020 para o benchmark e as posições de BTC (`docs/planos/PLANO_RENTABILIDADE.md`, D2). Fonte de catálogo — não é a integração do usuário. Cache `carga/data/binance/klines/{PAR}/{ano}.json` (`IndexYearCache`) | `binance.public-url` |
 | **Banco Central — API SGS** (`BcbSgsClient`, sem token) | Índices de mercado (`docs/planos/PLANO_INDICES_MERCADO.md`): CDI (série 12), Selic (11), IPCA (433), IGP-M (189), INPC (188), TR (226), meta Selic (432), dólar PTAX venda (1). Uma consulta por ano civil com `dataInicial`/`dataFinal` (série diária recusa janela de mais de 10 anos com 406; 404 = sem valores no período); timeout de 20 s e até 4 tentativas (o SGS às vezes demora). A TR repete o início com fins diferentes: fica o período de um mês cheio. Data futura não entra (a meta Selic vem preenchida até a próxima reunião do Copom). Cache `carga/data/bcb/sgs/{código}/{ano}.json`: ano fechado com arquivo só do disco; o corrente e o anterior sempre da fonte (`IndexYearCache`) | `bcb.sgs-base-url`, `indices.*`, `primevest.data.dir` |
-| **Tesouro Transparente — preços e taxas do Tesouro Direto** (`TesouroPriceClient`, sem token) | `PrecoTaxaTesouroDireto.csv`: todo o histórico desde 2002 num arquivo (~14 MB, ~1 min), atualizado todo dia útil ~07:20 com o D-1; colunas tipo, vencimento, data base, taxas e PU de compra/venda/base. Cache `carga/data/tesouro/` (`PublicFileCache`, só baixa se mudou). `TreasuryPriceService` casa a linha com o título do catálogo por **tipo + vencimento** (`asset_terms`; o ano do ticker nem sempre é o do vencimento: Renda+ 2065 vence em 2084), grava o **PU de venda** (resgate antecipado; sem ele, o PU base) em `asset_price_history` (`source = TESOURO`) e o último em `assets.current_price` | `tesouro.prices-url`, `tesouro.timeout-seconds` |
+| **Tesouro Transparente — preços e taxas do Tesouro Direto** (`TesouroPriceClient`, sem token) | `PrecoTaxaTesouroDireto.csv`: todo o histórico desde 2002 num arquivo (~14 MB, ~1 min), atualizado todo dia útil ~07:20 com o D-1; colunas tipo, vencimento, data base, taxas e PU de compra/venda/base. Cache `carga/data/tesouro/` (`PublicFileCache`, só baixa se mudou; desde 22/10/2026 só vira arquivo o que começa com o cabeçalho `Tipo Titulo;`). `TreasuryPriceService` casa a linha com o título do catálogo por **tipo + vencimento** (`asset_terms`; o ano do ticker nem sempre é o do vencimento: Renda+ 2065 vence em 2084), grava o **PU de venda** (resgate antecipado; sem ele, o PU base) em `asset_price_history` (`source = TESOURO`) e o último em `assets.current_price` | `tesouro.prices-url`, `tesouro.timeout-seconds` |
 | **B3 — índices** (`B3IndexClient`) | Fechamento diário do Ibovespa e do IFIX: `indexStatisticsProxy/IndexCall/GetPortfolioDay`, um ano por chamada, numa grade dia × mês com texto pt-BR. Cache `carga/data/b3/indices/{índice}/{ano}.json`, mesma regra | `b3.base-url`, `indices.*` |
 | **Google Identity Services** | Login social (fluxo de ID token, sem client secret) | `VITE_GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_ID` |
 
@@ -1551,7 +1555,8 @@ Plano: `docs/planos/PLANO_NOTIFICACOES.md`. A antiga central de avisos (PENDENCI
 - **Tipos** (`NotificationKind`): provento pago (D0), evento aplicado (data-ex), bonificação sem custo, RF liquidada /
   sem valor / divergente, preço abaixo do ideal, "padrão mudou", integrações (importou, aguardando, divergência,
   conexão, falhou), aviso de catálogo para a posição; admin: ticker novo/sumido/renomeado/sem cotação, índice
-  atrasado, rótulo desconhecido, Tesouro sem título, rotina falhou, fonte indisponível.
+  atrasado, rótulo desconhecido, Tesouro sem título, rotina falhou, fonte indisponível, fonte desatualizada (22/10/2026,
+  pendência que se resolve quando a fonte volta a publicar).
 - **Quando.** Rotina de abertura do dia [B7] (`DailyOpeningService`, 00:00 e na subida, idempotente); depois do
   "catálogo mudou" (`CatalogReaction`, chamadas pelo `PositionRefreshService`); no fim de cada execução de integração
   (`IntegrationNotifier`); a adm-api nas rotinas dela.
@@ -1682,6 +1687,32 @@ Plano: `docs/planos/PLANO_RENTABILIDADE.md`; fórmulas: `docs/RENTABILIDADE_METO
   preço pago (R5). No dia da compra a diferença entre o preço e o fechamento entra na rentabilidade — uma carteira só
   de BTC comprado em dias de queda rende diferente do BTC/BRL (12M em 17/10/2026: −15,00% × −23,41%). Decidido manter
   (17/10/2026) e avisar na tela (último item do quadro de informações).
+
+### Fonte do Tesouro e cache dos arquivos públicos (22/10/2026)
+Plano: `docs/planos/PLANO_FONTE_TESOURO.md` (origem: PENDENCIAS 34.5). O Tesouro Transparente não publica desde
+16/10/2026 (PU de 15/10); em 21/10 o site devolveu a página "Request Rejected" com HTTP 200, que o cache gravou como
+`PrecoTaxaTesouroDireto.csv`, e depois HTTP 429 — e as rodadas terminavam `SUCCEEDED` com zero linhas, sem aviso.
+
+- **Conferência antes de virar arquivo** (`PublicFileCache.ContentCheck`, R1): o download vai para o `.part` e só
+  substitui o arquivo se passar — CSV do Tesouro pelo cabeçalho `Tipo Titulo;`, cadastro da CVM por `CNPJ_CIA;`, zip da
+  B3 e da CVM pela assinatura `PK`, PDF do RAD por `%PDF`, BCB por JSON; sem conferência própria, recusa página HTML.
+  Vazio nunca passa. Reprovado conta como recusa e o arquivo anterior fica. Na varredura de 22/10/2026 havia 7 páginas
+  HTML do RAD gravadas como PDF em `carga/data/cvm/proventos` (05/10/2026), apagadas para serem baixadas de novo.
+- **O que aconteceu** (`PublicFileCache.get` → `Result`, R2): baixou, não mudou (304), do disco, 404, recusou (429,
+  403, 5xx, conteúdo reprovado — com status e `Retry-After`) ou sem resposta. O `fetch` de sempre continua: recusa com
+  cópia em disco devolve a cópia (B3, CVM, BCB). Uma tentativa por chamada (R4).
+- **Tesouro** (D2): recusa ou fonte fora do ar → `FONTE_INDISPONIVEL` (uma por dia); com cópia em disco, a cópia é lida
+  (a carga inicial ainda aproveita) e a tarefa `TREASURY_PRICES` termina **`FAILED`** com o motivo
+  (`Result.sourceProblem`); sem cópia, erro. Arquivo sem o cabeçalho do Tesouro é erro, não "zero linhas" (R6).
+- **Fonte parada** (D3): a fonte respondeu e a data base mais recente está mais de 2 dias úteis atrás
+  (`BusinessCalendar`, exclusive nos dois lados) → pendência **`FONTE_DESATUALIZADA`** (`AdminNotices.sourceStale`;
+  não repete enquanto aberta), resolvida sozinha quando o dado novo chega; `Result.staleSince` no resumo da rodada.
+- **Identificação** (D6): `User-Agent: PrimeVest/1.0 (+https://github.com/guilherme-dealmeida/primevest)` em todas as
+  chamadas do cache. Em 22/10/2026 o filtro do Tesouro recusava o padrão do Java (`Java-http-client`) e o curl com 429
+  e aceitou a chamada identificada: a primeira rodada depois da troca baixou o arquivo (fonte ainda em 15/10, pendência
+  aberta). Nunca se imita navegador para passar por filtro.
+- Testes: `PublicFileCacheTest` (7), `TreasuryPricesTaskTest` (2), `TreasuryPriceIT` (+4: recusa com e sem cópia,
+  página no lugar do arquivo, fonte parada).
 
 ### Tarefas (22/10/2026)
 Plano: `docs/planos/PLANO_TAREFAS.md` (decisões D1–D36). As rotinas agendadas e as de administrador viraram
@@ -1876,7 +1907,7 @@ não "quando o usuário mexeu nesta posição" — para a segunda pergunta, o qu
 
 ### Testes — existem desde 22/09/2026
 
-**Em 22/10/2026 (Tarefas: `TaskAttributeValuesTest` 3, `TaskCatalogServiceTest` 3, `TaskExecutorTest` 11, `TaskScheduleRegistryTest` 2, `FnetStatusSyncTaskTest` 2 no lugar do `FnetStatusSchedulerTest` 3, `TaskControllerIT` 5): core 210; integration 103; adm-api 118 + 78; app-api 210 + 263 — todos verdes em `mvn clean verify`.** Antes, em 21/10/2026 (correção dos proventos: `CorrecaoProventosIT` 24, `ProventosConferenciaIT` 5; `ExtratoProventosIT` saiu): core 190; integration 103; adm-api 116 + 73; app-api 210 + 261 — todos verdes em `mvn clean verify`. Depois, no mesmo dia (rotina semanal [A12] e data da B3 que muda — `FnetStatusSchedulerTest` 3, `PaymentDateSourceIT` 5): core 190; integration 103; adm-api 119 + 73; app-api 210 + 263 — verdes. Antes, **em 17/10/2026, mais tarde (listagem de emissoras: `ListagemEmissorasIT`): core 190; integration 103; adm-api 116 + 49; app-api 210 + 261 — todos verdes em `mvn clean verify` (~6 min).** Antes, no mesmo dia, à noite ("Mudanças de tela": `DashboardResumoIT` — aportes compras − vendas em 12 meses, valor líquido do Patrimônio — e os proventos de 12 meses no `ProventosAReceberIT`): core 190; integration 103; adm-api 116 + 49; app-api 210 + 256 — todos verdes em `mvn clean verify` (~7 min). Antes, no mesmo dia (Rentabilidade, com o padrão do Tesouro e a V59): core 190; integration 103; adm-api 116 + 49; app-api 210 + 251. Antes, na entrega da Rentabilidade: core 189; integration 103; adm-api 116 + 48; app-api 210 + 250. Antes, em 10/10/2026 (Preço Teto, payout pela DFC, COTAHIST diário): core 158; integration 103; adm-api 89 + 40; app-api 189 + 199 — todos verdes em `mvn verify` (~6 min).** Antes, em 05/10/2026, noite (valorização da renda fixa): 521 unitários + 231 de integração, por módulo: core 158; integration 103; adm-api 88 + 38; app-api 172 + 193, todos verdes em `mvn clean verify` (~7 min). Na F11 (28/09/2026) eram 394 + 180.
+**Em 22/10/2026, noite (fonte do Tesouro: `PublicFileCacheTest` 7, `TreasuryPricesTaskTest` 2, `TreasuryPriceIT` 4 → 8): core 210; integration 103; adm-api 127 + 82; app-api 210 + 263 — todos verdes em `mvn clean verify`** (numa primeira rodada o `TaskExecutorTest.logDaRodada`, que depende de tempo — espera o lote de 1 s do log —, falhou uma vez e passou na seguinte, sem mudança). Antes, **em 22/10/2026 (Tarefas: `TaskAttributeValuesTest` 3, `TaskCatalogServiceTest` 3, `TaskExecutorTest` 11, `TaskScheduleRegistryTest` 2, `FnetStatusSyncTaskTest` 2 no lugar do `FnetStatusSchedulerTest` 3, `TaskControllerIT` 5): core 210; integration 103; adm-api 118 + 78; app-api 210 + 263 — todos verdes em `mvn clean verify`.** Antes, em 21/10/2026 (correção dos proventos: `CorrecaoProventosIT` 24, `ProventosConferenciaIT` 5; `ExtratoProventosIT` saiu): core 190; integration 103; adm-api 116 + 73; app-api 210 + 261 — todos verdes em `mvn clean verify`. Depois, no mesmo dia (rotina semanal [A12] e data da B3 que muda — `FnetStatusSchedulerTest` 3, `PaymentDateSourceIT` 5): core 190; integration 103; adm-api 119 + 73; app-api 210 + 263 — verdes. Antes, **em 17/10/2026, mais tarde (listagem de emissoras: `ListagemEmissorasIT`): core 190; integration 103; adm-api 116 + 49; app-api 210 + 261 — todos verdes em `mvn clean verify` (~6 min).** Antes, no mesmo dia, à noite ("Mudanças de tela": `DashboardResumoIT` — aportes compras − vendas em 12 meses, valor líquido do Patrimônio — e os proventos de 12 meses no `ProventosAReceberIT`): core 190; integration 103; adm-api 116 + 49; app-api 210 + 256 — todos verdes em `mvn clean verify` (~7 min). Antes, no mesmo dia (Rentabilidade, com o padrão do Tesouro e a V59): core 190; integration 103; adm-api 116 + 49; app-api 210 + 251. Antes, na entrega da Rentabilidade: core 189; integration 103; adm-api 116 + 48; app-api 210 + 250. Antes, em 10/10/2026 (Preço Teto, payout pela DFC, COTAHIST diário): core 158; integration 103; adm-api 89 + 40; app-api 189 + 199 — todos verdes em `mvn verify` (~6 min).** Antes, em 05/10/2026, noite (valorização da renda fixa): 521 unitários + 231 de integração, por módulo: core 158; integration 103; adm-api 88 + 38; app-api 172 + 193, todos verdes em `mvn clean verify` (~7 min). Na F11 (28/09/2026) eram 394 + 180.
 O suporte comum (container do PostgreSQL, bases, fixtures, `application-test.yml`) vem do
 test-jar do core. A app-api tem a adm-api **só no classpath de teste**, para os testes de ponta a ponta de
 proventos e fechamento (`CatalogoE2EBase`: fonte mockada → catálogo pela adm-api → recálculo pela app-api →

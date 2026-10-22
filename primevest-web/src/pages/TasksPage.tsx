@@ -158,8 +158,8 @@ const RunConfirm = ({ task, onConfirm, onClose, pending }: {
 // ------------------------------------------------------------------------------------------------ Acompanhamento
 
 const MonitoringTab = ({ onOpenExecution }: { onOpenExecution: (id: number) => void }) => {
-  const [from, setFrom] = useState(addDays(-7));
-  const [to, setTo] = useState(addDays(7));
+  const [from, setFrom] = useState(addDays(-1));
+  const [to, setTo] = useState(addDays(1));
   const [type, setType] = useState('');
   const [status, setStatus] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -224,8 +224,8 @@ const MonitoringTab = ({ onOpenExecution }: { onOpenExecution: (id: number) => v
 
       <Card>
         <div className="mb-4 flex items-center gap-2">
-          <h3 className="text-lg font-medium text-white">Rodadas</h3>
-          <InfoTooltip content="Rodadas que começaram no período e, de agora até o fim do período, as agendadas calculadas do horário de cada tarefa ligada (SCHEDULED)." />
+          <h3 className="text-lg font-medium text-white">Execuções</h3>
+          <InfoTooltip content="Execuções que começaram no período e, de agora até o fim do período, as agendadas calculadas do horário de cada tarefa ligada (SCHEDULED)." />
         </div>
         {executions.isLoading ? (
           <div className="flex justify-center py-10"><LoadingSpinner className="h-6 w-6 text-accent" /></div>

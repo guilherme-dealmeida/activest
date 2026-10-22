@@ -1282,7 +1282,11 @@ fundo (E) e historico longo da B3 vazio para nome de pregao com barra (G, era o 
 **34.4** Stop: 13 tipos sem ponto de parada (`stoppable = false`): `CRYPTO_CLOSING`, `CATALOG_AUDIT`,
  `ISSUERS_IMPORT`, `ISSUERS_LINK`, `CVM_QUARTERS`, `PAYMENT_DATE_SURVEY`, `TREASURY_PRICES` (um arquivo só), a
  curadoria (3), `TASK_HISTORY_CLEANUP`, `DAILY_OPENING` e `INTEGRATIONS_DAILY_SYNC` — rodadas curtas ou de uma chamada.
-**34.5** Preço do Tesouro parado (achado da validação das Tarefas, 22/10/2026): o último PU gravado
+**34.5** ~~Preço do Tesouro parado~~ — **resolvida em 22/10/2026** pelo `docs/planos/PLANO_FONTE_TESOURO.md` (E2–E5): o
+ cache só grava o que passa na conferência do conteúdo, a recusa da fonte termina a rodada `FAILED` com
+ `FONTE_INDISPONIVEL`, a fonte parada abre `FONTE_DESATUALIZADA` (aberta em 22/10: o Tesouro segue em 15/10) e, com a
+ identificação `PrimeVest/1.0`, o download voltou a funcionar. Texto original: Preço do Tesouro parado (achado da
+ validação das Tarefas, 22/10/2026): o último PU gravado
  (`asset_price_history`, `source = TESOURO`) é de **15/10/2026**, e todas as rodadas de `TREASURY_PRICES` desde então
  terminam com `titles=0, rows=0` — inclusive as das 08:00. A valorização do Tesouro na carteira está usando o PU de
  15/10. Causa encontrada em 22/10/2026: `carga/data/tesouro/PrecoTaxaTesouroDireto.csv` e `VendasTesouroDireto.csv`
@@ -1291,10 +1295,24 @@ fundo (E) e historico longo da B3 vazio para nome de pregao com barra (G, era o 
  linha. Anterior às Tarefas e independente delas (as rodadas executam e terminam `SUCCEEDED` com zero linhas). Escopo
  próprio: não gravar resposta que não é CSV, tratar a recusa como falha da fonte (`FONTE_INDISPONIVEL`) e entender o
  bloqueio. O ruído de uma rodada `STARTUP` por reinício foi resolvido pela D37/D38 do plano de
- Tarefas (subida no máximo uma vez por dia, só tarefa marcada).
+ Tarefas (subida no máximo uma vez por dia, só tarefa marcada). **Diagnóstico de 22/10/2026 e plano em
+ `docs/planos/PLANO_FONTE_TESOURO.md`**: o próprio Tesouro Transparente não atualiza os dois arquivos desde 16/10/2026
+ (o PU de 15/10 é o mais novo que existe lá); a página de recusa (21/10) e o HTTP 429 que veio depois ("volume atípico
+ de requisições a partir da sua rede", ainda ativo em 22/10) são achados à parte. Decisões D1, D2, D3, D6 e D7 tomadas em
+ 22/10/2026; D4, D5, D8 e D9 também (22/10/2026).
 **34.6** Run de tarefa da app-api pela tela depende do Redis (comando `RUN`): sem resposta em 5 s, 503 e nenhuma rodada.
 **34.7** A trava por tipo é em memória, por serviço (uma instância de cada API). Com mais de uma instância seria preciso
  trava no banco (ex.: índice único parcial de `RUNNING` por tipo) e um agendador só.
+**34.8** (Em observação desde 22/10/2026, noite: com a identificação `PrimeVest/1.0` da D6 o filtro aceitou o download
+ do arquivo de preços às 19:26, enquanto o curl seguia recebendo 429 — o bloqueio era do cliente sem identificação. O
+ arquivo de vendas, na mesma rodada, caiu com a conexão fechada sem resposta: conferir nas próximas rodadas das 08:00.
+ Só volta a ser pendência se a chamada identificada passar a ser recusada.) Tesouro com o acesso automático recusado
+ (D9 do `docs/planos/PLANO_FONTE_TESOURO.md`, 22/10/2026): o filtro do
+ Tesouro Transparente deixa o navegador baixar o arquivo e recusa curl e o PrimeVest (HTTP 429, achado A8). Decidido
+ aguardar: esperar 48 h com a correção do plano no ar e, se continuar, chamado ao Tesouro pedindo liberação do acesso
+ identificado (D8). Se nem o chamado resolver, escolher entre esperar, outra fonte oficial do PU (estudo próprio) ou
+ carga manual do CSV pelo administrador como contingência. Sem urgência enquanto a fonte não publicar (parada desde
+ 16/10/2026).
 
 ## ORDEM SUGERIDA
 

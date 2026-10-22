@@ -37,6 +37,8 @@ public class TesouroSalesClient {
     static final String FILE_NAME = "VendasTesouroDireto.csv";
     /** Titulo a venda = vendeu em algum dos ultimos {@value} dias de liquidacao do arquivo. */
     public static final int RECENT_DAYS = 3;
+    /** Inicio do cabecalho do arquivo: o que nao comeca assim nao e o arquivo do Tesouro (R1, R6). */
+    public static final String HEADER_PREFIX = "Tipo Titulo;";
     private static final DateTimeFormatter BR = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     /** Titulo (tipo + vencimento). */
@@ -64,17 +66,20 @@ public class TesouroSalesClient {
         this.files = files;
     }
 
-    /** O arquivo atualizado (baixa so se mudou). Fonte fora do ar e sem copia: {@link PublicFileCache.UnavailableException}. */
-    public Path fetch() {
-        return files.fetch(url, target, true)
-                .orElseThrow(() -> new PublicFileCache.UnavailableException("Tesouro respondeu 404 para " + url, null));
+    /** Pergunta ao Tesouro (baixa so se mudou) e conta o que aconteceu, com o arquivo em disco, se houver. */
+    public PublicFileCache.Result fetch() {
+        return files.get(url, target, true, PublicFileCache.ContentCheck.csvHeader(HEADER_PREFIX));
     }
 
-    /** Titulos com venda (quantidade &gt; 0) nos {@link #RECENT_DAYS} ultimos dias de liquidacao; linha mal formada e pulada. */
+    /**
+     * Titulos com venda (quantidade &gt; 0) nos {@link #RECENT_DAYS} ultimos dias de liquidacao; linha mal formada e
+     * pulada; arquivo sem o cabecalho do Tesouro e erro (R6).
+     */
     public static OnSale onSale(Path file) {
         Map<LocalDate, Set<Title>> byDate = new HashMap<>();
         try (BufferedReader in = Files.newBufferedReader(file, StandardCharsets.ISO_8859_1)) {
-            String line = in.readLine();
+            TesouroPriceClient.checkHeader(file, in.readLine());
+            String line;
             while ((line = in.readLine()) != null) {
                 String[] c = line.split(";", -1);
                 if (c.length < 5) {
@@ -93,7 +98,7 @@ public class TesouroSalesClient {
                 }
             }
         } catch (IOException e) {
-            throw new UncheckedIOException("Arquivo de vendas do Tesouro ilegivel: " + file, e);
+            throw new UncheckedIOException("Arquivo de vendas do Tesouro ilegivel: " + e.getMessage(), e);
         }
         TreeSet<LocalDate> dates = new TreeSet<>(byDate.keySet());
         Set<Title> titles = new HashSet<>();

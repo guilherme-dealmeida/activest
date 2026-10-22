@@ -50,7 +50,9 @@ class CvmOpenDataClientTest {
             } else if (ims != null) {
                 exchange.sendResponseHeaders(304, -1);
             } else {
-                byte[] body = ("conteudo de " + path).getBytes(StandardCharsets.UTF_8);
+                // conteudo que passa na conferencia de cada arquivo (PublicFileCache.ContentCheck)
+                String prefix = path.endsWith(".zip") ? "PK\u0003\u0004" : path.endsWith(".csv") ? "CNPJ_CIA;" : "";
+                byte[] body = (prefix + "conteudo de " + path).getBytes(StandardCharsets.UTF_8);
                 exchange.getResponseHeaders().add("Last-Modified", LAST_MODIFIED);
                 exchange.sendResponseHeaders(200, body.length);
                 exchange.getResponseBody().write(body);

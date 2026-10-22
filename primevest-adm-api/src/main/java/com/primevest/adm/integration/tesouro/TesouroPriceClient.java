@@ -25,7 +25,8 @@ import java.util.function.Consumer;
  * <p>Um arquivo so, {@code PrecoTaxaTesouroDireto.csv}, com todo o historico desde 2002 (~14 MB, ~1 min para baixar
  * em 05/10/2026), atualizado todo dia util pela manha com o D-1. Cache em
  * {@code carga/data/tesouro/PrecoTaxaTesouroDireto.csv} ({@link PublicFileCache}): sempre pergunta com
- * {@code If-Modified-Since} e so baixa quando mudou; fonte fora do ar fica com o disco.</p>
+ * {@code If-Modified-Since} e so baixa quando mudou. So vira arquivo o que comeca com o cabecalho do Tesouro, e o que
+ * fazer com a copia em disco quando a fonte recusa e decisao do servico (docs/planos/PLANO_FONTE_TESOURO.md, D2).</p>
  *
  * <p>Formato: {@code Tipo Titulo;Data Vencimento;Data Base;Taxa Compra Manha;Taxa Venda Manha;PU Compra Manha;
  * PU Venda Manha;PU Base Manha}, datas {@code dd/MM/yyyy}, numeros com virgula.</p>
@@ -34,6 +35,8 @@ import java.util.function.Consumer;
 public class TesouroPriceClient {
 
     static final String FILE_NAME = "PrecoTaxaTesouroDireto.csv";
+    /** Inicio do cabecalho do arquivo: o que nao comeca assim nao e o arquivo do Tesouro (R1, R6). */
+    public static final String HEADER_PREFIX = "Tipo Titulo;";
     private static final DateTimeFormatter BR = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     /**
@@ -61,19 +64,18 @@ public class TesouroPriceClient {
         this.files = files;
     }
 
-    /** O arquivo atualizado (baixa so se mudou). Fonte fora do ar e sem copia: {@link PublicFileCache.UnavailableException}. */
-    public Path fetch() {
-        return files.fetch(url, target, true)
-                .orElseThrow(() -> new PublicFileCache.UnavailableException("Tesouro respondeu 404 para " + url, null));
+    /** Pergunta ao Tesouro (baixa so se mudou) e conta o que aconteceu, com o arquivo em disco, se houver. */
+    public PublicFileCache.Result fetch() {
+        return files.get(url, target, true, PublicFileCache.ContentCheck.csvHeader(HEADER_PREFIX));
     }
 
-    /** Le o arquivo linha a linha; linha mal formada e pulada. */
+    /**
+     * Le o arquivo linha a linha; linha mal formada e pulada. Arquivo sem o cabecalho do Tesouro e erro, nao "zero
+     * linhas" (R6): foi assim que a pagina de recusa gravada em 21/10/2026 passou por arquivo valido.
+     */
     public static void read(Path file, Consumer<Row> sink) {
         try (BufferedReader in = Files.newBufferedReader(file, StandardCharsets.ISO_8859_1)) {
-            String header = in.readLine();
-            if (header == null) {
-                return;
-            }
+            checkHeader(file, in.readLine());
             String line;
             while ((line = in.readLine()) != null) {
                 Row r = parse(line);
@@ -82,7 +84,16 @@ public class TesouroPriceClient {
                 }
             }
         } catch (IOException e) {
-            throw new UncheckedIOException("Arquivo do Tesouro ilegivel: " + file, e);
+            throw new UncheckedIOException("Arquivo de precos do Tesouro ilegivel: " + e.getMessage(), e);
+        }
+    }
+
+    /** O cabecalho do arquivo do Tesouro (precos ou vendas); BOM ignorado. */
+    static void checkHeader(Path file, String header) throws IOException {
+        String h = header == null ? "" : header.startsWith("\u00ef\u00bb\u00bf") ? header.substring(3) : header;
+        if (!h.startsWith(HEADER_PREFIX)) {
+            String start = h.length() > 60 ? h.substring(0, 60) + "..." : h;
+            throw new IOException("nao e o arquivo do Tesouro (cabecalho \"" + start + "\"): " + file);
         }
     }
 

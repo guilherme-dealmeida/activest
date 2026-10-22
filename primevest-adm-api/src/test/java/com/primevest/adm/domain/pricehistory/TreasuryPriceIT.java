@@ -1,5 +1,6 @@
 package com.primevest.adm.domain.pricehistory;
 
+import com.primevest.adm.integration.PublicFileCache;
 import com.primevest.adm.integration.tesouro.TesouroPriceClient;
 import com.primevest.adm.integration.tesouro.TesouroSalesClient;
 import com.primevest.support.IntegrationTestBase;
@@ -17,6 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 /**
@@ -40,8 +42,21 @@ class TreasuryPriceIT extends IntegrationTestBase {
 
     @BeforeEach
     void arquivo() throws Exception {
-        when(client.fetch()).thenReturn(copy("PrecoTaxaTesouroDireto.csv"));
-        when(salesClient.fetch()).thenReturn(copy("VendasTesouroDireto.csv"));
+        when(client.fetch()).thenReturn(ok(copy("PrecoTaxaTesouroDireto.csv")));
+        when(salesClient.fetch()).thenReturn(ok(copy("VendasTesouroDireto.csv")));
+    }
+
+    private static PublicFileCache.Result ok(Path file) {
+        return new PublicFileCache.Result(PublicFileCache.Outcome.DOWNLOADED, file, null, 200, null);
+    }
+
+    private static PublicFileCache.Result refused(Path file) {
+        return new PublicFileCache.Result(PublicFileCache.Outcome.REFUSED, file, "HTTP 429, Retry-After 30", 429, "30");
+    }
+
+    private int notices(String kind, String status) {
+        return jdbc.queryForObject("SELECT COUNT(*) FROM notifications WHERE kind = ? "
+                + "AND status IS NOT DISTINCT FROM CAST(? AS VARCHAR)", Integer.class, kind, status);
     }
 
     private Path copy(String name) throws Exception {
@@ -55,6 +70,7 @@ class TreasuryPriceIT extends IntegrationTestBase {
     /** O catalogo e compartilhado entre os testes: o preco do Tesouro nao pode vazar para outro cenario. */
     @AfterEach
     void limpar() {
+        jdbc.update("DELETE FROM notifications WHERE kind IN ('FONTE_INDISPONIVEL', 'FONTE_DESATUALIZADA')");
         jdbc.update("DELETE FROM treasury_offers");
         jdbc.update("DELETE FROM asset_price_history WHERE source = 'TESOURO'");
         jdbc.update("UPDATE assets SET current_price = NULL WHERE asset_type_id = "
@@ -114,8 +130,7 @@ class TreasuryPriceIT extends IntegrationTestBase {
         assertThat(offer("Tesouro Prefixado 2027").get("on_sale")).isEqualTo(false);
 
         // arquivo de vendas fora do ar: a carga segue, a taxa e regravada e a oferta fica a da ultima rodada
-        when(salesClient.fetch()).thenThrow(new com.primevest.adm.integration.PublicFileCache.UnavailableException(
-                "fora do ar", null));
+        when(salesClient.fetch()).thenReturn(refused(null));
         TreasuryPriceService.Result semVendas = service.importRecent("teste");
         assertThat(semVendas.onSale()).isEqualTo(-1);
         assertThat(offer("Tesouro IPCA+ 2029").get("on_sale")).isEqualTo(true);
@@ -144,5 +159,70 @@ class TreasuryPriceIT extends IntegrationTestBase {
 
         assertThat(r.rows()).isEqualTo(12);
         assertThat(service.importRecent("teste").rows()).isZero();
+    }
+
+    @Test
+    @DisplayName("Fonte recusou com copia em disco (D2): le a copia, avisa FONTE_INDISPONIVEL e devolve o problema")
+    void recusaComCopia() throws Exception {
+        when(client.fetch()).thenReturn(refused(copy("PrecoTaxaTesouroDireto.csv")));
+
+        TreasuryPriceService.Result r = service.importRecent("teste");
+
+        assertThat(r.sourceProblem()).contains("Tesouro Transparente indisponivel").contains("HTTP 429");
+        assertThat(r.rows()).isEqualTo(12); // a carga inicial ainda aproveita a copia
+        assertThat(r.staleSince()).isNull(); // sem resposta da fonte nao se sabe se ela parou
+        assertThat(notices("FONTE_INDISPONIVEL", null)).isEqualTo(1);
+        assertThat(notices("FONTE_DESATUALIZADA", "NAO_RESOLVIDA")).isZero();
+    }
+
+    @Test
+    @DisplayName("Fonte recusou sem copia em disco: erro claro e FONTE_INDISPONIVEL")
+    void recusaSemCopia() {
+        when(client.fetch()).thenReturn(refused(null));
+
+        assertThatThrownBy(() -> service.importRecent("teste"))
+                .isInstanceOf(PublicFileCache.UnavailableException.class)
+                .hasMessageContaining("HTTP 429").hasMessageContaining("sem copia");
+        assertThat(notices("FONTE_INDISPONIVEL", null)).isEqualTo(1);
+        assertThat(days("Tesouro IPCA+ 2029")).isZero();
+    }
+
+    @Test
+    @DisplayName("Copia em disco que e a pagina de recusa (21/10/2026): erro, nao 'zero linhas' (R6)")
+    void paginaNoLugarDoArquivo() throws Exception {
+        Path html = tmp.resolve("pagina.csv");
+        Files.writeString(html, "<html><head><title>Request Rejected</title></head><body>The requested URL was "
+                + "rejected.</body></html>");
+        when(client.fetch()).thenReturn(new PublicFileCache.Result(PublicFileCache.Outcome.NOT_MODIFIED, html, null,
+                304, null));
+
+        assertThatThrownBy(() -> service.importRecent("teste"))
+                .isInstanceOf(java.io.UncheckedIOException.class)
+                .hasMessageContaining("nao e o arquivo do Tesouro");
+    }
+
+    @Test
+    @DisplayName("Fonte respondeu sem dado novo ha mais de 2 dias uteis (D3): pendencia; com o dado novo, resolve")
+    void fonteParada() throws Exception {
+        // o recorte vai ate 02/10/2026: atrasado em qualquer dia de hoje em diante
+        TreasuryPriceService.Result parado = service.importRecent("teste");
+        assertThat(parado.staleSince()).isEqualTo(java.time.LocalDate.of(2026, 10, 2));
+        assertThat(parado.sourceProblem()).isNull();
+        assertThat(notices("FONTE_DESATUALIZADA", "NAO_RESOLVIDA")).isEqualTo(1);
+        service.importRecent("teste");
+        assertThat(notices("FONTE_DESATUALIZADA", "NAO_RESOLVIDA")).isEqualTo(1); // pendencia aberta nao repete
+
+        Path novo = tmp.resolve("novo.csv");
+        String ontem = java.time.LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo")).minusDays(1)
+                .format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        Files.writeString(novo, TesouroPriceClient.HEADER_PREFIX + "Data Vencimento;Data Base;Taxa Compra Manha;"
+                + "Taxa Venda Manha;PU Compra Manha;PU Venda Manha;PU Base Manha\r\n"
+                + "Tesouro IPCA+;15/05/2029;" + ontem + ";7,39;7,51;3952,28;3936,95;3936,95\r\n");
+        when(client.fetch()).thenReturn(ok(novo));
+
+        TreasuryPriceService.Result emDia = service.importRecent("teste");
+        assertThat(emDia.staleSince()).isNull();
+        assertThat(notices("FONTE_DESATUALIZADA", "NAO_RESOLVIDA")).isZero();
+        assertThat(notices("FONTE_DESATUALIZADA", "RESOLVIDA")).isEqualTo(1);
     }
 }

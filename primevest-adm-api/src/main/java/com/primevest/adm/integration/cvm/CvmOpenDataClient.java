@@ -61,7 +61,7 @@ public class CvmOpenDataClient {
      */
     public Path companyRegistry() {
         Path target = dir.resolve("cad").resolve("cad_cia_aberta.csv");
-        return fetch(COMPANY_REGISTRY, target, true)
+        return fetch(COMPANY_REGISTRY, target, true, PublicFileCache.ContentCheck.csvHeader("CNPJ_CIA;"))
                 .orElseThrow(() -> new CvmException("Cadastro de companhias da CVM indisponivel e sem copia em disco"));
     }
 
@@ -72,7 +72,7 @@ public class CvmOpenDataClient {
      */
     public Path intermediaryRegistry() {
         Path target = dir.resolve("cad").resolve("cad_intermed.zip");
-        return fetch(INTERMEDIARY_REGISTRY, target, true)
+        return fetch(INTERMEDIARY_REGISTRY, target, true, PublicFileCache.ContentCheck.zip())
                 .orElseThrow(() -> new CvmException("Cadastro de intermediarios da CVM indisponivel e sem copia em disco"));
     }
 
@@ -84,7 +84,7 @@ public class CvmOpenDataClient {
     public Optional<Path> radDocument(String link, long protocol, int version) {
         Path target = dir.resolve("proventos").resolve(protocol + "_" + version + ".pdf");
         try {
-            return files.fetch(URI.create(link), target, false);
+            return files.fetch(URI.create(link), target, false, PublicFileCache.ContentCheck.pdf());
         } catch (PublicFileCache.UnavailableException e) {
             throw new CvmException("RAD indisponivel para o protocolo " + protocol + ": " + e.getMessage(), e);
         }
@@ -94,12 +94,12 @@ public class CvmOpenDataClient {
     public Optional<Path> yearly(CvmDataset dataset, int year) {
         Path target = dir.resolve(dataset.folder()).resolve(dataset.fileName(year));
         int current = LocalDate.now(clock).getYear();
-        return fetch(dataset.remotePath(year), target, year >= current - 1);
+        return fetch(dataset.remotePath(year), target, year >= current - 1, PublicFileCache.ContentCheck.zip());
     }
 
-    private Optional<Path> fetch(String remotePath, Path target, boolean refresh) {
+    private Optional<Path> fetch(String remotePath, Path target, boolean refresh, PublicFileCache.ContentCheck check) {
         try {
-            return files.fetch(URI.create(baseUrl + remotePath), target, refresh);
+            return files.fetch(URI.create(baseUrl + remotePath), target, refresh, check);
         } catch (PublicFileCache.UnavailableException e) {
             throw new CvmException("CVM indisponivel para " + remotePath + ": " + e.getMessage(), e);
         }

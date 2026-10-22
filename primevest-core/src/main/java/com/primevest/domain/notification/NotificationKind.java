@@ -46,7 +46,12 @@ public enum NotificationKind {
     CATALOGO_ROTULO_DESCONHECIDO(ADMIN, SISTEMA, ATENCAO, true),
     CATALOGO_TESOURO_SEM_TITULO(ADMIN, SISTEMA, ATENCAO, true),
     ROTINA_FALHOU(ADMIN, SISTEMA, ATENCAO, false),
-    FONTE_INDISPONIVEL(ADMIN, SISTEMA, ATENCAO, false);
+    FONTE_INDISPONIVEL(ADMIN, SISTEMA, ATENCAO, false),
+    /**
+     * A fonte respondeu, mas sem dado novo ha dias uteis demais (docs/planos/PLANO_FONTE_TESOURO.md, D3): pendencia que
+     * se resolve sozinha quando a fonte volta a publicar.
+     */
+    FONTE_DESATUALIZADA(ADMIN, SISTEMA, ATENCAO, true);
 
     private final NotificationAudience audience;
     private final NotificationCategory category;

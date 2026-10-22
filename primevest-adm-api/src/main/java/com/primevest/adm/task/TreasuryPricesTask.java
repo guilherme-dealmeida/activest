@@ -1,6 +1,7 @@
 package com.primevest.adm.task;
 
 import com.primevest.adm.domain.pricehistory.TreasuryPriceService;
+import com.primevest.adm.integration.PublicFileCache;
 import com.primevest.domain.task.TaskHandler;
 import com.primevest.domain.task.TaskInputException;
 import com.primevest.domain.task.TaskRunContext;
@@ -9,7 +10,11 @@ import com.primevest.domain.task.TaskSummaries;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/** Preço oficial do Tesouro Direto [A10]; sem primeiro ano, a rodada diária (docs/planos/PLANO_TAREFAS.md, T2). */
+/**
+ * Preço oficial do Tesouro Direto [A10]; sem primeiro ano, a rodada diária (docs/planos/PLANO_TAREFAS.md, T2). Fonte que
+ * recusou ou não respondeu termina {@code FAILED}, mesmo com a cópia em disco lida (docs/planos/PLANO_FONTE_TESOURO.md,
+ * D2): a rodada existe para trazer o PU novo.
+ */
 @Component
 @RequiredArgsConstructor
 public class TreasuryPricesTask implements TaskHandler {
@@ -32,6 +37,9 @@ public class TreasuryPricesTask implements TaskHandler {
             throw new TaskSkippedException("O preço do Tesouro já estava sendo carregado por outro caminho.");
         }
         ctx.summary(TaskSummaries.of(result));
+        if (result.sourceProblem() != null) {
+            throw new PublicFileCache.UnavailableException(result.sourceProblem(), null);
+        }
     }
 
     @Override
