@@ -1,5 +1,7 @@
 package com.primevest.adm.domain.fundamentals;
 
+import com.primevest.domain.task.TaskRun;
+
 import com.primevest.domain.issuer.StatementLayout;
 import com.primevest.adm.integration.cvm.CvmDataset;
 import com.primevest.adm.integration.cvm.CvmException;
@@ -119,6 +121,7 @@ public class FinancialStatementImportService {
         Counter total = new Counter();
         Map<Long, Latest> layouts = new HashMap<>();
         for (int year = from; year <= to; year++) {
+            TaskRun.checkStop(); // ponto de parada (docs/planos/PLANO_TAREFAS.md, D8)
             for (CvmDataset dataset : List.of(CvmDataset.DFP, CvmDataset.ITR)) {
                 if (dataset == CvmDataset.ITR && year < FIRST_ITR_YEAR) {
                     continue;
@@ -139,6 +142,7 @@ public class FinancialStatementImportService {
                 docs.sort(Comparator.comparing(Document::referenceDate).thenComparing(Document::cnpj));
                 Counter c = new Counter();
                 for (Document d : docs) {
+                    TaskRun.checkStop(); // ponto de parada (docs/planos/PLANO_TAREFAS.md, D8)
                     long issuerId = issuers.get(d.cnpj());
                     Outcome o = importDocument(d, dataset.name(), issuerId, fre, force);
                     c.add(o);

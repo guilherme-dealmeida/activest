@@ -1,5 +1,7 @@
 package com.primevest.adm.domain.marketindex;
 
+import com.primevest.domain.task.TaskRun;
+
 import com.primevest.adm.integration.indices.B3IndexClient;
 import com.primevest.adm.integration.indices.BcbSgsClient;
 import com.primevest.adm.integration.indices.IndexSourceException;
@@ -162,6 +164,7 @@ public class MarketIndexImportService {
             long started = System.currentTimeMillis();
             List<IndexResult> results = new ArrayList<>();
             for (MarketIndex index : selected) {
+                TaskRun.checkStop(); // ponto de parada (docs/planos/PLANO_TAREFAS.md, D8)
                 int from = fromYear != null ? fromYear : index.getHistoryFrom().getYear();
                 results.add(load(index, from, toYear));
             }
@@ -183,6 +186,7 @@ public class MarketIndexImportService {
             int year = LocalDate.now(clock).getYear();
             List<IndexResult> results = new ArrayList<>();
             for (MarketIndex index : active) {
+                TaskRun.checkStop(); // ponto de parada (docs/planos/PLANO_TAREFAS.md, D8)
                 Optional<LocalDate> last = lastDate(index.getId());
                 int from = last.map(d -> revisionStart(index, d).getYear())
                         .orElse(index.getHistoryFrom().getYear());
@@ -283,6 +287,7 @@ public class MarketIndexImportService {
         String error = null;
         int logged = 0;
         for (int year = fromYear; year <= toYear; year++) {
+            TaskRun.checkStop(); // ponto de parada (docs/planos/PLANO_TAREFAS.md, D8)
             List<IndexPoint> points;
             try {
                 points = fetch(index, year);

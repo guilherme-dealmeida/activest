@@ -24,6 +24,14 @@ import { LoginPage } from '@/pages/LoginPage';
 import { SignupPage } from '@/pages/SignupPage';
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
 import { LegalPage } from '@/pages/LegalPage';
+import { TasksPage } from '@/pages/TasksPage';
+
+/** Tela só de administrador (Tarefas, D14): quem não é volta ao Dashboard. */
+const AdminOnly = ({ children }: { children: JSX.Element }) => {
+  const { user } = useAuth();
+  if (!user) return null;
+  return user.admin ? children : <Navigate to="/dashboard" replace />;
+};
 
 const ProtectedRoute = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -63,6 +71,7 @@ function App() {
         <Route path="/integrations/:id/runs/:runId" element={<IntegrationRunPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="/tasks" element={<AdminOnly><TasksPage /></AdminOnly>} />
       </Route>
     </Routes>
   );

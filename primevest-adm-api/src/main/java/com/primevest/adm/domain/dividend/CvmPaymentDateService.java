@@ -1,5 +1,7 @@
 package com.primevest.adm.domain.dividend;
 
+import com.primevest.domain.task.TaskRun;
+
 import com.primevest.adm.integration.cvm.CvmDataset;
 import com.primevest.adm.integration.cvm.CvmOpenDataClient;
 import com.primevest.adm.integration.cvm.CvmProventosReport;
@@ -85,6 +87,7 @@ public class CvmPaymentDateService {
             int filled = 0;
             Set<Long> assets = new HashSet<>();
             for (int year = Math.max(from, FIRST_YEAR); year <= to; year++) {
+                TaskRun.checkStop(); // ponto de parada (docs/planos/PLANO_TAREFAS.md, D8)
                 Optional<Path> zip = cvm.yearly(CvmDataset.IPE, year);
                 if (zip.isEmpty()) {
                     continue;
@@ -92,6 +95,7 @@ public class CvmPaymentDateService {
                 List<CvmProventosReport.Entry> entries = CvmProventosReport.entries(zip.get(), year);
                 List<Path> pdfs = download(entries, downloaded);
                 for (Path pdf : pdfs) {
+                    TaskRun.checkStop(); // ponto de parada (docs/planos/PLANO_TAREFAS.md, D8)
                     reports++;
                     CvmProventosReport.Report report;
                     try {
@@ -129,7 +133,8 @@ public class CvmPaymentDateService {
         try {
             List<Future<Optional<Path>>> futures = new ArrayList<>();
             for (CvmProventosReport.Entry e : entries) {
-                futures.add(pool.submit(() -> {
+                // TaskRun.propagate: o log do download entra no log da rodada (D6)
+                futures.add(pool.submit(TaskRun.propagateCall(() -> {
                     Path expected = cvm.dir().resolve("proventos").resolve(e.protocol() + "_" + e.version() + ".pdf");
                     boolean had = java.nio.file.Files.isRegularFile(expected);
                     Optional<Path> p = cvm.radDocument(e.link(), e.protocol(), e.version());
@@ -137,7 +142,7 @@ public class CvmPaymentDateService {
                         downloaded.incrementAndGet();
                     }
                     return p;
-                }));
+                })));
             }
             List<Path> out = new ArrayList<>();
             for (Future<Optional<Path>> f : futures) {

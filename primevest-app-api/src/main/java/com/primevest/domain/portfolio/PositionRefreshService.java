@@ -1,5 +1,7 @@
 package com.primevest.domain.portfolio;
 
+import com.primevest.domain.task.TaskRun;
+
 import com.primevest.domain.catalog.CatalogChange;
 import com.primevest.domain.dividend.DividendRecalculator;
 import com.primevest.domain.dividend.DividendTaxVerifier;
@@ -29,7 +31,7 @@ import java.util.function.Supplier;
  *   muda para todos, inclusive o prefixado.</li>
  * </ul>
  *
- * <p>Tambem roda {@link #refreshAll} — uma vez por dia ({@code PositionRefreshScheduler}), que
+ * <p>Tambem roda {@link #refreshAll} — uma vez por dia (a tarefa {@code POSITIONS_REFRESH}), que
  * cobre mensagem perdida, e na subida (antes: {@code AppreciationUpdater} e
  * {@code DividendTaxVerifier} na subida, agora so aqui).</p>
  */
@@ -121,6 +123,7 @@ public class PositionRefreshService {
             int dividends = 0;
             List<PortfolioAsset> all = positions.get();
             for (PortfolioAsset pa : all) {
+                TaskRun.checkStop(); // ponto de parada (docs/planos/PLANO_TAREFAS.md, D8)
                 dividends += dividendRecalculator.recalculate(pa, dividendRecalculator.chronologicalTransactions(pa));
                 appreciationUpdater.refresh(pa);
             }

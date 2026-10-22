@@ -1,5 +1,8 @@
 package com.primevest.adm.domain.admin;
 
+import com.primevest.domain.task.TaskRun;
+import com.primevest.domain.task.TaskStoppedException;
+
 import com.primevest.adm.domain.dividend.CvmPaymentDateService;
 import com.primevest.adm.domain.dividend.PaymentDateSurveyService;
 import com.primevest.adm.domain.dividend.ProventosCatalogService;
@@ -162,12 +165,15 @@ public class BootstrapService {
     }
 
     private Step step(String name, Supplier<Object> work) {
+        TaskRun.checkStop(); // ponto de parada entre as etapas (docs/planos/PLANO_TAREFAS.md, D8)
         long t = System.currentTimeMillis();
         log.info("Carga inicial: {}...", name);
         try {
             Object result = work.get();
             return new Step(name, result != null, (System.currentTimeMillis() - t) / 1000,
                     result != null ? String.valueOf(result) : "nao rodou (outra execucao em andamento)");
+        } catch (TaskStoppedException e) {
+            throw e; // Stop pedido dentro da etapa: a carga para aqui
         } catch (RuntimeException e) {
             log.error("Carga inicial: {} falhou: {}", name, e.getMessage(), e);
             if (notices != null) {

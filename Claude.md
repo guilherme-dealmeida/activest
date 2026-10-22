@@ -5,7 +5,10 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 21/10/2026 (correção dos proventos: parcelas da B3, recibos, avisos retificados do FNET com a
+> **Última revisão**: 22/10/2026 (**Tarefas**: as rotinas viraram tarefas no banco — tipos, tarefas, atributos,
+> rodadas e log —, agendadas pelo banco, com Run, Stop cooperativo e a tela `/tasks` só para administrador, API
+> `/api/v1/tasks` na adm-api; ver "Tarefas (22/10/2026)" em Pontos de Atenção e `docs/planos/PLANO_TAREFAS.md`).
+> Antes: 21/10/2026 (correção dos proventos: parcelas da B3, recibos, avisos retificados do FNET com a
 > situação de cada aviso em `carga/data/fnet/status`, outra classe do fundo, histórico da B3 por nome sem barra; a
 > conferência por extrato saiu — ver "Proventos: parcelas, recibos e avisos retificados (21/10/2026)" em Pontos de
 > Atenção e `docs/planos/PLANO_CORRECAO_PROVENTOS.md`). Antes: 18/10/2026 (a tela Emissoras passou a se chamar **Ativos**: menu com ícone de candlestick, rota
@@ -172,7 +175,7 @@ trava o banco enquanto migra, a ordem de subida não importa.
 | `primevest:proventos:sob-demanda` | app → adm: "preciso do histórico" (id do ativo), depois de cada transação | `ProventosCatalogService.syncAssetOnDemand`, que responde com "catálogo mudou" |
 
 Sem garantia de entrega: se um dos dois estiver fora, a mensagem se perde e a **rede de segurança** acerta — a app-api
-recalcula todas as posições às 21:00 (`PositionRefreshScheduler`). Nos testes as mensagens ficam desligadas
+recalcula todas as posições às 21:00 (tarefa `POSITIONS_REFRESH`). Nos testes as mensagens ficam desligadas
 (`primevest.messaging.enabled=false`, só log) e os testes de ponta a ponta ligam os dois lados direto
 (`CatalogoE2EBase`).
 
@@ -341,24 +344,31 @@ $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";"
 ### Integrações externas
 
 Plano, decisões e achados da integração: **`docs/planos/PLANO_BRAPI.md`** (executado em
-24/09/2026). Rotinas (fuso de São Paulo, horários em `primevest.*` no `application.yml` de cada serviço):
+24/09/2026). Rotinas (fuso de São Paulo). Desde 22/10/2026 cada rotina é uma **tarefa** (`docs/planos/PLANO_TAREFAS.md`):
+o horário e o liga/desliga ficam no banco (`tasks`, `task_types`) e se editam na tela de Tarefas; os horários abaixo
+são os do seed (V62):
 
 | Rotina | Quando | Serviço |
 |---|---|---|
-| Fechamento B3 (seg–sex) e cripto (todo dia), com recuperação na subida — `ClosingPriceScheduler` | 19:00 | adm-api → "catálogo mudou" (FECHAMENTO) |
-| Eventos de proventos da B3/FNET de **todo o catálogo** ligado a emissor + o que já esteve em carteira (F8; `primevest.proventos.scope`) — `ProventosScheduler` | 20:00 | adm-api → "catálogo mudou" (PROVENTOS), por emissor |
-| Balanços da CVM (DFP/ITR do ano corrente e do anterior) + série trimestral + informe mensal de FII (F7) — `CvmStatementsScheduler` | 07:30 | adm-api |
-| Preço oficial do Tesouro Direto (PU de venda, Tesouro Transparente), com recuperação na subida — `TreasuryPriceScheduler` (`docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`); desde 17/10/2026 também a taxa do último dia e os títulos à venda (`treasury_offers`, arquivo de vendas; fora do ar, a oferta fica a da última rodada) | 08:00 | adm-api → "catálogo mudou" (FECHAMENTO) |
-| Índices de mercado, incremental com janela de revisão (30 dias nos diários, 3 meses nos mensais), com recuperação na subida — `MarketIndexScheduler` (`docs/planos/PLANO_INDICES_MERCADO.md`) | 10:00 | adm-api |
-| Conferência do catálogo e dos índices atrasados (só loga) — `CatalogAuditScheduler` | seg 07:00 | adm-api |
-| Cotações de **todo o catálogo** (ações, FIIs e, desde 17/10/2026, ETFs e BDRs) pelo COTAHIST diário da B3, um arquivo por pregão, completando os que faltam, com recuperação na subida — `B3DailyQuotesScheduler` (`docs/planos/PLANO_PRECO_TETO.md`, 4.5; 10/10/2026) | 21:30 e 08:30 | adm-api |
-| Emissoras e distribuidoras de renda fixa (BCB IF.data + Instituições em funcionamento, CVM intermediários, companhias e securitizadoras) e, em seguida, os logos delas por raiz de CNPJ (Open Finance, logos-bancos-br — `FixedIncomeLogoService`, só quem não tem arquivo) — `FixedIncomeIssuerScheduler` (`primevest.fixed-income-issuers.cron`; `docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md`, 4.2) | dia 1, 05:30 | adm-api |
-| Logos (arquivos em `carga/data/logos/{TICKER}.{ext}` — o arquivo é o estado; só quem não tem arquivo; a subida não procura nada, o ativo novo é procurado no pedido "preciso do histórico") — `LogoScheduler` | dia 1, 06:00 | adm-api (a app-api só lê a pasta, `AssetLogos`) |
-| Histórico de preço de cripto (CoinGecko, últimos 365 dias, somado a `carga/data/coingecko/historico`; Binance BTC/BRL desde 13/10/2020 em `carga/data/binance/klines`) de toda cripto que está ou esteve em carteira e do benchmark BTC; só preenche dia sem linha — `CryptoHistoryScheduler` (`docs/planos/PLANO_RENTABILIDADE.md`, 3.3) | 19:30 | adm-api → "catálogo mudou" (FECHAMENTO) |
-| Recálculo de proventos e valorização de todas as posições — `PositionRefreshScheduler` | 21:00 | app-api |
-| Fila das integrações com corretoras — `IntegrationSyncScheduler` (08:45) e `IntegrationWorker` (5 s) | — | app-api |
+| Fechamento B3 (seg–sex) e cripto (todo dia), com recuperação na subida — tarefas `B3_CLOSING` e `CRYPTO_CLOSING` | 19:00 | adm-api → "catálogo mudou" (FECHAMENTO) |
+| Eventos de proventos da B3/FNET de **todo o catálogo** ligado a emissor + o que já esteve em carteira (F8; `primevest.proventos.scope`) — tarefa `DIVIDENDS_SYNC` | 20:00 | adm-api → "catálogo mudou" (PROVENTOS), por emissor |
+| Balanços da CVM (DFP/ITR do ano corrente e do anterior) + série trimestral + informe mensal de FII (F7) — tarefa `CVM_STATEMENTS_IMPORT` | 07:30 | adm-api |
+| Preço oficial do Tesouro Direto (PU de venda, Tesouro Transparente), com recuperação na subida — tarefa `TREASURY_PRICES` (`docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`); desde 17/10/2026 também a taxa do último dia e os títulos à venda (`treasury_offers`, arquivo de vendas; fora do ar, a oferta fica a da última rodada) | 08:00 | adm-api → "catálogo mudou" (FECHAMENTO) |
+| Índices de mercado, incremental com janela de revisão (30 dias nos diários, 3 meses nos mensais), com recuperação na subida — tarefa `MARKET_INDICES` (`docs/planos/PLANO_INDICES_MERCADO.md`) | 10:00 | adm-api |
+| Conferência do catálogo e dos índices atrasados (só loga) — tarefa `CATALOG_AUDIT` | seg 07:00 | adm-api |
+| Cotações de **todo o catálogo** (ações, FIIs e, desde 17/10/2026, ETFs e BDRs) pelo COTAHIST diário da B3, um arquivo por pregão, completando os que faltam, com recuperação na subida — tarefa `B3_DAILY_QUOTES` (`docs/planos/PLANO_PRECO_TETO.md`, 4.5; 10/10/2026) | 21:30 e 08:30 | adm-api |
+| Emissoras e distribuidoras de renda fixa (BCB IF.data + Instituições em funcionamento, CVM intermediários, companhias e securitizadoras) e, em seguida, os logos delas por raiz de CNPJ (Open Finance, logos-bancos-br — `FixedIncomeLogoService`, só quem não tem arquivo) — tarefa `FIXED_INCOME_ISSUERS` (`primevest.fixed-income-issuers.cron`; `docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md`, 4.2) | dia 1, 05:30 | adm-api |
+| Logos (arquivos em `carga/data/logos/{TICKER}.{ext}` — o arquivo é o estado; só quem não tem arquivo; a subida não procura nada, o ativo novo é procurado no pedido "preciso do histórico") — tarefa `ASSET_LOGOS` | dia 1, 06:00 | adm-api (a app-api só lê a pasta, `AssetLogos`) |
+| Histórico de preço de cripto (CoinGecko, últimos 365 dias, somado a `carga/data/coingecko/historico`; Binance BTC/BRL desde 13/10/2020 em `carga/data/binance/klines`) de toda cripto que está ou esteve em carteira e do benchmark BTC; só preenche dia sem linha — tarefa `CRYPTO_PRICE_HISTORY` (`docs/planos/PLANO_RENTABILIDADE.md`, 3.3) | 19:30 | adm-api → "catálogo mudou" (FECHAMENTO) |
+| Recálculo de proventos e valorização de todas as posições — tarefa `POSITIONS_REFRESH` | 21:00 | app-api |
+| Fila das integrações com corretoras — tarefa `INTEGRATIONS_DAILY_SYNC` (08:45) e `IntegrationWorker` (5 s) | — | app-api |
+| Abertura do dia [B7] — tarefa `DAILY_OPENING`, também na subida | 00:00 | app-api |
+| Situação dos avisos do FNET + proventos relendo todos os avisos [A12] — tarefa `FNET_STATUS_SYNC` | dom 03:00 | adm-api |
+| Limpeza do histórico das tarefas (log 30 dias, rodadas 1 ano) — tarefa `TASK_HISTORY_CLEANUP` | 04:00 | adm-api |
 
-Disparo manual para admin, **na adm-api (8081)**: `POST /api/v1/admin/{closing|proventos|proventos/fnet-status|catalog-audit|logos|issuers/import|issuers/link|fixed-income-issuers|fixed-income-issuers/logos|b3/cotahist|b3/cotahist/diario|cvm/import|cvm/quarters|cvm/fii-monthly|cvm/proventos|indices|tesouro|cripto/historico|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, datas de pagamento da CVM, balanços, informe de FII, índices de mercado e preço do Tesouro, em ordem — docs/planos/PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
+Disparo manual para admin: pela **tela de Tarefas** (Run) ou, como antes, **na adm-api (8081)** — desde 22/10/2026 os
+endpoints passam pelo executor das tarefas, cada pedido vira uma rodada no histórico e a resposta 202 traz o
+`executionId`: `POST /api/v1/admin/{closing|proventos|proventos/fnet-status|catalog-audit|logos|issuers/import|issuers/link|fixed-income-issuers|fixed-income-issuers/logos|b3/cotahist|b3/cotahist/diario|cvm/import|cvm/quarters|cvm/fii-monthly|cvm/proventos|indices|tesouro|cripto/historico|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, datas de pagamento da CVM, balanços, informe de FII, índices de mercado e preço do Tesouro, em ordem — docs/planos/PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
 (`b3/cotahist?from=2010&to=2026`, padrão 2010 até o ano corrente; `cvm/import?from=2010&to=2026&force=false` —
 documento na mesma versão é pulado, `force=true` reprocessa a partir de `carga/data/cvm` sem baixar; ao terminar recalcula
 a série trimestral, que `cvm/quarters` recalcula sozinha; `cvm/fii-monthly?from=2016&to=2026&force=false` — informe
@@ -472,7 +482,7 @@ primevest/
 │       │   │                    # HistoricalQuotesImportService, issuer/ (import e ligação),
 │       │   │                    # fundamentals/ (balanços, série trimestral), asset/ (logos, conferência)
 │       │   ├── integration/     # b3/ (B3, FNET, COTAHIST), cvm/, brapi/, coingecko/, indices/ (SGS, B3), PublicFileCache
-│       │   └── scheduler/       # fechamento, proventos, balanços, logos, conferência
+│       │   └── task/            # Tarefas: os 23 handlers da adm-api (um por tipo) e o TaskController (/api/v1/tasks)
 │       └── test/                # recortes reais da B3 e da CVM (test-jar, usados pela app-api)
 │
 ├── primevest-app-api/           # a carteira (porta 8080) — o antigo primevest-api
@@ -487,7 +497,7 @@ primevest/
 │       │   │                    # (PositionRefreshService), transaction, dividend,
 │       │   │                    # strategy, goal, ceilingprice, integration (orquestração das
 │       │   │                    # corretoras: IntegrationService, controller, worker, DTOs)
-│       │   └── scheduler/       # IntegrationSyncScheduler, PositionRefreshScheduler
+│       │   └── task/            # Tarefas: os 3 handlers da app-api (DAILY_OPENING, INTEGRATIONS_DAILY_SYNC, POSITIONS_REFRESH)
 │       ├── main/resources/      # application.yml, -dev, -docker, -prod
 │       └── test/                # functional/ (CatalogoE2EBase: adm-api só no classpath de teste)
 │
@@ -569,6 +579,9 @@ em desenvolvimento. **Não versione credenciais reais.**
 | `market_indices` | Cadastro dos índices de mercado (V43, seed): `code` (o mesmo nome do enum `Indexer` para CDI, SELIC, IPCA, IGPM, INPC, TR — a nota acha a série por `fixed_income_notes.indexer`, sem FK; mais SELIC_META, USD_PTAX, IBOV, IFIX), `periodicity` (DIARIA/MENSAL), `unit` (PCT_DIA, PCT_MES, PCT_PERIODO da TR, PCT_ANO da meta, PONTOS, BRL), `source` (BCB_SGS/B3) + `source_ref` (código SGS ou sigla), `history_from` (2010) |
 | `benchmarks` | Catálogo de benchmarks da Rentabilidade (V57, seed): `code`, `name`, `category`, `kind` INDICE (→ `market_index_id`) ou ATIVO (→ `asset_id`: IVVB11, BTC), `accepts_spread` (IPCA + x%), `note`, `default_selected` (só CDI), `sort_order`. Só referência: a série fica onde está |
 | `treasury_offers` | Estado atual de cada título do Tesouro (V59, sem histórico; uma linha por ativo, `ON DELETE CASCADE`): `rate_date`, `buy_rate`/`sell_rate` (taxas da manhã do último dia do `PrecoTaxaTesouroDireto.csv`), `on_sale` (vendeu nos 3 últimos dias de liquidação do `VendasTesouroDireto.csv`) e `sale_date`. Gravada pela carga do Tesouro (adm-api); a app-api lê para o benchmark padrão do Tesouro |
+| `task_types`, `task_type_attributes` | Tarefas (V61, V63, V64; `docs/planos/PLANO_TAREFAS.md`): o **tipo** é a rotina (`type`, a chave que o código usa), o serviço dono (`ADM_API`/`APP_API`), `enabled` (desliga todas as tarefas do tipo e, no `DIVIDENDS_SYNC`, o pedido sob demanda), `stoppable` (gravado na subida pelo serviço dono) e os atributos aceitos (`value_type` YEAR/DATE/BOOLEAN/INTEGER/TEXT/LIST, `required`, `description`, `position`, valor padrão). Muda só por migration |
+| `tasks`, `task_attributes` | A **tarefa** é uma instância do tipo: `name` (editável, regra `^[A-Z0-9]+(_[A-Z0-9]+)*$`, único entre as vivas), `description` opcional, `cron` (nulo = só Run), `enabled`, `run_on_startup` (V65), `deleted_at` (exclusão lógica de quem tem rodadas); os atributos espelham os do tipo (FK `task_type_attribute_id`) com valor próprio |
+| `task_executions`, `task_execution_logs` | Cada rodada: `status` (`RUNNING`, `SUCCEEDED`, `FAILED`, `CANCELLED`, `SKIPPED`), `trigger_type` (`SCHEDULE`, `MANUAL`, `STARTUP`), vigência, início, fim, quem pediu, pedido de Stop, cópia dos atributos (`parameters`), resumo, erro, linhas omitidas; e as linhas de log da rodada (INFO+, teto de 2.000) |
 | `market_index_values` | Série de cada índice, PK `(index_id, reference_date)`, `value` como a fonte publica (mensal no dia 1º; só até hoje). Gravada só pela adm-api (`MarketIndexImportService`); o acumulado **não** é gravado — sai do `MarketIndexCalculator` (core) |
 
 ### Asset Types — 12
@@ -605,7 +618,7 @@ coluna.
 > usuário; `getName()` é para lógica interna. `AssetCategory.getDisplayName()`
 > encapsula o fallback description → name.
 
-### Flyway — V1 a V60
+### Flyway — V1 a V65
 
 O Flyway roda do zero no perfil `docker`. No perfil `dev` fica desligado, porque
 o banco local é gerenciado à mão.
@@ -680,6 +693,11 @@ categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, s
 | V58 | docs/planos/PLANO_RENTABILIDADE.md (3.2, D2): `asset_price_history.source` aceita `BINANCE` |
 | V59 | docs/planos/PLANO_RENTABILIDADE.md (andamento, 17/10/2026): `treasury_offers` — taxa do último dia e oferta de cada título do Tesouro |
 | V60 | docs/planos/PLANO_CORRECAO_PROVENTOS.md (C7, 21/10/2026): limpeza dos proventos indevidos do catálogo (classes A–E), pela chave natural (ticker, tipo, data-com, valor, parcela, fonte, referência); apaga os `dividends` AUTO ligados e solta os MANUAL |
+| V61 | docs/planos/PLANO_TAREFAS.md (T1): `task_types`, `task_type_attributes`, `tasks`, `task_attributes`, `task_executions`, `task_execution_logs` |
+| V62 | docs/planos/PLANO_TAREFAS.md (T1): seed — 26 tipos (23 da adm-api, 3 da app-api), 33 atributos, uma tarefa por tipo com o horário que estava no `application.yml` |
+| V63 | docs/planos/PLANO_TAREFAS.md (T5): `task_types.stoppable` |
+| V64 | docs/planos/PLANO_TAREFAS.md (T5): `task_type_attributes.position` (ordem dos atributos na tela) |
+| V65 | docs/planos/PLANO_TAREFAS.md (D37, D38): `tasks.run_on_startup` — roda na subida, no máximo uma vez por dia; o seed marca as 6 que tinham recuperação na subida |
 | V43 | docs/planos/PLANO_INDICES_MERCADO.md (X1): `market_indices` (10 índices semeados) e `market_index_values` (vazia; a série vem da adm-api) |
 | V41 | docs/planos/PLANO_CADASTRO_USUARIO.md (seção 5): colunas novas de `users` (celular, CPF cifrado + hash, verificação de e-mail, `password_changed_at`, aceite dos termos, tema), índices únicos de e-mail sem caixa, celular e CPF; o usuário semeado ganha e-mail verificado e o aceite da versão `2026-10-provisorio` |
 
@@ -959,6 +977,22 @@ Parâmetros comuns: `range=1M|6M|YTD|1A|5A|MAX` (padrão MAX) ou `from`/`to`; `t
 Conferido com a série real em 05/10/2026: CDI 2024 = **10,875983%** (253 dias), IPCA 2024 = **4,831296%** (o IBGE
 divulgou 4,83%), Ibovespa 2024 = −9,35%.
 
+### Tarefas (22/10/2026, **adm-api**, `docs/planos/PLANO_TAREFAS.md`)
+Só administrador (401 sem token, 403 aos demais). O front chega pela regra `/api/v1/tasks` do proxy (Vite:
+`VITE_ADM_API_TARGET`, padrão `http://localhost:8081`, no compose `http://adm-api:8081`; nginx do runtime: `location
+/api/v1/tasks`), declarada antes da `/api`.
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/api/v1/tasks` | Tarefas vivas: tipo, serviço, `cron`, `nextRun`, `enabled`/`typeEnabled`, `stoppable`, `running`, última rodada e os atributos (definição do tipo + valor) |
+| GET | `/api/v1/tasks/types` | Tipos com os atributos aceitos |
+| PUT | `/api/v1/tasks/{id}` | `{name?, description?, cron?, enabled?, attributes?}` — `""` em `cron` tira o horário; valida nome, cron e valor pelo tipo (422); reagenda na hora (no outro serviço pelo Redis) |
+| POST | `/api/v1/tasks/{id}/run` | 202 `{executionId, status, message}`; `SKIPPED` se o tipo já roda; tarefa da app-api vai pelo Redis e a API espera até 5 s a rodada aparecer (sem resposta, ou sem mensagens: 503); tipo desligado ou atributo obrigatório vazio: 422 |
+| GET | `/api/v1/tasks/executions?from=&to=&type=&status=` | Rodadas iniciadas no período + agendadas calculadas (`SCHEDULED`) de agora até `to`; padrão 7 dias para trás e 7 para frente |
+| GET | `/api/v1/tasks/executions/{id}` | Detalhe: a rodada, os atributos usados, quem pediu o Stop, total de linhas de log |
+| GET | `/api/v1/tasks/executions/{id}/logs?level=&page=&size=` | Linhas da rodada (200 por página, até 1.000) |
+| POST | `/api/v1/tasks/executions/{id}/stop` | Grava o pedido de Stop (202); 422 se a rodada não está `RUNNING` ou o tipo não é `stoppable` |
+
 ### Users (o próprio usuário)
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
@@ -1007,6 +1041,7 @@ Rotas em `App.tsx`; tudo abaixo de `/login` é protegido por `ProtectedRoute`.
 | `/goals` | Metas |
 | `/integrations` | Integrações (Binance e, com `B3I_ENABLED`, B3): conectar (chave ou CPF + autorização na B3), sincronizar, histórico, excluídas |
 | `/integrations/:id/runs/:runId` | Pré-visualização / resultado de uma sincronização (decidir duplicatas, confirmar) |
+| `/tasks` | **Tarefas** (22/10/2026, `docs/planos/PLANO_TAREFAS.md`; só administrador — item do menu e rota): abas na URL (`?tab=monitoring|configuration`). **Acompanhamento**: rodadas iniciadas no período (padrão 7 dias para trás e 7 para frente) e as agendadas calculadas do horário (`SCHEDULED`), status e origem em inglês (D2), vigência, início, fim, duração, quem pediu, resumo; abre na página de "agora" (faixa dourada entre as agendadas e as que já começaram); Run (com confirmação), Stop (só `RUNNING` em tipo `stoppable`) e Ver log (modal: resumo, erro, atributos usados, linhas por nível); consulta a cada 5 s só com rodada em execução, e o botão Atualizar. **Configuração**: as tarefas com tipo, serviço, horário legível (cron no hover), próxima execução, situação e última rodada; Run, Editar (nome, descrição, ligada, horário pelo editor — todo dia, dias da semana, mensal ou cron —, atributos pelo tipo do valor) e Nova/Excluir desabilitados ("em breve", D15). `?execution=<id>` abre a rodada (link da mensagem `ROTINA_FALHOU`) |
 | `/notifications` | Notificações (13/10/2026, `docs/planos/PLANO_NOTIFICACOES.md`): aberta pelo sino do cabeçalho (até 17/10/2026 ficava no rodapé do menu lateral), com o número de não lidas no marcador amarelo, consulta a cada 60 s. Caixa estilo e-mail (`NotificationsPage`): Entrada/Arquivadas, filtros de categoria, situação, público (admin) e "só não lidas", lista à esquerda e leitura à direita (celular: uma de cada vez), seleção em lote (lida, não lida, arquivar, desarquivar, excluir), ações da mensagem (link, "Informar custo"), Dispensar/Reabrir na pendência |
 | `/settings` | Configurações (05/10/2026): Perfil (foto centralizada com envio e recorte no navegador — `AvatarCropModal`, JPEG/PNG/WebP até 5 MB, ≥ 128 px —, nome, e-mail com troca por código, celular, CPF mascarado), Acesso (alterar/definir senha — botão amarelo com ícone de chave desde 17/10/2026 —, vincular/desvincular Google, termos aceitos), Preferências (tema, gravado no usuário), Zona de perigo (excluir conta com código; botão com ícone de lixeira) |
 | `/login` | Login (email/senha + Google), links "Esqueci a senha" e "Criar conta" (só com o cadastro ligado) |
@@ -1234,7 +1269,8 @@ ordem cronológica (data, depois criação):
    médio não muda. **Venda sem saldo na data é recusada** pela regra B, em
    qualquer data da linha do tempo (`PositionGuard.validateShareLedger`); o
    cálculo ainda tolera o caso porque roda sobre dados anteriores a essa regra
-3. **Preço médio** = custo / cotas (4 casas); **custo** com 2 casas
+3. **Preço médio** = custo / cotas (8 casas, igual a `price_per_share`; a tela arredonda na exibição);
+   **custo** com 2 casas
 4. **Renda Fixa** (`isValuedByTotal`): sem cotas nem preço médio; custo =
    aplicações − resgates, nunca negativo
 
@@ -1302,7 +1338,7 @@ edição apagaria emissor, vencimento e taxa.
   `hover:text-white` ou similar numa tela nova? Confira se o override existe.
 - **Menu lateral** (`Sidebar.tsx`, ordem de 17/10/2026): Dashboard, Carteira, Transações, Dividendos, Rentabilidade,
   Alocação, Estratégia, Rebalanceamento (ícone de balança), Preço Teto, Metas, Ativos (ícone de candlestick; "Emissoras" até 18/10/2026), Índices (ícone de gráfico de
-  linha). Integrações saiu do menu e o rodapé (usuário, sino, Modo, Configurações, Sair) também. Recolhível pelo botão
+  linha) e, só para administrador, Tarefas (ícone de relógio, 22/10/2026). Integrações saiu do menu e o rodapé (usuário, sino, Modo, Configurações, Sair) também. Recolhível pelo botão
   redondo sobre a borda direita, na altura do logo: 256px ↔ 72px. Recolhido mostra só "PV" e os ícones (nome no
   `title`/`aria-label`). A escolha fica em `localStorage` (`primevest-sidebar-collapsed`), como o tema.
 - **Cabeçalho** (`Header.tsx`, 17/10/2026): título da tela à esquerda; à direita, nesta ordem, Tema (sol/lua),
@@ -1530,7 +1566,10 @@ Plano: `docs/planos/PLANO_NOTIFICACOES.md`. A antiga central de avisos (PENDENCI
   `SISTEMA` continuam no código por causa delas.
 - **Bonificação sem custo** (`BonusCostService`): `stock_event_costs` (V51) entra no lugar do zero provisório no
   `PositionCalculator` (só quando o catálogo não tem `assigned_cost`); ícone na Carteira (`pendingBonusCosts` da
-  linha) e pendência com "Informar custo".
+  linha) e pendência com "Informar custo". O campo tem **8 casas** desde 21/10/2026 (antes 4), igual a
+  `stock_event_costs.cost_per_share` `NUMERIC(18,8)` e ao preço médio do `PositionCalculator`; o fato relevante
+  traz o custo com mais casas (KLBN4 2025: R$ 12,94564988922). Mesma máscara dos outros campos (dígitos lidos da
+  direita, 8 casas).
 - **Alerta de preço** (`CeilingPriceAlertService`): `ceiling_prices.alert_enabled/alert_below_ideal/alert_last_on`
   (V49) — avisa ao cruzar o ideal para baixo, rearma acima, uma por ativo por dia; preço atual = o "hoje" da lista do
   Preço Teto. O COTAHIST diário passou a publicar `FECHAMENTO` e os balanços `BALANCOS` (origem nova do `CatalogChange`).
@@ -1644,6 +1683,48 @@ Plano: `docs/planos/PLANO_RENTABILIDADE.md`; fórmulas: `docs/RENTABILIDADE_METO
   de BTC comprado em dias de queda rende diferente do BTC/BRL (12M em 17/10/2026: −15,00% × −23,41%). Decidido manter
   (17/10/2026) e avisar na tela (último item do quadro de informações).
 
+### Tarefas (22/10/2026)
+Plano: `docs/planos/PLANO_TAREFAS.md` (decisões D1–D36). As rotinas agendadas e as de administrador viraram
+**tarefas** no banco, e a tela `/tasks` (só administrador) acompanha, executa, para e configura.
+
+- **Tipo × tarefa (D24).** O tipo (`task_types`) é a rotina: um `TaskHandler` por tipo, no serviço dono
+  (`com.primevest.adm.task`, `com.primevest.task`), achado por `task_types.type`. A tarefa (`tasks`) é uma instância,
+  com nome editável, horário, ligada/desligada e atributos próprios (espelhados do tipo, O7). Duas tarefas do mesmo tipo
+  rodam a mesma rotina com atributos diferentes (ex.: `B3_DAILY_QUOTES` incremental e uma recarga com
+  `FROM_DATE`/`TO_DATE`). Atributo vazio = o comportamento incremental de antes.
+- **Executor** (`TaskExecutor`, core; o bean se chama `taskRunExecutor` — `taskExecutor` é apelido do executor de
+  threads do Spring Boot e quebra o contexto). Cada rodada é uma linha em `task_executions`; **trava por tipo** (D25): a
+  que chega com o tipo em execução fica `SKIPPED` com o motivo (D20); a rotina que acha a mesma rotina rodando por outro
+  caminho (os `tryLock` que devolviam `null`, ex.: carga inicial × proventos) lança `TaskSkippedException`. Falha →
+  `FAILED` + `ROTINA_FALHOU` com o link `/tasks?tab=monitoring&execution=` (uma por tarefa por dia). Os endpoints
+  `/api/v1/admin/*` passam pelo executor (D22) com as mesmas rotas e respostas, mais o `executionId`.
+- **Agendamento pelo banco** (`TaskScheduleRegistry`): um `CronTrigger` (São Paulo) por tarefa ativa com horário e com
+  handler no serviço; reagenda ao editar (comando `RELOAD` pelo Redis, canal `primevest:tasks:commands`, D29) e relê
+  tudo a cada 5 min. A chave geral `primevest.scheduling.enabled` desliga tudo (testes, pilha de teste). Os `*.cron` e
+  os `primevest.<rotina>.enabled` saíram dos `application.yml`; o `primevest.proventos.enabled` da app-api ficou como
+  interruptor técnico do pedido sob demanda (os testes desligam) — quem desliga de verdade é o tipo `DIVIDENDS_SYNC`
+  (D30).
+- **Subida** (`TaskStartup`): rodada `RUNNING` dos tipos do serviço vira `FAILED`; grava `task_types.stoppable` pelos
+  handlers; e roda, com origem `STARTUP`, as tarefas com **`run_on_startup`** (V65, "Roda na subida" na tela; D38),
+  ativas e **sem rodada no dia** (D37: reiniciar não repete), se o handler disser que há o que recuperar
+  (`needsRecovery()`, padrão `true`; fechamento, Tesouro, COTAHIST diário e índices pela regra de antes). Marcadas no
+  seed: `B3_CLOSING`, `CRYPTO_CLOSING`, `TREASURY_PRICES`, `B3_DAILY_QUOTES`, `MARKET_INDICES`, `DAILY_OPENING`. A
+  verificação da carteira na subida [B2] continua fora das tarefas (roda em todo perfil).
+- **Stop cooperativo** (D8): o Stop grava `stop_requested_at`; a rotina confere entre unidades de trabalho com
+  `TaskRun.checkStop()` (sem efeito fora de uma rodada) e a rodada termina `CANCELLED`. Pontos de parada: plano, 6.4.
+  O `POSITIONS_REFRESH` roda numa transação só: o Stop desfaz a rodada inteira. Bloco `catch (RuntimeException)` em
+  volta de um ponto de parada engole o Stop — repasse `TaskStoppedException` (como a carga inicial e as rotinas
+  compostas fazem).
+- **Log da rodada** (D6, `TaskLogCapture`): appender do Logback ligado por código; grava as linhas com o MDC
+  `taskExecutionId` (INFO, WARN, ERROR), até 2.000 por rodada — depois só WARN/ERROR, e o INFO é contado em
+  `log_lines_omitted` —, em lote a cada 1 s. Thread aberta pela rotina precisa de `TaskRun.propagate`/`propagateCall`
+  para o MDC e o Stop irem junto (já feito no FNET, nos relatórios da CVM e nos logos). Limpeza: tarefa
+  `TASK_HISTORY_CLEANUP` (log 30 dias, rodadas 1 ano).
+- **Tipo com handler em outro serviço**: o Run da tela numa tarefa da app-api vai pelo Redis (`RUN`); a adm-api espera
+  a rodada aparecer no banco por até 5 s.
+- Testes: `TaskAttributeValuesTest`, `TaskCatalogServiceTest`, `TaskExecutorTest`, `TaskScheduleRegistryTest` (core),
+  `FnetStatusSyncTaskTest`, `TaskControllerIT` (adm-api).
+
 ### Proventos: parcelas, recibos e avisos retificados (21/10/2026)
 
 Plano: `docs/planos/PLANO_CORRECAO_PROVENTOS.md` (origem: `docs/planos/PLANO_INVESTIGACAO_PROVENTOS_DUPLICADOS.md`).
@@ -1703,7 +1784,7 @@ Regras da rotina de proventos (`ProventosCatalogService`, adm-api):
   tinha outra linha gravada não voltava a ser lido (CJCT11, HAAA11, MAXR11, PLRI11). Reler é idempotente: a linha que o
   próprio aviso já gravou não duplica, mesmo com o valor da B3 (`fromSameNotice`).
 - Conferência independente: `node carga/scripts/conferencia/proventos.mjs [--detalhe] [--sql]` — A–E têm de dar 0.
-- **Rotina semanal [A12]** (`FnetStatusScheduler`, domingo 03:00, `primevest.fnet-status.cron`): situação dos avisos de
+- **Rotina semanal [A12]** (tarefa `FNET_STATUS_SYNC`, domingo 03:00): situação dos avisos de
   todos os fundos no FNET (~1 h) e depois os proventos com `fnet=todos` — é o que faz R10/R11 entrarem sem esperar
   aviso novo do fundo (PENDENCIAS 33.3).
 
@@ -1795,7 +1876,7 @@ não "quando o usuário mexeu nesta posição" — para a segunda pergunta, o qu
 
 ### Testes — existem desde 22/09/2026
 
-**Em 21/10/2026 (correção dos proventos: `CorrecaoProventosIT` 24, `ProventosConferenciaIT` 5; `ExtratoProventosIT` saiu): core 190; integration 103; adm-api 116 + 73; app-api 210 + 261 — todos verdes em `mvn clean verify`.** Depois, no mesmo dia (rotina semanal [A12] e data da B3 que muda — `FnetStatusSchedulerTest` 3, `PaymentDateSourceIT` 5): core 190; integration 103; adm-api 119 + 73; app-api 210 + 263 — verdes. Antes, **em 17/10/2026, mais tarde (listagem de emissoras: `ListagemEmissorasIT`): core 190; integration 103; adm-api 116 + 49; app-api 210 + 261 — todos verdes em `mvn clean verify` (~6 min).** Antes, no mesmo dia, à noite ("Mudanças de tela": `DashboardResumoIT` — aportes compras − vendas em 12 meses, valor líquido do Patrimônio — e os proventos de 12 meses no `ProventosAReceberIT`): core 190; integration 103; adm-api 116 + 49; app-api 210 + 256 — todos verdes em `mvn clean verify` (~7 min). Antes, no mesmo dia (Rentabilidade, com o padrão do Tesouro e a V59): core 190; integration 103; adm-api 116 + 49; app-api 210 + 251. Antes, na entrega da Rentabilidade: core 189; integration 103; adm-api 116 + 48; app-api 210 + 250. Antes, em 10/10/2026 (Preço Teto, payout pela DFC, COTAHIST diário): core 158; integration 103; adm-api 89 + 40; app-api 189 + 199 — todos verdes em `mvn verify` (~6 min).** Antes, em 05/10/2026, noite (valorização da renda fixa): 521 unitários + 231 de integração, por módulo: core 158; integration 103; adm-api 88 + 38; app-api 172 + 193, todos verdes em `mvn clean verify` (~7 min). Na F11 (28/09/2026) eram 394 + 180.
+**Em 22/10/2026 (Tarefas: `TaskAttributeValuesTest` 3, `TaskCatalogServiceTest` 3, `TaskExecutorTest` 11, `TaskScheduleRegistryTest` 2, `FnetStatusSyncTaskTest` 2 no lugar do `FnetStatusSchedulerTest` 3, `TaskControllerIT` 5): core 210; integration 103; adm-api 118 + 78; app-api 210 + 263 — todos verdes em `mvn clean verify`.** Antes, em 21/10/2026 (correção dos proventos: `CorrecaoProventosIT` 24, `ProventosConferenciaIT` 5; `ExtratoProventosIT` saiu): core 190; integration 103; adm-api 116 + 73; app-api 210 + 261 — todos verdes em `mvn clean verify`. Depois, no mesmo dia (rotina semanal [A12] e data da B3 que muda — `FnetStatusSchedulerTest` 3, `PaymentDateSourceIT` 5): core 190; integration 103; adm-api 119 + 73; app-api 210 + 263 — verdes. Antes, **em 17/10/2026, mais tarde (listagem de emissoras: `ListagemEmissorasIT`): core 190; integration 103; adm-api 116 + 49; app-api 210 + 261 — todos verdes em `mvn clean verify` (~6 min).** Antes, no mesmo dia, à noite ("Mudanças de tela": `DashboardResumoIT` — aportes compras − vendas em 12 meses, valor líquido do Patrimônio — e os proventos de 12 meses no `ProventosAReceberIT`): core 190; integration 103; adm-api 116 + 49; app-api 210 + 256 — todos verdes em `mvn clean verify` (~7 min). Antes, no mesmo dia (Rentabilidade, com o padrão do Tesouro e a V59): core 190; integration 103; adm-api 116 + 49; app-api 210 + 251. Antes, na entrega da Rentabilidade: core 189; integration 103; adm-api 116 + 48; app-api 210 + 250. Antes, em 10/10/2026 (Preço Teto, payout pela DFC, COTAHIST diário): core 158; integration 103; adm-api 89 + 40; app-api 189 + 199 — todos verdes em `mvn verify` (~6 min).** Antes, em 05/10/2026, noite (valorização da renda fixa): 521 unitários + 231 de integração, por módulo: core 158; integration 103; adm-api 88 + 38; app-api 172 + 193, todos verdes em `mvn clean verify` (~7 min). Na F11 (28/09/2026) eram 394 + 180.
 O suporte comum (container do PostgreSQL, bases, fixtures, `application-test.yml`) vem do
 test-jar do core. A app-api tem a adm-api **só no classpath de teste**, para os testes de ponta a ponta de
 proventos e fechamento (`CatalogoE2EBase`: fonte mockada → catálogo pela adm-api → recálculo pela app-api →
@@ -1854,7 +1935,7 @@ faltavam **as duas** peças, o arquivo de config e o parser. O ESLint 9 abandono
 `.eslintrc`, e `typescript-eslint` não estava no `package.json` — sem ele o ESLint
 nem faz o parse de um `.tsx`. Entraram os dois.
 
-Hoje fecha em **0 erro e 32 avisos** (35 até 23/09/2026, quando os `catch` com `any` das telas de transação passaram a usar `apiMessage`). Os avisos são quase todos `any` nos clients de
+Em 22/10/2026 fecha em **0 erro e 0 aviso** (conferido com a tela de Tarefas). Antes fechava em **0 erro e 32 avisos** (35 até 23/09/2026, quando os `catch` com `any` das telas de transação passaram a usar `apiMessage`). Os avisos são quase todos `any` nos clients de
 API e em blocos `catch`; `no-explicit-any` ficou como **aviso**, não erro, de
 propósito — subir a régua antes de tipar as respostas transformaria o lint numa
 parede que ninguém lê.

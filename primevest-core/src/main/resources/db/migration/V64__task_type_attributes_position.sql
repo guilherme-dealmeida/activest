@@ -1,0 +1,43 @@
+-- Tarefas (docs/planos/PLANO_TAREFAS.md, T5): a ordem dos atributos de cada tipo na tela. O INSERT ... SELECT da V62
+-- não garante a ordem dos ids (o join pode inverter as linhas), então a ordem fica explícita.
+
+ALTER TABLE task_type_attributes ADD COLUMN position SMALLINT NOT NULL DEFAULT 0;
+
+UPDATE task_type_attributes a SET position = v.position
+FROM (VALUES
+    ('DIVIDENDS_SYNC', 'FNET_REREAD_ALL', 1),
+    ('DIVIDENDS_SYNC', 'WITH_CVM_PAYMENT_DATES', 2),
+    ('FNET_STATUS_SYNC', 'ONLY_MISSING', 1),
+    ('FNET_STATUS_SYNC', 'WITH_DIVIDENDS_REREAD', 2),
+    ('CVM_STATEMENTS_IMPORT', 'WITH_STATEMENTS', 1),
+    ('CVM_STATEMENTS_IMPORT', 'STATEMENTS_FROM_YEAR', 2),
+    ('CVM_STATEMENTS_IMPORT', 'STATEMENTS_TO_YEAR', 3),
+    ('CVM_STATEMENTS_IMPORT', 'WITH_FII_MONTHLY', 4),
+    ('CVM_STATEMENTS_IMPORT', 'FII_FROM_YEAR', 5),
+    ('CVM_STATEMENTS_IMPORT', 'FII_TO_YEAR', 6),
+    ('CVM_STATEMENTS_IMPORT', 'FORCE', 7),
+    ('TREASURY_PRICES', 'FROM_YEAR', 1),
+    ('B3_DAILY_QUOTES', 'FROM_DATE', 1),
+    ('B3_DAILY_QUOTES', 'TO_DATE', 2),
+    ('MARKET_INDICES', 'INDEX_CODES', 1),
+    ('MARKET_INDICES', 'FROM_YEAR', 2),
+    ('MARKET_INDICES', 'TO_YEAR', 3),
+    ('ASSET_LOGOS', 'ONLY_MISSING', 1),
+    ('FIXED_INCOME_ISSUERS', 'WITH_ISSUERS', 1),
+    ('FIXED_INCOME_ISSUERS', 'WITH_LOGOS', 2),
+    ('FIXED_INCOME_ISSUERS', 'LOGOS_REFRESH_ALL', 3),
+    ('TASK_HISTORY_CLEANUP', 'LOG_RETENTION_DAYS', 1),
+    ('TASK_HISTORY_CLEANUP', 'EXECUTION_RETENTION_DAYS', 2),
+    ('B3_YEARLY_QUOTES', 'FROM_YEAR', 1),
+    ('B3_YEARLY_QUOTES', 'TO_YEAR', 2),
+    ('CVM_PAYMENT_DATES', 'FROM_YEAR', 1),
+    ('CVM_PAYMENT_DATES', 'TO_YEAR', 2),
+    ('FII_CNPJ_CURATION', 'LINES', 1),
+    ('ASSET_ISSUER_LINK', 'TICKER', 1),
+    ('ASSET_ISSUER_LINK', 'ISSUER_CNPJ', 2),
+    ('ASSET_ISSUER_LINK', 'SHARE_CLASS', 3),
+    ('UNIT_COMPOSITION', 'TICKER', 1),
+    ('UNIT_COMPOSITION', 'COMPOSITION', 2)
+) AS v(type, att_name, position)
+JOIN task_types t ON t.type = v.type
+WHERE a.task_type_id = t.id AND a.att_name = v.att_name;

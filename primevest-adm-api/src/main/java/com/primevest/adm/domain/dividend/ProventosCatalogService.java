@@ -1,5 +1,7 @@
 package com.primevest.adm.domain.dividend;
 
+import com.primevest.domain.task.TaskRun;
+
 import com.primevest.domain.dividend.AssetCashEventRepository;
 import com.primevest.domain.dividend.CashEventSource;
 import com.primevest.domain.dividend.CashEventWriter;
@@ -262,6 +264,7 @@ public class ProventosCatalogService {
         int failures = 0;
         List<Asset> synced = new ArrayList<>();
         for (IssuerGroup group : groups) {
+            TaskRun.checkStop(); // ponto de parada (docs/planos/PLANO_TAREFAS.md, D8)
             try {
                 total.add(locked(group, () -> syncGroup(group)));
                 synced.addAll(group.assets());
@@ -949,6 +952,7 @@ public class ProventosCatalogService {
         int ok = 0;
         int fail = 0;
         for (String cnpj : cnpjs) {
+            TaskRun.checkStop(); // ponto de parada (docs/planos/PLANO_TAREFAS.md, D8)
             try {
                 fnetClient.incomeNoticeIds(cnpj);
                 ok++;

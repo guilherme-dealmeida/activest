@@ -1,5 +1,7 @@
 package com.primevest.adm.integration.b3;
 
+import com.primevest.domain.task.TaskRun;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
@@ -356,7 +358,7 @@ public class FnetClient {
             if (Files.isRegularFile(file)) {
                 readCached(id, file, notices, unreadable);
             } else {
-                pending.put(id, downloads.submit(() -> download(id)));
+                pending.put(id, downloads.submit(TaskRun.propagateCall(() -> download(id))));
             }
         }
         int downloaded = 0;

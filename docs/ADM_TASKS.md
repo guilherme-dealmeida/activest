@@ -2,12 +2,14 @@
 
 > Gerado em 02/10/2026 a partir de `AdminController` (adm-api) · revisado em 03/10/2026 (Markdown, caminhos `carga/`) ·
 > 05/10/2026 ([18] índices de mercado, [19] preço do Tesouro) · 21/10/2026 ([17] situação dos avisos do FNET, no lugar
-> da antiga conferência por extrato, removida — `docs/planos/PLANO_CORRECAO_PROVENTOS.md`).
+> da antiga conferência por extrato, removida — `docs/planos/PLANO_CORRECAO_PROVENTOS.md`) · 22/10/2026 (Tarefas: os
+> endpoints passam pelo executor das tarefas e cada pedido vira uma rodada na tela `/tasks` — `docs/planos/PLANO_TAREFAS.md`,
+> D16 e D22).
 
 | Tema | Como funciona |
 |---|---|
 | **Acesso** | JWT de usuário com `users.is_admin = true`. Sem token: 401. Usuário comum: 403 "Somente administrador.". O login é sempre na app-api (`POST /api/v1/auth/login`, porta 8080); a adm-api (8081) só valida o mesmo token |
-| **Execução** | as **rotinas** rodam em segundo plano (thread virtual) e respondem na hora `202 Accepted` com `{"status":"iniciada","rotina":"<nome>","resultado":"no log da API"}`. O resultado sai no log: `docker compose logs -f adm-api`. Exceções síncronas: `fii-cnpjs`, `assets/{id}/issuer` e `assets/{id}/unit-composition` |
+| **Execução** | desde 22/10/2026, pelo executor das **tarefas** (`TaskExecutor`): cada pedido é uma rodada da tarefa do tipo (a primeira tarefa viva do tipo), com os parâmetros da rota por cima dos atributos dela; roda em segundo plano e responde na hora `202 Accepted` com `{"status":"iniciada","rotina":"<nome>","resultado":"na tela de Tarefas e no log da API","executionId":N}` (`status` = "pulada (ja em execucao)" quando o tipo já roda — D20). O resultado (resumo, erro e o log da rodada) aparece na tela de Tarefas (`/tasks`) e no log do contêiner. A curadoria (`fii-cnpjs`, `assets/{id}/issuer`, `assets/{id}/unit-composition`) continua síncrona e responde como antes, agora registrada como rodada das tarefas `FII_CNPJ_CURATION`, `ASSET_ISSUER_LINK` e `UNIT_COMPOSITION`. Sem rota aqui, o Run da tela de Tarefas faz o mesmo |
 | **Idempotência** | todas as rotinas podem ser rodadas de novo: o que já está gravado é pulado ou regravado com o mesmo valor; o que já está em `carga/data/` não é baixado de novo |
 | **Swagger** | http://localhost:8081/swagger-ui.html |
 

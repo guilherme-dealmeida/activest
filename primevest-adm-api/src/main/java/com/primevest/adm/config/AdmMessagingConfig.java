@@ -50,14 +50,22 @@ public class AdmMessagingConfig {
     @Bean
     RedisMessageListenerContainer onDemandListener(RedisConnectionFactory connectionFactory,
                                                    ObjectProvider<ProventosCatalogService> proventos,
-                                                   ObjectProvider<AssetLogoService> logos) {
+                                                   ObjectProvider<AssetLogoService> logos,
+                                                   ObjectProvider<com.primevest.domain.task.TaskTypeRepository> types) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
         container.addMessageListener((message, pattern) -> {
             String body = new String(message.getBody(), StandardCharsets.UTF_8).trim();
-            // fila unica do servico (F8, PENDENCIAS 14.1): volta na hora, sem thread por pedido
+            // fila unica do servico (F8, PENDENCIAS 14.1): volta na hora, sem thread por pedido.
+            // O tipo DIVIDENDS_SYNC desligado desliga tambem o sob demanda (docs/planos/PLANO_TAREFAS.md, D30).
             try {
-                proventos.getObject().requestOnDemand(Long.valueOf(body));
+                boolean enabled = types.getObject().findByType("DIVIDENDS_SYNC")
+                        .map(com.primevest.domain.task.TaskType::isEnabled).orElse(true);
+                if (enabled) {
+                    proventos.getObject().requestOnDemand(Long.valueOf(body));
+                } else {
+                    log.info("Proventos sob demanda ({}): tipo DIVIDENDS_SYNC desligado, pedido ignorado", body);
+                }
             } catch (RuntimeException e) {
                 log.error("Proventos sob demanda ({}): {}", body, e.getMessage(), e);
             }
@@ -68,6 +76,42 @@ public class AdmMessagingConfig {
                 log.warn("Logo sob demanda ({}): {}", body, e.getMessage());
             }
         }, new ChannelTopic(CatalogMessaging.ON_DEMAND_CHANNEL));
+        return container;
+    }
+
+    /** Comandos das Tarefas entre os serviços (docs/planos/PLANO_TAREFAS.md, D29). */
+    @Bean
+    com.primevest.domain.task.TaskCommandPublisher taskCommandPublisher(StringRedisTemplate redis,
+                                                                        ObjectMapper objectMapper) {
+        return command -> {
+            try {
+                redis.convertAndSend(com.primevest.domain.task.TaskCommand.CHANNEL,
+                        objectMapper.writeValueAsString(command));
+            } catch (Exception e) {
+                // Redis fora: o reagendamento sai na releitura de 5 min; o Run some (a tela mostra que nao comecou)
+                log.warn("Tarefas: comando {} nao publicado ({})", command, e.getMessage());
+            }
+        };
+    }
+
+    @Bean
+    RedisMessageListenerContainer taskCommandListener(RedisConnectionFactory connectionFactory,
+                                                      ObjectMapper objectMapper,
+                                                      org.springframework.beans.factory.ObjectProvider<
+                                                          com.primevest.domain.task.TaskCommands> commands) {
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(connectionFactory);
+        container.addMessageListener((message, pattern) -> {
+            String body = new String(message.getBody(), StandardCharsets.UTF_8);
+            Thread.ofVirtual().name("tarefas-comando").start(() -> {
+                try {
+                    commands.getObject().receive(
+                            objectMapper.readValue(body, com.primevest.domain.task.TaskCommand.class));
+                } catch (Exception e) {
+                    log.error("Tarefas: comando nao processado ({}): {}", body, e.getMessage(), e);
+                }
+            });
+        }, new ChannelTopic(com.primevest.domain.task.TaskCommand.CHANNEL));
         return container;
     }
 }

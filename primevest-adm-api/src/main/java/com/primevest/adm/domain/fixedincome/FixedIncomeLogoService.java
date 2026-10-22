@@ -1,5 +1,7 @@
 package com.primevest.adm.domain.fixedincome;
 
+import com.primevest.domain.task.TaskRun;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.primevest.adm.domain.asset.AssetLogoService;
@@ -114,6 +116,7 @@ public class FixedIncomeLogoService {
         int fromOpenFinance = 0;
         int fromBancosBr = 0;
         for (String root : roots) {
+            TaskRun.checkStop(); // ponto de parada (docs/planos/PLANO_TAREFAS.md, D8)
             if (!FixedIncomeLogos.valid(root) || (onlyMissing && logos.hasLogo(root))) {
                 continue;
             }

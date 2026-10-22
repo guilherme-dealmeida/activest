@@ -27,6 +27,7 @@ const routeNames: Record<string, string> = {
   '/integrations': 'Integrações',
   '/settings': 'Configurações',
   '/notifications': 'Notificações',
+  '/tasks': 'Tarefas',
 };
 
 /** Marcador amarelo de contagem (Notificações e Integrações), sobre o canto do ícone. */

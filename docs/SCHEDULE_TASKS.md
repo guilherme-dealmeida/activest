@@ -5,13 +5,21 @@
 > mercado, `docs/planos/PLANO_INDICES_MERCADO.md`; [A10] preço do Tesouro e a curva da renda fixa,
 > `docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`) · 10/10/2026 ([A11] cotações do catálogo pelo COTAHIST diário,
 > `docs/planos/PLANO_PRECO_TETO.md`) · 21/10/2026 ([A4] situação dos avisos do FNET, recibos e retificações; [A12] situação semanal dos avisos do FNET — `docs/planos/PLANO_CORRECAO_PROVENTOS.md`, PENDENCIAS 33.3) · 13/10/2026 ([B7] abertura do dia, mensagens de administrador nas rotinas da adm-api,
-> [A5] e [A11] avisando a carteira — `docs/planos/PLANO_NOTIFICACOES.md`).
+> [A5] e [A11] avisando a carteira — `docs/planos/PLANO_NOTIFICACOES.md`) · 22/10/2026 (**Tarefas**: cada rotina virou
+> uma tarefa no banco, com horário editável na tela `/tasks` — `docs/planos/PLANO_TAREFAS.md`; [A13] histórico de
+> cripto, [A14] emissoras de RF e [A15] limpeza do histórico das tarefas entraram aqui; [B7] corrigida: só avisa o
+> título vencido desde 15/10/2026).
 
 - **Fuso** de todas as rotinas: `America/Sao_Paulo`.
-- **Cron do Spring:** `segundo minuto hora dia-do-mês mês dia-da-semana`. Os horários ficam em propriedade
-  (`application.yml`): dá para mudar sem código.
+- **Cron do Spring:** `segundo minuto hora dia-do-mês mês dia-da-semana`. Desde 22/10/2026 os horários ficam **no
+  banco** (`tasks.cron`) e se editam na tela de Tarefas (`/tasks`, só administrador); o liga/desliga também
+  (`tasks.enabled` por tarefa, `task_types.enabled` por tipo). O agendador (`TaskScheduleRegistry`) relê ao editar e a
+  cada 5 min. Os horários abaixo são os do seed (V62). Cada rodada fica em `task_executions`, com resumo e log.
 - **Chave geral:** `primevest.scheduling.enabled` (padrão `true`). No perfil de teste é `false`: nenhuma rotina
-  agendada roda nos testes.
+  agendada roda nos testes, nem a recuperação na subida.
+- **Subida** (22/10/2026, `docs/planos/PLANO_TAREFAS.md`, D37 e D38): roda só a tarefa marcada "Roda na subida"
+  (`tasks.run_on_startup`), ativa e **sem rodada no dia** — reiniciar o serviço não repete —, e só se a rotina disser
+  que há o que recuperar. Marcadas no seed: [A1], [A2], [A9], [A10], [A11] e [B7].
 
 | Módulo | Papel |
 |---|---|
@@ -27,7 +35,9 @@ rodada seguinte não achar mais a diferença. As mensagens do usuário são da a
 
 | Quando | Módulo | Rotina |
 |---|---|---|
-| 00:00 | app | [B7] Abertura do dia (liquidação dos vencidos, proventos e eventos de D0, conferências) |
+| 00:00 | app | [B7] Abertura do dia (aviso dos vencidos, proventos e eventos de D0, conferências) |
+| 04:00 | adm | [A15] Limpeza do histórico das tarefas |
+| 05:30, dia 1 | adm | [A14] Emissoras e distribuidoras de RF + logos (mensal) |
 | 03:00, domingo | adm | [A12] Situação dos avisos do FNET + proventos relendo todos os avisos (semanal) |
 | a cada 5 s | app | [B5] Worker da fila de integrações |
 | 06:00, dia 1 | adm | [A7] Logos (mensal) |
@@ -39,6 +49,7 @@ rodada seguinte não achar mais a diferença. As mensagens do usuário são da a
 | 10:00 | adm | [A9] Índices de mercado (CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, PTAX, Ibovespa, IFIX) |
 | 19:00, seg–sex | adm | [A1] Fechamento B3 (BRAPI) |
 | 19:00 | adm | [A2] Fechamento cripto (CoinGecko) |
+| 19:30 | adm | [A13] Histórico de preço de cripto |
 | 20:00 | adm | [A4] Proventos e eventos societários + datas de pagamento CVM |
 | 21:00 | app | [B1] Rede de segurança: recálculo de todas as posições |
 | 21:30 | adm | [A11] Cotações do catálogo — COTAHIST diário |
@@ -57,8 +68,8 @@ os proventos do dia.
 | | |
 |---|---|
 | **Quando** | 19:00, segunda a sexta |
-| **Classe** | `ClosingPriceScheduler.b3Closing` → `ClosingPriceService.runB3Closing` |
-| **Config** | `primevest.closing.b3-cron = "0 0 19 * * MON-FRI"` |
+| **Classe** | tarefa `B3_CLOSING` → `B3ClosingTask` → `ClosingPriceService.runB3Closing` |
+| **Tarefa** | `B3_CLOSING` (tipo `B3_CLOSING`) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 19 * * MON-FRI` |
 | **Fonte** | BRAPI (plano gratuito: só preço de fechamento) |
 | **Grava** | `asset_price_history` (OHLCV do pregão) e `assets.current_price` |
 | **Ao fim** | publica "catálogo mudou" (origem `FECHAMENTO`) no Redis → a app-api revaloriza as posições desses ativos |
@@ -80,8 +91,8 @@ da BRAPI.
 | | |
 |---|---|
 | **Quando** | 19:00, todos os dias (cripto negocia no fim de semana) |
-| **Classe** | `ClosingPriceScheduler.cryptoClosing` → `ClosingPriceService.runCryptoClosing` |
-| **Config** | `primevest.closing.crypto-cron = "0 0 19 * * *"` |
+| **Classe** | tarefa `CRYPTO_CLOSING` → `CryptoClosingTask` → `ClosingPriceService.runCryptoClosing` |
+| **Tarefa** | `CRYPTO_CLOSING` (tipo `CRYPTO_CLOSING`) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 19 * * *` |
 | **Fonte** | CoinGecko (uma chamada para todas as moedas) |
 | **Grava** | preço em reais das criptos em carteira como fechamento do dia (`asset_price_history`, source `COINGECKO`) e `assets.current_price` |
 | **Ao fim** | publica "catálogo mudou" (`FECHAMENTO`) |
@@ -93,7 +104,7 @@ da BRAPI.
 | | |
 |---|---|
 | **Quando** | ao subir a adm-api (`ApplicationReadyEvent`), em thread virtual |
-| **Classe** | `ClosingPriceScheduler.recoverOnStartup` |
+| **Classe** | `B3ClosingTask.needsRecovery` / `CryptoClosingTask.needsRecovery` (`TaskStartup`, rodada `STARTUP`) |
 
 **Função.** Se faltar o último fechamento de algum ativo em carteira (B3 ou cripto), roda a rodada de fechamento na
 hora, em segundo plano.
@@ -105,8 +116,8 @@ hora, em segundo plano.
 | | |
 |---|---|
 | **Quando** | 20:00, todos os dias |
-| **Classe** | `ProventosScheduler.syncProventos` → `ProventosCatalogService.syncAll` → `CvmPaymentDateService.run(ano anterior, ano corrente)` |
-| **Config** | `primevest.proventos.cron = "0 0 20 * * *"`; `primevest.proventos.enabled` (liga/desliga a rotina e o sob demanda); `primevest.proventos.scope = ALL` (todo ativo ligado a emissor + o que já esteve em carteira) ou `HELD` (só o que já esteve em carteira); `primevest.proventos.pause-millis = 1000` |
+| **Classe** | tarefa `DIVIDENDS_SYNC` → `DividendsSyncTask` → `ProventosCatalogService.syncAll` → `CvmPaymentDateService.run(ano anterior, ano corrente)` (atributo `WITH_CVM_PAYMENT_DATES`) |
+| **Config** | `DIVIDENDS_SYNC` (atributos `FNET_REREAD_ALL`, `WITH_CVM_PAYMENT_DATES`) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 20 * * *`; o tipo desligado desliga também o sob demanda [A8]; `primevest.proventos.scope = ALL` (todo ativo ligado a emissor + o que já esteve em carteira) ou `HELD` (só o que já esteve em carteira); `primevest.proventos.pause-millis = 1000` |
 | **Fontes** | B3 (proventos ~12 meses, desdobramentos, grupamentos, bonificações), FNET (avisos de FII — fonte principal do FII), CVM "Relatórios Proventos" (data de pagamento de ação, 2022+) |
 | **Grava** | `asset_cash_events`, `asset_stock_events`; arquivos em `carga/data/` (`b3/proventos-12m`, `fnet`, `fnet/status` — situação de cada aviso no FNET, 21/10/2026 —, `cvm/ipe`, `cvm/proventos`) |
 | **Ao fim** | publica "catálogo mudou" (origem `PROVENTOS`) → a app-api refaz proventos e valorização das posições envolvidas |
@@ -135,8 +146,8 @@ recebeu e vai receber.
 | | |
 |---|---|
 | **Quando** | 07:30, todos os dias (a CVM atualiza os arquivos de madrugada) |
-| **Classe** | `CvmStatementsScheduler.importRecent` → `FinancialStatementImportService.importRecent` → `FiiMonthlyImportService.importRecent` |
-| **Config** | `primevest.cvm-statements.cron = "0 30 7 * * *"`; `primevest.cvm-statements.enabled` |
+| **Classe** | tarefa `CVM_STATEMENTS_IMPORT` → `CvmStatementsImportTask` → `FinancialStatementImportService.importRecent` → `FiiMonthlyImportService.importRecent` |
+| **Tarefa** | `CVM_STATEMENTS_IMPORT` (atributos por parte: `WITH_STATEMENTS`, `STATEMENTS_FROM_YEAR`/`TO_YEAR`, `WITH_FII_MONTHLY`, `FII_FROM_YEAR`/`TO_YEAR`, `FORCE`) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 30 7 * * *` |
 | **Fonte** | Portal de dados abertos da CVM (DFP, ITR, FRE; informe mensal de FII) |
 | **Grava** | `cvm_documents`, `cvm_statement_values`, `share_counts`, `company_quarters` (recalculada ao fim), `fii_monthly` |
 
@@ -154,8 +165,8 @@ ROE, payout, DY...).
 | | |
 |---|---|
 | **Quando** | 07:00, toda segunda-feira |
-| **Classe** | `CatalogAuditScheduler.weeklyAudit` → `CatalogAuditService.run` e `MarketIndexImportService.audit` |
-| **Config** | `primevest.catalog-audit.cron = "0 0 7 * * MON"`; `primevest.catalog-audit.ignored` (tickers fora de propósito) |
+| **Classe** | tarefa `CATALOG_AUDIT` → `CatalogAuditTask` → `CatalogAuditService.run` e `MarketIndexImportService.audit` |
+| **Tarefa** | `CATALOG_AUDIT` (`primevest.catalog-audit.ignored` = tickers fora de propósito) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 7 * * MON` |
 | **Fonte** | lista oficial e renomes da BRAPI |
 | **Grava** | nada no catálogo: cada diferença vira linha WARN no log **e** mensagem de administrador (`notifications`, 13/10/2026) — ticker novo (uma por rodada, com a lista), sumido e renomeado (uma por ticker), índice atrasado (uma por índice); a rodada seguinte que não acha mais a diferença resolve a mensagem |
 
@@ -171,8 +182,8 @@ com posição aberta também chega a quem tem a posição ([B7] e [B3], fan-out 
 | | |
 |---|---|
 | **Quando** | 06:00, dia 1 de cada mês |
-| **Classe** | `LogoScheduler.monthly` → `AssetLogoService.sync(true, ...)` |
-| **Config** | `primevest.logos.cron = "0 0 6 1 * *"`; `primevest.logos.dir` |
+| **Classe** | tarefa `ASSET_LOGOS` → `AssetLogosTask` → `AssetLogoService.sync(ONLY_MISSING, ...)` |
+| **Tarefa** | `ASSET_LOGOS` (atributo `ONLY_MISSING`; `primevest.logos.dir`) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 6 1 * *` |
 | **Fontes** | BRAPI (ação, FII, ETF, BDR) e CoinGecko (cripto) |
 | **Grava** | arquivos `carga/data/logos/{TICKER}.{ext}` (o arquivo é o estado; nada no banco) |
 
@@ -199,8 +210,8 @@ a do dia 1.
 | | |
 |---|---|
 | **Quando** | 10:00, todos os dias, e na subida da adm-api quando algum índice está atrasado ou vazio |
-| **Classe** | `MarketIndexScheduler.daily` / `recoverOnStartup` → `MarketIndexImportService.importRecent` |
-| **Config** | `primevest.indices.cron = "0 0 10 * * *"`; `primevest.indices.enabled`; `indices.*` (timeout 20 s, 4 tentativas) |
+| **Classe** | tarefa `MARKET_INDICES` → `MarketIndicesTask` (recuperação: `needsRecovery`) → `MarketIndexImportService.importRecent` |
+| **Tarefa** | `MARKET_INDICES` (atributos `INDEX_CODES`, `FROM_YEAR`, `TO_YEAR`; `indices.*` (timeout 20 s, 4 tentativas)) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 10 * * *` |
 | **Fontes** | API SGS do Banco Central (CDI 12, Selic 11, IPCA 433, IGP-M 189, INPC 188, TR 226, meta Selic 432, PTAX 1) e site da B3 (Ibovespa, IFIX) |
 | **Grava** | `market_index_values` e os arquivos `carga/data/bcb/sgs/{código}/{ano}.json`, `carga/data/b3/indices/{índice}/{ano}.json` |
 
@@ -222,8 +233,8 @@ refaz a curva da renda fixa privada ([B3]).
 | | |
 |---|---|
 | **Quando** | 08:00, todos os dias (o arquivo sai ~07:20 com o D-1), e na subida da adm-api quando o último PU tem mais de 4 dias |
-| **Classe** | `TreasuryPriceScheduler.daily` / `recoverOnStartup` → `TreasuryPriceService.importRecent` |
-| **Config** | `primevest.tesouro.cron = "0 0 8 * * *"`; `primevest.tesouro.enabled`; `tesouro.*` |
+| **Classe** | tarefa `TREASURY_PRICES` → `TreasuryPricesTask` (recuperação: `needsRecovery`) → `TreasuryPriceService.importRecent` |
+| **Tarefa** | `TREASURY_PRICES` (atributo `FROM_YEAR`; `tesouro.*`) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 8 * * *` |
 | **Fonte** | Tesouro Transparente, `PrecoTaxaTesouroDireto.csv` (todo o histórico, ~14 MB; só baixado se mudou) |
 | **Grava** | `asset_price_history` (`source = TESOURO`, PU de venda), `assets.current_price` e `carga/data/tesouro/` |
 | **Ao fim** | publica "catálogo mudou" (`FECHAMENTO`) com os títulos cujo preço mudou → a app-api revaloriza o Tesouro |
@@ -238,8 +249,8 @@ refaz a curva da renda fixa privada ([B3]).
 | | |
 |---|---|
 | **Quando** | 21:30 e 08:30, todos os dias, e na subida da adm-api quando falta o pregão do último dia útil |
-| **Classe** | `B3DailyQuotesScheduler.daily` / `recoverOnStartup` → `HistoricalQuotesImportService.importRecent` |
-| **Config** | `primevest.cotahist-diario.cron = "0 30 8,21 * * *"`; `primevest.cotahist-diario.enabled` |
+| **Classe** | tarefa `B3_DAILY_QUOTES` → `B3DailyQuotesTask` (recuperação: `needsRecovery`) → `HistoricalQuotesImportService.importRecent` |
+| **Tarefa** | `B3_DAILY_QUOTES` (atributos `FROM_DATE`, `TO_DATE`) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 30 8,21 * * *` |
 | **Fonte** | B3, `COTAHIST_DddMMaaaa.ZIP` (um por pregão, ~0,5 MB, todas as ações e FIIs) |
 | **Grava** | `asset_price_history` (`source = B3_COTAHIST`), `assets.isin`; zips em `carga/data/b3/cotahist/diario` |
 | **Ao fim** | com cotação gravada, publica "catálogo mudou" (`FECHAMENTO`, os ativos que ganharam preço) → alerta de preço do Preço Teto ([B3], 13/10/2026) |
@@ -257,8 +268,8 @@ do preço do Preço Teto e da tela de Emissoras (`docs/planos/PLANO_PRECO_TETO.m
 | | |
 |---|---|
 | **Quando** | 03:00, todo domingo (21/10/2026) |
-| **Classe** | `FnetStatusScheduler.weekly` → `ProventosCatalogService.refreshFnetStatus("semanal", false)` e depois `syncAll("semanal", true)` |
-| **Config** | `primevest.fnet-status.cron = "0 0 3 * * SUN"`; `fnet.status-pause-millis` (3 s entre fundos); desliga junto com `primevest.proventos.enabled` |
+| **Classe** | tarefa `FNET_STATUS_SYNC` → `FnetStatusSyncTask` → `ProventosCatalogService.refreshFnetStatus(..., ONLY_MISSING)` e depois `syncAll(..., true)` (`WITH_DIVIDENDS_REREAD`) |
+| **Tarefa** | `FNET_STATUS_SYNC` (`fnet.status-pause-millis` = 3 s entre fundos) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 3 * * SUN` |
 | **Fonte** | lista de avisos de cada fundo no FNET (`pesquisarGerenciadorDocumentosDados`: `status` AC/IC/CC) e os XML em `carga/data/fnet` |
 | **Grava** | `carga/data/fnet/status/{CNPJ}.json` (situação de cada aviso) e, na rodada de proventos, o que mudou nos eventos (R10: pagamento retificado; R11: aviso inativado sob o CNPJ de outro fundo) |
 
@@ -279,8 +290,8 @@ muda o pagamento e o aviso inativado depois ficavam esperando (`docs/PENDENCIAS.
 | | |
 |---|---|
 | **Quando** | 21:00, todos os dias |
-| **Classe** | `PositionRefreshScheduler.refreshAll` → `PositionRefreshService.refreshAll` |
-| **Config** | `primevest.positions.refresh-cron = "0 0 21 * * *"` |
+| **Classe** | tarefa `POSITIONS_REFRESH` → `PositionsRefreshTask` → `PositionRefreshService.refreshAll` |
+| **Tarefa** | `POSITIONS_REFRESH` (Stop desfaz a rodada (uma transação)) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 21 * * *` |
 | **Grava** | `dividends` (proventos das posições), `portfolio_assets.appreciation` |
 
 **Função.** Recalcula proventos e valorização de **todas** as posições — desde 05/10/2026 também a curva da renda fixa
@@ -325,8 +336,8 @@ Tesouro vencido que esperava o PU; `INDICES` → liquidação da RF privada venc
 | | |
 |---|---|
 | **Quando** | 08:45, todos os dias (até 03/10/2026, 06:30) |
-| **Classe** | `IntegrationSyncScheduler.sincronizar` → `IntegrationService.enqueueScheduled` |
-| **Config** | `primevest.integrations.sync-cron = "0 45 8 * * *"`; `primevest.integrations.auto-confirm-scheduled = true` |
+| **Classe** | tarefa `INTEGRATIONS_DAILY_SYNC` → `IntegrationsDailySyncTask` → `IntegrationService.enqueueScheduled` |
+| **Tarefa** | `INTEGRATIONS_DAILY_SYNC` (`primevest.integrations.auto-confirm-scheduled = true`) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 45 8 * * *` |
 | **Grava** | `integration_runs` (status `QUEUED`, trigger `SCHEDULED`) |
 
 **Função.** Só **enfileira** uma execução para cada conexão `ACTIVE` ou `PENDING_AUTHORIZATION` (B3: é a checagem que
@@ -370,21 +381,57 @@ usuário responde na hora.
 | | |
 |---|---|
 | **Quando** | 00:00, todos os dias, **e** na subida da app-api — "meia-noite ou o primeiro horário do dia com o sistema no ar" |
-| **Classe** | `DailyOpeningScheduler.midnight` / `onStartup` → `DailyOpeningService.run` |
-| **Config** | `primevest.abertura.cron = "0 0 0 * * *"`; chave geral `primevest.scheduling.enabled` |
-| **Grava** | `notifications`; `transactions` (venda automática, origem `SISTEMA`) e o que a venda recalcula |
+| **Classe** | tarefa `DAILY_OPENING` → `DailyOpeningTask` (na subida: `needsRecovery` sempre verdadeiro) → `DailyOpeningService.run` |
+| **Tarefa** | `DAILY_OPENING` (chave geral `primevest.scheduling.enabled`) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 0 * * *` |
+| **Grava** | `notifications` |
 
-**Função.** Em ordem: (1) **liquidação dos vencidos** (`MaturitySettlementService`): RF privada pelo saldo da curva no
-vencimento, Tesouro pelo PU oficial do vencimento × as cotas de todos os títulos do ativo; sem valor → pendência
-"informe o valor do resgate"; (2) **proventos pagos hoje** — uma mensagem por ativo; (3) **desdobramento, grupamento e
+**Função.** Em ordem: (1) **títulos vencidos** (`MaturitySettlementService`): desde 15/10/2026 só avisa — pendência
+`RF_VENCIDO` com o líquido estimado no vencimento e o link "Lançar liquidação"; a venda é lançada pelo usuário
+(`docs/planos/PLANO_VENDA_RENDA_FIXA.md`, seção 6); (2) **proventos pagos hoje** — uma mensagem por ativo; (3) **desdobramento, grupamento e
 bonificação com custo** com data-ex hoje; (4) conferências: bonificação sem custo, aviso de catálogo para quem tem a
 posição, alerta de preço e "padrão mudou" do Preço Teto. Uma etapa que falha não impede as outras.
 
 **Sem coluna de controle.** Tudo é idempotente pelas chaves das mensagens: subir duas vezes no dia não duplica nada.
 Mensagem de D0 nunca é retroativa — se o sistema não subir no dia, ela não existe.
 
-**Propósito.** Título vencido não continua rendendo (a D8 da valorização da renda fixa foi revista) e o usuário fica
-sabendo, na caixa de Notificações, do que aconteceu na carteira no dia.
+**Propósito.** O usuário fica sabendo, na caixa de Notificações, do título vencido e do que aconteceu na carteira no dia.
+
+---
+
+## Parte 3 — rotinas que não estavam neste documento (22/10/2026)
+
+### [A13] Histórico de preço de cripto
+
+| | |
+|---|---|
+| **Quando** | 19:30, todos os dias |
+| **Classe** | tarefa `CRYPTO_PRICE_HISTORY` → `CryptoPriceHistoryTask` → `CryptoHistoryService.importAll` |
+| **Fonte** | CoinGecko (últimos 365 dias) e Binance pública (BTC/BRL desde 13/10/2020) |
+| **Grava** | `asset_price_history` (`COINGECKO`, `BINANCE` — só dia sem linha); `carga/data/coingecko/historico`, `carga/data/binance/klines` |
+
+**Propósito.** Série de preço de toda cripto que está ou esteve em carteira e do benchmark BTC, para a Rentabilidade
+(`docs/planos/PLANO_RENTABILIDADE.md`, 3.3).
+
+### [A14] Emissoras e distribuidoras de renda fixa (mensal)
+
+| | |
+|---|---|
+| **Quando** | 05:30, dia 1 de cada mês |
+| **Classe** | tarefa `FIXED_INCOME_ISSUERS` → `FixedIncomeIssuersTask` → `FixedIncomeIssuerImportService.importAll` e `FixedIncomeLogoService.sync` |
+| **Fontes** | Banco Central (IF.data, Instituições em funcionamento), CVM; logos do Open Finance e do `logos-bancos-br` |
+| **Grava** | `fixed_income_issuers`, `fixed_income_groups`; `carga/data/logos/rf/` |
+
+**Propósito.** Cadastro de emissoras e distribuidoras em dia (`docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md`, 4.2).
+
+### [A15] Limpeza do histórico das tarefas
+
+| | |
+|---|---|
+| **Quando** | 04:00, todos os dias |
+| **Classe** | tarefa `TASK_HISTORY_CLEANUP` → `TaskHistoryCleanupTask` |
+| **Grava** | apaga linhas de `task_execution_logs` com mais de `LOG_RETENTION_DAYS` (30) e rodadas terminadas com mais de `EXECUTION_RETENTION_DAYS` (365) |
+
+**Propósito.** Retenção do histórico das tarefas (`docs/planos/PLANO_TAREFAS.md`, D7 e D34).
 
 ---
 

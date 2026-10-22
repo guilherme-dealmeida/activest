@@ -25,15 +25,31 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Flyway roda ate a V60 e o schema valida contra as entidades")
+    @DisplayName("Flyway roda ate a V65 e o schema valida contra as entidades")
     void migrationsAplicadas() {
         Number versao = (Number) em.createNativeQuery(
             "SELECT MAX(CAST(version AS NUMERIC)) FROM flyway_schema_history WHERE success").getSingleResult();
-        assertThat(versao.intValue()).isEqualTo(60);
+        assertThat(versao.intValue()).isEqualTo(65);
 
         Number falhas = (Number) em.createNativeQuery(
             "SELECT COUNT(*) FROM flyway_schema_history WHERE NOT success").getSingleResult();
         assertThat(falhas.intValue()).isZero();
+    }
+
+    @Test
+    @DisplayName("Tarefas (V61, V62): 26 tipos (23 da adm-api, 3 da app-api), uma tarefa por tipo, atributos espelhados")
+    void tarefasSemeadas() {
+        assertThat(count("task_types")).isEqualTo(26);
+        assertThat(count("task_types WHERE service = 'APP_API'")).isEqualTo(3);
+        assertThat(count("tasks")).isEqualTo(26);
+        assertThat(count("tasks t JOIN task_types y ON y.id = t.task_type_id WHERE t.name <> y.type")).isZero();
+        assertThat(count("tasks WHERE cron IS NOT NULL")).isEqualTo(16);
+        assertThat(count("task_type_attributes")).isEqualTo(33);
+        assertThat(count("task_attributes")).isEqualTo(33);
+        assertThat(count("task_type_attributes WHERE position = 0")).isZero();
+        assertThat(count("tasks WHERE run_on_startup")).isEqualTo(6);
+        assertThat(count("task_attributes ta JOIN task_type_attributes a ON a.id = ta.task_type_attribute_id "
+            + "WHERE ta.att_value IS DISTINCT FROM a.att_value")).isZero();
     }
 
     @Test

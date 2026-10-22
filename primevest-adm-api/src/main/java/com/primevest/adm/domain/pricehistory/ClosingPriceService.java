@@ -1,5 +1,7 @@
 package com.primevest.adm.domain.pricehistory;
 
+import com.primevest.domain.task.TaskRun;
+
 import com.primevest.domain.pricehistory.AssetPriceHistory;
 import com.primevest.domain.pricehistory.AssetPriceHistoryRepository;
 import com.primevest.domain.pricehistory.PriceHistorySource;
@@ -131,6 +133,7 @@ public class ClosingPriceService {
         LocalDate today = LocalDate.now(clock);
 
         for (Asset asset : assets) {
+            TaskRun.checkStop(); // ponto de parada (docs/planos/PLANO_TAREFAS.md, D8)
             String range = rangeFor(asset.getId(), today);
             try {
                 BrApiHistory history = brApiClient.fetchDailyHistory(asset.getTicker(), range);

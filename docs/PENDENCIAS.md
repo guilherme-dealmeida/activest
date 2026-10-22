@@ -587,6 +587,10 @@ nulo ate a central existir.
 FEITO em 24/09/2026: custo zero provisorio no calculo
 (CorporateActionApplier) e WARN no log quando a rotina grava uma
 bonificacao que pega alguma posicao.
+FEITO em 21/10/2026 (KLBN4, bonificacao de 1% em 17/12/2025, custo do
+fato relevante R$ 12,94564988922): o campo "Informar custo" passou de 4
+para 8 casas, igual a stock_event_costs.cost_per_share NUMERIC(18,8),
+com a mesma mascara numerica dos outros campos.
 
 ## 14. ROTINAS EXTERNAS — achados da carga de transacoes de 24/09/2026
 
@@ -1265,6 +1269,32 @@ fundo (E) e historico longo da B3 vazio para nome de pregao com barra (G, era o 
  `CashEventWriter`, a data nova da propria B3 substitui a gravada; "a definir" (31/12/9999, lido como sem data)
  nao apaga a que existe (`PaymentDateSourceIT`, 2 testes novos). Rotina de proventos rodada no dev em 21/10/2026: os 14
  eventos ficaram com a data nova (VITT3/VITT3F 21/10/2026); conferencia A-E = 0; totais do Guilherme inalterados.
+
+## 34. TAREFAS (docs/planos/PLANO_TAREFAS.md, 22/10/2026)
+
+**34.1** Cadastrar e excluir tarefas: sem efetividade neste escopo (D15) — botões desabilitados ("em breve"). O serviço
+ existe e tem teste (`TaskCatalogService.create` com o espelho dos atributos, `delete` de vez ou lógico); falta a rota
+ e a tela.
+**34.2** Tipo de tarefa (liga/desliga, valores padrão dos atributos, tipo novo) só por migration (D36); a tela mostra o
+ `enabled` do tipo só para leitura.
+**34.3** Nomes internos em português do que já existe (rotas do front, parâmetros, rotas da adm-api, configuração,
+ canais do Redis, valores gravados): escopo próprio, `docs/planos/PLANO_NOMES_EM_INGLES.md` (D16).
+**34.4** Stop: 13 tipos sem ponto de parada (`stoppable = false`): `CRYPTO_CLOSING`, `CATALOG_AUDIT`,
+ `ISSUERS_IMPORT`, `ISSUERS_LINK`, `CVM_QUARTERS`, `PAYMENT_DATE_SURVEY`, `TREASURY_PRICES` (um arquivo só), a
+ curadoria (3), `TASK_HISTORY_CLEANUP`, `DAILY_OPENING` e `INTEGRATIONS_DAILY_SYNC` — rodadas curtas ou de uma chamada.
+**34.5** Preço do Tesouro parado (achado da validação das Tarefas, 22/10/2026): o último PU gravado
+ (`asset_price_history`, `source = TESOURO`) é de **15/10/2026**, e todas as rodadas de `TREASURY_PRICES` desde então
+ terminam com `titles=0, rows=0` — inclusive as das 08:00. A valorização do Tesouro na carteira está usando o PU de
+ 15/10. Causa encontrada em 22/10/2026: `carga/data/tesouro/PrecoTaxaTesouroDireto.csv` e `VendasTesouroDireto.csv`
+ (244 bytes, gravados em 21/10/2026 04:43) são a página HTML "Request Rejected" do bloqueio do site do Tesouro
+ Transparente — o cache (`PublicFileCache`) gravou a recusa como se fosse o arquivo, e a leitura não acha nenhuma
+ linha. Anterior às Tarefas e independente delas (as rodadas executam e terminam `SUCCEEDED` com zero linhas). Escopo
+ próprio: não gravar resposta que não é CSV, tratar a recusa como falha da fonte (`FONTE_INDISPONIVEL`) e entender o
+ bloqueio. O ruído de uma rodada `STARTUP` por reinício foi resolvido pela D37/D38 do plano de
+ Tarefas (subida no máximo uma vez por dia, só tarefa marcada).
+**34.6** Run de tarefa da app-api pela tela depende do Redis (comando `RUN`): sem resposta em 5 s, 503 e nenhuma rodada.
+**34.7** A trava por tipo é em memória, por serviço (uma instância de cada API). Com mais de uma instância seria preciso
+ trava no banco (ex.: índice único parcial de `RUNNING` por tipo) e um agendador só.
 
 ## ORDEM SUGERIDA
 

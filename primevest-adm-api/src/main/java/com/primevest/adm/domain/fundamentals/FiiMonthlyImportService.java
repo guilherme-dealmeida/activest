@@ -1,5 +1,7 @@
 package com.primevest.adm.domain.fundamentals;
 
+import com.primevest.domain.task.TaskRun;
+
 import com.primevest.adm.integration.cvm.CvmDataset;
 import com.primevest.adm.integration.cvm.CvmException;
 import com.primevest.adm.integration.cvm.CvmFiiMonthly;
@@ -129,6 +131,7 @@ public class FiiMonthlyImportService {
         int unchanged = 0;
         Set<Long> funds = new HashSet<>();
         for (int year = from; year <= to; year++) {
+            TaskRun.checkStop(); // ponto de parada (docs/planos/PLANO_TAREFAS.md, D8)
             Optional<Path> zip;
             try {
                 zip = cvm.yearly(CvmDataset.FII_MONTHLY, year);

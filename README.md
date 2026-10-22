@@ -92,6 +92,11 @@ primevest/
   entram depois de você conferir; proventos e eventos da B3 são conferidos com a carteira. A B3 real depende de contrato
   (Pacote de Acesso); até lá, um simulador com os seus extratos (`docs/planos/PLANO_INTEGRACAO_B3.md`)
 
+- ✅ Tarefas (22/10/2026, só administrador): as rotinas do sistema (fechamento, proventos, balanços, índices, Tesouro,
+  cotações, logos, carga inicial, curadoria do catálogo, rotinas da carteira) como tarefas — acompanhamento das rodadas
+  e da agenda da semana, Run, Stop, log de cada rodada e configuração do horário e dos atributos (`/tasks`,
+  `docs/planos/PLANO_TAREFAS.md`)
+
 ### Autenticação e conta
 - ✅ Login via Google (Google Identity Services, ID token)
 - ✅ Login via email/senha com JWT (token de acesso + renovação)
