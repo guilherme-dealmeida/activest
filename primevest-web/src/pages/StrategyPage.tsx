@@ -61,10 +61,10 @@ export const StrategyPage = () => {
   const { showToast } = useToast();
   // Aba na URL (`?aba=reserva`, 17/10/2026): o Rebalanceamento leva direto a cada uma.
   const [params, setParams] = useSearchParams();
-  const activeTab: 'ideal' | 'reserva' = params.get('aba') === 'reserva' ? 'reserva' : 'ideal';
-  const setActiveTab = (tab: 'ideal' | 'reserva') => {
+  const activeTab: 'ideal' | 'reservation' = params.get('tab') === 'reservation' ? 'reservation' : 'ideal';
+  const setActiveTab = (tab: 'ideal' | 'reservation') => {
     const next = new URLSearchParams(params);
-    if (tab === 'reserva') next.set('aba', 'reserva'); else next.delete('aba');
+    if (tab === 'reservation') next.set('tab', 'reservation'); else next.delete('tab');
     setParams(next, { replace: true });
   };
   // Local editing state: { assetTypeId -> { value, typeName } }
@@ -235,10 +235,10 @@ export const StrategyPage = () => {
           Ideal Estratégico
         </button>
         <button
-          onClick={() => setActiveTab('reserva')}
+          onClick={() => setActiveTab('reservation')}
           className={clsx(
             "px-4 py-2 text-sm font-medium rounded-md transition-colors",
-            activeTab === 'reserva' ? "bg-surface-light text-white" : "text-gray-400 hover:text-white hover:bg-surface-light/50"
+            activeTab === 'reservation' ? "bg-surface-light text-white" : "text-gray-400 hover:text-white hover:bg-surface-light/50"
           )}
         >
           Estratégia Reserva
@@ -421,7 +421,7 @@ export const StrategyPage = () => {
       )}
 
       {/* Tab 2: Estratégia Reserva */}
-      {activeTab === 'reserva' && <ReservationStrategyTab />}
+      {activeTab === 'reservation' && <ReservationStrategyTab />}
     </div>
   );
 };

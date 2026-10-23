@@ -369,14 +369,14 @@ public class IndicatorService {
 
     private CurrentCompany currentCompany(Context ctx, List<QuarterRow> quarters) {
         LocalDate today = LocalDate.now(clock);
-        BigDecimal proventos = ctx.proventos12m(today);
+        BigDecimal dividends = ctx.dividends12m(today);
         if (quarters.isEmpty()) {
             return new CurrentCompany(new CompanyBasis(null, null, null, null, null, BigDecimal.ONE,
-                    ctx.asset.unitShares, null, ctx.currentPrice, proventos), null);
+                    ctx.asset.unitShares, null, ctx.currentPrice, dividends), null);
         }
         QuarterRow last = quarters.get(quarters.size() - 1);
         CompanyBasis b = basis(last, quarters, ctx.ratio(last.periodEnd, today), ctx.asset.unitShares,
-                ctx.currentPrice, proventos);
+                ctx.currentPrice, dividends);
         if (last.sharesOutstanding != null && last.sharesOutstanding > 0) {
             return new CurrentCompany(b, null);
         }
@@ -393,7 +393,7 @@ public class IndicatorService {
             }
             CompanyBasis fallback = new CompanyBasis(b.periodEnd(), b.netIncomeParentTtm(), b.equityParent(),
                     b.equityParentStart(), prev.sharesOutstanding, b.sharesRatio(), b.unitShares(),
-                    b.dividendsPaidTtm(), b.price(), b.proventos12m());
+                    b.dividendsPaidTtm(), b.price(), b.dividends12m());
             return new CurrentCompany(fallback, "quantidade de acoes do balanco de "
                     + prev.periodEnd.format(BR) + " (a do ultimo esta em revisao)");
         }
@@ -408,7 +408,7 @@ public class IndicatorService {
                 continue;
             }
             CompanyBasis b = basis(q, quarters, BigDecimal.ONE, ctx.asset.unitShares, ctx.priceAt(q.periodEnd),
-                    ctx.proventos12m(q.periodEnd));
+                    ctx.dividends12m(q.periodEnd));
             out.add(point(period == Period.YEAR ? String.valueOf(q.periodEnd.getYear()) : quarterLabel(q.periodEnd),
                     IndicatorRules.company(indicator, b), q.periodEnd));
         }
@@ -416,11 +416,11 @@ public class IndicatorService {
     }
 
     private static CompanyBasis basis(QuarterRow q, List<QuarterRow> quarters, BigDecimal ratio, int unitShares,
-                                      BigDecimal price, BigDecimal proventos) {
+                                      BigDecimal price, BigDecimal dividends) {
         QuarterRow start = yearBefore(q, quarters);
         return new CompanyBasis(q.periodEnd, q.netIncomeParentTtm, q.equityParent,
                 start == null ? null : start.equityParent, q.sharesOutstanding, ratio, unitShares,
-                q.dividendsPaidTtm, price, proventos);
+                q.dividendsPaidTtm, price, dividends);
     }
 
     /** O balanco de 12 meses antes (inicio do periodo do ROE), com folga de 20 dias. */
@@ -441,9 +441,9 @@ public class IndicatorService {
     // ------------------------------------------------------------------ FII
 
     private FundBasis currentFund(Context ctx, List<MonthRow> months) {
-        BigDecimal proventos = ctx.proventos12m(LocalDate.now(clock));
+        BigDecimal dividends = ctx.dividends12m(LocalDate.now(clock));
         MonthRow last = months.isEmpty() ? null : months.get(months.size() - 1);
-        return fundBasis(last, ctx.currentPrice, proventos);
+        return fundBasis(last, ctx.currentPrice, dividends);
     }
 
     private List<IndicatorPointDTO> fundPoints(Context ctx, List<MonthRow> months, Indicator indicator,
@@ -455,19 +455,19 @@ public class IndicatorService {
                 continue;
             }
             LocalDate end = m.month.plusMonths(1).minusDays(1);
-            FundBasis b = fundBasis(m, ctx.priceAt(end), ctx.proventos12m(end));
+            FundBasis b = fundBasis(m, ctx.priceAt(end), ctx.dividends12m(end));
             out.add(point(period == Period.YEAR ? String.valueOf(m.month.getYear()) : quarterLabel(end),
                     IndicatorRules.fund(indicator, b), end));
         }
         return out;
     }
 
-    private static FundBasis fundBasis(MonthRow m, BigDecimal price, BigDecimal proventos) {
+    private static FundBasis fundBasis(MonthRow m, BigDecimal price, BigDecimal dividends) {
         if (m == null) {
-            return new FundBasis(null, null, null, null, null, null, null, null, null, price, proventos);
+            return new FundBasis(null, null, null, null, null, null, null, null, null, price, dividends);
         }
         return new FundBasis(m.month, m.navPerShare, m.shareholders, m.realEstate, m.realEstateCompanies,
-                m.receivables, m.totalInvested, m.liabilities, m.totalAssets, price, proventos);
+                m.receivables, m.totalInvested, m.liabilities, m.totalAssets, price, dividends);
     }
 
     // ------------------------------------------------------------------ dados
@@ -566,7 +566,7 @@ public class IndicatorService {
         }
 
         /** Proventos por papel com data-com em (ref - 12 meses, ref], na quantidade da data ref. */
-        BigDecimal proventos12m(LocalDate ref) {
+        BigDecimal dividends12m(LocalDate ref) {
             LocalDate from = ref.minusYears(1);
             BigDecimal sum = BigDecimal.ZERO;
             for (CashEvent c : cashEvents) {

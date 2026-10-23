@@ -452,10 +452,10 @@ public class PerformanceService {
             double[] p = ReturnMath.chainUntilGap(r, c.from(), c.to());
             Double pv = Double.isNaN(p[0]) ? null : p[0];
             int until = (int) p[1];
-            Double carteiraAte = pv == null ? null : ReturnMath.chain(c.r(), c.from(), until);
+            Double portfolioUntil = pv == null ? null : ReturnMath.chain(c.r(), c.from(), until);
             rows.add(new TableRowDTO(e.getKey(), e.getValue().name(), false, pct(partial(r, month, c.to())),
                     pct(partial(r, year, c.to())), pct(partial(r, m12, c.to())), pct(pv),
-                    pct(ReturnMath.diff(carteiraAte, pv)),
+                    pct(ReturnMath.diff(portfolioUntil, pv)),
                     pv != null && until < c.to() ? c.date(until) : null));
         }
         return new TableDTO(c.coverage(), c.date(month), c.date(year), c.date(m12), rows);

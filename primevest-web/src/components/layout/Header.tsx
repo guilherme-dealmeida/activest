@@ -13,14 +13,14 @@ import { needsAttention } from '@/utils/integrations';
 
 const routeNames: Record<string, string> = {
   '/dashboard': 'Dashboard',
-  '/rentabilidade': 'Rentabilidade',
+  '/performance': 'Rentabilidade',
   '/portfolio': 'Carteira',
   '/allocation': 'Alocação',
   '/strategy': 'Estratégia de Investimentos',
   '/rebalance': 'Rebalanceamento',
   '/transactions': 'Transações',
   '/ceiling-prices': 'Preço Teto',
-  '/ativos': 'Ativos',
+  '/assets': 'Ativos',
   '/indices': 'Índices',
   '/dividends': 'Dividendos e Proventos',
   '/goals': 'Minhas Metas',

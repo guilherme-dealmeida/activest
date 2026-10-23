@@ -6,7 +6,7 @@
 // e a coluna do PrimeVest ao lado.
 //
 // Uso: node carga/scripts/conferencia_preco_teto.mjs [VALE3 PETR4 ...] [--out docs/preco-teto/x.json]
-// Senha: PRIMEVEST_SENHA do ambiente ou do .env do projeto.
+// Senha: PRIMEVEST_PASSWORD do ambiente ou do .env do projeto.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { ROOT, apiUrls, loadEnv, option } from './lib/env.mjs';
@@ -20,14 +20,14 @@ const OUT = resolve(ROOT, option(args, '--out', `docs/preco-teto/conferencia_pre
 const pedidos = args.filter((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--')));
 const TICKERS = pedidos.length ? pedidos : ['VALE3', 'PETR4', 'ITUB4', 'BBAS3', 'TAEE11', 'WEGE3'];
 
-if (!ENV.PRIMEVEST_SENHA) {
-  console.error('Defina PRIMEVEST_SENHA (ambiente ou .env).');
+if (!ENV.PRIMEVEST_PASSWORD) {
+  console.error('Defina PRIMEVEST_PASSWORD (ambiente ou .env).');
   process.exit(2);
 }
 const login = await fetch(`${API}/api/v1/auth/login`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ email: EMAIL, password: ENV.PRIMEVEST_SENHA }),
+  body: JSON.stringify({ email: EMAIL, password: ENV.PRIMEVEST_PASSWORD }),
 });
 if (!login.ok) {
   console.error(`Login recusado em ${API} (${login.status})`);

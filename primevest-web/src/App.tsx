@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { useAuth } from '@/context/AuthContext';
 
@@ -25,6 +25,7 @@ import { SignupPage } from '@/pages/SignupPage';
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
 import { LegalPage } from '@/pages/LegalPage';
 import { TasksPage } from '@/pages/TasksPage';
+import { isLegacyUrl, translateLegacyUrl } from '@/utils/legacyUrl';
 
 /** Tela só de administrador (Tarefas, D14): quem não é volta ao Dashboard. */
 const AdminOnly = ({ children }: { children: JSX.Element }) => {
@@ -40,18 +41,23 @@ const ProtectedRoute = () => {
 };
 
 function App() {
+  const { pathname, search, hash } = useLocation();
+  // Endereço antigo, em português (rota ou parâmetro): vai para o equivalente em inglês (PLANO_NOMES_EM_INGLES, E4)
+  if (isLegacyUrl(pathname, search)) {
+    return <Navigate to={translateLegacyUrl(pathname, search) + hash} replace />;
+  }
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/cadastro" element={<SignupPage />} />
-      <Route path="/esqueci-senha" element={<ForgotPasswordPage />} />
-      <Route path="/termos" element={<LegalPage kind="termos" />} />
-      <Route path="/privacidade" element={<LegalPage kind="privacidade" />} />
+      <Route path="/signup" element={<SignupPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/terms" element={<LegalPage kind="terms" />} />
+      <Route path="/privacy" element={<LegalPage kind="privacy" />} />
       
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/rentabilidade" element={<PerformancePage />} />
+        <Route path="/performance" element={<PerformancePage />} />
         <Route path="/portfolio" element={<PortfolioPage />} />
         <Route path="/allocation" element={<AllocationPage />} />
         <Route path="/strategy" element={<StrategyPage />} />
@@ -59,11 +65,8 @@ function App() {
         <Route path="/transactions" element={<TransactionsPage />} />
         <Route path="/ceiling-prices" element={<CeilingPricesPage />} />
         <Route path="/ceiling-prices/:ticker" element={<CeilingPriceDetailPage />} />
-        <Route path="/ativos" element={<IssuerPage />} />
-        <Route path="/ativos/:ticker" element={<IssuerPage />} />
-        {/* A tela se chamava Emissoras (18/10/2026): links salvos, histórico e notificações antigas continuam valendo */}
-        <Route path="/emissoras" element={<LegacyIssuerRedirect />} />
-        <Route path="/emissoras/:ticker" element={<LegacyIssuerRedirect />} />
+        <Route path="/assets" element={<IssuerPage />} />
+        <Route path="/assets/:ticker" element={<IssuerPage />} />
         <Route path="/indices" element={<IndicesPage />} />
         <Route path="/dividends" element={<DividendsPage />} />
         <Route path="/goals" element={<GoalsPage />} />
@@ -77,11 +80,5 @@ function App() {
   );
 }
 
-/** /emissoras[/TICKER][?...] → /ativos[/TICKER][?...], mantendo filtros e período. */
-const LegacyIssuerRedirect = () => {
-  const { ticker } = useParams();
-  const { search } = useLocation();
-  return <Navigate to={`/ativos${ticker ? `/${encodeURIComponent(ticker)}` : ''}${search}`} replace />;
-};
 
 export default App;

@@ -18,13 +18,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class IndicatorRulesTest {
 
-    static final LocalDate DEZ_2025 = LocalDate.of(2025, 12, 31);
+    static final LocalDate DEC_2025 = LocalDate.of(2025, 12, 31);
 
     /** Petrobras, DFP 2025: lucro da controladora, PL da controladora, acoes, dividendos + JCP da DVA. */
-    static CompanyBasis petrobras(BigDecimal price, BigDecimal proventos) {
-        return new CompanyBasis(DEZ_2025, new BigDecimal("110129000000"), new BigDecimal("415786000000"),
+    static CompanyBasis petrobras(BigDecimal price, BigDecimal dividends) {
+        return new CompanyBasis(DEC_2025, new BigDecimal("110129000000"), new BigDecimal("415786000000"),
                 new BigDecimal("366006000000"), 12_888_732_761L, BigDecimal.ONE, 1,
-                new BigDecimal("41236000000"), price, proventos);
+                new BigDecimal("41236000000"), price, dividends);
     }
 
     static BigDecimal v(Indicator i, CompanyBasis b) {
@@ -48,66 +48,66 @@ class IndicatorRulesTest {
 
     @Test
     @DisplayName("Sem provento no periodo: DY = 0, nao nulo (os 23 FIIs que ainda nao distribuiram)")
-    void semProventoEZero() {
+    void withoutDividendIsZero() {
         Value dy = IndicatorRules.company(Indicator.DY, petrobras(new BigDecimal("30.00"), BigDecimal.ZERO));
         assertThat(dy.value()).isEqualByComparingTo("0");
         assertThat(dy.note()).isNull();
 
-        FundBasis fundo = new FundBasis(LocalDate.of(2026, 8, 1), new BigDecimal("78.0873"), 182, null, null, null,
+        FundBasis fundEntity = new FundBasis(LocalDate.of(2026, 8, 1), new BigDecimal("78.0873"), 182, null, null, null,
                 null, null, null, new BigDecimal("95.00"), BigDecimal.ZERO);
-        assertThat(IndicatorRules.fund(Indicator.DY, fundo).value()).isEqualByComparingTo("0");
+        assertThat(IndicatorRules.fund(Indicator.DY, fundEntity).value()).isEqualByComparingTo("0");
     }
 
     @Test
     @DisplayName("Nulo com motivo so quando falta dado: preco, acoes, lucro negativo, informe")
-    void nulosComMotivo() {
-        Value semPreco = IndicatorRules.company(Indicator.DY, petrobras(null, BigDecimal.ONE));
-        assertThat(semPreco.value()).isNull();
-        assertThat(semPreco.note()).isEqualTo("sem cotacao");
+    void nullsWithReason() {
+        Value withoutPrice = IndicatorRules.company(Indicator.DY, petrobras(null, BigDecimal.ONE));
+        assertThat(withoutPrice.value()).isNull();
+        assertThat(withoutPrice.note()).isEqualTo("sem cotacao");
 
-        CompanyBasis prejuizo = new CompanyBasis(DEZ_2025, new BigDecimal("-1000"), new BigDecimal("5000"), null,
+        CompanyBasis loss = new CompanyBasis(DEC_2025, new BigDecimal("-1000"), new BigDecimal("5000"), null,
                 100L, BigDecimal.ONE, 1, new BigDecimal("10"), new BigDecimal("10"), BigDecimal.ZERO);
-        assertThat(IndicatorRules.company(Indicator.LPA, prejuizo).value()).isEqualByComparingTo("-10");
-        assertThat(IndicatorRules.company(Indicator.PL, prejuizo).note()).isEqualTo("lucro 12 meses negativo ou zero");
-        assertThat(IndicatorRules.company(Indicator.PAYOUT, prejuizo).value()).isNull();
-        assertThat(IndicatorRules.company(Indicator.ROE, prejuizo).note())
+        assertThat(IndicatorRules.company(Indicator.LPA, loss).value()).isEqualByComparingTo("-10");
+        assertThat(IndicatorRules.company(Indicator.PL, loss).note()).isEqualTo("lucro 12 meses negativo ou zero");
+        assertThat(IndicatorRules.company(Indicator.PAYOUT, loss).value()).isNull();
+        assertThat(IndicatorRules.company(Indicator.ROE, loss).note())
                 .isEqualTo("sem patrimonio do inicio e do fim do periodo");
 
-        CompanyBasis semAcoes = new CompanyBasis(DEZ_2025, new BigDecimal("1000"), new BigDecimal("5000"), null,
+        CompanyBasis withoutShares = new CompanyBasis(DEC_2025, new BigDecimal("1000"), new BigDecimal("5000"), null,
                 null, BigDecimal.ONE, 1, null, new BigDecimal("10"), BigDecimal.ZERO);
-        assertThat(IndicatorRules.company(Indicator.LPA, semAcoes).note())
+        assertThat(IndicatorRules.company(Indicator.LPA, withoutShares).note())
                 .isEqualTo("sem quantidade de acoes (escala em revisao)");
-        assertThat(IndicatorRules.company(Indicator.PVP, semAcoes).value()).isNull();
+        assertThat(IndicatorRules.company(Indicator.PVP, withoutShares).value()).isNull();
 
-        FundBasis semInforme = new FundBasis(null, null, null, null, null, null, null, null, null,
+        FundBasis withoutReport = new FundBasis(null, null, null, null, null, null, null, null, null,
                 new BigDecimal("100"), BigDecimal.ZERO);
-        assertThat(IndicatorRules.fund(Indicator.PVP, semInforme).note()).isEqualTo("sem informe mensal");
-        assertThat(IndicatorRules.fund(Indicator.DY, semInforme).value()).isEqualByComparingTo("0");
+        assertThat(IndicatorRules.fund(Indicator.PVP, withoutReport).note()).isEqualTo("sem informe mensal");
+        assertThat(IndicatorRules.fund(Indicator.DY, withoutReport).value()).isEqualByComparingTo("0");
     }
 
     @Test
     @DisplayName("Payout com dividendos negativos na DVA (reapresentacao): nulo, nao negativo")
-    void payoutNegativo() {
-        CompanyBasis b = new CompanyBasis(DEZ_2025, new BigDecimal("1000"), new BigDecimal("5000"), null, 100L,
+    void negativePayout() {
+        CompanyBasis b = new CompanyBasis(DEC_2025, new BigDecimal("1000"), new BigDecimal("5000"), null, 100L,
                 BigDecimal.ONE, 1, new BigDecimal("-191"), new BigDecimal("10"), BigDecimal.ZERO);
         assertThat(IndicatorRules.company(Indicator.PAYOUT, b).value()).isNull();
     }
 
     @Test
     @DisplayName("Unit: LPA e VPA x acoes da unit; desdobramento depois do balanco dobra a quantidade")
-    void unitEDesdobramento() {
-        CompanyBasis unit = new CompanyBasis(DEZ_2025, new BigDecimal("1000"), new BigDecimal("5000"), null, 1000L,
+    void unitAndSplit() {
+        CompanyBasis unit = new CompanyBasis(DEC_2025, new BigDecimal("1000"), new BigDecimal("5000"), null, 1000L,
                 BigDecimal.ONE, 5, null, new BigDecimal("20"), BigDecimal.ZERO);
         assertThat(v(Indicator.LPA, unit)).isEqualByComparingTo("5");   // 1 por acao x 5
         assertThat(v(Indicator.PL, unit)).isEqualByComparingTo("4");    // 20 / 5
 
-        CompanyBasis desdobrada = new CompanyBasis(DEZ_2025, new BigDecimal("1000"), new BigDecimal("5000"), null,
+        CompanyBasis split = new CompanyBasis(DEC_2025, new BigDecimal("1000"), new BigDecimal("5000"), null,
                 1000L, new BigDecimal("2"), 1, null, new BigDecimal("10"), BigDecimal.ZERO);
-        assertThat(v(Indicator.LPA, desdobrada)).isEqualByComparingTo("0.5");
+        assertThat(v(Indicator.LPA, split)).isEqualByComparingTo("0.5");
 
-        CompanyBasis semComposicao = new CompanyBasis(DEZ_2025, new BigDecimal("1000"), new BigDecimal("5000"), null,
+        CompanyBasis withoutComposition = new CompanyBasis(DEC_2025, new BigDecimal("1000"), new BigDecimal("5000"), null,
                 1000L, BigDecimal.ONE, 0, null, new BigDecimal("10"), BigDecimal.ZERO);
-        assertThat(IndicatorRules.company(Indicator.LPA, semComposicao).note()).isEqualTo("unit sem composicao");
+        assertThat(IndicatorRules.company(Indicator.LPA, withoutComposition).note()).isEqualTo("unit sem composicao");
     }
 
     @Test
@@ -137,7 +137,7 @@ class IndicatorRulesTest {
 
     @Test
     @DisplayName("Rotulo do trimestre e fracionario")
-    void rotulos() {
+    void labels() {
         assertThat(IndicatorService.quarterLabel(LocalDate.of(2026, 6, 30))).isEqualTo("2T26");
         assertThat(IndicatorService.quarterLabel(LocalDate.of(2025, 2, 28))).isEqualTo("1T25");
         assertThat(IndicatorService.baseTicker("PETR4F")).isEqualTo("PETR4");

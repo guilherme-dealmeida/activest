@@ -22,7 +22,7 @@ class BcbInstitutionsClientTest {
 
     @Test
     @DisplayName("Cadastro: instituicoes individuais pela raiz do CNPJ; linhas C0 viram conglomerados")
-    void cadastro() {
+    void signupData() {
         BcbInstitutionsClient.Registry r = BcbFixtures.registry();
 
         assertThat(r.baseMonth()).isEqualTo("202606");
@@ -30,11 +30,11 @@ class BcbInstitutionsClientTest {
         assertThat(r.groups()).containsOnlyKeys("C0084693", "C0082475", "C0080745", "C0084686");
         assertThat(r.groups().get("C0084693").name()).isEqualTo("NU PAGAMENTOS - PRUDENCIAL");
         assertThat(r.groups().get("C0084693").leaderRoot()).isEqualTo("18236120");
-        BcbInstitution nuFinanceira = r.institutions().stream()
+        BcbInstitution nuFinance = r.institutions().stream()
                 .filter(i -> i.cnpjRoot().equals("30680829")).findFirst().orElseThrow();
-        assertThat(nuFinanceira.segment()).isEqualTo("Sociedade de Crédito, Financiamento e Investimento");
-        assertThat(nuFinanceira.groupCode()).isEqualTo("C0084693");
-        assertThat(nuFinanceira.situation()).isEqualTo("A");
+        assertThat(nuFinance.segment()).isEqualTo("Sociedade de Crédito, Financiamento e Investimento");
+        assertThat(nuFinance.groupCode()).isEqualTo("C0084693");
+        assertThat(nuFinance.situation()).isEqualTo("A");
     }
 
     @Test
@@ -46,7 +46,7 @@ class BcbInstitutionsClientTest {
 
     @Test
     @DisplayName("Raiz do CNPJ: de raiz curta, de CNPJ formatado ou de 14 digitos; codigo de conglomerado nao e CNPJ")
-    void raiz() {
+    void root() {
         assertThat(BcbInstitutionsClient.root8("360305")).isEqualTo("00360305");
         assertThat(BcbInstitutionsClient.root8("33.264.668/0001-03")).isEqualTo("33264668");
         assertThat(BcbInstitutionsClient.root8("00000000000191")).isEqualTo("00000000");
@@ -56,7 +56,7 @@ class BcbInstitutionsClientTest {
 
     @Test
     @DisplayName("Data-base mais recente: a nao publicada (ou fonte fora do ar) e pulada e vale a anterior em disco")
-    void dataBaseMaisRecente() throws Exception {
+    void latestBaseDate() throws Exception {
         Path ifdata = Files.createDirectories(tmp.resolve("ifdata"));
         Files.writeString(ifdata.resolve("cadastro_202606.json"), BcbFixtures.read("ifdata_cadastro_202606.json"));
         BcbInstitutionsClient client = new BcbInstitutionsClient("http://127.0.0.1:9", "http://127.0.0.1:9", tmp,
@@ -70,7 +70,7 @@ class BcbInstitutionsClientTest {
 
     @Test
     @DisplayName("Sem nenhuma data-base em disco e com a fonte fora do ar, a falha sobe")
-    void semFonte() {
+    void withoutSource() {
         BcbInstitutionsClient client = new BcbInstitutionsClient("http://127.0.0.1:9", "http://127.0.0.1:9", tmp,
                 Duration.ofSeconds(1), Clock.fixed(Instant.parse("2026-10-09T12:00:00Z"), ZoneId.of("America/Sao_Paulo")));
 
@@ -79,7 +79,7 @@ class BcbInstitutionsClientTest {
 
     @Test
     @DisplayName("Resposta vazia (data-base ainda nao publicada) nao fica no cache")
-    void vazia() {
+    void empty() {
         assertThat(BcbInstitutionsClient.parseRegistry("202609", "{\"value\":[]}").institutions()).isEmpty();
     }
 }

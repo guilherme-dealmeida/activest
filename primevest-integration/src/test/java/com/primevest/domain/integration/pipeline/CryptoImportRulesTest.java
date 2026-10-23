@@ -6,7 +6,7 @@ import com.primevest.domain.integration.source.ImportedMovement;
 import com.primevest.domain.integration.source.MovementKind;
 import com.primevest.domain.integration.source.MovementSide;
 import com.primevest.domain.transaction.TransactionType;
-import com.primevest.support.ContaSintetica;
+import com.primevest.support.SyntheticAccount;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -19,34 +19,34 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
-import static com.primevest.support.ContaSintetica.trade;
-import static com.primevest.support.ContaSintetica.tradeContra;
+import static com.primevest.support.SyntheticAccount.trade;
+import static com.primevest.support.SyntheticAccount.tradeAgainst;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Regras R2 a R8 sobre dados sinteticos (docs/planos/PLANO_CRIPTO_BINANCE.md, 4.4). */
 class CryptoImportRulesTest {
 
-    private static final AssetType CRIPTO = AssetType.builder().id(1L).name("CRIPTO").build();
-    private static final AssetType ACAO = AssetType.builder().id(2L).name("ACAO").build();
+    private static final AssetType CRYPTO = AssetType.builder().id(1L).name("CRIPTO").build();
+    private static final AssetType STOCK = AssetType.builder().id(2L).name("ACAO").build();
 
-    private static final Map<String, Asset> CATALOGO = Map.of(
-        "BTC", Asset.builder().id(10L).ticker("BTC").assetType(CRIPTO).build(),
-        "ETH", Asset.builder().id(11L).ticker("ETH").assetType(CRIPTO).build(),
-        "USDT", Asset.builder().id(12L).ticker("USDT").assetType(CRIPTO).build(),
-        "PETR4", Asset.builder().id(20L).ticker("PETR4").assetType(ACAO).build());
+    private static final Map<String, Asset> CATALOG = Map.of(
+        "BTC", Asset.builder().id(10L).ticker("BTC").assetType(CRYPTO).build(),
+        "ETH", Asset.builder().id(11L).ticker("ETH").assetType(CRYPTO).build(),
+        "USDT", Asset.builder().id(12L).ticker("USDT").assetType(CRYPTO).build(),
+        "PETR4", Asset.builder().id(20L).ticker("PETR4").assetType(STOCK).build());
 
-    private static final Function<String, Optional<Asset>> CATALOGO_FN = t -> Optional.ofNullable(CATALOGO.get(t));
+    private static final Function<String, Optional<Asset>> CATALOG_FN = t -> Optional.ofNullable(CATALOG.get(t));
 
     private static ImportRules.Result map(ImportedMovement m) {
-        return CryptoImportRules.map(m, CATALOGO_FN);
+        return CryptoImportRules.map(m, CATALOG_FN);
     }
 
     @Nested
-    class TaxaR2 {
+    class RateR2 {
 
         @Test
         @DisplayName("Taxa no proprio ativo: quantidade liquida e taxa em reais; total + taxa = o que foi pago")
-        void taxaNoAtivo() {
+        void feeInAsset() {
             var r = map(trade("t:1", "BTC", MovementSide.BUY, "0.00200000", "800.00", "0.00000200", "BTC",
                 "2024-01-05T15:00:00Z"));
 
@@ -61,7 +61,7 @@ class CryptoImportRulesTest {
 
         @Test
         @DisplayName("Taxa em reais: quantidade cheia e a taxa como veio")
-        void taxaEmReais() {
+        void feeInReais() {
             var t = map(trade("t:2", "ETH", MovementSide.BUY, "0.05", "600.00", "0.60", "BRL",
                 "2024-02-01T15:00:00Z")).transaction();
 
@@ -72,7 +72,7 @@ class CryptoImportRulesTest {
 
         @Test
         @DisplayName("Venda com taxa em reais vira SELL com a quantidade cheia")
-        void vendaComTaxaEmReais() {
+        void saleWithFeeInReais() {
             var t = map(trade("t:4", "BTC", MovementSide.SELL, "0.0005", "210.00", "0.21", "BRL",
                 "2024-03-01T15:00:00Z")).transaction();
 
@@ -83,7 +83,7 @@ class CryptoImportRulesTest {
 
         @Test
         @DisplayName("Venda com taxa no proprio ativo: nao importa (caso nao observado)")
-        void vendaComTaxaNoAtivo() {
+        void saleWithFeeInAsset() {
             var r = map(trade("t:5", "BTC", MovementSide.SELL, "0.0005", "210.00", "0.0000005", "BTC",
                 "2024-03-01T15:00:00Z"));
 
@@ -94,7 +94,7 @@ class CryptoImportRulesTest {
 
     @Test
     @DisplayName("R3: data de negocio no fuso de Brasilia; o instante fica em UTC")
-    void fusoDeBrasilia() {
+    void brasiliaTimeZone() {
         // 01:30 UTC do dia 6 = 22:30 do dia 5 em Brasilia.
         var t = map(trade("t:6", "BTC", MovementSide.BUY, "0.001", "400.00", null, null,
             "2024-01-06T01:30:00Z")).transaction();
@@ -106,7 +106,7 @@ class CryptoImportRulesTest {
     @Test
     @DisplayName("R4: Convert com taxa embutida — preco = reais / quantidade, taxa zero, total bate ao centavo")
     void convert() {
-        ImportedMovement c = ContaSintetica.movimentos().stream()
+        ImportedMovement c = SyntheticAccount.movements().stream()
             .filter(m -> m.kind() == MovementKind.CONVERT).findFirst().orElseThrow();
 
         var t = map(c).transaction();
@@ -118,27 +118,27 @@ class CryptoImportRulesTest {
     }
 
     @Nested
-    class NaoImportadas {
+    class NotImported {
 
         @Test
         @DisplayName("R6: cripto contra cripto nao tem valor em reais")
-        void criptoContraCripto() {
-            var r = map(tradeContra("t:7", "ETH", MovementSide.BUY, "0.1", "BTC", "0.005", null, null,
+        void cryptoAgainstCrypto() {
+            var r = map(tradeAgainst("t:7", "ETH", MovementSide.BUY, "0.1", "BTC", "0.005", null, null,
                 "2024-01-01T12:00:00Z"));
             assertThat(r.reason()).contains("Sem valor em reais").contains("BTC");
         }
 
         @Test
         @DisplayName("R6: par contra stablecoin tambem fica de fora (USDT e cripto, D3)")
-        void contraStablecoin() {
-            var r = map(tradeContra("t:8", "BTC", MovementSide.BUY, "0.001", "USDT", "65.00", null, null,
+        void againstStablecoin() {
+            var r = map(tradeAgainst("t:8", "BTC", MovementSide.BUY, "0.001", "USDT", "65.00", null, null,
                 "2024-01-01T12:00:00Z"));
             assertThat(r.reason()).contains("USDT");
         }
 
         @Test
         @DisplayName("R7: ticker fora do catalogo nao importa e nao cria ativo")
-        void foraDoCatalogo() {
+        void outOfCatalog() {
             var r = map(trade("t:9", "NAOEXISTE", MovementSide.BUY, "1", "10.00", null, null,
                 "2024-01-01T12:00:00Z"));
             assertThat(r.reason()).contains("NAOEXISTE").contains("catálogo");
@@ -146,7 +146,7 @@ class CryptoImportRulesTest {
 
         @Test
         @DisplayName("R7: ticker do catalogo que nao e cripto nao importa")
-        void naoECripto() {
+        void notCrypto() {
             var r = map(trade("t:10", "PETR4", MovementSide.BUY, "1", "30.00", null, null,
                 "2024-01-01T12:00:00Z"));
             assertThat(r.reason()).contains("não é criptomoeda");
@@ -154,7 +154,7 @@ class CryptoImportRulesTest {
 
         @Test
         @DisplayName("R8: taxa em outro ativo (BNB) precisa do preco dele em reais")
-        void taxaEmOutroAtivo() {
+        void feeInOtherAsset() {
             var r = map(trade("t:11", "BTC", MovementSide.BUY, "0.001", "400.00", "0.0001", "BNB",
                 "2024-01-01T12:00:00Z"));
             assertThat(r.reason()).contains("BNB").contains("R8");
@@ -162,19 +162,19 @@ class CryptoImportRulesTest {
 
         @Test
         @DisplayName("Transferencias, rendimentos e depositos em reais nao viram transacao")
-        void outrosTipos() {
-            Instant agora = Instant.parse("2024-01-01T12:00:00Z");
+        void otherTypes() {
+            Instant now = Instant.parse("2024-01-01T12:00:00Z");
             for (MovementKind k : new MovementKind[] {MovementKind.CRYPTO_DEPOSIT, MovementKind.CRYPTO_WITHDRAW,
                                                       MovementKind.REWARD, MovementKind.FIAT_DEPOSIT}) {
                 var r = map(new ImportedMovement("t:" + k, k, "BTC", MovementSide.BUY, BigDecimal.ONE, "BRL",
-                    BigDecimal.TEN, null, null, agora, "{}"));
+                    BigDecimal.TEN, null, null, now, "{}"));
                 assertThat(r.mapped()).as(k.name()).isFalse();
             }
         }
 
         @Test
         @DisplayName("4.5: diferenca acima de um centavo entre o calculado e o cobrado nao importa")
-        void diferencaAcimaDoAceito() {
+        void differenceAboveAccepted() {
             // 1 bilhao de unidades a um preco de 9 casas: com 8 casas no preco o
             // total foge mais de um centavo — limite conhecido (6.12).
             var r = map(trade("t:12", "USDT", MovementSide.BUY, "1000000000", "123.456789012", null, null,

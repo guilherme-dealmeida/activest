@@ -1,6 +1,6 @@
 package com.primevest.adm.task;
 
-import com.primevest.adm.domain.dividend.ProventosCatalogService;
+import com.primevest.adm.domain.dividend.DividendCatalogService;
 import com.primevest.domain.task.TaskHandler;
 import com.primevest.domain.task.TaskRunContext;
 import com.primevest.domain.task.TaskSkippedException;
@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class FnetStatusSyncTask implements TaskHandler {
 
-    private final ProventosCatalogService proventos;
+    private final DividendCatalogService dividends;
 
     @Override
     public String type() {
@@ -27,14 +27,14 @@ public class FnetStatusSyncTask implements TaskHandler {
 
     @Override
     public void run(TaskRunContext ctx) {
-        int failures = proventos.refreshFnetStatus(ctx.reason(), ctx.bool("ONLY_MISSING", false));
+        int failures = dividends.refreshFnetStatus(ctx.reason(), ctx.bool("ONLY_MISSING", false));
         if (failures > 0) {
             // as falhas ficam com o arquivo anterior; a rodada abaixo usa o que houver
             log.warn("Proventos: situacao do FNET com {} fundos sem resposta", failures);
         }
         String summary = "situacao do FNET: " + failures + " fundo(s) sem resposta";
         if (ctx.bool("WITH_DIVIDENDS_REREAD", true)) {
-            var result = proventos.syncAll(ctx.reason(), true);
+            var result = dividends.syncAll(ctx.reason(), true);
             if (result == null) {
                 throw new TaskSkippedException("Situação do FNET atualizada (" + failures + " falhas), mas já havia "
                     + "uma rodada completa de proventos em andamento: a releitura dos avisos ficou para a próxima.");

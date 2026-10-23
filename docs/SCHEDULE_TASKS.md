@@ -116,8 +116,8 @@ hora, em segundo plano.
 | | |
 |---|---|
 | **Quando** | 20:00, todos os dias |
-| **Classe** | tarefa `DIVIDENDS_SYNC` → `DividendsSyncTask` → `ProventosCatalogService.syncAll` → `CvmPaymentDateService.run(ano anterior, ano corrente)` (atributo `WITH_CVM_PAYMENT_DATES`) |
-| **Config** | `DIVIDENDS_SYNC` (atributos `FNET_REREAD_ALL`, `WITH_CVM_PAYMENT_DATES`) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 20 * * *`; o tipo desligado desliga também o sob demanda [A8]; `primevest.proventos.scope = ALL` (todo ativo ligado a emissor + o que já esteve em carteira) ou `HELD` (só o que já esteve em carteira); `primevest.proventos.pause-millis = 1000` |
+| **Classe** | tarefa `DIVIDENDS_SYNC` → `DividendsSyncTask` → `DividendCatalogService.syncAll` → `CvmPaymentDateService.run(ano anterior, ano corrente)` (atributo `WITH_CVM_PAYMENT_DATES`) |
+| **Config** | `DIVIDENDS_SYNC` (atributos `FNET_REREAD_ALL`, `WITH_CVM_PAYMENT_DATES`) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 20 * * *`; o tipo desligado desliga também o sob demanda [A8]; `primevest.dividends.scope = ALL` (todo ativo ligado a emissor + o que já esteve em carteira) ou `HELD` (só o que já esteve em carteira); `primevest.dividends.pause-millis = 1000` |
 | **Fontes** | B3 (proventos ~12 meses, desdobramentos, grupamentos, bonificações), FNET (avisos de FII — fonte principal do FII), CVM "Relatórios Proventos" (data de pagamento de ação, 2022+) |
 | **Grava** | `asset_cash_events`, `asset_stock_events`; arquivos em `carga/data/` (`b3/proventos-12m`, `fnet`, `fnet/status` — situação de cada aviso no FNET, 21/10/2026 —, `cvm/ipe`, `cvm/proventos`) |
 | **Ao fim** | publica "catálogo mudou" (origem `PROVENTOS`) → a app-api refaz proventos e valorização das posições envolvidas |
@@ -196,8 +196,8 @@ o arquivo existente.
 
 | | |
 |---|---|
-| **Quando** | a cada mensagem no canal Redis `primevest:proventos:sob-demanda`, publicada pela app-api depois de cada transação |
-| **Classe** | `AdmMessagingConfig.onDemandListener` → `ProventosCatalogService.requestOnDemand(assetId)` → `AssetLogoService.fetchIfMissing(assetId)` |
+| **Quando** | a cada mensagem no canal Redis `primevest:dividends:on-demand`, publicada pela app-api depois de cada transação |
+| **Classe** | `AdmMessagingConfig.onDemandListener` → `DividendCatalogService.requestOnDemand(assetId)` → `AssetLogoService.fetchIfMissing(assetId)` |
 
 **Função.** Fila única: sincroniza os proventos/eventos do ativo da transação e baixa o logo se ele não tiver; responde
 com "catálogo mudou".
@@ -234,7 +234,7 @@ refaz a curva da renda fixa privada ([B3]).
 |---|---|
 | **Quando** | 08:00, todos os dias (o arquivo sai ~07:20 com o D-1), e na subida da adm-api quando o último PU tem mais de 4 dias |
 | **Classe** | tarefa `TREASURY_PRICES` → `TreasuryPricesTask` (recuperação: `needsRecovery`) → `TreasuryPriceService.importRecent` |
-| **Tarefa** | `TREASURY_PRICES` (atributo `FROM_YEAR`; `tesouro.*`) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 8 * * *` |
+| **Tarefa** | `TREASURY_PRICES` (atributo `FROM_YEAR`; `treasury.*`) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 8 * * *` |
 | **Fonte** | Tesouro Transparente, `PrecoTaxaTesouroDireto.csv` (todo o histórico, ~14 MB; só baixado se mudou) |
 | **Grava** | `asset_price_history` (`source = TESOURO`, PU de venda), `assets.current_price` e `carga/data/tesouro/` |
 | **Ao fim** | publica "catálogo mudou" (`FECHAMENTO`) com os títulos cujo preço mudou → a app-api revaloriza o Tesouro |
@@ -268,14 +268,14 @@ do preço do Preço Teto e da tela de Emissoras (`docs/planos/PLANO_PRECO_TETO.m
 | | |
 |---|---|
 | **Quando** | 03:00, todo domingo (21/10/2026) |
-| **Classe** | tarefa `FNET_STATUS_SYNC` → `FnetStatusSyncTask` → `ProventosCatalogService.refreshFnetStatus(..., ONLY_MISSING)` e depois `syncAll(..., true)` (`WITH_DIVIDENDS_REREAD`) |
+| **Classe** | tarefa `FNET_STATUS_SYNC` → `FnetStatusSyncTask` → `DividendCatalogService.refreshFnetStatus(..., ONLY_MISSING)` e depois `syncAll(..., true)` (`WITH_DIVIDENDS_REREAD`) |
 | **Tarefa** | `FNET_STATUS_SYNC` (`fnet.status-pause-millis` = 3 s entre fundos) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 3 * * SUN` |
 | **Fonte** | lista de avisos de cada fundo no FNET (`pesquisarGerenciadorDocumentosDados`: `status` AC/IC/CC) e os XML em `carga/data/fnet` |
 | **Grava** | `carga/data/fnet/status/{CNPJ}.json` (situação de cada aviso) e, na rodada de proventos, o que mudou nos eventos (R10: pagamento retificado; R11: aviso inativado sob o CNPJ de outro fundo) |
 
 **Função.** (1) Relê a situação de todos os fundos com aviso em disco (~1 h: uma busca por vez, com pausa — o FNET
 segura buscas seguidas; quem falhar fica com o arquivo anterior). (2) Roda a rodada de proventos relendo **todos** os
-avisos em disco (`fnet=todos`, ~40 min), idempotente: absorve as retificações e não duplica.
+avisos em disco (`fnet=all`, ~40 min), idempotente: absorve as retificações e não duplica.
 
 **Propósito.** A rotina diária [A4] só relê a situação do fundo quando a B3 mostra provento novo; a retificação que só
 muda o pagamento e o aviso inativado depois ficavam esperando (`docs/PENDENCIAS.md` 33.3,
@@ -316,7 +316,7 @@ cotação.
 
 | | |
 |---|---|
-| **Quando** | a cada mensagem no canal Redis `primevest:catalogo:ativos`, publicada pela adm-api (`{origin: PROVENTOS\|FECHAMENTO\|INDICES, assetIds, indexCodes}`) |
+| **Quando** | a cada mensagem no canal Redis `primevest:catalog:assets`, publicada pela adm-api (`{origin: PROVENTOS\|FECHAMENTO\|INDICES, assetIds, indexCodes}`) |
 | **Classe** | `CatalogMessagingConfig` → `PositionRefreshService` |
 
 **Função.** `PROVENTOS` → refaz proventos e valorização das posições dos ativos citados; `FECHAMENTO` → só a

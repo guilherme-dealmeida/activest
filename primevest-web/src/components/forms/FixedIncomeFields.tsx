@@ -99,9 +99,9 @@ export const FixedIncomeFields = ({
   values, lockedTerms, readOnly = false, showIssuer = true, showRate = true, ticker,
   distributorReadOnly, distributorOptions, distributorWarning, onChange
 }: Props) => {
-  const precisaIndice = values.rateType === 'POS_FIXADO' || values.rateType === 'HIBRIDO';
+  const needsIndex = values.rateType === 'POS_FIXADO' || values.rateType === 'HIBRIDO';
   const { label, hint } = rateLabel(values.rateType, values.indexer);
-  const travado = readOnly || lockedTerms;
+  const locked = readOnly || lockedTerms;
 
   return (
     <div className="rounded-md border border-accent/20 bg-accent/5 p-4 space-y-4">
@@ -169,14 +169,14 @@ export const FixedIncomeFields = ({
         label="Vencimento"
         type="date"
         value={values.maturityDate}
-        disabled={travado}
+        disabled={locked}
         onChange={(e) => onChange({ maturityDate: e.target.value })}
       />
 
       <Select
         label="Como remunera"
         value={values.rateType ?? ''}
-        disabled={travado}
+        disabled={locked}
         onChange={(e) => {
           const rt = (e.target.value || null) as RateType | null;
           // Prefixado não tem índice: limpa para não enviar combinação que o
@@ -188,11 +188,11 @@ export const FixedIncomeFields = ({
         {RATE_TYPES.map(rt => <option key={rt.value} value={rt.value}>{rt.label}</option>)}
       </Select>
 
-        {precisaIndice && (
+        {needsIndex && (
           <Select
             label="Índice"
             value={values.indexer ?? ''}
-            disabled={travado}
+            disabled={locked}
             onChange={(e) => onChange({ indexer: (e.target.value || null) as Indexer | null })}
           >
             <option value="">Selecione</option>

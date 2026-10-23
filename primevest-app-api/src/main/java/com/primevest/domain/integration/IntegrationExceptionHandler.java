@@ -27,12 +27,12 @@ public class IntegrationExceptionHandler {
      */
     @ExceptionHandler(BinanceException.class)
     public ResponseEntity<ErrorResponse> handleBinance(BinanceException ex) {
-        return GlobalExceptionHandler.resposta(HttpStatus.BAD_GATEWAY, ex.getMessage(), null);
+        return GlobalExceptionHandler.response(HttpStatus.BAD_GATEWAY, ex.getMessage(), null);
     }
 
     /** Chave-mestra ausente ou credencial que nao decifra: problema do servidor. */
     @ExceptionHandler(CredentialUnavailableException.class)
     public ResponseEntity<ErrorResponse> handleCredentialUnavailable(CredentialUnavailableException ex) {
-        return GlobalExceptionHandler.resposta(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), null);
+        return GlobalExceptionHandler.response(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), null);
     }
 }

@@ -131,12 +131,12 @@ public class TransactionService {
         if (asset == null || portfolio == null) {
             return List.of();
         }
-        LocalDate hoje = LocalDate.now();
+        LocalDate today = LocalDate.now();
         return fixedIncomeNoteRepository.findByUserIdAndAssetId(userId, asset.getId()).stream()
             .flatMap(note -> portfolioAssetRepository.findByPortfolioIdAndNoteId(portfolio.getId(), note.getId())
                 .map(pa -> new NoteOptionDTO(note.getId(), issuerName(note), note.getMaturityDate(),
                     note.getRateType(), note.getIndexer(), note.getIndexerRate(), pa.isSettled(),
-                    note.getMaturityDate() != null && !note.getMaturityDate().isAfter(hoje),
+                    note.getMaturityDate() != null && !note.getMaturityDate().isAfter(today),
                     fixedIncomeIssuers.info(note)))
                 .stream())
             .sorted(Comparator.comparing(NoteOptionDTO::maturityDate, Comparator.nullsLast(Comparator.naturalOrder()))
@@ -260,12 +260,12 @@ public class TransactionService {
     @Transactional
     public TransactionResponseDTO createTransaction(UUID userId, TransactionCreateDTO dto) {
         TransactionResponseDTO r = create(userId, dto, null);
-        publicarEscrita(userId, dto.ticker());
+        publishWrite(userId, dto.ticker());
         return r;
     }
 
     /** Liquidacao automatica: confere, depois do commit, se o titulo ja vencido precisa ser liquidado. */
-    private void publicarEscrita(UUID userId, String ticker) {
+    private void publishWrite(UUID userId, String ticker) {
         if (SystemWrites.active() || ticker == null) {
             return;
         }
@@ -282,17 +282,17 @@ public class TransactionService {
      * taxa, indice ou valor total (docs/planos/PLANO_INTEGRACAO_B3.md, G13).
      */
     @Transactional
-    public TransactionResponseDTO importTransaction(UUID userId, ProposedTransaction proposta, ImportOrigin origem) {
-        Asset asset = assetRepository.findByTicker(proposta.ticker())
-            .orElseThrow(() -> new BusinessException("Ativo não encontrado no catálogo: " + proposta.ticker()));
-        AssetType tipo = asset.getAssetType();
-        boolean aceito = tipo != null
-            && (tipo.isTreasury() || tipo.getPriceSource() != com.primevest.domain.asset.PriceSource.MANUAL);
-        if (!aceito) {
+    public TransactionResponseDTO importTransaction(UUID userId, ProposedTransaction proposed, ImportOrigin importOrigin) {
+        Asset asset = assetRepository.findByTicker(proposed.ticker())
+            .orElseThrow(() -> new BusinessException("Ativo não encontrado no catálogo: " + proposed.ticker()));
+        AssetType importedAssetType = asset.getAssetType();
+        boolean accepted = importedAssetType != null
+            && (importedAssetType.isTreasury() || importedAssetType.getPriceSource() != com.primevest.domain.asset.PriceSource.MANUAL);
+        if (!accepted) {
             throw new BusinessException("Importação aceita cripto, renda variável listada e Tesouro Direto: "
-                + proposta.ticker());
+                + proposed.ticker());
         }
-        if (tipo.isTreasury() && proposta.type() == TransactionType.SELL) {
+        if (importedAssetType.isTreasury() && proposed.type() == TransactionType.SELL) {
             // A venda de Tesouro e repartida entre os titulos (FIFO) e as linhas sao refeitas a cada
             // realocacao: a origem da fonte nao sobreviveria. Lancada pela tela (PLANO_INTEGRACAO_B3, F7).
             throw new BusinessException("Venda de Tesouro Direto não é importada: lance pela tela de transações.");
@@ -300,33 +300,33 @@ public class TransactionService {
         // Compra de Tesouro (F7): a distribuidora e a corretora que a B3 informa, casada pelo nome com o cadastro;
         // sem correspondencia, "Instituicao nao listada" e um aviso para o usuario corrigir (PLANO_EMISSORAS L21).
         Long distributorId = null;
-        boolean naoListada = false;
-        if (tipo.isTreasury()) {
-            var d = fixedIncomeIssuers.distributorByName(proposta.participant());
-            naoListada = d.isEmpty();
+        boolean unlisted = false;
+        if (importedAssetType.isTreasury()) {
+            var d = fixedIncomeIssuers.distributorByName(proposed.participant());
+            unlisted = d.isEmpty();
             distributorId = d.map(com.primevest.domain.fixedincome.FixedIncomeIssuer::getId)
                 .orElseGet(() -> fixedIncomeIssuers.notListedOrFail().getId());
         }
-        TransactionCreateDTO dto = new TransactionCreateDTO(proposta.ticker(), proposta.type(), proposta.shares(),
-            proposta.pricePerShare(), null, proposta.brokerageFee(), proposta.transactionDate(), false, null,
+        TransactionCreateDTO dto = new TransactionCreateDTO(proposed.ticker(), proposed.type(), proposed.shares(),
+            proposed.pricePerShare(), null, proposed.brokerageFee(), proposed.transactionDate(), false, null,
             null, null, null, null, null, null, distributorId, null);
-        TransactionResponseDTO r = create(userId, dto, origem);
-        if (naoListada) {
-            avisarDistribuidoraNaoListada(userId, r, proposta.participant());
+        TransactionResponseDTO r = create(userId, dto, importOrigin);
+        if (unlisted) {
+            notifyUnlistedDistributor(userId, r, proposed.participant());
         }
         return r;
     }
 
     /** L21: o titulo importado ficou com a distribuidora "nao listada" — o usuario corrige pela tela. */
-    private void avisarDistribuidoraNaoListada(UUID userId, TransactionResponseDTO r, String participant) {
-        String fonte = participant == null || participant.isBlank() ? "não informou a corretora"
+    private void notifyUnlistedDistributor(UUID userId, TransactionResponseDTO r, String participant) {
+        String sourceName = participant == null || participant.isBlank() ? "não informou a corretora"
             : "informou \"" + participant.strip() + "\", que não está no cadastro";
         notifications.notify(com.primevest.domain.notification.NotificationDraft
             .of(com.primevest.domain.notification.NotificationKind.RF_DISTRIBUIDORA_NAO_LISTADA)
             .user(userId)
             .title("Distribuidora não listada: " + r.ticker())
             .body("A compra de " + r.ticker() + " em " + r.transactionDate().format(DATA) + " foi importada da B3, "
-                + "que " + fonte + ". O título ficou com a distribuidora \"Instituição não listada\": corrija-a "
+                + "que " + sourceName + ". O título ficou com a distribuidora \"Instituição não listada\": corrija-a "
                 + "editando a compra.")
             .ref("NOTE", r.noteId())
             .key("note:" + r.noteId())
@@ -334,7 +334,7 @@ public class TransactionService {
             .build());
     }
 
-    private TransactionResponseDTO create(UUID userId, TransactionCreateDTO dto, ImportOrigin origem) {
+    private TransactionResponseDTO create(UUID userId, TransactionCreateDTO dto, ImportOrigin importOrigin) {
         // O catálogo é a única origem de ativos. Ticker que não está lá não
         // vira ativo novo: vira erro. Antes, um erro de digitação criava um
         // ativo permanente e global, indistinguível de um cadastro legítimo.
@@ -351,7 +351,7 @@ public class TransactionService {
         if (isTreasury(asset)) {
             return dto.type() == TransactionType.SELL
                 ? createTreasurySale(portfolio, asset, dto)
-                : createTreasuryPurchase(userId, portfolio, asset, dto, origem);
+                : createTreasuryPurchase(userId, portfolio, asset, dto, importOrigin);
         }
 
         // O papel de renda fixa. Nulo para renda variavel.
@@ -389,26 +389,26 @@ public class TransactionService {
                 label(pa));
         }
 
-        Valores valores = resolveValores(asset, dto);
+        Amounts amounts = resolveAmounts(asset, dto);
         Transaction tx = Transaction.builder()
             .portfolioAsset(pa)
             .note(note)
             .type(dto.type())
-            .shares(valores.shares())
-            .pricePerShare(valores.pricePerShare())
-            .totalAmount(valores.totalAmount())
-            .netAmount(valores.netAmount())
-            .incomeTax(valores.netAmount() != null ? BigDecimal.ZERO : null)
-            .iofTax(valores.netAmount() != null ? BigDecimal.ZERO : null)
+            .shares(amounts.shares())
+            .pricePerShare(amounts.pricePerShare())
+            .totalAmount(amounts.totalAmount())
+            .netAmount(amounts.netAmount())
+            .incomeTax(amounts.netAmount() != null ? BigDecimal.ZERO : null)
+            .iofTax(amounts.netAmount() != null ? BigDecimal.ZERO : null)
             .brokerageFee(fee(dto))
             .transactionDate(dto.transactionDate())
             .fullSettlement(isFullSettlement(asset, dto))
-            .origin(origem != null ? TransactionOrigin.AUTO
+            .origin(importOrigin != null ? TransactionOrigin.AUTO
                 : SystemWrites.active() ? TransactionOrigin.SISTEMA : TransactionOrigin.MANUAL)
-            .connection(origem == null ? null : origem.connection())
-            .externalId(origem == null ? null : origem.externalId())
-            .executedAt(origem == null ? null : origem.executedAt())
-            .sourceSnapshot(origem == null ? null : origem.sourceSnapshot())
+            .connection(importOrigin == null ? null : importOrigin.connection())
+            .externalId(importOrigin == null ? null : importOrigin.externalId())
+            .executedAt(importOrigin == null ? null : importOrigin.executedAt())
+            .sourceSnapshot(importOrigin == null ? null : importOrigin.sourceSnapshot())
             .build();
 
         tx = transactionRepository.save(tx);
@@ -471,19 +471,19 @@ public class TransactionService {
             TransactionResponseDTO r = tx.getType() == TransactionType.SELL
                 ? updateTreasurySale(portfolio, asset, tx, dto)
                 : updateTreasuryPurchase(portfolio, asset, tx, dto);
-            publicarEscrita(userId, asset.getTicker());
+            publishWrite(userId, asset.getTicker());
             return r;
         }
 
         // Only update allowed fields (quantity/price or total, fee, date)
-        Valores valores = resolveValores(asset, dto);
-        tx.setShares(valores.shares());
-        tx.setPricePerShare(valores.pricePerShare());
-        tx.setTotalAmount(valores.totalAmount());
+        Amounts amounts = resolveAmounts(asset, dto);
+        tx.setShares(amounts.shares());
+        tx.setPricePerShare(amounts.pricePerShare());
+        tx.setTotalAmount(amounts.totalAmount());
         // venda de renda fixa: o digitado e o liquido; bruto, IR e IOF saem dos lotes no recalculo (R3)
-        tx.setNetAmount(valores.netAmount());
-        tx.setIncomeTax(valores.netAmount() != null ? BigDecimal.ZERO : null);
-        tx.setIofTax(valores.netAmount() != null ? BigDecimal.ZERO : null);
+        tx.setNetAmount(amounts.netAmount());
+        tx.setIncomeTax(amounts.netAmount() != null ? BigDecimal.ZERO : null);
+        tx.setIofTax(amounts.netAmount() != null ? BigDecimal.ZERO : null);
         tx.setSettlementAdjustment(null);
         tx.setBrokerageFee(fee(dto));
         tx.setTransactionDate(dto.transactionDate());
@@ -512,11 +512,11 @@ public class TransactionService {
             validateBuyBeforeMaturity(tx.getNote(), tx.getTransactionDate());
         }
 
-        boolean venda = tx.getType() == TransactionType.SELL;
+        boolean isSale = tx.getType() == TransactionType.SELL;
         tx = transactionRepository.save(tx);
         transactionRepository.flush();
-        afterPositionChange(pa, venda);
-        publicarEscrita(userId, asset.getTicker());
+        afterPositionChange(pa, isSale);
+        publishWrite(userId, asset.getTicker());
         return toResponseDTO(tx);
     }
 
@@ -547,7 +547,7 @@ public class TransactionService {
             return;
         }
 
-        registrarExclusaoSeImportada(tx, asset);
+        recordExclusionIfImported(tx, asset);
         transactionRepository.delete(tx);
         transactionRepository.flush();
         if (removeIfEmpty(pa)) {
@@ -562,7 +562,7 @@ public class TransactionService {
      * Regra E2: excluir uma importada registra a exclusao, para a proxima
      * sincronizacao nao recria-la. Restaurar e apagar esse registro.
      */
-    private void registrarExclusaoSeImportada(Transaction tx, Asset asset) {
+    private void recordExclusionIfImported(Transaction tx, Asset asset) {
         if (tx.getOrigin() != TransactionOrigin.AUTO || tx.getConnection() == null || tx.getExternalId() == null) {
             return;
         }
@@ -618,7 +618,7 @@ public class TransactionService {
      * (regra H).</p>
      */
     private TransactionResponseDTO createTreasuryPurchase(UUID userId, Portfolio portfolio,
-                                                          Asset asset, TransactionCreateDTO dto, ImportOrigin origem) {
+                                                          Asset asset, TransactionCreateDTO dto, ImportOrigin importOrigin) {
         if (dto.noteId() != null) {
             throw new BusinessException(
                 "Cada compra de Tesouro Direto é um título novo: não se lança sobre um título existente.");
@@ -648,22 +648,22 @@ public class TransactionService {
             .isReservation(dto.isReservation() != null && dto.isReservation())
             .build());
 
-        Valores valores = resolveValores(asset, dto);
+        Amounts amounts = resolveAmounts(asset, dto);
         Transaction tx = transactionRepository.save(Transaction.builder()
             .portfolioAsset(pa)
             .note(note)
             .type(TransactionType.BUY)
-            .shares(valores.shares())
-            .pricePerShare(valores.pricePerShare())
-            .totalAmount(valores.totalAmount())
+            .shares(amounts.shares())
+            .pricePerShare(amounts.pricePerShare())
+            .totalAmount(amounts.totalAmount())
             .brokerageFee(fee(dto))
             .transactionDate(dto.transactionDate())
             // Compra de Tesouro importada (B3, F7): uma linha so, que a realocacao das vendas nao refaz.
-            .origin(origem == null ? TransactionOrigin.MANUAL : TransactionOrigin.AUTO)
-            .connection(origem == null ? null : origem.connection())
-            .externalId(origem == null ? null : origem.externalId())
-            .executedAt(origem == null ? null : origem.executedAt())
-            .sourceSnapshot(origem == null ? null : origem.sourceSnapshot())
+            .origin(importOrigin == null ? TransactionOrigin.MANUAL : TransactionOrigin.AUTO)
+            .connection(importOrigin == null ? null : importOrigin.connection())
+            .externalId(importOrigin == null ? null : importOrigin.externalId())
+            .executedAt(importOrigin == null ? null : importOrigin.executedAt())
+            .sourceSnapshot(importOrigin == null ? null : importOrigin.sourceSnapshot())
             .build());
         transactionRepository.flush();
 
@@ -697,11 +697,11 @@ public class TransactionService {
         positionGuard.validateSellHasPosition(hasPurchase(current.stream()
             .filter(t -> distributorId.equals(TreasuryAllocator.distributorOf(t))).toList()), asset.getTicker());
 
-        SaleIntent nova = new SaleIntent(UUID.randomUUID(), dto.transactionDate(), dto.shares(),
+        SaleIntent newValue = new SaleIntent(UUID.randomUUID(), dto.transactionDate(), dto.shares(),
             dto.pricePerShare(), fee(dto), LocalDateTime.now(),
             SystemWrites.active() ? TransactionOrigin.SISTEMA : TransactionOrigin.MANUAL, null, distributorId);
 
-        List<Transaction> rows = reallocate(portfolio, asset, nova, null).get(nova.groupId());
+        List<Transaction> rows = reallocate(portfolio, asset, newValue, null).get(newValue.groupId());
         return toResponseDTO(rows.get(0));
     }
 
@@ -713,17 +713,17 @@ public class TransactionService {
         }
         UUID groupId = groupKey(tx);
         // Liquidacao automatica editada pelo usuario continua SISTEMA, com a marca de editada (secao 6).
-        boolean sistema = tx.getOrigin() == TransactionOrigin.SISTEMA;
+        boolean system = tx.getOrigin() == TransactionOrigin.SISTEMA;
         // A distribuidora da venda: a informada na edicao, ou a que ela ja tinha (a do titulo que ela consome)
         Long distributorId = dto.distributorId() != null
             ? fixedIncomeIssuers.distributor(dto.distributorId()).getId()
             : TreasuryAllocator.distributorOf(tx);
-        SaleIntent alterada = new SaleIntent(groupId, dto.transactionDate(), dto.shares(),
+        SaleIntent changed = new SaleIntent(groupId, dto.transactionDate(), dto.shares(),
             dto.pricePerShare(), fee(dto), tx.getCreatedAt(),
-            sistema ? TransactionOrigin.SISTEMA : TransactionOrigin.MANUAL,
-            !sistema ? null : SystemWrites.active() ? tx.getEditedAt() : LocalDateTime.now(), distributorId);
+            system ? TransactionOrigin.SISTEMA : TransactionOrigin.MANUAL,
+            !system ? null : SystemWrites.active() ? tx.getEditedAt() : LocalDateTime.now(), distributorId);
 
-        List<Transaction> rows = reallocate(portfolio, asset, alterada, null).get(groupId);
+        List<Transaction> rows = reallocate(portfolio, asset, changed, null).get(groupId);
         return toResponseDTO(rows.get(0));
     }
 
@@ -732,28 +732,28 @@ public class TransactionService {
                                                           Transaction tx, TransactionCreateDTO dto) {
         List<Transaction> current = transactionRepository
             .findByPortfolioIdAndAssetId(portfolio.getId(), asset.getId());
-        FixedIncomeNote noteAtual = tx.getNote();
-        Long distribuidoraAtual = noteAtual != null && noteAtual.getDistributor() != null
-            ? noteAtual.getDistributor().getId() : null;
-        Long distribuidoraNova = dto.distributorId() != null ? dto.distributorId() : distribuidoraAtual;
-        if (distribuidoraNova != null && !distribuidoraNova.equals(distribuidoraAtual)) {
+        FixedIncomeNote currentNote = tx.getNote();
+        Long currentDistributor = currentNote != null && currentNote.getDistributor() != null
+            ? currentNote.getDistributor().getId() : null;
+        Long newDistributor = dto.distributorId() != null ? dto.distributorId() : currentDistributor;
+        if (newDistributor != null && !newDistributor.equals(currentDistributor)) {
             // Troca de distribuidora (PLANO_EMISSORAS_RENDA_FIXA, 5.1): sem venda ligada ao titulo, direta; com
             // venda, so pela troca com a cascata (o usuario escolhe o que vai junto).
-            UUID tituloId = tx.getPortfolioAsset().getId();
-            boolean temVenda = current.stream().anyMatch(t -> t.getType() == TransactionType.SELL
-                && t.getPortfolioAsset().getId().equals(tituloId));
-            if (temVenda) {
+            UUID notePositionId = tx.getPortfolioAsset().getId();
+            boolean hasSale = current.stream().anyMatch(t -> t.getType() == TransactionType.SELL
+                && t.getPortfolioAsset().getId().equals(notePositionId));
+            if (hasSale) {
                 throw new BusinessException("Este título tem venda ligada: troque a distribuidora pela tela, "
                     + "escolhendo as transações que vão junto.");
             }
-            noteAtual.setDistributor(fixedIncomeIssuers.distributor(distribuidoraNova));
+            currentNote.setDistributor(fixedIncomeIssuers.distributor(newDistributor));
         }
-        validateOnePurchasePerDate(current, asset, dto.transactionDate(), tx.getId(), distribuidoraNova);
+        validateOnePurchasePerDate(current, asset, dto.transactionDate(), tx.getId(), newDistributor);
 
-        Valores valores = resolveValores(asset, dto);
-        tx.setShares(valores.shares());
-        tx.setPricePerShare(valores.pricePerShare());
-        tx.setTotalAmount(valores.totalAmount());
+        Amounts amounts = resolveAmounts(asset, dto);
+        tx.setShares(amounts.shares());
+        tx.setPricePerShare(amounts.pricePerShare());
+        tx.setTotalAmount(amounts.totalAmount());
         tx.setBrokerageFee(fee(dto));
         tx.setTransactionDate(dto.transactionDate());
 
@@ -873,10 +873,10 @@ public class TransactionService {
                 validateOnePurchasePerDate(current, asset, b.getTransactionDate(), b.getId(), to.getId());
             }
         }
-        Valores valores = resolveValores(asset, dto);
-        tx.setShares(valores.shares());
-        tx.setPricePerShare(valores.pricePerShare());
-        tx.setTotalAmount(valores.totalAmount());
+        Amounts amounts = resolveAmounts(asset, dto);
+        tx.setShares(amounts.shares());
+        tx.setPricePerShare(amounts.pricePerShare());
+        tx.setTotalAmount(amounts.totalAmount());
         tx.setBrokerageFee(fee(dto));
         tx.setTransactionDate(dto.transactionDate());
         FixedIncomeNote note = tx.getNote();
@@ -895,7 +895,7 @@ public class TransactionService {
             .findByPortfolioIdAndAssetId(portfolio.getId(), asset.getId());
         treasuryAllocator.apply(portfolio, asset, after, intents);
         refreshTreasuryPositions(portfolio, asset);
-        publicarEscrita(userId, asset.getTicker());
+        publishWrite(userId, asset.getTicker());
         return toResponseDTO(tx);
     }
 
@@ -958,17 +958,17 @@ public class TransactionService {
      * @param removida grupo de venda a excluir; nulo quando nada foi excluido
      */
     private Map<UUID, List<Transaction>> reallocate(Portfolio portfolio, Asset asset,
-                                                    SaleIntent alterada, UUID removida) {
+                                                    SaleIntent changed, UUID removed) {
         List<Transaction> current = transactionRepository
             .findByPortfolioIdAndAssetId(portfolio.getId(), asset.getId());
 
         List<SaleIntent> sales = new ArrayList<>(treasuryAllocator.salesOf(current));
-        if (removida != null) {
-            sales.removeIf(sale -> sale.groupId().equals(removida));
+        if (removed != null) {
+            sales.removeIf(sale -> sale.groupId().equals(removed));
         }
-        if (alterada != null) {
-            sales.removeIf(sale -> sale.groupId().equals(alterada.groupId()));
-            sales.add(alterada);
+        if (changed != null) {
+            sales.removeIf(sale -> sale.groupId().equals(changed.groupId()));
+            sales.add(changed);
         }
 
         Map<UUID, List<Transaction>> rows = treasuryAllocator.apply(portfolio, asset, current, sales);
@@ -1004,8 +1004,8 @@ public class TransactionService {
      * vencido e justamente o que encerra a aplicacao.
      */
     private void validateBuyBeforeMaturity(FixedIncomeNote note, LocalDate date) {
-        LocalDate vencimento = note != null ? note.getMaturityDate() : null;
-        if (vencimento != null && date != null && !vencimento.isAfter(date)) {
+        LocalDate maturity = note != null ? note.getMaturityDate() : null;
+        if (maturity != null && date != null && !maturity.isAfter(date)) {
             throw new BusinessException("Título vencido para a data de transação escolhida");
         }
     }
@@ -1013,13 +1013,13 @@ public class TransactionService {
     private void validateOnePurchasePerDate(List<Transaction> current, Asset asset,
                                             LocalDate date, UUID ignoreTxId, Long distributorId) {
         // Regra H por ativo, DISTRIBUIDORA e data (PLANO_EMISSORAS_RENDA_FIXA, D3)
-        boolean existe = current.stream()
+        boolean exists = current.stream()
             .filter(tx -> tx.getType() == TransactionType.BUY)
             .filter(tx -> ignoreTxId == null || !tx.getId().equals(ignoreTxId))
             .filter(tx -> distributorId == null || distributorId.equals(TreasuryAllocator.distributorOf(tx)))
             .anyMatch(tx -> tx.getTransactionDate().equals(date));
 
-        if (existe) {
+        if (exists) {
             throw new BusinessException(
                 "Já existe um título de " + asset.getTicker() + " comprado em " + date.format(DATA)
                 + " nessa distribuidora. Para aplicar mais nessa data, altere a quantidade da compra que já existe.");
@@ -1047,7 +1047,7 @@ public class TransactionService {
      *   posicoes com cotacao.</li>
      * </ol>
      */
-    private void afterPositionChange(PortfolioAsset pa, boolean vendaLancada) {
+    private void afterPositionChange(PortfolioAsset pa, boolean recordedSale) {
         List<Transaction> chronological = positionCalculator.chronologicalTransactions(pa);
         boolean valuedByTotal = isValuedByTotal(pa.getAsset());
         String label = label(pa);
@@ -1058,14 +1058,14 @@ public class TransactionService {
             // regras E, F e G, que comparam o resgatado (bruto) com o saldo (docs/planos/PLANO_VENDA_RENDA_FIXA.md, R10)
             com.primevest.domain.fixedincome.FixedIncomeValuation.Series series = fixedIncomeValuation.series();
             fixedIncomeValuation.syncSales(pa, chronological, series);
-            fixedIncomeSettlement.recompute(pa, chronological, vendaLancada);
+            fixedIncomeSettlement.recompute(pa, chronological, recordedSale);
             // a curva contratada (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, R4) depois das regras da escrita
             fixedIncomeValuation.apply(pa, chronological, series);
         } else {
             // Regra B com os desdobramentos, grupamentos e bonificacoes do
             // papel no meio da linha do tempo: o saldo que sobra e o de hoje.
-            BigDecimal saldo = positionGuard.validateShareLedger(chronological, stockEvents, label);
-            pa.setSettled(!chronological.isEmpty() && saldo.signum() <= 0);
+            BigDecimal shareBalance = positionGuard.validateShareLedger(chronological, stockEvents, label);
+            pa.setSettled(!chronological.isEmpty() && shareBalance.signum() <= 0);
         }
 
         // Regra I sobre as transacoes e os eventos societarios (a venda de 200
@@ -1128,15 +1128,15 @@ public class TransactionService {
 
     private String label(PortfolioAsset pa) {
         String ticker = pa.getAsset() != null ? pa.getAsset().getTicker() : "";
-        String titulo = pa.getNote() != null ? pa.getNote().getLabel() : "";
-        return titulo != null && !titulo.isBlank() ? ticker + " (" + titulo + ")" : ticker;
+        String noteLabel = pa.getNote() != null ? pa.getNote().getLabel() : "";
+        return noteLabel != null && !noteLabel.isBlank() ? ticker + " (" + noteLabel + ")" : ticker;
     }
 
     /**
      * Quantidade, preco unitario e total que a transacao vai gravar — e, na venda de renda fixa, o liquido digitado
      * ({@code totalAmount} e so provisorio ali: o bruto sai dos lotes no recalculo).
      */
-    private record Valores(BigDecimal shares, BigDecimal pricePerShare, BigDecimal totalAmount, BigDecimal netAmount) {}
+    private record Amounts(BigDecimal shares, BigDecimal pricePerShare, BigDecimal totalAmount, BigDecimal netAmount) {}
 
     /**
      * Decide como a transacao e valorada a partir do tipo do ativo.
@@ -1150,7 +1150,7 @@ public class TransactionService {
      * de descartados: descartar em silencio esconderia um cliente desatualizado
      * mandando o formulario antigo.</p>
      */
-    private Valores resolveValores(Asset asset, TransactionCreateDTO dto) {
+    private Amounts resolveAmounts(Asset asset, TransactionCreateDTO dto) {
         if (isValuedByTotal(asset)) {
             if (dto.shares() != null || dto.pricePerShare() != null) {
                 throw new BusinessException(
@@ -1161,18 +1161,18 @@ public class TransactionService {
             }
             // Venda de renda fixa: o valor digitado e o LIQUIDO recebido (docs/planos/PLANO_VENDA_RENDA_FIXA.md, R3)
             return dto.type() == TransactionType.SELL
-                ? new Valores(null, null, dto.totalAmount(), dto.totalAmount())
-                : new Valores(null, null, dto.totalAmount(), null);
+                ? new Amounts(null, null, dto.totalAmount(), dto.totalAmount())
+                : new Amounts(null, null, dto.totalAmount(), null);
         }
 
         if (dto.shares() == null || dto.pricePerShare() == null) {
             throw new BusinessException("Informe a quantidade e o preço unitário.");
         }
-        return new Valores(dto.shares(), dto.pricePerShare(), dto.shares().multiply(dto.pricePerShare()), null);
+        return new Amounts(dto.shares(), dto.pricePerShare(), dto.shares().multiply(dto.pricePerShare()), null);
     }
 
     /** O tipo de remuneracao por extenso, para a mensagem sair legivel. */
-    private String remuneracao(RateType rateType) {
+    private String remuneration(RateType rateType) {
         if (rateType == null) {
             return "";
         }
@@ -1225,9 +1225,9 @@ public class TransactionService {
      * e a venda escolhe os titulos por FIFO.</p>
      */
     private FixedIncomeNote resolveNote(UUID userId, Asset asset, TransactionCreateDTO dto) {
-        boolean rendaFixa = asset.getAssetType() != null && asset.getAssetType().isFixedIncome();
+        boolean fixedIncome = asset.getAssetType() != null && asset.getAssetType().isFixedIncome();
 
-        if (!rendaFixa) {
+        if (!fixedIncome) {
             if (dto.noteId() != null) {
                 throw new BusinessException(
                     "Título informado para um ativo que não é de renda fixa: " + asset.getTicker());
@@ -1238,15 +1238,15 @@ public class TransactionService {
         if (dto.noteId() != null) {
             // Escopado pelo dono: o id vem do cliente, e sem o filtro por
             // usuario daria para lancar transacao sobre o papel de outro.
-            FixedIncomeNote existente = fixedIncomeNoteRepository
+            FixedIncomeNote existing = fixedIncomeNoteRepository
                 .findByIdAndUserId(dto.noteId(), userId)
                 .orElseThrow(() -> new BusinessException("Título não encontrado"));
 
-            if (!existente.getAsset().getId().equals(asset.getId())) {
+            if (!existing.getAsset().getId().equals(asset.getId())) {
                 throw new BusinessException(
-                    "O título selecionado pertence a outro ativo: " + existente.getAsset().getTicker());
+                    "O título selecionado pertence a outro ativo: " + existing.getAsset().getTicker());
             }
-            return existente;
+            return existing;
         }
 
         if (dto.type() == TransactionType.SELL) {
@@ -1254,14 +1254,14 @@ public class TransactionService {
                 "Venda de renda fixa precisa apontar qual título está sendo vendido.");
         }
 
-        FixedIncomeNote nova = FixedIncomeNote.builder()
+        FixedIncomeNote newValue = FixedIncomeNote.builder()
             .user(userRepository.getReferenceById(userId))
             .asset(asset)
             .issuer(fixedIncomeIssuers.issuerFor(asset, dto.issuerId()))
             .distributor(fixedIncomeIssuers.distributor(dto.distributorId()))
             .build();
-        applyNoteFields(nova, dto);
-        return fixedIncomeNoteRepository.save(nova);
+        applyNoteFields(newValue, dto);
+        return fixedIncomeNoteRepository.save(newValue);
     }
 
     /**
@@ -1308,7 +1308,7 @@ public class TransactionService {
         }
         if ((rateType == RateType.POS_FIXADO || rateType == RateType.HIBRIDO) && indexer == null) {
             throw new BusinessException(
-                "Remuneração " + remuneracao(rateType) + " precisa de um índice (CDI, IPCA, ...).");
+                "Remuneração " + remuneration(rateType) + " precisa de um índice (CDI, IPCA, ...).");
         }
         if (rateType == null && indexer != null) {
             throw new BusinessException("Informe como o título remunera antes de escolher o índice.");

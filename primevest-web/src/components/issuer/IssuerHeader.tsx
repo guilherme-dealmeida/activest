@@ -57,7 +57,7 @@ export const IssuerHeader = ({ ticker, issuer, current }: Props) => {
                 {others.map(t => (
                   <Link
                     key={t.ticker}
-                    to={`/ativos/${t.ticker}${search}`}
+                    to={`/assets/${t.ticker}${search}`}
                     className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 font-medium text-gray-200 hover:border-accent hover:text-accent transition-colors"
                   >
                     {t.ticker}

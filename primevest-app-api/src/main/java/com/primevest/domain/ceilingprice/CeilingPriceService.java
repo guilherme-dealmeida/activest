@@ -84,16 +84,16 @@ public class CeilingPriceService {
     public CeilingPriceService(CeilingPriceRepository repository, AssetRepository assetRepository,
                                UserRepository userRepository, CeilingPriceDefaults defaults,
                                PortfolioService portfolioService, ObjectMapper json,
-                               @Value("${primevest.preco-teto.alertas.percentual-min:0}") BigDecimal pctMin,
-                               @Value("${primevest.preco-teto.alertas.percentual-max:100}") BigDecimal pctMax,
-                               @Value("${primevest.preco-teto.alertas.desconto-min:5}") BigDecimal discountMin,
-                               @Value("${primevest.preco-teto.alertas.desconto-max:30}") BigDecimal discountMax,
-                               @Value("${primevest.preco-teto.alertas.perpetuidade-max:6}") BigDecimal growthMax,
-                               @Value("${primevest.preco-teto.alertas.acoes-desvio:20}") BigDecimal sharesDeviationPct,
-                               @Value("${primevest.preco-teto.alertas.lucro-desvio:50}") BigDecimal quarterDeviationPct,
-                               @Value("${primevest.preco-teto.alertas.lucro-baixo:3}") BigDecimal lowProfitPct,
-                               @Value("${primevest.preco-teto.alertas.preco-dias:7}") int stalePriceDays,
-                               @Value("${primevest.preco-teto.alertas.balanco-dias:150}") int staleBalanceDays) {
+                               @Value("${primevest.ceiling-price.alerts.percent-min:0}") BigDecimal pctMin,
+                               @Value("${primevest.ceiling-price.alerts.percent-max:100}") BigDecimal pctMax,
+                               @Value("${primevest.ceiling-price.alerts.discount-min:5}") BigDecimal discountMin,
+                               @Value("${primevest.ceiling-price.alerts.discount-max:30}") BigDecimal discountMax,
+                               @Value("${primevest.ceiling-price.alerts.perpetual-growth-max:6}") BigDecimal growthMax,
+                               @Value("${primevest.ceiling-price.alerts.shares-deviation:20}") BigDecimal sharesDeviationPct,
+                               @Value("${primevest.ceiling-price.alerts.earnings-deviation:50}") BigDecimal quarterDeviationPct,
+                               @Value("${primevest.ceiling-price.alerts.low-earnings:3}") BigDecimal lowProfitPct,
+                               @Value("${primevest.ceiling-price.alerts.price-days:7}") int stalePriceDays,
+                               @Value("${primevest.ceiling-price.alerts.statement-days:150}") int staleBalanceDays) {
         this.repository = repository;
         this.assetRepository = assetRepository;
         this.userRepository = userRepository;
@@ -329,8 +329,8 @@ public class CeilingPriceService {
         values.forEach((k, v) -> {
             DefaultValue dv = defs.get(k);
             BigDecimal value = v instanceof Long l ? BigDecimal.valueOf(l) : (BigDecimal) v;
-            boolean padrao = dv != null && CeilingPriceDefaults.same(dv.value(), value);
-            origins.put(k, new InputOrigin(padrao ? CeilingPriceQuarter.PADRAO : CeilingPriceQuarter.INFORMADO,
+            boolean isDefault = dv != null && CeilingPriceDefaults.same(dv.value(), value);
+            origins.put(k, new InputOrigin(isDefault ? CeilingPriceQuarter.PADRAO : CeilingPriceQuarter.INFORMADO,
                     dv == null ? null : dv.ref(), dv == null ? null : dv.value()));
         });
         try {
@@ -342,13 +342,13 @@ public class CeilingPriceService {
         cp.getQuarters().clear();
         for (int i = 0; i < 4; i++) {
             QuarterInput q = in.quarters().get(i);
-            boolean padrao = !INFORMADO(n.quarterOrigins().get(i));
+            boolean isDefault = !INFORMADO(n.quarterOrigins().get(i));
             cp.getQuarters().add(CeilingPriceQuarter.builder()
                     .ceilingPrice(cp).position((short) (i + 1)).periodEnd(q.periodEnd())
                     .originalValue(q.originalValue().setScale(2, RoundingMode.HALF_UP))
                     .unit(n.units().get(i)).currency(n.currencies().get(i)).fxRate(n.fxRates().get(i))
                     .valueBrl(n.inputs().quarters().get(i))
-                    .origin(padrao ? CeilingPriceQuarter.PADRAO : CeilingPriceQuarter.INFORMADO)
+                    .origin(isDefault ? CeilingPriceQuarter.PADRAO : CeilingPriceQuarter.INFORMADO)
                     .build());
         }
     }
@@ -458,9 +458,9 @@ public class CeilingPriceService {
         for (int i = 0; i < 4; i++) {
             DefaultQuarter dq = defaultQuarter(d, n.periods().get(i));
             BigDecimal v = n.inputs().quarters().get(i);
-            boolean padrao = dq != null && v != null && dq.value() != null && "BRL".equals(n.currencies().get(i))
+            boolean isDefault = dq != null && v != null && dq.value() != null && "BRL".equals(n.currencies().get(i))
                     && v.compareTo(dq.value()) == 0;
-            n.quarterOrigins().set(i, padrao ? CeilingPriceQuarter.PADRAO : CeilingPriceQuarter.INFORMADO);
+            n.quarterOrigins().set(i, isDefault ? CeilingPriceQuarter.PADRAO : CeilingPriceQuarter.INFORMADO);
         }
         issues.sort(Comparator.comparing(Issue::level));
         return toResult(n, r, issues);

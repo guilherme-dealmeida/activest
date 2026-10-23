@@ -2,7 +2,7 @@ package com.primevest.adm.domain.admin;
 
 import com.primevest.adm.domain.dividend.CvmPaymentDateService;
 import com.primevest.adm.domain.dividend.PaymentDateSurveyService;
-import com.primevest.adm.domain.dividend.ProventosCatalogService;
+import com.primevest.adm.domain.dividend.DividendCatalogService;
 import com.primevest.adm.domain.fundamentals.FiiMonthlyImportService;
 import com.primevest.adm.domain.fundamentals.FinancialStatementImportService;
 import com.primevest.adm.domain.issuer.IssuerImportService;
@@ -29,46 +29,46 @@ class BootstrapServiceTest {
 
     private final IssuerImportService issuers = mock(IssuerImportService.class);
     private final HistoricalQuotesImportService quotes = mock(HistoricalQuotesImportService.class);
-    private final ProventosCatalogService proventos = mock(ProventosCatalogService.class);
+    private final DividendCatalogService dividends = mock(DividendCatalogService.class);
     private final FinancialStatementImportService statements = mock(FinancialStatementImportService.class);
     private final FiiMonthlyImportService fii = mock(FiiMonthlyImportService.class);
-    private final CvmPaymentDateService datas = mock(CvmPaymentDateService.class);
-    private final PaymentDateSurveyService levantamento = mock(PaymentDateSurveyService.class);
+    private final CvmPaymentDateService dates = mock(CvmPaymentDateService.class);
+    private final PaymentDateSurveyService survey = mock(PaymentDateSurveyService.class);
     private final MarketIndexImportService indices = mock(MarketIndexImportService.class);
-    private final TreasuryPriceService tesouro = mock(TreasuryPriceService.class);
-    private final com.primevest.adm.domain.fixedincome.FixedIncomeIssuerImportService emissorasRf =
+    private final TreasuryPriceService treasury = mock(TreasuryPriceService.class);
+    private final com.primevest.adm.domain.fixedincome.FixedIncomeIssuerImportService fiIssuers =
             mock(com.primevest.adm.domain.fixedincome.FixedIncomeIssuerImportService.class);
-    private final BootstrapService service = new BootstrapService(issuers, quotes, proventos, statements, fii, datas,
-            levantamento, indices, tesouro, emissorasRf,
+    private final BootstrapService service = new BootstrapService(issuers, quotes, dividends, statements, fii, dates,
+            survey, indices, treasury, fiIssuers,
             Clock.fixed(Instant.parse("2026-09-28T12:00:00Z"), ZoneId.of("America/Sao_Paulo")));
 
     @Test
     @DisplayName("Ordem: emissores, emissoras de renda fixa, COTAHIST (ISIN), proventos (eventos societarios), datas de pagamento (CVM e levantamento), balancos (escala EVENTO), informe de FII, indices, Tesouro")
-    void ordem() {
-        when(proventos.syncAll(anyString())).thenReturn(new ProventosCatalogService.SyncResult(654, 0, 0, 0));
+    void order() {
+        when(dividends.syncAll(anyString())).thenReturn(new DividendCatalogService.SyncResult(654, 0, 0, 0));
 
         BootstrapService.Result r = service.run("teste");
 
-        InOrder o = inOrder(issuers, emissorasRf, quotes, proventos, datas, levantamento, statements, fii, indices,
-                tesouro);
+        InOrder o = inOrder(issuers, fiIssuers, quotes, dividends, dates, survey, statements, fii, indices,
+                treasury);
         o.verify(issuers).importAll(anyString());
-        o.verify(emissorasRf).importAll(anyString());
+        o.verify(fiIssuers).importAll(anyString());
         o.verify(quotes).importYears(eq(2010), eq(2026), anyString());
-        o.verify(proventos).syncAll(anyString());
-        o.verify(datas).run(eq(2022), eq(2026), anyString());
-        o.verify(levantamento).run(anyString());
+        o.verify(dividends).syncAll(anyString());
+        o.verify(dates).run(eq(2022), eq(2026), anyString());
+        o.verify(survey).run(anyString());
         o.verify(statements).importYears(eq(2010), eq(2026), eq(false), anyString());
         o.verify(fii).importYears(eq(2016), eq(2026), eq(false), anyString());
         o.verify(indices).importAll(anyString());
-        o.verify(tesouro).importFrom(eq(2010), anyString());
+        o.verify(treasury).importFrom(eq(2010), anyString());
         assertThat(r.steps()).hasSize(10);
     }
 
     @Test
     @DisplayName("Etapa que falha fica registrada e as seguintes rodam; o resultado sai com falha")
-    void falhaNaoPara() {
+    void failureDoesNotStop() {
         when(quotes.importYears(eq(2010), eq(2026), anyString())).thenThrow(new IllegalStateException("B3 fora"));
-        when(proventos.syncAll(anyString())).thenReturn(new ProventosCatalogService.SyncResult(654, 0, 0, 0));
+        when(dividends.syncAll(anyString())).thenReturn(new DividendCatalogService.SyncResult(654, 0, 0, 0));
 
         BootstrapService.Result r = service.run("teste");
 

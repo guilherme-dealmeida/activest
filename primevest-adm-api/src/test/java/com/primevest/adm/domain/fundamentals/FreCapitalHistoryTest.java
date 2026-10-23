@@ -21,7 +21,7 @@ class FreCapitalHistoryTest {
 
     @Test
     @DisplayName("Petrobras: a quantidade de 2015 vem do FRE de 2015 (13,04 bi), a de 2025 do FRE de 2025 (12,89 bi)")
-    void freMaisProximo() {
+    void nearestFre() {
         List<CvmFreCapital.Event> events = new ArrayList<>(CvmFreCapital.read(CvmFixtures.zip("fre2015", 2015, tmp), 2015));
         events.addAll(CvmFreCapital.read(CvmFixtures.zip("fre_cia_aberta_2026", 2025, tmp), 2025));
         FreCapitalHistory h = new FreCapitalHistory(events);

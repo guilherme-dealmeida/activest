@@ -50,7 +50,7 @@ public class UserCpfService {
 
     /** Grava (ou troca) o CPF no usuário, que precisa já ter id. */
     public void apply(User user, String digits) {
-        exigirChave();
+        requireKey();
         CredentialCipher.Sealed sealed = cipher.seal(user.getId(), digits.getBytes(StandardCharsets.UTF_8));
         user.setCpfCiphertext(sealed.ciphertext());
         user.setCpfIv(sealed.iv());
@@ -71,9 +71,9 @@ public class UserCpfService {
             return Optional.empty();
         }
         try {
-            byte[] claro = cipher.open(user.getId(),
+            byte[] plain = cipher.open(user.getId(),
                 new CredentialCipher.Sealed(user.getCpfCiphertext(), user.getCpfIv(), user.getCpfKeyVersion()));
-            return Optional.of(new String(claro, StandardCharsets.UTF_8));
+            return Optional.of(new String(plain, StandardCharsets.UTF_8));
         } catch (CredentialUnavailableException e) {
             return Optional.empty();
         }
@@ -86,7 +86,7 @@ public class UserCpfService {
 
     /** CPF do cadastro pendente (Redis): cifrado com o id do pedido como dado associado, nunca em claro. */
     public Map<String, String> sealPending(String requestId, String digits) {
-        exigirChave();
+        requireKey();
         CredentialCipher.Sealed s = cipher.seal(UUID.fromString(requestId), digits.getBytes(StandardCharsets.UTF_8));
         Base64.Encoder b64 = Base64.getEncoder();
         return Map.of("cpfCt", b64.encodeToString(s.ciphertext()), "cpfIv", b64.encodeToString(s.iv()),
@@ -98,12 +98,12 @@ public class UserCpfService {
             return Optional.empty();
         }
         Base64.Decoder b64 = Base64.getDecoder();
-        byte[] claro = cipher.open(UUID.fromString(requestId), new CredentialCipher.Sealed(
+        byte[] plain = cipher.open(UUID.fromString(requestId), new CredentialCipher.Sealed(
             b64.decode(payload.get("cpfCt")), b64.decode(payload.get("cpfIv")), Short.parseShort(payload.get("cpfKv"))));
-        return Optional.of(new String(claro, StandardCharsets.UTF_8));
+        return Optional.of(new String(plain, StandardCharsets.UTF_8));
     }
 
-    private void exigirChave() {
+    private void requireKey() {
         if (!cipher.isConfigured()) {
             throw new BusinessException("Não é possível guardar o CPF neste ambiente: o servidor está sem a "
                 + "chave-mestra (PRIMEVEST_CREDENTIALS_KEY).");

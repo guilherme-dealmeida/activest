@@ -36,7 +36,7 @@ export const INDICATOR_ORDER: Record<IssuerKind, IndicatorCode[]> = {
  * Indicadores com série histórica. Hoje todos têm; indicador novo sem série
  * fica fora e não ganha botão nem sparkline.
  */
-export const HISTORICO_DISPONIVEL = new Set<IndicatorCode>([
+export const HISTORY_AVAILABLE = new Set<IndicatorCode>([
   'LPA', 'VPA', 'PL', 'PVP', 'ROE', 'PAYOUT', 'DY', 'VP_COTA', 'COTISTAS', 'IMOVEIS', 'PAPEL', 'ALAVANCAGEM',
 ]);
 

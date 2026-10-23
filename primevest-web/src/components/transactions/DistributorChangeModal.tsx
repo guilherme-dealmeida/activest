@@ -17,7 +17,7 @@ interface Props {
   onDone: (saved: TransactionResponse | undefined) => void;
 }
 
-const cotas = (v: number | null) =>
+const shareCount = (v: number | null) =>
   v == null ? '—' : v.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 
 /**
@@ -29,23 +29,23 @@ const cotas = (v: number | null) =>
  * distribuidoras, nada muda e o motivo aparece aqui, com o modal aberto para mudar a escolha.</p>
  */
 export const DistributorChangeModal = ({ transactionId, preview, purchase, onCancel, onDone }: Props) => {
-  const [marcados, setMarcados] = useState<Set<string>>(() => new Set(preview.items.map(i => i.id)));
-  const [erro, setErro] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(preview.items.map(i => i.id)));
+  const [error, setError] = useState<string | null>(null);
 
-  const salvar = useMutation({
+  const save = useMutation({
     mutationFn: () => transactionsApi.changeDistributor(
       transactionId,
       purchase,
-      preview.items.filter(i => i.type === 'BUY' && !i.locked && marcados.has(i.id)).map(i => i.id),
-      preview.items.filter(i => i.type === 'SELL' && marcados.has(i.id)).map(i => i.id),
+      preview.items.filter(i => i.type === 'BUY' && !i.locked && selected.has(i.id)).map(i => i.id),
+      preview.items.filter(i => i.type === 'SELL' && selected.has(i.id)).map(i => i.id),
     ),
     onSuccess: (saved) => onDone(saved),
-    onError: (e: unknown) => setErro(apiMessage(e) ?? 'Não foi possível trocar a distribuidora.'),
+    onError: (e: unknown) => setError(apiMessage(e) ?? 'Não foi possível trocar a distribuidora.'),
   });
 
-  const alternar = (id: string) => {
-    setErro(null);
-    setMarcados(prev => {
+  const toggle = (id: string) => {
+    setError(null);
+    setSelected(prev => {
       const n = new Set(prev);
       if (n.has(id)) n.delete(id); else n.add(id);
       return n;
@@ -61,7 +61,7 @@ export const DistributorChangeModal = ({ transactionId, preview, purchase, onCan
       footer={
         <div className="flex justify-end gap-3">
           <Button type="button" variant="ghost" onClick={onCancel}>Voltar</Button>
-          <Button type="button" isLoading={salvar.isPending} onClick={() => salvar.mutate()}>Salvar</Button>
+          <Button type="button" isLoading={save.isPending} onClick={() => save.mutate()}>Salvar</Button>
         </div>
       }
     >
@@ -83,16 +83,16 @@ export const DistributorChangeModal = ({ transactionId, preview, purchase, onCan
             <input
               type="checkbox"
               className="accent-accent"
-              checked={item.locked || marcados.has(item.id)}
+              checked={item.locked || selected.has(item.id)}
               disabled={item.locked}
-              onChange={() => alternar(item.id)}
+              onChange={() => toggle(item.id)}
             />
             <span className={`w-16 font-medium ${item.type === 'BUY' ? 'text-success' : 'text-danger'}`}>
               {item.type === 'BUY' ? 'Compra' : 'Venda'}
             </span>
             <span className="w-24 tabular-nums text-gray-300">{formatDate(item.date)}</span>
             <span className="flex-1 tabular-nums text-gray-300">
-              {cotas(item.shares)} cotas × {item.pricePerShare == null ? '—' : formatCurrency(item.pricePerShare)}
+              {shareCount(item.shares)} cotas × {item.pricePerShare == null ? '—' : formatCurrency(item.pricePerShare)}
             </span>
             <span className="tabular-nums text-gray-200">{item.totalAmount == null ? '—' : formatCurrency(item.totalAmount)}</span>
             {item.locked && <span className="text-[10px] uppercase text-gray-500">esta compra</span>}
@@ -100,8 +100,8 @@ export const DistributorChangeModal = ({ transactionId, preview, purchase, onCan
         ))}
       </div>
 
-      {erro && (
-        <div className="mt-4 rounded-md border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">{erro}</div>
+      {error && (
+        <div className="mt-4 rounded-md border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>
       )}
     </Modal>
   );

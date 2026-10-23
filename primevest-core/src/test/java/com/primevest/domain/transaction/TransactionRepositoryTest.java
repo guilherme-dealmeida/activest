@@ -39,121 +39,121 @@ class TransactionRepositoryTest extends JpaTestBase {
     @Autowired private AssetRepository assetRepository;
     @Autowired private EntityManager em;
 
-    private User dono;
-    private User outro;
-    private Portfolio carteira;
-    private Asset acao;
-    private Asset tesouro;
-    private PortfolioAsset posicaoDaAcao;
+    private User owner;
+    private User other;
+    private Portfolio portfolioEntity;
+    private Asset stock;
+    private Asset treasury;
+    private PortfolioAsset stockPosition;
 
     @BeforeEach
-    void cenario() {
-        dono = userRepository.save(Fixtures.user("dono@primevest.test"));
-        outro = userRepository.save(Fixtures.user("outro@primevest.test"));
-        carteira = portfolioRepository.save(Fixtures.portfolio(dono));
-        acao = CatalogIds.asset(assetRepository, CatalogIds.ACAO);
-        tesouro = CatalogIds.asset(assetRepository, CatalogIds.TESOURO_IPCA_2050);
-        posicaoDaAcao = positionRepository.save(Fixtures.position(carteira, acao));
+    void scenario() {
+        owner = userRepository.save(Fixtures.user("dono@primevest.test"));
+        other = userRepository.save(Fixtures.user("outro@primevest.test"));
+        portfolioEntity = portfolioRepository.save(Fixtures.portfolio(owner));
+        stock = CatalogIds.asset(assetRepository, CatalogIds.STOCK);
+        treasury = CatalogIds.asset(assetRepository, CatalogIds.TREASURY_IPCA_2050);
+        stockPosition = positionRepository.save(Fixtures.position(portfolioEntity, stock));
     }
 
-    private PortfolioAsset tituloDoTesouro(LocalDate compra) {
-        FixedIncomeNote note = noteRepository.save(Fixtures.note(dono, tesouro, Fixtures.issuer(issuerRepository, "Tesouro Nacional"),
+    private PortfolioAsset treasuryNote(LocalDate buyTx) {
+        FixedIncomeNote note = noteRepository.save(Fixtures.note(owner, treasury, Fixtures.issuer(issuerRepository, "Tesouro Nacional"),
             LocalDate.of(2050, 8, 15), RateType.HIBRIDO, Indexer.IPCA, new BigDecimal("7.0900")));
-        note.setPurchaseDate(compra);
-        return positionRepository.save(Fixtures.position(carteira, tesouro, note));
+        note.setPurchaseDate(buyTx);
+        return positionRepository.save(Fixtures.position(portfolioEntity, treasury, note));
     }
 
     @Test
     @DisplayName("findOwnedById devolve a transacao ao dono, com ativo, tipo e categoria carregados")
-    void transacaoEscopadaPeloDono() {
-        Transaction compra = repository.save(Fixtures.buy(posicaoDaAcao, LocalDate.of(2026, 9, 1), "10", "30.00"));
+    void transactionScopedByOwner() {
+        Transaction buyTx = repository.save(Fixtures.buy(stockPosition, LocalDate.of(2026, 9, 1), "10", "30.00"));
         em.flush();
         em.clear();
 
-        Transaction achada = repository.findOwnedById(dono.getId(), compra.getId()).orElseThrow();
+        Transaction found = repository.findOwnedById(owner.getId(), buyTx.getId()).orElseThrow();
 
-        assertThat(achada.getPortfolioAsset().getAsset().getTicker()).isEqualTo(CatalogIds.ACAO);
-        assertThat(achada.getPortfolioAsset().getAsset().getAssetType().getName()).isEqualTo("ACAO");
+        assertThat(found.getPortfolioAsset().getAsset().getTicker()).isEqualTo(CatalogIds.STOCK);
+        assertThat(found.getPortfolioAsset().getAsset().getAssetType().getName()).isEqualTo("ACAO");
     }
 
     @Test
     @DisplayName("findOwnedById nao devolve transacao de outro usuario — 'nao encontrada', nunca 'sem permissao'")
-    void transacaoDeOutroDonoNaoSai() {
-        Transaction compra = repository.saveAndFlush(
-            Fixtures.buy(posicaoDaAcao, LocalDate.of(2026, 9, 1), "10", "30.00"));
+    void otherOwnerTransactionNotReturned() {
+        Transaction buyTx = repository.saveAndFlush(
+            Fixtures.buy(stockPosition, LocalDate.of(2026, 9, 1), "10", "30.00"));
 
-        assertThat(repository.findOwnedById(outro.getId(), compra.getId())).isEmpty();
-        assertThat(repository.findOwnedById(dono.getId(), UUID.randomUUID())).isEmpty();
+        assertThat(repository.findOwnedById(other.getId(), buyTx.getId())).isEmpty();
+        assertThat(repository.findOwnedById(owner.getId(), UUID.randomUUID())).isEmpty();
     }
 
     @Test
     @DisplayName("findAllTransactionsByUserId isola usuarios e nao perde renda variavel no LEFT JOIN do titulo")
-    void listagemPorUsuario() {
-        repository.save(Fixtures.buy(posicaoDaAcao, LocalDate.of(2026, 9, 1), "10", "30.00"));
-        PortfolioAsset titulo = tituloDoTesouro(LocalDate.of(2026, 9, 1));
-        repository.save(Fixtures.buy(titulo, LocalDate.of(2026, 9, 1), "3", "830.07"));
+    void listingByUser() {
+        repository.save(Fixtures.buy(stockPosition, LocalDate.of(2026, 9, 1), "10", "30.00"));
+        PortfolioAsset noteEntity = treasuryNote(LocalDate.of(2026, 9, 1));
+        repository.save(Fixtures.buy(noteEntity, LocalDate.of(2026, 9, 1), "3", "830.07"));
 
-        Portfolio carteiraDoOutro = portfolioRepository.save(Fixtures.portfolio(outro));
-        PortfolioAsset posicaoDoOutro = positionRepository.save(Fixtures.position(carteiraDoOutro, acao));
-        repository.save(Fixtures.buy(posicaoDoOutro, LocalDate.of(2026, 9, 2), "5", "31.00"));
+        Portfolio otherUsersPortfolio = portfolioRepository.save(Fixtures.portfolio(other));
+        PortfolioAsset othersPosition = positionRepository.save(Fixtures.position(otherUsersPortfolio, stock));
+        repository.save(Fixtures.buy(othersPosition, LocalDate.of(2026, 9, 2), "5", "31.00"));
         em.flush();
         em.clear();
 
-        List<Transaction> minhas = repository.findAllTransactionsByUserId(dono.getId());
+        List<Transaction> mine = repository.findAllTransactionsByUserId(owner.getId());
 
-        assertThat(minhas).hasSize(2);
-        assertThat(minhas).anySatisfy(tx -> assertThat(tx.getNote()).isNull());
-        assertThat(minhas).anySatisfy(tx -> assertThat(tx.getNote()).isNotNull());
-        assertThat(repository.findAllTransactionsByUserId(outro.getId())).hasSize(1);
+        assertThat(mine).hasSize(2);
+        assertThat(mine).anySatisfy(tx -> assertThat(tx.getNote()).isNull());
+        assertThat(mine).anySatisfy(tx -> assertThat(tx.getNote()).isNotNull());
+        assertThat(repository.findAllTransactionsByUserId(other.getId())).hasSize(1);
     }
 
     @Test
     @DisplayName("findByPortfolioIdAndAssetId traz as transacoes de TODOS os titulos do ativo")
-    void transacoesDoAtivoInteiro() {
-        PortfolioAsset titulo1 = tituloDoTesouro(LocalDate.of(2026, 9, 1));
-        PortfolioAsset titulo2 = tituloDoTesouro(LocalDate.of(2026, 9, 15));
-        repository.save(Fixtures.buy(titulo1, LocalDate.of(2026, 9, 1), "3", "830.07"));
-        repository.save(Fixtures.buy(titulo2, LocalDate.of(2026, 9, 15), "4", "830.10"));
-        repository.save(Fixtures.buy(posicaoDaAcao, LocalDate.of(2026, 9, 1), "10", "30.00"));
+    void wholeAssetTransactions() {
+        PortfolioAsset note1 = treasuryNote(LocalDate.of(2026, 9, 1));
+        PortfolioAsset note2 = treasuryNote(LocalDate.of(2026, 9, 15));
+        repository.save(Fixtures.buy(note1, LocalDate.of(2026, 9, 1), "3", "830.07"));
+        repository.save(Fixtures.buy(note2, LocalDate.of(2026, 9, 15), "4", "830.10"));
+        repository.save(Fixtures.buy(stockPosition, LocalDate.of(2026, 9, 1), "10", "30.00"));
         em.flush();
         em.clear();
 
-        List<Transaction> doAtivo = repository.findByPortfolioIdAndAssetId(carteira.getId(), tesouro.getId());
+        List<Transaction> ofAsset = repository.findByPortfolioIdAndAssetId(portfolioEntity.getId(), treasury.getId());
 
-        assertThat(doAtivo).hasSize(2);
-        assertThat(doAtivo).allSatisfy(tx ->
-            assertThat(tx.getPortfolioAsset().getAsset().getId()).isEqualTo(tesouro.getId()));
+        assertThat(ofAsset).hasSize(2);
+        assertThat(ofAsset).allSatisfy(tx ->
+            assertThat(tx.getPortfolioAsset().getAsset().getId()).isEqualTo(treasury.getId()));
     }
 
     @Test
     @DisplayName("findBySaleGroupId junta as partes da mesma venda")
-    void partesDaMesmaVenda() {
-        PortfolioAsset titulo1 = tituloDoTesouro(LocalDate.of(2026, 9, 1));
-        PortfolioAsset titulo2 = tituloDoTesouro(LocalDate.of(2026, 9, 15));
-        UUID grupo = UUID.randomUUID();
+    void partsOfSameSale() {
+        PortfolioAsset note1 = treasuryNote(LocalDate.of(2026, 9, 1));
+        PortfolioAsset note2 = treasuryNote(LocalDate.of(2026, 9, 15));
+        UUID group = UUID.randomUUID();
 
-        Transaction parte1 = Fixtures.sell(titulo1, LocalDate.of(2026, 9, 17), "3", "850.00");
-        parte1.setSaleGroupId(grupo);
-        Transaction parte2 = Fixtures.sell(titulo2, LocalDate.of(2026, 9, 17), "2", "850.00");
-        parte2.setSaleGroupId(grupo);
-        repository.saveAll(List.of(parte1, parte2));
-        repository.save(Fixtures.sell(posicaoDaAcao, LocalDate.of(2026, 9, 17), "1", "30.00"));
+        Transaction part1 = Fixtures.sell(note1, LocalDate.of(2026, 9, 17), "3", "850.00");
+        part1.setSaleGroupId(group);
+        Transaction part2 = Fixtures.sell(note2, LocalDate.of(2026, 9, 17), "2", "850.00");
+        part2.setSaleGroupId(group);
+        repository.saveAll(List.of(part1, part2));
+        repository.save(Fixtures.sell(stockPosition, LocalDate.of(2026, 9, 17), "1", "30.00"));
         em.flush();
 
-        assertThat(repository.findBySaleGroupId(grupo)).hasSize(2);
+        assertThat(repository.findBySaleGroupId(group)).hasSize(2);
     }
 
     @Test
     @DisplayName("findByPortfolioAssetIdOrderByTransactionDateDesc ordena da mais nova para a mais antiga")
-    void ordenacaoPorData() {
-        repository.save(Fixtures.buy(posicaoDaAcao, LocalDate.of(2026, 9, 1), "10", "30.00"));
-        repository.save(Fixtures.buy(posicaoDaAcao, LocalDate.of(2026, 9, 10), "5", "31.00"));
+    void sortByDate() {
+        repository.save(Fixtures.buy(stockPosition, LocalDate.of(2026, 9, 1), "10", "30.00"));
+        repository.save(Fixtures.buy(stockPosition, LocalDate.of(2026, 9, 10), "5", "31.00"));
         em.flush();
 
-        List<Transaction> lista =
-            repository.findByPortfolioAssetIdOrderByTransactionDateDesc(posicaoDaAcao.getId());
+        List<Transaction> list =
+            repository.findByPortfolioAssetIdOrderByTransactionDateDesc(stockPosition.getId());
 
-        assertThat(lista).extracting(Transaction::getTransactionDate)
+        assertThat(list).extracting(Transaction::getTransactionDate)
             .containsExactly(LocalDate.of(2026, 9, 10), LocalDate.of(2026, 9, 1));
     }
 }

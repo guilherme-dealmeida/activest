@@ -49,7 +49,7 @@ const selectClass =
   'bg-surface border border-surface-light text-gray-300 text-sm rounded-md px-2 py-1.5 focus:ring-accent focus:border-accent';
 
 /** "há 5 min", "ontem 14:02" ou a data — o carimbo da API vem no relógio do servidor (UTC). */
-const quando = (value: string): string => {
+const when = (value: string): string => {
   const iso = /[zZ]|[+-]\d{2}:\d{2}$/.test(value) ? value : `${value}Z`;
   const d = new Date(iso);
   const diffMin = Math.round((Date.now() - d.getTime()) / 60_000);
@@ -295,7 +295,7 @@ export const NotificationsPage = () => {
                         <p className={clsx('truncate text-sm', item.read ? 'text-gray-300' : 'font-semibold text-white')}>
                           {item.title}
                         </p>
-                        <span className="shrink-0 text-[11px] text-gray-500">{quando(item.createdAt)}</span>
+                        <span className="shrink-0 text-[11px] text-gray-500">{when(item.createdAt)}</span>
                       </div>
                       <div className="mt-1 flex items-center gap-2">
                         <span className="truncate text-xs text-gray-500">{item.body}</span>

@@ -14,7 +14,7 @@ public interface IntegrationRunRepository extends JpaRepository<IntegrationRun, 
 
     List<IntegrationRun> findByConnectionIdAndStatusIn(UUID connectionId, java.util.Collection<RunStatus> status);
 
-    List<IntegrationRun> findByStatusAndStartedAtBefore(RunStatus status, java.time.LocalDateTime limite);
+    List<IntegrationRun> findByStatusAndStartedAtBefore(RunStatus status, java.time.LocalDateTime limit);
 
     java.util.Optional<IntegrationRun> findFirstByConnectionIdOrderByCreatedAtDesc(UUID connectionId);
 
@@ -25,7 +25,7 @@ public interface IntegrationRunRepository extends JpaRepository<IntegrationRun, 
     /** Houve busca na fonte desde o instante (fontes com uma consulta por dia, G12). */
     boolean existsByConnectionIdAndStatusInAndStartedAtGreaterThanEqual(UUID connectionId,
                                                                        java.util.Collection<RunStatus> status,
-                                                                       java.time.LocalDateTime desde);
+                                                                       java.time.LocalDateTime since);
 
     /**
      * A fila (F5): a execucao QUEUED mais antiga cuja conexao nao tem outra

@@ -17,7 +17,7 @@ interface Props {
  * cortada e avisar — o corte em si acontece no servidor, onde existe uma
  * ordenação para decidir o que fica de fora.
  */
-const LIMITE_BUSCA = 50;
+const SEARCH_LIMIT = 50;
 
 /**
  * Autocomplete de ticker restrito a um tipo de ativo.
@@ -31,7 +31,7 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
   const [options, setOptions] = useState<Asset[]>([]);
   const [open, setOpen] = useState(false);
   const [searching, setSearching] = useState(false);
-  const [truncado, setTruncado] = useState(false);
+  const [truncated, setTruncated] = useState(false);
   const [highlight, setHighlight] = useState(-1);
   /**
    * Ticker que o usuário escolheu na lista.
@@ -41,7 +41,7 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
    * options.length === 0 — então selecionar CDB acusava "não encontrado".
    * Também evita a rebusca que reabria o dropdown logo após a escolha.
    */
-  const [escolhido, setEscolhido] = useState<string | null>(null);
+  const [chosen, setChosen] = useState<string | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -50,10 +50,10 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
     // busca agendada, e era o finally dela que desligava o spinner. Apagar o
     // texto (ou trocar o tipo) antes dos 300ms deixava o loading eterno.
     if (disabled || !typeId || value.trim().length < 2) {
-      setOptions([]); setOpen(false); setTruncado(false); setSearching(false); return;
+      setOptions([]); setOpen(false); setTruncated(false); setSearching(false); return;
     }
     // Valor que veio da própria lista: não há o que buscar nem o que avisar.
-    if (escolhido && value.trim() === escolhido) {
+    if (chosen && value.trim() === chosen) {
       setOpen(false); setSearching(false); return;
     }
     setSearching(true);
@@ -65,21 +65,21 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
         // o Tesouro Selic 2031 numa busca por "SELIC".
         const results = (await assetsApi.getAll(typeId, value.trim())) as Asset[];
         setOptions(results);
-        setTruncado(results.length >= LIMITE_BUSCA);
+        setTruncated(results.length >= SEARCH_LIMIT);
         setOpen(results.length > 0);
         setHighlight(-1);
       } catch {
-        setOptions([]); setOpen(false); setTruncado(false);
+        setOptions([]); setOpen(false); setTruncated(false);
       } finally {
         setSearching(false);
       }
     }, 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [value, typeId, disabled, escolhido]);
+  }, [value, typeId, disabled, chosen]);
 
   // Outro tipo, outra lista: a escolha anterior não vale mais.
   useEffect(() => {
-    setEscolhido(null);
+    setChosen(null);
   }, [typeId]);
 
   useEffect(() => {
@@ -92,15 +92,15 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
 
   const pick = (asset: Asset) => {
     onChange(asset.ticker, asset);
-    setEscolhido(asset.ticker);
+    setChosen(asset.ticker);
     setOpen(false);
     setOptions([]);
   };
 
-  const semTipo = !typeId;
-  const temEscolha = !!escolhido && value.trim() === escolhido;
-  const semResultado =
-    !semTipo && !searching && !temEscolha && value.trim().length >= 2 && options.length === 0;
+  const withoutType = !typeId;
+  const hasChoice = !!chosen && value.trim() === chosen;
+  const noResults =
+    !withoutType && !searching && !hasChoice && value.trim().length >= 2 && options.length === 0;
 
   return (
     <div ref={boxRef} className="relative">
@@ -111,12 +111,12 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
           type="text"
           autoComplete="off"
           required
-          disabled={disabled || semTipo}
+          disabled={disabled || withoutType}
           value={value}
           onChange={(e) => {
             // Editar o texto desfaz a seleção: o ativo casado deixa de valer,
             // tanto aqui quanto no formulário (asset = null).
-            setEscolhido(null);
+            setChosen(null);
             onChange(e.target.value.toUpperCase(), null);
           }}
           onKeyDown={(e) => {
@@ -126,7 +126,7 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
             else if (e.key === 'Enter' && highlight >= 0) { e.preventDefault(); pick(options[highlight]); }
             else if (e.key === 'Escape') setOpen(false);
           }}
-          placeholder={semTipo ? 'Escolha o tipo de ativo primeiro' : 'Digite para buscar (ex: PETR4, MXRF11, CDB)'}
+          placeholder={withoutType ? 'Escolha o tipo de ativo primeiro' : 'Digite para buscar (ex: PETR4, MXRF11, CDB)'}
           className="flex h-10 w-full rounded-md border border-surface-light bg-surface pl-9 pr-3 py-2 text-sm text-white focus:ring-2 focus:ring-accent focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed"
         />
         {searching && <LoadingSpinner className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-accent" />}
@@ -150,15 +150,15 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
 
           {/* Truncou: o usuário precisa saber que existe mais coisa, senão
               conclui que o ativo não está cadastrado e cria um duplicado. */}
-          {truncado && (
+          {truncated && (
             <p className="px-3 py-2 text-xs text-gray-500 border-t border-white/5">
-              Mostrando os {LIMITE_BUSCA} primeiros. Refine a busca para ver o resto.
+              Mostrando os {SEARCH_LIMIT} primeiros. Refine a busca para ver o resto.
             </p>
           )}
         </div>
       )}
 
-      {semResultado && (
+      {noResults && (
         <p className="text-xs text-danger mt-1">
           Ativo não encontrado no catálogo. Escolha um da lista para registrar a transação.
         </p>

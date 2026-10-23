@@ -30,17 +30,17 @@ export const ConnectB3Modal = ({ isOpen, onClose, onConnected }: Props) => {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const { user } = useAuth();
-  const cpfDoPerfil = user?.cpfMasked;
+  const profileCpf = user?.cpfMasked;
   const [label, setLabel] = useState('B3');
   const [consent, setConsent] = useState(false);
 
-  const limpar = () => {
+  const clear = () => {
     setLabel('B3');
     setConsent(false);
   };
 
-  const fechar = () => {
-    limpar();
+  const close = () => {
+    clear();
     onClose();
   };
 
@@ -53,24 +53,24 @@ export const ConnectB3Modal = ({ isOpen, onClose, onConnected }: Props) => {
       showToast(c.status === 'PENDING_AUTHORIZATION'
         ? `"${c.label}" criada. Falta autorizar o PrimeVest na B3: use o link no cartão da conexão.`
         : `"${c.label}" conectada. Sincronize para trazer as suas negociações.`, 'success', 8000);
-      limpar();
+      clear();
       onConnected(c);
     },
     onError: (e: unknown) => showToast(apiMessage(e) ?? 'Não foi possível conectar.', 'error', 8000),
   });
 
-  const podeSalvar = label.trim() && !!cpfDoPerfil && consent && !mutation.isPending;
+  const canSave = label.trim() && !!profileCpf && consent && !mutation.isPending;
 
   return (
     <Modal
       isOpen={isOpen}
-      onClose={fechar}
+      onClose={close}
       title="Conectar B3 (Área do Investidor)"
       size="lg"
       footer={
         <div className="flex justify-end gap-3">
-          <Button variant="ghost" type="button" onClick={fechar}>Cancelar</Button>
-          <Button type="submit" form={FORM_ID} disabled={!podeSalvar} isLoading={mutation.isPending}>
+          <Button variant="ghost" type="button" onClick={close}>Cancelar</Button>
+          <Button type="submit" form={FORM_ID} disabled={!canSave} isLoading={mutation.isPending}>
             Conectar
           </Button>
         </div>
@@ -79,7 +79,7 @@ export const ConnectB3Modal = ({ isOpen, onClose, onConnected }: Props) => {
       <form
         id={FORM_ID}
         className="space-y-5"
-        onSubmit={(e) => { e.preventDefault(); if (podeSalvar) mutation.mutate(); }}
+        onSubmit={(e) => { e.preventDefault(); if (canSave) mutation.mutate(); }}
         autoComplete="off"
       >
         <div className="rounded-md border border-surface-light bg-surface-light/40 p-4 text-sm text-gray-300 space-y-2">
@@ -98,13 +98,13 @@ export const ConnectB3Modal = ({ isOpen, onClose, onConnected }: Props) => {
 
         <Input label="Apelido" value={label} maxLength={100} onChange={(e) => setLabel(e.target.value)}
           hint="Para você reconhecer a conexão, ex.: “B3”." required />
-        {cpfDoPerfil ? (
-          <Input label="CPF" value={cpfDoPerfil} disabled readOnly
+        {profileCpf ? (
+          <Input label="CPF" value={profileCpf} disabled readOnly
             hint="O CPF do seu cadastro. Para usar outro, altere-o em Configurações." />
         ) : (
           <div className="rounded-md border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm text-gray-200">
             A conexão com a B3 usa o CPF do seu cadastro, e ele ainda não foi informado.{' '}
-            <Link to="/settings" onClick={fechar} className="text-accent hover:underline">Cadastrar o CPF em Configurações</Link>
+            <Link to="/settings" onClick={close} className="text-accent hover:underline">Cadastrar o CPF em Configurações</Link>
           </div>
         )}
 

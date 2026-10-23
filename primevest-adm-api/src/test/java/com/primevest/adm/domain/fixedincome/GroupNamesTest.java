@@ -22,7 +22,7 @@ class GroupNamesTest {
         "DLOCAL BRASIL INSTITUIÇÃO DE PAGAMENTO - PRUDENCIA|Dlocal Brasil Instituição de Pagamento",
         "BCO DES. DO ES S.A. - PRUDENCIAL|Banco Des. do ES"
     })
-    void automatico(String bcb, String esperado) {
-        assertThat(GroupNames.automatic(bcb)).isEqualTo(esperado);
+    void isAutomatic(String bcb, String expected) {
+        assertThat(GroupNames.automatic(bcb)).isEqualTo(expected);
     }
 }

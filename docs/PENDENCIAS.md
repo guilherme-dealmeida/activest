@@ -424,7 +424,7 @@ Primeiro teste a escrever quando o item 8 sair do papel: Exemplo 6 do
 escopo — compra retroativa depois de uma venda ja repartida.
 
 **10.2** FEITO em 05/10/2026: a curva refaz o saldo do zero a cada passagem; excluida a venda, a valorizacao
-volta para a curva (RendaFixaCurvaIT). Sem curva (TR), continua como estava. Texto original:
+volta para a curva (FixedIncomeCurveIT). Sem curva (TR), continua como estava. Texto original:
 A valorizacao de renda fixa que sobra quando uma venda e EXCLUIDA.
 
 Vender por mais do que a posicao valia corrige a valorizacao para cima
@@ -602,7 +602,7 @@ Cada transacao dispara uma busca de proventos em paralelo, e essas
 buscas esperam na fila sem liberar as threads da API. Com muitos
 lancamentos seguidos, como nesta carga, outras rotinas param junto,
 inclusive o fechamento.
-- Onde: ProventosOnDemandListener abre um Thread.ofVirtual() por
+- Onde: DividendOnDemandListener abre um Thread.ofVirtual() por
   PositionChangedEvent, e ProventosSyncService.syncAssetOnDemand entra
   num synchronized (this). No Java 21 a thread virtual que espera um
   monitor (ou que bloqueia dentro dele, como o Mono.block do
@@ -611,7 +611,7 @@ inclusive o fechamento.
 - Visto: POST /api/v1/admin/closing respondeu 202, mas a thread
   "admin-fechamento" nunca chegou a rodar (dump de threads: sem pilha).
   Precisou de docker compose restart api; o fechamento saiu pela
-  recuperacao na subida e os proventos por /admin/proventos
+  recuperacao na subida e os proventos por /admin/dividends
   (23 emissores, 0 falhas, ~50 min por causa dos timeouts do FNET).
 - Correcao possivel: fila unica com um executor de uma thread e
   deduplicacao por emissor (varias transacoes do mesmo ativo viram uma
@@ -843,7 +843,7 @@ preco teto", que vira o proximo e consome este. Fases F1 a F11 no plano.
     maximo uma vez por dia por fundo). Texto original:
     Depois do historico, o FII fica so com a B3 (12 meses). Aviso novo
     do FNET (depois de 27/09/2026) precisa de busca explicita: endpoint
-    POST /api/v1/admin/proventos/fnet?cnpj= ou rotina semanal. Nao
+    POST /api/v1/admin/dividends/fnet?cnpj= ou rotina semanal. Nao
     feito — o FnetClient ja tem a busca (incomeNoticeIds) e o download
     com cache (incomeNotices); falta so o disparo. Conferido com o
     Guilherme em 28/09. A F10 tirou cash_history_loaded_at de assets: o
@@ -945,7 +945,7 @@ preco teto", que vira o proximo e consome este. Fases F1 a F11 no plano.
  ISIN do evento diferente, parcelas "a definir", empresa que nao entregou
  o relatorio.
 **20.7** Testes de integracao da adm-api gravam na carga/data/ real do projeto
- (primevest.data.dir padrao ../data): o ProventosCatalogoIT passou a usar
+ (primevest.data.dir padrao ../data): o DividendCatalogIT passou a usar
  target/it-data-proventos; os demais ITs ainda usam a carga/data/ real.
 **20.8** Proventos de acao A DEFINIR antigos (D17, decidido em 02/10/2026): 145
  linhas do levantamento (data-com 2010 a 2022) sem data de pagamento em
@@ -1122,7 +1122,7 @@ Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
 **27.5** RESOLVIDO em 15/10/2026. Venda parcial de renda fixa acima do liquido disponivel lancada "mesmo assim"
  (R9 -> D4): o excesso e rendimento que a curva nao previu e agora paga IR e IOF — gross-up pelas aliquotas dos lotes,
  como na liquidacao total (R8); o ajuste (bruto - saldo da curva) fica em settlement_adjustment e sobra o centavo da
- regra F. Testes: FixedIncomeLotsTest.acimaDoDisponivel e TransacoesIT.resgateParcialDeixaCentavo.
+ regra F. Testes: FixedIncomeLotsTest.acimaDoDisponivel e TransactionsIT.resgateParcialDeixaCentavo.
 
 ## 28. EMISSORAS E DISTRIBUIDORAS DE RENDA FIXA (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md, 16/10/2026)
 
@@ -1171,9 +1171,9 @@ Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
 
 **30.1** RESOLVIDO (17/10/2026): Aportes do Dashboard passaram a ser compras - o que as vendas devolveram (liquido na
  renda fixa e no Tesouro, valor da venda nos demais) nos ultimos 12 meses; media = total / 12.
-**30.4** RESOLVIDO (17/10/2026): testes de integracao dos numeros novos do Dashboard (DashboardResumoIT: aportes
+**30.4** RESOLVIDO (17/10/2026): testes de integracao dos numeros novos do Dashboard (DashboardSummaryIT: aportes
  compras - vendas, janela de 12 meses com o dia de corte, aporte negativo, valor liquido com e sem renda fixa;
- ProventosAReceberIT.ultimosDozeMeses) e conferencia no tema claro do menu do usuario e do popover da previa da venda.
+ DividendsToReceiveIT.ultimosDozeMeses) e conferencia no tema claro do menu do usuario e do popover da previa da venda.
 **30.3** RESOLVIDO (17/10/2026): Carteira com VALORIZACAO (R$ + %) e RENTABILIDADE (classica com proventos + TWR
  embaixo); o total da coluna deixou de misturar contas (linhas sem proventos, total com).
 **30.2** RESOLVIDO (17/10/2026): toda rentabilidade do Dashboard em base bruta (cards, Top 5 e grafico); a tela
@@ -1243,7 +1243,7 @@ fundo (E) e historico longo da B3 vazio para nome de pregao com barra (G, era o 
 
 **33.3** ~~(21/10/2026) A situacao de um aviso (ativo/inativo) so era relida quando a rotina buscava avisos do fundo.~~
  **Resolvido em 21/10/2026:** rotina semanal [A12] (`FnetStatusScheduler`, domingo 03:00 — docs/SCHEDULE_TASKS.md):
- situacao de todos os fundos e depois os proventos relendo todos os avisos (`fnet=todos`). Os arquivos de situacao
+ situacao de todos os fundos e depois os proventos relendo todos os avisos (`fnet=all`). Os arquivos de situacao
  novos sobem para o bucket no `data push`.
 
 **33.4** (21/10/2026) Historico longo da B3 vazio para emissores do balcao organizado: EQMA (EQMA3B) e MRSA (MRSA3B,
@@ -1261,7 +1261,7 @@ fundo (E) e historico longo da B3 vazio para nome de pregao com barra (G, era o 
  (21/10) achou 14 eventos da B3 com o pagamento antigo no dev (ALUP 05/10 x 02/10/2026; GEPA "a definir" 31/12/2027 x
  09/10/2026; JSLG3) e 124 do historico longo sem data no dev que a carga nova recebeu dos relatorios da CVM e do
  levantamento. Conferido em 21/10/2026: (a) `/cvm/proventos?from=2022` no dev completou as 124 do historico longo
- (sem data 10.750 -> 10.626); `/proventos/levantamento` nao tinha nada novo. A rotina das 20:00 so roda a CVM do ano
+ (sem data 10.750 -> 10.626); `/dividends/payment-date-survey` nao tinha nada novo. A rotina das 20:00 so roda a CVM do ano
  corrente e do anterior; o levantamento so roda na carga inicial ou sob demanda. (b) O `CashEventWriter` **nao**
  atualiza o pagamento quando a propria fonte o muda (so completa data vazia ou troca a data de outra fonte): 14 eventos
  da B3 no dev — ALUP3/4/11 (+F) 05/10 -> 02/10/2026, GEPA3/4 (+F) 31/12/2027 -> 23/07 e 09/10/2026, JSLG3 (+F)
@@ -1277,8 +1277,10 @@ fundo (E) e historico longo da B3 vazio para nome de pregao com barra (G, era o 
  e a tela.
 **34.2** Tipo de tarefa (liga/desliga, valores padrão dos atributos, tipo novo) só por migration (D36); a tela mostra o
  `enabled` do tipo só para leitura.
-**34.3** Nomes internos em português do que já existe (rotas do front, parâmetros, rotas da adm-api, configuração,
- canais do Redis, valores gravados): escopo próprio, `docs/planos/PLANO_NOMES_EM_INGLES.md` (D16).
+**34.3** RESOLVIDO em 22/10/2026 (`docs/planos/PLANO_NOMES_EM_INGLES.md`): nomes internos em inglês — código, testes,
+ rotas e parâmetros do front (os antigos redirecionam), rotas da adm-api, configuração, `PRIMEVEST_PASSWORD`, canais do
+ Redis e três nomes de constraint (V66, V67). Valores gravados ficam, por decisão do Guilherme. Fora, de propósito: a carga
+ (`carga/scripts`, pastas de `carga/data` espelhadas no bucket).
 **34.4** Stop: 13 tipos sem ponto de parada (`stoppable = false`): `CRYPTO_CLOSING`, `CATALOG_AUDIT`,
  `ISSUERS_IMPORT`, `ISSUERS_LINK`, `CVM_QUARTERS`, `PAYMENT_DATE_SURVEY`, `TREASURY_PRICES` (um arquivo só), a
  curadoria (3), `TASK_HISTORY_CLEANUP`, `DAILY_OPENING` e `INTEGRATIONS_DAILY_SYNC` — rodadas curtas ou de uma chamada.

@@ -47,19 +47,19 @@ try {
  */
 export const PerformancePage = () => {
   const [params, setParams] = useSearchParams();
-  const type = params.get('tipo') ?? '';
-  const category = params.get('categoria') ?? '';
-  const position = params.get('ativo') ?? '';
-  const reservation = (params.get('reserva') === 'sem' ? 'WITHOUT' : 'WITH') as ReservationFilter;
-  // Padrões (17/10/2026): base bruta (`?base=liquido` para o líquido) e período de 12 meses (`?periodo=MAX` para
+  const type = params.get('type') ?? '';
+  const category = params.get('category') ?? '';
+  const position = params.get('position') ?? '';
+  const reservation = (params.get('reservation') === 'without' ? 'WITHOUT' : 'WITH') as ReservationFilter;
+  // Padrões (17/10/2026): base bruta (`?basis=net` para o líquido) e período de 12 meses (`?range=MAX` para
   // desde o início). Antes eram líquido e desde o início.
-  const basis = (params.get('base') === 'liquido' ? 'NET' : 'GROSS') as PerformanceBasis;
-  const rangeParam = params.get('periodo') as PerformanceRange | null;
+  const basis = (params.get('basis') === 'net' ? 'NET' : 'GROSS') as PerformanceBasis;
+  const rangeParam = params.get('range') as PerformanceRange | null;
   const range: PerformanceRange = rangeParam && RANGES.includes(rangeParam) ? rangeParam : DEFAULT_RANGE;
-  const de = params.get('de') ?? '';
-  const ate = params.get('ate') ?? '';
-  // Sem `indices` na URL, só o CDI (17/10/2026; até então voltava a última seleção guardada no navegador)
-  const benchmarks = parseBench(params.get('indices')) ?? DEFAULT_BENCH;
+  const dateFrom = params.get('from') ?? '';
+  const dateTo = params.get('to') ?? '';
+  // Sem `benchmarks` na URL, só o CDI (17/10/2026; até então voltava a última seleção guardada no navegador)
+  const benchmarks = parseBench(params.get('benchmarks')) ?? DEFAULT_BENCH;
   const [granularity, setGranularity] = useState<Granularity>('MONTH');
   const [level, setLevel] = useState<BreakdownLevel>('TYPE');
 
@@ -70,7 +70,7 @@ export const PerformancePage = () => {
   };
 
   const setBenchmarks = (list: BenchmarkPick[]) => {
-    update({ indices: benchParam(list) });
+    update({ benchmarks: benchParam(list) });
   };
 
   const { data: catalog } = useQuery({ queryKey: ['performance', 'benchmarks'], queryFn: performanceApi.benchmarks });
@@ -89,7 +89,7 @@ export const PerformancePage = () => {
     reservation,
     basis,
   };
-  const period = de || ate ? { from: de || undefined, to: ate || undefined } : { range };
+  const period = dateFrom || dateTo ? { from: dateFrom || undefined, to: dateTo || undefined } : { range };
   const q: PerformanceQuery = { ...scope, ...period, benchmarks: benchParam(benchmarks) };
   const key = ['performance', JSON.stringify(q)];
 
@@ -137,13 +137,13 @@ export const PerformancePage = () => {
 
   const drill = (row: BreakdownRow) => {
     if (level === 'TYPE') {
-      update({ tipo: row.typeName, categoria: null, ativo: null });
+      update({ type: row.typeName, category: null, position: null });
       setLevel('CATEGORY');
     } else if (level === 'CATEGORY' && row.categoryId != null) {
-      update({ tipo: row.typeName, categoria: String(row.categoryId), ativo: null });
+      update({ type: row.typeName, category: String(row.categoryId), position: null });
       setLevel('POSITION');
     } else if (level === 'POSITION' && row.positionId) {
-      update({ ativo: row.positionId });
+      update({ position: row.positionId });
     }
   };
 
@@ -153,16 +153,16 @@ export const PerformancePage = () => {
       <PerformanceFilters
         types={types} categories={categories} positions={positions} catalog={catalog}
         type={type} category={category} position={position} reservation={reservation} basis={basis}
-        basisApplies={cov?.basisApplies ?? false} showReservation={showReservation} range={range} de={de} ate={ate}
+        basisApplies={cov?.basisApplies ?? false} showReservation={showReservation} range={range} dateFrom={dateFrom} dateTo={dateTo}
         firstDate={cov?.firstDate} lastDate={cov?.to}
         benchmarks={benchmarks}
-        onType={v => update({ tipo: v || null, categoria: null, ativo: null, ...(reservable(v) ? {} : { reserva: null }) })}
-        onCategory={v => update({ categoria: v || null, ativo: null })}
-        onPosition={v => update({ ativo: v || null })}
-        onReservation={v => update({ reserva: v === 'WITHOUT' ? 'sem' : null })}
-        onBasis={v => update({ base: v === 'NET' ? 'liquido' : null })}
-        onRange={r => update({ periodo: r === DEFAULT_RANGE ? null : r, de: null, ate: null })}
-        onDates={(a, b) => update({ de: a || null, ate: b || null })}
+        onType={v => update({ type: v || null, category: null, position: null, ...(reservable(v) ? {} : { reservation: null }) })}
+        onCategory={v => update({ category: v || null, position: null })}
+        onPosition={v => update({ position: v || null })}
+        onReservation={v => update({ reservation: v === 'WITHOUT' ? 'without' : null })}
+        onBasis={v => update({ basis: v === 'NET' ? 'net' : null })}
+        onRange={r => update({ range: r === DEFAULT_RANGE ? null : r, from: null, to: null })}
+        onDates={(a, b) => update({ from: a || null, to: b || null })}
         onBenchmarks={setBenchmarks}
       />
 

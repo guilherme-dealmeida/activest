@@ -55,7 +55,7 @@ public class CatalogNoticeFanout {
                 String ticker = h.asset().getTicker();
                 notifications.notify(NotificationDraft.of(NotificationKind.POSICAO_TICKER).user(h.userId())
                     .title(admin.getTitle())
-                    .body(texto(admin.getKind(), ticker))
+                    .body(text(admin.getKind(), ticker))
                     .ref("ASSET", h.asset().getId()).key(key)
                     .data("ticker", ticker)
                     .link("Ver carteira", "/portfolio")
@@ -64,17 +64,17 @@ public class CatalogNoticeFanout {
         }
 
         // Aviso de administrador resolvido (ou posição zerada): a pendência do usuário também.
-        List<UUID> resolver = new ArrayList<>();
+        List<UUID> resolve = new ArrayList<>();
         for (Notification n : notifications.openOf(NotificationKind.POSICAO_TICKER)) {
             String key = NotificationService.keyOf(n);
             if (key == null || !keep.contains(key)) {
-                resolver.add(n.getId());
+                resolve.add(n.getId());
             }
         }
-        notifications.resolveIds(resolver);
+        notifications.resolveIds(resolve);
     }
 
-    private static String texto(NotificationKind kind, String ticker) {
+    private static String text(NotificationKind kind, String ticker) {
         return switch (kind) {
             case CATALOGO_TICKER_SUMIDO -> ticker + " saiu da lista oficial da B3 e a cotação não responde mais. "
                 + "O preço da sua posição fica parado até o catálogo ser ajustado. Se houve incorporação, fechamento "

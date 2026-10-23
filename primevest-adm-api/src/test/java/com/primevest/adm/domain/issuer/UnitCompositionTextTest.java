@@ -14,7 +14,7 @@ class UnitCompositionTextTest {
 
     @Test
     @DisplayName("Formatos reais do FCA")
-    void formatos() {
+    void formats() {
         assertThat(UnitCompositionText.parse("1 KLBN3 + 4 KLBN4")).isEqualTo(Map.of(ShareClass.ON, 1, ShareClass.PN, 4));
         assertThat(UnitCompositionText.parse("1 ON / 2 PN")).isEqualTo(Map.of(ShareClass.ON, 1, ShareClass.PN, 2));
         assertThat(UnitCompositionText.parse("1 ON e 2 PN")).isEqualTo(Map.of(ShareClass.ON, 1, ShareClass.PN, 2));
@@ -30,7 +30,7 @@ class UnitCompositionTextTest {
 
     @Test
     @DisplayName("Recibo e bonus de subscricao ficam de fora; texto sem classe devolve vazio")
-    void ignorados() {
+    void ignored() {
         assertThat(UnitCompositionText.parse("1 PN + 3 Recibos de Subscrição")).isEqualTo(Map.of(ShareClass.PN, 1));
         assertThat(UnitCompositionText.parse("3.720.752")).isEmpty();
         assertThat(UnitCompositionText.parse("Não Aplicável")).isEmpty();

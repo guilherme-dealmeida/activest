@@ -35,7 +35,7 @@ public class VerificationCodeService {
 
     private static final String KEY_CODE = "code:";
     private static final String KEY_SENDS = "sends:";
-    private static final Duration UMA_HORA = Duration.ofHours(1);
+    private static final Duration ONE_HOUR = Duration.ofHours(1);
 
     private final VerificationStore store;
     private final SecretHasher hasher;
@@ -65,28 +65,28 @@ public class VerificationCodeService {
 
     public Issued issue(String requestId, VerificationPurpose purpose, String email, Map<String, String> payload,
                         boolean decoy) {
-        contarEnvio(purpose, email);
-        String code = gerarCodigo();
+        countSend(purpose, email);
+        String code = generateCode();
         PendingCode pending = new PendingCode(requestId, purpose, email, hash(requestId, code), 0,
-            agora(), decoy, payload);
-        salvar(pending);
+            now(), decoy, payload);
+        save(pending);
         return new Issued(pending, code);
     }
 
     /** Código novo para o mesmo pedido (o anterior deixa de valer), respeitando a espera e o limite. */
     public Issued resend(String requestId, VerificationPurpose purpose) {
-        PendingCode atual = carregar(requestId, purpose);
-        long espera = settings.getResendCooldown().getSeconds() - (agora() - atual.lastSentEpochSecond());
-        if (espera > 0) {
+        PendingCode current = load(requestId, purpose);
+        long wait = settings.getResendCooldown().getSeconds() - (now() - current.lastSentEpochSecond());
+        if (wait > 0) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
-                "Aguarde " + espera + " s para pedir outro código.");
+                "Aguarde " + wait + " s para pedir outro código.");
         }
-        contarEnvio(purpose, atual.email());
-        String code = gerarCodigo();
-        PendingCode novo = new PendingCode(requestId, purpose, atual.email(), hash(requestId, code), 0, agora(),
-            atual.decoy(), atual.payload());
-        salvar(novo);
-        return new Issued(novo, code);
+        countSend(purpose, current.email());
+        String code = generateCode();
+        PendingCode created = new PendingCode(requestId, purpose, current.email(), hash(requestId, code), 0, now(),
+            current.decoy(), current.payload());
+        save(created);
+        return new Issued(created, code);
     }
 
     /**
@@ -94,22 +94,22 @@ public class VerificationCodeService {
      * Errado: conta a tentativa; na última, o pedido é apagado.
      */
     public PendingCode verify(String requestId, VerificationPurpose purpose, String code) {
-        PendingCode pending = carregar(requestId, purpose);
-        String informado = code == null ? "" : code.replaceAll("\\D", "");
-        boolean certo = !pending.decoy() && SecretHasher.sameHex(pending.codeHash(), hash(requestId, informado));
-        if (certo) {
+        PendingCode pending = load(requestId, purpose);
+        String given = code == null ? "" : code.replaceAll("\\D", "");
+        boolean valid = !pending.decoy() && SecretHasher.sameHex(pending.codeHash(), hash(requestId, given));
+        if (valid) {
             store.delete(KEY_CODE + requestId);
             return pending;
         }
-        int tentativas = pending.attempts() + 1;
-        int restam = settings.getMaxAttempts() - tentativas;
-        if (restam <= 0) {
+        int attemptCount = pending.attempts() + 1;
+        int remaining = settings.getMaxAttempts() - attemptCount;
+        if (remaining <= 0) {
             store.delete(KEY_CODE + requestId);
             throw new BusinessException("Código incorreto. Foram tentativas demais: peça um novo código.");
         }
-        salvar(new PendingCode(pending.requestId(), purpose, pending.email(), pending.codeHash(), tentativas,
+        save(new PendingCode(pending.requestId(), purpose, pending.email(), pending.codeHash(), attemptCount,
             pending.lastSentEpochSecond(), pending.decoy(), pending.payload()));
-        throw new BusinessException("Código incorreto. " + (restam == 1 ? "Resta 1 tentativa." : "Restam " + restam + " tentativas."));
+        throw new BusinessException("Código incorreto. " + (remaining == 1 ? "Resta 1 tentativa." : "Restam " + remaining + " tentativas."));
     }
 
     public long resendInSeconds() {
@@ -120,22 +120,22 @@ public class VerificationCodeService {
         return settings.getCodeTtl().getSeconds();
     }
 
-    private void contarEnvio(VerificationPurpose purpose, String email) {
-        long envios = store.increment(KEY_SENDS + purpose + ":" + email, UMA_HORA);
-        if (envios > settings.getMaxSendsPerHour()) {
+    private void countSend(VerificationPurpose purpose, String email) {
+        long sends = store.increment(KEY_SENDS + purpose + ":" + email, ONE_HOUR);
+        if (sends > settings.getMaxSendsPerHour()) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                 "Muitos códigos pedidos para este e-mail. Tente de novo daqui a uma hora.");
         }
     }
 
-    private PendingCode carregar(String requestId, VerificationPurpose purpose) {
-        PendingCode pending = store.get(KEY_CODE + requestId).map(this::ler)
+    private PendingCode load(String requestId, VerificationPurpose purpose) {
+        PendingCode pending = store.get(KEY_CODE + requestId).map(this::read)
             .filter(p -> p.purpose() == purpose)
             .orElseThrow(() -> new BusinessException("O código expirou ou já foi usado. Peça um novo código."));
         return pending;
     }
 
-    private void salvar(PendingCode pending) {
+    private void save(PendingCode pending) {
         try {
             store.put(KEY_CODE + pending.requestId(), json.writeValueAsString(pending), settings.getCodeTtl());
         } catch (JsonProcessingException e) {
@@ -143,9 +143,9 @@ public class VerificationCodeService {
         }
     }
 
-    private PendingCode ler(String valor) {
+    private PendingCode read(String value) {
         try {
-            return json.readValue(valor, PendingCode.class);
+            return json.readValue(value, PendingCode.class);
         } catch (JsonProcessingException e) {
             return null;
         }
@@ -155,11 +155,11 @@ public class VerificationCodeService {
         return hasher.hmacHex("code:" + requestId + ":" + code);
     }
 
-    private String gerarCodigo() {
+    private String generateCode() {
         return String.format("%06d", random.nextInt(1_000_000));
     }
 
-    private long agora() {
+    private long now() {
         return clock.instant().getEpochSecond();
     }
 }

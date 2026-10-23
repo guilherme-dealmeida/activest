@@ -15,7 +15,7 @@ class MoneyNormalizerTest {
 
     @Test
     @DisplayName("Cenário 6: mil, milhão e bilhão viram reais em unidade")
-    void unidades() {
+    void units() {
         assertThat(MoneyNormalizer.toBrl(new BigDecimal("13814000"), Unit.MIL, Currency.BRL, null))
                 .isEqualByComparingTo("13814000000");
         assertThat(MoneyNormalizer.toBrl(new BigDecimal("9953"), Unit.MILHAO, Currency.BRL, null))
@@ -28,7 +28,7 @@ class MoneyNormalizerTest {
 
     @Test
     @DisplayName("Cenário 7: dólar × PTAX")
-    void dolar() {
+    void dollar() {
         assertThat(MoneyNormalizer.toBrl(new BigDecimal("2000"), Unit.MILHAO, Currency.USD, new BigDecimal("4.9892")))
                 .isEqualByComparingTo("9978400000");
         assertThatThrownBy(() -> MoneyNormalizer.toBrl(BigDecimal.ONE, Unit.UNIDADE, Currency.USD, null))

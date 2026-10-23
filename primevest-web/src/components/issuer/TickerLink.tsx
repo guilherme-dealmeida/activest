@@ -18,7 +18,7 @@ export const TickerLink = ({ ticker, issuerId, className = 'font-medium' }: Prop
   }
   return (
     <Link
-      to={`/ativos/${encodeURIComponent(ticker)}`}
+      to={`/assets/${encodeURIComponent(ticker)}`}
       onClick={(e) => e.stopPropagation()}
       title="Ver ativo e indicadores"
       className={`${className} hover:text-accent hover:underline underline-offset-2 transition-colors`}

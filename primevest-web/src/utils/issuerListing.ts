@@ -4,13 +4,13 @@ import { INDICATOR_META } from '@/utils/indicators';
 /**
  * Regras da listagem de emissoras (docs/planos/PLANO_LISTAGEM_EMISSORAS.md, 3 e 5): colunas de cada aba,
  * filtros e ordenação, tudo no navegador sobre a aba inteira que o backend devolve. O estado fica na URL,
- * com os parâmetros de cada aba prefixados por ela (`acoes.dy=6~12`, `fiis.pag=2`).
+ * com os parâmetros de cada aba prefixados por ela (`stocks.dy=6~12`, `fiis.page=2`).
  */
 
-export type ListingTab = 'acoes' | 'fiis';
+export type ListingTab = 'stocks' | 'fiis';
 
-export const TAB_KIND: Record<ListingTab, IssuerKind> = { acoes: 'COMPANY', fiis: 'FII' };
-export const TAB_LABEL: Record<ListingTab, string> = { acoes: 'Ações', fiis: 'FIIs' };
+export const TAB_KIND: Record<ListingTab, IssuerKind> = { stocks: 'COMPANY', fiis: 'FII' };
+export const TAB_LABEL: Record<ListingTab, string> = { stocks: 'Ações', fiis: 'FIIs' };
 
 /** Coluna numérica: ordenável e com faixa mín–máx no painel de filtros. */
 export interface NumericColumn {
@@ -43,12 +43,12 @@ const unitOf = (code: IndicatorCode): IndicatorUnit => {
   }
 };
 
-const PRICE: NumericColumn = { key: 'preco', label: 'PREÇO', unit: 'BRL' };
-const EQUITY: NumericColumn = { key: 'patrimonio', label: 'PATRIMÔNIO LÍQUIDO', unit: 'EQUITY', negative: true };
+const PRICE: NumericColumn = { key: 'price', label: 'PREÇO', unit: 'BRL' };
+const EQUITY: NumericColumn = { key: 'equity', label: 'PATRIMÔNIO LÍQUIDO', unit: 'EQUITY', negative: true };
 
 /** Colunas numéricas na ordem da tabela (D5). */
 export const NUMERIC_COLUMNS: Record<ListingTab, NumericColumn[]> = {
-  acoes: [PRICE, ind('PL'), ind('PVP'), ind('DY'), ind('ROE'), ind('PAYOUT'), ind('LPA'), ind('VPA'), EQUITY],
+  stocks: [PRICE, ind('PL'), ind('PVP'), ind('DY'), ind('ROE'), ind('PAYOUT'), ind('LPA'), ind('VPA'), EQUITY],
   fiis: [PRICE, ind('PVP'), ind('DY'), ind('VP_COTA', 'VP/COTA'), ind('COTISTAS'), ind('IMOVEIS', 'IMÓVEIS'),
     ind('PAPEL', 'PAPEL'), ind('ALAVANCAGEM'), EQUITY],
 };
@@ -61,7 +61,7 @@ export interface ListingRow extends IssuerListingRow {
 
 export const toListingRows = (rows: IssuerListingRow[], tab: ListingTab): ListingRow[] =>
   rows.map(r => {
-    const values: Record<string, number | null> = { preco: r.price, patrimonio: r.equity };
+    const values: Record<string, number | null> = { price: r.price, equity: r.equity };
     const notes: Record<string, string | null> = {};
     for (const i of r.indicators) {
       values[i.indicator.toLowerCase()] = i.value;
@@ -116,15 +116,15 @@ export const parseNumber = (s: string | null | undefined): number | null => {
 
 export const readTabState = (params: URLSearchParams, tab: ListingTab): TabState => {
   const g = (k: string) => params.get(`${tab}.${k}`);
-  const ord = g('ord');
+  const ord = g('sort');
   let sort: TabState['sort'] = null;
   if (ord) {
     const [key, dir] = ord.split('.');
-    const known = key === 'ticker' || key === 'nome' || key === 'setor'
+    const known = key === 'ticker' || key === 'name' || key === 'sector'
       || NUMERIC_COLUMNS[tab].some(c => c.key === key);
     if (known && (dir === 'asc' || dir === 'desc')) sort = { key, dir };
   }
-  const size = Number(g('qtd'));
+  const size = Number(g('size'));
   const ranges: Record<string, Range> = {};
   for (const c of NUMERIC_COLUMNS[tab]) {
     const r = parseRange(g(c.key));
@@ -132,12 +132,12 @@ export const readTabState = (params: URLSearchParams, tab: ListingTab): TabState
   }
   return {
     sort,
-    page: Math.max(1, Number(g('pag')) || 1),
+    page: Math.max(1, Number(g('page')) || 1),
     pageSize: PAGE_SIZES.includes(size) ? size : DEFAULT_PAGE_SIZE,
-    name: g('nome') ?? '',
-    sector: g('setor') ?? '',
-    subsector: g('subsetor') ?? '',
-    segment: g('segmento') ?? '',
+    name: g('name') ?? '',
+    sector: g('sector') ?? '',
+    subsector: g('subsector') ?? '',
+    segment: g('segment') ?? '',
     ranges,
   };
 };
@@ -149,13 +149,13 @@ export const writeTabState = (params: URLSearchParams, tab: ListingTab, s: TabSt
     if (k.startsWith(`${tab}.`)) next.delete(k);
   }
   const set = (k: string, v: string | null) => { if (v) next.set(`${tab}.${k}`, v); };
-  set('ord', s.sort ? `${s.sort.key}.${s.sort.dir}` : null);
-  set('pag', s.page > 1 ? String(s.page) : null);
-  set('qtd', s.pageSize !== DEFAULT_PAGE_SIZE ? String(s.pageSize) : null);
-  set('nome', s.name || null);
-  set('setor', s.sector || null);
-  set('subsetor', s.subsector || null);
-  set('segmento', s.segment || null);
+  set('sort', s.sort ? `${s.sort.key}.${s.sort.dir}` : null);
+  set('page', s.page > 1 ? String(s.page) : null);
+  set('size', s.pageSize !== DEFAULT_PAGE_SIZE ? String(s.pageSize) : null);
+  set('name', s.name || null);
+  set('sector', s.sector || null);
+  set('subsector', s.subsector || null);
+  set('segment', s.segment || null);
   for (const [k, r] of Object.entries(s.ranges)) set(k, formatRange(r));
   return next;
 };
@@ -198,8 +198,8 @@ export const applyFilters = (rows: ListingRow[], tab: ListingTab, s: TabState): 
 
 const sortValue = (row: ListingRow, key: string): number | string | null => {
   if (key === 'ticker') return row.ticker;
-  if (key === 'nome') return row.name;
-  if (key === 'setor') {
+  if (key === 'name') return row.name;
+  if (key === 'sector') {
     const parts = [row.sector, row.subsector, row.segment].filter(Boolean);
     return parts.length ? parts.join(' | ') : null;
   }
@@ -212,7 +212,7 @@ const collator = new Intl.Collator('pt-BR', { numeric: true, sensitivity: 'base'
  * Ordem (D11): a escolhida, ou PL decrescente; vazios sempre no fim; empate pelo ticker crescente.
  */
 export const sortRows = (rows: ListingRow[], sort: TabState['sort']): ListingRow[] => {
-  const key = sort?.key ?? 'patrimonio';
+  const key = sort?.key ?? 'equity';
   const dir = sort?.dir ?? 'desc';
   const sign = dir === 'asc' ? 1 : -1;
   return [...rows].sort((a, b) => {

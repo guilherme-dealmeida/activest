@@ -29,8 +29,8 @@ export const RebalancePage = () => {
   }
 
   // Totais: quanto aportar somado e quanto a carteira passa a valer depois desses aportes.
-  const totalAportar = (rebalance?.items || []).reduce((acc, item) => acc + item.amountToRebalance, 0);
-  const totalEstrategico = (rebalance?.items || []).reduce((acc, item) => acc + item.idealValue, 0);
+  const totalToInvest = (rebalance?.items || []).reduce((acc, item) => acc + item.amountToRebalance, 0);
+  const strategicTotal = (rebalance?.items || []).reduce((acc, item) => acc + item.idealValue, 0);
 
   return (
     <div className="space-y-6">
@@ -38,7 +38,7 @@ export const RebalancePage = () => {
       {rebalance?.reservation && (
         <ReservationRebalanceCard
           reservation={rebalance.reservation}
-          action={<PageLink to="/strategy?aba=reserva" label="Ir para Estratégia Reserva" />}
+          action={<PageLink to="/strategy?tab=reservation" label="Ir para Estratégia Reserva" />}
         />
       )}
       <Card title="Sugestão de Aporte (Rebalanceamento)" titleInfo={STRATEGY_HELP.typeRebalance}
@@ -62,7 +62,7 @@ export const RebalancePage = () => {
               {rebalance?.items.map((item, idx) => {
                 // Valor que o tipo passa a ter depois do aporte sugerido:
                 // vem do backend, que ja aplica a regra do tipo mais acima do ideal.
-                const estrategico = item.idealValue;
+                const strategicValue = item.idealValue;
                 return (
                   <tr key={idx} className="hover:bg-surface-light/30">
                     <td className="px-4 py-3 font-medium text-white">{item.typeName}</td>
@@ -74,7 +74,7 @@ export const RebalancePage = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-white">
-                      {formatCurrency(estrategico)}
+                      {formatCurrency(strategicValue)}
                     </td>
                     <td className="px-4 py-3 text-right">{formatPercentage(item.currentPercentage)}</td>
                     <td className="px-4 py-3 text-right">
@@ -100,8 +100,8 @@ export const RebalancePage = () => {
                   <td className="px-4 py-3 font-semibold text-white">Total</td>
                   <td className="px-4 py-3 text-right font-medium text-white">100,00%</td>
                   <td className="px-4 py-3 text-right font-semibold text-white">{formatCurrency(rebalance.totalPortfolioValue)}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-success">{formatCurrency(totalAportar)}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-white">{formatCurrency(totalEstrategico)}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-success">{formatCurrency(totalToInvest)}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-white">{formatCurrency(strategicTotal)}</td>
                   <td colSpan={3}></td>
                 </tr>
               </tfoot>

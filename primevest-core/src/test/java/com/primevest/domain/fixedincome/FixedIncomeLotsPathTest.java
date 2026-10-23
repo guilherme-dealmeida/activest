@@ -26,7 +26,7 @@ class FixedIncomeLotsPathTest {
 
     @Test
     @DisplayName("Caminho = run dia a dia (prefixado, com venda parcial pelo liquido no meio)")
-    void caminhoIgualAoRun() {
+    void pathMatchesRun() {
         LocalDate start = LocalDate.of(2026, 3, 2);
         LocalDate end = LocalDate.of(2026, 5, 29);
         List<Move> moves = List.of(
@@ -50,7 +50,7 @@ class FixedIncomeLotsPathTest {
 
     @Test
     @DisplayName("TR sem curva: caminho UNSUPPORTED (o valor nao serve de preco)")
-    void semCurva() {
+    void withoutCurve() {
         FixedIncomeCurve.Terms tr = new FixedIncomeCurve.Terms(RateType.POS_FIXADO, Indexer.TR, new BigDecimal("100"),
                 null);
         LocalDate start = LocalDate.of(2026, 3, 2);

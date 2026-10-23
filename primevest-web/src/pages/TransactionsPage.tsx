@@ -26,10 +26,10 @@ import { providerName } from '@/utils/integrations';
 /** Rótulo do tipo como a listagem o mostra — a mesma convenção dos DTOs. */
 const labelOfType = (type: AssetType) => type.description || type.name;
 
-const ordenarPt = (a: string, b: string) => a.localeCompare(b, 'pt-BR');
+const sortPtBr = (a: string, b: string) => a.localeCompare(b, 'pt-BR');
 
 /** "12,50% a.a.", "110,00% do CDI", "IPCA + 6,00% a.a." — o mesmo formato da TAXA na carteira. */
-const taxaDoTitulo = (t: TransactionResponse): string | null => {
+const noteRate = (t: TransactionResponse): string | null => {
   if (t.indexerRate == null || !t.rateType) return null;
   const rate = formatPercentage(t.indexerRate);
   switch (t.rateType) {
@@ -45,7 +45,7 @@ const taxaDoTitulo = (t: TransactionResponse): string | null => {
 };
 
 /** Dica da coluna TÍTULO: as razões sociais da emissora e da distribuidora e o código do papel. */
-const dicaDoTitulo = (t: TransactionResponse): string | undefined => {
+const noteHint = (t: TransactionResponse): string | undefined => {
   const i = t.noteInfo;
   if (!i) return undefined;
   return [i.issuerLegalName ? `Emissora: ${i.issuerLegalName}` : null,
@@ -58,9 +58,9 @@ const dicaDoTitulo = (t: TransactionResponse): string | undefined => {
  * o percentual ("121,00% do CDI"). A emissora e a razão social ficam na dica; o vencimento vai sob a data. null fora
  * da renda fixa.
  */
-const rotuloDoTitulo = (t: TransactionResponse): { nome: string | null; taxa: string | null } | null => {
+const noteLabel = (t: TransactionResponse): { displayName: string | null; rateValue: string | null } | null => {
   if (!t.noteId) return null;
-  return { nome: t.noteInfo?.distributorName || null, taxa: taxaDoTitulo(t) };
+  return { displayName: t.noteInfo?.distributorName || null, rateValue: noteRate(t) };
 };
 
 function getDateFromDaysAgo(days: number): string {
@@ -131,12 +131,12 @@ export const TransactionsPage = () => {
   useEffect(() => {
     if (!settleParam || !positions || !assetTypes) return;
     const params = new URLSearchParams(searchParams);
-    const numero = (k: string) => {
+    const number = (k: string) => {
       const v = searchParams.get(k);
       return v != null && v !== '' && !Number.isNaN(Number(v)) ? Number(v) : undefined;
     };
     const data = searchParams.get('date') ?? undefined;
-    const valores = { amount: numero('amount'), shares: numero('shares'), price: numero('price') };
+    const amounts = { amount: number('amount'), shares: number('shares'), price: number('price') };
     ['settle', 'date', 'amount', 'shares', 'price'].forEach(k => params.delete(k));
     setSearchParams(params, { replace: true });
 
@@ -151,9 +151,9 @@ export const TransactionsPage = () => {
       ...presetFromPosition(TransactionType.SELL, type, position),
       defaults: {
         transactionDate: data,
-        totalAmount: valores.amount,
-        shares: valores.shares,
-        pricePerShare: valores.price,
+        totalAmount: amounts.amount,
+        shares: amounts.shares,
+        pricePerShare: amounts.price,
         fullSettlement: type.name !== TESOURO_DIRETO,
       },
     });
@@ -167,10 +167,10 @@ export const TransactionsPage = () => {
     onSuccess: (_, row) => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['portfolio'] });
-      const partes = row.groupParts ?? 1;
+      const parts = row.groupParts ?? 1;
       showToast(
-        partes > 1
-          ? `Venda de ${row.ticker} excluída, com os ${partes} títulos.`
+        parts > 1
+          ? `Venda de ${row.ticker} excluída, com os ${parts} títulos.`
           : `Transação de ${row.ticker} excluída.`,
         'success'
       );
@@ -209,42 +209,42 @@ export const TransactionsPage = () => {
    * quem decide o segundo filtro é o tipo em si: renda fixa com emissor filtra
    * por ATIVO, porque lá o ativo já é a categoria.
    */
-  const tipoSelecionado = useMemo(
+  const selectedType = useMemo(
     () => (filterType === 'ALL' ? null : (assetTypes || []).find(t => labelOfType(t) === filterType) ?? null),
     [assetTypes, filterType]
   );
-  const filtrarPorAtivo = !!tipoSelecionado && isFixedIncomeNote(tipoSelecionado);
+  const filterByAsset = !!selectedType && isFixedIncomeNote(selectedType);
 
   // As transações do tipo escolhido, ignorando os filtros que dependem dele:
   // são elas que dizem quais categorias (ou ativos) têm o que mostrar.
-  const doTipo = useMemo(
+  const ofType = useMemo(
     () => (filterType === 'ALL' ? [] : enriched.filter(row => row.assetType === filterType)),
     [enriched, filterType]
   );
 
   // Só as categorias com transação neste tipo. Sem tipo escolhido a lista é
   // vazia e o filtro fica só com "Todas".
-  const categoriasDoTipo = useMemo(
-    () => [...new Set(doTipo.map(row => row.assetCategoryName).filter(Boolean))].sort(ordenarPt),
-    [doTipo]
+  const categoriesOfType = useMemo(
+    () => [...new Set(ofType.map(row => row.assetCategoryName).filter(Boolean))].sort(sortPtBr),
+    [ofType]
   );
 
-  const ativosDoTipo = useMemo(
-    () => [...new Set(doTipo.map(row => row.ticker).filter(Boolean))].sort(ordenarPt),
-    [doTipo]
+  const assetsOfType = useMemo(
+    () => [...new Set(ofType.map(row => row.ticker).filter(Boolean))].sort(sortPtBr),
+    [ofType]
   );
 
   // Emissora e distribuidora (D6): só nos tipos de renda fixa; a emissora fica fora do Tesouro (é sempre o Tesouro
   // Nacional). As opções são as que aparecem nas transações do tipo.
-  const filtraDistribuidora = !!tipoSelecionado?.fixedIncome;
-  const filtraEmissora = filtrarPorAtivo;
-  const emissorasDoTipo = useMemo(
-    () => [...new Set(doTipo.map(row => row.noteInfo?.issuerName).filter((v): v is string => !!v))].sort(ordenarPt),
-    [doTipo]
+  const filtersDistributor = !!selectedType?.fixedIncome;
+  const filtersIssuer = filterByAsset;
+  const issuersOfType = useMemo(
+    () => [...new Set(ofType.map(row => row.noteInfo?.issuerName).filter((v): v is string => !!v))].sort(sortPtBr),
+    [ofType]
   );
-  const distribuidorasDoTipo = useMemo(
-    () => [...new Set(doTipo.map(row => row.noteInfo?.distributorName).filter((v): v is string => !!v))].sort(ordenarPt),
-    [doTipo]
+  const distributorsOfType = useMemo(
+    () => [...new Set(ofType.map(row => row.noteInfo?.distributorName).filter((v): v is string => !!v))].sort(sortPtBr),
+    [ofType]
   );
 
   // Trocar o tipo zera o filtro dependente: uma categoria de FII não significa
@@ -259,10 +259,10 @@ export const TransactionsPage = () => {
   };
 
   /** Nome técnico do tipo da linha (a linha traz o id e a descrição). */
-  const nomeDoTipo = (row: TransactionResponse | null) =>
+  const nameOfType = (row: TransactionResponse | null) =>
     (assetTypes || []).find(t => t.id === row?.assetTypeId)?.name ?? null;
 
-  const posicaoFiltrada = positionFilter
+  const filteredPosition = positionFilter
     ? enriched.find(row => row.portfolioAssetId === positionFilter)
     : undefined;
 
@@ -271,13 +271,13 @@ export const TransactionsPage = () => {
     if (tickerFilter && row.ticker !== tickerFilter) return false;
     if (filterType !== 'ALL' && row.assetType !== filterType) return false;
     if (filterOrigin !== 'ALL' && row.origin !== filterOrigin) return false;
-    if (filtrarPorAtivo) {
+    if (filterByAsset) {
       if (filterAsset !== 'ALL' && row.ticker !== filterAsset) return false;
     } else if (filterCategory !== 'ALL' && row.assetCategoryName !== filterCategory) {
       return false;
     }
-    if (filtraEmissora && filterIssuer !== 'ALL' && row.noteInfo?.issuerName !== filterIssuer) return false;
-    if (filtraDistribuidora && filterDistributor !== 'ALL' && row.noteInfo?.distributorName !== filterDistributor) {
+    if (filtersIssuer && filterIssuer !== 'ALL' && row.noteInfo?.issuerName !== filterIssuer) return false;
+    if (filtersDistributor && filterDistributor !== 'ALL' && row.noteInfo?.distributorName !== filterDistributor) {
       return false;
     }
     if (filterPeriod !== 'ALL') {
@@ -291,7 +291,7 @@ export const TransactionsPage = () => {
   const totalPages = Math.ceil(sortedData.length / itemsPerPage);
   const paginated = sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const limparPosicao = () => {
+  const clearPosition = () => {
     const params = new URLSearchParams(searchParams);
     params.delete('position');
     params.delete('ticker');
@@ -308,12 +308,12 @@ export const TransactionsPage = () => {
    * Os outros filtros voltam a "Todos": um "30 dias" ligado esconderia uma
    * compra retroativa, e o usuário acharia que ela não foi gravada.
    */
-  const filtrarLancamento = (saved: TransactionResponse | undefined, txData: TransactionCreate) => {
-    filtrarPor(saved ?? null, txData.ticker);
+  const filterEntry = (saved: TransactionResponse | undefined, txData: TransactionCreate) => {
+    filterBy(saved ?? null, txData.ticker);
   };
 
   /** Ícone Listar da linha: a mesma regra do filtro depois de salvar. */
-  const listar = (row: TransactionResponse) => filtrarPor(row, row.ticker);
+  const fetchList = (row: TransactionResponse) => filterBy(row, row.ticker);
 
   // Ativos do extrato para a busca por ticker ou nome — todos os tipos, um por ticker.
   const searchOptions = useMemo<LocalAssetOption[]>(() => {
@@ -332,18 +332,18 @@ export const TransactionsPage = () => {
    * de uma posição — vários títulos do mesmo CDB, por exemplo — filtra pelo
    * ticker e mostra todos os títulos dele.
    */
-  const listarTicker = (ticker: string) => {
-    const doAtivo = enriched.filter(t => t.ticker === ticker);
-    if (doAtivo.length === 0) return;
-    const posicoes = new Set(doAtivo.map(t => t.portfolioAssetId));
-    filtrarPor(posicoes.size === 1 ? doAtivo[0] : null, ticker);
+  const listTicker = (ticker: string) => {
+    const ofAsset = enriched.filter(t => t.ticker === ticker);
+    if (ofAsset.length === 0) return;
+    const positionList = new Set(ofAsset.map(t => t.portfolioAssetId));
+    filterBy(positionList.size === 1 ? ofAsset[0] : null, ticker);
   };
 
-  const filtrarPor = (row: TransactionResponse | null, ticker: string) => {
+  const filterBy = (row: TransactionResponse | null, ticker: string) => {
     const params = new URLSearchParams(searchParams);
     params.delete('position');
     params.delete('ticker');
-    if (nomeDoTipo(row) === TESOURO_DIRETO || !row?.portfolioAssetId) {
+    if (nameOfType(row) === TESOURO_DIRETO || !row?.portfolioAssetId) {
       params.set('ticker', row?.ticker ?? ticker);
     } else {
       params.set('position', row.portfolioAssetId);
@@ -360,8 +360,8 @@ export const TransactionsPage = () => {
   };
 
   const handleRestore = (row: TransactionResponse) => {
-    const corretora = providerName(row.connectionProvider) || 'da corretora';
-    if (window.confirm(`Desfazer suas alterações em ${row.ticker} e voltar aos dados de ${corretora}?`)) {
+    const broker = providerName(row.connectionProvider) || 'da corretora';
+    if (window.confirm(`Desfazer suas alterações em ${row.ticker} e voltar aos dados de ${broker}?`)) {
       restoreMutation.mutate(row);
     }
   };
@@ -410,15 +410,15 @@ export const TransactionsPage = () => {
    * o pedaço solto de qualquer forma.
    */
   const handleDelete = (row: TransactionResponse & { assetType: string }) => {
-    const partes = row.groupParts ?? 1;
-    const corretora = providerName(row.connectionProvider) || 'a corretora';
-    const pergunta = partes > 1
-      ? `Esta venda de ${row.ticker} está dividida em ${partes} títulos. Excluir a venda inteira?`
+    const parts = row.groupParts ?? 1;
+    const broker = providerName(row.connectionProvider) || 'a corretora';
+    const question = parts > 1
+      ? `Esta venda de ${row.ticker} está dividida em ${parts} títulos. Excluir a venda inteira?`
       : row.origin === 'AUTO'
-        ? `Esta transação de ${row.ticker} veio de ${corretora}. Excluída, ela não volta nas próximas sincronizações; `
+        ? `Esta transação de ${row.ticker} veio de ${broker}. Excluída, ela não volta nas próximas sincronizações; `
           + 'dá para restaurar em Integrações › Excluídas. Excluir?'
         : 'Tem certeza?';
-    if (window.confirm(pergunta)) {
+    if (window.confirm(question)) {
       deleteMutation.mutate(row);
     }
   };
@@ -435,16 +435,16 @@ export const TransactionsPage = () => {
             Mostrando apenas as transações de{' '}
             {positionFilter ? (
               <>
-                <span className="font-medium text-white">{posicaoFiltrada?.ticker ?? 'uma posição da carteira'}</span>
-                {posicaoFiltrada?.issuer ? ` · ${posicaoFiltrada.issuer}` : ''}
-                {posicaoFiltrada?.maturityDate ? ` · venc. ${formatDate(posicaoFiltrada.maturityDate)}` : ''}
+                <span className="font-medium text-white">{filteredPosition?.ticker ?? 'uma posição da carteira'}</span>
+                {filteredPosition?.issuer ? ` · ${filteredPosition.issuer}` : ''}
+                {filteredPosition?.maturityDate ? ` · venc. ${formatDate(filteredPosition.maturityDate)}` : ''}
               </>
             ) : (
               <span className="font-medium text-white">{tickerFilter}</span>
             )}
           </span>
           <button
-            onClick={limparPosicao}
+            onClick={clearPosition}
             className="ml-auto flex items-center gap-1 text-xs text-gray-300 hover:text-white transition-colors"
           >
             <X className="w-3.5 h-3.5" />
@@ -458,7 +458,7 @@ export const TransactionsPage = () => {
         {/* Busca por ticker ou nome, como na tela Ativos e em Dividendos: escolher = Listar. */}
         <div className="w-full sm:w-96">
           <label className="block text-xs text-gray-400 mb-1">Buscar</label>
-          <LocalAssetSearch options={searchOptions} onSelect={listarTicker} ariaLabel="Buscar transação por ticker ou nome" />
+          <LocalAssetSearch options={searchOptions} onSelect={listTicker} ariaLabel="Buscar transação por ticker ou nome" />
         </div>
         <div>
           <label className="block text-xs text-gray-400 mb-1">Tipo de Ativo</label>
@@ -474,7 +474,7 @@ export const TransactionsPage = () => {
 
         {/* Filtro dependente do tipo: categoria em quase todos, ativo na renda
             fixa com emissor, onde o ativo (CDB, LCI, LCA) já é a categoria. */}
-        {filtrarPorAtivo ? (
+        {filterByAsset ? (
           <div>
             <label className="block text-xs text-gray-400 mb-1">Ativo</label>
             <select
@@ -483,7 +483,7 @@ export const TransactionsPage = () => {
               className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2"
             >
               <option value="ALL">Todos</option>
-              {ativosDoTipo.map(a => <option key={a} value={a}>{a}</option>)}
+              {assetsOfType.map(a => <option key={a} value={a}>{a}</option>)}
             </select>
           </div>
         ) : (
@@ -493,17 +493,17 @@ export const TransactionsPage = () => {
               value={filterCategory}
               // Sem tipo escolhido só existe "Todas": categoria é do tipo, e
               // misturar as de todos eles não filtraria nada compreensível.
-              disabled={filterType === 'ALL' || categoriasDoTipo.length === 0}
+              disabled={filterType === 'ALL' || categoriesOfType.length === 0}
               onChange={(e) => { setFilterCategory(e.target.value); setCurrentPage(1); }}
               className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <option value="ALL">Todas</option>
-              {categoriasDoTipo.map(c => <option key={c} value={c}>{c}</option>)}
+              {categoriesOfType.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
         )}
 
-        {filtraEmissora && (
+        {filtersIssuer && (
           <div>
             <label className="block text-xs text-gray-400 mb-1">Emissora</label>
             <select
@@ -512,11 +512,11 @@ export const TransactionsPage = () => {
               className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2"
             >
               <option value="ALL">Todas</option>
-              {emissorasDoTipo.map(n => <option key={n} value={n}>{n}</option>)}
+              {issuersOfType.map(n => <option key={n} value={n}>{n}</option>)}
             </select>
           </div>
         )}
-        {filtraDistribuidora && (
+        {filtersDistributor && (
           <div>
             <label className="block text-xs text-gray-400 mb-1">Distribuidora</label>
             <select
@@ -525,7 +525,7 @@ export const TransactionsPage = () => {
               className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2"
             >
               <option value="ALL">Todas</option>
-              {distribuidorasDoTipo.map(n => <option key={n} value={n}>{n}</option>)}
+              {distributorsOfType.map(n => <option key={n} value={n}>{n}</option>)}
             </select>
           </div>
         )}
@@ -608,14 +608,14 @@ export const TransactionsPage = () => {
                       {(() => {
                         // Renda Fixa: o logo do grupo da emissora, quando há (D5 do plano de emissoras), como na
                         // carteira. Tesouro e o resto da Renda Fixa: logo do tipo. Demais: o do ativo (null = sem logo).
-                        if (nomeDoTipo(row) === RENDA_FIXA && row.noteInfo?.issuerLogoUrl) {
+                        if (nameOfType(row) === RENDA_FIXA && row.noteInfo?.issuerLogoUrl) {
                           return <AssetLogo ticker={row.ticker} hasLogo src={row.noteInfo.issuerLogoUrl} label="RF"
                             size={38} shape="square" />;
                         }
-                        const logoDoTipo = typeLogo(nomeDoTipo(row));
-                        if (logoDoTipo) {
-                          return <AssetLogo ticker={row.ticker} hasLogo={!!logoDoTipo.src} src={logoDoTipo.src}
-                            label={logoDoTipo.label} size={38} shape="square" />;
+                        const logoOfType = typeLogo(nameOfType(row));
+                        if (logoOfType) {
+                          return <AssetLogo ticker={row.ticker} hasLogo={!!logoOfType.src} src={logoOfType.src}
+                            label={logoOfType.label} size={38} shape="square" />;
                         }
                         return row.hasLogo !== null && row.hasLogo !== undefined
                           ? <AssetLogo ticker={row.ticker} hasLogo={row.hasLogo} size={38} shape="square" />
@@ -654,14 +654,14 @@ export const TransactionsPage = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-white/70" title={dicaDoTitulo(row)}>
+                  <td className="px-4 py-3 text-white/70" title={noteHint(row)}>
                     {(() => {
-                      const titulo = rotuloDoTitulo(row);
-                      if (!titulo) return '—';
+                      const titleText = noteLabel(row);
+                      if (!titleText) return '—';
                       return (
                         <>
                           <div>
-                            {titulo.nome ?? '—'}
+                            {titleText.displayName ?? '—'}
                             {/* A venda do Tesouro sai dos títulos mais antigos primeiro, e
                                 pode consumir mais de um: cada parte é uma linha, e a marca
                                 diz que elas são a mesma venda. */}
@@ -671,7 +671,7 @@ export const TransactionsPage = () => {
                               </span>
                             )}
                           </div>
-                          {titulo.taxa && <div className="text-xs text-gray-400">{titulo.taxa}</div>}
+                          {titleText.rateValue && <div className="text-xs text-gray-400">{titleText.rateValue}</div>}
                         </>
                       );
                     })()}
@@ -707,7 +707,7 @@ export const TransactionsPage = () => {
                     <div className="flex items-center justify-center gap-1">
                       {/* Como o Listar da carteira: Tesouro pelo ticker, os demais pela posição. */}
                       <button
-                        onClick={() => listar(row)}
+                        onClick={() => fetchList(row)}
                         className={TABLE_ACTION_CLASS}
                         title="Ver as transações desta posição"
                       >
@@ -778,7 +778,7 @@ export const TransactionsPage = () => {
         editing={editing}
         preset={preset}
         assetTypes={assetTypes}
-        onSaved={filtrarLancamento}
+        onSaved={filterEntry}
       />
     </div>
   );

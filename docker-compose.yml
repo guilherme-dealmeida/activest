@@ -273,7 +273,7 @@ services:
     environment:
       PRIMEVEST_API_URL: http://app-api:8080
       PRIMEVEST_ADM_URL: http://adm-api:8081
-      PRIMEVEST_SENHA: ${PRIMEVEST_SENHA:-}
+      PRIMEVEST_PASSWORD: ${PRIMEVEST_PASSWORD:-}
     volumes:
       - ./carga/scripts:/work/carga/scripts:ro
 

@@ -15,9 +15,9 @@ import java.time.Clock;
 public class VerificationStoreConfig {
 
     @Bean
-    VerificationStore verificationStore(@Value("${primevest.auth.store:redis}") String tipo,
+    VerificationStore verificationStore(@Value("${primevest.auth.store:redis}") String type,
                                         ObjectProvider<StringRedisTemplate> redis) {
-        if ("memory".equalsIgnoreCase(tipo)) {
+        if ("memory".equalsIgnoreCase(type)) {
             return new InMemoryVerificationStore(Clock.systemUTC());
         }
         StringRedisTemplate template = redis.getIfAvailable();

@@ -15,20 +15,20 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class DividendCalendarTest {
 
-    private static DividendCalendar em(String instanteUtc) {
-        return new DividendCalendar(Clock.fixed(Instant.parse(instanteUtc), ZoneOffset.UTC));
+    private static DividendCalendar em(String utcInstant) {
+        return new DividendCalendar(Clock.fixed(Instant.parse(utcInstant), ZoneOffset.UTC));
     }
 
     @Test
     @DisplayName("23:30 em Sao Paulo ja e o dia seguinte em UTC, mas hoje continua sendo o dia de Sao Paulo")
-    void noiteEmSaoPaulo() {
+    void nightInSaoPaulo() {
         // 24/09/2026 23:30 em Sao Paulo (UTC-3) = 25/09/2026 02:30 UTC
         assertThat(em("2026-09-25T02:30:00Z").today()).isEqualTo(LocalDate.of(2026, 9, 24));
     }
 
     @Test
     @DisplayName("Meia-noite em Sao Paulo vira o dia")
-    void meiaNoite() {
+    void midnight() {
         assertThat(em("2026-09-25T02:59:59Z").today()).isEqualTo(LocalDate.of(2026, 9, 24));
         assertThat(em("2026-09-25T03:00:00Z").today()).isEqualTo(LocalDate.of(2026, 9, 25));
     }

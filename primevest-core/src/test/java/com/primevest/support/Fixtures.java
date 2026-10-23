@@ -133,14 +133,14 @@ public final class Fixtures {
     private static Transaction transaction(PortfolioAsset pa, TransactionType type, LocalDate date,
                                            String shares, String price) {
         BigDecimal qtd = new BigDecimal(shares);
-        BigDecimal preco = new BigDecimal(price);
+        BigDecimal priceValue = new BigDecimal(price);
         return Transaction.builder()
             .portfolioAsset(pa)
             .note(pa.getNote())
             .type(type)
             .shares(qtd)
-            .pricePerShare(preco)
-            .totalAmount(qtd.multiply(preco))
+            .pricePerShare(priceValue)
+            .totalAmount(qtd.multiply(priceValue))
             .brokerageFee(BigDecimal.ZERO)
             .transactionDate(date)
             .build();

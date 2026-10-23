@@ -112,12 +112,12 @@ public class CeilingPriceAlertService implements CatalogReaction, DailyOpeningSe
             return false; // ja avisado nesta descida
         }
         cp.setAlertBelowIdeal(true);
-        boolean avisar = !today.equals(cp.getAlertLastOn());
-        if (avisar) {
+        boolean shouldNotify = !today.equals(cp.getAlertLastOn());
+        if (shouldNotify) {
             cp.setAlertLastOn(today);
         }
         repository.save(cp);
-        if (!avisar) {
+        if (!shouldNotify) {
             return false; // uma por ativo por dia
         }
         String ticker = cp.getAsset().getTicker();
@@ -155,7 +155,7 @@ public class CeilingPriceAlertService implements CatalogReaction, DailyOpeningSe
                 }
                 LocalDate last = service.latestQuarterEnd(cp);
                 String ticker = cp.getAsset().getTicker();
-                boolean novo = notifications.notify(NotificationDraft.of(NotificationKind.PRECO_TETO_PADRAO_MUDOU)
+                boolean created = notifications.notify(NotificationDraft.of(NotificationKind.PRECO_TETO_PADRAO_MUDOU)
                     .user(cp.getUser().getId())
                     .title(ticker + " — saiu balanço novo para o seu Preço Teto")
                     .body("Os padrões de balanço do seu cálculo de " + ticker + " mudaram desde que você o salvou"
@@ -166,7 +166,7 @@ public class CeilingPriceAlertService implements CatalogReaction, DailyOpeningSe
                     .lines(changed.stream().map(CeilingPriceAlertService::fieldLabel).toList())
                     .link("Ver cálculo", "/ceiling-prices/" + ticker)
                     .build()).isPresent();
-                if (novo) {
+                if (created) {
                     sent++;
                 }
             } catch (RuntimeException e) {

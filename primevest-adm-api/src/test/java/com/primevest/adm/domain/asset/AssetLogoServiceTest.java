@@ -19,7 +19,7 @@ class AssetLogoServiceTest {
 
     @Test
     @DisplayName("SVG e reconhecido pelo conteudo; pagina HTML de erro nao e logo")
-    void extensao() {
+    void fileExtension() {
         assertThat(AssetLogoService.extension(MediaType.valueOf("image/svg+xml"), SVG)).isEqualTo("svg");
         assertThat(AssetLogoService.extension(MediaType.TEXT_PLAIN, SVG)).isEqualTo("svg");
         assertThat(AssetLogoService.extension(MediaType.TEXT_HTML,
@@ -39,7 +39,7 @@ class AssetLogoServiceTest {
 
     @Test
     @DisplayName("Renda fixa e Tesouro nao tem logo; acao, FII, ETF, BDR e cripto tem")
-    void tiposComLogo() {
+    void typesWithLogo() {
         assertThat(AssetLogos.typeHasLogo(AssetType.builder().name("ACAO").build())).isTrue();
         assertThat(AssetLogos.typeHasLogo(AssetType.builder().name("CRIPTO").build())).isTrue();
         assertThat(AssetLogos.typeHasLogo(AssetType.builder().name("TESOURO_DIRETO").build())).isFalse();

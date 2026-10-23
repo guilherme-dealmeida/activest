@@ -60,7 +60,7 @@ class IssuerLinkIT extends IntegrationTestBase {
     IssuerRepository issuers;
 
     @BeforeEach
-    void cenario() {
+    void scenario() {
         jdbc.update("DELETE FROM unit_compositions");
         jdbc.update("UPDATE assets SET issuer_id = NULL, share_class = NULL, issuer_link_source = NULL");
         jdbc.update("DELETE FROM issuers");
@@ -86,7 +86,7 @@ class IssuerLinkIT extends IntegrationTestBase {
         jdbc.update("UPDATE assets SET isin = 'BRPABYCTF012' WHERE ticker = 'PABY11'");
     }
 
-    private Map<String, Object> ligacao(String ticker) {
+    private Map<String, Object> link(String ticker) {
         return jdbc.queryForMap("""
             SELECT a.share_class, a.issuer_link_source, i.cnpj, i.legal_name FROM assets a
             LEFT JOIN issuers i ON i.id = a.issuer_id WHERE a.ticker = ?""", ticker);
@@ -94,18 +94,18 @@ class IssuerLinkIT extends IntegrationTestBase {
 
     @Test
     @DisplayName("Acoes: FCA, raiz do ticker e B3; o fracionario segue o lote padrao; unit com composicao")
-    void acoes() {
+    void shares() {
         IssuerLinkService.Result r = links.linkAll("teste");
 
-        assertThat(ligacao("PETR4")).containsEntry("cnpj", "33000167000101").containsEntry("share_class", "PN")
+        assertThat(link("PETR4")).containsEntry("cnpj", "33000167000101").containsEntry("share_class", "PN")
                 .containsEntry("issuer_link_source", "FCA");
-        assertThat(ligacao("PETR3")).containsEntry("share_class", "ON").containsEntry("issuer_link_source", "FCA");
-        assertThat(ligacao("PETR4F")).containsEntry("cnpj", "33000167000101").containsEntry("share_class", "PN");
+        assertThat(link("PETR3")).containsEntry("share_class", "ON").containsEntry("issuer_link_source", "FCA");
+        assertThat(link("PETR4F")).containsEntry("cnpj", "33000167000101").containsEntry("share_class", "PN");
         // Klabin: o FCA so traz a unit; KLBN3 e KLBN4 vem pela raiz
-        assertThat(ligacao("KLBN11")).containsEntry("share_class", "UNIT").containsEntry("issuer_link_source", "FCA");
-        assertThat(ligacao("KLBN4")).containsEntry("cnpj", "89637490000145").containsEntry("share_class", "PN")
+        assertThat(link("KLBN11")).containsEntry("share_class", "UNIT").containsEntry("issuer_link_source", "FCA");
+        assertThat(link("KLBN4")).containsEntry("cnpj", "89637490000145").containsEntry("share_class", "PN")
                 .containsEntry("issuer_link_source", "PREFIXO");
-        assertThat(ligacao("BBAS3")).containsEntry("cnpj", "00000000000191").containsEntry("issuer_link_source", "B3");
+        assertThat(link("BBAS3")).containsEntry("cnpj", "00000000000191").containsEntry("issuer_link_source", "B3");
 
         assertThat(jdbc.queryForList("""
             SELECT u.share_class, u.quantity FROM unit_compositions u JOIN assets a ON a.id = u.asset_id
@@ -122,15 +122,15 @@ class IssuerLinkIT extends IntegrationTestBase {
     void fiis() {
         IssuerLinkService.Result r = links.linkAll("teste");
 
-        assertThat(ligacao("HGLG11")).containsEntry("cnpj", "11728688000147").containsEntry("issuer_link_source", "ISIN");
-        assertThat(ligacao("PABY11")).containsEntry("cnpj", "00613094000174").containsEntry("issuer_link_source", "ISIN");
+        assertThat(link("HGLG11")).containsEntry("cnpj", "11728688000147").containsEntry("issuer_link_source", "ISIN");
+        assertThat(link("PABY11")).containsEntry("cnpj", "00613094000174").containsEntry("issuer_link_source", "ISIN");
         assertThat(r.fundsCreated()).isEqualTo(1);
         assertThat(issuers.findByCnpj("00613094000174").orElseThrow().getRegistrationStatus()).isEqualTo("FORA_DE_BOLSA");
     }
 
     @Test
     @DisplayName("Lista curada: confirma, cria emissor sem informe, acusa ticker de fora; MANUAL nao e sobrescrito")
-    void listaCurada() {
+    void curatedList() {
         links.linkAll("teste");
 
         List<IssuerLinkService.CuratedLine> out = links.applyCuratedFunds(List.of(
@@ -141,18 +141,18 @@ class IssuerLinkIT extends IntegrationTestBase {
 
         assertThat(out).extracting(IssuerLinkService.CuratedLine::status).containsExactly(
                 "CONFIRMADO", "EMISSOR_CRIADO_SEM_INFORME", "TICKER_FORA_DO_CATALOGO", "CNPJ_INVALIDO");
-        assertThat(ligacao("VGRH11")).containsEntry("cnpj", "67624043000119").containsEntry("issuer_link_source", "MANUAL");
-        assertThat(ligacao("HGLG11")).containsEntry("issuer_link_source", "MANUAL");
+        assertThat(link("VGRH11")).containsEntry("cnpj", "67624043000119").containsEntry("issuer_link_source", "MANUAL");
+        assertThat(link("HGLG11")).containsEntry("issuer_link_source", "MANUAL");
 
         // rodar a ligacao automatica de novo nao mexe no que e MANUAL
         links.linkAll("teste");
-        assertThat(ligacao("HGLG11")).containsEntry("issuer_link_source", "MANUAL");
-        assertThat(ligacao("VGRH11")).containsEntry("cnpj", "67624043000119");
+        assertThat(link("HGLG11")).containsEntry("issuer_link_source", "MANUAL");
+        assertThat(link("VGRH11")).containsEntry("cnpj", "67624043000119");
     }
 
     @Test
     @DisplayName("B3 aponta codigo CVM que nao e emissor: cria a companhia pelo cadastro da CVM (caso WDCN3)")
-    void b3CriaCompanhiaDoCadastro() {
+    void b3CreatesCompanyFromRegistry() {
         // Aguas do Sertao (CVM 27359) esta no cadastro, mas fora de bolsa: nao entra no import
         assertThat(issuers.findByCvmCode(27359)).isEmpty();
         doReturn(new B3Supplement("AGUAS DO SERTAO", "WDCN", "27359", List.of(), List.of()))
@@ -160,9 +160,9 @@ class IssuerLinkIT extends IntegrationTestBase {
 
         links.linkAll("teste");
 
-        assertThat(ligacao("WDCN3")).containsEntry("cnpj", "45456117000112").containsEntry("share_class", "ON")
+        assertThat(link("WDCN3")).containsEntry("cnpj", "45456117000112").containsEntry("share_class", "ON")
                 .containsEntry("issuer_link_source", "B3");
-        assertThat(ligacao("WDCN3F")).containsEntry("cnpj", "45456117000112");
+        assertThat(link("WDCN3F")).containsEntry("cnpj", "45456117000112");
         assertThat(issuers.findByCvmCode(27359).orElseThrow().getKind()).isEqualTo(IssuerKind.COMPANY);
     }
 
@@ -172,7 +172,7 @@ class IssuerLinkIT extends IntegrationTestBase {
 
     @Test
     @DisplayName("Curadoria manual: bonus sem classe perde a composicao; unit com composicao manual; CNPJ do cadastro")
-    void curadoriaManual() {
+    void manualCuration() {
         links.linkAll("teste");
         Issuer petrobras = issuers.findByCnpj("33000167000101").orElseThrow();
 
@@ -180,7 +180,7 @@ class IssuerLinkIT extends IntegrationTestBase {
         links.setManual(assetId("ONCO11"), petrobras.getId(), null, ShareClass.UNIT);
         links.setUnitComposition(assetId("ONCO11"), Map.of(ShareClass.ON, 1));
         links.setManual(assetId("ONCO11"), petrobras.getId(), null, null);
-        assertThat(ligacao("ONCO11")).containsEntry("share_class", null).containsEntry("issuer_link_source", "MANUAL");
+        assertThat(link("ONCO11")).containsEntry("share_class", null).containsEntry("issuer_link_source", "MANUAL");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM unit_compositions WHERE asset_id = ?", Integer.class,
                 assetId("ONCO11"))).isZero();
 
@@ -197,11 +197,11 @@ class IssuerLinkIT extends IntegrationTestBase {
 
         // CNPJ que so esta no cadastro da CVM
         links.setManual(assetId("WDCN3"), null, "45.456.117/0001-12", ShareClass.ON);
-        assertThat(ligacao("WDCN3")).containsEntry("cnpj", "45456117000112").containsEntry("issuer_link_source", "MANUAL");
+        assertThat(link("WDCN3")).containsEntry("cnpj", "45456117000112").containsEntry("issuer_link_source", "MANUAL");
 
         // a rotina automatica preserva tudo o que e MANUAL
         links.linkAll("teste");
-        assertThat(ligacao("ONCO11")).containsEntry("share_class", null).containsEntry("issuer_link_source", "MANUAL");
+        assertThat(link("ONCO11")).containsEntry("share_class", null).containsEntry("issuer_link_source", "MANUAL");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM unit_compositions WHERE asset_id = ?", Integer.class,
                 assetId("BPAC11"))).isEqualTo(2);
     }

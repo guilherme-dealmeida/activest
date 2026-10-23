@@ -27,16 +27,16 @@ public class SecretHasher {
 
     public SecretHasher(@Value("${primevest.auth.hash-key:}") String hashKey,
                         @Value("${jwt.secret:}") String jwtSecret) {
-        String chave = hashKey;
-        if (chave == null || chave.isBlank()) {
+        String hmacKey = hashKey;
+        if (hmacKey == null || hmacKey.isBlank()) {
             log.warn("PRIMEVEST_HASH_KEY não configurada: usando o JWT_SECRET para os hashes de código e CPF. "
                 + "Configure uma chave própria no .env.");
-            chave = jwtSecret;
+            hmacKey = jwtSecret;
         }
-        if (chave == null || chave.length() < 16) {
+        if (hmacKey == null || hmacKey.length() < 16) {
             throw new IllegalStateException("primevest.auth.hash-key precisa de pelo menos 16 caracteres.");
         }
-        this.key = chave.getBytes(StandardCharsets.UTF_8);
+        this.key = hmacKey.getBytes(StandardCharsets.UTF_8);
     }
 
     public String hmacHex(String value) {

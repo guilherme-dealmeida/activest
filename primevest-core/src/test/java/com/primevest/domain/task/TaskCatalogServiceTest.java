@@ -32,7 +32,7 @@ class TaskCatalogServiceTest extends JpaTestBase {
 
     @Test
     @DisplayName("Tarefa nova recebe os atributos do tipo com o padrão, e pode mudar o valor na criação")
-    void espelho() {
+    void mirror() {
         Task task = service.create("B3_YEARLY_QUOTES", new TaskCatalogService.TaskChanges("B3_YEARLY_QUOTES_2020",
             "Recarga desde 2020", null, null, Map.of("FROM_YEAR", "2020")));
         em.flush();
@@ -48,7 +48,7 @@ class TaskCatalogServiceTest extends JpaTestBase {
 
     @Test
     @DisplayName("Edição valida nome, horário e o valor pelo tipo; padrão mudado no tipo não mexe na tarefa")
-    void edicao() {
+    void edit() {
         Long id = tasks.findAliveByName("MARKET_INDICES").orElseThrow().getId();
 
         service.update(id, new TaskCatalogService.TaskChanges("MARKET_INDICES_DAILY", null, "0 15 10 * * *", false,
@@ -76,28 +76,28 @@ class TaskCatalogServiceTest extends JpaTestBase {
 
     @Test
     @DisplayName("Excluir: sem rodadas apaga de vez; com rodadas, exclusão lógica e o nome fica livre; o tipo fica")
-    void exclusao() {
-        Task semRodada = service.create("CVM_QUARTERS", named("CVM_QUARTERS_COPY"));
-        service.delete(semRodada.getId());
+    void exclusion() {
+        Task withoutRun = service.create("CVM_QUARTERS", named("CVM_QUARTERS_COPY"));
+        service.delete(withoutRun.getId());
         em.flush();
-        assertThat(tasks.findById(semRodada.getId())).isEmpty();
+        assertThat(tasks.findById(withoutRun.getId())).isEmpty();
 
-        Task comRodada = tasks.findAliveByName("CVM_QUARTERS").orElseThrow();
+        Task withRun = tasks.findAliveByName("CVM_QUARTERS").orElseThrow();
         TaskExecution e = new TaskExecution();
-        e.setTask(comRodada);
+        e.setTask(withRun);
         e.setStatus(TaskExecutionStatus.SUCCEEDED);
         e.setTriggerType(TaskTriggerType.MANUAL);
         e.setScheduledFor(TaskTime.now());
         e.setStartedAt(TaskTime.now());
         e.setFinishedAt(TaskTime.now());
         executions.save(e);
-        service.delete(comRodada.getId());
+        service.delete(withRun.getId());
         em.flush();
         em.clear();
 
-        assertThat(tasks.findAlive(comRodada.getId())).isEmpty();
-        assertThat(tasks.findById(comRodada.getId()).orElseThrow().getDeletedAt()).isNotNull();
-        assertThat(executions.existsByTaskId(comRodada.getId())).isTrue();
-        assertThat(service.create("CVM_QUARTERS", named("CVM_QUARTERS")).getId()).isNotEqualTo(comRodada.getId());
+        assertThat(tasks.findAlive(withRun.getId())).isEmpty();
+        assertThat(tasks.findById(withRun.getId()).orElseThrow().getDeletedAt()).isNotNull();
+        assertThat(executions.existsByTaskId(withRun.getId())).isTrue();
+        assertThat(service.create("CVM_QUARTERS", named("CVM_QUARTERS")).getId()).isNotEqualTo(withRun.getId());
     }
 }

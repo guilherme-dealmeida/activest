@@ -55,7 +55,7 @@ public final class CeilingPriceRules {
                          BigDecimal safetyMarginPct, BigDecimal price) {
     }
 
-    /** Limites dos alertas (D2) — {@code primevest.preco-teto.alertas.*}. */
+    /** Limites dos alertas (D2) — {@code primevest.ceiling-price.alerts.*}. */
     public record Limits(BigDecimal pctMin, BigDecimal pctMax, BigDecimal discountMin, BigDecimal discountMax,
                          BigDecimal growthMax) {
 

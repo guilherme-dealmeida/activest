@@ -29,7 +29,7 @@ class TreasuryPricesTaskTest {
 
     @Test
     @DisplayName("Fonte recusou (copia em disco lida): resumo gravado e a rodada falha com o motivo")
-    void fonteRecusou() {
+    void sourceRejected() {
         when(service.importRecent(anyString())).thenReturn(new TreasuryPriceService.Result(58, 0,
                 LocalDate.of(2026, 10, 15), 0, -1, List.of(),
                 "Tesouro Transparente indisponivel (HTTP 429, Retry-After 30); lida a copia do arquivo em disco", null));
@@ -43,7 +43,7 @@ class TreasuryPricesTaskTest {
 
     @Test
     @DisplayName("Fonte respondeu, mesmo parada: a rodada termina bem (a pendencia e o aviso)")
-    void fonteParada() {
+    void sourceStopped() {
         when(service.importRecent(anyString())).thenReturn(new TreasuryPriceService.Result(58, 0,
                 LocalDate.of(2026, 10, 15), 0, 28, List.of(), null, LocalDate.of(2026, 10, 15)));
         TaskRunContext ctx = ctx();

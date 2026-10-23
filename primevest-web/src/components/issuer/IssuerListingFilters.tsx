@@ -67,7 +67,7 @@ export const IssuerListingFilters = ({ tab, rows, state, onChange }: Props) => {
   return (
     <div className="space-y-3 rounded-lg border border-white/10 bg-surface-light/30 p-3 text-xs">
       <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-3">
-        {tab === 'acoes' && (
+        {tab === 'stocks' && (
           <>
             <label className="text-gray-400">
               Setor
@@ -106,7 +106,7 @@ export const IssuerListingFilters = ({ tab, rows, state, onChange }: Props) => {
             <div key={c.key}>
               <div className="mb-1 flex items-center justify-between">
                 <span className="flex items-center gap-1 text-gray-300">
-                  {meta ? meta.label : c.key === 'preco' ? 'Preço' : 'Patrimônio líquido'}
+                  {meta ? meta.label : c.key === 'price' ? 'Preço' : 'Patrimônio líquido'}
                   {meta && <InfoTooltip label={`O que é ${meta.label}`} content={<><strong>{meta.name}.</strong> {meta.formula}</>} />}
                 </span>
                 <span className="text-[11px] text-gray-500">{unitHint(c)}</span>

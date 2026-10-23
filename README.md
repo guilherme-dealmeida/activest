@@ -103,7 +103,7 @@ primevest/
 ### Autenticação e conta
 - ✅ Login via Google (Google Identity Services, ID token)
 - ✅ Login via email/senha com JWT (token de acesso + renovação)
-- ✅ Criar conta com código de verificação por e-mail e aceite dos termos (`/cadastro`)
+- ✅ Criar conta com código de verificação por e-mail e aceite dos termos (`/signup`)
 - ✅ Esqueci a senha com código por e-mail
 - ✅ Configurações: perfil (celular, CPF cifrado), troca de e-mail com código, senha, vínculo Google, tema, excluir conta
 - No DEV, todo e-mail cai no **Mailpit** (http://localhost:8025); nada sai da máquina
@@ -172,7 +172,7 @@ Nada depende de pasta fora do projeto (`docs/planos/PLANO_CARGA_INICIAL.md`).
 
 **Antes:**
 
-1. **`.env`** a partir do `.env.example`: `PRIMEVEST_SENHA` (senha do administrador semeado,
+1. **`.env`** a partir do `.env.example`: `PRIMEVEST_PASSWORD` (senha do administrador semeado,
    `guilhermeunatec@gmail.com`, migration V9 — peça a quem mantém o projeto) e o **token só
    leitura** do bucket R2 (`S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`).
 2. **Pasta `carga/data/`** (fora do git, ~1,4 GB) baixada do bucket `primevest-data` (Cloudflare R2):
@@ -217,7 +217,7 @@ regrava os manifests. `data status` compara `carga/data/` com o bucket.
 
 Para provar a carga do zero na mesma máquina, sem tocar no ambiente de desenvolvimento: os mesmos serviços, com
 banco, Redis, rede e pasta de dados (`carga/data-teste/`) próprios e rotinas agendadas desligadas. Precisa do
-`.env.teste` (cópia do `.env.example` com as portas do teste e a `PRIMEVEST_SENHA`; fora do git).
+`.env.teste` (cópia do `.env.example` com as portas do teste e a `PRIMEVEST_PASSWORD`; fora do git).
 
 ```powershell
 function pvt { docker compose -p primevest-teste --env-file .env.teste -f docker-compose.yml -f docker-compose.teste.yml @args }

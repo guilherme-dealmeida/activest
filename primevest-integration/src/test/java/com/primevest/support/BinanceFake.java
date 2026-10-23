@@ -31,29 +31,29 @@ public final class BinanceFake {
     private static final ObjectMapper JSON = new ObjectMapper();
 
     // Instantes ficticios (fev/mar de 2024).
-    public static final long T_DEPOSITO = 1_706_875_200_000L;   // 2024-02-02 12:00 UTC
-    public static final long T_ORDEM_1 = 1_706_886_000_000L;    // 2024-02-02 15:00 UTC
-    public static final long T_PAGAMENTO = 1_707_307_200_000L;  // 2024-02-07 12:00 UTC
+    public static final long T_DEPOSIT = 1_706_875_200_000L;   // 2024-02-02 12:00 UTC
+    public static final long T_ORDER_1 = 1_706_886_000_000L;    // 2024-02-02 15:00 UTC
+    public static final long T_PAYMENT = 1_707_307_200_000L;  // 2024-02-07 12:00 UTC
     public static final long T_CONVERT = 1_708_000_000_000L;    // 2024-02-15 12:26 UTC
-    public static final long T_CRIPTO = 1_708_500_000_000L;     // 2024-02-21 07:20 UTC
-    public static final long T_ORDEM_2 = 1_709_305_200_000L;    // 2024-03-01 15:00 UTC
+    public static final long T_CRYPTO = 1_708_500_000_000L;     // 2024-02-21 07:20 UTC
+    public static final long T_ORDER_2 = 1_709_305_200_000L;    // 2024-03-01 15:00 UTC
 
-    public static final String SO_LEITURA = """
+    public static final String READ_ONLY = """
         {"ipRestrict":false,"createTime":1706000000000,"enableReading":true,"enableSpotAndMarginTrading":false,
          "enableWithdrawals":false,"enableInternalTransfer":false,"permitsUniversalTransfer":false,
          "enableMargin":false,"enableFutures":false,"enableVanillaOptions":false,
          "enablePortfolioMarginTrading":false,"enableFixApiTrade":false,"enableFixReadOnly":false}""";
 
-    public static final String NEGOCIA = SO_LEITURA
+    public static final String TRADES = READ_ONLY
         .replace("\"enableSpotAndMarginTrading\":false", "\"enableSpotAndMarginTrading\":true");
 
     private BinanceFake() {
     }
 
-    /** Liga o mock a conta ficticia. {@code restricoes}: SO_LEITURA ou NEGOCIA. */
-    public static void conta(BinanceClient client, String restricoes) {
+    /** Liga o mock a conta ficticia. {@code restrictions}: SO_LEITURA ou NEGOCIA. */
+    public static void account(BinanceClient client, String restrictions) {
         when(client.signedGet(any(), eq("/sapi/v1/account/apiRestrictions"), anyMap()))
-            .thenAnswer(i -> json(restricoes));
+            .thenAnswer(i -> json(restrictions));
         when(client.signedGet(any(), eq("/api/v3/account"), anyMap())).thenAnswer(i -> json("""
             {"accountType":"SPOT","balances":[{"asset":"BTC","free":"0.00169800","locked":"0.00000000"},
              {"asset":"ETH","free":"0.00325000","locked":"0.00000000"},{"asset":"BRL","free":"66.83","locked":"0"}]}"""));
@@ -74,7 +74,7 @@ public final class BinanceFake {
                   "commission":"0.00000100","commissionAsset":"BTC","time":%d,"isBuyer":true,"isMaker":false},
                  {"symbol":"BTCBRL","id":103,"orderId":5002,"price":"420000.00","qty":"0.00020000","quoteQty":"84.00",
                   "commission":"0.08400000","commissionAsset":"BRL","time":%d,"isBuyer":false,"isMaker":true}]"""
-                .formatted(T_ORDEM_1, T_ORDEM_1 + 50, T_ORDEM_2));
+                .formatted(T_ORDER_1, T_ORDER_1 + 50, T_ORDER_2));
         });
         when(client.signedGet(any(), eq("/sapi/v1/fiat/orders"), anyMap())).thenAnswer(i -> json("""
             {"code":"000000","data":[
@@ -82,17 +82,17 @@ public final class BinanceFake {
                "method":"Bank Transfer (PIX)","status":"Successful","createTime":%d},
               {"orderNo":"F2","fiatCurrency":"BRL","indicatedAmount":"50.00","amount":"50.00","totalFee":"0",
                "method":"Bank Transfer (PIX)","status":"Failed","createTime":%d}],"total":2,"success":true}"""
-            .formatted(T_DEPOSITO, T_DEPOSITO + 1000)));
+            .formatted(T_DEPOSIT, T_DEPOSIT + 1000)));
         when(client.signedGet(any(), eq("/sapi/v1/fiat/payments"), anyMap())).thenAnswer(i -> json("""
             {"code":"000000","data":[
               {"orderNo":"P1","sourceAmount":"101.00","fiatCurrency":"BRL","obtainAmount":"0.00025000",
                "cryptoCurrency":"ETH","totalFee":"1.00","price":"400000","status":"Completed","createTime":%d}],
-             "total":1,"success":true}""".formatted(T_PAGAMENTO)));
+             "total":1,"success":true}""".formatted(T_PAYMENT)));
         when(client.signedGet(any(), eq("/sapi/v1/convert/tradeFlow"), anyMap())).thenAnswer(i -> {
             Map<?, ?> p = i.getArgument(2);
             long ini = Long.parseLong(p.get("startTime").toString());
-            long fim = Long.parseLong(p.get("endTime").toString());
-            if (T_CONVERT < ini || T_CONVERT > fim) {
+            long end = Long.parseLong(p.get("endTime").toString());
+            if (T_CONVERT < ini || T_CONVERT > end) {
                 return json("{\"list\":[],\"moreData\":false}");
             }
             return json("""
@@ -105,18 +105,18 @@ public final class BinanceFake {
         when(client.signedGet(any(), eq("/sapi/v1/capital/deposit/hisrec"), anyMap())).thenAnswer(i -> {
             Map<?, ?> p = i.getArgument(2);
             long ini = Long.parseLong(p.get("startTime").toString());
-            long fim = Long.parseLong(p.get("endTime").toString());
-            if (T_CRIPTO < ini || T_CRIPTO > fim || !"0".equals(p.get("offset").toString())) {
+            long end = Long.parseLong(p.get("endTime").toString());
+            if (T_CRYPTO < ini || T_CRYPTO > end || !"0".equals(p.get("offset").toString())) {
                 return json("[]");
             }
             return json("""
                 [{"id":"D1","amount":"50","coin":"USDT","network":"TRX","status":1,"txId":"tx-ficticio",
-                  "insertTime":%d}]""".formatted(T_CRIPTO));
+                  "insertTime":%d}]""".formatted(T_CRYPTO));
         });
     }
 
     /** A Binance recusando a chave (-2015). */
-    public static void chaveRecusada(BinanceClient client) {
+    public static void rejectedKey(BinanceClient client) {
         when(client.signedGet(any(), eq("/sapi/v1/account/apiRestrictions"), anyMap()))
             .thenThrow(new BinanceException(401, -2015, "Binance 401 (-2015) em /sapi/v1/account/apiRestrictions: "
                 + "Invalid API-key, IP, or permissions for action."));

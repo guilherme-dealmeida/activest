@@ -37,86 +37,86 @@ class DividendRepositoryTest extends JpaTestBase {
     @Autowired private AssetRepository assetRepository;
     @Autowired private AssetCashEventRepository cashEventRepository;
 
-    private Portfolio carteira;
-    private PortfolioAsset posicao;
-    private Asset acao;
+    private Portfolio portfolioEntity;
+    private PortfolioAsset positionEntity;
+    private Asset stock;
 
     @BeforeEach
-    void cenario() {
-        User dono = userRepository.save(Fixtures.user("ir@primevest.test"));
-        carteira = portfolioRepository.save(Fixtures.portfolio(dono));
-        acao = CatalogIds.asset(assetRepository, CatalogIds.ACAO);
-        posicao = portfolioAssetRepository.save(Fixtures.position(carteira, acao));
+    void scenario() {
+        User owner = userRepository.save(Fixtures.user("ir@primevest.test"));
+        portfolioEntity = portfolioRepository.save(Fixtures.portfolio(owner));
+        stock = CatalogIds.asset(assetRepository, CatalogIds.STOCK);
+        positionEntity = portfolioAssetRepository.save(Fixtures.position(portfolioEntity, stock));
     }
 
-    private static final LocalDate HOJE = LocalDate.of(2026, 9, 24);
+    private static final LocalDate TODAY = LocalDate.of(2026, 9, 24);
 
-    private Dividend provento(String bruto, String ir, String liquido, boolean conferido) {
-        return provento(bruto, ir, liquido, conferido, "2026-09-10", CashEventSource.B3);
+    private Dividend dividendEvent(String gross, String ir, String net, boolean reconciled) {
+        return dividendEvent(gross, ir, net, reconciled, "2026-09-10", CashEventSource.B3);
     }
 
-    private Dividend provento(String bruto, String ir, String liquido, boolean conferido, String pagamento,
-                              CashEventSource fonte) {
-        WithholdingTaxRule regra = ir == null ? null : ruleRepository.findAll().stream()
+    private Dividend dividendEvent(String gross, String ir, String net, boolean reconciled, String payment,
+                              CashEventSource sourceName) {
+        WithholdingTaxRule rule = ir == null ? null : ruleRepository.findAll().stream()
             .filter(r -> r.getDividendType() == DividendType.JCP && r.getValidFrom() != null).findFirst().orElseThrow();
         // AUTO sempre tem o evento do catalogo que o gerou (ck_dividends_auto_has_event).
-        AssetCashEvent evento = cashEventRepository.save(AssetCashEvent.builder().asset(acao).type(DividendType.JCP)
-            .label("JRS CAP PROPRIO").dataCom(LocalDate.of(2026, 6, 1)).valuePerShare(new BigDecimal(bruto))
-            .source(fonte).build());
-        return repository.save(Dividend.builder().portfolioAsset(posicao).origin(DividendOrigin.AUTO).cashEvent(evento)
+        AssetCashEvent event = cashEventRepository.save(AssetCashEvent.builder().asset(stock).type(DividendType.JCP)
+            .label("JRS CAP PROPRIO").dataCom(LocalDate.of(2026, 6, 1)).valuePerShare(new BigDecimal(gross))
+            .source(sourceName).build());
+        return repository.save(Dividend.builder().portfolioAsset(positionEntity).origin(DividendOrigin.AUTO).cashEvent(event)
             .type(DividendType.JCP).amountPerShare(new BigDecimal("0.1")).exDate(LocalDate.of(2026, 6, 1))
-            .paymentDate(pagamento == null ? null : LocalDate.parse(pagamento))
-            .totalAmount(new BigDecimal(bruto))
-            .withholdingRule(regra)
-            .withholdingRate(regra != null ? regra.getRate() : null)
+            .paymentDate(payment == null ? null : LocalDate.parse(payment))
+            .totalAmount(new BigDecimal(gross))
+            .withholdingRule(rule)
+            .withholdingRate(rule != null ? rule.getRate() : null)
             .withholdingTax(ir == null ? null : new BigDecimal(ir))
-            .netAmountPerShare(liquido == null ? null : new BigDecimal("0.08250000"))
-            .netAmount(liquido == null ? null : new BigDecimal(liquido))
-            .taxCheckedAt(conferido ? LocalDateTime.now() : null)
+            .netAmountPerShare(net == null ? null : new BigDecimal("0.08250000"))
+            .netAmount(net == null ? null : new BigDecimal(net))
+            .taxCheckedAt(reconciled ? LocalDateTime.now() : null)
             .build());
     }
 
     @Test
     @DisplayName("Soma por posicao usa o liquido; tipo sem regra entra pelo bruto")
-    void somaLiquida() {
-        provento("10.19", "1.78", "8.41", true);
-        provento("7.98", null, null, true);
+    void netSum() {
+        dividendEvent("10.19", "1.78", "8.41", true);
+        dividendEvent("7.98", null, null, true);
 
-        List<PositionDividendTotal> totais = repository.sumTotalAmountByPosition(carteira.getId(), HOJE);
+        List<PositionDividendTotal> totals = repository.sumTotalAmountByPosition(portfolioEntity.getId(), TODAY);
 
-        assertThat(totais).singleElement().satisfies(t -> assertThat(t.total()).isEqualByComparingTo("16.39"));
-        assertThat(repository.sumTotalDividendsByPortfolioId(carteira.getId(), HOJE)).isEqualByComparingTo("16.39");
+        assertThat(totals).singleElement().satisfies(t -> assertThat(t.total()).isEqualByComparingTo("16.39"));
+        assertThat(repository.sumTotalDividendsByPortfolioId(portfolioEntity.getId(), TODAY)).isEqualByComparingTo("16.39");
     }
 
     @Test
     @DisplayName("Somas so do recebido — e a regra do banco bate com Dividend.isReceived, caso a caso")
-    void somaSoDoRecebido() {
-        List<Dividend> casos = List.of(
-            provento("1.00", null, null, true, "2026-09-23", CashEventSource.B3),            // ontem
-            provento("2.00", null, null, true, "2026-09-24", CashEventSource.B3),            // hoje (D0)
-            provento("4.00", null, null, true, "2026-09-25", CashEventSource.B3),            // amanha
-            provento("8.00", null, null, true, null, CashEventSource.B3_HISTORICO),          // sem data, historico
-            provento("16.00", null, null, true, null, CashEventSource.B3),                   // sem data, a definir
-            provento("32.00", null, null, true, "2027-01-22", CashEventSource.FNET));        // futuro
-        BigDecimal esperado = casos.stream().filter(d -> d.isReceived(HOJE))
+    void sumOnlyReceived() {
+        List<Dividend> cases = List.of(
+            dividendEvent("1.00", null, null, true, "2026-09-23", CashEventSource.B3),            // ontem
+            dividendEvent("2.00", null, null, true, "2026-09-24", CashEventSource.B3),            // hoje (D0)
+            dividendEvent("4.00", null, null, true, "2026-09-25", CashEventSource.B3),            // amanha
+            dividendEvent("8.00", null, null, true, null, CashEventSource.B3_HISTORICO),          // sem data, historico
+            dividendEvent("16.00", null, null, true, null, CashEventSource.B3),                   // sem data, a definir
+            dividendEvent("32.00", null, null, true, "2027-01-22", CashEventSource.FNET));        // futuro
+        BigDecimal expected = cases.stream().filter(d -> d.isReceived(TODAY))
             .map(Dividend::getTotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-        assertThat(esperado).isEqualByComparingTo("11.00");
+        assertThat(expected).isEqualByComparingTo("11.00");
 
-        assertThat(repository.sumTotalAmountByPosition(carteira.getId(), HOJE))
-            .singleElement().satisfies(t -> assertThat(t.total()).isEqualByComparingTo(esperado));
-        assertThat(repository.sumTotalDividendsByPortfolioId(carteira.getId(), HOJE)).isEqualByComparingTo(esperado);
+        assertThat(repository.sumTotalAmountByPosition(portfolioEntity.getId(), TODAY))
+            .singleElement().satisfies(t -> assertThat(t.total()).isEqualByComparingTo(expected));
+        assertThat(repository.sumTotalDividendsByPortfolioId(portfolioEntity.getId(), TODAY)).isEqualByComparingTo(expected);
         // Um dia depois, o de amanha entra.
-        assertThat(repository.sumTotalDividendsByPortfolioId(carteira.getId(), HOJE.plusDays(1)))
+        assertThat(repository.sumTotalDividendsByPortfolioId(portfolioEntity.getId(), TODAY.plusDays(1)))
             .isEqualByComparingTo("15.00");
     }
 
     @Test
     @DisplayName("Fila do verificador: so posicoes com provento AUTO sem IR calculado")
-    void filaDoVerificador() {
-        provento("10.19", "1.78", "8.41", true);
+    void verifierQueue() {
+        dividendEvent("10.19", "1.78", "8.41", true);
         assertThat(repository.findPositionIdsWithTaxPending()).isEmpty();
 
-        provento("5.00", null, null, false);
-        assertThat(repository.findPositionIdsWithTaxPending()).containsExactly(posicao.getId());
+        dividendEvent("5.00", null, null, false);
+        assertThat(repository.findPositionIdsWithTaxPending()).containsExactly(positionEntity.getId());
     }
 }

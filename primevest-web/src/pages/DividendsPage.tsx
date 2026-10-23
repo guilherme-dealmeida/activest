@@ -64,7 +64,7 @@ const addRow = (acc: Totals, r: DividendRow): Totals => ({
 });
 
 const NO_TAX_RULE_HINT = 'Sem regra de IR para este tipo de provento e de ativo: o total é o bruto.';
-const ordenarPt = (a: string, b: string) => a.localeCompare(b, 'pt-BR');
+const sortPtBr = (a: string, b: string) => a.localeCompare(b, 'pt-BR');
 
 /**
  * Aba da tela: Histórico (recebidos) ou A Receber. A situação de cada provento
@@ -104,10 +104,10 @@ const TAB_TEXTS: Record<DividendTab, { total: string; byType: string; emptyByTyp
  */
 export const DividendsPage = () => {
   const [params, setParams] = useSearchParams();
-  const activeTab: DividendTab = params.get('aba') === 'a-receber' ? 'toReceive' : 'received';
+  const activeTab: DividendTab = params.get('tab') === 'to-receive' ? 'toReceive' : 'received';
   const setActiveTab = (tab: DividendTab) => {
     const next = new URLSearchParams(params);
-    if (tab === 'toReceive') next.set('aba', 'a-receber'); else next.delete('aba');
+    if (tab === 'toReceive') next.set('tab', 'to-receive'); else next.delete('tab');
     setParams(next, { replace: true });
   };
 
@@ -196,7 +196,7 @@ const DividendsTabPanel = ({ tab, rows }: { tab: DividendTab; rows: DividendRow[
       .filter(r => String(r.assetTypeId) === filterAssetType)
       .map(r => r.ticker)
       .filter(Boolean);
-    return [...new Set(tickers)].sort(ordenarPt);
+    return [...new Set(tickers)].sort(sortPtBr);
   }, [rows, filterAssetType]);
 
   const filtered = useMemo(
@@ -251,7 +251,7 @@ const DividendsTabPanel = ({ tab, rows }: { tab: DividendTab; rows: DividendRow[
    * O filtro Tipo (de provento) volta a "Todos", como os demais filtros no
    * Listar das Transações: a lista mostra todos os proventos daquele ativo.
    */
-  const listar = (row: DividendRow) => {
+  const list = (row: DividendRow) => {
     if (row.assetTypeId == null) return;
     setFilterAssetType(String(row.assetTypeId));
     setFilterAsset(row.ticker);
@@ -271,13 +271,13 @@ const DividendsTabPanel = ({ tab, rows }: { tab: DividendTab; rows: DividendRow[
   }, [rows]);
 
   /** Escolha na busca: o mesmo efeito do Listar, a partir de um provento daquele ativo. */
-  const listarTicker = (ticker: string) => {
+  const listTicker = (ticker: string) => {
     const row = rows.find(r => r.ticker === ticker);
-    if (row) listar(row);
+    if (row) list(row);
   };
 
   /** "Limpar filtro" do aviso: volta a lista da aba inteira (os três filtros em "Todos"). */
-  const limparFiltro = () => {
+  const clearFilter = () => {
     setFilterAssetType(ALL);
     setFilterAsset(ALL);
     setFilterType(ALL);
@@ -297,7 +297,7 @@ const DividendsTabPanel = ({ tab, rows }: { tab: DividendTab; rows: DividendRow[
           </span>
           <button
             type="button"
-            onClick={limparFiltro}
+            onClick={clearFilter}
             className="ml-auto flex items-center gap-1 text-xs text-gray-300 hover:text-white transition-colors"
           >
             <X className="w-3.5 h-3.5" />
@@ -342,7 +342,7 @@ const DividendsTabPanel = ({ tab, rows }: { tab: DividendTab; rows: DividendRow[
         {/* Busca por ticker ou nome, como na tela Ativos: escolher = Listar. */}
         <div className="w-full sm:w-96">
           <label className="block text-xs text-gray-400 mb-1">Buscar</label>
-          <LocalAssetSearch options={searchOptions} onSelect={listarTicker} ariaLabel="Buscar provento por ticker ou nome" />
+          <LocalAssetSearch options={searchOptions} onSelect={listTicker} ariaLabel="Buscar provento por ticker ou nome" />
         </div>
         <div>
           <label className="block text-xs text-gray-400 mb-1">Tipo de Ativo</label>
@@ -464,7 +464,7 @@ const DividendsTabPanel = ({ tab, rows }: { tab: DividendTab; rows: DividendRow[
                     <div className="flex items-center justify-center gap-1">
                       <button
                         type="button"
-                        onClick={() => listar(row)}
+                        onClick={() => list(row)}
                         disabled={row.assetTypeId == null}
                         className={TABLE_ACTION_CLASS}
                         title="Ver os proventos deste ativo"

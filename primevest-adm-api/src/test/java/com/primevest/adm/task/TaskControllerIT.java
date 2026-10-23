@@ -23,17 +23,17 @@ class TaskControllerIT extends IntegrationTestBase {
     private ObjectMapper json;
 
     private User admin;
-    private User comum;
+    private User common;
 
     @BeforeEach
-    void usuarios() {
-        admin = usuarioComCarteira("admin-tarefas@primevest.test");
+    void users() {
+        admin = userWithPortfolio("admin-tarefas@primevest.test");
         jdbc.update("UPDATE users SET is_admin = TRUE WHERE id = ?", admin.getId());
-        comum = usuarioComCarteira("comum-tarefas@primevest.test");
+        common = userWithPortfolio("comum-tarefas@primevest.test");
     }
 
     @AfterEach
-    void volta() {
+    void back() {
         jdbc.update("UPDATE tasks SET name = 'CVM_QUARTERS', cron = NULL, enabled = TRUE, description = NULL, "
             + "run_on_startup = FALSE "
             + "WHERE name IN ('CVM_QUARTERS', 'CVM_QUARTERS_REBUILD')");
@@ -63,17 +63,17 @@ class TaskControllerIT extends IntegrationTestBase {
 
     @Test
     @DisplayName("Só administrador: sem token 401, usuário comum 403")
-    void acesso() {
+    void access() {
         assertThat(rest.getForEntity("/api/v1/tasks", String.class).getStatusCode())
             .isEqualTo(HttpStatus.UNAUTHORIZED);
-        assertThat(get(comum, "/api/v1/tasks", String.class).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        assertThat(post(comum, "/api/v1/tasks/" + taskId("CVM_QUARTERS") + "/run", null, String.class)
+        assertThat(get(common, "/api/v1/tasks", String.class).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(post(common, "/api/v1/tasks/" + taskId("CVM_QUARTERS") + "/run", null, String.class)
             .getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
     @DisplayName("Configuração: as 26 tarefas com tipo, horário, próxima execução e atributos; os tipos com os atributos aceitos")
-    void configuracao() throws Exception {
+    void configuration() throws Exception {
         JsonNode list = body(get(admin, "/api/v1/tasks", String.class));
         assertThat(list.size()).isEqualTo(26);
         JsonNode yearly = null;
@@ -102,7 +102,7 @@ class TaskControllerIT extends IntegrationTestBase {
 
     @Test
     @DisplayName("Editar: nome, descrição, horário, ligado e atributo; nome inválido ou repetido 422")
-    void edicao() throws Exception {
+    void edit() throws Exception {
         long id = taskId("CVM_QUARTERS");
         ResponseEntity<String> r = put(admin, "/api/v1/tasks/" + id, Map.of("name", "CVM_QUARTERS_REBUILD",
             "description", "Recalcula a série", "cron", "0 0 4 * * SUN", "enabled", false, "runOnStartup", true),
@@ -130,7 +130,7 @@ class TaskControllerIT extends IntegrationTestBase {
 
     @Test
     @DisplayName("Run → rodada no Acompanhamento com resumo e log; Stop numa rodada que já terminou 422")
-    void runEAcompanhamento() throws Exception {
+    void runAndMonitoring() throws Exception {
         long id = taskId("CVM_QUARTERS");
         ResponseEntity<String> r = post(admin, "/api/v1/tasks/" + id + "/run", null, String.class);
         assertThat(r.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
@@ -165,7 +165,7 @@ class TaskControllerIT extends IntegrationTestBase {
 
     @Test
     @DisplayName("Run de tarefa da app-api sem mensagens entre os serviços: 503, nenhuma rodada")
-    void runRemotoSemMensagens() {
+    void remoteRunWithoutMessages() {
         ResponseEntity<String> r = post(admin, "/api/v1/tasks/" + taskId("POSITIONS_REFRESH") + "/run", null,
             String.class);
         assertThat(r.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);

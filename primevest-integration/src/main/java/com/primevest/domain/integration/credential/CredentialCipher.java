@@ -80,8 +80,8 @@ public class CredentialCipher {
                 throw new IllegalStateException("primevest.integrations.credentials.key-version deve ser maior que zero.");
             }
             SecretKey key = decodeKey(currentKey, "PRIMEVEST_CREDENTIALS_KEY");
-            SecretKey anterior = all.put(currentVersion, key);
-            if (anterior != null && !java.util.Arrays.equals(anterior.getEncoded(), key.getEncoded())) {
+            SecretKey previous = all.put(currentVersion, key);
+            if (previous != null && !java.util.Arrays.equals(previous.getEncoded(), key.getEncoded())) {
                 throw new IllegalStateException("A versao " + currentVersion
                     + " aparece como chave atual e como chave anterior, com valores diferentes.");
             }

@@ -19,7 +19,7 @@ interface Props {
 }
 
 /** Sem acento e em maiúsculas: "Itaú" acha "ITAU UNIBANCO". */
-const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+const normalizeText = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
 
 /**
  * Busca por ticker ou nome sobre a listagem da própria tela (Dividendos e
@@ -36,13 +36,13 @@ export const LocalAssetSearch = ({ options, onSelect, ariaLabel = 'Buscar ativo 
 
   // A partir de 2 caracteres, como na tela Ativos. Ticker que começa com o texto vem primeiro.
   const matches = useMemo(() => {
-    const q = normalizar(value.trim());
+    const q = normalizeText(value.trim());
     if (q.length < 2) return [];
     return options
-      .filter(o => normalizar(o.ticker).includes(q) || normalizar(o.name).includes(q))
+      .filter(o => normalizeText(o.ticker).includes(q) || normalizeText(o.name).includes(q))
       .sort((a, b) => {
-        const pa = normalizar(a.ticker).startsWith(q) ? 0 : 1;
-        const pb = normalizar(b.ticker).startsWith(q) ? 0 : 1;
+        const pa = normalizeText(a.ticker).startsWith(q) ? 0 : 1;
+        const pb = normalizeText(b.ticker).startsWith(q) ? 0 : 1;
         return pa - pb || a.ticker.localeCompare(b.ticker, 'pt-BR');
       });
   }, [options, value]);
@@ -69,10 +69,10 @@ export const LocalAssetSearch = ({ options, onSelect, ariaLabel = 'Buscar ativo 
   // Enter: a opção destacada; sem destaque, o ticker digitado exato ou a primeira da lista.
   const submit = () => {
     if (matches.length === 0) return;
-    const typed = normalizar(value.trim());
+    const typed = normalizeText(value.trim());
     const choice = highlight >= 0
       ? matches[highlight]
-      : matches.find(o => normalizar(o.ticker) === typed) ?? matches[0];
+      : matches.find(o => normalizeText(o.ticker) === typed) ?? matches[0];
     go(choice.ticker);
   };
 

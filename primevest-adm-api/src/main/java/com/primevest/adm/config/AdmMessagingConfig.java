@@ -3,7 +3,7 @@ package com.primevest.adm.config;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.primevest.adm.domain.asset.AssetLogoService;
-import com.primevest.adm.domain.dividend.ProventosCatalogService;
+import com.primevest.adm.domain.dividend.DividendCatalogService;
 import com.primevest.domain.catalog.CatalogMessaging;
 import com.primevest.domain.catalog.CatalogMessaging.CatalogChangePublisher;
 import lombok.extern.slf4j.Slf4j;
@@ -49,7 +49,7 @@ public class AdmMessagingConfig {
     /** {@code ObjectProvider}: o servico de proventos depende do publicador acima. */
     @Bean
     RedisMessageListenerContainer onDemandListener(RedisConnectionFactory connectionFactory,
-                                                   ObjectProvider<ProventosCatalogService> proventos,
+                                                   ObjectProvider<DividendCatalogService> dividends,
                                                    ObjectProvider<AssetLogoService> logos,
                                                    ObjectProvider<com.primevest.domain.task.TaskTypeRepository> types) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
@@ -62,7 +62,7 @@ public class AdmMessagingConfig {
                 boolean enabled = types.getObject().findByType("DIVIDENDS_SYNC")
                         .map(com.primevest.domain.task.TaskType::isEnabled).orElse(true);
                 if (enabled) {
-                    proventos.getObject().requestOnDemand(Long.valueOf(body));
+                    dividends.getObject().requestOnDemand(Long.valueOf(body));
                 } else {
                     log.info("Proventos sob demanda ({}): tipo DIVIDENDS_SYNC desligado, pedido ignorado", body);
                 }

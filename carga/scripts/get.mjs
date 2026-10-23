@@ -1,6 +1,6 @@
 // GET autenticado na app-api do PrimeVest, para conferencia.
 // Uso: node carga/scripts/get.mjs /api/v1/assets/PETR4/indicators [/outro/caminho ...] [--api URL]
-// Senha: PRIMEVEST_SENHA do ambiente ou do .env do projeto.
+// Senha: PRIMEVEST_PASSWORD do ambiente ou do .env do projeto.
 import { apiUrls, loadEnv, option } from './lib/env.mjs';
 
 const args = process.argv.slice(2);
@@ -9,14 +9,14 @@ const { api: API } = apiUrls(ENV, args);
 const EMAIL = option(args, '--email', ENV.PRIMEVEST_EMAIL || 'guilhermeunatec@gmail.com');
 const caminhos = args.filter((a, i) => a.startsWith('/') && !(i > 0 && args[i - 1].startsWith('--')));
 
-if (!ENV.PRIMEVEST_SENHA) {
-  console.error('Defina PRIMEVEST_SENHA (ambiente ou .env).');
+if (!ENV.PRIMEVEST_PASSWORD) {
+  console.error('Defina PRIMEVEST_PASSWORD (ambiente ou .env).');
   process.exit(2);
 }
 const login = await fetch(`${API}/api/v1/auth/login`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ email: EMAIL, password: ENV.PRIMEVEST_SENHA }),
+  body: JSON.stringify({ email: EMAIL, password: ENV.PRIMEVEST_PASSWORD }),
 });
 if (!login.ok) {
   console.error(`Login recusado em ${API} (${login.status})`);

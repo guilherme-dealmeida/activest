@@ -12,7 +12,7 @@ class BusinessCalendarTest {
 
     @Test
     @DisplayName("Pascoa e feriados moveis de 2024 e 2026")
-    void moveis() {
+    void mobiles() {
         assertThat(BusinessCalendar.easter(2024)).isEqualTo(LocalDate.of(2024, 3, 31));
         assertThat(BusinessCalendar.easter(2026)).isEqualTo(LocalDate.of(2026, 4, 5));
         assertThat(BusinessCalendar.holidays(2026)).contains(LocalDate.of(2026, 2, 16), LocalDate.of(2026, 2, 17),
@@ -21,7 +21,7 @@ class BusinessCalendarTest {
 
     @Test
     @DisplayName("20/11 so a partir de 2024; 2024 tem 253 dias uteis (os 253 dias do CDI)")
-    void consciencia() {
+    void awareness() {
         assertThat(BusinessCalendar.isBusinessDay(LocalDate.of(2023, 11, 20))).isTrue();
         assertThat(BusinessCalendar.isBusinessDay(LocalDate.of(2024, 11, 20))).isFalse();
         assertThat(BusinessCalendar.businessDaysBetween(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 12, 31))).isEqualTo(253);

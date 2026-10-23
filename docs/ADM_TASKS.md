@@ -9,11 +9,11 @@
 | Tema | Como funciona |
 |---|---|
 | **Acesso** | JWT de usuário com `users.is_admin = true`. Sem token: 401. Usuário comum: 403 "Somente administrador.". O login é sempre na app-api (`POST /api/v1/auth/login`, porta 8080); a adm-api (8081) só valida o mesmo token |
-| **Execução** | desde 22/10/2026, pelo executor das **tarefas** (`TaskExecutor`): cada pedido é uma rodada da tarefa do tipo (a primeira tarefa viva do tipo), com os parâmetros da rota por cima dos atributos dela; roda em segundo plano e responde na hora `202 Accepted` com `{"status":"iniciada","rotina":"<nome>","resultado":"na tela de Tarefas e no log da API","executionId":N}` (`status` = "pulada (ja em execucao)" quando o tipo já roda — D20). O resultado (resumo, erro e o log da rodada) aparece na tela de Tarefas (`/tasks`) e no log do contêiner. A curadoria (`fii-cnpjs`, `assets/{id}/issuer`, `assets/{id}/unit-composition`) continua síncrona e responde como antes, agora registrada como rodada das tarefas `FII_CNPJ_CURATION`, `ASSET_ISSUER_LINK` e `UNIT_COMPOSITION`. Sem rota aqui, o Run da tela de Tarefas faz o mesmo |
+| **Execução** | desde 22/10/2026, pelo executor das **tarefas** (`TaskExecutor`): cada pedido é uma rodada da tarefa do tipo (a primeira tarefa viva do tipo), com os parâmetros da rota por cima dos atributos dela; roda em segundo plano e responde na hora `202 Accepted` com `{"status":"iniciada","task":"<nome>","result":"na tela de Tarefas e no log da API","executionId":N}` (`status` = "pulada (ja em execucao)" quando o tipo já roda — D20). O resultado (resumo, erro e o log da rodada) aparece na tela de Tarefas (`/tasks`) e no log do contêiner. A curadoria (`fii-cnpjs`, `assets/{id}/issuer`, `assets/{id}/unit-composition`) continua síncrona e responde como antes, agora registrada como rodada das tarefas `FII_CNPJ_CURATION`, `ASSET_ISSUER_LINK` e `UNIT_COMPOSITION`. Sem rota aqui, o Run da tela de Tarefas faz o mesmo |
 | **Idempotência** | todas as rotinas podem ser rodadas de novo: o que já está gravado é pulado ou regravado com o mesmo valor; o que já está em `carga/data/` não é baixado de novo |
 | **Swagger** | http://localhost:8081/swagger-ui.html |
 
-**Disparo** pelo script do projeto (usa `PRIMEVEST_SENHA` do `.env`):
+**Disparo** pelo script do projeto (usa `PRIMEVEST_PASSWORD` do `.env`):
 
 ```bash
 node carga/scripts/admin.mjs <rotina>
@@ -39,15 +39,15 @@ Prefixo das rotas: `/api/v1/admin`.
 | 07 | POST | `/b3/cotahist?from&to` | adm | 202 | Preços |
 | 07b | POST | `/b3/cotahist/diario?from&to` | adm | 202 | Preços (pregão a pregão) |
 | 08 | POST | `/closing` | adm | 202 | Preços |
-| 09 | POST | `/proventos[?fnet=todos]` | adm | 202 | Proventos (`fnet=todos` relê todos os avisos do FNET em disco, inclusive os já gravados — depois de uma limpeza como a V60) |
+| 09 | POST | `/proventos[?fnet=all]` | adm | 202 | Proventos (`fnet=all` relê todos os avisos do FNET em disco, inclusive os já gravados — depois de uma limpeza como a V60) |
 | 10 | POST | `/cvm/proventos?from&to` | adm | 202 | Proventos (datas) |
-| 11 | POST | `/proventos/levantamento` | adm | 202 | Proventos (datas) |
+| 11 | POST | `/dividends/payment-date-survey` | adm | 202 | Proventos (datas) |
 | 12 | POST | `/cvm/import?from&to&force` | adm | 202 | Balanços |
 | 13 | POST | `/cvm/quarters` | adm | 202 | Balanços |
 | 14 | POST | `/cvm/fii-monthly?from&to&force` | adm | 202 | Informe FII |
 | 15 | POST | `/logos` | adm | 202 | Logos |
 | 16 | POST | `/catalog-audit` | adm | 202 | Conferência |
-| 17 | POST | `/proventos/fnet-status` | adm | 202 | Proventos (FNET) |
+| 17 | POST | `/dividends/fnet-status` | adm | 202 | Proventos (FNET) |
 | 18 | POST | `/indices?codes&from&to&recent` | adm | 202 (400 com código desconhecido) | Índices de mercado |
 | 19 | POST | `/tesouro?from&recent` | adm | 202 | Preço do Tesouro |
 
@@ -154,7 +154,7 @@ mesmo ISIN entra no ativo atual. A série da B3 vence a BRAPI e não é sobrescr
 **Propósito.** Histórico de preço desde 2010 (gráfico de cotação, indicadores históricos) e o ISIN de cada ativo (usado
 pelos proventos).
 
-### [07b] `POST /api/v1/admin/b3/cotahist/diario?from=AAAA-MM-DD&to=AAAA-MM-DD` (10/10/2026)
+### [07b] `POST /api/v1/admin/b3/cotahist/daily?from=AAAA-MM-DD&to=AAAA-MM-DD` (10/10/2026)
 
 **Serviço:** `HistoricalQuotesImportService.importRecent` (sem `from`) ou `importDays` · **Validação:** `to >= from` e
 no máximo 366 dias, senão 400 · **Grava:** `asset_price_history` (source `B3_COTAHIST`), `assets.isin`
@@ -177,9 +177,9 @@ no máximo 366 dias, senão 400 · **Grava:** `asset_price_history` (source `B3_
 
 ## Proventos
 
-### [09] `POST /api/v1/admin/proventos`
+### [09] `POST /api/v1/admin/dividends`
 
-**Serviço:** `ProventosCatalogService.syncAll` · **Grava:** `asset_cash_events`, `asset_stock_events`;
+**Serviço:** `DividendCatalogService.syncAll` · **Grava:** `asset_cash_events`, `asset_stock_events`;
 `carga/data/b3`, `carga/data/fnet`
 
 **Função.** Mesma rodada das 20:00 (sem a etapa da CVM): proventos e eventos societários da B3 por emissor, FNET como
@@ -187,7 +187,7 @@ fonte principal do FII, histórico longo. Publica "catálogo mudou" (`PROVENTOS`
 
 **Propósito.** Reprocessar proventos sob demanda.
 
-### [10] `POST /api/v1/admin/cvm/proventos?from=2022&to=<ano corrente>`
+### [10] `POST /api/v1/admin/cvm/payment-dates?from=2022&to=<ano corrente>`
 
 **Serviço:** `CvmPaymentDateService.run` · **Validação:** `from >= 2022` e `to >= from`, senão 400 · **Grava:**
 `asset_cash_events.payment_date` (`payment_date_source = 'CVM'`); `carga/data/cvm/ipe`, `carga/data/cvm/proventos`
@@ -197,7 +197,7 @@ ISIN, data-com e valor (parcelas na ordem). A data da própria fonte (B3) substi
 
 **Propósito.** Catálogo com a data de pagamento completa (ações, 2022+).
 
-### [11] `POST /api/v1/admin/proventos/levantamento`
+### [11] `POST /api/v1/admin/dividends/payment-date-survey`
 
 **Serviço:** `PaymentDateSurveyService.run` · **Entrada:** `carga/data/levantamento/datas-pagamento.json` (gerado da
 planilha por `carga/scripts/levantamento/xlsx_para_json.py`) · **Grava:** `asset_cash_events.payment_date`
@@ -208,9 +208,9 @@ FNET nem CVM; linha `A_DEFINIR` não grava nada. Mesma etapa do bootstrap.
 
 **Propósito.** Datas de pagamento que nenhuma fonte automática traz (2010–2021), aplicadas num banco que já existe.
 
-### [17] `POST /api/v1/admin/proventos/fnet-status` (21/10/2026)
+### [17] `POST /api/v1/admin/dividends/fnet-status` (21/10/2026)
 
-**Serviço:** `ProventosCatalogService.refreshFnetStatus` · **Grava:** `carga/data/fnet/status/{CNPJ}.json` (nada no banco)
+**Serviço:** `DividendCatalogService.refreshFnetStatus` · **Grava:** `carga/data/fnet/status/{CNPJ}.json` (nada no banco)
 
 **Função.** Para cada fundo com aviso em `carga/data/fnet`, busca no FNET a lista dos avisos de rendimentos e
 amortizações e grava a situação de cada um: `AC` ativo, `IC` inativo, `CC` cancelado. Uma busca por fundo (3 a 10 s);
@@ -305,7 +305,7 @@ antes de 2010 ou reprocessar um índice.
 
 ## Preço do Tesouro Direto
 
-### [19] `POST /api/v1/admin/tesouro?from=2010&recent=false`
+### [19] `POST /api/v1/admin/treasury?from=2010&recent=false`
 
 **Serviço:** `TreasuryPriceService.importFrom` (ou `importRecent` com `recent=true`) · **Grava:** `asset_price_history`
 (`source = TESOURO`), `assets.current_price`, `carga/data/tesouro/PrecoTaxaTesouroDireto.csv`
@@ -315,8 +315,8 @@ antes de 2010 ou reprocessar um índice.
 FECHAMENTO). O arquivo (~14 MB) só é baixado se mudou. `recent=true` = a rodada das 08:00.
 
 ```bash
-node carga/scripts/admin.mjs tesouro
-node carga/scripts/admin.mjs "tesouro?from=2002"
+node carga/scripts/admin.mjs treasury
+node carga/scripts/admin.mjs "treasury?from=2002"
 ```
 
 **Propósito.** Carregar o histórico num banco existente (o `bootstrap` já faz num banco novo) ou estender para antes de

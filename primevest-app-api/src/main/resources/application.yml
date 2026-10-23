@@ -179,7 +179,7 @@ primevest:
     service: APP_API
   # Proventos sob demanda: a transacao pede o historico do ativo a adm-api (Redis). Interruptor tecnico (os testes
   # desligam); quem desliga de verdade e o tipo DIVIDENDS_SYNC na tela de Tarefas (docs/planos/PLANO_TAREFAS.md, D30).
-  proventos:
+  dividends:
     enabled: true
   # Horarios das rotinas da carteira: no banco (tabela tasks, docs/planos/PLANO_TAREFAS.md, D10).
   # Integracoes com corretoras (docs/planos/PLANO_CRIPTO_BINANCE.md, 6.3). A credencial de
@@ -202,11 +202,11 @@ primevest:
     auto-confirm-scheduled: true
   # Listagem de emissoras (docs/planos/PLANO_LISTAGEM_EMISSORAS.md, F4): quando o preco, o balanco (acao) ou o
   # informe (FII) recebem a marca de "dado antigo".
-  emissoras:
-    dado-antigo:
-      preco-dias: 7
-      balanco-meses: 6
-      informe-meses: 3
+  issuer-page:
+    stale-data:
+      price-days: 7
+      statement-months: 6
+      report-months: 3
   logos:
     # Pasta fora do banco (B18), so leitura aqui; quem baixa e a adm-api. No Docker: ./data/logos.
     dir: ${LOGOS_DIR:../carga/data/logos}

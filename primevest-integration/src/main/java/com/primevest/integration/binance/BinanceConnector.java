@@ -80,18 +80,18 @@ public class BinanceConnector implements SourceConnector {
     private static final int DEPOSIT_PAGE = 1000;
 
     /** Permissoes que tornam a chave inaceitavel (P2), com o nome que a tela mostra. */
-    private static final Map<String, String> PERMISSOES_PROIBIDAS = new LinkedHashMap<>();
+    private static final Map<String, String> FORBIDDEN_PERMISSIONS = new LinkedHashMap<>();
 
     static {
-        PERMISSOES_PROIBIDAS.put("enableSpotAndMarginTrading", "negociar (spot e margem)");
-        PERMISSOES_PROIBIDAS.put("enableWithdrawals", "sacar");
-        PERMISSOES_PROIBIDAS.put("enableInternalTransfer", "transferir entre contas");
-        PERMISSOES_PROIBIDAS.put("permitsUniversalTransfer", "transferência universal");
-        PERMISSOES_PROIBIDAS.put("enableMargin", "margem");
-        PERMISSOES_PROIBIDAS.put("enableFutures", "futuros");
-        PERMISSOES_PROIBIDAS.put("enableVanillaOptions", "opções");
-        PERMISSOES_PROIBIDAS.put("enablePortfolioMarginTrading", "portfolio margin");
-        PERMISSOES_PROIBIDAS.put("enableFixApiTrade", "negociar via FIX");
+        FORBIDDEN_PERMISSIONS.put("enableSpotAndMarginTrading", "negociar (spot e margem)");
+        FORBIDDEN_PERMISSIONS.put("enableWithdrawals", "sacar");
+        FORBIDDEN_PERMISSIONS.put("enableInternalTransfer", "transferir entre contas");
+        FORBIDDEN_PERMISSIONS.put("permitsUniversalTransfer", "transferência universal");
+        FORBIDDEN_PERMISSIONS.put("enableMargin", "margem");
+        FORBIDDEN_PERMISSIONS.put("enableFutures", "futuros");
+        FORBIDDEN_PERMISSIONS.put("enableVanillaOptions", "opções");
+        FORBIDDEN_PERMISSIONS.put("enablePortfolioMarginTrading", "portfolio margin");
+        FORBIDDEN_PERMISSIONS.put("enableFixApiTrade", "negociar via FIX");
     }
 
     private final BinanceClient client;
@@ -145,21 +145,21 @@ public class BinanceConnector implements SourceConnector {
             }
             throw e;
         }
-        List<String> excesso = new ArrayList<>();
-        PERMISSOES_PROIBIDAS.forEach((campo, nome) -> {
-            if (r.path(campo).asBoolean(false)) {
-                excesso.add(nome);
+        List<String> excess = new ArrayList<>();
+        FORBIDDEN_PERMISSIONS.forEach((field, name) -> {
+            if (r.path(field).asBoolean(false)) {
+                excess.add(name);
             }
         });
-        boolean leitura = r.path("enableReading").asBoolean(false);
-        String problema = null;
-        if (!excesso.isEmpty()) {
-            problema = "A chave permite " + String.join(", ", excesso)
+        boolean read = r.path("enableReading").asBoolean(false);
+        String problem = null;
+        if (!excess.isEmpty()) {
+            problem = "A chave permite " + String.join(", ", excess)
                 + ". Por segurança, o PrimeVest só aceita chave com a permissão de leitura (Enable Reading).";
-        } else if (!leitura) {
-            problema = "A chave não tem a permissão de leitura (Enable Reading).";
+        } else if (!read) {
+            problem = "A chave não tem a permissão de leitura (Enable Reading).";
         }
-        return new CredentialCheck(true, leitura && excesso.isEmpty(), r.toString(), problema);
+        return new CredentialCheck(true, read && excess.isEmpty(), r.toString(), problem);
     }
 
     // ------------------------------------------------------------------ busca
@@ -167,35 +167,35 @@ public class BinanceConnector implements SourceConnector {
     @Override
     public FetchResult fetch(SourceCredentials source, Map<String, String> cursors) {
         ApiKeyCredentials credentials = SourceConnector.as(ApiKeyCredentials.class, source);
-        long agora = clock.getAsLong();
-        Map<String, String> proximos = new HashMap<>(cursors);
-        List<ImportedMovement> movimentos = new ArrayList<>();
+        long now = clock.getAsLong();
+        Map<String, String> nextCursors = new HashMap<>(cursors);
+        List<ImportedMovement> movements = new ArrayList<>();
 
-        movimentos.addAll(fiatDeposits(credentials, cursors, proximos, agora));
-        movimentos.addAll(fiatPayments(credentials, cursors, proximos, agora));
-        movimentos.addAll(converts(credentials, cursors, proximos, agora));
-        movimentos.addAll(cryptoDeposits(credentials, cursors, proximos, agora));
+        movements.addAll(fiatDeposits(credentials, cursors, nextCursors, now));
+        movements.addAll(fiatPayments(credentials, cursors, nextCursors, now));
+        movements.addAll(converts(credentials, cursors, nextCursors, now));
+        movements.addAll(cryptoDeposits(credentials, cursors, nextCursors, now));
 
         // Saldo da conta: serve para escolher os pares a consultar e para o
         // aviso de divergencia (E3). So a carteira Spot — Earn e Funding ficam de fora.
-        JsonNode conta = client.signedGet(credentials, "/api/v3/account", Map.of("omitZeroBalances", true));
-        Map<String, BigDecimal> saldos = new TreeMap<>();
-        conta.path("balances").forEach(b -> {
+        JsonNode account = client.signedGet(credentials, "/api/v3/account", Map.of("omitZeroBalances", true));
+        Map<String, BigDecimal> balances = new TreeMap<>();
+        account.path("balances").forEach(b -> {
             BigDecimal total = zero(dec(b.path("free"))).add(zero(dec(b.path("locked"))));
             if (total.signum() != 0) {
-                saldos.merge(b.path("asset").asText().toUpperCase(), total, BigDecimal::add);
+                balances.merge(b.path("asset").asText().toUpperCase(), total, BigDecimal::add);
             }
         });
-        movimentos.addAll(spotTrades(credentials, cursors, proximos, movimentos, saldos.keySet()));
+        movements.addAll(spotTrades(credentials, cursors, nextCursors, movements, balances.keySet()));
 
-        return new FetchResult(movimentos, proximos, saldos);
+        return new FetchResult(movements, nextCursors, balances);
     }
 
     List<ImportedMovement> fiatDeposits(ApiKeyCredentials c, Map<String, String> cursors,
-                                        Map<String, String> proximos, long agora) {
-        long inicio = inicio(cursors, FIAT_DEPOSITS, historyStart);
+                                        Map<String, String> nextCursors, long now) {
+        long start = start(cursors, FIAT_DEPOSITS, historyStart);
         List<ImportedMovement> out = new ArrayList<>();
-        for (JsonNode o : fiatPages(c, "/sapi/v1/fiat/orders", inicio, agora)) {
+        for (JsonNode o : fiatPages(c, "/sapi/v1/fiat/orders", start, now)) {
             if (!"Successful".equalsIgnoreCase(o.path("status").asText())) {
                 continue;
             }
@@ -204,45 +204,45 @@ public class BinanceConnector implements SourceConnector {
                 o.path("fiatCurrency").asText(), null, null, o.path("fiatCurrency").asText(),
                 dec(o.path("amount")), dec(o.path("totalFee")), o.path("fiatCurrency").asText(),
                 Instant.ofEpochMilli(t), o.toString()));
-            avancar(proximos, FIAT_DEPOSITS, t);
+            advance(nextCursors, FIAT_DEPOSITS, t);
         }
         return out;
     }
 
     List<ImportedMovement> fiatPayments(ApiKeyCredentials c, Map<String, String> cursors,
-                                        Map<String, String> proximos, long agora) {
-        long inicio = inicio(cursors, FIAT_PAYMENTS, historyStart);
+                                        Map<String, String> nextCursors, long now) {
+        long start = start(cursors, FIAT_PAYMENTS, historyStart);
         List<ImportedMovement> out = new ArrayList<>();
-        for (JsonNode p : fiatPages(c, "/sapi/v1/fiat/payments", inicio, agora)) {
+        for (JsonNode p : fiatPages(c, "/sapi/v1/fiat/payments", start, now)) {
             String status = p.path("status").asText();
             if (!"Completed".equalsIgnoreCase(status) && !"Successful".equalsIgnoreCase(status)) {
                 continue;
             }
             long t = p.path("createTime").asLong();
-            BigDecimal fonte = dec(p.path("sourceAmount"));
-            BigDecimal taxa = dec(p.path("totalFee"));
+            BigDecimal sourceName = dec(p.path("sourceAmount"));
+            BigDecimal fee = dec(p.path("totalFee"));
             // quoteAmount SEM a taxa, que e cobrada na propria moeda de cotacao (6.14).
-            BigDecimal semTaxa = fonte == null ? null : fonte.subtract(taxa == null ? BigDecimal.ZERO : taxa);
+            BigDecimal withoutFee = sourceName == null ? null : sourceName.subtract(fee == null ? BigDecimal.ZERO : fee);
             out.add(new ImportedMovement("binance:fiatpay:" + p.path("orderNo").asText(), MovementKind.TRADE,
                 p.path("cryptoCurrency").asText(), MovementSide.BUY, dec(p.path("obtainAmount")),
-                p.path("fiatCurrency").asText(), semTaxa, taxa, p.path("fiatCurrency").asText(),
+                p.path("fiatCurrency").asText(), withoutFee, fee, p.path("fiatCurrency").asText(),
                 Instant.ofEpochMilli(t), p.toString()));
-            avancar(proximos, FIAT_PAYMENTS, t);
+            advance(nextCursors, FIAT_PAYMENTS, t);
         }
         return out;
     }
 
     /** Endpoints de fiat: uma janela so, paginada. transactionType 0 = deposito / compra. */
-    private List<JsonNode> fiatPages(ApiKeyCredentials c, String path, long inicio, long fim) {
+    private List<JsonNode> fiatPages(ApiKeyCredentials c, String path, long start, long end) {
         List<JsonNode> all = new ArrayList<>();
-        if (inicio > fim) {
+        if (start > end) {
             return all;
         }
         for (int page = 1; ; page++) {
             Map<String, Object> params = new LinkedHashMap<>();
             params.put("transactionType", 0);
-            params.put("beginTime", inicio);
-            params.put("endTime", fim);
+            params.put("beginTime", start);
+            params.put("endTime", end);
             params.put("page", page);
             params.put("rows", FIAT_PAGE);
             JsonNode data = client.signedGet(c, path, params).path("data");
@@ -254,15 +254,15 @@ public class BinanceConnector implements SourceConnector {
     }
 
     List<ImportedMovement> converts(ApiKeyCredentials c, Map<String, String> cursors,
-                                    Map<String, String> proximos, long agora) {
-        long inicio = inicio(cursors, CONVERT, convertHistoryStart);
+                                    Map<String, String> nextCursors, long now) {
+        long start = start(cursors, CONVERT, convertHistoryStart);
         List<ImportedMovement> out = new ArrayList<>();
-        boolean primeira = true;
-        for (long[] w : janelas(inicio, agora, 30)) {
-            if (!primeira) {
+        boolean first = true;
+        for (long[] w : windows(start, now, 30)) {
+            if (!first) {
                 client.pause(convertPauseMillis);
             }
-            primeira = false;
+            first = false;
             Map<String, Object> params = new LinkedHashMap<>();
             params.put("startTime", w[0]);
             params.put("endTime", w[1]);
@@ -276,7 +276,7 @@ public class BinanceConnector implements SourceConnector {
                     continue;
                 }
                 out.add(convert(t));
-                avancar(proximos, CONVERT, t.path("createTime").asLong());
+                advance(nextCursors, CONVERT, t.path("createTime").asLong());
             }
         }
         return out;
@@ -289,24 +289,24 @@ public class BinanceConnector implements SourceConnector {
      */
     ImportedMovement convert(JsonNode t) {
         String de = t.path("fromAsset").asText();
-        String para = t.path("toAsset").asText();
+        String to = t.path("toAsset").asText();
         BigDecimal qtdDe = dec(t.path("fromAmount"));
-        BigDecimal qtdPara = dec(t.path("toAmount"));
-        boolean venda = "BRL".equalsIgnoreCase(para);
+        BigDecimal quantityFor = dec(t.path("toAmount"));
+        boolean sale = "BRL".equalsIgnoreCase(to);
         return new ImportedMovement("binance:convert:" + t.path("quoteId").asText(), MovementKind.CONVERT,
-            venda ? de : para,
-            venda ? MovementSide.SELL : MovementSide.BUY,
-            venda ? qtdDe : qtdPara,
-            venda ? para : de,
-            venda ? qtdPara : qtdDe,
+            sale ? de : to,
+            sale ? MovementSide.SELL : MovementSide.BUY,
+            sale ? qtdDe : quantityFor,
+            sale ? to : de,
+            sale ? quantityFor : qtdDe,
             null, null, Instant.ofEpochMilli(t.path("createTime").asLong()), t.toString());
     }
 
     List<ImportedMovement> cryptoDeposits(ApiKeyCredentials c, Map<String, String> cursors,
-                                          Map<String, String> proximos, long agora) {
-        long inicio = inicio(cursors, CRYPTO_DEPOSITS, historyStart);
+                                          Map<String, String> nextCursors, long now) {
+        long start = start(cursors, CRYPTO_DEPOSITS, historyStart);
         List<ImportedMovement> out = new ArrayList<>();
-        for (long[] w : janelas(inicio, agora, 90)) {
+        for (long[] w : windows(start, now, 90)) {
             for (int offset = 0; ; offset += DEPOSIT_PAGE) {
                 Map<String, Object> params = new LinkedHashMap<>();
                 params.put("status", 1);
@@ -321,7 +321,7 @@ public class BinanceConnector implements SourceConnector {
                     out.add(new ImportedMovement("binance:deposit:" + id, MovementKind.CRYPTO_DEPOSIT,
                         d.path("coin").asText(), MovementSide.BUY, dec(d.path("amount")), null, null, null, null,
                         Instant.ofEpochMilli(t), d.toString()));
-                    avancar(proximos, CRYPTO_DEPOSITS, t);
+                    advance(nextCursors, CRYPTO_DEPOSITS, t);
                 }
                 if (page.size() < DEPOSIT_PAGE) {
                     break;
@@ -332,58 +332,58 @@ public class BinanceConnector implements SourceConnector {
     }
 
     List<ImportedMovement> spotTrades(ApiKeyCredentials c, Map<String, String> cursors,
-                                      Map<String, String> proximos, List<ImportedMovement> outros,
-                                      Set<String> comSaldo) {
+                                      Map<String, String> nextCursors, List<ImportedMovement> others,
+                                      Set<String> withBalance) {
         // Moedas candidatas: saldo atual, as dos outros fluxos, a lista fixa e os pares ja vistos.
         Set<String> bases = new LinkedHashSet<>(probeAssets);
-        bases.addAll(comSaldo);
-        outros.forEach(m -> {
+        bases.addAll(withBalance);
+        others.forEach(m -> {
             if (m.asset() != null && m.kind() != MovementKind.FIAT_DEPOSIT) {
                 bases.add(m.asset().toUpperCase());
             }
         });
         bases.remove("BRL");
 
-        Map<String, String[]> pares = new HashMap<>();
+        Map<String, String[]> pairs = new HashMap<>();
         client.publicGet("/api/v3/exchangeInfo", Map.of()).path("symbols").forEach(s ->
-            pares.put(s.path("symbol").asText(), new String[] {s.path("baseAsset").asText(), s.path("quoteAsset").asText()}));
+            pairs.put(s.path("symbol").asText(), new String[] {s.path("baseAsset").asText(), s.path("quoteAsset").asText()}));
 
-        Set<String> simbolos = new LinkedHashSet<>();
+        Set<String> symbols = new LinkedHashSet<>();
         for (String base : bases) {
             for (String quote : quoteAssets) {
-                if (!base.equals(quote) && pares.containsKey(base + quote)) {
-                    simbolos.add(base + quote);
+                if (!base.equals(quote) && pairs.containsKey(base + quote)) {
+                    symbols.add(base + quote);
                 }
             }
         }
         cursors.keySet().stream().filter(k -> k.startsWith(SPOT)).map(k -> k.substring(SPOT.length()))
-            .filter(pares::containsKey).forEach(simbolos::add);
+            .filter(pairs::containsKey).forEach(symbols::add);
 
         List<ImportedMovement> out = new ArrayList<>();
-        for (String simbolo : simbolos) {
-            String[] par = pares.get(simbolo);
-            List<JsonNode> fills = trades(c, simbolo, cursors.get(SPOT + simbolo));
+        for (String symbol : symbols) {
+            String[] par = pairs.get(symbol);
+            List<JsonNode> fills = trades(c, symbol, cursors.get(SPOT + symbol));
             if (fills.isEmpty()) {
                 continue;
             }
             // R1: os pedacos da mesma ordem viram um movimento.
-            Map<String, List<JsonNode>> porOrdem = new TreeMap<>(Comparator.comparingLong(Long::parseLong));
+            Map<String, List<JsonNode>> byOrder = new TreeMap<>(Comparator.comparingLong(Long::parseLong));
             for (JsonNode f : fills) {
-                porOrdem.computeIfAbsent(f.path("orderId").asText(), k -> new ArrayList<>()).add(f);
+                byOrder.computeIfAbsent(f.path("orderId").asText(), k -> new ArrayList<>()).add(f);
             }
-            porOrdem.forEach((orderId, pedacos) -> out.add(ordem(simbolo, par[0], par[1], orderId, pedacos)));
-            long ultimo = fills.stream().mapToLong(f -> f.path("id").asLong()).max().orElseThrow();
-            proximos.put(SPOT + simbolo, Long.toString(ultimo));
+            byOrder.forEach((orderId, chunks) -> out.add(order(symbol, par[0], par[1], orderId, chunks)));
+            long last = fills.stream().mapToLong(f -> f.path("id").asLong()).max().orElseThrow();
+            nextCursors.put(SPOT + symbol, Long.toString(last));
         }
         return out;
     }
 
-    private List<JsonNode> trades(ApiKeyCredentials c, String simbolo, String cursor) {
+    private List<JsonNode> trades(ApiKeyCredentials c, String symbol, String cursor) {
         List<JsonNode> all = new ArrayList<>();
         long fromId = cursor == null ? 0 : Long.parseLong(cursor) + 1;
         while (true) {
             Map<String, Object> params = new LinkedHashMap<>();
-            params.put("symbol", simbolo);
+            params.put("symbol", symbol);
             params.put("fromId", fromId);
             params.put("limit", TRADES_PAGE);
             JsonNode page = client.signedGet(c, "/api/v3/myTrades", params);
@@ -395,52 +395,52 @@ public class BinanceConnector implements SourceConnector {
         }
     }
 
-    ImportedMovement ordem(String simbolo, String base, String quote, String orderId, List<JsonNode> pedacos) {
+    ImportedMovement order(String symbol, String base, String quote, String orderId, List<JsonNode> chunks) {
         BigDecimal qtd = BigDecimal.ZERO;
-        BigDecimal valor = BigDecimal.ZERO;
-        Map<String, BigDecimal> taxas = new TreeMap<>();
-        long inicio = Long.MAX_VALUE;
-        for (JsonNode f : pedacos) {
+        BigDecimal value = BigDecimal.ZERO;
+        Map<String, BigDecimal> fees = new TreeMap<>();
+        long start = Long.MAX_VALUE;
+        for (JsonNode f : chunks) {
             qtd = qtd.add(dec(f.path("qty")));
-            valor = valor.add(dec(f.path("quoteQty")));
-            BigDecimal comissao = dec(f.path("commission"));
-            if (comissao != null && comissao.signum() != 0) {
-                taxas.merge(f.path("commissionAsset").asText().toUpperCase(), comissao, BigDecimal::add);
+            value = value.add(dec(f.path("quoteQty")));
+            BigDecimal commission = dec(f.path("commission"));
+            if (commission != null && commission.signum() != 0) {
+                fees.merge(f.path("commissionAsset").asText().toUpperCase(), commission, BigDecimal::add);
             }
-            inicio = Math.min(inicio, f.path("time").asLong());
+            start = Math.min(start, f.path("time").asLong());
         }
         // Taxa em mais de uma moeda na mesma ordem: sai como "BNB+BTC" e o
         // pipeline a deixa de fora pela R8, com o motivo.
-        String moedaTaxa = taxas.isEmpty() ? null : String.join("+", taxas.keySet());
-        BigDecimal taxa = taxas.values().stream().reduce(BigDecimal::add).orElse(null);
+        String feeCurrency = fees.isEmpty() ? null : String.join("+", fees.keySet());
+        BigDecimal fee = fees.values().stream().reduce(BigDecimal::add).orElse(null);
 
         ObjectNode raw = mapper.createObjectNode();
-        raw.put("symbol", simbolo);
+        raw.put("symbol", symbol);
         raw.put("orderId", orderId);
         ArrayNode arr = raw.putArray("fills");
-        pedacos.forEach(arr::add);
+        chunks.forEach(arr::add);
 
-        return new ImportedMovement("binance:spot:" + simbolo + ":" + orderId, MovementKind.TRADE,
-            base, pedacos.get(0).path("isBuyer").asBoolean() ? MovementSide.BUY : MovementSide.SELL,
-            qtd, quote, valor, taxa, moedaTaxa, Instant.ofEpochMilli(inicio), raw.toString());
+        return new ImportedMovement("binance:spot:" + symbol + ":" + orderId, MovementKind.TRADE,
+            base, chunks.get(0).path("isBuyer").asBoolean() ? MovementSide.BUY : MovementSide.SELL,
+            qtd, quote, value, fee, feeCurrency, Instant.ofEpochMilli(start), raw.toString());
     }
 
     // ------------------------------------------------------------------ apoio
 
-    private static long inicio(Map<String, String> cursors, String stream, long padrao) {
+    private static long start(Map<String, String> cursors, String stream, long isDefault) {
         String c = cursors.get(stream);
-        return c == null ? padrao : Long.parseLong(c) + 1;
+        return c == null ? isDefault : Long.parseLong(c) + 1;
     }
 
-    private static void avancar(Map<String, String> proximos, String stream, long instante) {
-        proximos.merge(stream, Long.toString(instante),
+    private static void advance(Map<String, String> nextCursors, String stream, long instant) {
+        nextCursors.merge(stream, Long.toString(instant),
             (a, b) -> Long.parseLong(a) >= Long.parseLong(b) ? a : b);
     }
 
-    static List<long[]> janelas(long inicio, long fim, int dias) {
+    static List<long[]> windows(long start, long end, int days) {
         List<long[]> out = new ArrayList<>();
-        for (long a = inicio; a <= fim; a += dias * DAY) {
-            out.add(new long[] {a, Math.min(a + dias * DAY - 1, fim)});
+        for (long a = start; a <= end; a += days * DAY) {
+            out.add(new long[] {a, Math.min(a + days * DAY - 1, end)});
         }
         return out;
     }

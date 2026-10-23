@@ -32,16 +32,16 @@ export const CodeStep = ({
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [busy, setBusy] = useState(false);
-  const [espera, setEspera] = useState(sent.resendInSeconds);
-  const [destino, setDestino] = useState(sent.maskedEmail);
+  const [waiting, setWaiting] = useState(sent.resendInSeconds);
+  const [destination, setTarget] = useState(sent.maskedEmail);
 
   useEffect(() => {
-    if (espera <= 0) return;
-    const t = setTimeout(() => setEspera((s) => s - 1), 1000);
+    if (waiting <= 0) return;
+    const t = setTimeout(() => setWaiting((s) => s - 1), 1000);
     return () => clearTimeout(t);
-  }, [espera]);
+  }, [waiting]);
 
-  const confirmar = async (e: React.FormEvent) => {
+  const confirm = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setInfo('');
@@ -55,13 +55,13 @@ export const CodeStep = ({
     }
   };
 
-  const reenviar = async () => {
+  const resend = async () => {
     setError('');
     setInfo('');
     try {
-      const novo = await onResend();
-      setDestino(novo.maskedEmail);
-      setEspera(novo.resendInSeconds);
+      const created = await onResend();
+      setTarget(created.maskedEmail);
+      setWaiting(created.resendInSeconds);
       setCode('');
       setInfo('Enviamos um novo código. O anterior deixou de valer.');
     } catch (err) {
@@ -69,12 +69,12 @@ export const CodeStep = ({
     }
   };
 
-  const completo = code.replace(/\D/g, '').length === 6;
+  const complete = code.replace(/\D/g, '').length === 6;
 
   return (
-    <form onSubmit={confirmar} className="space-y-4">
+    <form onSubmit={confirm} className="space-y-4">
       <p className="text-sm text-gray-300">
-        Enviamos um código de 6 dígitos para <span className="text-white font-medium">{destino}</span>.
+        Enviamos um código de 6 dígitos para <span className="text-white font-medium">{destination}</span>.
         Ele vale {Math.round(sent.expiresInSeconds / 60)} minutos.
       </p>
       {error && <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">{error}</div>}
@@ -91,16 +91,16 @@ export const CodeStep = ({
       />
       {children}
       <Button type="submit" className="w-full" variant={danger ? 'danger' : 'primary'}
-        disabled={!completo || !extraValid} isLoading={busy}>
+        disabled={!complete || !extraValid} isLoading={busy}>
         {confirmLabel}
       </Button>
       <div className="flex items-center justify-between text-sm">
         {onBack ? (
           <button type="button" onClick={onBack} className="text-gray-400 hover:text-white">{backLabel}</button>
         ) : <span />}
-        <button type="button" onClick={reenviar} disabled={espera > 0}
+        <button type="button" onClick={resend} disabled={waiting > 0}
           className="text-accent hover:underline disabled:text-gray-500 disabled:no-underline disabled:cursor-not-allowed">
-          {espera > 0 ? `Reenviar em ${espera}s` : 'Reenviar código'}
+          {waiting > 0 ? `Reenviar em ${waiting}s` : 'Reenviar código'}
         </button>
       </div>
       <p className="text-xs text-gray-500">Não chegou? Confira a caixa de spam.</p>

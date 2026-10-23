@@ -134,9 +134,9 @@ public class FixedIncomeNote {
      */
     public String getLabel() {
         StringBuilder sb = new StringBuilder();
-        String emissora = issuer != null ? issuer.getDisplayName() : null;
-        if (emissora != null && !emissora.isBlank() && issuer.getKind() != FixedIncomeIssuerKind.NAO_LISTADA) {
-            sb.append(emissora);
+        String issuerName = issuer != null ? issuer.getDisplayName() : null;
+        if (issuerName != null && !issuerName.isBlank() && issuer.getKind() != FixedIncomeIssuerKind.NAO_LISTADA) {
+            sb.append(issuerName);
         }
         if (maturityDate != null) {
             if (sb.length() > 0) sb.append(" · ");

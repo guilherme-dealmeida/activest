@@ -40,7 +40,7 @@ import java.util.Map;
 @Service
 public class SignupService {
 
-    static final int MAX_CADASTROS_POR_IP = 20;
+    static final int MAX_SIGNUPS_PER_IP = 20;
 
     private final AuthSettings settings;
     private final VerificationCodeService codes;
@@ -67,22 +67,22 @@ public class SignupService {
     }
 
     public CodeSentDTO start(SignupStartDTO dto, String ip) {
-        exigirCadastroLigado();
-        rateLimiter.hit("signup:ip:" + ip, MAX_CADASTROS_POR_IP, Duration.ofHours(1),
+        requireSignupEnabled();
+        rateLimiter.hit("signup:ip:" + ip, MAX_SIGNUPS_PER_IP, Duration.ofHours(1),
             "Muitos cadastros a partir deste endereço. Tente de novo mais tarde.");
 
         String email = Emails.normalize(dto.email());
         String name = dto.name().strip();
         String phone = Phones.normalize(dto.phone());
         String cpf = dto.cpf() == null || dto.cpf().isBlank() ? null : cpfService.normalize(dto.cpf());
-        validarUnicos(phone, cpf);
+        validateUnique(phone, cpf);
 
         String requestId = VerificationCodeService.newRequestId();
-        var existente = users.findByEmail(email);
-        if (existente.isPresent()) {
+        var existing = users.findByEmail(email);
+        if (existing.isPresent()) {
             codes.issue(requestId, VerificationPurpose.SIGNUP, email, Map.of(), true);
-            mailer.sendNotice(AccountNotice.ACCOUNT_EXISTS, email, existente.get().getName());
-            return enviado(requestId, email);
+            mailer.sendNotice(AccountNotice.ACCOUNT_EXISTS, email, existing.get().getName());
+            return sent(requestId, email);
         }
 
         Map<String, String> payload = new HashMap<>();
@@ -97,11 +97,11 @@ public class SignupService {
         }
         VerificationCodeService.Issued issued = codes.issue(requestId, VerificationPurpose.SIGNUP, email, payload, false);
         mailer.sendCode(VerificationPurpose.SIGNUP, email, name, issued.code(), codes.expiresInSeconds() / 60);
-        return enviado(requestId, email);
+        return sent(requestId, email);
     }
 
     public CodeSentDTO resend(String requestId) {
-        exigirCadastroLigado();
+        requireSignupEnabled();
         VerificationCodeService.Issued issued = codes.resend(requestId, VerificationPurpose.SIGNUP);
         PendingCode p = issued.pending();
         if (p.decoy()) {
@@ -111,13 +111,13 @@ public class SignupService {
             mailer.sendCode(VerificationPurpose.SIGNUP, p.email(), p.get("name"), issued.code(),
                 codes.expiresInSeconds() / 60);
         }
-        return enviado(requestId, p.email());
+        return sent(requestId, p.email());
     }
 
     /** Código certo: nasce a conta (com carteira e reserva), já com e-mail verificado e termos aceitos. */
     @Transactional
     public TokenResponseDTO confirm(CodeConfirmDTO dto) {
-        exigirCadastroLigado();
+        requireSignupEnabled();
         PendingCode p = codes.verify(dto.requestId(), VerificationPurpose.SIGNUP, dto.code());
         String email = p.get("email");
         String phone = p.get("phone");
@@ -126,18 +126,18 @@ public class SignupService {
         if (users.existsByEmail(email)) {
             throw new BusinessException("Este e-mail acabou de ser cadastrado. Entre pela tela de login.");
         }
-        validarUnicos(phone, cpf);
+        validateUnique(phone, cpf);
 
-        LocalDateTime agora = LocalDateTime.now();
-        User novo = User.builder()
+        LocalDateTime now = LocalDateTime.now();
+        User created = User.builder()
             .name(p.get("name"))
             .email(email)
             .phone(phone)
             .passwordHash(p.get("passwordHash"))
-            .emailVerifiedAt(agora)
+            .emailVerifiedAt(now)
             .build();
-        novo.acceptTerms(agora);
-        User user = accountFactory.create(novo);
+        created.acceptTerms(now);
+        User user = accountFactory.create(created);
         if (cpf != null) {
             cpfService.apply(user, cpf);
             users.save(user);
@@ -145,7 +145,7 @@ public class SignupService {
         return authService.tokensFor(user);
     }
 
-    private void validarUnicos(String phone, String cpf) {
+    private void validateUnique(String phone, String cpf) {
         if (phone != null && users.existsByPhone(phone)) {
             throw new BusinessException("Este celular já está cadastrado em outra conta.");
         }
@@ -154,14 +154,14 @@ public class SignupService {
         }
     }
 
-    private void exigirCadastroLigado() {
+    private void requireSignupEnabled() {
         if (!settings.isSignupEnabled()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                 "O cadastro de novas contas está desativado. Peça acesso a quem administra o PrimeVest.");
         }
     }
 
-    private CodeSentDTO enviado(String requestId, String email) {
+    private CodeSentDTO sent(String requestId, String email) {
         return new CodeSentDTO(requestId, Emails.mask(email), codes.resendInSeconds(), codes.expiresInSeconds());
     }
 }

@@ -22,85 +22,85 @@ class StrategyReservationRepositoryTest extends JpaTestBase {
     @Autowired private UserRepository userRepository;
     @Autowired private EntityManager em;
 
-    private User dono;
+    private User owner;
 
     @BeforeEach
-    void cenario() {
-        dono = userRepository.save(Fixtures.user("dono@primevest.test"));
+    void scenario() {
+        owner = userRepository.save(Fixtures.user("dono@primevest.test"));
     }
 
     @Test
     @DisplayName("unique(user_id): a reserva e uma por usuario")
-    void umaPorUsuario() {
-        repository.saveAndFlush(Fixtures.reservationByPercentage(dono, "30.00"));
+    void onePerUser() {
+        repository.saveAndFlush(Fixtures.reservationByPercentage(owner, "30.00"));
 
-        assertThatThrownBy(() -> repository.saveAndFlush(Fixtures.reservationByPercentage(dono, "40.00")))
+        assertThatThrownBy(() -> repository.saveAndFlush(Fixtures.reservationByPercentage(owner, "40.00")))
             .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     @DisplayName("ReservationTypeConverter grava 1 para PERCENTAGE e 2 para VALUE, e le de volta o enum")
-    void conversorDoTipo() {
-        StrategyReservation percentual = repository.saveAndFlush(Fixtures.reservationByPercentage(dono, "30.00"));
+    void typeConverter() {
+        StrategyReservation percentage = repository.saveAndFlush(Fixtures.reservationByPercentage(owner, "30.00"));
         em.clear();
 
-        Number gravado = (Number) em.createNativeQuery(
+        Number stored = (Number) em.createNativeQuery(
                 "SELECT type_reservation FROM strategy_reservations WHERE id = :id")
-            .setParameter("id", percentual.getId())
+            .setParameter("id", percentage.getId())
             .getSingleResult();
-        assertThat(gravado.shortValue()).isEqualTo((short) 1);
-        assertThat(repository.findByUserId(dono.getId()))
+        assertThat(stored.shortValue()).isEqualTo((short) 1);
+        assertThat(repository.findByUserId(owner.getId()))
             .get().extracting(StrategyReservation::getTypeReservation).isEqualTo(ReservationType.PERCENTAGE);
 
-        User outro = userRepository.save(Fixtures.user("outro@primevest.test"));
-        StrategyReservation porValor = repository.saveAndFlush(Fixtures.reservationByValue(outro, "30000.00"));
+        User other = userRepository.save(Fixtures.user("outro@primevest.test"));
+        StrategyReservation byValue = repository.saveAndFlush(Fixtures.reservationByValue(other, "30000.00"));
         em.clear();
 
-        Number gravadoValor = (Number) em.createNativeQuery(
+        Number storedValue = (Number) em.createNativeQuery(
                 "SELECT type_reservation FROM strategy_reservations WHERE id = :id")
-            .setParameter("id", porValor.getId())
+            .setParameter("id", byValue.getId())
             .getSingleResult();
-        assertThat(gravadoValor.shortValue()).isEqualTo((short) 2);
+        assertThat(storedValue.shortValue()).isEqualTo((short) 2);
     }
 
     @Test
     @DisplayName("ck_strategy_reservations_target: PERCENTAGE sem percentual e recusado pelo banco")
-    void percentualObrigatorioNoTipoPercentual() {
-        StrategyReservation semAlvo = Fixtures.reservationByPercentage(dono, "30.00");
-        semAlvo.setTargetPercentage(null);
+    void percentageRequiredInPercentageType() {
+        StrategyReservation withoutTarget = Fixtures.reservationByPercentage(owner, "30.00");
+        withoutTarget.setTargetPercentage(null);
 
-        assertThatThrownBy(() -> repository.saveAndFlush(semAlvo))
+        assertThatThrownBy(() -> repository.saveAndFlush(withoutTarget))
             .isInstanceOf(DataIntegrityViolationException.class)
             .hasMessageContaining("ck_strategy_reservations_target");
     }
 
     @Test
     @DisplayName("ck_strategy_reservations_target: as duas colunas preenchidas ao mesmo tempo e recusado")
-    void osDoisAlvosJuntosNaoPassam() {
-        StrategyReservation ambos = Fixtures.reservationByPercentage(dono, "30.00");
-        ambos.setTargetValue(new BigDecimal("30000.00"));
+    void bothTargetsTogetherFail() {
+        StrategyReservation both = Fixtures.reservationByPercentage(owner, "30.00");
+        both.setTargetValue(new BigDecimal("30000.00"));
 
-        assertThatThrownBy(() -> repository.saveAndFlush(ambos))
+        assertThatThrownBy(() -> repository.saveAndFlush(both))
             .isInstanceOf(DataIntegrityViolationException.class)
             .hasMessageContaining("ck_strategy_reservations_target");
     }
 
     @Test
     @DisplayName("ck_strategy_reservations_target: percentual acima de 100 e recusado pelo banco")
-    void percentualAcimaDeCem() {
-        StrategyReservation acima = Fixtures.reservationByPercentage(dono, "100.01");
+    void percentageAboveHundred() {
+        StrategyReservation above = Fixtures.reservationByPercentage(owner, "100.01");
 
-        assertThatThrownBy(() -> repository.saveAndFlush(acima))
+        assertThatThrownBy(() -> repository.saveAndFlush(above))
             .isInstanceOf(DataIntegrityViolationException.class)
             .hasMessageContaining("ck_strategy_reservations_target");
     }
 
     @Test
     @DisplayName("VALUE com valor alvo e sem percentual passa")
-    void tipoValorValido() {
-        StrategyReservation porValor = repository.saveAndFlush(Fixtures.reservationByValue(dono, "30000.00"));
+    void validValueType() {
+        StrategyReservation byValue = repository.saveAndFlush(Fixtures.reservationByValue(owner, "30000.00"));
 
-        assertThat(porValor.getTargetPercentage()).isNull();
-        assertThat(porValor.getTargetValue()).isEqualByComparingTo("30000.00");
+        assertThat(byValue.getTargetPercentage()).isNull();
+        assertThat(byValue.getTargetValue()).isEqualByComparingTo("30000.00");
     }
 }

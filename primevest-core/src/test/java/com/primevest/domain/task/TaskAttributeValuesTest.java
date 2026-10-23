@@ -12,7 +12,7 @@ class TaskAttributeValuesTest {
 
     @Test
     @DisplayName("Vazio sempre serve; cada tipo recusa o valor fora do formato")
-    void validacaoPorTipo() {
+    void validationByType() {
         assertThat(TaskAttributeValues.validate(TaskValueType.YEAR, "  ")).isNull();
         assertThat(TaskAttributeValues.validate(TaskValueType.YEAR, "2010")).isNull();
         assertThat(TaskAttributeValues.validate(TaskValueType.YEAR, "10")).isNotNull();
@@ -27,7 +27,7 @@ class TaskAttributeValuesTest {
 
     @Test
     @DisplayName("Leitura tipada: vazio vira nulo (ou lista vazia), lista apara os itens")
-    void leitura() {
+    void read() {
         assertThat(TaskAttributeValues.asYear(" 2010 ")).isEqualTo(2010);
         assertThat(TaskAttributeValues.asYear(null)).isNull();
         assertThat(TaskAttributeValues.asDate("2026-10-01")).isEqualTo(LocalDate.of(2026, 10, 1));
@@ -39,7 +39,7 @@ class TaskAttributeValuesTest {
 
     @Test
     @DisplayName("Regra de nome: maiúsculo, sem acento, sem espaço, palavras separadas por _")
-    void nomes() {
+    void names() {
         assertThat(TaskNames.isValid("B3_DAILY_QUOTES_RELOAD")).isTrue();
         assertThat(TaskNames.isValid("b3_daily")).isFalse();
         assertThat(TaskNames.isValid("COTAÇÃO")).isFalse();

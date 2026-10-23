@@ -51,10 +51,10 @@ public class InMemoryVerificationStore implements VerificationStore {
 
     @Override
     public synchronized long increment(String key, Duration ttl) {
-        long novo = live(key).map(e -> Long.parseLong(e.value()) + 1).orElse(1L);
-        Instant expira = live(key).map(Entry::expiresAt).orElse(clock.instant().plus(ttl));
-        data.put(key, new Entry(String.valueOf(novo), expira));
-        return novo;
+        long created = live(key).map(e -> Long.parseLong(e.value()) + 1).orElse(1L);
+        Instant expires = live(key).map(Entry::expiresAt).orElse(clock.instant().plus(ttl));
+        data.put(key, new Entry(String.valueOf(created), expires));
+        return created;
     }
 
     @Override

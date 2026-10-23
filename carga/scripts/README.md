@@ -7,7 +7,7 @@ projeto: a raiz do repositório é achada a partir de `carga/scripts/lib/env.mjs
 ## Máquina nova
 
 ```bash
-cp .env.example .env                  # preencha PRIMEVEST_SENHA e o token SÓ LEITURA do R2 (S3_*)
+cp .env.example .env                  # preencha PRIMEVEST_PASSWORD e o token SÓ LEITURA do R2 (S3_*)
 docker compose --profile carga run --rm data pull          # bucket R2 -> carga/data/ (~1,4 GB; --minimo só o essencial)
 docker compose up -d --build                                # as migrations rodam ao subir as APIs
 docker compose --profile carga run --rm tools node carga/scripts/admin.mjs bootstrap

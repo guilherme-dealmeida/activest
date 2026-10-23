@@ -46,7 +46,7 @@ class MarketIndexImportIT extends IntegrationTestBase {
     MarketIndexImportService service;
 
     @BeforeEach
-    void fontes() throws Exception {
+    void sources() throws Exception {
         when(sgs.year(anyString(), anyInt())).thenReturn(List.of());
         when(b3.year(anyString(), anyInt())).thenReturn(List.of());
         when(sgs.year("12", 2024)).thenReturn(parseSgs("sgs_12_2024"));
@@ -81,7 +81,7 @@ class MarketIndexImportIT extends IntegrationTestBase {
 
     @Test
     @DisplayName("Carga de 2024: CDI 253 dias, IPCA 12 meses, Ibovespa 251 pregoes; a segunda rodada nao muda nada")
-    void cargaIdempotente() {
+    void idempotentLoad() {
         MarketIndexImportService.Result r = service.importYears(List.of("CDI", "IPCA", "IBOV"), 2024, 2024, "teste");
 
         assertThat(r.created()).isEqualTo(253 + 12 + 251);
@@ -104,7 +104,7 @@ class MarketIndexImportIT extends IntegrationTestBase {
 
     @Test
     @DisplayName("Valor corrigido pela fonte e sobrescrito (D10) e a data entra em changedFrom")
-    void correcao() {
+    void correction() {
         service.importYears(List.of("IPCA"), 2024, 2024, "teste");
         jdbc.update("UPDATE market_index_values SET value = 9.99 WHERE reference_date = ? AND index_id = "
                 + "(SELECT id FROM market_indices WHERE code = 'IPCA')", Date.valueOf(LocalDate.of(2024, 8, 1)));
@@ -118,7 +118,7 @@ class MarketIndexImportIT extends IntegrationTestBase {
 
     @Test
     @DisplayName("Indice que falha nao impede os outros")
-    void falhaIsolada() {
+    void isolatedFailure() {
         when(sgs.year("433", 2024)).thenThrow(new IndexSourceException("SGS fora"));
 
         MarketIndexImportService.Result r = service.importYears(List.of("CDI", "IPCA"), 2024, 2024, "teste");
@@ -145,20 +145,20 @@ class MarketIndexImportIT extends IntegrationTestBase {
 
     @Test
     @DisplayName("Data futura nao entra: a meta Selic vem preenchida ate a proxima reuniao do Copom")
-    void semDataFutura() {
-        LocalDate hoje = LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo"));
-        when(sgs.year("432", hoje.getYear())).thenReturn(List.of(
-                new IndexPoint(hoje.minusDays(1), new BigDecimal("15.00")),
-                new IndexPoint(hoje.plusDays(1), new BigDecimal("15.00"))));
+    void withoutFutureDate() {
+        LocalDate today = LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo"));
+        when(sgs.year("432", today.getYear())).thenReturn(List.of(
+                new IndexPoint(today.minusDays(1), new BigDecimal("15.00")),
+                new IndexPoint(today.plusDays(1), new BigDecimal("15.00"))));
 
-        service.importYears(List.of("SELIC_META"), hoje.getYear(), hoje.getYear(), "teste");
+        service.importYears(List.of("SELIC_META"), today.getYear(), today.getYear(), "teste");
 
         assertThat(count("SELIC_META")).isEqualTo(1);
     }
 
     @Test
     @DisplayName("Conferencia: indice vazio ou parado em 2024 esta atrasado")
-    void atrasados() {
+    void lateOnes() {
         service.importYears(List.of("CDI"), 2024, 2024, "teste");
 
         List<MarketIndexImportService.Stale> late = service.stale();
@@ -170,7 +170,7 @@ class MarketIndexImportIT extends IntegrationTestBase {
 
     @Test
     @DisplayName("Conferencia vira mensagem de administrador por indice atrasado; o que volta ao dia fica resolvido")
-    void conferenciaViraMensagem() {
+    void reconciliationBecomesMessage() {
         service.importYears(List.of("CDI"), 2024, 2024, "teste");
 
         service.audit("teste");
@@ -192,11 +192,11 @@ class MarketIndexImportIT extends IntegrationTestBase {
 
     @Test
     @DisplayName("Codigo desconhecido e recusado antes de qualquer carga; o endpoint responde 400")
-    void codigoDesconhecido() throws InterruptedException {
+    void unknownCode() throws InterruptedException {
         assertThatThrownBy(() -> service.importYears(List.of("CDI", "XPTO"), 2024, 2024, "teste"))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("XPTO");
 
-        User admin = usuarioComCarteira("admin-indices@primevest.test");
+        User admin = userWithPortfolio("admin-indices@primevest.test");
         jdbc.update("UPDATE users SET is_admin = TRUE WHERE id = ?", admin.getId());
         assertThat(post(admin, "/api/v1/admin/indices?codes=XPTO", null, String.class).getStatusCode())
                 .isEqualTo(HttpStatus.BAD_REQUEST);

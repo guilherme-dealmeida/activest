@@ -34,7 +34,7 @@ export const ConnectBinanceModal = ({ isOpen, onClose, onConnected }: Props) => 
   const [showSecret, setShowSecret] = useState(false);
   const [consent, setConsent] = useState(false);
 
-  const limpar = () => {
+  const clear = () => {
     setLabel('Binance');
     setApiKey('');
     setApiSecret('');
@@ -42,8 +42,8 @@ export const ConnectBinanceModal = ({ isOpen, onClose, onConnected }: Props) => 
     setConsent(false);
   };
 
-  const fechar = () => {
-    limpar();
+  const close = () => {
+    clear();
     onClose();
   };
 
@@ -54,24 +54,24 @@ export const ConnectBinanceModal = ({ isOpen, onClose, onConnected }: Props) => 
     onSuccess: (c) => {
       queryClient.invalidateQueries({ queryKey: ['integrations'] });
       showToast(`Conta "${c.label}" conectada. Chave conferida: só leitura.`, 'success');
-      limpar();
+      clear();
       onConnected(c);
     },
     onError: (e: unknown) => showToast(apiMessage(e) ?? 'Não foi possível conectar a conta.', 'error', 8000),
   });
 
-  const podeSalvar = label.trim() && apiKey.trim() && apiSecret.trim() && consent && !mutation.isPending;
+  const canSave = label.trim() && apiKey.trim() && apiSecret.trim() && consent && !mutation.isPending;
 
   return (
     <Modal
       isOpen={isOpen}
-      onClose={fechar}
+      onClose={close}
       title="Conectar Binance"
       size="lg"
       footer={
         <div className="flex justify-end gap-3">
-          <Button variant="ghost" type="button" onClick={fechar}>Cancelar</Button>
-          <Button type="submit" form={FORM_ID} disabled={!podeSalvar} isLoading={mutation.isPending}>
+          <Button variant="ghost" type="button" onClick={close}>Cancelar</Button>
+          <Button type="submit" form={FORM_ID} disabled={!canSave} isLoading={mutation.isPending}>
             Conectar
           </Button>
         </div>
@@ -80,7 +80,7 @@ export const ConnectBinanceModal = ({ isOpen, onClose, onConnected }: Props) => 
       <form
         id={FORM_ID}
         className="space-y-5"
-        onSubmit={(e) => { e.preventDefault(); if (podeSalvar) mutation.mutate(); }}
+        onSubmit={(e) => { e.preventDefault(); if (canSave) mutation.mutate(); }}
         autoComplete="off"
       >
         <div className="rounded-md border border-surface-light bg-surface-light/40 p-4 text-sm text-gray-300 space-y-2">

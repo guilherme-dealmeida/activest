@@ -77,7 +77,7 @@ class TaskExecutorTest {
     private JdbcTemplate jdbc;
 
     @BeforeEach
-    void limpa() {
+    void clean() {
         jdbc.update("DELETE FROM task_executions");
         jdbc.update("DELETE FROM notifications");
         quarters = ctx -> { };
@@ -102,7 +102,7 @@ class TaskExecutorTest {
 
     @Test
     @DisplayName("Rodada manual: RUNNING e depois SUCCEEDED, com o resumo e a cópia dos atributos")
-    void sucesso() throws Exception {
+    void success() throws Exception {
         yearly = ctx -> ctx.summary("anos " + ctx.year("FROM_YEAR") + "-" + ctx.year("TO_YEAR"));
 
         TaskExecution started = executor.runManual(taskId("B3_YEARLY_QUOTES"), null);
@@ -117,7 +117,7 @@ class TaskExecutorTest {
 
     @Test
     @DisplayName("Parâmetros do endpoint por cima dos atributos; a tarefa continua com os dela")
-    void parametrosDoEndpoint() throws Exception {
+    void endpointParameters() throws Exception {
         yearly = ctx -> ctx.summary("de " + ctx.year("FROM_YEAR"));
 
         TaskExecution e = waitFinished(executor.runType("B3_YEARLY_QUOTES", null,
@@ -131,7 +131,7 @@ class TaskExecutorTest {
 
     @Test
     @DisplayName("Falha: FAILED com o erro e a mensagem ROTINA_FALHOU com o link da rodada (D18)")
-    void falha() throws Exception {
+    void failure() throws Exception {
         quarters = ctx -> {
             throw new IllegalStateException("fonte fora do ar");
         };
@@ -153,7 +153,7 @@ class TaskExecutorTest {
 
     @Test
     @DisplayName("Trava por tipo (D25): com o tipo em execução, a rodada que chega fica SKIPPED com o motivo (D20)")
-    void travaPorTipo() throws Exception {
+    void lockByType() throws Exception {
         CountDownLatch release = new CountDownLatch(1);
         CountDownLatch running = new CountDownLatch(1);
         quarters = ctx -> {
@@ -184,7 +184,7 @@ class TaskExecutorTest {
 
     @Test
     @DisplayName("Stop (D8): a rotina confere o pedido entre unidades e a rodada termina CANCELLED")
-    void parada() throws Exception {
+    void stopped() throws Exception {
         CountDownLatch running = new CountDownLatch(1);
         quarters = ctx -> {
             running.countDown();
@@ -206,7 +206,7 @@ class TaskExecutorTest {
 
     @Test
     @DisplayName("Rotina que acha a mesma rotina rodando por outro caminho: SKIPPED com o motivo")
-    void puladaPorDentro() throws Exception {
+    void skippedInside() throws Exception {
         quarters = ctx -> {
             throw new TaskSkippedException("ja rodando pela carga inicial");
         };
@@ -217,7 +217,7 @@ class TaskExecutorTest {
 
     @Test
     @DisplayName("Atributo obrigatório vazio: o pedido manual é recusado antes de criar a rodada")
-    void obrigatorio() {
+    void required() {
         assertThatThrownBy(() -> executor.runType("B3_YEARLY_QUOTES", null, java.util.Collections.singletonMap(
             "FROM_YEAR", null))).isInstanceOf(TaskInputException.class).hasMessageContaining("FROM_YEAR");
         assertThatThrownBy(() -> executor.runType("B3_YEARLY_QUOTES", null, Map.of("FROM_YEAR", "dois mil")))
@@ -246,7 +246,7 @@ class TaskExecutorTest {
 
     @Test
     @DisplayName("Log da rodada (D6): linhas INFO/WARN com o id da rodada, inclusive de thread filha; teto de 2.000")
-    void logDaRodada() throws Exception {
+    void runLog() throws Exception {
         org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger("teste.rotina");
         yearly = ctx -> {
             Thread child = new Thread(TaskRun.propagate(() -> log.info("linha da thread filha")));
@@ -283,7 +283,7 @@ class TaskExecutorTest {
 
     @Test
     @DisplayName("Stop pelo ponto de parada estático (TaskRun.checkStop) que os services usam")
-    void paradaPeloService() throws Exception {
+    void stoppedByService() throws Exception {
         CountDownLatch running = new CountDownLatch(1);
         quarters = ctx -> {
             running.countDown();
@@ -305,7 +305,7 @@ class TaskExecutorTest {
 
     @Test
     @DisplayName("Subida (D37, D38): só tarefa marcada e ativa, no máximo uma vez por dia")
-    void subida() throws Exception {
+    void onStartup() throws Exception {
         TaskHandler handler = new TaskHandler() {
             @Override
             public String type() {

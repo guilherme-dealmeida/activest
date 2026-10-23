@@ -55,7 +55,7 @@ class IssuerImportIT extends IntegrationTestBase {
     IssuerRepository issuers;
 
     @BeforeEach
-    void cenario() throws Exception {
+    void scenario() throws Exception {
         // issuers fica fora do TRUNCATE da base: o CASCADE levaria assets junto
         jdbc.update("UPDATE assets SET issuer_id = NULL, share_class = NULL, issuer_link_source = NULL");
         jdbc.update("DELETE FROM issuers");
@@ -74,7 +74,7 @@ class IssuerImportIT extends IntegrationTestBase {
 
     @Test
     @DisplayName("Companhias ativas em bolsa e FIIs negociados em bolsa viram emissores")
-    void importa() {
+    void imports() {
         IssuerImportService.Result r = service.importAll("teste");
 
         // Petrobras, Itau, Klabin, Taesa. Fora: ativa so em balcao e cancelada sem ticker no catalogo

@@ -1,8 +1,8 @@
 package com.primevest.adm.domain.pricehistory;
 
 import com.primevest.adm.integration.PublicFileCache;
-import com.primevest.adm.integration.tesouro.TesouroPriceClient;
-import com.primevest.adm.integration.tesouro.TesouroSalesClient;
+import com.primevest.adm.integration.treasury.TreasuryPriceClient;
+import com.primevest.adm.integration.treasury.TreasurySalesClient;
 import com.primevest.domain.calendar.BusinessCalendar;
 import com.primevest.domain.catalog.CatalogChange;
 import com.primevest.domain.catalog.CatalogMessaging.CatalogChangePublisher;
@@ -90,8 +90,8 @@ public class TreasuryPriceService {
                 rate_date = EXCLUDED.rate_date, buy_rate = EXCLUDED.buy_rate, sell_rate = EXCLUDED.sell_rate,
                 updated_at = now()""";
 
-    private final TesouroPriceClient client;
-    private final TesouroSalesClient sales;
+    private final TreasuryPriceClient client;
+    private final TreasurySalesClient sales;
     private final JdbcTemplate jdbc;
     private final TransactionTemplate tx;
     private final CatalogChangePublisher publisher;
@@ -99,12 +99,12 @@ public class TreasuryPriceService {
     private final ReentrantLock running = new ReentrantLock();
 
     @Autowired
-    public TreasuryPriceService(TesouroPriceClient client, TesouroSalesClient sales, JdbcTemplate jdbc,
+    public TreasuryPriceService(TreasuryPriceClient client, TreasurySalesClient sales, JdbcTemplate jdbc,
                                 PlatformTransactionManager txm, CatalogChangePublisher publisher) {
         this(client, sales, jdbc, txm, publisher, Clock.system(ZONE));
     }
 
-    TreasuryPriceService(TesouroPriceClient client, TesouroSalesClient sales, JdbcTemplate jdbc,
+    TreasuryPriceService(TreasuryPriceClient client, TreasurySalesClient sales, JdbcTemplate jdbc,
                          PlatformTransactionManager txm, CatalogChangePublisher publisher, Clock clock) {
         this.client = client;
         this.sales = sales;
@@ -197,9 +197,9 @@ public class TreasuryPriceService {
             List<Object[]> batch = new ArrayList<>();
             Map<Long, TreeMap<LocalDate, BigDecimal>> latest = new HashMap<>();
             Set<String> unmatched = new TreeSet<>();
-            Map<Long, TesouroPriceClient.Row> lastRow = new HashMap<>();
+            Map<Long, TreasuryPriceClient.Row> lastRow = new HashMap<>();
             LocalDate[] lastDate = {null};
-            TesouroPriceClient.read(file, row -> {
+            TreasuryPriceClient.read(file, row -> {
                 if (lastDate[0] == null || row.date().isAfter(lastDate[0])) {
                     lastDate[0] = row.date();
                 }
@@ -263,14 +263,14 @@ public class TreasuryPriceService {
             if (!unmatched.isEmpty()) {
                 log.warn("Tesouro: titulos do arquivo sem titulo no catalogo (entram por migration): {}", unmatched);
             }
-            List<String> semTitulo = unmatched.stream().map(String::valueOf).toList();
-            semTitulo.forEach(t -> notices.pending(
+            List<String> withoutBond = unmatched.stream().map(String::valueOf).toList();
+            withoutBond.forEach(t -> notices.pending(
                     com.primevest.domain.notification.NotificationKind.CATALOGO_TESOURO_SEM_TITULO, t,
                     "Tesouro sem título no catálogo: " + t,
                     "O arquivo de preços do Tesouro tem este título e o catálogo não. Título novo entra por migration; "
                             + "título antigo que ficou de fora de propósito pode ser dispensado.", List.of()));
             notices.resolveAllExcept(com.primevest.domain.notification.NotificationKind.CATALOGO_TESOURO_SEM_TITULO,
-                    semTitulo);
+                    withoutBond);
             return r;
         } finally {
             running.unlock();
@@ -305,8 +305,8 @@ public class TreasuryPriceService {
      * Taxa do ultimo dia de cada titulo e a oferta de hoje ({@code treasury_offers}, V59). O arquivo de vendas fora
      * do ar nao derruba a carga: a taxa e gravada e a oferta fica a da ultima rodada (devolve -1).
      */
-    private int offers(Map<Long, TesouroPriceClient.Row> lastRow, Map<Key, Long> catalog, String trigger) {
-        TesouroSalesClient.OnSale onSale = null;
+    private int offers(Map<Long, TreasuryPriceClient.Row> lastRow, Map<Key, Long> catalog, String trigger) {
+        TreasurySalesClient.OnSale onSale = null;
         try {
             PublicFileCache.Result fetched = sales.fetch();
             if (!fetched.current()) {
@@ -314,7 +314,7 @@ public class TreasuryPriceService {
                         fetched.file() != null ? ", usando a copia em disco" : ", oferta sem atualizar");
             }
             if (fetched.file() != null) {
-                onSale = TesouroSalesClient.onSale(fetched.file());
+                onSale = TreasurySalesClient.onSale(fetched.file());
             }
         } catch (PublicFileCache.UnavailableException | java.io.UncheckedIOException e) {
             log.warn("Tesouro ({}): arquivo de vendas indisponivel, oferta sem atualizar: {}", trigger, e.getMessage());

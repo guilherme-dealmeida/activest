@@ -42,9 +42,9 @@ public class TermsAcceptanceFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         Object state = request.getAttribute(JwtAuthFilter.SESSION_ATTRIBUTE);
-        if (state instanceof SessionValidator.SessionState sessao
-                && !LegalTerms.CURRENT_VERSION.equals(sessao.termsVersion())
-                && !liberado(request)) {
+        if (state instanceof SessionValidator.SessionState session
+                && !LegalTerms.CURRENT_VERSION.equals(session.termsVersion())
+                && !allowed(request)) {
             response.setStatus(HttpStatus.FORBIDDEN.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
@@ -56,10 +56,10 @@ public class TermsAcceptanceFilter extends OncePerRequestFilter {
         chain.doFilter(request, response);
     }
 
-    private static boolean liberado(HttpServletRequest request) {
+    private static boolean allowed(HttpServletRequest request) {
         String path = request.getRequestURI();
-        String metodo = request.getMethod();
-        return (ME.equals(path) && ("GET".equals(metodo) || "DELETE".equals(metodo)))
+        String method = request.getMethod();
+        return (ME.equals(path) && ("GET".equals(method) || "DELETE".equals(method)))
             || (ME + "/terms").equals(path)
             || path.startsWith(ME + "/delete-request");
     }

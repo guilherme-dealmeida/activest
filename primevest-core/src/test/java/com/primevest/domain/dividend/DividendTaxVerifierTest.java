@@ -38,12 +38,12 @@ class DividendTaxVerifierTest {
     private DividendTaxVerifier verifier;
 
     @BeforeEach
-    void cenario() {
+    void scenario() {
         verifier = new DividendTaxVerifier(dividendRepository, portfolioAssetRepository, dividendRecalculator,
             transactionManager);
     }
 
-    private PortfolioAsset posicao(UUID id) {
+    private PortfolioAsset position(UUID id) {
         PortfolioAsset pa = PortfolioAsset.builder().build();
         pa.setId(id);
         when(portfolioAssetRepository.findById(id)).thenReturn(Optional.of(pa));
@@ -53,7 +53,7 @@ class DividendTaxVerifierTest {
 
     @Test
     @DisplayName("Nada pendente: nenhuma posicao e recalculada")
-    void nadaPendente() {
+    void nothingPending() {
         when(dividendRepository.findPositionIdsWithTaxPending()).thenReturn(List.of());
 
         assertThat(verifier.verify()).isZero();
@@ -62,11 +62,11 @@ class DividendTaxVerifierTest {
 
     @Test
     @DisplayName("Recalcula so as posicoes com IR pendente")
-    void recalculaPendentes() {
+    void recalculatesPending() {
         UUID a = UUID.randomUUID();
         UUID b = UUID.randomUUID();
-        PortfolioAsset pa = posicao(a);
-        PortfolioAsset pb = posicao(b);
+        PortfolioAsset pa = position(a);
+        PortfolioAsset pb = position(b);
         when(dividendRepository.findPositionIdsWithTaxPending()).thenReturn(List.of(a, b));
 
         assertThat(verifier.verify()).isEqualTo(2);
@@ -78,7 +78,7 @@ class DividendTaxVerifierTest {
     @DisplayName("Idempotente: depois de recalcular, a segunda execucao nao encontra nada")
     void idempotente() {
         UUID a = UUID.randomUUID();
-        posicao(a);
+        position(a);
         when(dividendRepository.findPositionIdsWithTaxPending()).thenReturn(List.of(a), List.of());
 
         assertThat(verifier.verify()).isEqualTo(1);
@@ -87,11 +87,11 @@ class DividendTaxVerifierTest {
 
     @Test
     @DisplayName("Falha numa posicao nao impede as outras")
-    void falhaNaoImpedeAsOutras() {
+    void failureDoesNotBlockOthers() {
         UUID a = UUID.randomUUID();
         UUID b = UUID.randomUUID();
-        PortfolioAsset pa = posicao(a);
-        PortfolioAsset pb = posicao(b);
+        PortfolioAsset pa = position(a);
+        PortfolioAsset pb = position(b);
         when(dividendRepository.findPositionIdsWithTaxPending()).thenReturn(List.of(a, b));
         when(dividendRecalculator.recalculate(eq(pa), any())).thenThrow(new IllegalStateException("falhou"));
 

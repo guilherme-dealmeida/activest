@@ -15,13 +15,13 @@ class AssetLogosTest {
     @TempDir
     Path dir;
 
-    private static Asset ativo(String ticker, String tipo) {
-        return Asset.builder().ticker(ticker).assetType(AssetType.builder().name(tipo).build()).build();
+    private static Asset assetEntity(String ticker, String type) {
+        return Asset.builder().ticker(ticker).assetType(AssetType.builder().name(type).build()).build();
     }
 
     @Test
     @DisplayName("Indexa a pasta: ticker → arquivo; o booleano da tela e nulo para tipo sem logo")
-    void indice() throws Exception {
+    void index() throws Exception {
         Files.writeString(dir.resolve("PETR4.svg"), "<svg/>");
         Files.writeString(dir.resolve("BTC.png"), "x");
         Files.writeString(dir.resolve("leia-me.txt"), "nao e logo");
@@ -32,14 +32,14 @@ class AssetLogosTest {
         assertThat(logos.hasLogo("VALE3")).isFalse();
         assertThat(logos.find("BTC")).get().satisfies(f -> assertThat(f.mediaType().toString()).isEqualTo("image/png"));
         assertThat(logos.find("VALE3")).isEmpty();
-        assertThat(logos.logoFlag(ativo("PETR4", "ACAO"))).isTrue();
-        assertThat(logos.logoFlag(ativo("VALE3", "ACAO"))).isFalse();
-        assertThat(logos.logoFlag(ativo("TESOURO SELIC 2029", "TESOURO_DIRETO"))).isNull();
+        assertThat(logos.logoFlag(assetEntity("PETR4", "ACAO"))).isTrue();
+        assertThat(logos.logoFlag(assetEntity("VALE3", "ACAO"))).isFalse();
+        assertThat(logos.logoFlag(assetEntity("TESOURO SELIC 2029", "TESOURO_DIRETO"))).isNull();
     }
 
     @Test
     @DisplayName("Quem grava avisa: o indice muda na hora; troca de extensao aponta o arquivo antigo")
-    void gravacao() throws Exception {
+    void storage() throws Exception {
         AssetLogos logos = new AssetLogos(dir.toString());
         logos.reindex();
         Files.writeString(dir.resolve("HGLG11.png"), "antigo");

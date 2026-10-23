@@ -135,10 +135,10 @@ public final class CryptoImportRules implements ImportRules {
 
         // 4.5 — o que o PrimeVest vai registrar x o que a fonte cobrou.
         BigDecimal total = shares.multiply(price).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
-        BigDecimal registrado = feeInAsset ? total.add(fee) : total;
-        BigDecimal diferenca = registrado.subtract(m.quoteAmount().setScale(MONEY_SCALE, RoundingMode.HALF_UP));
-        if (diferenca.abs().compareTo(TOLERANCE) > 0) {
-            return Result.no("Diferença de R$ " + diferenca.toPlainString()
+        BigDecimal recorded = feeInAsset ? total.add(fee) : total;
+        BigDecimal difference = recorded.subtract(m.quoteAmount().setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+        if (difference.abs().compareTo(TOLERANCE) > 0) {
+            return Result.no("Diferença de R$ " + difference.toPlainString()
                 + " entre o calculado e o cobrado pela fonte: acima do arredondamento aceito (4.5).");
         }
 
@@ -154,7 +154,7 @@ public final class CryptoImportRules implements ImportRules {
             m.externalId(),
             gross,
             m.quoteAmount(),
-            diferenca));
+            difference));
     }
 
     private static boolean positive(BigDecimal v) {

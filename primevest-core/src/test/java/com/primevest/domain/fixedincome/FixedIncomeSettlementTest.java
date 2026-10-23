@@ -26,30 +26,30 @@ class FixedIncomeSettlementTest {
 
     private final FixedIncomeSettlement settlement = new FixedIncomeSettlement();
 
-    private PortfolioAsset posicao(String valorizacao) {
+    private PortfolioAsset position(String appreciationValue) {
         Asset cdb = Asset.builder().ticker("CDB").name("Certificado de Depósito Bancário").build();
         return PortfolioAsset.builder()
             .asset(cdb)
-            .appreciation(new BigDecimal(valorizacao))
+            .appreciation(new BigDecimal(appreciationValue))
             .build();
     }
 
-    private static Transaction aplicacao(String data, String valor) {
-        return porValor(TransactionType.BUY, data, valor, false);
+    private static Transaction investment(String data, String value) {
+        return byValue(TransactionType.BUY, data, value, false);
     }
 
-    private static Transaction resgate(String data, String valor) {
-        return porValor(TransactionType.SELL, data, valor, false);
+    private static Transaction redemption(String data, String value) {
+        return byValue(TransactionType.SELL, data, value, false);
     }
 
-    private static Transaction liquidacaoTotal(String data, String valor) {
-        return porValor(TransactionType.SELL, data, valor, true);
+    private static Transaction isFullSettlement_(String data, String value) {
+        return byValue(TransactionType.SELL, data, value, true);
     }
 
-    private static Transaction porValor(TransactionType tipo, String data, String valor, boolean total) {
+    private static Transaction byValue(TransactionType typeValue, String data, String value, boolean total) {
         return Transaction.builder()
-            .type(tipo)
-            .totalAmount(new BigDecimal(valor))
+            .type(typeValue)
+            .totalAmount(new BigDecimal(value))
             .transactionDate(LocalDate.parse(data))
             .fullSettlement(total)
             .build();
@@ -57,11 +57,11 @@ class FixedIncomeSettlementTest {
 
     @Test
     @DisplayName("Liquidacao total: a valorizacao passa a ser resgate menos aplicado e a posicao e liquidada")
-    void liquidacaoTotalDefineAValorizacao() {
-        PortfolioAsset pa = posicao("0.00");
+    void fullSettlementDefinesAppreciation() {
+        PortfolioAsset pa = position("0.00");
 
-        settlement.recompute(pa, List.of(aplicacao("2026-01-10", "1000.00"),
-            liquidacaoTotal("2026-09-10", "1120.00")), true);
+        settlement.recompute(pa, List.of(investment("2026-01-10", "1000.00"),
+            isFullSettlement_("2026-09-10", "1120.00")), true);
 
         assertThat(pa.getAppreciation()).isEqualByComparingTo("120.00");
         assertThat(pa.isSettled()).isTrue();
@@ -69,11 +69,11 @@ class FixedIncomeSettlementTest {
 
     @Test
     @DisplayName("Regra G — liquidacao total abaixo do aplicado e recusada: nao existe valorizacao negativa")
-    void regraG_liquidacaoAbaixoDoAplicado() {
-        PortfolioAsset pa = posicao("0.00");
+    void ruleG_settlementBelowInvested() {
+        PortfolioAsset pa = position("0.00");
 
-        assertThatThrownBy(() -> settlement.recompute(pa, List.of(aplicacao("2026-01-10", "1000.00"),
-            liquidacaoTotal("2026-09-10", "900.00")), true))
+        assertThatThrownBy(() -> settlement.recompute(pa, List.of(investment("2026-01-10", "1000.00"),
+            isFullSettlement_("2026-09-10", "900.00")), true))
             .isInstanceOf(BusinessException.class)
             .hasMessageContaining("Liquidação total de CDB")
             .hasMessageContaining("Em renda fixa não existe valorização negativa");
@@ -81,11 +81,11 @@ class FixedIncomeSettlementTest {
 
     @Test
     @DisplayName("Resgate parcial que alcanca o saldo deixa o centavo que a regra F exige")
-    void resgateParcialDeixaUmCentavo() {
-        PortfolioAsset pa = posicao("0.00");
+    void partialRedemptionLeavesOneCent() {
+        PortfolioAsset pa = position("0.00");
 
-        settlement.recompute(pa, List.of(aplicacao("2026-01-10", "1000.00"),
-            resgate("2026-09-10", "1050.00")), true);
+        settlement.recompute(pa, List.of(investment("2026-01-10", "1000.00"),
+            redemption("2026-09-10", "1050.00")), true);
 
         assertThat(pa.getAppreciation()).isEqualByComparingTo("50.01");
         assertThat(pa.isSettled()).isFalse();
@@ -93,11 +93,11 @@ class FixedIncomeSettlementTest {
 
     @Test
     @DisplayName("Resgate parcial dentro do saldo nao mexe na valorizacao")
-    void resgateDentroDoSaldoNaoCorrige() {
-        PortfolioAsset pa = posicao("200.00");
+    void redemptionWithinBalanceDoesNotCorrect() {
+        PortfolioAsset pa = position("200.00");
 
-        settlement.recompute(pa, List.of(aplicacao("2026-01-10", "1000.00"),
-            resgate("2026-09-10", "300.00")), true);
+        settlement.recompute(pa, List.of(investment("2026-01-10", "1000.00"),
+            redemption("2026-09-10", "300.00")), true);
 
         assertThat(pa.getAppreciation()).isEqualByComparingTo("200.00");
         assertThat(pa.isSettled()).isFalse();
@@ -105,11 +105,11 @@ class FixedIncomeSettlementTest {
 
     @Test
     @DisplayName("Regra E — compra excluida que deixa o resgatado acima do saldo e recusada, sem inventar valorizacao")
-    void regraE_escritaEmCompraNaoCorrigeParaCima() {
-        PortfolioAsset pa = posicao("0.00");
+    void ruleE_writeDownOnBuyDoesNotCorrectUp() {
+        PortfolioAsset pa = position("0.00");
 
-        assertThatThrownBy(() -> settlement.recompute(pa, List.of(aplicacao("2026-01-10", "1000.00"),
-            resgate("2026-09-10", "1042.00")), false))
+        assertThatThrownBy(() -> settlement.recompute(pa, List.of(investment("2026-01-10", "1000.00"),
+            redemption("2026-09-10", "1042.00")), false))
             .isInstanceOf(BusinessException.class)
             .hasMessageContaining("o total resgatado")
             .hasMessageContaining("passaria do valor aplicado");
@@ -117,11 +117,11 @@ class FixedIncomeSettlementTest {
 
     @Test
     @DisplayName("Regra F — resgate que iguala o saldo sem liquidacao total e recusado")
-    void regraF_igualarSemLiquidar() {
-        PortfolioAsset pa = posicao("100.00");
+    void ruleF_matchWithoutSettling() {
+        PortfolioAsset pa = position("100.00");
 
-        assertThatThrownBy(() -> settlement.recompute(pa, List.of(aplicacao("2026-01-10", "1000.00"),
-            resgate("2026-09-10", "1100.00")), false))
+        assertThatThrownBy(() -> settlement.recompute(pa, List.of(investment("2026-01-10", "1000.00"),
+            redemption("2026-09-10", "1100.00")), false))
             .isInstanceOf(BusinessException.class)
             .hasMessageContaining("igualaria o valor aplicado")
             .hasMessageContaining("Zerar a posição só é possível marcando a venda como liquidação total");
@@ -129,11 +129,11 @@ class FixedIncomeSettlementTest {
 
     @Test
     @DisplayName("Regra J — sem a venda que liquidou, a posicao reabre")
-    void regraJ_posicaoReabre() {
-        PortfolioAsset pa = posicao("120.00");
+    void ruleJ_positionReopens() {
+        PortfolioAsset pa = position("120.00");
         pa.setSettled(true);
 
-        settlement.recompute(pa, List.of(aplicacao("2026-01-10", "1000.00")), false);
+        settlement.recompute(pa, List.of(investment("2026-01-10", "1000.00")), false);
 
         assertThat(pa.isSettled()).isFalse();
         assertThat(pa.getAppreciation()).isEqualByComparingTo("120.00");
@@ -141,25 +141,25 @@ class FixedIncomeSettlementTest {
 
     @Test
     @DisplayName("As formulas miram um alvo: relancar a mesma venda chega ao mesmo numero")
-    void calculoEIdempotente() {
-        PortfolioAsset primeira = posicao("0.00");
-        List<Transaction> historico = List.of(aplicacao("2026-01-10", "1000.00"),
-            resgate("2026-09-10", "1050.00"));
+    void calculationIsIdempotent() {
+        PortfolioAsset first = position("0.00");
+        List<Transaction> history = List.of(investment("2026-01-10", "1000.00"),
+            redemption("2026-09-10", "1050.00"));
 
-        settlement.recompute(primeira, historico, true);
-        BigDecimal depoisDaPrimeira = primeira.getAppreciation();
-        settlement.recompute(primeira, historico, true);
+        settlement.recompute(first, history, true);
+        BigDecimal afterTheFirst = first.getAppreciation();
+        settlement.recompute(first, history, true);
 
-        assertThat(primeira.getAppreciation()).isEqualByComparingTo(depoisDaPrimeira);
+        assertThat(first.getAppreciation()).isEqualByComparingTo(afterTheFirst);
     }
 
     @Test
     @DisplayName("Posicao so com aplicacoes fica aberta e sem valorizacao")
-    void somenteAplicacoes() {
-        PortfolioAsset pa = posicao("0.00");
+    void onlyInvestments() {
+        PortfolioAsset pa = position("0.00");
 
-        settlement.recompute(pa, List.of(aplicacao("2026-01-10", "1000.00"),
-            aplicacao("2026-02-10", "500.00")), false);
+        settlement.recompute(pa, List.of(investment("2026-01-10", "1000.00"),
+            investment("2026-02-10", "500.00")), false);
 
         assertThat(pa.getAppreciation()).isEqualByComparingTo("0.00");
         assertThat(pa.isSettled()).isFalse();
@@ -167,8 +167,8 @@ class FixedIncomeSettlementTest {
 
     @Test
     @DisplayName("Posicao sem nenhuma transacao zera a valorizacao que sobrou de uma venda excluida")
-    void semTransacaoZeraValorizacao() {
-        PortfolioAsset pa = posicao("300.00");
+    void withoutTransactionZeroesAppreciation() {
+        PortfolioAsset pa = position("300.00");
 
         settlement.recompute(pa, List.of(), false);
 
@@ -178,10 +178,10 @@ class FixedIncomeSettlementTest {
 
     @Test
     @DisplayName("Regra G — valorizacao negativa ja gravada e recusada em qualquer passagem")
-    void regraG_valorizacaoNegativaGravada() {
-        PortfolioAsset pa = posicao("-10.00");
+    void ruleG_negativeAppreciationStored() {
+        PortfolioAsset pa = position("-10.00");
 
-        assertThatThrownBy(() -> settlement.recompute(pa, List.of(aplicacao("2026-01-10", "1000.00")), false))
+        assertThatThrownBy(() -> settlement.recompute(pa, List.of(investment("2026-01-10", "1000.00")), false))
             .isInstanceOf(BusinessException.class)
             .hasMessageContaining("ficaria negativa")
             .hasMessageContaining("Em renda fixa isso não existe");

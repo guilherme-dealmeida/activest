@@ -47,7 +47,7 @@ public class User {
 
     /**
      * CPF cifrado (AES-256-GCM, o id do usuário como dado associado) — ver UserCpfService na
-     * app-api. Os quatro campos andam juntos (ck_users_cpf_completo). O hash dá a unicidade.
+     * app-api. Os quatro campos andam juntos (ck_users_cpf_complete). O hash dá a unicidade.
      */
     @Column(name = "cpf_ciphertext")
     private byte[] cpfCiphertext;

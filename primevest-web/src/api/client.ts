@@ -26,9 +26,9 @@ apiClient.interceptors.request.use(
  * vez com o token novo. Sem renovação possível (refresh vencido, senha trocada em outro lugar), a
  * sessão acaba e a tela volta para /login.
  */
-let renovacao: Promise<string | null> | null = null;
+let renewal: Promise<string | null> | null = null;
 
-const renovar = async (): Promise<string | null> => {
+const renew = async (): Promise<string | null> => {
   const refreshToken = tokens.refresh();
   if (!refreshToken) return null;
   try {
@@ -41,7 +41,7 @@ const renovar = async (): Promise<string | null> => {
   }
 };
 
-type RetryConfig = InternalAxiosRequestConfig & { _renovado?: boolean };
+type RetryConfig = InternalAxiosRequestConfig & { _renewed?: boolean };
 
 apiClient.interceptors.response.use(
   (response) => response,
@@ -52,12 +52,12 @@ apiClient.interceptors.response.use(
     // de o usuário lê-la.
     const isAuthRequest = String(config?.url ?? '').startsWith('/auth/');
 
-    if (error.response?.status === 401 && !isAuthRequest && config && !config._renovado) {
-      config._renovado = true;
-      renovacao ??= renovar().finally(() => { renovacao = null; });
-      const novo = await renovacao;
-      if (novo) {
-        config.headers.Authorization = `Bearer ${novo}`;
+    if (error.response?.status === 401 && !isAuthRequest && config && !config._renewed) {
+      config._renewed = true;
+      renewal ??= renew().finally(() => { renewal = null; });
+      const created = await renewal;
+      if (created) {
+        config.headers.Authorization = `Bearer ${created}`;
         return apiClient(config);
       }
       tokens.clear();

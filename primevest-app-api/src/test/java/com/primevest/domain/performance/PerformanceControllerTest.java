@@ -28,11 +28,11 @@ class PerformanceControllerTest extends MvcTestBase {
     @MockBean
     private PerformanceService service;
 
-    private static final UUID USUARIO = UUID.fromString(USER_ID);
+    private static final UUID USER = UUID.fromString(USER_ID);
 
     @Test
     @DisplayName("Sem token, todo endpoint da Rentabilidade responde 401")
-    void semToken() throws Exception {
+    void withoutToken() throws Exception {
         for (String p : List.of("benchmarks", "summary", "series", "periodic", "table", "breakdown", "wealth", "risk")) {
             mvc.perform(get("/api/v1/performance/" + p)).andExpect(status().isUnauthorized());
         }
@@ -41,10 +41,10 @@ class PerformanceControllerTest extends MvcTestBase {
     @Test
     @WithMockUser(username = USER_ID)
     @DisplayName("Parametros: recorte, base, reserva e benchmarks (IPCA + x com a taxa)")
-    void parametros() throws Exception {
+    void parameters() throws Exception {
         PerformanceDTOs.CoverageDTO cov = new PerformanceDTOs.CoverageDTO(null, null, null, null, true, List.of(),
                 List.of(), null, true, "GROSS", "WITHOUT", false);
-        when(service.summary(eq(USUARIO), any())).thenReturn(new PerformanceDTOs.SummaryDTO(cov, 12.5, null, null,
+        when(service.summary(eq(USER), any())).thenReturn(new PerformanceDTOs.SummaryDTO(cov, 12.5, null, null,
                 null, null, null, null, null, null, null, null, BigDecimal.TEN, null, null, null, null, List.of()));
 
         mvc.perform(get("/api/v1/performance/summary?range=1A&type=acao&basis=gross&reservation=without"
@@ -54,7 +54,7 @@ class PerformanceControllerTest extends MvcTestBase {
                 .andExpect(jsonPath("$.coverage.basisApplies").value(true));
 
         ArgumentCaptor<PerformanceService.Request> req = ArgumentCaptor.forClass(PerformanceService.Request.class);
-        verify(service).summary(eq(USUARIO), req.capture());
+        verify(service).summary(eq(USER), req.capture());
         assertThat(req.getValue().range()).isEqualTo("1A");
         assertThat(req.getValue().scope().typeName()).isEqualTo("ACAO");
         assertThat(req.getValue().scope().basis()).isEqualTo(PerformanceBasis.GROSS);
@@ -66,7 +66,7 @@ class PerformanceControllerTest extends MvcTestBase {
     @Test
     @WithMockUser(username = USER_ID)
     @DisplayName("Base ou taxa invalida: 422 com a mensagem")
-    void invalido() throws Exception {
+    void invalid() throws Exception {
         mvc.perform(get("/api/v1/performance/summary?basis=xyz")).andExpect(status().isUnprocessableEntity());
         mvc.perform(get("/api/v1/performance/summary?benchmarks=IPCA_MAIS:abc"))
                 .andExpect(status().isUnprocessableEntity());

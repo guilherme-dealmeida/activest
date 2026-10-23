@@ -25,20 +25,25 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Flyway roda ate a V65 e o schema valida contra as entidades")
-    void migrationsAplicadas() {
-        Number versao = (Number) em.createNativeQuery(
+    @DisplayName("Flyway roda ate a V67 e o schema valida contra as entidades")
+    void appliedMigrations() {
+        Number version = (Number) em.createNativeQuery(
             "SELECT MAX(CAST(version AS NUMERIC)) FROM flyway_schema_history WHERE success").getSingleResult();
-        assertThat(versao.intValue()).isEqualTo(65);
+        assertThat(version.intValue()).isEqualTo(67);
 
-        Number falhas = (Number) em.createNativeQuery(
+        // V66 e V67: constraints com nome em ingles (PLANO_NOMES_EM_INGLES, E2)
+        Number constraint = (Number) em.createNativeQuery(
+            "SELECT COUNT(*) FROM pg_constraint WHERE conname IN ('ck_user_avatars_content_type', 'ck_user_avatars_size', 'ck_users_cpf_complete')").getSingleResult();
+        assertThat(constraint.intValue()).isEqualTo(3);
+
+        Number failures = (Number) em.createNativeQuery(
             "SELECT COUNT(*) FROM flyway_schema_history WHERE NOT success").getSingleResult();
-        assertThat(falhas.intValue()).isZero();
+        assertThat(failures.intValue()).isZero();
     }
 
     @Test
     @DisplayName("Tarefas (V61, V62): 26 tipos (23 da adm-api, 3 da app-api), uma tarefa por tipo, atributos espelhados")
-    void tarefasSemeadas() {
+    void seededTasks() {
         assertThat(count("task_types")).isEqualTo(26);
         assertThat(count("task_types WHERE service = 'APP_API'")).isEqualTo(3);
         assertThat(count("tasks")).isEqualTo(26);
@@ -65,7 +70,7 @@ class SchemaTest extends JpaTestBase {
 
     @Test
     @DisplayName("Oferta do Tesouro (V59): tabela vazia, uma linha por titulo, apagada com o ativo")
-    void ofertaDoTesouro() {
+    void treasuryOffer() {
         assertThat(count("treasury_offers")).isZero();
         assertThat(em.createNativeQuery("SELECT pg_get_constraintdef(oid) FROM pg_constraint "
                 + "WHERE conname = 'fk_treasury_offers_asset'").getSingleResult().toString()).contains("CASCADE");
@@ -73,7 +78,7 @@ class SchemaTest extends JpaTestBase {
 
     @Test
     @DisplayName("Emissoras de renda fixa (V54): as duas linhas fixas e os tipos aceitos por produto")
-    void emissorasDeRendaFixa() {
+    void fixedIncomeIssuers() {
         assertThat(count("fixed_income_issuers WHERE kind = 'TESOURO'")).isEqualTo(1);
         assertThat(count("fixed_income_issuers WHERE kind = 'NAO_LISTADA'")).isEqualTo(1);
         // 16 produtos de renda fixa com tipos aceitos; as 6 categorias do Tesouro aceitam so TESOURO
@@ -86,7 +91,7 @@ class SchemaTest extends JpaTestBase {
 
     @Test
     @DisplayName("Seed das emissoras de renda fixa (V55): empresas, grupos e a curadoria, sem rede")
-    void seedDasEmissoras() {
+    void issuersSeed() {
         // 6920 empresas do BCB e da CVM + as 2 linhas fixas da V54
         assertThat(count("fixed_income_issuers")).isEqualTo(6922);
         assertThat(count("fixed_income_groups")).isEqualTo(292);
@@ -102,7 +107,7 @@ class SchemaTest extends JpaTestBase {
 
     @Test
     @DisplayName("O catalogo semeado tem os numeros esperados de uma subida limpa")
-    void catalogoSemeado() {
+    void seededCatalog() {
         assertThat(count("asset_types")).isEqualTo(12);
         // 165 linhas (name, segment) consolidadas em uma por (tipo, name) na V31:
         // ACAO 11, BDR 20, CRIPTO 14, ETF 9, FII 5, RENDA_FIXA 15 (+ RDC na V54), TESOURO_DIRETO 6
@@ -124,7 +129,7 @@ class SchemaTest extends JpaTestBase {
 
     @Test
     @DisplayName("Emissores semeados (V30): companhias, FIIs com segmento curado, ligacoes e units")
-    void emissoresSemeados() {
+    void seededIssuers() {
         assertThat(count("issuers WHERE kind = 'COMPANY'")).isEqualTo(369);
         assertThat(count("issuers WHERE kind = 'FII'")).isEqualTo(346);
         assertThat(count("issuers WHERE kind = 'FII' AND segment IS NULL")).isZero();
@@ -143,7 +148,7 @@ class SchemaTest extends JpaTestBase {
 
     @Test
     @DisplayName("Nao ha seed de posicao, transacao ou estrategia de tipo")
-    void semDadosDeMovimento() {
+    void withoutMovementData() {
         assertThat(count("portfolio_assets")).isZero();
         assertThat(count("transactions")).isZero();
         assertThat(count("strategies")).isZero();
@@ -151,7 +156,7 @@ class SchemaTest extends JpaTestBase {
 
     @Test
     @DisplayName("Integracoes (V25) nascem vazias: nenhuma conexao, credencial ou exclusao semeada")
-    void integracoesVazias() {
+    void emptyIntegrations() {
         assertThat(count("integration_connections")).isZero();
         assertThat(count("integration_credentials")).isZero();
         assertThat(count("integration_cursors")).isZero();

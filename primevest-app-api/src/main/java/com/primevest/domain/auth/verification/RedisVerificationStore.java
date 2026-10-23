@@ -33,16 +33,16 @@ public class RedisVerificationStore implements VerificationStore {
 
     @Override
     public long increment(String key, Duration ttl) {
-        Long valor = redis.opsForValue().increment(PREFIX + key);
-        if (valor != null && valor == 1L) {
+        Long storedValue = redis.opsForValue().increment(PREFIX + key);
+        if (storedValue != null && storedValue == 1L) {
             redis.expire(PREFIX + key, ttl);
         }
-        return valor == null ? 0 : valor;
+        return storedValue == null ? 0 : storedValue;
     }
 
     @Override
     public long count(String key) {
-        String valor = redis.opsForValue().get(PREFIX + key);
-        return valor == null ? 0 : Long.parseLong(valor);
+        String storedValue = redis.opsForValue().get(PREFIX + key);
+        return storedValue == null ? 0 : Long.parseLong(storedValue);
     }
 }

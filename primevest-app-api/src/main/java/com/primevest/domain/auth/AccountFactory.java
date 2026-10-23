@@ -32,8 +32,8 @@ public class AccountFactory {
     }
 
     @Transactional
-    public User create(User novo) {
-        User user = userRepository.save(novo);
+    public User create(User created) {
+        User user = userRepository.save(created);
 
         Portfolio portfolio = new Portfolio();
         portfolio.setName("Minha Carteira");

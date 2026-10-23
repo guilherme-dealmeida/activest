@@ -21,10 +21,10 @@ export const formErrorMessage = (error: unknown, fallback: string): string => {
   if (typeof error === 'object' && error !== null && 'response' in error) {
     const { response } = error as { response?: { status?: number; data?: { message?: string; errors?: Record<string, string> } } };
     if (!response) return 'Não foi possível conectar ao servidor. Verifique se a API do PrimeVest está no ar.';
-    const campos = response.data?.errors;
-    if (response.status === 400 && campos) {
-      const primeiro = Object.values(campos)[0];
-      if (primeiro) return primeiro;
+    const fields = response.data?.errors;
+    if (response.status === 400 && fields) {
+      const first = Object.values(fields)[0];
+      if (first) return first;
     }
     if (response.data?.message) return response.data.message;
   }

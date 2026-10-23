@@ -48,14 +48,14 @@ public final class IndicatorRules {
     public record CompanyBasis(LocalDate periodEnd, BigDecimal netIncomeParentTtm, BigDecimal equityParent,
                                BigDecimal equityParentStart, Long sharesOutstanding, BigDecimal sharesRatio,
                                int unitShares, BigDecimal dividendsPaidTtm, BigDecimal price,
-                               BigDecimal proventos12m) {
+                               BigDecimal dividends12m) {
     }
 
     /** Base de um ponto de FII: o informe do mes ({@code fii_monthly}) e o preco. */
     public record FundBasis(LocalDate month, BigDecimal navPerShare, Integer shareholders,
                             BigDecimal realEstate, BigDecimal realEstateCompanies, BigDecimal receivables,
                             BigDecimal totalInvested, BigDecimal liabilities, BigDecimal totalAssets,
-                            BigDecimal price, BigDecimal proventos12m) {
+                            BigDecimal price, BigDecimal dividends12m) {
     }
 
     // ------------------------------------------------------------------ acoes
@@ -121,7 +121,7 @@ public final class IndicatorRules {
                 }
                 yield Value.of(b.dividendsPaidTtm().divide(b.netIncomeParentTtm(), MC), indicator.unit());
             }
-            case DY -> dy(b.price(), b.proventos12m(), indicator);
+            case DY -> dy(b.price(), b.dividends12m(), indicator);
             default -> throw new IllegalArgumentException(indicator + " nao e indicador de acao");
         };
     }
@@ -171,7 +171,7 @@ public final class IndicatorRules {
     public static Value fund(Indicator indicator, FundBasis b) {
         if (indicator == Indicator.DY) {
             // o DY nao depende do informe: preco e proventos do ticker
-            return b == null ? Value.none("sem cotacao") : dy(b.price(), b.proventos12m(), indicator);
+            return b == null ? Value.none("sem cotacao") : dy(b.price(), b.dividends12m(), indicator);
         }
         if (b == null || b.month() == null) {
             return Value.none("sem informe mensal");
@@ -211,11 +211,11 @@ public final class IndicatorRules {
 
     // ------------------------------------------------------------------ comuns
 
-    private static Value dy(BigDecimal price, BigDecimal proventos12m, Indicator indicator) {
+    private static Value dy(BigDecimal price, BigDecimal dividends12m, Indicator indicator) {
         if (price == null || price.signum() <= 0) {
             return Value.none("sem cotacao");
         }
-        return Value.of(nz(proventos12m).divide(price, MC), indicator.unit());
+        return Value.of(nz(dividends12m).divide(price, MC), indicator.unit());
     }
 
     /**

@@ -36,9 +36,9 @@ public class SmtpAccountMailer implements AccountMailer {
     @Override
     public void sendCode(VerificationPurpose purpose, String to, String name, String code, long validMinutes) {
         try {
-            enviar(to, MailTemplates.code(purpose, name, code, validMinutes, appUrl));
+            sendMessage(to, MailTemplates.code(purpose, name, code, validMinutes, appUrl));
         } catch (MailException | MessagingException e) {
-            log.warn("Falha ao enviar o código {} para {}: {}", purpose, mascarar(to), e.getMessage());
+            log.warn("Falha ao enviar o código {} para {}: {}", purpose, maskEmail(to), e.getMessage());
             throw new BusinessException("Não foi possível enviar o e-mail agora. Tente novamente em instantes.");
         }
     }
@@ -46,23 +46,23 @@ public class SmtpAccountMailer implements AccountMailer {
     @Override
     public void sendNotice(AccountNotice notice, String to, String name) {
         try {
-            enviar(to, MailTemplates.notice(notice, name, appUrl));
+            sendMessage(to, MailTemplates.notice(notice, name, appUrl));
         } catch (MailException | MessagingException e) {
-            log.warn("Falha ao enviar o aviso {} para {}: {}", notice, mascarar(to), e.getMessage());
+            log.warn("Falha ao enviar o aviso {} para {}: {}", notice, maskEmail(to), e.getMessage());
         }
     }
 
-    private void enviar(String to, MailTemplates.Mail mail) throws MessagingException {
-        MimeMessage mensagem = sender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(mensagem, true, StandardCharsets.UTF_8.name());
+    private void sendMessage(String to, MailTemplates.Mail mail) throws MessagingException {
+        MimeMessage message = sender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
         helper.setFrom(from);
         helper.setTo(to);
         helper.setSubject(mail.subject());
         helper.setText(mail.text(), mail.html());
-        sender.send(mensagem);
+        sender.send(message);
     }
 
-    private static String mascarar(String email) {
+    private static String maskEmail(String email) {
         return com.primevest.domain.auth.Emails.mask(email);
     }
 }

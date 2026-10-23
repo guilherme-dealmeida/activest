@@ -35,7 +35,7 @@ class CeilingPriceRulesTest {
     }
 
     /** A linha VALE3 da planilha. */
-    static Inputs planilha() {
+    static Inputs spreadsheet() {
         return inputs(List.of(bd("9956933910"), bd("6940807500"), bd("9956933910"), bd("6940807500")),
                 4262140830L, "19.26", "48.19", "13.75", "3", "15", "67.63");
     }
@@ -58,8 +58,8 @@ class CeilingPriceRulesTest {
 
     @Test
     @DisplayName("Cenário 12: a linha VALE3 da PREÇO TETO V2 — todos os valores iguais aos do Excel")
-    void planilhaV2Vale3() {
-        Result r = calc(planilha());
+    void spreadsheetV2Vale3() {
+        Result r = calc(spreadsheet());
 
         close(r.netIncomeTtm(), "33795482820");
         close(r.growth(), "0.09978606");
@@ -83,7 +83,7 @@ class CeilingPriceRulesTest {
 
     @Test
     @DisplayName("Cenário 1: quatro trimestres positivos")
-    void quatroPositivos() {
+    void fourPositives() {
         Result r = calc(inputs(List.of(bd("100"), bd("200"), bd("300"), bd("400")), 10L, "20", "50", "10", "3", "15",
                 "50"));
         assertThat(r.netIncomeTtm()).isEqualByComparingTo("1000");
@@ -98,7 +98,7 @@ class CeilingPriceRulesTest {
 
     @Test
     @DisplayName("Cenário 2: um prejuízo e três lucros — entra na soma, aviso de informação")
-    void umPrejuizo() {
+    void oneLoss() {
         // VALE3 real: 3T25, 4T25 (impairment), 1T26, 2T26 — soma = net_income_parent_ttm do catálogo
         Result r = calc(inputs(List.of(bd("14617000000"), bd("-21048000000"), bd("9953000000"), bd("6847000000")),
                 4072366000L, "19.26", "48.19", "13.75", "3", "15", "70.77"));
@@ -122,7 +122,7 @@ class CeilingPriceRulesTest {
 
     @Test
     @DisplayName("Cenário 4: LL TTM negativo — teto negativo, sem limitar")
-    void ttmNegativo() {
+    void negativeTtm() {
         Result r = calc(inputs(List.of(bd("-100"), bd("-100"), bd("-100"), bd("-100")), 10L, "20", "50", "10", "3",
                 "15", "50"));
         assertThat(r.netIncomeTtm()).isEqualByComparingTo("-400");
@@ -133,7 +133,7 @@ class CeilingPriceRulesTest {
 
     @Test
     @DisplayName("Cenário 5: trimestre ausente — bloqueia o TTM e tudo a jusante, dizendo qual falta")
-    void trimestreAusente() {
+    void missingQuarter() {
         Result r = calc(inputs(Arrays.asList(bd("100"), null, bd("300"), bd("400")), 10L, "20", "50", "10", "3", "15",
                 "50"));
         assertThat(r.netIncomeTtm()).isNull();
@@ -149,17 +149,17 @@ class CeilingPriceRulesTest {
 
     @Test
     @DisplayName("Cenário 8: d > G — valor terminal calculado")
-    void descontoMaiorQueG() {
-        Result r = calc(planilha());
+    void discountGreaterThanG() {
+        Result r = calc(spreadsheet());
         assertThat(r.terminalValue()).isNotNull();
         assertThat(r.terminalWeight()).isBetween(bd("0.75"), bd("0.76"));   // 266 de 352 bi
     }
 
     @Test
     @DisplayName("Cenário 9: d = G e d < G — terminal não calculado, mensagem clara")
-    void descontoMenorOuIgualG() {
+    void discountLessOrEqualG() {
         for (String d : List.of("3", "2")) {
-            Result r = calc(inputs(planilha().quarters(), 4262140830L, "19.26", "48.19", d, "3", "15", "67.63"));
+            Result r = calc(inputs(spreadsheet().quarters(), 4262140830L, "19.26", "48.19", d, "3", "15", "67.63"));
             assertThat(r.pv1()).isNotNull();
             assertThat(r.pv3()).isNotNull();
             assertThat(r.terminalValue()).isNull();
@@ -177,9 +177,9 @@ class CeilingPriceRulesTest {
 
     @Test
     @DisplayName("Cenário 10: quantidade de ações ausente ou zero — sem teto, sem ideal, sem margens")
-    void acoesAusentes() {
+    void sharesMissing() {
         for (Long n : Arrays.asList(null, 0L)) {
-            Result r = calc(inputs(planilha().quarters(), n, "19.26", "48.19", "13.75", "3", "15", "67.63"));
+            Result r = calc(inputs(spreadsheet().quarters(), n, "19.26", "48.19", "13.75", "3", "15", "67.63"));
             assertThat(r.equityValue()).isNotNull();
             assertThat(r.ceilingPrice()).isNull();
             assertThat(r.idealPrice()).isNull();
@@ -190,22 +190,22 @@ class CeilingPriceRulesTest {
 
     @Test
     @DisplayName("Cenário 11: margem de segurança zero (ideal = teto) e maior que zero")
-    void margemDeSeguranca() {
-        Result zero = calc(inputs(planilha().quarters(), 4262140830L, "19.26", "48.19", "13.75", "3", "0", "67.63"));
+    void safetyMargin() {
+        Result zero = calc(inputs(spreadsheet().quarters(), 4262140830L, "19.26", "48.19", "13.75", "3", "0", "67.63"));
         assertThat(zero.idealPrice()).isEqualByComparingTo(zero.ceilingPrice());
-        Result quinze = calc(planilha());
-        close(quinze.idealPrice(), "70.26155919571242");
-        Result invalida = calc(inputs(planilha().quarters(), 4262140830L, "19.26", "48.19", "13.75", "3", "100",
+        Result fifteen = calc(spreadsheet());
+        close(fifteen.idealPrice(), "70.26155919571242");
+        Result invalid = calc(inputs(spreadsheet().quarters(), 4262140830L, "19.26", "48.19", "13.75", "3", "100",
                 "67.63"));
-        assertThat(invalida.idealPrice()).isNull();
-        assertThat(invalida.ceilingPrice()).isNotNull();
-        assertThat(codes(invalida)).contains("MARGEM_INVALIDA");
+        assertThat(invalid.idealPrice()).isNull();
+        assertThat(invalid.ceilingPrice()).isNotNull();
+        assertThat(codes(invalid)).contains("MARGEM_INVALIDA");
     }
 
     @Test
     @DisplayName("Preço zero ou ausente: só as margens deixam de ser calculadas")
-    void precoInvalido() {
-        Result r = calc(inputs(planilha().quarters(), 4262140830L, "19.26", "48.19", "13.75", "3", "15", "0"));
+    void invalidPrice() {
+        Result r = calc(inputs(spreadsheet().quarters(), 4262140830L, "19.26", "48.19", "13.75", "3", "15", "0"));
         assertThat(r.ceilingPrice()).isNotNull();
         assertThat(r.ceilingMargin()).isNull();
         assertThat(r.idealMargin()).isNull();
@@ -214,8 +214,8 @@ class CeilingPriceRulesTest {
 
     @Test
     @DisplayName("D2: payout acima de 100% — alerta de premissa e de crescimento negativo, sem alterar nada")
-    void payoutAcimaDe100() {
-        Result r = calc(inputs(planilha().quarters(), 4262140830L, "14.69", "146", "13.75", "3", "15", "67.63"));
+    void payoutAbove100() {
+        Result r = calc(inputs(spreadsheet().quarters(), 4262140830L, "14.69", "146", "13.75", "3", "15", "67.63"));
         assertThat(r.growth().signum()).isNegative();
         assertThat(codes(r)).contains("PREMISSA_EXTREMA", "G_NEGATIVO");
         assertThat(r.hasBlocking()).isFalse();
@@ -224,20 +224,20 @@ class CeilingPriceRulesTest {
 
     @Test
     @DisplayName("D2: faixas de alerta — desconto fora de 5–30%, perpetuidade acima de 6%, crescimento ≥ desconto")
-    void faixasDeAlerta() {
-        Result r = calc(inputs(planilha().quarters(), 4262140830L, "60", "10", "40", "7", "15", "67.63"));
+    void alertBands() {
+        Result r = calc(inputs(spreadsheet().quarters(), 4262140830L, "60", "10", "40", "7", "15", "67.63"));
         assertThat(r.issues()).extracting(Issue::field).contains("discountRatePct", "perpetualGrowthPct", "growth");
         assertThat(codes(r)).contains("G_MAIOR_QUE_D");
         // desconto negativo: só o alerta de extremo, não o de faixa
-        Result neg = calc(inputs(planilha().quarters(), 4262140830L, "19.26", "48.19", "-5", "-10", "15", "67.63"));
+        Result neg = calc(inputs(spreadsheet().quarters(), 4262140830L, "19.26", "48.19", "-5", "-10", "15", "67.63"));
         assertThat(neg.issues().stream().filter(i -> i.field() != null && i.field().equals("discountRatePct")).count())
                 .isEqualTo(1);
     }
 
     @Test
     @DisplayName("Premissa vazia: bloqueio com o nome do campo")
-    void campoVazio() {
-        Result r = calc(inputs(planilha().quarters(), 4262140830L, null, "48.19", "13.75", "3", "15", "67.63"));
+    void emptyField() {
+        Result r = calc(inputs(spreadsheet().quarters(), 4262140830L, null, "48.19", "13.75", "3", "15", "67.63"));
         assertThat(r.growth()).isNull();
         assertThat(r.fc2()).isNull();
         assertThat(r.pv1()).isNotNull();

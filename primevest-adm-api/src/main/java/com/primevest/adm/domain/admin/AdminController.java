@@ -203,8 +203,8 @@ public class AdminController {
      * Cotacoes pregao a pregao pelo COTAHIST diario (docs/planos/PLANO_PRECO_TETO.md, 4.5). Sem {@code from}: do
      * pregao seguinte ao ultimo gravado ate hoje (o mesmo da rotina); com {@code from}/{@code to}, o periodo.
      */
-    @PostMapping("/b3/cotahist/diario")
-    public ResponseEntity<Map<String, Object>> cotahistDiario(
+    @PostMapping("/b3/cotahist/daily")
+    public ResponseEntity<Map<String, Object>> cotahistDaily(
             @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(
                     iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(
@@ -283,8 +283,8 @@ public class AdminController {
      * Datas de pagamento pelos relatorios de proventos da CVM (docs/planos/PLANO_CARGA_INICIAL.md, 5.2 — P3):
      * {@code from}/{@code to} em anos, de 2022 em diante.
      */
-    @PostMapping("/cvm/proventos")
-    public ResponseEntity<Map<String, Object>> cvmProventos(
+    @PostMapping("/cvm/payment-dates")
+    public ResponseEntity<Map<String, Object>> cvmPaymentDates(
             @RequestParam(defaultValue = "" + CvmPaymentDateService.FIRST_YEAR) int from,
             @RequestParam(required = false) Integer to) {
         int last = to != null ? to : LocalDate.now(SAO_PAULO).getYear();
@@ -300,8 +300,8 @@ public class AdminController {
      * docs/planos/PLANO_CARGA_INICIAL.md secao 11): completa so os proventos sem data, sem passar por cima de
      * nenhuma outra fonte. Mesma etapa do bootstrap, para aplicar num banco que ja existe.
      */
-    @PostMapping("/proventos/levantamento")
-    public ResponseEntity<Map<String, Object>> proventosLevantamento() {
+    @PostMapping("/dividends/payment-date-survey")
+    public ResponseEntity<Map<String, Object>> paymentDateSurvey() {
         return start("datas de pagamento do levantamento", "PAYMENT_DATE_SURVEY", Map.of());
     }
 
@@ -346,8 +346,8 @@ public class AdminController {
      * catalogo desde {@code from} (padrao 2010) em asset_price_history e o ultimo em assets.current_price.
      * {@code recent=true} = a rodada diaria das 08:00. O arquivo do Tesouro (~14 MB) so e baixado se mudou.
      */
-    @PostMapping("/tesouro")
-    public ResponseEntity<Map<String, Object>> tesouro(
+    @PostMapping("/treasury")
+    public ResponseEntity<Map<String, Object>> treasury(
             @RequestParam(defaultValue = "" + TreasuryPriceService.FIRST_YEAR) int from,
             @RequestParam(defaultValue = "false") boolean recent) {
         if (from < 2002) {
@@ -363,19 +363,19 @@ public class AdminController {
      * arquivo de carga/data/coingecko/historico) e Binance BTC/BRL antes disso, para toda cripto que esta ou ja esteve
      * em carteira e para o benchmark BTC. So preenche dias sem linha.
      */
-    @PostMapping("/cripto/historico")
+    @PostMapping("/crypto/history")
     public ResponseEntity<Map<String, Object>> cryptoHistory() {
         return start("historico de cripto", "CRYPTO_PRICE_HISTORY", Map.of());
     }
 
     /**
-     * Rodada de proventos. {@code fnet=todos}: rele todos os avisos do FNET em disco, inclusive os que ja geraram evento
+     * Rodada de proventos. {@code fnet=all}: rele todos os avisos do FNET em disco, inclusive os que ja geraram evento
      * (depois de uma limpeza de dados como a V60 — docs/planos/PLANO_CORRECAO_PROVENTOS.md, C8). Sem a etapa da CVM,
      * como antes (a tarefa agendada roda com ela).
      */
-    @PostMapping("/proventos")
-    public ResponseEntity<Map<String, Object>> proventos(@RequestParam(defaultValue = "") String fnet) {
-        boolean all = "todos".equalsIgnoreCase(fnet);
+    @PostMapping("/dividends")
+    public ResponseEntity<Map<String, Object>> dividends(@RequestParam(defaultValue = "") String fnet) {
+        boolean all = "all".equalsIgnoreCase(fnet);
         return start("proventos", "DIVIDENDS_SYNC",
             Map.of("FNET_REREAD_ALL", String.valueOf(all), "WITH_CVM_PAYMENT_DATES", "false"));
     }
@@ -385,7 +385,7 @@ public class AdminController {
      * {@code carga/data/fnet/status} — docs/planos/PLANO_CORRECAO_PROVENTOS.md, D5/R5. {@code missing=true}: so os
      * fundos ainda sem arquivo (retoma as falhas). Sem a releitura dos proventos, como antes.
      */
-    @PostMapping("/proventos/fnet-status")
+    @PostMapping("/dividends/fnet-status")
     public ResponseEntity<Map<String, Object>> fnetStatus(@RequestParam(defaultValue = "false") boolean missing) {
         return start("situacao dos avisos do FNET", "FNET_STATUS_SYNC",
             Map.of("ONLY_MISSING", String.valueOf(missing), "WITH_DIVIDENDS_REREAD", "false"));
@@ -419,8 +419,8 @@ public class AdminController {
     private static Map<String, Object> accepted(String name) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("status", "iniciada");
-        body.put("rotina", name);
-        body.put("resultado", "na tela de Tarefas e no log da API");
+        body.put("task", name);
+        body.put("result", "na tela de Tarefas e no log da API");
         return body;
     }
 }

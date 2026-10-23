@@ -51,7 +51,7 @@ class QuarterSeriesTest {
     }
 
     /** Ano civil: ITR com coluna de 3 meses na DRE, DFC e DVA so acumuladas. */
-    private static List<Doc> anoCivil() {
+    private static List<Doc> calendarYear() {
         return new ArrayList<>(List.of(
                 doc("DFP", "2024-12-31", Shares.NONE, v(RECEITA, "2024-01-01", 400), v(FCO, "2024-01-01", 100)),
                 doc("ITR", "2025-03-31", Shares.NONE, v(RECEITA, "2025-01-01", 110), v(FCO, "2025-01-01", 30),
@@ -68,8 +68,8 @@ class QuarterSeriesTest {
 
     @Test
     @DisplayName("Ano civil: 3 meses do ITR, 4T = DFP - 9 meses, DFC por diferenca, 12 meses anual ou soma de 4")
-    void anoCivilCompleto() {
-        Map<LocalDate, Quarter> m = byDate(anoCivil());
+    void fullCalendarYear() {
+        Map<LocalDate, Quarter> m = byDate(calendarYear());
 
         assertThat(q(m, "2025-03-31", Flow.REVENUE)).isEqualByComparingTo("110");
         assertThat(q(m, "2025-06-30", Flow.REVENUE)).isEqualByComparingTo("120");
@@ -97,8 +97,8 @@ class QuarterSeriesTest {
 
     @Test
     @DisplayName("Faltando um ITR: trimestre por diferenca e 12 meses ficam nulos, nao estima")
-    void faltandoUmTrimestre() {
-        List<Doc> docs = anoCivil();
+    void missingOneQuarter() {
+        List<Doc> docs = calendarYear();
         docs.removeIf(d -> d.referenceDate().equals(LocalDate.parse("2025-06-30")));
         Map<LocalDate, Quarter> m = byDate(docs);
 
@@ -111,7 +111,7 @@ class QuarterSeriesTest {
 
     @Test
     @DisplayName("Exercicio de marco a fevereiro (Camil): 4T termina em fevereiro, anual pelo DFP de fevereiro")
-    void exercicioForaDoCalendario() {
+    void fiscalYearOffCalendar() {
         Map<LocalDate, Quarter> m = byDate(List.of(
                 doc("ITR", "2024-05-31", Shares.NONE, v(LUCRO_CONTROLADORA, "2024-03-01", 10)),
                 doc("ITR", "2024-08-31", Shares.NONE, v(LUCRO_CONTROLADORA, "2024-03-01", 25),
@@ -129,21 +129,21 @@ class QuarterSeriesTest {
 
     @Test
     @DisplayName("Posicao do proprio balanco, PL da controladora, acoes; DFP vale sobre ITR na mesma data")
-    void posicaoEAcoes() {
+    void positionAndShares() {
         Map<LocalDate, Quarter> m = byDate(List.of(
                 doc("ITR", "2025-12-31", Shares.NONE, v(PL, null, 1)),
                 doc("DFP", "2025-12-31", new Shares(1000L, 990L), v(PL, null, 500), v(PL_NAO_CONTROLADORES, null, 20),
                         v(ATIVO_TOTAL, null, 2000), v(CAIXA, null, 50), v(DIVIDA_BRUTA, null, 300)),
                 doc("ITR", "2026-03-31", null, v(PL, null, 510))));
 
-        Quarter dez = m.get(LocalDate.parse("2025-12-31"));
-        assertThat(dez.equity()).isEqualByComparingTo("500");
-        assertThat(dez.equityParent()).isEqualByComparingTo("480");
-        assertThat(dez.totalAssets()).isEqualByComparingTo("2000");
-        assertThat(dez.cash()).isEqualByComparingTo("50");
-        assertThat(dez.grossDebt()).isEqualByComparingTo("300");
-        assertThat(dez.sharesTotal()).isEqualTo(1000L);
-        assertThat(dez.sharesOutstanding()).isEqualTo(990L);
+        Quarter ten = m.get(LocalDate.parse("2025-12-31"));
+        assertThat(ten.equity()).isEqualByComparingTo("500");
+        assertThat(ten.equityParent()).isEqualByComparingTo("480");
+        assertThat(ten.totalAssets()).isEqualByComparingTo("2000");
+        assertThat(ten.cash()).isEqualByComparingTo("50");
+        assertThat(ten.grossDebt()).isEqualByComparingTo("300");
+        assertThat(ten.sharesTotal()).isEqualTo(1000L);
+        assertThat(ten.sharesOutstanding()).isEqualTo(990L);
 
         Quarter mar = m.get(LocalDate.parse("2026-03-31"));
         assertThat(mar.equityParent()).isEqualByComparingTo("510"); // sem nao controladores (individual)
@@ -154,7 +154,7 @@ class QuarterSeriesTest {
 
     @Test
     @DisplayName("Trimestres consecutivos: 80 a 100 dias entre as datas")
-    void distanciaEntreTrimestres() {
+    void distanceBetweenQuarters() {
         assertThat(QuarterSeries.isQuarterApart(LocalDate.parse("2024-11-30"), LocalDate.parse("2025-02-28"))).isTrue();
         assertThat(QuarterSeries.isQuarterApart(LocalDate.parse("2025-03-31"), LocalDate.parse("2025-06-30"))).isTrue();
         assertThat(QuarterSeries.isQuarterApart(LocalDate.parse("2025-03-31"), LocalDate.parse("2025-09-30"))).isFalse();

@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * X5 do docs/planos/PLANO_INDICES_MERCADO.md: leitura dos indices pela app-api — lista, serie e acumulado
  * (casos de conferencia da secao 6). A serie e gravada direto no banco, como a adm-api faria.
  */
-class IndicesIT extends FuncionalBase {
+class IndicesIT extends FunctionalBase {
 
     /** IPCA de 2024 (SGS 433): 4,83% no ano, o numero do IBGE. */
     private static final String[] IPCA_2024 = {"0.42", "0.83", "0.16", "0.38", "0.46", "0.21", "0.38", "-0.02",
@@ -35,8 +35,8 @@ class IndicesIT extends FuncionalBase {
     }
 
     @BeforeEach
-    void cenario() {
-        user = usuarioComCarteira("indices@primevest.test");
+    void scenario() {
+        user = userWithPortfolio("indices@primevest.test");
         for (int m = 0; m < 12; m++) {
             insert("IPCA", LocalDate.of(2024, m + 1, 1), IPCA_2024[m]);
         }
@@ -57,7 +57,7 @@ class IndicesIT extends FuncionalBase {
     @Test
     @DisplayName("Lista: os 10 indices, com primeira e ultima data de quem tem serie")
     @SuppressWarnings("unchecked")
-    void lista() {
+    void list() {
         List<Map<String, Object>> l = get(user, "/api/v1/indices", List.class).getBody();
 
         assertThat(l).hasSize(10);
@@ -80,7 +80,7 @@ class IndicesIT extends FuncionalBase {
 
     @Test
     @DisplayName("Acumulado: IPCA 2024 = 4,83%; meses inteiros mesmo com o dia no meio do mes")
-    void ipcaAcumulado() {
+    void accumulatedIpca() {
         Map<String, Object> a = getMap("/api/v1/indices/IPCA/accumulated?from=2024-01-15&to=2024-12-31");
 
         assertThat(a.get("periods")).isEqualTo(12);
@@ -90,7 +90,7 @@ class IndicesIT extends FuncionalBase {
 
     @Test
     @DisplayName("Acumulado: 110% do CDI e CDI + spread; Ibovespa por nivel")
-    void variantes() {
+    void variants() {
         Map<String, Object> pct = getMap("/api/v1/indices/CDI/accumulated?from=2024-01-02&to=2024-01-03&percent=110");
         assertThat(new BigDecimal(pct.get("factor").toString())).isEqualByComparingTo("1.022121");
         assertThat(pct.get("periods")).isEqualTo(2);
@@ -104,7 +104,7 @@ class IndicesIT extends FuncionalBase {
     @Test
     @DisplayName("Grafico do card: IPCA com periodo especifico (meses inteiros), resumo e pontos; atalho invalido 422")
     @SuppressWarnings("unchecked")
-    void grafico() {
+    void chart() {
         Map<String, Object> c = getMap("/api/v1/indices/IPCA/chart?from=2024-01-15&to=2024-12-31");
         assertThat(c).containsEntry("range", "CUSTOM").containsEntry("from", "2024-01-01").containsEntry("to", "2024-12-01")
                 .containsEntry("displayUnit", "% no mês").containsEntry("firstDate", "2024-01-01");
@@ -119,18 +119,18 @@ class IndicesIT extends FuncionalBase {
         assertThat((List<Object>) cdi.get("points")).hasSize(1);
         assertThat(cdi.get("displayUnit")).isEqualTo("% a.a.");
 
-        Map<String, Object> vazio = getMap("/api/v1/indices/USD_PTAX/chart");
-        assertThat((List<Object>) vazio.get("points")).isEmpty();
+        Map<String, Object> empty = getMap("/api/v1/indices/USD_PTAX/chart");
+        assertThat((List<Object>) empty.get("points")).isEmpty();
 
         assertThat(get(user, "/api/v1/indices/IPCA/chart?range=3X", String.class).getStatusCode())
                 .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
         // visao anual dos mensais: acumulado em 12 meses (so dez/2024 tem 12 meses de historia aqui)
-        Map<String, Object> anual = getMap("/api/v1/indices/IPCA/chart?range=MAX&view=ANUAL");
-        assertThat(anual).containsEntry("view", "ANUAL").containsEntry("displayUnit", "% a.a.");
-        List<Map<String, Object>> doze = (List<Map<String, Object>>) anual.get("points");
-        assertThat(doze).hasSize(1);
-        assertThat(doze.get(0).get("date")).isEqualTo("2024-12-01");
-        assertThat(new BigDecimal(anual.get("last").toString()).setScale(2, java.math.RoundingMode.HALF_UP))
+        Map<String, Object> annual = getMap("/api/v1/indices/IPCA/chart?range=MAX&view=ANUAL");
+        assertThat(annual).containsEntry("view", "ANUAL").containsEntry("displayUnit", "% a.a.");
+        List<Map<String, Object>> twelve = (List<Map<String, Object>>) annual.get("points");
+        assertThat(twelve).hasSize(1);
+        assertThat(twelve.get(0).get("date")).isEqualTo("2024-12-01");
+        assertThat(new BigDecimal(annual.get("last").toString()).setScale(2, java.math.RoundingMode.HALF_UP))
                 .isEqualByComparingTo("4.83");
         assertThat(c).containsEntry("view", "MENSAL");
         assertThat(get(user, "/api/v1/indices/CDI/chart?view=ANUAL", String.class).getStatusCode())
@@ -147,7 +147,7 @@ class IndicesIT extends FuncionalBase {
 
     @Test
     @DisplayName("Erros: indice desconhecido 404; TR nao acumula 422; periodo sem valores 422; sem token 401")
-    void erros() {
+    void errors() {
         assertThat(get(user, "/api/v1/indices/XPTO/history", String.class).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(get(user, "/api/v1/indices/TR/accumulated?from=2024-01-01", String.class).getStatusCode())

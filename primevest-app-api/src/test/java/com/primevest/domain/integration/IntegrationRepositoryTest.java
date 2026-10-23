@@ -62,22 +62,22 @@ class IntegrationRepositoryTest extends JpaTestBase {
     @Autowired private AssetRepository assets;
     @Autowired private EntityManager em;
 
-    private User dono;
+    private User owner;
     private Asset btc;
     private IntegrationConnection binance;
-    private PortfolioAsset posicaoBtc;
+    private PortfolioAsset btcPosition;
 
     @BeforeEach
-    void cenario() {
-        dono = users.save(Fixtures.user("dono@primevest.test"));
+    void scenario() {
+        owner = users.save(Fixtures.user("dono@primevest.test"));
         btc = CatalogIds.asset(assets, CatalogIds.BTC);
-        binance = connections.saveAndFlush(Fixtures.binance(dono, "Binance principal"));
-        Portfolio carteira = portfolios.save(Fixtures.portfolio(dono));
-        posicaoBtc = positions.save(Fixtures.position(carteira, btc));
+        binance = connections.saveAndFlush(Fixtures.binance(owner, "Binance principal"));
+        Portfolio portfolioEntity = portfolios.save(Fixtures.portfolio(owner));
+        btcPosition = positions.save(Fixtures.position(portfolioEntity, btc));
     }
 
-    private Transaction importada(String externalId) {
-        Transaction tx = Fixtures.buy(posicaoBtc, LocalDate.of(2024, 3, 10), "0.00250000", "400000.00000000");
+    private Transaction imported(String externalId) {
+        Transaction tx = Fixtures.buy(btcPosition, LocalDate.of(2024, 3, 10), "0.00250000", "400000.00000000");
         tx.setOrigin(TransactionOrigin.AUTO);
         tx.setExternalId(externalId);
         tx.setConnection(binance);
@@ -86,7 +86,7 @@ class IntegrationRepositoryTest extends JpaTestBase {
         return tx;
     }
 
-    private Object nativo(String sql, Object id) {
+    private Object nativeQuery(String sql, Object id) {
         return em.createNativeQuery(sql).setParameter("id", id).getSingleResult();
     }
 
@@ -94,72 +94,72 @@ class IntegrationRepositoryTest extends JpaTestBase {
 
     @Test
     @DisplayName("Conexao nasce ACTIVE; o apelido e unico por usuario, mas repete entre usuarios")
-    void apelidoUnicoPorUsuario() {
+    void nicknameUniquePerUser() {
         assertThat(binance.getStatus()).isEqualTo(ConnectionStatus.ACTIVE);
 
-        User outro = users.save(Fixtures.user("outro@primevest.test"));
-        assertThat(connections.saveAndFlush(Fixtures.binance(outro, "Binance principal")).getId()).isNotNull();
+        User other = users.save(Fixtures.user("outro@primevest.test"));
+        assertThat(connections.saveAndFlush(Fixtures.binance(other, "Binance principal")).getId()).isNotNull();
 
         // Por ultimo: depois de um erro o PostgreSQL aborta a transacao do teste.
-        assertThatThrownBy(() -> connections.saveAndFlush(Fixtures.binance(dono, "Binance principal")))
+        assertThatThrownBy(() -> connections.saveAndFlush(Fixtures.binance(owner, "Binance principal")))
             .isInstanceOf(DataIntegrityViolationException.class)
             .hasMessageContaining("uk_integration_connections_label");
     }
 
     @Test
     @DisplayName("V40: conexao com a B3 aguardando a autorizacao do investidor e aceita pelo banco")
-    void conexaoB3AguardandoAutorizacao() {
+    void b3ConnectionAwaitingAuthorization() {
         IntegrationConnection b3 = connections.saveAndFlush(IntegrationConnection.builder()
-            .user(dono).provider(IntegrationProvider.B3).label("B3")
+            .user(owner).provider(IntegrationProvider.B3).label("B3")
             .status(ConnectionStatus.PENDING_AUTHORIZATION)
             .consentAcceptedAt(LocalDateTime.now()).build());
         em.clear();
 
-        assertThat(nativo("SELECT status FROM integration_connections WHERE id = :id", b3.getId()))
+        assertThat(nativeQuery("SELECT status FROM integration_connections WHERE id = :id", b3.getId()))
             .isEqualTo("PENDING_AUTHORIZATION");
-        assertThat(nativo("SELECT provider FROM integration_connections WHERE id = :id", b3.getId())).isEqualTo("B3");
+        assertThat(nativeQuery("SELECT provider FROM integration_connections WHERE id = :id", b3.getId())).isEqualTo("B3");
     }
 
     @Test
     @DisplayName("findOwnedById: conexao de outro usuario nao e encontrada")
-    void escopoDoDono() {
-        User outro = users.save(Fixtures.user("outro@primevest.test"));
+    void ownerScope() {
+        User other = users.save(Fixtures.user("outro@primevest.test"));
 
-        assertThat(connections.findOwnedById(binance.getId(), dono.getId())).isPresent();
-        assertThat(connections.findOwnedById(binance.getId(), outro.getId())).isEmpty();
-        assertThat(connections.findAllOwned(outro.getId())).isEmpty();
+        assertThat(connections.findOwnedById(binance.getId(), owner.getId())).isPresent();
+        assertThat(connections.findOwnedById(binance.getId(), other.getId())).isEmpty();
+        assertThat(connections.findAllOwned(other.getId())).isEmpty();
     }
 
     // ---------------------------------------------------------------- credencial
 
     @Test
     @DisplayName("Vault: grava cifrado, le de volta, e o banco nao tem o segredo em claro")
-    void credencialCifrada() {
+    void encryptedCredential() {
         vault.store(binance, new ApiKeyCredentials("chave-publica-a7K2", "segredo-muito-secreto"));
         em.flush();
         em.clear();
 
-        byte[] gravado = (byte[]) nativo("SELECT ciphertext FROM integration_credentials WHERE connection_id = :id", binance.getId());
-        assertThat(new String(gravado, StandardCharsets.ISO_8859_1))
+        byte[] stored = (byte[]) nativeQuery("SELECT ciphertext FROM integration_credentials WHERE connection_id = :id", binance.getId());
+        assertThat(new String(stored, StandardCharsets.ISO_8859_1))
             .doesNotContain("segredo-muito-secreto").doesNotContain("chave-publica");
-        assertThat(nativo("SELECT fingerprint FROM integration_credentials WHERE connection_id = :id", binance.getId()))
+        assertThat(nativeQuery("SELECT fingerprint FROM integration_credentials WHERE connection_id = :id", binance.getId()))
             .isEqualTo("a7K2");
 
-        ApiKeyCredentials lida = (ApiKeyCredentials) vault.read(binance.getId());
-        assertThat(lida.apiKey()).isEqualTo("chave-publica-a7K2");
-        assertThat(lida.apiSecret()).isEqualTo("segredo-muito-secreto");
+        ApiKeyCredentials readBack = (ApiKeyCredentials) vault.read(binance.getId());
+        assertThat(readBack.apiKey()).isEqualTo("chave-publica-a7K2");
+        assertThat(readBack.apiSecret()).isEqualTo("segredo-muito-secreto");
     }
 
     @Test
     @DisplayName("Vault: CPF da B3 grava cifrado na mesma tabela e volta como InvestorDocument (G2)")
-    void cpfCifrado() {
+    void encryptedCpf() {
         vault.store(binance, new com.primevest.domain.integration.credential.InvestorDocument("529.982.247-25"));
         em.flush();
         em.clear();
 
-        byte[] gravado = (byte[]) nativo("SELECT ciphertext FROM integration_credentials WHERE connection_id = :id", binance.getId());
-        assertThat(new String(gravado, StandardCharsets.ISO_8859_1)).doesNotContain("52998224725");
-        assertThat(nativo("SELECT fingerprint FROM integration_credentials WHERE connection_id = :id", binance.getId()))
+        byte[] stored = (byte[]) nativeQuery("SELECT ciphertext FROM integration_credentials WHERE connection_id = :id", binance.getId());
+        assertThat(new String(stored, StandardCharsets.ISO_8859_1)).doesNotContain("52998224725");
+        assertThat(nativeQuery("SELECT fingerprint FROM integration_credentials WHERE connection_id = :id", binance.getId()))
             .isEqualTo("25");
         assertThat(vault.read(binance.getId()))
             .isEqualTo(new com.primevest.domain.integration.credential.InvestorDocument("52998224725"));
@@ -167,29 +167,29 @@ class IntegrationRepositoryTest extends JpaTestBase {
 
     @Test
     @DisplayName("Trocar a chave regrava a mesma linha, com IV novo, e zera a validacao anterior")
-    void trocaDeChave() {
-        IntegrationCredential primeira = vault.store(binance, new ApiKeyCredentials("chave-1-AAAA", "s1"));
-        primeira.setValidatedAt(LocalDateTime.now());
-        primeira.setPermissions("{\"enableReading\":true}");
+    void keyChange() {
+        IntegrationCredential first = vault.store(binance, new ApiKeyCredentials("chave-1-AAAA", "s1"));
+        first.setValidatedAt(LocalDateTime.now());
+        first.setPermissions("{\"enableReading\":true}");
         em.flush();
-        byte[] ivAntes = primeira.getIv().clone();
+        byte[] ivBefore = first.getIv().clone();
 
-        IntegrationCredential segunda = vault.store(binance, new ApiKeyCredentials("chave-2-BBBB", "s2"));
+        IntegrationCredential second = vault.store(binance, new ApiKeyCredentials("chave-2-BBBB", "s2"));
         em.flush();
 
         assertThat(credentials.count()).isEqualTo(1);
-        assertThat(segunda.getIv()).isNotEqualTo(ivAntes);
-        assertThat(segunda.getValidatedAt()).isNull();
-        assertThat(segunda.getPermissions()).isNull();
+        assertThat(second.getIv()).isNotEqualTo(ivBefore);
+        assertThat(second.getValidatedAt()).isNull();
+        assertThat(second.getPermissions()).isNull();
         assertThat(((ApiKeyCredentials) vault.read(binance.getId())).apiSecret()).isEqualTo("s2");
     }
 
     @Test
     @DisplayName("Ciphertext copiado para outra conexao nao decifra (AAD = id da conexao)")
-    void copiadoNaoDecifra() {
+    void copiedDoesNotDecrypt() {
         vault.store(binance, new ApiKeyCredentials("chave-publica-a7K2", "segredo"));
-        IntegrationConnection outra = connections.saveAndFlush(Fixtures.binance(dono, "Binance 2"));
-        vault.store(outra, new ApiKeyCredentials("outra-chave-ZZZZ", "outro-segredo"));
+        IntegrationConnection other = connections.saveAndFlush(Fixtures.binance(owner, "Binance 2"));
+        vault.store(other, new ApiKeyCredentials("outra-chave-ZZZZ", "outro-segredo"));
         em.flush();
 
         em.createNativeQuery("""
@@ -198,16 +198,16 @@ class IntegrationRepositoryTest extends JpaTestBase {
               iv         = (SELECT iv FROM integration_credentials WHERE connection_id = :origem)
             WHERE connection_id = :destino""")
             .setParameter("origem", binance.getId())
-            .setParameter("destino", outra.getId())
+            .setParameter("destino", other.getId())
             .executeUpdate();
         em.clear();
 
-        assertThatThrownBy(() -> vault.read(outra.getId())).isInstanceOf(CredentialUnavailableException.class);
+        assertThatThrownBy(() -> vault.read(other.getId())).isInstanceOf(CredentialUnavailableException.class);
     }
 
     @Test
     @DisplayName("Revogar apaga a credencial de verdade")
-    void revogar() {
+    void revoke() {
         vault.store(binance, new ApiKeyCredentials("chave-publica-a7K2", "segredo"));
         em.flush();
 
@@ -220,7 +220,7 @@ class IntegrationRepositoryTest extends JpaTestBase {
 
     @Test
     @DisplayName("ck_integration_credentials_iv: IV fora de 12 bytes e recusado pelo banco")
-    void ivDeDozeBytes() {
+    void twelveByteIv() {
         IntegrationCredential c = new IntegrationCredential();
         c.setConnection(binance);
         c.setCiphertext(new byte[] {1, 2, 3});
@@ -237,64 +237,64 @@ class IntegrationRepositoryTest extends JpaTestBase {
 
     @Test
     @DisplayName("Transacao manual continua nascendo MANUAL, sem nenhum campo de importacao")
-    void manualPorPadrao() {
-        Transaction tx = transactions.saveAndFlush(Fixtures.buy(posicaoBtc, LocalDate.of(2024, 3, 10), "0.001", "500000"));
+    void manualByDefault() {
+        Transaction tx = transactions.saveAndFlush(Fixtures.buy(btcPosition, LocalDate.of(2024, 3, 10), "0.001", "500000"));
 
         assertThat(tx.getOrigin()).isEqualTo(TransactionOrigin.MANUAL);
-        assertThat(nativo("SELECT origin FROM transactions WHERE id = :id", tx.getId())).isEqualTo("MANUAL");
+        assertThat(nativeQuery("SELECT origin FROM transactions WHERE id = :id", tx.getId())).isEqualTo("MANUAL");
     }
 
     @Test
     @DisplayName("Importada grava origem, conexao e snapshot em JSONB consultavel")
-    void importadaGravaSnapshot() {
-        Transaction tx = transactions.saveAndFlush(importada("binance:spot:BTCBRL:1000000001"));
+    void importedStoresSnapshot() {
+        Transaction tx = transactions.saveAndFlush(imported("binance:spot:BTCBRL:1000000001"));
         em.clear();
 
-        assertThat(nativo("SELECT source_snapshot->>'orderId' FROM transactions WHERE id = :id", tx.getId()))
+        assertThat(nativeQuery("SELECT source_snapshot->>'orderId' FROM transactions WHERE id = :id", tx.getId()))
             .isEqualTo("1000000001");
-        Transaction lida = transactions.findById(tx.getId()).orElseThrow();
-        assertThat(lida.getOrigin()).isEqualTo(TransactionOrigin.AUTO);
-        assertThat(lida.getConnection().getId()).isEqualTo(binance.getId());
-        assertThat(lida.getEditedAt()).isNull();
+        Transaction readBack = transactions.findById(tx.getId()).orElseThrow();
+        assertThat(readBack.getOrigin()).isEqualTo(TransactionOrigin.AUTO);
+        assertThat(readBack.getConnection().getId()).isEqualTo(binance.getId());
+        assertThat(readBack.getEditedAt()).isNull();
     }
 
     @Test
     @DisplayName("findImportedIds: devolve so os ids ja importados por esta conexao")
-    void idsJaImportados() {
-        transactions.saveAndFlush(importada("binance:spot:BTCBRL:1000000001"));
-        IntegrationConnection outra = connections.saveAndFlush(Fixtures.binance(dono, "Binance 2"));
+    void alreadyImportedIds() {
+        transactions.saveAndFlush(imported("binance:spot:BTCBRL:1000000001"));
+        IntegrationConnection other = connections.saveAndFlush(Fixtures.binance(owner, "Binance 2"));
 
         assertThat(transactions.findImportedIds(binance.getId(),
             List.of("binance:spot:BTCBRL:1000000001", "binance:spot:BTCBRL:1000000009")))
             .containsExactly("binance:spot:BTCBRL:1000000001");
-        assertThat(transactions.findImportedIds(outra.getId(), List.of("binance:spot:BTCBRL:1000000001"))).isEmpty();
+        assertThat(transactions.findImportedIds(other.getId(), List.of("binance:spot:BTCBRL:1000000001"))).isEmpty();
     }
 
     @Test
     @DisplayName("uk_transactions_external: a mesma operacao nao entra duas vezes pela mesma conexao")
     void idempotencia() {
-        transactions.saveAndFlush(importada("binance:spot:BTCBRL:1000000001"));
+        transactions.saveAndFlush(imported("binance:spot:BTCBRL:1000000001"));
 
-        assertThatThrownBy(() -> transactions.saveAndFlush(importada("binance:spot:BTCBRL:1000000001")))
+        assertThatThrownBy(() -> transactions.saveAndFlush(imported("binance:spot:BTCBRL:1000000001")))
             .isInstanceOf(DataIntegrityViolationException.class)
             .hasMessageContaining("uk_transactions_external");
     }
 
     @Test
     @DisplayName("ck_transactions_origin: AUTO sem external_id e recusada")
-    void autoSemIdentificador() {
-        Transaction autoSemId = importada("x");
-        autoSemId.setExternalId(null);
+    void autoWithoutIdentifier() {
+        Transaction autoWithoutId = imported("x");
+        autoWithoutId.setExternalId(null);
 
-        assertThatThrownBy(() -> transactions.saveAndFlush(autoSemId))
+        assertThatThrownBy(() -> transactions.saveAndFlush(autoWithoutId))
             .isInstanceOf(DataIntegrityViolationException.class)
             .hasMessageContaining("ck_transactions_origin");
     }
 
     @Test
     @DisplayName("ck_transactions_origin: MANUAL com external_id e recusada")
-    void manualComIdentificador() {
-        Transaction manualComId = Fixtures.buy(posicaoBtc, LocalDate.of(2024, 3, 10), "0.001", "500000");
+    void manualWithIdentifier() {
+        Transaction manualComId = Fixtures.buy(btcPosition, LocalDate.of(2024, 3, 10), "0.001", "500000");
         manualComId.setExternalId("binance:spot:BTCBRL:1");
 
         assertThatThrownBy(() -> transactions.saveAndFlush(manualComId))
@@ -306,7 +306,7 @@ class IntegrationRepositoryTest extends JpaTestBase {
 
     @Test
     @DisplayName("Exclusao de cripto: unica por conexao e consultada em lote pela sincronizacao")
-    void exclusoes() {
+    void exclusionList() {
         exclusions.saveAndFlush(IntegrationCryptoExclusion.builder()
             .connection(binance).externalId("binance:spot:BTCBRL:1000000002").asset(btc)
             .sourceSnapshot(SNAPSHOT).build());
@@ -326,7 +326,7 @@ class IntegrationRepositoryTest extends JpaTestBase {
 
     @Test
     @DisplayName("Apagar a conexao leva credencial, cursores, execucoes, itens e exclusoes; a transacao fica, sem vinculo")
-    void cascata() {
+    void cascade() {
         vault.store(binance, new ApiKeyCredentials("chave-publica-a7K2", "segredo"));
         cursors.save(new IntegrationCursor(new IntegrationCursorId(binance.getId(), "spot:BTCBRL"), "900000001", null));
         IntegrationRun run = runs.save(IntegrationRun.builder().connection(binance).triggerType(RunTrigger.CONNECTION).build());
@@ -334,7 +334,7 @@ class IntegrationRepositoryTest extends JpaTestBase {
             .outcome(RunItemOutcome.UNMAPPED).reason("sem valor em reais (R6)").raw("{}").build());
         exclusions.save(IntegrationCryptoExclusion.builder().connection(binance)
             .externalId("binance:spot:BTCBRL:1000000002").asset(btc).sourceSnapshot(SNAPSHOT).build());
-        Transaction tx = transactions.save(importada("binance:spot:BTCBRL:1000000001"));
+        Transaction tx = transactions.save(imported("binance:spot:BTCBRL:1000000001"));
         em.flush();
 
         em.createNativeQuery("DELETE FROM integration_connections WHERE id = :id")
@@ -346,16 +346,16 @@ class IntegrationRepositoryTest extends JpaTestBase {
         assertThat(runs.count()).isZero();
         assertThat(runItems.count()).isZero();
         assertThat(exclusions.count()).isZero();
-        assertThat(nativo("SELECT connection_id FROM transactions WHERE id = :id", tx.getId())).isNull();
-        assertThat(nativo("SELECT origin FROM transactions WHERE id = :id", tx.getId())).isEqualTo("AUTO");
+        assertThat(nativeQuery("SELECT connection_id FROM transactions WHERE id = :id", tx.getId())).isNull();
+        assertThat(nativeQuery("SELECT origin FROM transactions WHERE id = :id", tx.getId())).isEqualTo("AUTO");
     }
 
     @Test
     @DisplayName("Apagar o usuario apaga as conexoes dele")
-    void usuarioApagado() {
+    void deletedUser() {
         UUID id = binance.getId();
-        em.createNativeQuery("DELETE FROM portfolios WHERE user_id = :id").setParameter("id", dono.getId()).executeUpdate();
-        em.createNativeQuery("DELETE FROM users WHERE id = :id").setParameter("id", dono.getId()).executeUpdate();
+        em.createNativeQuery("DELETE FROM portfolios WHERE user_id = :id").setParameter("id", owner.getId()).executeUpdate();
+        em.createNativeQuery("DELETE FROM users WHERE id = :id").setParameter("id", owner.getId()).executeUpdate();
         em.clear();
 
         assertThat(connections.existsById(id)).isFalse();

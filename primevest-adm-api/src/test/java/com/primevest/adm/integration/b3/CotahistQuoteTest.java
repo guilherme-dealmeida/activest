@@ -23,7 +23,7 @@ class CotahistQuoteTest {
 
     @Test
     @DisplayName("So vista e fracionario: cabecalho, rodape e opcao ficam de fora")
-    void filtro() {
+    void filterParam() {
         List<CotahistQuote> quotes = new ArrayList<>();
         CotahistQuote.forEach(B3Fixtures.cotahistZip(tmp, 2026), quotes::add);
 
@@ -55,12 +55,12 @@ class CotahistQuoteTest {
 
     @Test
     @DisplayName("Fator de cotacao 1.000: preco por lote de mil vira preco unitario")
-    void fatorMil() throws Exception {
+    void thousandFactor() throws Exception {
         Path txt = Path.of(CotahistQuoteTest.class.getResource("/b3/cotahist/COTAHIST_A2026.TXT").toURI());
         String line = Files.readAllLines(txt, java.nio.charset.Charset.forName("ISO-8859-1")).stream()
                 .filter(l -> l.startsWith("012026092502PETR4 ")).findFirst().orElseThrow();
-        String porMil = line.substring(0, 210) + "0001000" + line.substring(217);
+        String perThousand = line.substring(0, 210) + "0001000" + line.substring(217);
 
-        assertThat(CotahistQuote.parse(porMil).close()).isEqualByComparingTo("0.04799");
+        assertThat(CotahistQuote.parse(perThousand).close()).isEqualByComparingTo("0.04799");
     }
 }

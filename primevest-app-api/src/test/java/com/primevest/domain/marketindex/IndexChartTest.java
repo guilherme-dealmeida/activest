@@ -25,7 +25,7 @@ class IndexChartTest {
 
     @Test
     @DisplayName("Mensal: 1A = os ultimos 12 meses; 1D/7D/1M = so o ultimo; YTD = desde janeiro; ponto por mes")
-    void janelaMensal() {
+    void monthlyWindow() {
         NavigableMap<LocalDate, BigDecimal> ipca = monthly(32); // 01/2024 a 08/2026
         LocalDate ago26 = LocalDate.of(2026, 8, 1);
 
@@ -43,7 +43,7 @@ class IndexChartTest {
 
     @Test
     @DisplayName("Diario: CDI no 1D e so o ultimo dia; Ibovespa no 1D vai do pregao anterior ao ultimo")
-    void janelaDiaria() {
+    void dailyWindow() {
         NavigableMap<LocalDate, BigDecimal> s = new TreeMap<>();
         s.put(LocalDate.of(2026, 10, 1), BigDecimal.ONE);
         s.put(LocalDate.of(2026, 10, 2), BigDecimal.ONE);
@@ -56,7 +56,7 @@ class IndexChartTest {
 
     @Test
     @DisplayName("CDI exibido anualizado em 252 dias uteis: 0,055131% a.d. = 14,90% a.a.")
-    void anualizado() {
+    void annualized() {
         assertThat(IndexChart.display(IndexUnit.PCT_DIA, new BigDecimal("0.055131")).setScale(2, java.math.RoundingMode.HALF_UP))
                 .isEqualByComparingTo("14.90");
         assertThat(IndexChart.display(IndexUnit.PCT_MES, new BigDecimal("0.42"))).isEqualByComparingTo("0.42");
@@ -65,7 +65,7 @@ class IndexChartTest {
 
     @Test
     @DisplayName("Visao anual dos mensais: acumulado em 12 meses de cada mes; sem 12 meses de historia, fica de fora")
-    void dozeMeses() {
+    void twelveMonths() {
         NavigableMap<LocalDate, BigDecimal> ipca = monthly(24); // 01/2024 a 12/2025
         NavigableMap<LocalDate, BigDecimal> twelve = IndexChart.rolling12(ipca);
 
@@ -76,7 +76,7 @@ class IndexChartTest {
 
     @Test
     @DisplayName("Resumo: taxa acumula (IPCA 12 x 0,40%); nivel varia do primeiro ao ultimo; TR so ultimo/min/max")
-    void resumo() {
+    void summaryData() {
         IndexChart.Summary ipca = IndexChart.summary(IndexUnit.PCT_MES, monthly(12));
         assertThat(ipca.accumulatedPct()).isEqualByComparingTo("4.9070"); // 1,004^12 − 1
         assertThat(ipca.change()).isNull();

@@ -275,16 +275,16 @@ public class FixedIncomeValuation {
                     series = series();
                 }
                 List<Transaction> chronological = positionCalculator.chronologicalTransactions(pa);
-                boolean mudou;
+                boolean anyChanged;
                 if (pa.isSettled()) {
-                    mudou = syncSales(pa, chronological, series);
-                    if (mudou) {
+                    anyChanged = syncSales(pa, chronological, series);
+                    if (anyChanged) {
                         settlement.recompute(pa, chronological, false);
                     }
                 } else {
-                    mudou = apply(pa, chronological, series);
+                    anyChanged = apply(pa, chronological, series);
                 }
-                if (mudou) {
+                if (anyChanged) {
                     portfolioAssetRepository.save(pa);
                     changed++;
                 }

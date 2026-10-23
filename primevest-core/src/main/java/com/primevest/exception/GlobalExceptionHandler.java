@@ -36,19 +36,19 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    public static ResponseEntity<ErrorResponse> resposta(HttpStatus status, String mensagem, Map<String, String> erros) {
+    public static ResponseEntity<ErrorResponse> response(HttpStatus status, String message, Map<String, String> fieldErrors) {
         return new ResponseEntity<>(
-            new ErrorResponse(status.value(), mensagem, LocalDateTime.now(), erros), status);
+            new ErrorResponse(status.value(), message, LocalDateTime.now(), fieldErrors), status);
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFound(ResourceNotFoundException ex) {
-        return resposta(HttpStatus.NOT_FOUND, ex.getMessage(), null);
+        return response(HttpStatus.NOT_FOUND, ex.getMessage(), null);
     }
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusiness(BusinessException ex) {
-        return resposta(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), null);
+        return response(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), null);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -57,26 +57,26 @@ public class GlobalExceptionHandler {
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             errors.put(error.getField(), error.getDefaultMessage());
         }
-        return resposta(HttpStatus.BAD_REQUEST, "Dados inválidos", errors);
+        return response(HttpStatus.BAD_REQUEST, "Dados inválidos", errors);
     }
 
     /** Corpo que o Jackson nao consegue ler: JSON quebrado, enum inexistente, data em formato errado. */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleNotReadable(HttpMessageNotReadableException ex) {
-        return resposta(HttpStatus.BAD_REQUEST, "Corpo da requisição inválido", null);
+        return response(HttpStatus.BAD_REQUEST, "Corpo da requisição inválido", null);
     }
 
     /** Arquivo acima do limite do multipart (foto de perfil: 2 MB). Sem isto virava 500. */
     @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
-    public ResponseEntity<ErrorResponse> handleUploadGrande(Exception ex) {
-        return resposta(HttpStatus.PAYLOAD_TOO_LARGE, "O arquivo passa do tamanho permitido.", null);
+    public ResponseEntity<ErrorResponse> handleUploadTooLarge(Exception ex) {
+        return response(HttpStatus.PAYLOAD_TOO_LARGE, "O arquivo passa do tamanho permitido.", null);
     }
 
     @ExceptionHandler({MissingServletRequestParameterException.class, MethodArgumentTypeMismatchException.class,
         org.springframework.web.multipart.support.MissingServletRequestPartException.class,
         org.springframework.web.multipart.MultipartException.class})
-    public ResponseEntity<ErrorResponse> handleParametro(Exception ex) {
-        return resposta(HttpStatus.BAD_REQUEST, "Parâmetro inválido", null);
+    public ResponseEntity<ErrorResponse> handleParameter(Exception ex) {
+        return response(HttpStatus.BAD_REQUEST, "Parâmetro inválido", null);
     }
 
     /**
@@ -85,12 +85,12 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ErrorResponse> handleNoResource(NoResourceFoundException ex) {
-        return resposta(HttpStatus.NOT_FOUND, "Recurso não encontrado", null);
+        return response(HttpStatus.NOT_FOUND, "Recurso não encontrado", null);
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-    public ResponseEntity<ErrorResponse> handleMetodo(HttpRequestMethodNotSupportedException ex) {
-        return resposta(HttpStatus.METHOD_NOT_ALLOWED, "Método não permitido", null);
+    public ResponseEntity<ErrorResponse> handleMethod(HttpRequestMethodNotSupportedException ex) {
+        return response(HttpStatus.METHOD_NOT_ALLOWED, "Método não permitido", null);
     }
 
     /**
@@ -100,18 +100,18 @@ public class GlobalExceptionHandler {
      * que e conflito de dado, e nao falha do servidor.
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ErrorResponse> handleIntegridade(DataIntegrityViolationException ex) {
-        return resposta(HttpStatus.CONFLICT, "A operação conflita com um registro existente", null);
+    public ResponseEntity<ErrorResponse> handleIntegrity(DataIntegrityViolationException ex) {
+        return response(HttpStatus.CONFLICT, "A operação conflita com um registro existente", null);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
-        return resposta(HttpStatus.FORBIDDEN, "Acesso negado", null);
+        return response(HttpStatus.FORBIDDEN, "Acesso negado", null);
     }
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ErrorResponse> handleAuthentication(AuthenticationException ex) {
-        return resposta(HttpStatus.UNAUTHORIZED, "Falha de autenticação", null);
+        return response(HttpStatus.UNAUTHORIZED, "Falha de autenticação", null);
     }
 
     /**
@@ -125,11 +125,11 @@ public class GlobalExceptionHandler {
         if (status == null) {
             status = HttpStatus.INTERNAL_SERVER_ERROR;
         }
-        return resposta(status, ex.getReason() != null ? ex.getReason() : status.getReasonPhrase(), null);
+        return response(status, ex.getReason() != null ? ex.getReason() : status.getReasonPhrase(), null);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
-        return resposta(HttpStatus.INTERNAL_SERVER_ERROR, "Ocorreu um erro inesperado", null);
+        return response(HttpStatus.INTERNAL_SERVER_ERROR, "Ocorreu um erro inesperado", null);
     }
 }

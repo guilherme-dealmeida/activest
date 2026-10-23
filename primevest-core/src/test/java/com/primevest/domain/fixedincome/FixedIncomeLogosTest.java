@@ -17,7 +17,7 @@ class FixedIncomeLogosTest {
 
     @Test
     @DisplayName("Indexa a subpasta rf por raiz de CNPJ; raiz invalida nunca vira nome de arquivo")
-    void indice() throws Exception {
+    void index() throws Exception {
         Path rf = Files.createDirectories(dir.resolve("rf"));
         Files.writeString(rf.resolve("30680829.svg"), "<svg/>");
         Files.writeString(rf.resolve("00000000.png"), "x");

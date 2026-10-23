@@ -1,7 +1,7 @@
 package com.primevest.adm.task;
 
 import com.primevest.adm.domain.dividend.CvmPaymentDateService;
-import com.primevest.adm.domain.dividend.ProventosCatalogService;
+import com.primevest.adm.domain.dividend.DividendCatalogService;
 import com.primevest.domain.task.TaskHandler;
 import com.primevest.domain.task.TaskRunContext;
 import com.primevest.domain.task.TaskSkippedException;
@@ -20,7 +20,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class DividendsSyncTask implements TaskHandler {
 
-    private final ProventosCatalogService proventos;
+    private final DividendCatalogService dividends;
     private final CvmPaymentDateService cvmPaymentDates;
 
     @Override
@@ -30,7 +30,7 @@ public class DividendsSyncTask implements TaskHandler {
 
     @Override
     public void run(TaskRunContext ctx) {
-        var result = proventos.syncAll(ctx.reason(), ctx.bool("FNET_REREAD_ALL", false));
+        var result = dividends.syncAll(ctx.reason(), ctx.bool("FNET_REREAD_ALL", false));
         if (result == null) {
             throw new TaskSkippedException("Já havia uma rodada completa de proventos em andamento por outro caminho "
                 + "(ex.: a carga inicial ou a situação do FNET).");

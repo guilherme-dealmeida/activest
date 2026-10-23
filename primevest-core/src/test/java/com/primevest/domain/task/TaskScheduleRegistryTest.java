@@ -52,7 +52,7 @@ class TaskScheduleRegistryTest {
     private JdbcTemplate jdbc;
 
     @AfterEach
-    void volta() {
+    void back() {
         jdbc.update("UPDATE tasks SET cron = NULL, enabled = TRUE WHERE name = 'CVM_QUARTERS'");
         jdbc.update("UPDATE task_types SET enabled = TRUE WHERE type = 'CVM_QUARTERS'");
         jdbc.update("DELETE FROM task_executions");
@@ -61,7 +61,7 @@ class TaskScheduleRegistryTest {
 
     @Test
     @DisplayName("Só agenda tarefa ativa, com horário e com handler aqui; editar e reler acerta o agendamento")
-    void agendamento() {
+    void schedule() {
         Long id = tasks.findAliveByName("CVM_QUARTERS").orElseThrow().getId();
         Long b3 = tasks.findAliveByName("B3_CLOSING").orElseThrow().getId();
         assertThat(registry.scheduledCrons()).doesNotContainKey(id).doesNotContainKey(b3); // sem cron / sem handler
@@ -86,7 +86,7 @@ class TaskScheduleRegistryTest {
 
     @Test
     @DisplayName("O horário dispara a rodada com origem SCHEDULE e a data de vigência no minuto")
-    void dispara() throws Exception {
+    void fires() throws Exception {
         Long id = tasks.findAliveByName("CVM_QUARTERS").orElseThrow().getId();
         jdbc.update("UPDATE tasks SET cron = '* * * * * *' WHERE id = ?", id);
         registry.reload();

@@ -35,7 +35,7 @@ class PublicFileCacheTest {
     private static final String REJECTED = "<html><head><title>Request Rejected</title></head><body>The requested URL "
             + "was rejected. Please consult with your administrator.<br><br>Your support ID is: <7615440757605199299>"
             + "<br><br><a href='javascript:history.back();'>[Go Back]</body></html>";
-    private static final PublicFileCache.ContentCheck TESOURO = PublicFileCache.ContentCheck.csvHeader("Tipo Titulo;");
+    private static final PublicFileCache.ContentCheck TREASURY = PublicFileCache.ContentCheck.csvHeader("Tipo Titulo;");
 
     @TempDir
     Path tmp;
@@ -48,7 +48,7 @@ class PublicFileCacheTest {
     private final PublicFileCache cache = new PublicFileCache(Duration.ofSeconds(5));
 
     @BeforeEach
-    void subir() throws IOException {
+    void startUp() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/", ex -> {
             String path = ex.getRequestURI().getPath();
@@ -72,7 +72,7 @@ class PublicFileCacheTest {
     }
 
     @AfterEach
-    void derrubar() {
+    void takeDown() {
         server.stop(0);
     }
 
@@ -84,7 +84,7 @@ class PublicFileCacheTest {
         responses.put(path, new Object[]{status, body, headers});
     }
 
-    private Path copiaEmDisco(String name, String content) throws IOException {
+    private Path diskCopy(String name, String content) throws IOException {
         Path file = tmp.resolve(name);
         Files.writeString(file, content, StandardCharsets.ISO_8859_1);
         return file;
@@ -92,11 +92,11 @@ class PublicFileCacheTest {
 
     @Test
     @DisplayName("CSV certo: baixa, guarda a data da fonte e se identifica como PrimeVest (D6)")
-    void baixa() throws IOException {
+    void low() throws IOException {
         respond("/precos.csv", 200, CSV, Map.of("Last-Modified", "Fri, 16 Oct 2026 10:34:14 GMT"));
         Path target = tmp.resolve("precos.csv");
 
-        PublicFileCache.Result r = cache.get(url("/precos.csv"), target, true, TESOURO);
+        PublicFileCache.Result r = cache.get(url("/precos.csv"), target, true, TREASURY);
 
         assertThat(r.outcome()).isEqualTo(PublicFileCache.Outcome.DOWNLOADED);
         assertThat(r.current()).isTrue();
@@ -107,11 +107,11 @@ class PublicFileCacheTest {
 
     @Test
     @DisplayName("HTTP 200 com a pagina de recusa: nao substitui o arquivo em disco e conta como recusa (R1)")
-    void paginaDeRecusaComCopia() throws IOException {
+    void rejectionPageWithCopy() throws IOException {
         respond("/precos.csv", 200, REJECTED, Map.of());
-        Path target = copiaEmDisco("precos.csv", CSV);
+        Path target = diskCopy("precos.csv", CSV);
 
-        PublicFileCache.Result r = cache.get(url("/precos.csv"), target, true, TESOURO);
+        PublicFileCache.Result r = cache.get(url("/precos.csv"), target, true, TREASURY);
 
         assertThat(r.outcome()).isEqualTo(PublicFileCache.Outcome.REFUSED);
         assertThat(r.failed()).isTrue();
@@ -120,17 +120,17 @@ class PublicFileCacheTest {
         assertThat(Files.readString(target, StandardCharsets.ISO_8859_1)).isEqualTo(CSV);
         assertThat(Files.list(tmp)).containsExactly(target); // nenhum .part sobrando
         // o atalho de sempre fica com a copia
-        assertThat(cache.fetch(url("/precos.csv"), target, true, TESOURO)).contains(target);
+        assertThat(cache.fetch(url("/precos.csv"), target, true, TREASURY)).contains(target);
     }
 
     @Test
     @DisplayName("HTTP 200 com a pagina de recusa e sem copia: nada e gravado e o atalho da erro")
-    void paginaDeRecusaSemCopia() throws IOException {
+    void rejectionPageWithoutCopy() throws IOException {
         respond("/precos.csv", 200, REJECTED, Map.of());
         Path target = tmp.resolve("precos.csv");
 
-        assertThat(cache.get(url("/precos.csv"), target, true, TESOURO).file()).isNull();
-        assertThatThrownBy(() -> cache.fetch(url("/precos.csv"), target, true, TESOURO))
+        assertThat(cache.get(url("/precos.csv"), target, true, TREASURY).file()).isNull();
+        assertThatThrownBy(() -> cache.fetch(url("/precos.csv"), target, true, TREASURY))
                 .isInstanceOf(PublicFileCache.UnavailableException.class)
                 .hasMessageContaining("conteudo reprovado");
         assertThat(Files.list(tmp)).isEmpty();
@@ -138,11 +138,11 @@ class PublicFileCacheTest {
 
     @Test
     @DisplayName("HTTP 429: recusa com o Retry-After, uma chamada so (R4); a copia fica intacta")
-    void limiteDeRequisicoes() throws IOException {
+    void requestLimit() throws IOException {
         respond("/precos.csv", 429, "<html>Muitas Requisicoes</html>", Map.of("Retry-After", "30"));
-        Path target = copiaEmDisco("precos.csv", CSV);
+        Path target = diskCopy("precos.csv", CSV);
 
-        PublicFileCache.Result r = cache.get(url("/precos.csv"), target, true, TESOURO);
+        PublicFileCache.Result r = cache.get(url("/precos.csv"), target, true, TREASURY);
 
         assertThat(r.outcome()).isEqualTo(PublicFileCache.Outcome.REFUSED);
         assertThat(r.status()).isEqualTo(429);
@@ -154,40 +154,40 @@ class PublicFileCacheTest {
 
     @Test
     @DisplayName("304, 404 e fonte sem resposta")
-    void naoMudouNaoExisteForaDoAr() throws IOException {
+    void unchangedDoesNotExistWhenDown() throws IOException {
         respond("/precos.csv", 304, "", Map.of());
-        Path target = copiaEmDisco("precos.csv", CSV);
-        assertThat(cache.get(url("/precos.csv"), target, true, TESOURO).outcome())
+        Path target = diskCopy("precos.csv", CSV);
+        assertThat(cache.get(url("/precos.csv"), target, true, TREASURY).outcome())
                 .isEqualTo(PublicFileCache.Outcome.NOT_MODIFIED);
 
-        PublicFileCache.Result nf = cache.get(url("/nada.csv"), tmp.resolve("nada.csv"), true, TESOURO);
+        PublicFileCache.Result nf = cache.get(url("/nada.csv"), tmp.resolve("nada.csv"), true, TREASURY);
         assertThat(nf.outcome()).isEqualTo(PublicFileCache.Outcome.NOT_FOUND);
-        assertThat(cache.fetch(url("/nada.csv"), tmp.resolve("nada.csv"), true, TESOURO)).isEmpty();
+        assertThat(cache.fetch(url("/nada.csv"), tmp.resolve("nada.csv"), true, TREASURY)).isEmpty();
 
         server.stop(0);
-        PublicFileCache.Result off = cache.get(url("/precos.csv"), target, true, TESOURO);
+        PublicFileCache.Result off = cache.get(url("/precos.csv"), target, true, TREASURY);
         assertThat(off.outcome()).isEqualTo(PublicFileCache.Outcome.UNREACHABLE);
         assertThat(off.file()).isEqualTo(target);
     }
 
     @Test
     @DisplayName("Sem refresh e com o arquivo em disco: nao vai a rede")
-    void doDisco() throws IOException {
-        Path target = copiaEmDisco("precos.csv", CSV);
-        assertThat(cache.get(url("/precos.csv"), target, false, TESOURO).outcome())
+    void fromDisk() throws IOException {
+        Path target = diskCopy("precos.csv", CSV);
+        assertThat(cache.get(url("/precos.csv"), target, false, TREASURY).outcome())
                 .isEqualTo(PublicFileCache.Outcome.FROM_DISK);
         assertThat(requests).isEmpty();
     }
 
     @Test
     @DisplayName("Conferencias: zip, PDF, JSON, cabecalho do CSV, padrao; vazio nunca passa")
-    void conferencias() throws IOException {
-        Path zip = copiaEmDisco("a.zip", "PK\u0003\u0004resto");
-        Path pdf = copiaEmDisco("a.pdf", "%PDF-1.7 resto");
-        Path json = copiaEmDisco("a.json", "\u00ef\u00bb\u00bf  {\"value\": []}"); // BOM do UTF-8
-        Path html = copiaEmDisco("a.html", "\r\n\r\n<!DOCTYPE html>\r\n<html><head>");
-        Path vazio = copiaEmDisco("vazio", "");
-        Path csv = copiaEmDisco("a.csv", CSV);
+    void reconciliations() throws IOException {
+        Path zip = diskCopy("a.zip", "PK\u0003\u0004resto");
+        Path pdf = diskCopy("a.pdf", "%PDF-1.7 resto");
+        Path json = diskCopy("a.json", "\u00ef\u00bb\u00bf  {\"value\": []}"); // BOM do UTF-8
+        Path html = diskCopy("a.html", "\r\n\r\n<!DOCTYPE html>\r\n<html><head>");
+        Path empty = diskCopy("vazio", "");
+        Path csv = diskCopy("a.csv", CSV);
 
         assertThat(PublicFileCache.ContentCheck.zip().problem(zip)).isNull();
         assertThat(PublicFileCache.ContentCheck.zip().problem(html)).isEqualTo("pagina HTML");
@@ -197,14 +197,14 @@ class PublicFileCacheTest {
         assertThat(PublicFileCache.ContentCheck.pdf().problem(html)).isEqualTo("pagina HTML");
         assertThat(PublicFileCache.ContentCheck.json().problem(json)).isNull();
         assertThat(PublicFileCache.ContentCheck.json().problem(html)).isEqualTo("pagina HTML");
-        assertThat(TESOURO.problem(csv)).isNull();
+        assertThat(TREASURY.problem(csv)).isNull();
         assertThat(PublicFileCache.ContentCheck.csvHeader("CNPJ_CIA;").problem(csv)).startsWith("cabecalho diferente");
         assertThat(PublicFileCache.ContentCheck.notHtml().problem(csv)).isNull();
         assertThat(PublicFileCache.ContentCheck.notHtml().problem(html)).isEqualTo("pagina HTML");
         for (PublicFileCache.ContentCheck c : List.of(PublicFileCache.ContentCheck.zip(),
-                PublicFileCache.ContentCheck.pdf(), PublicFileCache.ContentCheck.json(), TESOURO,
+                PublicFileCache.ContentCheck.pdf(), PublicFileCache.ContentCheck.json(), TREASURY,
                 PublicFileCache.ContentCheck.notHtml())) {
-            assertThat(c.problem(vazio)).isEqualTo("resposta vazia");
+            assertThat(c.problem(empty)).isEqualTo("resposta vazia");
         }
     }
 }

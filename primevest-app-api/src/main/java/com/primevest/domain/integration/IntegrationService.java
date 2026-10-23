@@ -81,7 +81,7 @@ public class IntegrationService {
     private final CredentialCipher cipher;
     private final ImportPipeline pipeline;
     private final PositionCalculator positionCalculator;
-    private final ProventosConferencia proventosConferencia;
+    private final DividendReconciliation dividendReconciliation;
     private final Map<IntegrationProvider, SourceConnector> connectors = new EnumMap<>(IntegrationProvider.class);
     private final TransactionTemplate tx;
     private final TransactionTemplate readOnly;
@@ -116,7 +116,7 @@ public class IntegrationService {
                               CredentialCipher cipher,
                               ImportPipeline pipeline,
                               PositionCalculator positionCalculator,
-                              ProventosConferencia proventosConferencia,
+                              DividendReconciliation dividendReconciliation,
                               List<SourceConnector> connectorList,
                               PlatformTransactionManager transactionManager) {
         this.connections = connections;
@@ -135,7 +135,7 @@ public class IntegrationService {
         this.cipher = cipher;
         this.pipeline = pipeline;
         this.positionCalculator = positionCalculator;
-        this.proventosConferencia = proventosConferencia;
+        this.dividendReconciliation = dividendReconciliation;
         connectorList.forEach(c -> connectors.put(c.provider(), c));
         this.tx = new TransactionTemplate(transactionManager);
         this.readOnly = new TransactionTemplate(transactionManager);
@@ -170,37 +170,37 @@ public class IntegrationService {
             throw new BusinessException("Você já tem uma conexão chamada \"" + label + "\".");
         }
         SourceConnector connector = connector(dto.provider());
-        SourceCredentials credencial = dto.provider() == IntegrationProvider.B3
-            ? documentoDoPerfil(userId, dto.documentNumber())
-            : credenciais(dto);
-        documentoLivre(dto.provider(), credencial);
+        SourceCredentials credential = dto.provider() == IntegrationProvider.B3
+            ? profileDocument(userId, dto.documentNumber())
+            : credentialsOf(dto);
+        ensureDocumentFree(dto.provider(), credential);
 
-        CredentialCheck check = connector.check(credencial);
+        CredentialCheck check = connector.check(credential);
         if (!check.accepted() || !check.readOnly()) {
             throw new BusinessException(check.problem());
         }
         // B3: o CPF vale, mas o investidor ainda nao autorizou o PrimeVest na Area do
         // Investidor. A conexao nasce aguardando; a proxima sincronizacao confere de novo (G8).
-        ConnectionStatus inicial = check.awaitingAuthorization()
+        ConnectionStatus initialStatus = check.awaitingAuthorization()
             ? ConnectionStatus.PENDING_AUTHORIZATION : ConnectionStatus.ACTIVE;
 
         return tx.execute(s -> {
             User user = users.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
-            IntegrationConnection conexao = connections.save(IntegrationConnection.builder()
+            IntegrationConnection connection = connections.save(IntegrationConnection.builder()
                 .user(user)
                 .provider(dto.provider())
                 .label(label)
-                .status(inicial)
+                .status(initialStatus)
                 .consentAcceptedAt(LocalDateTime.now())
                 .lastError(check.awaitingAuthorization() ? check.problem() : null)
                 .build());
-            IntegrationCredential gravada = vault.store(conexao, credencial);
-            gravada.setPermissions(check.permissions());
-            gravada.setValidatedAt(check.awaitingAuthorization() ? null : LocalDateTime.now());
-            log.info("Conexao {} criada ({}, {}), credencial ****{}", conexao.getId(), dto.provider(), inicial,
-                gravada.getFingerprint());
-            return toDto(conexao, gravada);
+            IntegrationCredential stored = vault.store(connection, credential);
+            stored.setPermissions(check.permissions());
+            stored.setValidatedAt(check.awaitingAuthorization() ? null : LocalDateTime.now());
+            log.info("Conexao {} criada ({}, {}), credencial ****{}", connection.getId(), dto.provider(), initialStatus,
+                stored.getFingerprint());
+            return toDto(connection, stored);
         });
     }
 
@@ -211,23 +211,23 @@ public class IntegrationService {
      */
     public void disconnect(UUID userId, UUID connectionId) {
         tx.executeWithoutResult(s -> {
-            IntegrationConnection conexao = owned(userId, connectionId);
+            IntegrationConnection connection = owned(userId, connectionId);
             vault.erase(connectionId);
-            conexao.setStatus(ConnectionStatus.REVOKED);
-            conexao.setLastError(null);
+            connection.setStatus(ConnectionStatus.REVOKED);
+            connection.setLastError(null);
         });
-        notifier.desconectada(userId, connectionId);
+        notifier.disconnected(userId, connectionId);
     }
 
-    static final String REVOGADA_NA_FONTE = "A autorização do PrimeVest foi revogada na fonte. A conexão foi "
+    static final String REVOKED_AT_SOURCE = "A autorização do PrimeVest foi revogada na fonte. A conexão foi "
         + "encerrada e a credencial apagada; para voltar a importar, conecte de novo.";
 
     /** Revogacao feita na fonte: apaga a credencial e encerra a conexao, como o desconectar. */
-    private void revogadaNaFonte(UUID connectionId) {
+    private void revokedAtSource(UUID connectionId) {
         tx.executeWithoutResult(s -> connections.findById(connectionId).ifPresent(c -> {
             vault.erase(connectionId);
             c.setStatus(ConnectionStatus.REVOKED);
-            c.setLastError(REVOGADA_NA_FONTE);
+            c.setLastError(REVOKED_AT_SOURCE);
         }));
         log.info("Conexao {} revogada na fonte; credencial apagada", connectionId);
     }
@@ -237,20 +237,20 @@ public class IntegrationService {
      * conexao viva so — senao outro usuario que o informasse leria os dados do dono. A credencial
      * e cifrada, entao a comparacao decifra as conexoes vivas da mesma fonte.
      */
-    private void documentoLivre(IntegrationProvider provider, SourceCredentials credencial) {
-        if (!(credencial instanceof InvestorDocument documento)) {
+    private void ensureDocumentFree(IntegrationProvider provider, SourceCredentials credential) {
+        if (!(credential instanceof InvestorDocument document)) {
             return;
         }
-        boolean emUso = Boolean.TRUE.equals(readOnly.execute(s -> connections
+        boolean inUse = Boolean.TRUE.equals(readOnly.execute(s -> connections
             .findByProviderAndStatusNot(provider, ConnectionStatus.REVOKED).stream()
             .anyMatch(c -> {
                 try {
-                    return documento.equals(vault.read(c.getId()));
+                    return document.equals(vault.read(c.getId()));
                 } catch (RuntimeException e) {
                     return false;
                 }
             })));
-        if (emUso) {
+        if (inUse) {
             throw new BusinessException("Este CPF já tem uma conexão com a " + provider + " no PrimeVest. "
                 + "Use a conexão existente ou desconecte-a antes.");
         }
@@ -268,18 +268,18 @@ public class IntegrationService {
             if (c.getStatus() == ConnectionStatus.REVOKED) {
                 throw new BusinessException("Esta conexão foi desconectada. Conecte de novo para importar.");
             }
-            boolean naFila = !runs.findByConnectionIdAndStatusIn(c.getId(),
+            boolean queued = !runs.findByConnectionIdAndStatusIn(c.getId(),
                 List.of(RunStatus.QUEUED, RunStatus.RUNNING)).isEmpty();
-            if (!naFila && connector(c.getProvider()).oncePerDay() && buscouHoje(c.getId())) {
+            if (!queued && connector(c.getProvider()).oncePerDay() && fetchedToday(c.getId())) {
                 throw new BusinessException("Esta fonte permite uma consulta por dia para o mesmo investidor, e a "
                     + "de hoje já foi feita. Tente de novo amanhã.");
             }
-            return enfileirar(c, RunTrigger.MANUAL).getId();
+            return enqueue(c, RunTrigger.MANUAL).getId();
         });
         return run(userId, connectionId, runId);
     }
 
-    private IntegrationRun enfileirar(IntegrationConnection c, RunTrigger trigger) {
+    private IntegrationRun enqueue(IntegrationConnection c, RunTrigger trigger) {
         return runs.findByConnectionIdAndStatusIn(c.getId(), List.of(RunStatus.QUEUED, RunStatus.RUNNING))
             .stream().findFirst()
             .orElseGet(() -> runs.save(IntegrationRun.builder()
@@ -302,12 +302,12 @@ public class IntegrationService {
             int total = 0;
             for (IntegrationConnection c : connections.findByStatusIn(
                     List.of(ConnectionStatus.ACTIVE, ConnectionStatus.PENDING_AUTHORIZATION))) {
-                boolean pendente = !runs.findByConnectionIdAndStatusIn(c.getId(),
+                boolean pending = !runs.findByConnectionIdAndStatusIn(c.getId(),
                     List.of(RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.AWAITING_CONFIRMATION)).isEmpty();
                 SourceConnector connector = connectors.get(c.getProvider());
-                boolean limiteDoDia = connector != null && connector.oncePerDay() && buscouHoje(c.getId());
-                if (connector != null && !pendente && !limiteDoDia) {
-                    enfileirar(c, RunTrigger.SCHEDULED);
+                boolean dailyLimitReached = connector != null && connector.oncePerDay() && fetchedToday(c.getId());
+                if (connector != null && !pending && !dailyLimitReached) {
+                    enqueue(c, RunTrigger.SCHEDULED);
                     total++;
                 }
             }
@@ -322,7 +322,7 @@ public class IntegrationService {
      * @return false se a fila estava vazia
      */
     public boolean processNext() {
-        recuperarPerdidas(LocalDateTime.now().minusMinutes(staleMinutes));
+        recoverStale(LocalDateTime.now().minusMinutes(staleMinutes));
         UUID runId = tx.execute(s -> runs.lockNextQueued().map(id -> {
             IntegrationRun r = runs.findById(id).orElseThrow();
             r.setStatus(RunStatus.RUNNING);
@@ -332,7 +332,7 @@ public class IntegrationService {
         if (runId == null) {
             return false;
         }
-        executar(runId);
+        runSync(runId);
         return true;
     }
 
@@ -340,8 +340,8 @@ public class IntegrationService {
      * Execucao RUNNING que ficou para tras (a API caiu no meio da busca) vira
      * FAILED — senao a conexao nunca mais sairia da fila.
      */
-    public void recuperarPerdidas(LocalDateTime iniciadasAntesDe) {
-        tx.executeWithoutResult(s -> runs.findByStatusAndStartedAtBefore(RunStatus.RUNNING, iniciadasAntesDe)
+    public void recoverStale(LocalDateTime startedBefore) {
+        tx.executeWithoutResult(s -> runs.findByStatusAndStartedAtBefore(RunStatus.RUNNING, startedBefore)
             .forEach(r -> {
                 r.setStatus(RunStatus.FAILED);
                 r.setFinishedAt(LocalDateTime.now());
@@ -349,66 +349,66 @@ public class IntegrationService {
             }));
     }
 
-    private record Contexto(UUID connectionId, UUID userId, IntegrationProvider provider, RunTrigger trigger,
+    private record RunContext(UUID connectionId, UUID userId, IntegrationProvider provider, RunTrigger trigger,
                             ConnectionStatus status, String label) {
-        IntegrationNotifier.Conexao conexao() {
-            return new IntegrationNotifier.Conexao(connectionId, userId, provider, label);
+        IntegrationNotifier.Connection connection() {
+            return new IntegrationNotifier.Connection(connectionId, userId, provider, label);
         }
     }
 
     /** O corpo da sincronizacao: fora de transacao, porque a corretora pode levar minutos. */
-    void executar(UUID runId) {
-        Contexto ctx = readOnly.execute(s -> {
+    void runSync(UUID runId) {
+        RunContext ctx = readOnly.execute(s -> {
             IntegrationRun r = runs.findById(runId).orElseThrow();
             IntegrationConnection c = r.getConnection();
-            return new Contexto(c.getId(), c.getUser().getId(), c.getProvider(), r.getTriggerType(), c.getStatus(),
+            return new RunContext(c.getId(), c.getUser().getId(), c.getProvider(), r.getTriggerType(), c.getStatus(),
                 c.getLabel());
         });
         UUID connectionId = ctx.connectionId();
-        boolean semDuplicatas;
+        boolean noDuplicates;
         // O problema de conexao que a busca encontrou (vira pendencia, nao "falhou").
-        ConnectionStatus[] problema = {null};
-        List<UUID> substituidas = new java.util.ArrayList<>();
+        ConnectionStatus[] connectionIssue = {null};
+        List<UUID> replaced = new java.util.ArrayList<>();
         try {
             if (ctx.status() == ConnectionStatus.REVOKED) {
                 throw new BusinessException("Esta conexão foi desconectada.");
             }
             SourceConnector connector = connector(ctx.provider());
-            SourceCredentials credencial = vault.read(connectionId);
+            SourceCredentials credential = vault.read(connectionId);
 
             // P2: a permissao e conferida de novo a cada busca.
-            CredentialCheck check = connector.check(credencial);
+            CredentialCheck check = connector.check(credential);
             if (!check.accepted()) {
-                marcar(connectionId, ConnectionStatus.INVALID_CREDENTIALS, check.problem());
-                problema[0] = ConnectionStatus.INVALID_CREDENTIALS;
+                markConnection(connectionId, ConnectionStatus.INVALID_CREDENTIALS, check.problem());
+                connectionIssue[0] = ConnectionStatus.INVALID_CREDENTIALS;
                 throw new BusinessException(check.problem());
             }
             if (!check.readOnly()) {
-                marcar(connectionId, ConnectionStatus.PERMISSION_TOO_BROAD, check.problem());
-                problema[0] = ConnectionStatus.PERMISSION_TOO_BROAD;
+                markConnection(connectionId, ConnectionStatus.PERMISSION_TOO_BROAD, check.problem());
+                connectionIssue[0] = ConnectionStatus.PERMISSION_TOO_BROAD;
                 throw new BusinessException(check.problem());
             }
             if (check.awaitingAuthorization()) {
                 if (ctx.status() == ConnectionStatus.ACTIVE) {
                     // Ja estava autorizada e a fonte diz que nao esta mais: o investidor revogou
                     // la (B3: Aplicativos e Sites). Mesmo efeito de desconectar (B3, 6.9 e C5).
-                    revogadaNaFonte(connectionId);
-                    notifier.desconectada(ctx.userId(), connectionId);
-                    throw new BusinessException(REVOGADA_NA_FONTE);
+                    revokedAtSource(connectionId);
+                    notifier.disconnected(ctx.userId(), connectionId);
+                    throw new BusinessException(REVOKED_AT_SOURCE);
                 }
-                marcar(connectionId, ConnectionStatus.PENDING_AUTHORIZATION, check.problem());
-                problema[0] = ConnectionStatus.PENDING_AUTHORIZATION;
+                markConnection(connectionId, ConnectionStatus.PENDING_AUTHORIZATION, check.problem());
+                connectionIssue[0] = ConnectionStatus.PENDING_AUTHORIZATION;
                 throw new BusinessException(check.problem());
             }
 
-            Map<String, String> posicoes = readOnly.execute(s -> cursors.findByIdConnectionId(connectionId).stream()
+            Map<String, String> cursorPositions = readOnly.execute(s -> cursors.findByIdConnectionId(connectionId).stream()
                 .collect(Collectors.toMap(c -> c.getId().getStream(), IntegrationCursor::getCursorValue)));
-            FetchResult resultado = connector.fetch(credencial, posicoes);
-            ImportPreview preview = pipeline.preview(connectionId, ctx.userId(), resultado.movements(),
+            FetchResult result = connector.fetch(credential, cursorPositions);
+            ImportPreview preview = pipeline.preview(connectionId, ctx.userId(), result.movements(),
                 connector.rules());
-            semDuplicatas = preview.count(PreviewOutcome.POSSIBLE_DUPLICATE) == 0;
+            noDuplicates = preview.count(PreviewOutcome.POSSIBLE_DUPLICATE) == 0;
             // C3: provento informado pela fonte x proventos da carteira; o resultado vai no motivo.
-            Map<String, String> conferidos = proventosConferencia.conferir(ctx.userId(), preview.items().stream()
+            Map<String, String> reconciled = dividendReconciliation.reconcile(ctx.userId(), preview.items().stream()
                 .filter(i -> i.outcome() == PreviewOutcome.UNMAPPED).map(PreviewItem::movement).toList());
 
             tx.executeWithoutResult(s -> {
@@ -416,7 +416,7 @@ public class IntegrationService {
                 runs.findByConnectionIdAndStatus(connectionId, RunStatus.AWAITING_CONFIRMATION)
                     .forEach(r -> {
                         r.setStatus(RunStatus.CANCELLED);
-                        substituidas.add(r.getId());
+                        replaced.add(r.getId());
                     });
                 IntegrationConnection c = connections.getReferenceById(connectionId);
                 if (c.getStatus() != ConnectionStatus.REVOKED) {
@@ -430,8 +430,8 @@ public class IntegrationService {
                 run.setExistingCount((int) preview.count(PreviewOutcome.EXISTING));
                 run.setUnmappedCount((int) preview.count(PreviewOutcome.UNMAPPED));
                 run.setDuplicateCount((int) preview.count(PreviewOutcome.POSSIBLE_DUPLICATE));
-                run.setNextCursors(json(resultado.cursors()));
-                run.setBalances(json(resultado.balances()));
+                run.setNextCursors(json(result.cursors()));
+                run.setBalances(json(result.balances()));
                 run.setFiatDeposited(preview.fiatDeposited());
                 run.setError(null);
                 preview.items().stream()
@@ -440,7 +440,7 @@ public class IntegrationService {
                         .run(run)
                         .externalId(i.externalId())
                         .outcome(RunItemOutcome.valueOf(i.outcome().name()))
-                        .reason(conferidos.getOrDefault(i.externalId(), i.reason()))
+                        .reason(reconciled.getOrDefault(i.externalId(), i.reason()))
                         .raw(movementJson.write(i.movement()))
                         .duplicateOf(i.duplicateOf() == null ? null : i.duplicateOf().transactionId())
                         .build()));
@@ -455,19 +455,19 @@ public class IntegrationService {
                 });
                 connections.findById(connectionId).ifPresent(c -> c.setLastError(e.getMessage()));
             });
-            if (problema[0] != null) {
-                notifier.problemaDeConexao(ctx.conexao(), problema[0], e.getMessage());
+            if (connectionIssue[0] != null) {
+                notifier.connectionProblem(ctx.connection(), connectionIssue[0], e.getMessage());
             } else {
-                notifier.falhou(ctx.conexao(), runId, e.getMessage());
+                notifier.failed(ctx.connection(), runId, e.getMessage());
             }
             return;
         }
-        substituidas.forEach(id -> notifier.decidida(ctx.userId(), id));
-        notifier.conexaoOk(ctx.conexao());
+        replaced.forEach(id -> notifier.decided(ctx.userId(), id));
+        notifier.connectionOk(ctx.connection());
 
         // Rotina diaria: confirma sozinha quando nao ha nada para o usuario decidir e
         // ele ja confirmou uma importacao desta conexao antes (a primeira e sempre dele, P5).
-        if (ctx.trigger() == RunTrigger.SCHEDULED && autoConfirmScheduled && semDuplicatas
+        if (ctx.trigger() == RunTrigger.SCHEDULED && autoConfirmScheduled && noDuplicates
                 && Boolean.TRUE.equals(readOnly.execute(s -> runs.existsByConnectionIdAndStatus(connectionId, RunStatus.SUCCEEDED)))) {
             try {
                 confirm(ctx.userId(), connectionId, runId, new ConfirmImportDTO(null));
@@ -478,13 +478,13 @@ public class IntegrationService {
 
         // Mensagem da execucao agendada: importou sozinha ou ficou esperando o usuario.
         if (ctx.trigger() == RunTrigger.SCHEDULED) {
-            IntegrationRun fim = readOnly.execute(s -> runs.findById(runId).orElse(null));
-            if (fim != null && fim.getStatus() == RunStatus.SUCCEEDED && fim.getImportedCount() != null
-                    && fim.getImportedCount() > 0) {
-                notifier.importou(ctx.conexao(), runId, fim.getImportedCount());
-            } else if (fim != null && fim.getStatus() == RunStatus.AWAITING_CONFIRMATION) {
-                notifier.aguardando(ctx.conexao(), runId,
-                    fim.getDuplicateCount() == null ? 0 : fim.getDuplicateCount());
+            IntegrationRun end = readOnly.execute(s -> runs.findById(runId).orElse(null));
+            if (end != null && end.getStatus() == RunStatus.SUCCEEDED && end.getImportedCount() != null
+                    && end.getImportedCount() > 0) {
+                notifier.imported(ctx.connection(), runId, end.getImportedCount());
+            } else if (end != null && end.getStatus() == RunStatus.AWAITING_CONFIRMATION) {
+                notifier.awaiting(ctx.connection(), runId,
+                    end.getDuplicateCount() == null ? 0 : end.getDuplicateCount());
             }
         }
     }
@@ -501,119 +501,119 @@ public class IntegrationService {
      * operacao for recusada, nada e gravado e a execucao segue aguardando,
      * com o motivo.
      */
-    public ImportPreviewDTO confirm(UUID userId, UUID connectionId, UUID runId, ConfirmImportDTO decisoes) {
-        ConfirmImportDTO d = decisoes == null ? new ConfirmImportDTO(null) : decisoes;
+    public ImportPreviewDTO confirm(UUID userId, UUID connectionId, UUID runId, ConfirmImportDTO decisions) {
+        ConfirmImportDTO d = decisions == null ? new ConfirmImportDTO(null) : decisions;
         try {
-            tx.executeWithoutResult(s -> confirmar(userId, connectionId, runId, d));
+            tx.executeWithoutResult(s -> doConfirm(userId, connectionId, runId, d));
         } catch (RuntimeException e) {
             tx.executeWithoutResult(s -> runs.findById(runId).ifPresent(r -> r.setError(e.getMessage())));
             throw e;
         }
-        notifier.decidida(userId, runId);
+        notifier.decided(userId, runId);
         // Divergencia com o saldo da fonte: pendencia da conexao (a agendada avisa; a manual so fecha).
         readOnly.executeWithoutResult(s -> runs.findById(runId).ifPresent(r -> {
             IntegrationConnection c = r.getConnection();
-            notifier.divergencias(new IntegrationNotifier.Conexao(c.getId(), userId, c.getProvider(), c.getLabel()),
-                runId, divergencias(r), r.getTriggerType() == RunTrigger.SCHEDULED);
+            notifier.divergences(new IntegrationNotifier.Connection(c.getId(), userId, c.getProvider(), c.getLabel()),
+                runId, divergences(r), r.getTriggerType() == RunTrigger.SCHEDULED);
         }));
         return run(userId, connectionId, runId);
     }
 
-    private void confirmar(UUID userId, UUID connectionId, UUID runId, ConfirmImportDTO decisoes) {
+    private void doConfirm(UUID userId, UUID connectionId, UUID runId, ConfirmImportDTO decisions) {
         IntegrationRun run = ownedRun(userId, connectionId, runId);
-        IntegrationConnection conexao = run.getConnection();
-        if (conexao.getStatus() == ConnectionStatus.REVOKED) {
+        IntegrationConnection connection = run.getConnection();
+        if (connection.getStatus() == ConnectionStatus.REVOKED) {
             throw new BusinessException("Esta conexão foi desconectada. Conecte de novo para importar.");
         }
         if (run.getStatus() != RunStatus.AWAITING_CONFIRMATION) {
             throw new BusinessException("Esta pré-visualização não está mais aguardando confirmação ("
                 + run.getStatus() + "). Gere uma nova.");
         }
-        List<IntegrationRunItem> itens = runItems.findByRunIdOrderByCreatedAt(runId);
+        List<IntegrationRunItem> runItemList = runItems.findByRunIdOrderByCreatedAt(runId);
 
-        List<String> semDecisao = itens.stream()
+        List<String> undecided = runItemList.stream()
             .filter(i -> i.getOutcome() == RunItemOutcome.POSSIBLE_DUPLICATE)
             .map(IntegrationRunItem::getExternalId)
-            .filter(id -> !decisoes.duplicates().containsKey(id))
+            .filter(id -> !decisions.duplicates().containsKey(id))
             .toList();
-        if (!semDecisao.isEmpty()) {
+        if (!undecided.isEmpty()) {
             throw new BusinessException("Decida o que fazer com as possíveis duplicatas antes de confirmar: "
-                + String.join(", ", semDecisao) + ".");
+                + String.join(", ", undecided) + ".");
         }
 
-        List<String> candidatos = itens.stream()
+        List<String> candidates = runItemList.stream()
             .filter(i -> i.getOutcome() == RunItemOutcome.NEW || i.getOutcome() == RunItemOutcome.POSSIBLE_DUPLICATE)
             .map(IntegrationRunItem::getExternalId).toList();
-        Set<String> jaImportados = candidatos.isEmpty() ? Set.of()
-            : transactions.findImportedIds(connectionId, candidatos);
-        Set<String> excluidos = candidatos.isEmpty() ? Set.of()
-            : exclusions.findExcludedIds(connectionId, candidatos);
+        Set<String> alreadyImported = candidates.isEmpty() ? Set.of()
+            : transactions.findImportedIds(connectionId, candidates);
+        Set<String> excluded = candidates.isEmpty() ? Set.of()
+            : exclusions.findExcludedIds(connectionId, candidates);
 
-        int importados = 0;
-        for (IntegrationRunItem item : itens) {
-            boolean duplicata = item.getOutcome() == RunItemOutcome.POSSIBLE_DUPLICATE;
-            if (item.getOutcome() != RunItemOutcome.NEW && !duplicata) {
+        int imported = 0;
+        for (IntegrationRunItem item : runItemList) {
+            boolean isDuplicate = item.getOutcome() == RunItemOutcome.POSSIBLE_DUPLICATE;
+            if (item.getOutcome() != RunItemOutcome.NEW && !isDuplicate) {
                 continue;
             }
-            ConfirmImportDTO.DuplicateDecision decisao = duplicata
-                ? decisoes.duplicates().get(item.getExternalId()) : null;
-            if (decisao == ConfirmImportDTO.DuplicateDecision.SKIP
-                    || jaImportados.contains(item.getExternalId()) || excluidos.contains(item.getExternalId())) {
+            ConfirmImportDTO.DuplicateDecision decision = isDuplicate
+                ? decisions.duplicates().get(item.getExternalId()) : null;
+            if (decision == ConfirmImportDTO.DuplicateDecision.SKIP
+                    || alreadyImported.contains(item.getExternalId()) || excluded.contains(item.getExternalId())) {
                 item.setResolution(RunItemResolution.SKIPPED);
                 continue;
             }
             ImportedMovement m = movementJson.read(item.getRaw());
-            ImportRules.Result r = connector(conexao.getProvider()).rules().apply(m, assets::findByTicker);
+            ImportRules.Result r = connector(connection.getProvider()).rules().apply(m, assets::findByTicker);
             if (!r.mapped()) {
-                throw new BusinessException(contexto(m, null) + r.reason());
+                throw new BusinessException(lineContext(m, null) + r.reason());
             }
             ProposedTransaction p = r.transaction();
-            UUID criada;
+            UUID createdId;
             try {
-                criada = transactionService.importTransaction(userId, p, new ImportOrigin(conexao,
+                createdId = transactionService.importTransaction(userId, p, new ImportOrigin(connection,
                     m.externalId(), p.executedAt(), item.getRaw())).id();
                 // Substituir: importa primeiro e apaga o manual depois, para a posicao
                 // nunca ficar sem a compra que sustenta uma venda posterior.
-                if (decisao == ConfirmImportDTO.DuplicateDecision.REPLACE && item.getDuplicateOf() != null) {
+                if (decision == ConfirmImportDTO.DuplicateDecision.REPLACE && item.getDuplicateOf() != null) {
                     transactionService.deleteTransaction(userId, item.getDuplicateOf());
                     // O banco ja zerou a referencia (ON DELETE SET NULL); a entidade em memoria
                     // ainda a tem, e regrava-la no flush violaria a FK. REPLACED guarda o fato.
                     item.setDuplicateOf(null);
                 }
             } catch (BusinessException e) {
-                throw new BusinessException(contexto(m, p) + e.getMessage());
+                throw new BusinessException(lineContext(m, p) + e.getMessage());
             }
-            item.setTransactionId(criada);
-            item.setResolution(decisao == ConfirmImportDTO.DuplicateDecision.REPLACE ? RunItemResolution.REPLACED
-                : decisao == ConfirmImportDTO.DuplicateDecision.KEEP_BOTH ? RunItemResolution.KEPT_BOTH
+            item.setTransactionId(createdId);
+            item.setResolution(decision == ConfirmImportDTO.DuplicateDecision.REPLACE ? RunItemResolution.REPLACED
+                : decision == ConfirmImportDTO.DuplicateDecision.KEEP_BOTH ? RunItemResolution.KEPT_BOTH
                 : RunItemResolution.IMPORTED);
-            importados++;
+            imported++;
         }
 
         // C3: com as operacoes ja na carteira, os proventos dela existem — a conferencia roda de novo.
-        if (importados > 0) {
-            List<IntegrationRunItem> naoImportados = itens.stream()
+        if (imported > 0) {
+            List<IntegrationRunItem> notImported = runItemList.stream()
                 .filter(i -> i.getOutcome() == RunItemOutcome.UNMAPPED).toList();
-            Map<String, String> conferidos = proventosConferencia.conferir(userId,
-                naoImportados.stream().map(i -> movementJson.read(i.getRaw())).toList());
-            naoImportados.forEach(i -> {
-                String motivo = conferidos.get(i.getExternalId());
-                if (motivo != null) {
-                    i.setReason(motivo);
+            Map<String, String> reconciled = dividendReconciliation.reconcile(userId,
+                notImported.stream().map(i -> movementJson.read(i.getRaw())).toList());
+            notImported.forEach(i -> {
+                String reconciledReason = reconciled.get(i.getExternalId());
+                if (reconciledReason != null) {
+                    i.setReason(reconciledReason);
                 }
             });
         }
 
         // So agora os cursores avancam: o que foi visto e confirmado nao volta.
-        lerCursores(run.getNextCursors()).forEach((stream, valor) ->
-            cursors.save(new IntegrationCursor(new IntegrationCursorId(connectionId, stream), valor, null)));
+        readCursors(run.getNextCursors()).forEach((stream, value) ->
+            cursors.save(new IntegrationCursor(new IntegrationCursorId(connectionId, stream), value, null)));
 
         run.setStatus(RunStatus.SUCCEEDED);
-        run.setImportedCount(importados);
+        run.setImportedCount(imported);
         run.setFinishedAt(LocalDateTime.now());
         run.setError(null);
-        conexao.setLastSyncAt(LocalDateTime.now());
-        conexao.setLastError(null);
+        connection.setLastSyncAt(LocalDateTime.now());
+        connection.setLastError(null);
     }
 
     /** Historico de sincronizacoes da conexao, da mais recente para a mais antiga. */
@@ -637,7 +637,7 @@ public class IntegrationService {
             }
             run.setStatus(RunStatus.CANCELLED);
         });
-        notifier.decidida(userId, runId);
+        notifier.decided(userId, runId);
     }
 
     /** Operacoes importadas que o usuario excluiu (regra E2). */
@@ -645,7 +645,7 @@ public class IntegrationService {
         return readOnly.execute(s -> {
             owned(userId, connectionId);
             return exclusions.findByConnectionIdOrderByExcludedAtDesc(connectionId).stream().map(e -> {
-                ImportedMovement m = lerMovimento(e.getSourceSnapshot());
+                ImportedMovement m = readMovement(e.getSourceSnapshot());
                 return new ExclusionDTO(e.getId(), e.getExternalId(), e.getAsset().getTicker(), e.getExcludedAt(),
                     m == null ? null : m.executedAt(), m == null ? null : m.side(),
                     m == null ? null : m.grossQuantity(), m == null ? null : m.quoteAmount());
@@ -661,19 +661,19 @@ public class IntegrationService {
     public com.primevest.domain.transaction.dto.TransactionResponseDTO restoreExclusion(
             UUID userId, UUID connectionId, UUID exclusionId) {
         return tx.execute(s -> {
-            IntegrationConnection conexao = owned(userId, connectionId);
+            IntegrationConnection connection = owned(userId, connectionId);
             IntegrationCryptoExclusion e = exclusions.findById(exclusionId)
                 .filter(x -> x.getConnection().getId().equals(connectionId))
                 .orElseThrow(() -> new ResourceNotFoundException("Exclusão não encontrada"));
             ImportedMovement m = movementJson.read(e.getSourceSnapshot());
-            ImportRules.Result r = connector(conexao.getProvider()).rules().apply(m, assets::findByTicker);
+            ImportRules.Result r = connector(connection.getProvider()).rules().apply(m, assets::findByTicker);
             if (!r.mapped()) {
-                throw new BusinessException(contexto(m, null) + r.reason());
+                throw new BusinessException(lineContext(m, null) + r.reason());
             }
             exclusions.delete(e);
             exclusions.flush();
             return transactionService.importTransaction(userId, r.transaction(),
-                new ImportOrigin(conexao, m.externalId(), r.transaction().executedAt(), e.getSourceSnapshot()));
+                new ImportOrigin(connection, m.externalId(), r.transaction().executedAt(), e.getSourceSnapshot()));
         });
     }
 
@@ -685,7 +685,7 @@ public class IntegrationService {
     }
 
     /** As regras da fonte; nulo se o conector dela nao estiver registrado (tela sem proposta). */
-    private ImportRules regrasDe(IntegrationProvider provider) {
+    private ImportRules rulesOf(IntegrationProvider provider) {
         SourceConnector c = connectors.get(provider);
         return c == null ? null : c.rules();
     }
@@ -695,22 +695,22 @@ public class IntegrationService {
      * perfil nao conecta; um CPF diferente no pedido e recusado. Como o CPF e unico entre usuarios,
      * ninguem conecta o CPF de outra pessoa (armadilha A1, PENDENCIAS 16.9).
      */
-    private SourceCredentials documentoDoPerfil(UUID userId, String informado) {
-        String doPerfil = readOnly.execute(s -> users.findById(userId)
+    private SourceCredentials profileDocument(UUID userId, String given) {
+        String fromProfile = readOnly.execute(s -> users.findById(userId)
             .flatMap(userCpfService::read).orElse(null));
-        if (doPerfil == null) {
+        if (fromProfile == null) {
             throw new BusinessException("Cadastre o seu CPF em Configurações antes de conectar a B3.");
         }
-        if (informado != null && !informado.isBlank()
-                && !doPerfil.equals(informado.replaceAll("\\D", ""))) {
+        if (given != null && !given.isBlank()
+                && !fromProfile.equals(given.replaceAll("\\D", ""))) {
             throw new BusinessException("A conexão com a B3 usa o CPF do seu cadastro. Para usar outro, "
                 + "altere-o em Configurações.");
         }
-        return new InvestorDocument(doPerfil);
+        return new InvestorDocument(fromProfile);
     }
 
     /** Credencial de cada fonte, a partir do pedido de conexao (G9). */
-    private static SourceCredentials credenciais(ConnectionCreateDTO dto) {
+    private static SourceCredentials credentialsOf(ConnectionCreateDTO dto) {
         try {
             return switch (dto.provider()) {
                 case BINANCE -> new ApiKeyCredentials(dto.apiKey(), dto.apiSecret());
@@ -728,11 +728,11 @@ public class IntegrationService {
      * consultar — aguardando, confirmada ou descartada. A que falhou nao conta: pode
      * ter parado antes da fonte (ex.: autorizacao pendente). G12.
      */
-    private boolean buscouHoje(UUID connectionId) {
-        LocalDateTime inicioDoDia = LocalDate.now(SAO_PAULO).atStartOfDay(SAO_PAULO)
+    private boolean fetchedToday(UUID connectionId) {
+        LocalDateTime startOfDay = LocalDate.now(SAO_PAULO).atStartOfDay(SAO_PAULO)
             .withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
         return runs.existsByConnectionIdAndStatusInAndStartedAtGreaterThanEqual(connectionId,
-            List.of(RunStatus.AWAITING_CONFIRMATION, RunStatus.SUCCEEDED, RunStatus.CANCELLED), inicioDoDia);
+            List.of(RunStatus.AWAITING_CONFIRMATION, RunStatus.SUCCEEDED, RunStatus.CANCELLED), startOfDay);
     }
 
     private SourceConnector connector(IntegrationProvider provider) {
@@ -743,10 +743,10 @@ public class IntegrationService {
         return c;
     }
 
-    private void marcar(UUID connectionId, ConnectionStatus status, String erro) {
+    private void markConnection(UUID connectionId, ConnectionStatus status, String error) {
         tx.executeWithoutResult(s -> connections.findById(connectionId).ifPresent(c -> {
             c.setStatus(status);
-            c.setLastError(erro);
+            c.setLastError(error);
             if (status != ConnectionStatus.ACTIVE) {
                 credentials.findById(connectionId).ifPresent(cred -> cred.setValidatedAt(null));
             }
@@ -758,15 +758,15 @@ public class IntegrationService {
     }
 
     private ConnectionResponseDTO toDto(IntegrationConnection c, IntegrationCredential cred) {
-        IntegrationRun ultima = c.getId() == null ? null
+        IntegrationRun lastRun = c.getId() == null ? null
             : runs.findFirstByConnectionIdOrderByCreatedAtDesc(c.getId()).orElse(null);
         return new ConnectionResponseDTO(c.getId(), c.getProvider(), c.getLabel(), c.getStatus(),
             cred != null ? cred.getFingerprint() : null,
             cred != null ? cred.getValidatedAt() : null,
             c.getLastSyncAt(), c.getLastError(), c.getCreatedAt(),
-            ultima != null ? ultima.getId() : null, ultima != null ? ultima.getStatus() : null,
+            lastRun != null ? lastRun.getId() : null, lastRun != null ? lastRun.getStatus() : null,
             c.getId() == null ? 0 : runs.findFirstByConnectionIdAndStatusOrderByCreatedAtDesc(c.getId(), RunStatus.SUCCEEDED)
-                .map(r -> divergencias(r).size()).orElse(0),
+                .map(r -> divergences(r).size()).orElse(0),
             c.getStatus() == ConnectionStatus.PENDING_AUTHORIZATION && connectors.containsKey(c.getProvider())
                 ? connectors.get(c.getProvider()).authorizationUrl() : null);
     }
@@ -779,15 +779,15 @@ public class IntegrationService {
     }
 
     private ImportPreviewDTO toDto(IntegrationRun run) {
-        List<IntegrationRunItem> itens = runItems.findByRunIdOrderByCreatedAt(run.getId());
-        ImportRules regras = regrasDe(run.getConnection().getProvider());
-        List<ImportPreviewDTO.Item> dtos = itens.stream().map(i -> toItem(i, regras)).toList();
+        List<IntegrationRunItem> runItemList = runItems.findByRunIdOrderByCreatedAt(run.getId());
+        ImportRules sourceRules = rulesOf(run.getConnection().getProvider());
+        List<ImportPreviewDTO.Item> dtos = runItemList.stream().map(i -> toItem(i, sourceRules)).toList();
         return new ImportPreviewDTO(run.getConnection().getId(), run.getConnection().getLabel(), run.getId(),
             run.getCreatedAt(), run.getFinishedAt(), run.getStatus(), run.getTriggerType(),
-            contar(itens, RunItemOutcome.NEW), contar(itens, RunItemOutcome.EXISTING),
-            contar(itens, RunItemOutcome.EXCLUDED), contar(itens, RunItemOutcome.UNMAPPED),
-            contar(itens, RunItemOutcome.POSSIBLE_DUPLICATE),
-            run.getFiatDeposited(), run.getError(), divergencias(run), dtos);
+            countOutcome(runItemList, RunItemOutcome.NEW), countOutcome(runItemList, RunItemOutcome.EXISTING),
+            countOutcome(runItemList, RunItemOutcome.EXCLUDED), countOutcome(runItemList, RunItemOutcome.UNMAPPED),
+            countOutcome(runItemList, RunItemOutcome.POSSIBLE_DUPLICATE),
+            run.getFiatDeposited(), run.getError(), divergences(run), dtos);
     }
 
     /**
@@ -795,49 +795,49 @@ public class IntegrationService {
      * o saldo que a fonte informou na busca, ativo a ativo. Quais ativos entram e o
      * que e dinheiro (nao posicao) sao das regras da fonte (G6).
      */
-    private List<ImportPreviewDTO.Divergence> divergencias(IntegrationRun run) {
-        ImportRules regras = regrasDe(run.getConnection().getProvider());
-        if (run.getStatus() != RunStatus.SUCCEEDED || run.getBalances() == null || regras == null) {
+    private List<ImportPreviewDTO.Divergence> divergences(IntegrationRun run) {
+        ImportRules sourceRules = rulesOf(run.getConnection().getProvider());
+        if (run.getStatus() != RunStatus.SUCCEEDED || run.getBalances() == null || sourceRules == null) {
             return List.of();
         }
-        Map<String, BigDecimal> corretora = new java.util.TreeMap<>(lerSaldos(run.getBalances()));
-        regras.cashBalances().forEach(corretora::remove);
-        if (corretora.isEmpty() && !regras.emptyBalanceMeansNoPosition()) {
+        Map<String, BigDecimal> atSource = new java.util.TreeMap<>(readBalances(run.getBalances()));
+        sourceRules.cashBalances().forEach(atSource::remove);
+        if (atSource.isEmpty() && !sourceRules.emptyBalanceMeansNoPosition()) {
             return List.of();
         }
         // Cotas na data da busca, com os eventos do papel que o catalogo aplica (desdobramento,
         // bonificacao) — como na carteira (B3, 6.7). Cripto nao tem evento: e a soma das operacoes.
         LocalDate data = (run.getFinishedAt() != null ? run.getFinishedAt() : run.getCreatedAt()).toLocalDate();
-        Map<String, List<Transaction>> porAtivo = new java.util.HashMap<>();
-        Map<String, com.primevest.domain.asset.Asset> ativoPorTicker = new java.util.HashMap<>();
+        Map<String, List<Transaction>> byAsset = new java.util.HashMap<>();
+        Map<String, com.primevest.domain.asset.Asset> assetByTicker = new java.util.HashMap<>();
         for (Transaction t : transactions.findAllTransactionsByUserId(run.getConnection().getUser().getId())) {
             var asset = t.getPortfolioAsset().getAsset();
-            if (t.getShares() == null || !regras.tracksPosition(asset)) {
+            if (t.getShares() == null || !sourceRules.tracksPosition(asset)) {
                 continue;
             }
-            porAtivo.computeIfAbsent(asset.getTicker(), k -> new java.util.ArrayList<>()).add(t);
-            ativoPorTicker.putIfAbsent(asset.getTicker(), asset);
+            byAsset.computeIfAbsent(asset.getTicker(), k -> new java.util.ArrayList<>()).add(t);
+            assetByTicker.putIfAbsent(asset.getTicker(), asset);
         }
         Map<String, BigDecimal> primevest = new java.util.HashMap<>();
-        porAtivo.forEach((ticker, operacoes) -> primevest.put(ticker, positionCalculator.sharesOn(
-            PositionCalculator.chronological(operacoes), positionCalculator.stockEventsOf(ativoPorTicker.get(ticker)),
+        byAsset.forEach((ticker, trades) -> primevest.put(ticker, positionCalculator.sharesOn(
+            PositionCalculator.chronological(trades), positionCalculator.stockEventsOf(assetByTicker.get(ticker)),
             data)));
-        java.util.TreeSet<String> ativos = new java.util.TreeSet<>(corretora.keySet());
-        ativos.addAll(primevest.keySet());
+        java.util.TreeSet<String> assetTickers = new java.util.TreeSet<>(atSource.keySet());
+        assetTickers.addAll(primevest.keySet());
         List<ImportPreviewDTO.Divergence> out = new java.util.ArrayList<>();
-        for (String ativo : ativos) {
-            BigDecimal naCorretora = corretora.getOrDefault(ativo, BigDecimal.ZERO);
-            BigDecimal noPrimevest = primevest.getOrDefault(ativo, BigDecimal.ZERO);
-            BigDecimal diferenca = naCorretora.subtract(noPrimevest);
-            if (diferenca.signum() != 0) {
-                out.add(new ImportPreviewDTO.Divergence(ativo, noPrimevest.stripTrailingZeros(),
-                    naCorretora.stripTrailingZeros(), diferenca.stripTrailingZeros()));
+        for (String assetTicker : assetTickers) {
+            BigDecimal atBroker = atSource.getOrDefault(assetTicker, BigDecimal.ZERO);
+            BigDecimal inPrimevest = primevest.getOrDefault(assetTicker, BigDecimal.ZERO);
+            BigDecimal difference = atBroker.subtract(inPrimevest);
+            if (difference.signum() != 0) {
+                out.add(new ImportPreviewDTO.Divergence(assetTicker, inPrimevest.stripTrailingZeros(),
+                    atBroker.stripTrailingZeros(), difference.stripTrailingZeros()));
             }
         }
         return out;
     }
 
-    private Map<String, BigDecimal> lerSaldos(String json) {
+    private Map<String, BigDecimal> readBalances(String json) {
         try {
             return objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<Map<String, BigDecimal>>() { });
         } catch (Exception e) {
@@ -845,23 +845,23 @@ public class IntegrationService {
         }
     }
 
-    private static long contar(List<IntegrationRunItem> itens, RunItemOutcome o) {
-        return itens.stream().filter(i -> i.getOutcome() == o).count();
+    private static long countOutcome(List<IntegrationRunItem> runItemList, RunItemOutcome o) {
+        return runItemList.stream().filter(i -> i.getOutcome() == o).count();
     }
 
-    private ImportPreviewDTO.Item toItem(IntegrationRunItem i, ImportRules regras) {
+    private ImportPreviewDTO.Item toItem(IntegrationRunItem i, ImportRules sourceRules) {
         ImportedMovement m = movementJson.read(i.getRaw());
-        ImportPreviewDTO.Proposed proposta = null;
-        if (regras != null
+        ImportPreviewDTO.Proposed proposed = null;
+        if (sourceRules != null
                 && (i.getOutcome() == RunItemOutcome.NEW || i.getOutcome() == RunItemOutcome.POSSIBLE_DUPLICATE)) {
-            ImportRules.Result r = regras.apply(m, assets::findByTicker);
+            ImportRules.Result r = sourceRules.apply(m, assets::findByTicker);
             if (r.mapped()) {
                 ProposedTransaction t = r.transaction();
-                proposta = new ImportPreviewDTO.Proposed(t.ticker(), t.type(), t.shares(), t.pricePerShare(),
+                proposed = new ImportPreviewDTO.Proposed(t.ticker(), t.type(), t.shares(), t.pricePerShare(),
                     t.totalAmount(), t.brokerageFee(), t.transactionDate(), t.roundingDifference());
             }
         }
-        ImportPreviewDTO.Duplicate duplicata = i.getDuplicateOf() == null ? null
+        ImportPreviewDTO.Duplicate duplicate = i.getDuplicateOf() == null ? null
             : transactions.findById(i.getDuplicateOf())
                 .map(t -> new ImportPreviewDTO.Duplicate(t.getId(), t.getTransactionDate(), t.getShares(),
                     t.getPricePerShare()))
@@ -869,29 +869,29 @@ public class IntegrationService {
         return new ImportPreviewDTO.Item(m.externalId(), m.kind(), PreviewOutcome.valueOf(
                 i.getOutcome() == RunItemOutcome.FAILED ? "UNMAPPED" : i.getOutcome().name()),
             i.getReason(), m.executedAt(), m.asset(), m.side(), m.grossQuantity(), m.quoteAsset(),
-            m.quoteAmount(), m.feeAmount(), m.feeAsset(), proposta, duplicata, i.getResolution(),
+            m.quoteAmount(), m.feeAmount(), m.feeAsset(), proposed, duplicate, i.getResolution(),
             i.getTransactionId());
     }
 
-    private static final java.time.format.DateTimeFormatter DATA = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final java.time.format.DateTimeFormatter DATE_FORMAT = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     /** "Operação de 14/11/2025 (BTC, compra): " — para o erro apontar qual linha falhou. */
-    private static String contexto(ImportedMovement m, ProposedTransaction p) {
-        String data = p != null ? p.transactionDate().format(DATA) : m.executedAt().toString();
-        String lado = m.side() == null ? "" : m.side() == com.primevest.domain.integration.source.MovementSide.BUY
+    private static String lineContext(ImportedMovement m, ProposedTransaction p) {
+        String data = p != null ? p.transactionDate().format(DATE_FORMAT) : m.executedAt().toString();
+        String sideLabel = m.side() == null ? "" : m.side() == com.primevest.domain.integration.source.MovementSide.BUY
             ? ", compra" : ", venda";
-        return "Operação de " + data + " (" + m.asset() + lado + "): ";
+        return "Operação de " + data + " (" + m.asset() + sideLabel + "): ";
     }
 
-    private String json(Map<String, ?> mapa) {
+    private String json(Map<String, ?> content) {
         try {
-            return objectMapper.writeValueAsString(mapa);
+            return objectMapper.writeValueAsString(content);
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }
     }
 
-    private Map<String, String> lerCursores(String json) {
+    private Map<String, String> readCursors(String json) {
         if (json == null || json.isBlank()) {
             return Map.of();
         }
@@ -902,7 +902,7 @@ public class IntegrationService {
         }
     }
 
-    private ImportedMovement lerMovimento(String json) {
+    private ImportedMovement readMovement(String json) {
         try {
             return json == null ? null : movementJson.read(json);
         } catch (RuntimeException e) {

@@ -23,17 +23,17 @@ class FnetClientTest {
     @TempDir
     Path tmp;
 
-    private static FnetNotice aviso(long id) {
+    private static FnetNotice notice(long id) {
         return FnetClient.parseNotice(B3Fixtures.read("fnet/" + id + ".xml"));
     }
 
     @Test
     @DisplayName("Formato antigo (2017): valor em ValorProventoCota, ISIN e ticker da cota nos dados gerais")
-    void formatoAntigo() {
-        FnetNotice n = aviso(19693);
+    void oldFormat() {
+        FnetNotice n = notice(19693);
 
         assertThat(n.fundCnpj()).isEqualTo("17554274000125");
-        assertThat(n.proventos()).singleElement().satisfies(p -> {
+        assertThat(n.dividends()).singleElement().satisfies(p -> {
             assertThat(p.ticker()).isEqualTo("VISC11");
             assertThat(p.isin()).isEqualTo("BRVISCCTF005");
             assertThat(p.amortization()).isFalse();
@@ -47,10 +47,10 @@ class FnetClientTest {
     @Test
     @DisplayName("Formato antigo com BOM e ticker com B no fim (WPLZ11B e o WPLZ11)")
     void tickerComB() {
-        FnetNotice n = aviso(10021);
+        FnetNotice n = notice(10021);
 
         assertThat(n.fundCnpj()).isEqualTo("09326861000139");
-        assertThat(n.proventos()).singleElement().satisfies(p -> {
+        assertThat(n.dividends()).singleElement().satisfies(p -> {
             assertThat(p.ticker()).isEqualTo("WPLZ11");
             assertThat(p.value()).isEqualByComparingTo("0.30323276450236");
         });
@@ -58,11 +58,11 @@ class FnetClientTest {
 
     @Test
     @DisplayName("CNPJ pontuado vira so digitos")
-    void cnpjPontuado() {
-        FnetNotice n = aviso(7078);
+    void punctuatedCnpj() {
+        FnetNotice n = notice(7078);
 
         assertThat(n.fundCnpj()).isEqualTo("11274415000170");
-        assertThat(n.proventos()).singleElement().satisfies(p -> {
+        assertThat(n.dividends()).singleElement().satisfies(p -> {
             assertThat(p.ticker()).isEqualTo("MAXR11");
             assertThat(p.value()).isEqualByComparingTo("6.712812896");
         });
@@ -70,18 +70,18 @@ class FnetClientTest {
 
     @Test
     @DisplayName("Formato atual: um provento por cota, recibo incluido (quem descarta e o servico)")
-    void formatoAtualComRecibo() {
-        FnetNotice n = aviso(1002663);
+    void currentFormatWithReceipt() {
+        FnetNotice n = notice(1002663);
 
         assertThat(n.fundCnpj()).isEqualTo("32754734000152");
-        assertThat(n.proventos()).extracting(FnetProvento::ticker).containsExactly("PLAG11", "PLAG13");
-        assertThat(n.proventos()).allSatisfy(p -> assertThat(p.value()).isEqualByComparingTo("0.48"));
+        assertThat(n.dividends()).extracting(FnetDividend::ticker).containsExactly("PLAG11", "PLAG13");
+        assertThat(n.dividends()).allSatisfy(p -> assertThat(p.value()).isEqualByComparingTo("0.48"));
     }
 
     @Test
     @DisplayName("Data-base digitada errada (2108) chega como veio: a regra de descarte e do servico")
-    void dataBaseErrada() {
-        assertThat(aviso(36458).proventos()).singleElement()
+    void wrongBaseDate() {
+        assertThat(notice(36458).dividends()).singleElement()
                 .satisfies(p -> assertThat(p.dataBase()).isEqualTo(LocalDate.of(2108, 11, 30)));
     }
 

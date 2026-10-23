@@ -27,10 +27,10 @@ import java.time.LocalDateTime;
 public class AuthService {
 
     /** Falhas de login antes do bloqueio temporário, por e-mail e por IP (D16 / 3.2). */
-    static final int MAX_FALHAS_POR_EMAIL = 10;
-    static final int MAX_FALHAS_POR_IP = 50;
-    static final Duration JANELA_FALHAS = Duration.ofMinutes(15);
-    static final String MUITAS_TENTATIVAS = "Muitas tentativas de entrada. Aguarde 15 minutos ou use "
+    static final int MAX_FAILURES_PER_EMAIL = 10;
+    static final int MAX_FAILURES_PER_IP = 50;
+    static final Duration FAILURE_WINDOW = Duration.ofMinutes(15);
+    static final String TOO_MANY_ATTEMPTS = "Muitas tentativas de entrada. Aguarde 15 minutos ou use "
         + "\"Esqueci a senha\".";
 
     private final JwtTokenProvider jwtTokenProvider;
@@ -62,18 +62,18 @@ public class AuthService {
 
     public TokenResponseDTO loginWithEmail(LoginRequestDTO request, String ip) {
         String email = Emails.normalize(request.email());
-        String chaveEmail = "login:email:" + email;
-        String chaveIp = "login:ip:" + ip;
-        rateLimiter.check(chaveEmail, MAX_FALHAS_POR_EMAIL, MUITAS_TENTATIVAS);
-        rateLimiter.check(chaveIp, MAX_FALHAS_POR_IP, MUITAS_TENTATIVAS);
+        String emailKey = "login:email:" + email;
+        String ipKey = "login:ip:" + ip;
+        rateLimiter.check(emailKey, MAX_FAILURES_PER_EMAIL, TOO_MANY_ATTEMPTS);
+        rateLimiter.check(ipKey, MAX_FAILURES_PER_IP, TOO_MANY_ATTEMPTS);
         try {
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(email, request.password()));
         } catch (AuthenticationException e) {
-            rateLimiter.record(chaveEmail, JANELA_FALHAS);
-            rateLimiter.record(chaveIp, JANELA_FALHAS);
+            rateLimiter.record(emailKey, FAILURE_WINDOW);
+            rateLimiter.record(ipKey, FAILURE_WINDOW);
             throw new BadCredentialsException("Credenciais recusadas");
         }
-        rateLimiter.reset(chaveEmail);
+        rateLimiter.reset(emailKey);
 
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new BadCredentialsException("Credenciais recusadas"));
@@ -100,11 +100,11 @@ public class AuthService {
         String email = Emails.normalize(profile.email());
 
         User user = userRepository.findByGoogleId(profile.subject())
-            .map(existing -> marcarEmailVerificado(existing, email))
+            .map(existing -> markEmailVerified(existing, email))
             .orElseGet(() -> userRepository.findByEmail(email)
                 .map(existing -> {
                     existing.setGoogleId(profile.subject());
-                    return marcarEmailVerificado(existing, email);
+                    return markEmailVerified(existing, email);
                 })
                 .orElseGet(() -> createFromGoogle(profile, email)));
 
@@ -112,7 +112,7 @@ public class AuthService {
     }
 
     /** O Google garantiu o e-mail (email_verified): se é o mesmo da conta, ele está verificado (G8). */
-    private User marcarEmailVerificado(User user, String googleEmail) {
+    private User markEmailVerified(User user, String googleEmail) {
         if (user.getEmailVerifiedAt() == null && googleEmail.equals(user.getEmail())) {
             user.setEmailVerifiedAt(LocalDateTime.now());
         }
@@ -129,16 +129,16 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                 "O cadastro de novas contas está desativado. Peça acesso a quem administra o PrimeVest.");
         }
-        LocalDateTime agora = LocalDateTime.now();
-        User novo = User.builder()
+        LocalDateTime now = LocalDateTime.now();
+        User created = User.builder()
             .name(profile.name() != null && !profile.name().isBlank() ? profile.name() : email)
             .email(email)
             .googleId(profile.subject())
             .avatarUrl(profile.pictureUrl())
-            .emailVerifiedAt(agora)
+            .emailVerifiedAt(now)
             .build();
-        novo.acceptTerms(agora);
-        return accountFactory.create(novo);
+        created.acceptTerms(now);
+        return accountFactory.create(created);
     }
 
     /**

@@ -4,7 +4,7 @@ import { LineChart } from 'lucide-react';
 import { indicatorsApi } from '@/api/indicators';
 import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import { AssetIndicators, IndicatorCode, IndicatorHistory } from '@/types';
-import { HISTORICO_DISPONIVEL, INDICATOR_META, INDICATOR_ORDER, formatIndicator } from '@/utils/indicators';
+import { HISTORY_AVAILABLE, INDICATOR_META, INDICATOR_ORDER, formatIndicator } from '@/utils/indicators';
 import { Sparkline } from './Sparkline';
 import { IndicatorHistoryModal } from './IndicatorHistoryModal';
 
@@ -25,7 +25,7 @@ export const IndicatorGrid = ({ current }: { current: AssetIndicators }) => {
 
   const byCode = new Map(current.indicators.map(i => [i.indicator, i]));
   const codes = INDICATOR_ORDER[current.kind].filter(c => byCode.has(c));
-  const historyCodes = codes.filter(c => HISTORICO_DISPONIVEL.has(c));
+  const historyCodes = codes.filter(c => HISTORY_AVAILABLE.has(c));
   const series = (code: IndicatorCode): IndicatorHistory | undefined => annual?.find(h => h.indicator === code);
 
   return (
@@ -35,7 +35,7 @@ export const IndicatorGrid = ({ current }: { current: AssetIndicators }) => {
         {codes.map(code => {
           const item = byCode.get(code)!;
           const meta = INDICATOR_META[code];
-          const hasHistory = HISTORICO_DISPONIVEL.has(code);
+          const hasHistory = HISTORY_AVAILABLE.has(code);
           const h = series(code);
           return (
             <div key={code} className="flex flex-col rounded-xl border border-surface-light bg-surface p-4">

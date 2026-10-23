@@ -5,7 +5,10 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 22/10/2026, noite (**Fonte do Tesouro e cache dos arquivos públicos**: download só vira arquivo
+> **Última revisão**: 22/10/2026, noite (**Nomes internos em inglês**: classes, métodos, variáveis, testes, rotas
+> do front e da adm-api, parâmetros de URL, configuração, `PRIMEVEST_PASSWORD`, canais do Redis e as constraints (V66,
+> V67) em inglês; valores gravados ficam; endereços antigos do front redirecionam — ver "Nomes internos em inglês
+> (22/10/2026)" e `docs/planos/PLANO_NOMES_EM_INGLES.md`). No mesmo dia: (**Fonte do Tesouro e cache dos arquivos públicos**: download só vira arquivo
 > depois da conferência do conteúdo, recusa da fonte vira rodada `FAILED` + `FONTE_INDISPONIVEL`, fonte parada abre a
 > pendência `FONTE_DESATUALIZADA`, identificação `PrimeVest/1.0` nas chamadas — ver "Fonte do Tesouro e cache dos
 > arquivos públicos (22/10/2026)" em Pontos de Atenção e `docs/planos/PLANO_FONTE_TESOURO.md`). No mesmo dia:
@@ -175,18 +178,38 @@ trava o banco enquanto migra, a ordem de subida não importa.
 
 | Canal | Sentido | Quem reage |
 |---|---|---|
-| `primevest:catalogo:ativos` | adm → app: "catálogo mudou" `{origin: PROVENTOS|FECHAMENTO, assetIds}` | `PositionRefreshService` refaz proventos e valorização (PROVENTOS) ou só valorização (FECHAMENTO) das posições desses ativos |
-| `primevest:proventos:sob-demanda` | app → adm: "preciso do histórico" (id do ativo), depois de cada transação | `ProventosCatalogService.syncAssetOnDemand`, que responde com "catálogo mudou" |
+| `primevest:catalog:assets` | adm → app: "catálogo mudou" `{origin: PROVENTOS|FECHAMENTO, assetIds}` | `PositionRefreshService` refaz proventos e valorização (PROVENTOS) ou só valorização (FECHAMENTO) das posições desses ativos |
+| `primevest:dividends:on-demand` | app → adm: "preciso do histórico" (id do ativo), depois de cada transação | `DividendCatalogService.syncAssetOnDemand`, que responde com "catálogo mudou" |
 
 Sem garantia de entrega: se um dos dois estiver fora, a mensagem se perde e a **rede de segurança** acerta — a app-api
 recalcula todas as posições às 21:00 (tarefa `POSITIONS_REFRESH`). Nos testes as mensagens ficam desligadas
 (`primevest.messaging.enabled=false`, só log) e os testes de ponta a ponta ligam os dois lados direto
-(`CatalogoE2EBase`).
+(`CatalogE2EBase`).
 
 **Onde mexer:** regra que os dois usam (ou entidade/migration) → core; tela, API do usuário, cálculo da carteira →
 app-api; fonte externa, carga, rotina agendada de catálogo → adm-api; conector de corretora, regra de importação e
 credencial → primevest-integration (a orquestração e os endpoints das integrações ficam na app-api). A app-api **nunca** chama fonte externa de
 catálogo; a adm-api **nunca** grava `dividends` nem `portfolio_assets`.
+
+---
+
+## 🔤 Nomes internos em inglês (22/10/2026)
+
+Plano e histórico: **`docs/planos/PLANO_NOMES_EM_INGLES.md`** (escopo encerrado em 22/10/2026); regra de trabalho permanente em
+**`docs/REGRAS_CLAUDE.md`, seção 9** — todo nome novo já nasce em inglês. A regra, do Guilherme:
+
+- **Nome é em inglês**: rota e parâmetro de URL (front e API), classe (inclusive a classe enum), página, componente,
+  método (inclusive os de teste), campo, variável, chave de configuração, variável de ambiente, canal do Redis e nome de
+  estrutura do banco (tabela, coluna, constraint).
+- **Valor de registro fica como está**: o que é gravado no banco (valores de enum, códigos, categorias) e os valores de
+  enum que a API devolve (`ABAIXO_DO_IDEAL`, `SEM_CURVA`, `1A`/`5A`, `PROVENTOS`/`FECHAMENTO` da mensagem do Redis) podem
+  ser em português ou inglês conforme o tipo de registro. Nada é regravado. `data_com`/`dataCom` fica (termo do mercado).
+- **Fica em português** o que pessoas leem: tela, mensagens, logs, comentários, Javadoc, `@DisplayName` dos testes e a
+  documentação. Também ficam os nomes que vêm de fonte externa (colunas da CVM, campos da B3, `NoticeStatus` do FNET,
+  gravado em `carga/data/fnet/status`), os arquivos das migrations já aplicadas e a carga (`carga/scripts`, pastas de
+  `carga/data` espelhadas no bucket).
+- **Enum novo**: a classe nasce em inglês; os valores, em português ou inglês, conforme o tipo de registro.
+- Rotas e parâmetros antigos do front continuam valendo, sem prazo (`utils/legacyUrl.ts`; ver Telas).
 
 ---
 
@@ -355,7 +378,7 @@ são os do seed (V62):
 | Rotina | Quando | Serviço |
 |---|---|---|
 | Fechamento B3 (seg–sex) e cripto (todo dia), com recuperação na subida — tarefas `B3_CLOSING` e `CRYPTO_CLOSING` | 19:00 | adm-api → "catálogo mudou" (FECHAMENTO) |
-| Eventos de proventos da B3/FNET de **todo o catálogo** ligado a emissor + o que já esteve em carteira (F8; `primevest.proventos.scope`) — tarefa `DIVIDENDS_SYNC` | 20:00 | adm-api → "catálogo mudou" (PROVENTOS), por emissor |
+| Eventos de proventos da B3/FNET de **todo o catálogo** ligado a emissor + o que já esteve em carteira (F8; `primevest.dividends.scope`) — tarefa `DIVIDENDS_SYNC` | 20:00 | adm-api → "catálogo mudou" (PROVENTOS), por emissor |
 | Balanços da CVM (DFP/ITR do ano corrente e do anterior) + série trimestral + informe mensal de FII (F7) — tarefa `CVM_STATEMENTS_IMPORT` | 07:30 | adm-api |
 | Preço oficial do Tesouro Direto (PU de venda, Tesouro Transparente), com recuperação na subida — tarefa `TREASURY_PRICES` (`docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`); desde 17/10/2026 também a taxa do último dia e os títulos à venda (`treasury_offers`, arquivo de vendas; fora do ar, a oferta fica a da última rodada); desde 22/10/2026 a fonte que recusa termina a rodada `FAILED` (`docs/planos/PLANO_FONTE_TESOURO.md`) | 08:00 | adm-api → "catálogo mudou" (FECHAMENTO) |
 | Índices de mercado, incremental com janela de revisão (30 dias nos diários, 3 meses nos mensais), com recuperação na subida — tarefa `MARKET_INDICES` (`docs/planos/PLANO_INDICES_MERCADO.md`) | 10:00 | adm-api |
@@ -377,10 +400,10 @@ endpoints passam pelo executor das tarefas, cada pedido vira uma rodada no hist�
 documento na mesma versão é pulado, `force=true` reprocessa a partir de `carga/data/cvm` sem baixar; ao terminar recalcula
 a série trimestral, que `cvm/quarters` recalcula sozinha; `cvm/fii-monthly?from=2016&to=2026&force=false` — informe
 mensal de FII em `fii_monthly`, mês na mesma versão é pulado; `indices?codes=CDI,IPCA&from=2010&to=2026` — padrão: todos,
-2010 até o ano corrente; código desconhecido 400; `recent=true` = a rodada incremental das 10:00; `proventos/fnet-status` =
+2010 até o ano corrente; código desconhecido 400; `recent=true` = a rodada incremental das 10:00; `dividends/fnet-status` =
 situação de cada aviso do FNET em `carga/data/fnet/status`, 21/10/2026). Script: `node carga/scripts/admin.mjs <rotina> [--json corpo.json]`
 (ou `docker compose --profile carga run --rm tools node carga/scripts/admin.mjs <rotina>`) — login na app-api com a
-`PRIMEVEST_SENHA` do `.env` e disparo na adm-api; portas do `.env` (`API_PORT`, `ADM_API_PORT`).
+`PRIMEVEST_PASSWORD` do `.env` e disparo na adm-api; portas do `.env` (`API_PORT`, `ADM_API_PORT`).
 Curadoria dos emissores (F3): `POST /api/v1/admin/issuers/fii-cnpjs` (lista `[{ticker, cnpj}]`, liga FII como `MANUAL`,
 síncrono) e `PUT /api/v1/admin/assets/{id}/issuer` (`{issuerId | cnpj, shareClass}`; CNPJ que não é emissor vem do
 cadastro da CVM; `shareClass` nula para o que não é ação; sem `issuerId` e sem `cnpj` desfaz) e
@@ -394,8 +417,8 @@ Todas as fontes abaixo, menos o Google, são da **adm-api** (config em `primeves
 | **BrAPI** (plano gratuito) | Fechamento diário da B3 (OHLCV) dos ativos em carteira, lista oficial de tickers e renomes (conferência do catálogo), logos | `brapi.base-url`, `BRAPI_TOKEN` (no `.env`, header `Authorization: Bearer`) |
 | **Site da B3** (sem token, não documentado) | Proventos (~12 meses), desdobramentos/grupamentos/bonificações, ticker↔ISIN, histórico longo de empresa | `b3.base-url` |
 | **B3 — 12 meses acumulados** (`B3SupplementStore`) | A resposta de ~12 meses (a única com data de pagamento de ação) somada a `carga/data/b3/proventos-12m/{acoes,fundos}/{EMISSOR}.json`: o que sai da janela continua valendo, e um banco novo recebe as datas do arquivo (docs/planos/PLANO_CARGA_INICIAL.md, P1). O export inicial saiu do banco de desenvolvimento em 29/09/2026 (4.327 proventos, 503 emissores) | `primevest.data.dir` |
-| **CVM — Relatório Proventos** (`CvmProventosReport`, `CvmPaymentDateService`) | Data de pagamento de 2022 em diante para o que o histórico da B3 não traz: índice IPE anual (`carga/data/cvm/ipe`), PDF de cada relatório do RAD (`carga/data/cvm/proventos/{protocolo}_{versao}.pdf`, lido com PDFBox), casado por ISIN, data-com (último dia com direitos) e valor; grava `payment_date_source = 'CVM'`. Na carga inicial e às 20:00 (ano corrente e anterior); `POST /api/v1/admin/cvm/proventos?from=2022&to=` | `cvm.base-url`, `cvm.rad-parallel-downloads` |
-| **Levantamento de datas de pagamento** (`PaymentDateSurveyService`) | Datas de pagamento de proventos de ação 2010–2026 que nenhuma fonte oficial gratuita traz, levantadas em sites públicos (Investidor10, Status Invest, Fundamentus, Brapi, RI) e revisadas pelo Guilherme: `carga/data/levantamento/datas-pagamento.json`, gerado de `carga/data/levantamento/origem/*.xlsx` por `carga/scripts/levantamento/xlsx_para_json.py`. Casa por ticker (+ fracionário), tipo, data-com, parcela e valor; grava só em evento sem data, `payment_date_source = 'LEVANTAMENTO'`; linha `A_DEFINIR` não grava. Na carga inicial (depois da CVM) e `POST /api/v1/admin/proventos/levantamento` (docs/planos/PLANO_CARGA_INICIAL.md, 11) | `primevest.data.dir` |
+| **CVM — Relatório Proventos** (`CvmDividendReport`, `CvmPaymentDateService`) | Data de pagamento de 2022 em diante para o que o histórico da B3 não traz: índice IPE anual (`carga/data/cvm/ipe`), PDF de cada relatório do RAD (`carga/data/cvm/proventos/{protocolo}_{versao}.pdf`, lido com PDFBox), casado por ISIN, data-com (último dia com direitos) e valor; grava `payment_date_source = 'CVM'`. Na carga inicial e às 20:00 (ano corrente e anterior); `POST /api/v1/admin/cvm/payment-dates?from=2022&to=` | `cvm.base-url`, `cvm.rad-parallel-downloads` |
+| **Levantamento de datas de pagamento** (`PaymentDateSurveyService`) | Datas de pagamento de proventos de ação 2010–2026 que nenhuma fonte oficial gratuita traz, levantadas em sites públicos (Investidor10, Status Invest, Fundamentus, Brapi, RI) e revisadas pelo Guilherme: `carga/data/levantamento/datas-pagamento.json`, gerado de `carga/data/levantamento/origem/*.xlsx` por `carga/scripts/levantamento/xlsx_para_json.py`. Casa por ticker (+ fracionário), tipo, data-com, parcela e valor; grava só em evento sem data, `payment_date_source = 'LEVANTAMENTO'`; linha `A_DEFINIR` não grava. Na carga inicial (depois da CVM) e `POST /api/v1/admin/dividends/payment-date-survey` (docs/planos/PLANO_CARGA_INICIAL.md, 11) | `primevest.data.dir` |
 | **FNET** (`FnetClient`, refeito na F8) | Proventos de FII além de 12 meses (avisos estruturados). O histórico sai **só de `carga/data/fnet/{id}.xml`**, por um índice local `CNPJFundo` → avisos (a carga não chama o FNET). **Fonte principal de FII** (D15 do docs/planos/PLANO_CARGA_INICIAL.md): aplicado antes da B3, e o evento que a B3 gravou como reserva passa a ser do FNET quando o aviso chega; quando a B3 mostra um provento mais novo que o último aviso gravado do fundo, o FNET é consultado pelo CNPJ (no máximo uma vez por dia por fundo) e o aviso novo é baixado (PENDENCIAS 18.10 d). A busca por CNPJ e o download ficam no client: aviso baixado vai para `carga/data/fnet` e nunca é baixado de novo; download com timeout de 5 s, até 6 tentativas com espera crescente e no máximo 3 simultâneos; lê os dois formatos de XML (o antigo, 2016–2019, com `ValorProventoCota`). Aviso ligado pelo CNPJ, sem recibo (final 12–19) e sem data-base depois do pagamento | `fnet.*`, `primevest.data.dir` |
 | **Série histórica da B3 — COTAHIST** (`B3HistoricalQuotesClient`) | Preço diário não ajustado de ações (lote padrão e fracionário) e FIIs desde 2010, e o ISIN de cada ticker do catálogo. Zip por ano em `carga/data/b3/cotahist`; desde 10/10/2026 também **um zip por pregão** (`COTAHIST_DddMMaaaa.ZIP`, ~0,5 MB, em `carga/data/b3/cotahist/diario`), pela rotina das 21:30/08:30 — preço de todo o catálogo sem cota da BRAPI. Dia gravado pela B3 não é sobrescrito pela BRAPI (`asset_price_history.source`, V29) | `b3.cotahist-url` |
 | **CVM dados abertos** (`CvmOpenDataClient`) | Emissores (cadastro de companhias, FCA, informe mensal de FII); informe mensal de FII 2016+ em `fii_monthly` (`CvmFiiMonthly`, partes complemento e ativo/passivo, F7); balanços DFP (2010+) e ITR (2011+) (`CvmStatements`); histórico de capital do Formulário de Referência (`CvmFreCapital`, quantidade de ações antes de 2020 e régua da escala depois). Cache em `carga/data/cvm/{cad,fca,fii,dfp,itr,fre}` — o arquivo é o estado (`docs/planos/PLANO_EMPRESAS_BALANCOS.md`) | `cvm.base-url`, `primevest.data.dir` |
@@ -403,7 +426,7 @@ Todas as fontes abaixo, menos o Google, são da **adm-api** (config em `primeves
 | **CoinGecko** | Preço de cripto (id em `assets.price_source_ref`), logos das moedas e, desde 17/10/2026, o histórico dos últimos 365 dias (`market_chart/range`; antes disso a API gratuita responde 401) | `coingecko.base-url` |
 | **Binance — klines públicos** (`BinanceKlinesClient`, sem chave) | Histórico diário BTC/BRL desde 13/10/2020 para o benchmark e as posições de BTC (`docs/planos/PLANO_RENTABILIDADE.md`, D2). Fonte de catálogo — não é a integração do usuário. Cache `carga/data/binance/klines/{PAR}/{ano}.json` (`IndexYearCache`) | `binance.public-url` |
 | **Banco Central — API SGS** (`BcbSgsClient`, sem token) | Índices de mercado (`docs/planos/PLANO_INDICES_MERCADO.md`): CDI (série 12), Selic (11), IPCA (433), IGP-M (189), INPC (188), TR (226), meta Selic (432), dólar PTAX venda (1). Uma consulta por ano civil com `dataInicial`/`dataFinal` (série diária recusa janela de mais de 10 anos com 406; 404 = sem valores no período); timeout de 20 s e até 4 tentativas (o SGS às vezes demora). A TR repete o início com fins diferentes: fica o período de um mês cheio. Data futura não entra (a meta Selic vem preenchida até a próxima reunião do Copom). Cache `carga/data/bcb/sgs/{código}/{ano}.json`: ano fechado com arquivo só do disco; o corrente e o anterior sempre da fonte (`IndexYearCache`) | `bcb.sgs-base-url`, `indices.*`, `primevest.data.dir` |
-| **Tesouro Transparente — preços e taxas do Tesouro Direto** (`TesouroPriceClient`, sem token) | `PrecoTaxaTesouroDireto.csv`: todo o histórico desde 2002 num arquivo (~14 MB, ~1 min), atualizado todo dia útil ~07:20 com o D-1; colunas tipo, vencimento, data base, taxas e PU de compra/venda/base. Cache `carga/data/tesouro/` (`PublicFileCache`, só baixa se mudou; desde 22/10/2026 só vira arquivo o que começa com o cabeçalho `Tipo Titulo;`). `TreasuryPriceService` casa a linha com o título do catálogo por **tipo + vencimento** (`asset_terms`; o ano do ticker nem sempre é o do vencimento: Renda+ 2065 vence em 2084), grava o **PU de venda** (resgate antecipado; sem ele, o PU base) em `asset_price_history` (`source = TESOURO`) e o último em `assets.current_price` | `tesouro.prices-url`, `tesouro.timeout-seconds` |
+| **Tesouro Transparente — preços e taxas do Tesouro Direto** (`TreasuryPriceClient`, sem token) | `PrecoTaxaTesouroDireto.csv`: todo o histórico desde 2002 num arquivo (~14 MB, ~1 min), atualizado todo dia útil ~07:20 com o D-1; colunas tipo, vencimento, data base, taxas e PU de compra/venda/base. Cache `carga/data/tesouro/` (`PublicFileCache`, só baixa se mudou; desde 22/10/2026 só vira arquivo o que começa com o cabeçalho `Tipo Titulo;`). `TreasuryPriceService` casa a linha com o título do catálogo por **tipo + vencimento** (`asset_terms`; o ano do ticker nem sempre é o do vencimento: Renda+ 2065 vence em 2084), grava o **PU de venda** (resgate antecipado; sem ele, o PU base) em `asset_price_history` (`source = TESOURO`) e o último em `assets.current_price` | `treasury.prices-url`, `treasury.timeout-seconds` |
 | **B3 — índices** (`B3IndexClient`) | Fechamento diário do Ibovespa e do IFIX: `indexStatisticsProxy/IndexCall/GetPortfolioDay`, um ano por chamada, numa grade dia × mês com texto pt-BR. Cache `carga/data/b3/indices/{índice}/{ano}.json`, mesma regra | `b3.base-url`, `indices.*` |
 | **Google Identity Services** | Login social (fluxo de ID token, sem client secret) | `VITE_GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_ID` |
 
@@ -473,7 +496,7 @@ primevest/
 │       │   ├── integration/binance/            # BinanceClient, BinanceConnector
 │       │   └── integration/b3investidor/       # B3InvestidorClient (token, mTLS, paginação), B3InvestidorConnector,
 │       │                                       #   B3EquityImportRules (B1–B10), B3InvestidorProperties (b3i.*)
-│       └── test/                # unitários + test-jar (BinanceFake, ContaSintetica, ContaSinteticaB3) para os Integracoes*IT
+│       └── test/                # unitários + test-jar (BinanceFake, SyntheticAccount, SyntheticAccountB3) para os Integracoes*IT
 │
 ├── primevest-adm-api/           # rotinas de administrador — o catálogo (porta 8081)
 │   └── src/
@@ -482,7 +505,7 @@ primevest/
 │       │   ├── config/          # AdmSecurityConfig, AdmSchedulingConfig, AdmSwaggerConfig,
 │       │   │                    # AdmMessagingConfig (publica "catálogo mudou", ouve "sob demanda")
 │       │   ├── domain/admin/    # AdminController (/api/v1/admin/*)
-│       │   ├── domain/          # dividend/ProventosCatalogService, pricehistory/ClosingPriceService e
+│       │   ├── domain/          # dividend/DividendCatalogService, pricehistory/ClosingPriceService e
 │       │   │                    # HistoricalQuotesImportService, issuer/ (import e ligação),
 │       │   │                    # fundamentals/ (balanços, série trimestral), asset/ (logos, conferência)
 │       │   ├── integration/     # b3/ (B3, FNET, COTAHIST), cvm/, brapi/, coingecko/, indices/ (SGS, B3), PublicFileCache
@@ -503,7 +526,7 @@ primevest/
 │       │   │                    # corretoras: IntegrationService, controller, worker, DTOs)
 │       │   └── task/            # Tarefas: os 3 handlers da app-api (DAILY_OPENING, INTEGRATIONS_DAILY_SYNC, POSITIONS_REFRESH)
 │       ├── main/resources/      # application.yml, -dev, -docker, -prod
-│       └── test/                # functional/ (CatalogoE2EBase: adm-api só no classpath de teste)
+│       └── test/                # functional/ (CatalogE2EBase: adm-api só no classpath de teste)
 │
 └── primevest-web/
     ├── Dockerfile               # alvos: dev (vite) e runtime (nginx)
@@ -622,7 +645,7 @@ coluna.
 > usuário; `getName()` é para lógica interna. `AssetCategory.getDisplayName()`
 > encapsula o fallback description → name.
 
-### Flyway — V1 a V65
+### Flyway — V1 a V67
 
 O Flyway roda do zero no perfil `docker`. No perfil `dev` fica desligado, porque
 o banco local é gerenciado à mão.
@@ -702,6 +725,8 @@ categorias sem segmento), V32 (28/09/2026, balanços da CVM), V33 (28/09/2026, s
 | V63 | docs/planos/PLANO_TAREFAS.md (T5): `task_types.stoppable` |
 | V64 | docs/planos/PLANO_TAREFAS.md (T5): `task_type_attributes.position` (ordem dos atributos na tela) |
 | V65 | docs/planos/PLANO_TAREFAS.md (D37, D38): `tasks.run_on_startup` — roda na subida, no máximo uma vez por dia; o seed marca as 6 que tinham recuperação na subida |
+| V66 | docs/planos/PLANO_NOMES_EM_INGLES.md (E2): `ck_user_avatars_tipo` → `ck_user_avatars_content_type` (só o nome) |
+| V67 | docs/planos/PLANO_NOMES_EM_INGLES.md (E2): `ck_user_avatars_tamanho` → `ck_user_avatars_size` e `ck_users_cpf_completo` → `ck_users_cpf_complete` (só o nome) |
 | V43 | docs/planos/PLANO_INDICES_MERCADO.md (X1): `market_indices` (10 índices semeados) e `market_index_values` (vazia; a série vem da adm-api) |
 | V41 | docs/planos/PLANO_CADASTRO_USUARIO.md (seção 5): colunas novas de `users` (celular, CPF cifrado + hash, verificação de e-mail, `password_changed_at`, aceite dos termos, tema), índices únicos de e-mail sem caixa, celular e CPF; o usuário semeado ganha e-mail verificado e o aceite da versão `2026-10-provisorio` |
 
@@ -909,7 +934,7 @@ passo a passo no apêndice A do plano); origens autorizadas `http://localhost` e
 | GET | `/api/v1/assets/categories` | Categorias — param `typeId` |
 | GET | `/api/v1/assets/{ticker}/prices` | Cotação histórica (28/09/2026, `AssetPriceHistoryService`/`PriceSeries`): `?range=1D\|7D\|1M\|6M\|YTD\|1A\|5A\|MAX` (padrão 1A) ou `?from=&to=`. **Ajustada** por desdobramento, grupamento e bonificação (preço até a data-com ÷ razão do evento; sem ajuste por proventos). Densidade: diário até ~1 ano, semanal até ~5, mensal acima; 1D = fechamento anterior → último (`closeOnly`; `INTRADAY` reservado para o futuro). Fracionário usa o lote padrão (`priceTicker`). Traz `firstDate`/`lastDate`, variação, mín/máx. Substitui o antigo esboço `/history`, que devolvia vazio |
 | GET | `/api/v1/assets/{ticker}/indicators` | Indicadores atuais (F9): último balanço (ação) ou último informe (FII) com o preço atual. Ação: `LPA`, `VPA`, `PL`, `PVP`, `ROE`, `PAYOUT`, `DY`; FII: `PVP`, `DY`, `VP_COTA`, `COTISTAS`, `IMOVEIS`, `PAPEL`, `ALAVANCAGEM`. Cada um com `unit` (`PERCENT` em pontos, `RATIO`, `BRL`, `COUNT`), `value` e, quando nulo, `note` com o motivo. Ativo sem emissor (ETF, BDR…): 404 |
-| GET | `/api/v1/assets/indicators?kind=COMPANY\|FII` | Listagem de emissoras (17/10/2026, `docs/planos/PLANO_LISTAGEM_EMISSORAS.md`): o "Atual" de todos os tickers ativos ligados a emissor do tipo, **sem os fracionários** cujo lote padrão está na lista (os 17 que só existem no fracionário, como EKTR3F, ficam), já na ordem padrão (PL decrescente, vazios no fim, desempate pelo ticker). Cada linha (`IssuerListingRowDTO`): nome (ação: nome de pregão, sem ele o do ativo; FII: o do ativo), razão social, setor/subsetor/segmento B3 (ação) ou segmento (FII), `hasLogo`, preço e data, `priceStale`, data da base, `baseStale`, `equity` (PL da controladora do último balanço ou `net_assets` do último informe) e os indicadores — **os mesmos** de `/{ticker}/indicators`: `IndicatorService.currentAll` lê a aba em ~6 consultas por conjunto e calcula pelo mesmo código (`currentOf`). Limites da marca em `primevest.emissoras.dado-antigo.*` (preço 7 dias, balanço 6 meses, informe 3 meses). ~150 ms (ações) e ~60 ms (FIIs) na base real |
+| GET | `/api/v1/assets/indicators?kind=COMPANY\|FII` | Listagem de emissoras (17/10/2026, `docs/planos/PLANO_LISTAGEM_EMISSORAS.md`): o "Atual" de todos os tickers ativos ligados a emissor do tipo, **sem os fracionários** cujo lote padrão está na lista (os 17 que só existem no fracionário, como EKTR3F, ficam), já na ordem padrão (PL decrescente, vazios no fim, desempate pelo ticker). Cada linha (`IssuerListingRowDTO`): nome (ação: nome de pregão, sem ele o do ativo; FII: o do ativo), razão social, setor/subsetor/segmento B3 (ação) ou segmento (FII), `hasLogo`, preço e data, `priceStale`, data da base, `baseStale`, `equity` (PL da controladora do último balanço ou `net_assets` do último informe) e os indicadores — **os mesmos** de `/{ticker}/indicators`: `IndicatorService.currentAll` lê a aba em ~6 consultas por conjunto e calcula pelo mesmo código (`currentOf`). Limites da marca em `primevest.issuer-page.stale-data.*` (preço 7 dias, balanço 6 meses, informe 3 meses). ~150 ms (ações) e ~60 ms (FIIs) na base real |
 | GET | `/api/v1/assets/{ticker}/indicators/history` | Todos os históricos do ticker numa chamada (`List<IndicatorHistoryDTO>`, ordem do enum; lê a série uma vez) — sparklines da tela de Emissoras |
 | GET | `/api/v1/assets/{ticker}/indicators/{indicador}/history` | `IndicatorHistoryDTO`: `current` (Atual), `companyAverage` (média dos anos + Atual; nulos fora, zeros dentro) e `points`; `?period=YEAR` (padrão) ou `QUARTER`. Indicador que não se aplica ao tipo: 400 |
 
@@ -1031,17 +1056,17 @@ Rotas em `App.tsx`; tudo abaixo de `/login` é protegido por `ProtectedRoute`.
 
 | Rota | Tela |
 |------|------|
-| `/dashboard` | Cards em linhas (17/10/2026, `StatCard` em `DashboardPage`: a 1ª em destaque; as demais com rótulo e valor na mesma linha, exceto em Aportes e Rentabilidade, onde o valor fica embaixo do rótulo, à esquerda — `stacked`), nesta ordem: **Patrimônio** (valor atual bruto; valor líquido — `currentNetValue`: renda fixa e Tesouro pelo líquido estimado de resgate, IR e IOF, os demais pelo bruto —; valor investido), **Aportes** (aportes líquidos dos últimos 12 meses = compras − o que as vendas devolveram, líquido na RF e no Tesouro; média mensal = ÷ 12 — `contributions12m` e `contributionsMonthlyAverage12m` de `GET /portfolio/`), **Rentabilidade** (TWR **bruto** de 12 meses e desde o início, cada um com o resultado em R$; levam a `/rentabilidade` e `/rentabilidade?periodo=MAX`) e **Proventos** (líquido recebido nos últimos 12 meses — `last12Months` de `GET /dividends/`, pagamento ou, sem ele, data ex —, totais recebidos e a receber; levam a `/dividends` e `/dividends?aba=a-receber`). Abaixo, pizza de alocação por tipo e Top 5 (coluna Rentabilidade = clássica, como na Carteira, e embaixo "TWR: x%" bruto desde o início) e, por último, o card "Rentabilidade acumulada" da tela Rentabilidade (`CumulativeCard`) sem filtros na tela: carteira total com reserva, bruto, 12 meses, CDI. Tudo de rentabilidade no Dashboard é em base bruta (17/10/2026) |
-| `/rentabilidade` | Rentabilidade (17/10/2026, `docs/planos/PLANO_RENTABILIDADE.md`, `PerformancePage`): filtros numa faixa (1ª linha tipo → categoria → ativo; 2ª período, com/sem reserva e bruto/líquido; 3ª até 5 benchmarks com IPCA + x%; padrões desde 17/10/2026: **12M** e **bruto**), aviso de cobertura, 6 cards, acumulado, barras por período, comparativo, "Quem fez o resultado" (classe/categoria/ativo/emissora, clique desce um nível), mapa de calor mês × ano, patrimônio nominal × real, risco. Filtros na URL (`?tipo=&categoria=&ativo=&reserva=sem&base=liquido&periodo=&de=&ate=&indices=`; sem `periodo` = 12M, `periodo=MAX` = desde o início; sem `base` = bruto); sem `indices`, só o CDI — desde 17/10/2026 a última seleção de benchmarks não é mais lembrada no navegador (a D10 guardava em `localStorage`, `primevest-rentabilidade-benchmarks`, chave que a tela agora apaga) |
+| `/dashboard` | Cards em linhas (17/10/2026, `StatCard` em `DashboardPage`: a 1ª em destaque; as demais com rótulo e valor na mesma linha, exceto em Aportes e Rentabilidade, onde o valor fica embaixo do rótulo, à esquerda — `stacked`), nesta ordem: **Patrimônio** (valor atual bruto; valor líquido — `currentNetValue`: renda fixa e Tesouro pelo líquido estimado de resgate, IR e IOF, os demais pelo bruto —; valor investido), **Aportes** (aportes líquidos dos últimos 12 meses = compras − o que as vendas devolveram, líquido na RF e no Tesouro; média mensal = ÷ 12 — `contributions12m` e `contributionsMonthlyAverage12m` de `GET /portfolio/`), **Rentabilidade** (TWR **bruto** de 12 meses e desde o início, cada um com o resultado em R$; levam a `/performance` e `/performance?range=MAX`) e **Proventos** (líquido recebido nos últimos 12 meses — `last12Months` de `GET /dividends/`, pagamento ou, sem ele, data ex —, totais recebidos e a receber; levam a `/dividends` e `/dividends?tab=to-receive`). Abaixo, pizza de alocação por tipo e Top 5 (coluna Rentabilidade = clássica, como na Carteira, e embaixo "TWR: x%" bruto desde o início) e, por último, o card "Rentabilidade acumulada" da tela Rentabilidade (`CumulativeCard`) sem filtros na tela: carteira total com reserva, bruto, 12 meses, CDI. Tudo de rentabilidade no Dashboard é em base bruta (17/10/2026) |
+| `/performance` | Rentabilidade (17/10/2026, `docs/planos/PLANO_RENTABILIDADE.md`, `PerformancePage`): filtros numa faixa (1ª linha tipo → categoria → ativo; 2ª período, com/sem reserva e bruto/líquido; 3ª até 5 benchmarks com IPCA + x%; padrões desde 17/10/2026: **12M** e **bruto**), aviso de cobertura, 6 cards, acumulado, barras por período, comparativo, "Quem fez o resultado" (classe/categoria/ativo/emissora, clique desce um nível), mapa de calor mês × ano, patrimônio nominal × real, risco. Filtros na URL (`?tipo=&categoria=&ativo=&reserva=sem&base=liquido&periodo=&de=&ate=&indices=`; sem `periodo` = 12M, `periodo=MAX` = desde o início; sem `base` = bruto); sem `indices`, só o CDI — desde 17/10/2026 a última seleção de benchmarks não é mais lembrada no navegador (a D10 guardava em `localStorage`, `primevest-rentabilidade-benchmarks`, chave que a tela agora apaga) |
 | `/portfolio` | Carteira — posição por ativo, com EMISSOR e VENCIMENTO |
 | `/allocation` | Abas "Carteira de Investimentos" e "Por Categoria" |
-| `/strategy` | Estratégia de Investimentos: abas "Ideal Estratégico" e "Estratégia Reserva" (aba na URL desde 17/10/2026: `?aba=reserva`; sem o parâmetro, Ideal Estratégico); link "Ir para Rebalanceamento" no canto superior direito, na linha das abas |
-| `/rebalance` | Rebalanceamento (11/10/2026, antes aba da Estratégia): reserva e sugestão de aporte por tipo; desde 17/10/2026 cada card tem o seu link à direita do título — "Ir para Estratégia Reserva" (`/strategy?aba=reserva`) e "Ir para Ideal Estratégico" (`/strategy`); o "Ir para Estratégia de Investimentos" saiu |
+| `/strategy` | Estratégia de Investimentos: abas "Ideal Estratégico" e "Estratégia Reserva" (aba na URL desde 17/10/2026: `?tab=reservation`; sem o parâmetro, Ideal Estratégico); link "Ir para Rebalanceamento" no canto superior direito, na linha das abas |
+| `/rebalance` | Rebalanceamento (11/10/2026, antes aba da Estratégia): reserva e sugestão de aporte por tipo; desde 17/10/2026 cada card tem o seu link à direita do título — "Ir para Estratégia Reserva" (`/strategy?tab=reservation`) e "Ir para Ideal Estratégico" (`/strategy`); o "Ir para Estratégia de Investimentos" saiu |
 | `/transactions` | CRUD completo |
 | `/ceiling-prices`, `/ceiling-prices/:ticker` | Preço Teto (10/10/2026, `docs/planos/PLANO_PRECO_TETO.md`; metodologia em `docs/PRECO_TETO_METODOLOGIA.md`). Lista (`CeilingPricesPage`): teto, ideal e três comparações (preço do cálculo, fechamento de hoje, preço médio da carteira) com margem do teto e do ideal, situação, alertas, ↻ "padrão mudou"; "Novo cálculo" pela busca de ação. Página do ativo (`CeilingPriceDetailPage`, revista pelo Guilherme em 11/10/2026): premissas primeiro, com o padrão de hoje no (i) de cada uma, ↻ por campo e "Restaurar todos os padrões" (só valem ao salvar), g calculado e G só leitura por último; 4 lucros (valor ± com sinal, unidade, BRL/USD, câmbio; sem fonte e sem a referência do documento) e o LL TTM em valor cheio; resultado ao vivo (`/calculate`), alertas, datas, observações (texto livre do usuário, `ceiling_prices.notes`); o cartão de memória de cálculo saiu da tela (a API segue devolvendo `result.steps`); legenda Padrão / Informado (dourado) / Calculado; salvar com alertas pede confirmação; sair com alteração pede confirmação |
-| `/ativos`, `/ativos/:ticker` | **Ativos** (até 18/10/2026 "Emissoras", `/emissoras` — a rota antiga redireciona para a nova, com o ticker e os parâmetros, para links salvos, histórico e notificações antigas; o aviso de catálogo da adm-api passou a "Ver ativo" → `/ativos/{ticker}`). O nome acompanha o que a tela virou: uma linha e uma página por ticker, com cotação e indicadores do papel; "emissor" continua onde é a empresa — cadastro (CNPJ, CVM, site), demonstrativos, "sem emissor cadastrado" — e nos nomes do código (`IssuerPage`, `IssuerListing`, `IssuerSearch`, tabela `issuers`). Tela criada em 28/09/2026, `docs/planos/PLANO_TELA_EMISSORES.md`. **Sem ticker** (17/10/2026, `docs/planos/PLANO_LISTAGEM_EMISSORAS.md`): a listagem do catálogo em abas **Ações** e **FIIs**, com a busca de emissora à direita das abas (o `IssuerSearch` com o "+", como o "Novo cálculo" do Preço Teto — com ticker, a busca volta ao topo). No `IssuerSearch` (Emissoras e Preço Teto), Enter e "+" abrem a opção destacada ou o ticker digitado **só se ele estiver entre as opções da busca**; um nome digitado ("COPASA") não faz nada e a lista fica aberta para escolher (18/10/2026 — antes ia para a tela do ticker e caía em "Não achamos o ticker"); no Preço Teto a busca recebe `issuerKind="COMPANY"` e só lista ações (antes trazia FIIs). Na listagem, a busca tem `max-w-md` para o texto de exemplo caber inteiro ao lado do "+". O spinner do `IssuerSearch` tem a mesma correção do autocomplete do modal: desliga quando o texto cai abaixo de 2 caracteres (apagar, escolher ou abrir pelo "+" antes dos 300 ms deixava o loading eterno) e ignora a resposta de um texto que já mudou (`IssuerListing`, `IssuerListingTable`, `IssuerListingFilters`, regras em `utils/issuerListing.ts`) — logo + ticker, nome (razão social no hover), setor (setor em cima, "subsetor › segmento" embaixo) ou segmento, preço, os indicadores do tipo e o patrimônio líquido abreviado sempre com 2 casas (R$ 480,95 bi, R$ 972,63 mi; valor cheio no hover, negativo em vermelho); relógio amarelo de dado antigo no Preço e no PL, com a data no hover; coluna AÇÃO abre a emissora. A aba inteira vem numa chamada e o resto é no navegador: ordem padrão PL decrescente, clique crescente → decrescente → padrão, vazios no fim, desempate pelo ticker; campo de nome (ticker, nome ou razão social, sem acento); botão Filtros com setor → subsetor → segmento e mín–máx de cada coluna numérica (painel compacto, fonte pequena e campos de 32 px — `SignedNumberInput size="sm"`; um bloco sem borda por coluna, rótulo e unidade em cima, campos lado a lado, no mínimo 300 px por bloco) com a máscara do projeto em 2 casas (cotistas sem casas; percentual em pontos, PL em R$ milhões), o botão ± do Preço Teto só nas colunas que podem ser negativas (ROE, LPA, VPA, VP/cota e PL), campo vazio = sem limite e zero = limite; faixa preenchida tira quem não tem o indicador; "Limpar filtros"; paginação de Transações (10 por página). Estado na URL: `?aba=fiis` e, por aba, `acoes.ord=dy.desc`, `acoes.pag`, `acoes.qtd`, `acoes.nome`, `acoes.setor`, `acoes.subsetor`, `acoes.segmento`, `acoes.dy=6~12`; a busca do topo leva à emissora só com o período do gráfico, e o "voltar" devolve a lista como estava. **Com ticker**: busca, cabeçalho com os outros tickers do emissor, cotação (atalhos + de/até, período na URL `?periodo=` / `?de=&ate=`), cartões de indicadores com sparkline e histórico em modal (Anual/Trimestral, média, ‹ ›), cadastro e demonstrativos. O ticker é link para cá em Carteira, Dividendos e Preço Teto quando o ativo tem emissor (`issuerId` nos DTOs dessas telas — não confundir com `issuer` da carteira, que é o emissor da nota de renda fixa) |
+| `/assets`, `/assets/:ticker` | **Ativos** (até 18/10/2026 "Emissoras", `/emissoras` — a rota antiga redireciona para a nova, com o ticker e os parâmetros, para links salvos, histórico e notificações antigas; o aviso de catálogo da adm-api passou a "Ver ativo" → `/assets/{ticker}`). O nome acompanha o que a tela virou: uma linha e uma página por ticker, com cotação e indicadores do papel; "emissor" continua onde é a empresa — cadastro (CNPJ, CVM, site), demonstrativos, "sem emissor cadastrado" — e nos nomes do código (`IssuerPage`, `IssuerListing`, `IssuerSearch`, tabela `issuers`). Tela criada em 28/09/2026, `docs/planos/PLANO_TELA_EMISSORES.md`. **Sem ticker** (17/10/2026, `docs/planos/PLANO_LISTAGEM_EMISSORAS.md`): a listagem do catálogo em abas **Ações** e **FIIs**, com a busca de emissora à direita das abas (o `IssuerSearch` com o "+", como o "Novo cálculo" do Preço Teto — com ticker, a busca volta ao topo). No `IssuerSearch` (Emissoras e Preço Teto), Enter e "+" abrem a opção destacada ou o ticker digitado **só se ele estiver entre as opções da busca**; um nome digitado ("COPASA") não faz nada e a lista fica aberta para escolher (18/10/2026 — antes ia para a tela do ticker e caía em "Não achamos o ticker"); no Preço Teto a busca recebe `issuerKind="COMPANY"` e só lista ações (antes trazia FIIs). Na listagem, a busca tem `max-w-md` para o texto de exemplo caber inteiro ao lado do "+". O spinner do `IssuerSearch` tem a mesma correção do autocomplete do modal: desliga quando o texto cai abaixo de 2 caracteres (apagar, escolher ou abrir pelo "+" antes dos 300 ms deixava o loading eterno) e ignora a resposta de um texto que já mudou (`IssuerListing`, `IssuerListingTable`, `IssuerListingFilters`, regras em `utils/issuerListing.ts`) — logo + ticker, nome (razão social no hover), setor (setor em cima, "subsetor › segmento" embaixo) ou segmento, preço, os indicadores do tipo e o patrimônio líquido abreviado sempre com 2 casas (R$ 480,95 bi, R$ 972,63 mi; valor cheio no hover, negativo em vermelho); relógio amarelo de dado antigo no Preço e no PL, com a data no hover; coluna AÇÃO abre a emissora. A aba inteira vem numa chamada e o resto é no navegador: ordem padrão PL decrescente, clique crescente → decrescente → padrão, vazios no fim, desempate pelo ticker; campo de nome (ticker, nome ou razão social, sem acento); botão Filtros com setor → subsetor → segmento e mín–máx de cada coluna numérica (painel compacto, fonte pequena e campos de 32 px — `SignedNumberInput size="sm"`; um bloco sem borda por coluna, rótulo e unidade em cima, campos lado a lado, no mínimo 300 px por bloco) com a máscara do projeto em 2 casas (cotistas sem casas; percentual em pontos, PL em R$ milhões), o botão ± do Preço Teto só nas colunas que podem ser negativas (ROE, LPA, VPA, VP/cota e PL), campo vazio = sem limite e zero = limite; faixa preenchida tira quem não tem o indicador; "Limpar filtros"; paginação de Transações (10 por página). Estado na URL: `?tab=fiis` e, por aba, `acoes.ord=dy.desc`, `acoes.pag`, `acoes.qtd`, `acoes.nome`, `acoes.setor`, `acoes.subsetor`, `acoes.segmento`, `acoes.dy=6~12`; a busca do topo leva à emissora só com o período do gráfico, e o "voltar" devolve a lista como estava. **Com ticker**: busca, cabeçalho com os outros tickers do emissor, cotação (atalhos + de/até, período na URL `?periodo=` / `?de=&ate=`), cartões de indicadores com sparkline e histórico em modal (Anual/Trimestral, média, ‹ ›), cadastro e demonstrativos. O ticker é link para cá em Carteira, Dividendos e Preço Teto quando o ativo tem emissor (`issuerId` nos DTOs dessas telas — não confundir com `issuer` da carteira, que é o emissor da nota de renda fixa) |
 | `/indices` | Índices (05/10/2026, `docs/planos/PLANO_INDICES_MERCADO.md`, seção 10): um card por índice, um abaixo do outro, na ordem SELIC, CDI, IPCA, IBOV, IFIX, IGPM, INPC, TR, SELIC_META, USD_PTAX (`IndicesPage`), cada um com o desenho da cotação das Emissoras (`IndexChartCard`: atalhos 1D…MAX — nos mensais IPCA, IGP-M e INPC sem 1D e 7D e com o seletor Mensal (% no mês, barras) / Anual (acumulado em 12 meses, % a.a.) —, 1A padrão, de/até; o período fica no card, não na URL). CDI e Selic aparecem anualizados (% a.a.); mensais em barras; meta Selic em degraus. Resumo: acumulado no período (taxa), variação (Ibovespa, IFIX, dólar), atual/último, mín e máx. Lê `GET /api/v1/indices/{code}/chart` |
-| `/dividends` | Dividendos (11/10/2026): abas Histórico de Proventos (recebidos) e Proventos a Receber (aba na URL desde 17/10/2026: `?aba=a-receber`) — ver "Proventos recebidos × a receber" |
+| `/dividends` | Dividendos (11/10/2026): abas Histórico de Proventos (recebidos) e Proventos a Receber (aba na URL desde 17/10/2026: `?tab=to-receive`) — ver "Proventos recebidos × a receber" |
 | `/goals` | Metas |
 | `/integrations` | Integrações (Binance e, com `B3I_ENABLED`, B3): conectar (chave ou CPF + autorização na B3), sincronizar, histórico, excluídas |
 | `/integrations/:id/runs/:runId` | Pré-visualização / resultado de uma sincronização (decidir duplicatas, confirmar) |
@@ -1049,9 +1074,15 @@ Rotas em `App.tsx`; tudo abaixo de `/login` é protegido por `ProtectedRoute`.
 | `/notifications` | Notificações (13/10/2026, `docs/planos/PLANO_NOTIFICACOES.md`): aberta pelo sino do cabeçalho (até 17/10/2026 ficava no rodapé do menu lateral), com o número de não lidas no marcador amarelo, consulta a cada 60 s. Caixa estilo e-mail (`NotificationsPage`): Entrada/Arquivadas, filtros de categoria, situação, público (admin) e "só não lidas", lista à esquerda e leitura à direita (celular: uma de cada vez), seleção em lote (lida, não lida, arquivar, desarquivar, excluir), ações da mensagem (link, "Informar custo"), Dispensar/Reabrir na pendência |
 | `/settings` | Configurações (05/10/2026): Perfil (foto centralizada com envio e recorte no navegador — `AvatarCropModal`, JPEG/PNG/WebP até 5 MB, ≥ 128 px —, nome, e-mail com troca por código, celular, CPF mascarado), Acesso (alterar/definir senha — botão amarelo com ícone de chave desde 17/10/2026 —, vincular/desvincular Google, termos aceitos), Preferências (tema, gravado no usuário), Zona de perigo (excluir conta com código; botão com ícone de lixeira) |
 | `/login` | Login (email/senha + Google), links "Esqueci a senha" e "Criar conta" (só com o cadastro ligado) |
-| `/cadastro` | Criar conta (pública): dados (celular e CPF opcionais) + aceite dos termos → código por e-mail → já entra. Ou Google |
-| `/esqueci-senha` | Esqueci a senha (pública): e-mail → código + nova senha |
-| `/termos`, `/privacidade` | Termos de Uso e Política de Privacidade (públicas; texto provisório em `src/content/legal.ts`) |
+| `/signup` | Criar conta (pública): dados (celular e CPF opcionais) + aceite dos termos → código por e-mail → já entra. Ou Google |
+| `/forgot-password` | Esqueci a senha (pública): e-mail → código + nova senha |
+| `/terms`, `/privacy` | Termos de Uso e Política de Privacidade (públicas; texto provisório em `src/content/legal.ts`) |
+
+> **Rotas e parâmetros em inglês** (22/10/2026, `docs/planos/PLANO_NOMES_EM_INGLES.md`, E4): as rotas antigas em
+> português (`/rentabilidade`, `/ativos`, `/emissoras`, `/cadastro`, `/esqueci-senha`, `/termos`, `/privacidade`) e os
+> parâmetros antigos (`aba`, `periodo`, `de`, `ate`, `tipo`, `categoria`, `ativo`, `reserva=sem`, `base=liquido`,
+> `indices`, `acoes.*`/`fiis.*` da listagem) continuam valendo, sem prazo: o `App` traduz o endereço na chegada
+> (`utils/legacyUrl.ts`) e navega para o equivalente em inglês. Os valores de domínio (`1A`, `5A`, tickers) ficam.
 
 ### Alocação
 Aba **Carteira de Investimentos** (gráfico "pizza de pizza" desde 12/10/2026, `components/charts/PieOfPieChart`): um
@@ -1203,7 +1234,7 @@ a chave precisa avisar quem está de fora que o estado mudou. Por isso o
   R$ no tipo valor. Componente em `components/strategy/ReservationStrategyTab`.
 - **Link para o Rebalanceamento** (11/10/2026): no canto superior direito do conteúdo, na linha das abas,
   "Ir para Rebalanceamento" (`components/ui/PageLink`). O caminho inverso, desde 17/10/2026, sai de cada card do
-  Rebalanceamento para a aba correspondente (`?aba=reserva` ou a aba padrão), pela prop `action` do `Card`. A aba Ideal Estratégico
+  Rebalanceamento para a aba correspondente (`?tab=reservation` ou a aba padrão), pela prop `action` do `Card`. A aba Ideal Estratégico
   continua lendo `GET /strategy/rebalance` para o % Atual de cada tipo.
 
 ### Rebalanceamento
@@ -1312,7 +1343,7 @@ mostra a venda do usuário somando as partes (`groupShares`).
 A repartição é **refeita por inteiro a cada escrita no ativo**: uma compra
 lançada com data retroativa passa a ser o título mais antigo, leva as cotas que
 saíam de outro e reabre título que estava liquidado. É o Exemplo 6 do escopo, e
-está em `TransacoesIT.exemplo6`.
+está em `TransactionsIT.exemplo6`.
 
 ### Renda fixa: como a nota entra
 
@@ -1506,13 +1537,13 @@ publicou; o valor só existe no Comunicado ao Mercado da Petrobras — PENDENCIA
 - **Tela**: PAGAMENTO com sublinhado pontilhado e hover quando a data veio da CVM ou do levantamento
   (`paymentDateSource` no `DividendResponseDTO`); sem data, "Data não informada" (D16).
 - A carteira vem da B3 pela API da Área do Investidor (`docs/planos/PLANO_INTEGRACAO_B3.md`; o que falta na PENDENCIAS
-  16). Os proventos que a B3 informa por ela são só **conferidos** com a carteira (`ProventosConferencia`, na
+  16). Os proventos que a B3 informa por ela são só **conferidos** com a carteira (`DividendReconciliation`, na
   integração): já está, está sem data de pagamento no catálogo, não está (o catálogo não tem o evento) ou não dá para
   conferir — vira o motivo do item; nada é gravado.
 - **`GlobalExceptionHandler`** trata `ResponseStatusException` com o status e o
   motivo da própria exceção. Antes ela caía no handler genérico e virava 500 —
   inclusive o 403 dos endpoints de admin.
-- Testes: `ProventosConferenciaIT` (5) e `PaymentDateSourceIT` (2: CVM cede à B3; FNET assume a reserva da B3).
+- Testes: `DividendReconciliationIT` (5) e `PaymentDateSourceIT` (2: CVM cede à B3; FNET assume a reserva da B3).
 
 ## ⚠️ Pontos de Atenção
 
@@ -1732,7 +1763,7 @@ Plano: `docs/planos/PLANO_TAREFAS.md` (decisões D1–D36). As rotinas agendadas
 - **Agendamento pelo banco** (`TaskScheduleRegistry`): um `CronTrigger` (São Paulo) por tarefa ativa com horário e com
   handler no serviço; reagenda ao editar (comando `RELOAD` pelo Redis, canal `primevest:tasks:commands`, D29) e relê
   tudo a cada 5 min. A chave geral `primevest.scheduling.enabled` desliga tudo (testes, pilha de teste). Os `*.cron` e
-  os `primevest.<rotina>.enabled` saíram dos `application.yml`; o `primevest.proventos.enabled` da app-api ficou como
+  os `primevest.<rotina>.enabled` saíram dos `application.yml`; o `primevest.dividends.enabled` da app-api ficou como
   interruptor técnico do pedido sob demanda (os testes desligam) — quem desliga de verdade é o tipo `DIVIDENDS_SYNC`
   (D30).
 - **Subida** (`TaskStartup`): rodada `RUNNING` dos tipos do serviço vira `FAILED`; grava `task_types.stoppable` pelos
@@ -1759,7 +1790,7 @@ Plano: `docs/planos/PLANO_TAREFAS.md` (decisões D1–D36). As rotinas agendadas
 ### Proventos: parcelas, recibos e avisos retificados (21/10/2026)
 
 Plano: `docs/planos/PLANO_CORRECAO_PROVENTOS.md` (origem: `docs/planos/PLANO_INVESTIGACAO_PROVENTOS_DUPLICADOS.md`).
-Regras da rotina de proventos (`ProventosCatalogService`, adm-api):
+Regras da rotina de proventos (`DividendCatalogService`, adm-api):
 
 - **Tolerância de valor só entre fontes diferentes** (R1). O mesmo provento escrito com outras casas pelo FNET e pela B3
   (1,03999999900318 × 1,04) completa o evento; dentro da família B3 (B3 e `B3_HISTORICO`) valores quase iguais são
@@ -1777,7 +1808,7 @@ Regras da rotina de proventos (`ProventosCatalogService`, adm-api):
 - **Situação do aviso no FNET** (R5): a lista de avisos de um fundo traz `status` — `AC` ativo, `IC` inativo, `CC`
   cancelado (o fundo corrigiu a data-base e publicou outro, ou retirou). Fica em `carga/data/fnet/status/{CNPJ}.json`
   (arquivo é o estado, como os XML; vai para o bucket), gravado a cada busca do fundo e, para todos, por
-  `POST /api/v1/admin/proventos/fnet-status[?missing=true]` (uma busca por vez, com pausa: o FNET segura buscas
+  `POST /api/v1/admin/dividends/fnet-status[?missing=true]` (uma busca por vez, com pausa: o FNET segura buscas
   seguidas). Aviso inativo não vira evento; o evento que ele já gerou é atualizado no lugar pelo aviso ativo do mesmo
   fundo, tipo, pagamento e valor (id preservado). Fundo ainda sem arquivo de situação: o aviso mais novo com data-base
   até 7 dias da anterior é a retificação (conferido onde há situação: antigo inativo/cancelado em 7 de 8 pares). A busca para no `recordsTotal`: o FNET
@@ -1809,14 +1840,14 @@ Regras da rotina de proventos (`ProventosCatalogService`, adm-api):
 - **Conferência independente:** `node carga/scripts/conferencia/proventos.mjs [--detalhe] [--cotahist] [--sql]` —
   classes A a E direto das tabelas e dos arquivos; código de saída 1 se houver erro. `--sql` imprime a chave natural de
   cada evento indevido (a lista da migration de limpeza).
-- Testes: `CorrecaoProventosIT` (24; respostas reais da B3 e avisos reais do FNET).
-- **Reler todos os avisos do FNET:** `POST /api/v1/admin/proventos?fnet=todos` (`admin.mjs "proventos?fnet=todos"`). A
+- Testes: `DividendCorrectionIT` (24; respostas reais da B3 e avisos reais do FNET).
+- **Reler todos os avisos do FNET:** `POST /api/v1/admin/dividends?fnet=all` (`admin.mjs "dividends?fnet=all"`). A
   rotina normal só lê o aviso que ainda não gerou evento; depois de uma limpeza de dados (V60) o aviso ativo que já
   tinha outra linha gravada não voltava a ser lido (CJCT11, HAAA11, MAXR11, PLRI11). Reler é idempotente: a linha que o
   próprio aviso já gravou não duplica, mesmo com o valor da B3 (`fromSameNotice`).
 - Conferência independente: `node carga/scripts/conferencia/proventos.mjs [--detalhe] [--sql]` — A–E têm de dar 0.
 - **Rotina semanal [A12]** (tarefa `FNET_STATUS_SYNC`, domingo 03:00): situação dos avisos de
-  todos os fundos no FNET (~1 h) e depois os proventos com `fnet=todos` — é o que faz R10/R11 entrarem sem esperar
+  todos os fundos no FNET (~1 h) e depois os proventos com `fnet=all` — é o que faz R10/R11 entrarem sem esperar
   aviso novo do fundo (PENDENCIAS 33.3).
 
 ### `dividends` não tem dono próprio
@@ -1907,19 +1938,19 @@ não "quando o usuário mexeu nesta posição" — para a segunda pergunta, o qu
 
 ### Testes — existem desde 22/09/2026
 
-**Em 22/10/2026, noite (fonte do Tesouro: `PublicFileCacheTest` 7, `TreasuryPricesTaskTest` 2, `TreasuryPriceIT` 4 → 8): core 210; integration 103; adm-api 127 + 82; app-api 210 + 263 — todos verdes em `mvn clean verify`** (numa primeira rodada o `TaskExecutorTest.logDaRodada`, que depende de tempo — espera o lote de 1 s do log —, falhou uma vez e passou na seguinte, sem mudança). Antes, **em 22/10/2026 (Tarefas: `TaskAttributeValuesTest` 3, `TaskCatalogServiceTest` 3, `TaskExecutorTest` 11, `TaskScheduleRegistryTest` 2, `FnetStatusSyncTaskTest` 2 no lugar do `FnetStatusSchedulerTest` 3, `TaskControllerIT` 5): core 210; integration 103; adm-api 118 + 78; app-api 210 + 263 — todos verdes em `mvn clean verify`.** Antes, em 21/10/2026 (correção dos proventos: `CorrecaoProventosIT` 24, `ProventosConferenciaIT` 5; `ExtratoProventosIT` saiu): core 190; integration 103; adm-api 116 + 73; app-api 210 + 261 — todos verdes em `mvn clean verify`. Depois, no mesmo dia (rotina semanal [A12] e data da B3 que muda — `FnetStatusSchedulerTest` 3, `PaymentDateSourceIT` 5): core 190; integration 103; adm-api 119 + 73; app-api 210 + 263 — verdes. Antes, **em 17/10/2026, mais tarde (listagem de emissoras: `ListagemEmissorasIT`): core 190; integration 103; adm-api 116 + 49; app-api 210 + 261 — todos verdes em `mvn clean verify` (~6 min).** Antes, no mesmo dia, à noite ("Mudanças de tela": `DashboardResumoIT` — aportes compras − vendas em 12 meses, valor líquido do Patrimônio — e os proventos de 12 meses no `ProventosAReceberIT`): core 190; integration 103; adm-api 116 + 49; app-api 210 + 256 — todos verdes em `mvn clean verify` (~7 min). Antes, no mesmo dia (Rentabilidade, com o padrão do Tesouro e a V59): core 190; integration 103; adm-api 116 + 49; app-api 210 + 251. Antes, na entrega da Rentabilidade: core 189; integration 103; adm-api 116 + 48; app-api 210 + 250. Antes, em 10/10/2026 (Preço Teto, payout pela DFC, COTAHIST diário): core 158; integration 103; adm-api 89 + 40; app-api 189 + 199 — todos verdes em `mvn verify` (~6 min).** Antes, em 05/10/2026, noite (valorização da renda fixa): 521 unitários + 231 de integração, por módulo: core 158; integration 103; adm-api 88 + 38; app-api 172 + 193, todos verdes em `mvn clean verify` (~7 min). Na F11 (28/09/2026) eram 394 + 180.
+**Em 22/10/2026, mais tarde (nomes internos em inglês: classes, bases, helpers e métodos dos testes em inglês — `FunctionalBase`, `CatalogE2EBase`, `SyntheticAccount`, `DividendsIT`…; os `@DisplayName` ficam em português): a mesma contagem, core 210; integration 103; adm-api 127 + 82; app-api 210 + 263 — todos verdes em `mvn clean verify`.** Antes, **em 22/10/2026, noite (fonte do Tesouro: `PublicFileCacheTest` 7, `TreasuryPricesTaskTest` 2, `TreasuryPriceIT` 4 → 8): core 210; integration 103; adm-api 127 + 82; app-api 210 + 263 — todos verdes em `mvn clean verify`** (numa primeira rodada o `TaskExecutorTest.runLog`, que depende de tempo — espera o lote de 1 s do log —, falhou uma vez e passou na seguinte, sem mudança). Antes, **em 22/10/2026 (Tarefas: `TaskAttributeValuesTest` 3, `TaskCatalogServiceTest` 3, `TaskExecutorTest` 11, `TaskScheduleRegistryTest` 2, `FnetStatusSyncTaskTest` 2 no lugar do `FnetStatusSchedulerTest` 3, `TaskControllerIT` 5): core 210; integration 103; adm-api 118 + 78; app-api 210 + 263 — todos verdes em `mvn clean verify`.** Antes, em 21/10/2026 (correção dos proventos: `DividendCorrectionIT` 24, `DividendReconciliationIT` 5; `ExtratoProventosIT` saiu): core 190; integration 103; adm-api 116 + 73; app-api 210 + 261 — todos verdes em `mvn clean verify`. Depois, no mesmo dia (rotina semanal [A12] e data da B3 que muda — `FnetStatusSchedulerTest` 3, `PaymentDateSourceIT` 5): core 190; integration 103; adm-api 119 + 73; app-api 210 + 263 — verdes. Antes, **em 17/10/2026, mais tarde (listagem de emissoras: `IssuerListingIT`): core 190; integration 103; adm-api 116 + 49; app-api 210 + 261 — todos verdes em `mvn clean verify` (~6 min).** Antes, no mesmo dia, à noite ("Mudanças de tela": `DashboardSummaryIT` — aportes compras − vendas em 12 meses, valor líquido do Patrimônio — e os proventos de 12 meses no `DividendsToReceiveIT`): core 190; integration 103; adm-api 116 + 49; app-api 210 + 256 — todos verdes em `mvn clean verify` (~7 min). Antes, no mesmo dia (Rentabilidade, com o padrão do Tesouro e a V59): core 190; integration 103; adm-api 116 + 49; app-api 210 + 251. Antes, na entrega da Rentabilidade: core 189; integration 103; adm-api 116 + 48; app-api 210 + 250. Antes, em 10/10/2026 (Preço Teto, payout pela DFC, COTAHIST diário): core 158; integration 103; adm-api 89 + 40; app-api 189 + 199 — todos verdes em `mvn verify` (~6 min).** Antes, em 05/10/2026, noite (valorização da renda fixa): 521 unitários + 231 de integração, por módulo: core 158; integration 103; adm-api 88 + 38; app-api 172 + 193, todos verdes em `mvn clean verify` (~7 min). Na F11 (28/09/2026) eram 394 + 180.
 O suporte comum (container do PostgreSQL, bases, fixtures, `application-test.yml`) vem do
 test-jar do core. A app-api tem a adm-api **só no classpath de teste**, para os testes de ponta a ponta de
-proventos e fechamento (`CatalogoE2EBase`: fonte mockada → catálogo pela adm-api → recálculo pela app-api →
+proventos e fechamento (`CatalogE2EBase`: fonte mockada → catálogo pela adm-api → recálculo pela app-api →
 API do usuário). O histórico abaixo é de antes da separação.
 
 `src/test` deixou de estar vazio. **319 testes** em 24/09/2026, verdes em
 `mvn clean verify` (~75s): 240 rapidos (`*Test`, Surefire) e 79 funcionais
 (`*IT`, Failsafe). A integração BRAPI/B3 trouxe `BrApiClientTest` (ExchangeFunction
-falsa), `CorporateActionApplierTest`, `PositionCalculatorEventosTest`,
+falsa), `CorporateActionApplierTest`, `PositionCalculatorEventsTest`,
 `DividendRecalculatorTest`, `B3RespostasReaisTest` (respostas reais da B3 e do
-FNET em `src/test/resources/b3`) e os funcionais `FechamentoIT`, `ProventosIT` e
-`EventosSocietariosIT`.
+FNET em `src/test/resources/b3`) e os funcionais `ClosingIT`, `DividendsIT` e
+`CorporateEventsIT`.
 
 | Camada | O que cobre |
 |--------|-------------|
@@ -1935,7 +1966,7 @@ migration continuam batendo. H2 foi removido: ele não tem `NULLS NOT DISTINCT`,
 nem os CHECKs, nem o `ORDER BY` com `CASE` da busca.
 
 Os **exemplos 1 a 6 do escopo de vendas** viraram testes com o nome do exemplo,
-em `TransacoesIT`: saldo por cota em qualquer data (1 a 3), FIFO do Tesouro (4),
+em `TransactionsIT`: saldo por cota em qualquer data (1 a 3), FIFO do Tesouro (4),
 venda sem cotas na data (5) e a compra retroativa que refaz a repartição (6).
 
 Como rodar:
@@ -1956,9 +1987,9 @@ mvn -pl primevest-adm-api -am verify   # um módulo (e o que ele usa)
 > Docker environment", com o Docker Desktop rodando normalmente.
 
 O perfil `test` (`primevest-core/src/test/resources/application-test.yml`) desliga Redis, as mensagens e as
-rotinas agendadas; as fontes externas são mockadas nos testes (Binance no `FuncionalBase`, Área do Investidor da B3
-no `IntegracoesB3IT` com a `ContaSinteticaB3`, B3/FNET/BRAPI/
-CoinGecko no `CatalogoE2EBase` e nos testes da adm-api): nenhum teste depende de rede.
+rotinas agendadas; as fontes externas são mockadas nos testes (Binance no `FunctionalBase`, Área do Investidor da B3
+no `IntegrationsB3IT` com a `SyntheticAccountB3`, B3/FNET/BRAPI/
+CoinGecko no `CatalogE2EBase` e nos testes da adm-api): nenhum teste depende de rede.
 
 ### O lint do front passou a existir em 18/09/2026
 `npm run lint` falhava desde sempre com *couldn't find an eslint.config.(js|mjs|cjs)*:

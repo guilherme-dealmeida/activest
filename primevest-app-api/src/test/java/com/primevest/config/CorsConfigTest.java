@@ -35,17 +35,17 @@ class CorsConfigTest extends MvcTestBase {
         "http://localhost:3000", "http://127.0.0.1:3000"
     })
     @DisplayName("Origem de desenvolvimento passa no preflight e recebe o proprio Allow-Origin")
-    void origemDeDesenvolvimentoAceita(String origem) throws Exception {
+    void developmentOriginAccepted(String origin) throws Exception {
         mvc.perform(options("/api/v1/transactions/")
-                .header("Origin", origem)
+                .header("Origin", origin)
                 .header("Access-Control-Request-Method", "POST"))
             .andExpect(status().isOk())
-            .andExpect(header().string("Access-Control-Allow-Origin", origem));
+            .andExpect(header().string("Access-Control-Allow-Origin", origin));
     }
 
     @Test
     @DisplayName("Origem fora da lista continua recusada com 403")
-    void origemDesconhecidaRecusada() throws Exception {
+    void unknownOriginRejected() throws Exception {
         mvc.perform(options("/api/v1/transactions/")
                 .header("Origin", "http://evil.example")
                 .header("Access-Control-Request-Method", "POST"))

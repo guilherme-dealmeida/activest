@@ -39,7 +39,7 @@ class CvmOpenDataClientTest {
     private CvmOpenDataClient client;
 
     @BeforeEach
-    void subirServidor() throws IOException {
+    void startServer() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/", exchange -> {
             String path = exchange.getRequestURI().getPath();
@@ -60,19 +60,19 @@ class CvmOpenDataClientTest {
             exchange.close();
         });
         server.start();
-        Clock setembro2026 = Clock.fixed(Instant.parse("2026-09-27T12:00:00Z"), ZoneId.of("America/Sao_Paulo"));
+        Clock september2026 = Clock.fixed(Instant.parse("2026-09-27T12:00:00Z"), ZoneId.of("America/Sao_Paulo"));
         client = new CvmOpenDataClient("http://127.0.0.1:" + server.getAddress().getPort() + "/dados",
-                tmp.resolve("cvm"), Duration.ofSeconds(5), setembro2026);
+                tmp.resolve("cvm"), Duration.ofSeconds(5), september2026);
     }
 
     @AfterEach
-    void derrubarServidor() {
+    void takeServerDown() {
         server.stop(0);
     }
 
     @Test
     @DisplayName("Ano corrente: baixa uma vez e depois so pergunta se mudou (304 mantem o arquivo)")
-    void anoCorrente() throws IOException {
+    void currentYear() throws IOException {
         Path first = client.yearly(CvmDataset.FCA, 2026).orElseThrow();
         assertThat(first).isEqualTo(tmp.resolve("cvm").resolve("fca").resolve("fca_cia_aberta_2026.zip").toAbsolutePath());
         assertThat(Files.readString(first)).contains("fca_cia_aberta_2026.zip");
@@ -89,7 +89,7 @@ class CvmOpenDataClientTest {
 
     @Test
     @DisplayName("Ano fechado ja em disco: nao vai a rede")
-    void anoFechado() throws IOException {
+    void closedYear() throws IOException {
         Path local = tmp.resolve("cvm").resolve("dfp").resolve("dfp_cia_aberta_2015.zip");
         Files.createDirectories(local.getParent());
         Files.writeString(local, "local");
@@ -100,14 +100,14 @@ class CvmOpenDataClientTest {
 
     @Test
     @DisplayName("Ano que a CVM nao tem: vazio, sem arquivo")
-    void anoInexistente() {
+    void missingYear() {
         assertThat(client.yearly(CvmDataset.ITR, 2019)).isEmpty();
         assertThat(tmp.resolve("cvm").resolve("itr").resolve("itr_cia_aberta_2019.zip")).doesNotExist();
     }
 
     @Test
     @DisplayName("Fonte fora do ar: fica com a copia em disco; sem copia, erro claro")
-    void foraDoAr() throws IOException {
+    void down() throws IOException {
         Path local = tmp.resolve("cvm").resolve("cad").resolve("cad_cia_aberta.csv");
         Files.createDirectories(local.getParent());
         Files.writeString(local, "copia");

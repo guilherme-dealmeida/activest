@@ -16,7 +16,7 @@ export const TermsGate = () => {
 
   if (!user?.termsPending) return null;
 
-  const aceitar = async () => {
+  const accept = async () => {
     setBusy(true);
     setError('');
     try {
@@ -39,13 +39,13 @@ export const TermsGate = () => {
           {' '}Leia os textos e aceite a nova versão para continuar.
         </p>
         <div className="flex gap-4 text-sm">
-          <Link to="/termos" target="_blank" className="text-accent hover:underline">Termos de Uso</Link>
-          <Link to="/privacidade" target="_blank" className="text-accent hover:underline">Política de Privacidade</Link>
+          <Link to="/terms" target="_blank" className="text-accent hover:underline">Termos de Uso</Link>
+          <Link to="/privacy" target="_blank" className="text-accent hover:underline">Política de Privacidade</Link>
         </div>
         {error && <p className="text-sm text-danger">{error}</p>}
         <div className="flex justify-end gap-3 pt-2">
           <Button variant="ghost" onClick={logout}>Sair</Button>
-          <Button onClick={aceitar} isLoading={busy}>Li e aceito</Button>
+          <Button onClick={accept} isLoading={busy}>Li e aceito</Button>
         </div>
       </div>
     </div>

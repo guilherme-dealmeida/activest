@@ -116,7 +116,7 @@ public class BonusCostService {
             for (Pending p : entry.getValue()) {
                 String key = pa.getId() + ":" + p.stockEventId();
                 keep.add(key);
-                boolean novo = notifications.notify(NotificationDraft.of(NotificationKind.BONIFICACAO_SEM_CUSTO)
+                boolean isNew = notifications.notify(NotificationDraft.of(NotificationKind.BONIFICACAO_SEM_CUSTO)
                     .user(userId)
                     .title(p.label() + " sem custo atribuído")
                     .body("A empresa bonificou " + pct(p.factor()) + " em ações (data-com " + p.dataCom().format(BR)
@@ -130,18 +130,18 @@ public class BonusCostService {
                         "label", p.label())))
                     .link("Ver carteira", "/portfolio")
                     .build()).isPresent();
-                if (novo) {
+                if (isNew) {
                     created++;
                 }
             }
         }
-        List<UUID> resolver = new ArrayList<>();
+        List<UUID> toResolve = new ArrayList<>();
         for (Notification n : notifications.openOf(NotificationKind.BONIFICACAO_SEM_CUSTO)) {
             if (!keep.contains(NotificationService.keyOf(n))) {
-                resolver.add(n.getId());
+                toResolve.add(n.getId());
             }
         }
-        notifications.resolveIds(resolver);
+        notifications.resolveIds(toResolve);
         return created;
     }
 

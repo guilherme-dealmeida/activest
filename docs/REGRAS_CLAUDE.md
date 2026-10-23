@@ -2,7 +2,8 @@
 
 > Gerado em 02/10/2026 · revisado em 03/10/2026 (planos em `docs/planos/`, pendências em `docs/PENDENCIAS.md`,
 > carga em `carga/`), em 09/10/2026 (seção 8, banco de dados) e em 10/10/2026 (5.3: o Claude executa downloads e
-> esperas longas; a antiga 5.7 deixou de ser necessária) e em 12/10/2026 (2.6: preço atual × fechamento).
+> esperas longas; a antiga 5.7 deixou de ser necessária), em 12/10/2026 (2.6: preço atual × fechamento) e em
+> 22/10/2026 (seção 9, nomes em inglês).
 >
 > **Escopo:** só a **relação de trabalho**: como pedimos, executamos, validamos e documentamos. Regras de negócio do
 > sistema não entram aqui; elas ficam no `Claude.md` e nos planos.
@@ -20,6 +21,7 @@
 6. [Arquivos, pastas e dados](#6-arquivos-pastas-e-dados)
 7. [Documentação](#7-documentação)
 8. [Banco de dados](#8-banco-de-dados)
+9. [Nomes em inglês](#9-nomes-em-inglês)
 
 ---
 
@@ -96,7 +98,7 @@ executa e confere o resultado (revisada em 10/10/2026 — antes o Guilherme roda
 **5.4** Quando a tabela "Quem faz" do plano disser que o Guilherme roda algo (ex.: a bateria completa numa etapa
 específica), o Claude prepara e depois confere; não roda por conta própria.
 
-**5.5** A senha de administrador do PrimeVest fica em `PRIMEVEST_SENHA` no `.env` da raiz: as rotinas de
+**5.5** A senha de administrador do PrimeVest fica em `PRIMEVEST_PASSWORD` no `.env` da raiz: as rotinas de
 administrador são disparadas por script (`carga/scripts/admin.mjs`) sem pedir a senha a cada vez.
 
 **5.6** Bloqueio de rede da política da organização (403/000 do proxy) é negação de política: não se contorna.
@@ -135,6 +137,37 @@ formato do que guardam.
 migration, que preenche as linhas existentes. Não se escreve migration com lógica customizada para deduzir o valor de
 cada linha; o ajuste fino, se houver, é feito depois pelo usuário. Ex. (09/10/2026): emissora e distribuidora dos
 títulos de Renda Fixa e Tesouro Direto entram como "Instituição não listada".
+
+## 9. Nomes em inglês
+
+**9.1** (22/10/2026) **Todo nome que o Claude cria ou renomeia é em inglês**, desde a primeira versão: não se cria nome
+em português para traduzir depois. Vale para:
+
+| Onde | O que é nome |
+|---|---|
+| Front | rotas (`/performance`, `/assets`), parâmetros de URL e os valores fixos que só existem na URL (`tab=reservation`, `basis=net`), páginas, componentes, hooks, funções, tipos, variáveis, chaves de `localStorage` |
+| API (app-api e adm-api) | rotas e parâmetros (`/api/v1/admin/dividends/payment-date-survey`, `fnet=all`), chaves do JSON de resposta (`task`, `result`) |
+| Java (produção) | pacotes, classes (inclusive a classe enum e os records), métodos, campos, constantes, variáveis |
+| Testes | classes, bases, helpers e nomes de método (o `@DisplayName` fica em português) |
+| Configuração e ambiente | chaves do `application.yml` (`primevest.dividends.*`, `treasury.*`), variáveis de ambiente (`PRIMEVEST_PASSWORD`), nomes de canal do Redis (`primevest:dividends:on-demand`) |
+| Banco | tabelas, colunas, constraints e índices (`ck_users_cpf_complete`) |
+| Pastas de recurso de teste | `treasury/`, não `tesouro/` |
+
+**9.2** **Não é nome, e fica como está:** valor de registro gravado no banco e valor de enum que trafega na API ou na
+mensagem do Redis — em português ou inglês, conforme o tipo de registro (ex.: `PROVENTOS`, `ABAIXO_DO_IDEAL`, `1A`);
+nada é regravado para traduzir. Também ficam em português o que pessoas leem (tela, mensagens, logs, comentários,
+Javadoc, documentação), os termos do mercado (`data_com`/`dataCom`), os nomes que vêm de fonte externa (colunas da CVM,
+campos da B3, `NoticeStatus` do FNET, `B3Investidor`), os arquivos de migration já aplicados e a carga (`carga/scripts`,
+pastas de `carga/data` espelhadas no bucket).
+
+**9.3** Palavra que se escreve igual nas duas línguas e é inglês correto fica (ex.: `indices`, plural de *index*,
+como em `market_indices`).
+
+**9.4** Em código existente, nome em português encontrado no caminho é renomeado no mesmo trabalho só quando o escopo
+pedir; senão vira item em `docs/PENDENCIAS.md`. Endereço já publicado (rota ou parâmetro do front) que muda de nome
+continua aceito: a rota antiga redireciona e o parâmetro antigo é traduzido na chegada (`utils/legacyUrl.ts`).
+
+Origem: `docs/planos/PLANO_NOMES_EM_INGLES.md` (diretriz do Guilherme, 22/10/2026; escopo encerrado no mesmo dia).
 
 ---
 

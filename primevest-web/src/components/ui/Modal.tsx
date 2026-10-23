@@ -27,7 +27,7 @@ interface ModalProps {
   children: React.ReactNode;
 }
 
-const LARGURAS = {
+const WIDTHS = {
   md: 'max-w-lg',
   lg: 'max-w-2xl',
   xl: 'max-w-4xl',
@@ -65,7 +65,7 @@ export const Modal = ({ isOpen, onClose, title, titleInfo, size = 'md', footer, 
         onClick={onClose}
       />
       <div
-        className={`relative z-50 flex max-h-[85vh] w-full ${LARGURAS[size]} flex-col overflow-hidden rounded-xl bg-surface border border-surface-light shadow-lg animate-in fade-in zoom-in-95 duration-200`}
+        className={`relative z-50 flex max-h-[85vh] w-full ${WIDTHS[size]} flex-col overflow-hidden rounded-xl bg-surface border border-surface-light shadow-lg animate-in fade-in zoom-in-95 duration-200`}
       >
         {/* Cabeçalho e rodapé são shrink-0: só o miolo cede espaço. */}
         <div className="flex shrink-0 items-center justify-between border-b border-surface-light px-6 py-4">

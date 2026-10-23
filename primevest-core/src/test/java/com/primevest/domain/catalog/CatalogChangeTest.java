@@ -17,11 +17,11 @@ class CatalogChangeTest {
     void json() throws Exception {
         CatalogChange change = new CatalogChange(CatalogChange.Origin.PROVENTOS, Set.of(10L, 20L));
 
-        String texto = json.writeValueAsString(change);
-        CatalogChange lido = json.readValue(texto, CatalogChange.class);
+        String text = json.writeValueAsString(change);
+        CatalogChange read = json.readValue(text, CatalogChange.class);
 
-        assertThat(lido).isEqualTo(change);
-        assertThat(texto).contains("\"origin\":\"PROVENTOS\"");
+        assertThat(read).isEqualTo(change);
+        assertThat(text).contains("\"origin\":\"PROVENTOS\"");
     }
 
     @Test
@@ -29,18 +29,18 @@ class CatalogChangeTest {
     void indices() throws Exception {
         CatalogChange change = CatalogChange.indices(Set.of("CDI", "IPCA"));
 
-        CatalogChange lido = json.readValue(json.writeValueAsString(change), CatalogChange.class);
-        assertThat(lido).isEqualTo(change);
-        assertThat(lido.assetIds()).isEmpty();
+        CatalogChange read = json.readValue(json.writeValueAsString(change), CatalogChange.class);
+        assertThat(read).isEqualTo(change);
+        assertThat(read.assetIds()).isEmpty();
 
-        CatalogChange antiga = json.readValue("{\"origin\":\"FECHAMENTO\",\"assetIds\":[1]}", CatalogChange.class);
-        assertThat(antiga.indexCodes()).isEmpty();
-        assertThat(antiga.assetIds()).containsExactly(1L);
+        CatalogChange old = json.readValue("{\"origin\":\"FECHAMENTO\",\"assetIds\":[1]}", CatalogChange.class);
+        assertThat(old.indexCodes()).isEmpty();
+        assertThat(old.assetIds()).containsExactly(1L);
     }
 
     @Test
     @DisplayName("Sem ativos: conjunto vazio, nunca nulo")
-    void semAtivos() {
+    void withoutAssets() {
         assertThat(new CatalogChange(CatalogChange.Origin.FECHAMENTO, null).assetIds()).isEmpty();
     }
 }

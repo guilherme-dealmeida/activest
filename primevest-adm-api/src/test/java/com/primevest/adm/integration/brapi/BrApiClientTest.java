@@ -78,7 +78,7 @@ class BrApiClientTest {
 
     @Test
     @DisplayName("200: devolve o results[0].data tipado e manda o token no cabecalho, nunca na URL")
-    void cotacao200() {
+    void quote200() {
         Fake fake = new Fake().reply(HttpStatus.OK, QUOTE_PETR4);
 
         BrApiQuote quote = client(fake, "tok-secreto").fetchQuote("PETR4");
@@ -94,7 +94,7 @@ class BrApiClientTest {
 
     @Test
     @DisplayName("Guarda o RateLimit-Remaining da ultima resposta para o log da rodada")
-    void guardaRateLimit() {
+    void keepsRateLimit() {
         BrApiClient client = client(new Fake().reply(HttpStatus.OK, QUOTE_PETR4), "t");
         client.fetchQuote("PETR4");
 
@@ -103,7 +103,7 @@ class BrApiClientTest {
 
     @Test
     @DisplayName("Historico: candles com o dia do pregao no fuso de Sao Paulo")
-    void historico() {
+    void history() {
         Fake fake = new Fake().reply(HttpStatus.OK, HIST_PETR4);
 
         BrApiHistory h = client(fake, "t").fetchDailyHistory("PETR4", "5d");
@@ -117,7 +117,7 @@ class BrApiClientTest {
 
     @Test
     @DisplayName("400 fora do plano: excecao com o code da BRAPI, sem nova tentativa")
-    void erro400() {
+    void error400() {
         Fake fake = new Fake().reply(HttpStatus.BAD_REQUEST,
                 "{\"error\":true,\"message\":\"range invalido\",\"code\":\"INVALID_RANGE\"}");
 
@@ -131,7 +131,7 @@ class BrApiClientTest {
 
     @Test
     @DisplayName("401 e 403: excecao marcada como token/plano — a rodada para")
-    void erro401e403() {
+    void error401and403() {
         Fake fake = new Fake()
                 .reply(HttpStatus.UNAUTHORIZED, "{\"error\":true,\"message\":\"token\",\"code\":\"UNAUTHORIZED\"}")
                 .reply(HttpStatus.FORBIDDEN, "{\"error\":true,\"message\":\"plano\",\"code\":\"FEATURE_NOT_AVAILABLE\"}");
@@ -148,7 +148,7 @@ class BrApiClientTest {
 
     @Test
     @DisplayName("404: excecao NOT_FOUND — quem chama pula o ativo")
-    void erro404() {
+    void error404() {
         Fake fake = new Fake().reply(HttpStatus.NOT_FOUND, NOT_FOUND);
 
         assertThatThrownBy(() -> client(fake, "t").fetchQuote("AHEB3F"))
@@ -160,7 +160,7 @@ class BrApiClientTest {
 
     @Test
     @DisplayName("429: espera o Retry-After e tenta UMA vez de novo")
-    void erro429TentaDeNovo() {
+    void error429RetriesAgain() {
         Fake fake = new Fake()
                 .reply(HttpStatus.TOO_MANY_REQUESTS, "{\"error\":true,\"code\":\"RATE_LIMIT\"}", HttpHeaders.RETRY_AFTER, "7")
                 .reply(HttpStatus.OK, QUOTE_PETR4);
@@ -174,7 +174,7 @@ class BrApiClientTest {
 
     @Test
     @DisplayName("429 duas vezes: a excecao sobe")
-    void erro429Duplo() {
+    void error429Twice() {
         Fake fake = new Fake()
                 .reply(HttpStatus.TOO_MANY_REQUESTS, "{}", HttpHeaders.RETRY_AFTER, "1")
                 .reply(HttpStatus.TOO_MANY_REQUESTS, "{}", HttpHeaders.RETRY_AFTER, "1");
@@ -186,7 +186,7 @@ class BrApiClientTest {
 
     @Test
     @DisplayName("Sem token, nenhum cabecalho Authorization")
-    void semToken() {
+    void withoutToken() {
         Fake fake = new Fake().reply(HttpStatus.OK, QUOTE_PETR4);
         BrApiClient client = client(fake, "");
 
