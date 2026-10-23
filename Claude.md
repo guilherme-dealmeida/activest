@@ -2146,11 +2146,13 @@ colado no chat.
 - **Branches**: master, uat, develop, TRACK_01-ajustes_crud_inicial
 - **Git é do usuário** (19/09/2026): o assistente **não executa** comando de
   git — nem commit, nem branch, nem push — e **não comenta** o que está ou não
-  comitado. Nada de "segue não comitado", nada de status de working tree, nada
-  de sugerir commit ao terminar. O usuário cuida disso por fora.
-- **A validação da implementação é a última etapa do assistente.** Compilar,
-  rodar o lint, subir o ambiente e conferir o comportamento fecham o trabalho:
-  entregue isso, o assunto acabou.
+  comitado ao longo do trabalho. O usuário cuida disso por fora.
+- **Forma de trabalho** (23/10/2026): pedidos são POR ESCOPO (7 etapas:
+  Discovery, Impact, Planning, Implementation, Testing, Review, Commit) ou
+  POR DÚVIDAS — ver `docs/REGRAS_CLAUDE.md`, seções 1 e 2. A validação
+  (compilar, testes, lint, subir o ambiente) é a etapa Testing; a última etapa
+  é o Commit, em que o assistente só confere as alterações e **sugere** a
+  mensagem (`TRACK_01 - ...`).
 
 ### Estado do working tree
 
