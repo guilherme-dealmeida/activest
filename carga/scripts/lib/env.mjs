@@ -32,9 +32,9 @@ export function option(args, name, fallback) {
   return i >= 0 && args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : fallback;
 }
 
-/** URLs das duas APIs: PRIMEVEST_API_URL / PRIMEVEST_ADM_URL, senao localhost nas portas do env. */
+/** URLs das duas APIs: ACTIVEST_API_URL / ACTIVEST_ADM_URL, senao localhost nas portas do env. */
 export function apiUrls(env, args = []) {
-  const api = option(args, '--api', env.PRIMEVEST_API_URL || `http://localhost:${env.API_PORT || 8080}`);
-  const adm = option(args, '--adm', env.PRIMEVEST_ADM_URL || `http://localhost:${env.ADM_API_PORT || 8081}`);
+  const api = option(args, '--api', env.ACTIVEST_API_URL || `http://localhost:${env.API_PORT || 8080}`);
+  const adm = option(args, '--adm', env.ACTIVEST_ADM_URL || `http://localhost:${env.ADM_API_PORT || 8081}`);
   return { api: api.replace(/\/$/, ''), adm: adm.replace(/\/$/, '') };
 }

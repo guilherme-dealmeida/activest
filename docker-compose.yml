@@ -1,4 +1,4 @@
-# PrimeVest - ambiente de desenvolvimento completo
+# Activest - ambiente de desenvolvimento completo
 #
 #   docker compose up --build       sobe tudo
 #   docker compose down             para tudo (mantém o banco)
@@ -15,12 +15,15 @@
 # Simulador da API da Área do Investidor da B3 (profile "b3mock"; docs/planos/PLANO_INTEGRACAO_B3.md, 6.10):
 #   docker compose --profile b3mock up -d b3-investidor-mock
 
+# Nome fixo do projeto: o volume do banco (activest_pgdata) nao depende do nome da pasta.
+name: activest
+
 services:
   db:
     image: postgres:17-alpine
-    container_name: primevest-db
+    container_name: activest-db
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-db_primevest}
+      POSTGRES_DB: ${POSTGRES_DB:-db_activest}
       POSTGRES_USER: ${DB_USERNAME:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     ports:
@@ -30,7 +33,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${POSTGRES_DB:-db_primevest}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${POSTGRES_DB:-db_activest}"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -38,7 +41,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: primevest-redis
+    container_name: activest-redis
     ports:
       - "0.0.0.0:${REDIS_PORT:-6379}:6379"
     healthcheck:
@@ -49,24 +52,24 @@ services:
     restart: unless-stopped
 
   # API do usuario — a carteira (docs/planos/PLANO_ADM_API.md). Build da raiz: o Maven e
-  # multi-modulo (pom.xml da raiz, primevest-core, primevest-adm-api, primevest-app-api).
+  # multi-modulo (pom.xml da raiz, activest-core, activest-adm-api, activest-app-api).
   app-api:
     build:
       context: .
       target: dev
       args:
-        MODULE: primevest-app-api
-    container_name: primevest-app-api
+        MODULE: activest-app-api
+    container_name: activest-app-api
     environment:
       SPRING_PROFILES_ACTIVE: docker
       DB_HOST: db
       DB_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-db_primevest}
+      POSTGRES_DB: ${POSTGRES_DB:-db_activest}
       DB_USERNAME: ${DB_USERNAME:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET:-primevest-default-secret-key-change-in-production-minimum-256-bits-long}
+      JWT_SECRET: ${JWT_SECRET:-activest-default-secret-key-change-in-production-minimum-256-bits-long}
       # Mesmo valor que o web recebe em VITE_GOOGLE_CLIENT_ID. Os dois lados
       # PRECISAM bater: o navegador pede o ID token para esta audience e a API
       # só aceita token emitido para ela. Vazio desliga o login pelo Google.
@@ -74,9 +77,9 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       # Chave-mestra das credenciais de integracao (corretoras). Vem do .env,
       # nunca do repositorio. Vazia: conexoes com corretoras ficam indisponiveis.
-      PRIMEVEST_CREDENTIALS_KEY: ${PRIMEVEST_CREDENTIALS_KEY:-}
-      PRIMEVEST_CREDENTIALS_KEY_VERSION: ${PRIMEVEST_CREDENTIALS_KEY_VERSION:-1}
-      PRIMEVEST_CREDENTIALS_PREVIOUS_KEYS: ${PRIMEVEST_CREDENTIALS_PREVIOUS_KEYS:-}
+      ACTIVEST_CREDENTIALS_KEY: ${ACTIVEST_CREDENTIALS_KEY:-}
+      ACTIVEST_CREDENTIALS_KEY_VERSION: ${ACTIVEST_CREDENTIALS_KEY_VERSION:-1}
+      ACTIVEST_CREDENTIALS_PREVIOUS_KEYS: ${ACTIVEST_CREDENTIALS_PREVIOUS_KEYS:-}
       # Área do Investidor da B3 (docs/planos/PLANO_INTEGRACAO_B3.md, 6.13). Sem contrato com a B3,
       # aponta para o simulador (b3-investidor-mock). B3I_ENABLED vazio/false: a B3 fica desligada.
       B3I_ENABLED: ${B3I_ENABLED:-false}
@@ -90,9 +93,9 @@ services:
       B3I_OPTIN_URL: ${B3I_OPTIN_URL:-}
       B3I_ONCE_PER_DAY: ${B3I_ONCE_PER_DAY:-true}
       # Cadastro de usuario (docs/planos/PLANO_CADASTRO_USUARIO.md). SIGNUP_ENABLED=false: ninguem cria
-      # conta (nem pelo Google). PRIMEVEST_HASH_KEY: HMAC dos codigos e do CPF (vazio cai no JWT_SECRET).
+      # conta (nem pelo Google). ACTIVEST_HASH_KEY: HMAC dos codigos e do CPF (vazio cai no JWT_SECRET).
       SIGNUP_ENABLED: ${SIGNUP_ENABLED:-false}
-      PRIMEVEST_HASH_KEY: ${PRIMEVEST_HASH_KEY:-}
+      ACTIVEST_HASH_KEY: ${ACTIVEST_HASH_KEY:-}
       # E-mail: por padrao o Mailpit abaixo (nada sai da maquina). SMTP real: preencha no .env.
       MAIL_HOST: ${MAIL_HOST:-mailpit}
       MAIL_PORT: ${MAIL_PORT:-1025}
@@ -100,7 +103,7 @@ services:
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-false}
       MAIL_SMTP_STARTTLS: ${MAIL_SMTP_STARTTLS:-false}
-      MAIL_FROM: ${MAIL_FROM:-PrimeVest <nao-responda@primevest.local>}
+      MAIL_FROM: ${MAIL_FROM:-Activest <contato@activest.com.br>}
       APP_URL: ${APP_URL:-http://localhost:5173}
     ports:
       - "0.0.0.0:${API_PORT:-8080}:8080"
@@ -108,16 +111,16 @@ services:
       # Hot reload: o código-fonte vem da máquina, o Spring DevTools reinicia sozinho.
       # So poms e src entram; os target/ ficam dentro do container.
       - ./pom.xml:/app/pom.xml
-      - ./primevest-core/pom.xml:/app/primevest-core/pom.xml
-      - ./primevest-core/src:/app/primevest-core/src
+      - ./activest-core/pom.xml:/app/activest-core/pom.xml
+      - ./activest-core/src:/app/activest-core/src
       # integracoes com corretoras (docs/planos/PLANO_INTEGRACAO_B3.md, F1): a app-api depende delas
-      - ./primevest-integration/pom.xml:/app/primevest-integration/pom.xml
-      - ./primevest-integration/src:/app/primevest-integration/src
+      - ./activest-integration/pom.xml:/app/activest-integration/pom.xml
+      - ./activest-integration/src:/app/activest-integration/src
       # o reator exige o pom de todos os modulos, e a app-api usa a adm-api nos testes
-      - ./primevest-adm-api/pom.xml:/app/primevest-adm-api/pom.xml
-      - ./primevest-adm-api/src:/app/primevest-adm-api/src
-      - ./primevest-app-api/pom.xml:/app/primevest-app-api/pom.xml
-      - ./primevest-app-api/src:/app/primevest-app-api/src
+      - ./activest-adm-api/pom.xml:/app/activest-adm-api/pom.xml
+      - ./activest-adm-api/src:/app/activest-adm-api/src
+      - ./activest-app-api/pom.xml:/app/activest-app-api/pom.xml
+      - ./activest-app-api/src:/app/activest-app-api/src
       # Cache do Maven entre subidas — sem isso cada build rebaixa todas as dependências.
       - maven-repo:/root/.m2
       # Logos baixados pela adm-api: aqui so leitura, para a tela.
@@ -134,7 +137,7 @@ services:
   # para fora. Tem API (http://localhost:8025/api/v1/messages), que os testes E2E podem usar para ler o codigo.
   mailpit:
     image: axllent/mailpit:latest
-    container_name: primevest-mailpit
+    container_name: activest-mailpit
     ports:
       - "0.0.0.0:${MAILPIT_PORT:-8025}:8025"
       - "0.0.0.0:${MAILPIT_SMTP_PORT:-1025}:1025"
@@ -148,30 +151,30 @@ services:
       context: .
       target: dev
       args:
-        MODULE: primevest-adm-api
-    container_name: primevest-adm-api
+        MODULE: activest-adm-api
+    container_name: activest-adm-api
     environment:
       SPRING_PROFILES_ACTIVE: docker
       DB_HOST: db
       DB_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-db_primevest}
+      POSTGRES_DB: ${POSTGRES_DB:-db_activest}
       DB_USERNAME: ${DB_USERNAME:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET:-primevest-default-secret-key-change-in-production-minimum-256-bits-long}
+      JWT_SECRET: ${JWT_SECRET:-activest-default-secret-key-change-in-production-minimum-256-bits-long}
       BRAPI_TOKEN: ${BRAPI_TOKEN:-}
     ports:
       - "0.0.0.0:${ADM_API_PORT:-8081}:8081"
     volumes:
       - ./pom.xml:/app/pom.xml
-      - ./primevest-core/pom.xml:/app/primevest-core/pom.xml
-      - ./primevest-core/src:/app/primevest-core/src
-      - ./primevest-adm-api/pom.xml:/app/primevest-adm-api/pom.xml
-      - ./primevest-adm-api/src:/app/primevest-adm-api/src
+      - ./activest-core/pom.xml:/app/activest-core/pom.xml
+      - ./activest-core/src:/app/activest-core/src
+      - ./activest-adm-api/pom.xml:/app/activest-adm-api/pom.xml
+      - ./activest-adm-api/src:/app/activest-adm-api/src
       # o reator exige o pom de todos os modulos
-      - ./primevest-integration/pom.xml:/app/primevest-integration/pom.xml
-      - ./primevest-app-api/pom.xml:/app/primevest-app-api/pom.xml
+      - ./activest-integration/pom.xml:/app/activest-integration/pom.xml
+      - ./activest-app-api/pom.xml:/app/activest-app-api/pom.xml
       - maven-repo:/root/.m2
       # Arquivos baixados pelas rotinas (ignorados pelo git): logos (docs/planos/PLANO_BRAPI.md,
       # F7) e o cache das fontes publicas — CVM, B3, FNET (docs/planos/PLANO_EMPRESAS_BALANCOS.md,
@@ -186,9 +189,9 @@ services:
 
   web:
     build:
-      context: ./primevest-web
+      context: ./activest-web
       target: dev
-    container_name: primevest-web
+    container_name: activest-web
     environment:
       # O proxy do Vite precisa apontar para o container da API, não para localhost.
       VITE_API_TARGET: http://app-api:8080
@@ -206,7 +209,7 @@ services:
       # O mesmo vale para as demais portas deste arquivo.
       - "0.0.0.0:${WEB_PORT:-5173}:5173"
     volumes:
-      - ./primevest-web:/app
+      - ./activest-web:/app
       # Volume anônimo: preserva o node_modules instalado na imagem Linux,
       # evitando que o node_modules do Windows sobrescreva binários nativos.
       - /app/node_modules
@@ -227,9 +230,9 @@ services:
   b3-investidor-mock:
     build: ./carga/scripts/b3investidor/simulador
     profiles: ["b3mock"]
-    container_name: primevest-b3-investidor-mock
+    container_name: activest-b3-investidor-mock
     environment:
-      B3I_MOCK_CLIENT_ID: ${B3I_CLIENT_ID:-primevest-teste}
+      B3I_MOCK_CLIENT_ID: ${B3I_CLIENT_ID:-activest-teste}
       B3I_MOCK_CLIENT_SECRET: ${B3I_CLIENT_SECRET:-segredo-teste}
       B3I_MOCK_SCOPE: ${B3I_SCOPE:-b3i-simulador/.default}
       B3I_MOCK_DOCUMENT: ${B3I_MOCK_DOCUMENT:-52998224725}
@@ -252,7 +255,7 @@ services:
     command: ["status"]
     environment:
       DATA_STORAGE: ${DATA_STORAGE:-local}
-      S3_BUCKET: ${S3_BUCKET:-primevest-data}
+      S3_BUCKET: ${S3_BUCKET:-activest-data}
       RCLONE_CONFIG_R2_TYPE: s3
       RCLONE_CONFIG_R2_PROVIDER: Cloudflare
       RCLONE_CONFIG_R2_ENDPOINT: ${S3_ENDPOINT:-}
@@ -271,9 +274,9 @@ services:
     profiles: ["carga"]
     working_dir: /work
     environment:
-      PRIMEVEST_API_URL: http://app-api:8080
-      PRIMEVEST_ADM_URL: http://adm-api:8081
-      PRIMEVEST_PASSWORD: ${PRIMEVEST_PASSWORD:-}
+      ACTIVEST_API_URL: http://app-api:8080
+      ACTIVEST_ADM_URL: http://adm-api:8081
+      ACTIVEST_PASSWORD: ${ACTIVEST_PASSWORD:-}
     volumes:
       - ./carga/scripts:/work/carga/scripts:ro
 

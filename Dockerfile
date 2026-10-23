@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 #
 # Backend multi-módulo (docs/planos/PLANO_ADM_API.md): contexto de build = raiz do repositório,
-# um serviço por módulo escolhido em MODULE (primevest-app-api ou primevest-adm-api).
+# um serviço por módulo escolhido em MODULE (activest-app-api ou activest-adm-api).
 
 # ---------------------------------------------------------------------------
 # Estágio de dependências: baixa o que os poms pedem uma única vez.
@@ -11,10 +11,10 @@
 FROM maven:3.9-eclipse-temurin-21 AS deps
 WORKDIR /app
 COPY pom.xml .
-COPY primevest-core/pom.xml primevest-core/
-COPY primevest-integration/pom.xml primevest-integration/
-COPY primevest-adm-api/pom.xml primevest-adm-api/
-COPY primevest-app-api/pom.xml primevest-app-api/
+COPY activest-core/pom.xml activest-core/
+COPY activest-integration/pom.xml activest-integration/
+COPY activest-adm-api/pom.xml activest-adm-api/
+COPY activest-app-api/pom.xml activest-app-api/
 RUN mvn -B dependency:go-offline
 
 # ---------------------------------------------------------------------------
@@ -24,7 +24,7 @@ RUN mvn -B dependency:go-offline
 # algo muda e avisa o DevTools, que reinicia a aplicação — ver o script.
 # ---------------------------------------------------------------------------
 FROM deps AS dev
-ARG MODULE=primevest-app-api
+ARG MODULE=activest-app-api
 ENV MODULE=${MODULE}
 WORKDIR /app
 EXPOSE 8080
@@ -37,22 +37,22 @@ CMD ["/usr/local/bin/dev-watch.sh"]
 
 # ---------------------------------------------------------------------------
 # build + runtime: imagem enxuta para produção.
-#   docker build --target runtime --build-arg MODULE=primevest-app-api -t primevest-app-api .
+#   docker build --target runtime --build-arg MODULE=activest-app-api -t activest-app-api .
 # ---------------------------------------------------------------------------
 FROM deps AS build
-ARG MODULE=primevest-app-api
+ARG MODULE=activest-app-api
 WORKDIR /app
-COPY primevest-core/src primevest-core/src
-COPY primevest-integration/src primevest-integration/src
-COPY primevest-adm-api/src primevest-adm-api/src
-COPY primevest-app-api/src primevest-app-api/src
+COPY activest-core/src activest-core/src
+COPY activest-integration/src activest-integration/src
+COPY activest-adm-api/src activest-adm-api/src
+COPY activest-app-api/src activest-app-api/src
 RUN mvn -B -pl ${MODULE} -am clean package -DskipTests
 
 FROM eclipse-temurin:21-jre AS runtime
-ARG MODULE=primevest-app-api
+ARG MODULE=activest-app-api
 WORKDIR /app
-RUN useradd -r -u 1001 primevest
+RUN useradd -r -u 1001 activest
 COPY --from=build /app/${MODULE}/target/${MODULE}-*-exec.jar app.jar
-USER primevest
+USER activest
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

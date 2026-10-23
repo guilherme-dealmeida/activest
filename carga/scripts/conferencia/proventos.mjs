@@ -12,7 +12,7 @@
 //      (erro) e "ISIN antigo do proprio fundo" (renomeacao; o aviso e sempre do CNPJ do fundo)
 // Saida: resumo por classe e, com --detalhe, cada evento. Codigo de saida 1 se A, B, C, D ou E-erro > 0.
 //
-// Uso: node carga/scripts/conferencia/proventos.mjs [--detalhe] [--cotahist] [--sql] [--db primevest-db] [--data carga/data]
+// Uso: node carga/scripts/conferencia/proventos.mjs [--detalhe] [--cotahist] [--sql] [--db activest-db] [--data carga/data]
 //      --sql imprime a chave natural de cada evento indevido, no formato da lista da migration de limpeza
 import { execFileSync, spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
@@ -21,14 +21,14 @@ import { join } from 'node:path';
 import { ROOT, option } from '../lib/env.mjs';
 
 const args = process.argv.slice(2);
-const DB = option(args, '--db', 'primevest-db');
+const DB = option(args, '--db', 'activest-db');
 const DATA = option(args, '--data', join(ROOT, 'carga', 'data'));
 const DETALHE = args.includes('--detalhe');
 const COTAHIST = args.includes('--cotahist');
 const SQL = args.includes('--sql');
 const TOL = 0.000001;
 
-const sql = (q) => execFileSync('docker', ['exec', DB, 'psql', '-U', 'postgres', '-d', 'db_primevest', '-At', '-F', '\t', '-c', q],
+const sql = (q) => execFileSync('docker', ['exec', DB, 'psql', '-U', 'postgres', '-d', 'db_activest', '-At', '-F', '\t', '-c', q],
   { encoding: 'utf8', maxBuffer: 512 * 1024 * 1024 })
   .split('\n').filter(Boolean).map(l => l.split('\t'));
 

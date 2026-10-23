@@ -9,7 +9,7 @@ busca e edita arquivo; nao compila, nao sobe container, nao abre tela.
 
 O que ele CONSEGUE fazer sozinho, hoje, sem nada seu:
 
-- `tsc --noEmit` no `primevest-web` (type-check completo — ferramenta JS pura
+- `tsc --noEmit` no `activest-web` (type-check completo — ferramenta JS pura
   roda com o `node_modules` do Windows)
 - `eslint` (depois de um `npm install`, ver eslint.config.js)
 - ler qualquer arquivo desta pasta

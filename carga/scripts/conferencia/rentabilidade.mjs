@@ -6,20 +6,20 @@
 // (o valor dela e a curva contratada; reconstrui-la aqui seria copiar a regra, nao conferi-la).
 //
 // Uso: node carga/scripts/conferencia/rentabilidade.mjs [--tipos ACAO,FII,ETF,TESOURO_DIRETO,CRIPTO] [--tol 0.01]
-//      [--db primevest-db] [--email ...] [--api URL]
-// Le o banco pelo psql do conteiner (docker exec) e a API com a PRIMEVEST_PASSWORD do .env.
+//      [--db activest-db] [--email ...] [--api URL]
+// Le o banco pelo psql do conteiner (docker exec) e a API com a ACTIVEST_PASSWORD do .env.
 import { execFileSync } from 'node:child_process';
 import { apiUrls, loadEnv, option } from '../lib/env.mjs';
 
 const args = process.argv.slice(2);
 const ENV = loadEnv();
 const { api: API } = apiUrls(ENV, args);
-const EMAIL = option(args, '--email', ENV.PRIMEVEST_EMAIL || 'guilhermeunatec@gmail.com');
-const DB = option(args, '--db', 'primevest-db');
+const EMAIL = option(args, '--email', ENV.ACTIVEST_EMAIL || 'guilhermeunatec@gmail.com');
+const DB = option(args, '--db', 'activest-db');
 const TIPOS = option(args, '--tipos', 'ACAO,FII,ETF,TESOURO_DIRETO,CRIPTO').split(',');
 const TOL = Number(option(args, '--tol', '0.01')); // pontos percentuais
 
-const sql = (q) => execFileSync('docker', ['exec', DB, 'psql', '-U', 'postgres', '-d', 'db_primevest', '-At', '-F', '\t', '-c', q],
+const sql = (q) => execFileSync('docker', ['exec', DB, 'psql', '-U', 'postgres', '-d', 'db_activest', '-At', '-F', '\t', '-c', q],
   { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 })
   .split('\n').filter(Boolean).map(l => l.split('\t'));
 
@@ -40,7 +40,7 @@ diasUteis.forEach(d => duMes.set(d.slice(0, 7), (duMes.get(d.slice(0, 7)) ?? 0) 
 
 async function token() {
   const r = await fetch(`${API}/api/v1/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: EMAIL, password: ENV.PRIMEVEST_PASSWORD }) });
+    body: JSON.stringify({ email: EMAIL, password: ENV.ACTIVEST_PASSWORD }) });
   if (!r.ok) throw new Error(`login ${r.status}`);
   return (await r.json()).accessToken;
 }

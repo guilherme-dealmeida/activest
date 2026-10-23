@@ -2,9 +2,9 @@
 
 Le o JSON gerado por conferencia_preco_teto.mjs e escreve um .xlsx no LAYOUT da PRECO TETO V2 (aba "Valuation V2",
 colunas A..AA com as MESMAS formulas da planilha), uma linha por calculo, e ao lado as colunas com o resultado do
-PrimeVest e a diferenca. Ao abrir no Excel as formulas recalculam: a diferenca tem de ser so de arredondamento.
+Activest e a diferenca. Ao abrir no Excel as formulas recalculam: a diferenca tem de ser so de arredondamento.
 
-TX CRES (E) entra como formula =D*(1-C) — a convencao do "Leia-me" da V2 —, igual ao PrimeVest.
+TX CRES (E) entra como formula =D*(1-C) — a convencao do "Leia-me" da V2 —, igual ao Activest.
 
 Uso: python3 carga/scripts/conferencia_preco_teto_xlsx.py docs/preco-teto/conferencia_preco_teto_AAAA-MM-DD.json
 """
@@ -100,13 +100,13 @@ def main(path):
 
     leia = wb.create_sheet('Leia-me')
     texto = [
-        'CONFERÊNCIA PREÇO TETO — PrimeVest × PREÇO TETO V2',
+        'CONFERÊNCIA PREÇO TETO — Activest × PREÇO TETO V2',
         f"Gerado em {data['geradoEm']} a partir de {data['api']}.",
         'Colunas A..AA: layout e fórmulas da aba Valuation V2 (entradas em amarelo).',
         'TX CRES (E) = ROE × (1 − payout), como sugere o Leia-me da V2.',
-        'Colunas em azul: o resultado calculado pelo PrimeVest com as mesmas entradas.',
-        'DIF TETO/IDEAL = PrimeVest − planilha. CONFERE? = SIM quando a diferença do teto é menor que R$ 0,0001.',
-        'Linhas "(padrões do PrimeVest)": entradas padrão do sistema (CVM, Selic meta, 3%, 15%, último fechamento).',
+        'Colunas em azul: o resultado calculado pelo Activest com as mesmas entradas.',
+        'DIF TETO/IDEAL = Activest − planilha. CONFERE? = SIM quando a diferença do teto é menor que R$ 0,0001.',
+        'Linhas "(padrões do Activest)": entradas padrão do sistema (CVM, Selic meta, 3%, 15%, último fechamento).',
         'Linha "VALE3 (linha da planilha V2)": as entradas da planilha original.',
     ]
     for k, t in enumerate(texto, start=1):

@@ -1,6 +1,6 @@
 -- Cobertura da data de pagamento dos proventos do catalogo, por ano da data-com e tipo de ativo
 -- (docs/planos/PLANO_CARGA_INICIAL.md, 5.4 e D14). "sem_data" de acao antes de 2022 e o que a D14 decide.
--- Uso: docker exec -i primevest-db psql -U postgres -d db_primevest < carga/scripts/sql/datas_pagamento.sql
+-- Uso: docker exec -i activest-db psql -U postgres -d db_activest < carga/scripts/sql/datas_pagamento.sql
 SELECT extract(year FROM e.data_com)::int                                        AS ano,
        CASE WHEN t.name = 'FII' THEN 'FII' ELSE 'acao/outros' END                 AS tipo,
        count(*)                                                                    AS eventos,

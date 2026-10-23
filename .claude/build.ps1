@@ -93,7 +93,7 @@ if ($doWeb) {
   $out = Join-Path $logs 'build-web.log'
   $cmd = 'npm run build'
   Write-Host "[web] $cmd"
-  Push-Location (Join-Path $root 'primevest-web')
+  Push-Location (Join-Path $root 'activest-web')
   Write-Header $out $cmd
   & npm run build *>&1 | Add-Content -Path $out -Encoding utf8
   Write-Footer $out $LASTEXITCODE
