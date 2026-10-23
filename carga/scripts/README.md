@@ -1,13 +1,13 @@
 # carga/scripts/
 
-Carga e manutenção do PrimeVest (`docs/planos/PLANO_CARGA_INICIAL.md`). Nada aqui depende de pasta fora do
+Carga e manutenção do Activest (`docs/planos/PLANO_CARGA_INICIAL.md`). Nada aqui depende de pasta fora do
 projeto: a raiz do repositório é achada a partir de `carga/scripts/lib/env.mjs`, e as variáveis vêm do
 `.env`.
 
 ## Máquina nova
 
 ```bash
-cp .env.example .env                  # preencha PRIMEVEST_PASSWORD e o token SÓ LEITURA do R2 (S3_*)
+cp .env.example .env                  # preencha ACTIVEST_PASSWORD e o token SÓ LEITURA do R2 (S3_*)
 docker compose --profile carga run --rm data pull          # bucket R2 -> carga/data/ (~1,4 GB; --minimo só o essencial)
 docker compose up -d --build                                # as migrations rodam ao subir as APIs
 docker compose --profile carga run --rm tools node carga/scripts/admin.mjs bootstrap
@@ -23,8 +23,8 @@ Sem Node na máquina, tudo roda pelos contêineres `data` e `tools` (profile `ca
 |---|---|
 | `admin.mjs` | dispara uma rotina de administrador: `bootstrap`, `proventos`, `cvm/proventos`, `closing`, `logos`, `issuers/import`... Login na app-api, rotina na adm-api |
 | `get.mjs` | GET autenticado na app-api, para conferência (`node carga/scripts/get.mjs /api/v1/assets/PETR4/indicators`) |
-| `gerar_seed_emissores.mjs` | regera a migration de seed dos emissores (como a V30) a partir do banco de desenvolvimento, depois de uma curadoria |
-| `gerar_seed_emissoras_rf.mjs` | regera a migration de seed das emissoras e distribuidoras de renda fixa (como a V55) a partir do banco de desenvolvimento, depois da integração BCB + CVM e da curadoria (`docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md`, E3) |
+| `migrations/consolidate.mjs` | consolida as migrations: lê um banco já migrado e escreve o `V1__schema.sql` (cada tabela pronta, sem `ALTER`) e os seeds `V2`–`V6` (só `INSERT`, ids explícitos). Substituiu os antigos geradores de seed dos emissores e das emissoras de RF (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`, 4.2) |
+| `migrations/compare.ps1` | compara dois bancos (estrutura, conteúdo das tabelas e sequências) — a prova da consolidação |
 | `data/data.sh` | `carga/data/` ↔ bucket R2 (rclone), pelo contêiner `data`: `pull [--minimo]`, `push` (só quem tem a chave de escrita — gera os manifests), `status` |
 | `sql/contagens.sql` | contagens do catálogo, para comparar um banco novo com o de desenvolvimento |
 | `sql/datas_pagamento.sql` | cobertura da data de pagamento dos proventos, por ano |
@@ -33,11 +33,11 @@ Sem Node na máquina, tudo roda pelos contêineres `data` e `tools` (profile `ca
 | `b3investidor/sintetico/` | dados inventados no formato da B3, que o simulador usa quando não há extrato em `carga/mocks/` |
 | `b3investidor/conferir.mjs` | ponta a ponta da B3 contra o simulador: conecta, autoriza, sincroniza, confirma e confere C1–C5 |
 
-Os SQL rodam no contêiner do banco: `docker exec -i primevest-db psql -U postgres -d db_primevest < carga/scripts/sql/contagens.sql`.
+Os SQL rodam no contêiner do banco: `docker exec -i activest-db psql -U postgres -d db_activest < carga/scripts/sql/contagens.sql`.
 
 ## Bucket (produtor e consumidor)
 
-A aplicação lê só a pasta `carga/data/`. O bucket `primevest-data` (Cloudflare R2) é a cópia de referência:
+A aplicação lê só a pasta `carga/data/`. O bucket `activest-data` (Cloudflare R2) é a cópia de referência:
 
 - **consumidor** (qualquer máquina, token só leitura): `data pull` na primeira subida;
 - **produtor** (quem mantém o projeto, chave de escrita): as rotinas da adm-api gravam em `carga/data/`
@@ -59,7 +59,7 @@ Valida a planilha (status × data, pagamento antes da data-com, chave repetida) 
 
 ## b3investidor/ — simulador da Área do Investidor da B3
 
-`docs/planos/PLANO_INTEGRACAO_B3.md` (6.10 e F5). Sem contrato com a B3, o PrimeVest fala com um simulador nas mesmas
+`docs/planos/PLANO_INTEGRACAO_B3.md` (6.10 e F5). Sem contrato com a B3, o Activest fala com um simulador nas mesmas
 rotas e no mesmo formato da API (token, autorização, Negociação, Movimentação, Posição, Eventos Provisionados, página de
 opt-in com Autorizar e Revogar, paginação de 20 itens, erros 422.01–422.07, falha sob demanda com `?_fail=429|500|503`).
 
@@ -71,7 +71,7 @@ aparece em lugar nenhum.
 Na pilha de teste (portas e `B3I_*` no `.env.teste`):
 
 ```
-pvt --profile b3mock up -d --build                 # pvt = docker compose -p primevest-teste --env-file .env.teste ...
+pvt --profile b3mock up -d --build                 # pvt = docker compose -p activest-teste --env-file .env.teste ...
 node carga/scripts/b3investidor/conferir.mjs --api http://localhost:8082 --mock http://localhost:8190 \
      --gabarito http://localhost:8080 --revogar    # C1 compara com a carteira da pilha de desenvolvimento
 ```
