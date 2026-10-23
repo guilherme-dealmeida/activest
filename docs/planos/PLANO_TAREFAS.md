@@ -684,3 +684,11 @@ continua fazendo o que faz hoje (passa os atributos equivalentes ao executor).
   marcada = nada a consultar) e sai a faixa "Agora" com o posicionamento na página de agora. API:
   `GET /tasks/executions?status=` aceita vários valores (`status=FAILED,SUCCEEDED`) e só calcula as agendadas quando
   `SCHEDULED` é pedido (e só lê as rodadas quando algum outro status é). Teste: `TaskControllerIT.filtroDeStatus`.
+- 23/10/2026 — Correção pedida pelo Guilherme: as rodadas agendadas começavam 1–2 s antes da hora e a vigência saía um
+  minuto antes (08:44 para o horário 08:45). Causa: o agendador mede a espera por um contador da máquina e o cron fala
+  do relógio de parede; na VM do Docker Desktop os dois se afastam ~50 ppm (o adiantamento crescia com a espera desde
+  o último reinício: 0,2 s em 1,9 h, 1,16 s em 6,6 h); e a vigência era o relógio do disparo truncado no minuto. Risco
+  real: a `DAILY_OPENING` de 00:00 rodando às 23:59:5x leria os proventos pagos de ontem. Correção no
+  `TaskScheduleRegistry`: `SlotTrigger` (o `CronTrigger` que guarda o horário nominal que calculou) dá a vigência, e
+  `awaitSlot` segura a rodada até o relógio chegar nela. Testes: `TaskScheduleRegistryTest.earlyFire` e `.awaitSlot`;
+  `.fires` passa a conferir vigência em segundo cheio e início depois dela.

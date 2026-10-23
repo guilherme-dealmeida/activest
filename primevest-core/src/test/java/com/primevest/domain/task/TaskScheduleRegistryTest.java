@@ -12,6 +12,12 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.Map;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -85,7 +91,7 @@ class TaskScheduleRegistryTest {
     }
 
     @Test
-    @DisplayName("O horário dispara a rodada com origem SCHEDULE e a data de vigência no minuto")
+    @DisplayName("O horário dispara a rodada com origem SCHEDULE, vigência no horário do cron e início depois dela")
     void fires() throws Exception {
         Long id = tasks.findAliveByName("CVM_QUARTERS").orElseThrow().getId();
         jdbc.update("UPDATE tasks SET cron = '* * * * * *' WHERE id = ?", id);
@@ -98,8 +104,43 @@ class TaskScheduleRegistryTest {
         }
         jdbc.update("UPDATE tasks SET cron = NULL WHERE id = ?", id);
         registry.reload();
+        // a vigência é o horário nominal do cron (segundo cheio), e a rodada nunca começa antes dela
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM task_executions WHERE task_id = ? AND status = "
-            + "'SUCCEEDED' AND trigger_type = 'SCHEDULE' AND EXTRACT(SECOND FROM scheduled_for) = 0", Long.class, id))
-            .isPositive();
+            + "'SUCCEEDED' AND trigger_type = 'SCHEDULE'", Long.class, id)).isPositive();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM task_executions WHERE task_id = ? AND trigger_type = "
+            + "'SCHEDULE' AND (scheduled_for <> date_trunc('second', scheduled_for) OR started_at < scheduled_for)",
+            Long.class, id)).isZero();
+    }
+
+    @Test
+    @DisplayName("Disparo adiantado: a rodada espera a vigência e grava o horário nominal, não o do disparo")
+    void earlyFire() throws Exception {
+        Long id = tasks.findAliveByName("CVM_QUARTERS").orElseThrow().getId();
+        // o agendador chegou ~1,5 s antes da hora (o desvio do relógio da VM)
+        Instant slot = Instant.now().plusMillis(1_500).truncatedTo(ChronoUnit.SECONDS).plusSeconds(1);
+        registry.fire(id, slot);
+
+        LocalDateTime vigencia = LocalDateTime.ofInstant(slot, TaskTime.ZONE);
+        long until = System.currentTimeMillis() + 10_000;
+        while (jdbc.queryForObject("SELECT COUNT(*) FROM task_executions WHERE task_id = ? AND status = 'SUCCEEDED' "
+                + "AND scheduled_for = ?", Long.class, id, vigencia) == 0 && System.currentTimeMillis() < until) {
+            Thread.sleep(100);
+        }
+        Map<String, Object> e = jdbc.queryForMap("SELECT scheduled_for, started_at, trigger_type FROM task_executions "
+            + "WHERE task_id = ? AND status = 'SUCCEEDED' AND scheduled_for = ?", id, vigencia);
+        assertThat(((Timestamp) e.get("started_at")).toLocalDateTime()).isAfterOrEqualTo(vigencia);
+        assertThat(e.get("trigger_type")).isEqualTo("SCHEDULE");
+    }
+
+    @Test
+    @DisplayName("awaitSlot segura até a hora; horário que já passou não espera")
+    void awaitSlot() {
+        Instant slot = Instant.now().plusMillis(400);
+        assertThat(TaskScheduleRegistry.awaitSlot(slot)).isTrue();
+        assertThat(Instant.now()).isAfterOrEqualTo(slot);
+
+        long before = System.nanoTime();
+        assertThat(TaskScheduleRegistry.awaitSlot(Instant.now().minusSeconds(5))).isTrue();
+        assertThat(System.nanoTime() - before).isLessThan(100_000_000L);
     }
 }

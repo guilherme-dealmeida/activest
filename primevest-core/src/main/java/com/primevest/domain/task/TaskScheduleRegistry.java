@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.Trigger;
+import org.springframework.scheduling.TriggerContext;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.scheduling.support.CronTrigger;
 import org.springframework.stereotype.Component;
@@ -13,7 +15,6 @@ import org.springframework.stereotype.Component;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,6 +27,12 @@ import java.util.concurrent.ScheduledFuture;
  *
  * <p>O disparo só abre uma thread virtual e chama o {@link TaskExecutor}: uma rodada longa não segura o agendador.
  * Desligado com a chave geral {@code primevest.scheduling.enabled} (testes, pilha de teste).</p>
+ *
+ * <p>Vigência e disparo adiantado (23/10/2026): o agendador mede a espera por um contador da máquina e o cron fala do
+ * relógio de parede; os dois se afastam (na VM do Docker Desktop, ~4 s por dia de espera) e o disparo chega segundos
+ * antes da hora. A vigência da rodada é o horário nominal que o cron calculou ({@link SlotTrigger}) — não o relógio
+ * no disparo —, e a rodada espera o relógio chegar nela antes de começar ({@link #awaitSlot}): o início fica sempre
+ * igual ou depois da vigência, e o "hoje" das rotinas (a abertura do dia à meia-noite) é o dia certo.</p>
  */
 @Slf4j
 @Component
@@ -35,6 +42,30 @@ public class TaskScheduleRegistry implements DisposableBean {
     static final Duration SAFETY_RELOAD = Duration.ofMinutes(5);
 
     private record Entry(String cron, ScheduledFuture<?> future) {
+    }
+
+    /**
+     * O {@link CronTrigger} que guarda o horário nominal que calculou. O Spring calcula o próximo só depois que o disparo
+     * atual termina, então, durante o disparo, {@link #slot()} é o horário dele — a vigência da rodada.
+     */
+    static final class SlotTrigger implements Trigger {
+        private final CronTrigger cron;
+        private volatile Instant slot;
+
+        SlotTrigger(String expression) {
+            this.cron = new CronTrigger(expression, TaskTime.ZONE);
+        }
+
+        @Override
+        public Instant nextExecution(TriggerContext context) {
+            Instant next = cron.nextExecution(context);
+            slot = next;
+            return next;
+        }
+
+        Instant slot() {
+            return slot;
+        }
     }
 
     private final TaskRepository tasks;
@@ -91,8 +122,8 @@ public class TaskScheduleRegistry implements DisposableBean {
         for (var w : wanted.entrySet()) {
             if (!scheduled.containsKey(w.getKey())) {
                 Long taskId = w.getKey();
-                ScheduledFuture<?> f = scheduler.schedule(() -> fire(taskId),
-                    new CronTrigger(w.getValue(), TaskTime.ZONE));
+                SlotTrigger trigger = new SlotTrigger(w.getValue());
+                ScheduledFuture<?> f = scheduler.schedule(() -> fire(taskId, trigger.slot()), trigger);
                 scheduled.put(taskId, new Entry(w.getValue(), f));
                 added++;
             }
@@ -103,11 +134,38 @@ public class TaskScheduleRegistry implements DisposableBean {
         }
     }
 
-    private void fire(Long taskId) {
-        // o horario da rodada: o cron dispara no segundo 0 do minuto
-        LocalDateTime slot = TaskTime.now().truncatedTo(ChronoUnit.MINUTES);
-        Thread.ofVirtual().name("task-" + taskId).start(
-            () -> executor.runScheduled(taskId, TaskTriggerType.SCHEDULE, slot));
+    /** Disparo do horário {@code slot} (o nominal do cron): espera a hora, se chegou cedo, e roda com essa vigência. */
+    void fire(Long taskId, Instant slot) {
+        Instant at = slot != null ? slot : Instant.now();
+        LocalDateTime vigencia = LocalDateTime.ofInstant(at, TaskTime.ZONE);
+        Thread.ofVirtual().name("task-" + taskId).start(() -> {
+            if (awaitSlot(at)) {
+                executor.runScheduled(taskId, TaskTriggerType.SCHEDULE, vigencia);
+            }
+        });
+    }
+
+    /**
+     * Segura a rodada até o relógio chegar em {@code slot}. Devolve {@code false} só se a thread for interrompida
+     * (o serviço está parando).
+     */
+    static boolean awaitSlot(Instant slot) {
+        Duration early = Duration.between(Instant.now(), slot);
+        if (early.isPositive()) {
+            log.debug("Tarefas: disparo {} ms antes da vigência {}; esperando", early.toMillis(), slot);
+        }
+        while (true) {
+            Duration left = Duration.between(Instant.now(), slot);
+            if (!left.isPositive()) {
+                return true;
+            }
+            try {
+                Thread.sleep(left.plusMillis(1));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
     }
 
     /** Tarefas agendadas agora, com o cron (para os testes e a conferência). */
