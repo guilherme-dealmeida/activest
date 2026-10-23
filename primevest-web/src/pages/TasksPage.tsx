@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { FileText, Pencil, Play, Plus, RefreshCw, Square, Trash2 } from 'lucide-react';
@@ -17,14 +17,16 @@ import { describeCron } from '@/utils/cron';
 import { toLocalISODate } from '@/utils/format';
 import { TaskEditModal } from '@/components/tasks/TaskEditModal';
 import { TaskExecutionModal } from '@/components/tasks/TaskExecutionModal';
-import { ALL_STATUSES, formatDateTime, formatDuration, TRIGGER_HINT } from '@/components/tasks/taskFormat';
+import { ALL_STATUSES, formatDateTime, formatDuration, STATUS_HINT, TRIGGER_HINT } from '@/components/tasks/taskFormat';
 import { StatusBadge } from '@/components/tasks/StatusBadge';
-import { TaskExecutionItem, TaskItem } from '@/types';
+import { useSortable } from '@/hooks/useSortable';
+import { TaskExecutionItem, TaskExecutionStatus, TaskItem } from '@/types';
 
-type TaskTab = 'monitoring' | 'configuration';
+type TaskTab = 'monitoring' | 'schedules' | 'configuration';
 
 const TAB_LABELS: Record<TaskTab, string> = {
-  monitoring: 'Acompanhamento',
+  monitoring: 'Execuções',
+  schedules: 'Agendamentos',
   configuration: 'Configuração',
 };
 
@@ -40,13 +42,15 @@ const addDays = (days: number) => {
 };
 
 /**
- * Tarefas (docs/planos/PLANO_TAREFAS.md): só administrador (D14). Abas Acompanhamento (rodadas e agendadas da
- * semana, com Run, Stop e o log) e Configuração (as tarefas, com Run e Editar). A aba fica na URL (`?tab=`); o link
- * da mensagem de rotina que falhou abre a rodada (`?execution=`).
+ * Tarefas (docs/planos/PLANO_TAREFAS.md): só administrador (D14). Abas Acompanhamento (as rodadas, com Run, Stop e
+ * o log), Agendamentos (as próximas execuções calculadas do horário) e Configuração (as tarefas, com Run e Editar). A
+ * aba fica na URL (`?tab=monitoring|schedules|configuration`); o link da mensagem de rotina que falhou abre a rodada
+ * (`?execution=`).
  */
 export const TasksPage = () => {
   const [params, setParams] = useSearchParams();
-  const activeTab: TaskTab = params.get('tab') === 'configuration' ? 'configuration' : 'monitoring';
+  const tabParam = params.get('tab');
+  const activeTab: TaskTab = tabParam === 'configuration' || tabParam === 'schedules' ? tabParam : 'monitoring';
   const executionParam = params.get('execution');
   const [openExecution, setOpenExecution] = useState<number | null>(executionParam ? Number(executionParam) : null);
 
@@ -84,7 +88,10 @@ export const TasksPage = () => {
       </div>
 
       <div hidden={activeTab !== 'monitoring'}>
-        <MonitoringTab onOpenExecution={setOpenExecution} />
+        <ExecutionsTab scheduled={false} onOpenExecution={setOpenExecution} />
+      </div>
+      <div hidden={activeTab !== 'schedules'}>
+        <ExecutionsTab scheduled onOpenExecution={setOpenExecution} />
       </div>
       <div hidden={activeTab !== 'configuration'}>
         <ConfigurationTab onOpenExecution={setOpenExecution} />
@@ -155,41 +162,98 @@ const RunConfirm = ({ task, onConfirm, onClose, pending }: {
   );
 };
 
-// ------------------------------------------------------------------------------------------------ Acompanhamento
+// ------------------------------------------------------------------------------------ Acompanhamento e Agendamentos
 
-const MonitoringTab = ({ onOpenExecution }: { onOpenExecution: (id: number) => void }) => {
-  const [from, setFrom] = useState(addDays(-1));
-  const [to, setTo] = useState(addDays(1));
+/** Tags de status do Acompanhamento: as marcadas entram no filtro; por padrão, todas menos SCHEDULED. */
+const MONITORING_STATUSES = ALL_STATUSES.filter(s => s !== 'SCHEDULED');
+
+const StatusFlags = ({ selected, onToggle }: {
+  selected: Set<TaskExecutionStatus>; onToggle: (status: TaskExecutionStatus) => void;
+}) => (
+  <div className="flex flex-wrap items-center gap-2">
+    {ALL_STATUSES.map(s => {
+      const on = selected.has(s);
+      return (
+        <button
+          key={s}
+          type="button"
+          aria-pressed={on}
+          onClick={() => onToggle(s)}
+          title={`${on ? 'Ocultar' : 'Mostrar'} ${s} — ${STATUS_HINT[s]}`}
+          className={clsx(
+            'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+            on
+              ? 'border-accent/40 bg-accent/15 text-accent hover:bg-accent/25'
+              : 'border-white/10 bg-surface-light/40 text-gray-500 hover:text-gray-300'
+          )}
+        >
+          <span className={clsx('h-1.5 w-1.5 rounded-full', on ? 'bg-accent' : 'bg-gray-600')} />
+          {s}
+        </button>
+      );
+    })}
+  </div>
+);
+
+/** A linha com o resumo (ou o erro) num campo só, para a coluna RESUMO ordenar pelo que mostra. */
+type ExecutionRow = TaskExecutionItem & { resume?: string };
+
+/**
+ * Acompanhamento (`scheduled` falso): as rodadas do período, filtradas pelas tags de status; ordem padrão vigência
+ * decrescente. Agendamentos (`scheduled`): só as agendadas (SCHEDULED), sem a coluna STATUS; ordem padrão vigência
+ * crescente. As duas com De, Até e Tipo, e as colunas ordenáveis.
+ */
+const ExecutionsTab = ({ scheduled, onOpenExecution }: {
+  scheduled: boolean; onOpenExecution: (id: number) => void;
+}) => {
+  const [from, setFrom] = useState(scheduled ? addDays(0) : addDays(-1));
+  const [to, setTo] = useState(addDays(0));
   const [type, setType] = useState('');
-  const [status, setStatus] = useState('');
+  const [selected, setSelected] = useState<Set<TaskExecutionStatus>>(() => new Set(MONITORING_STATUSES));
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [confirm, setConfirm] = useState<{ id: number; name: string } | null>(null);
   const { run, stop } = useTaskActions();
 
+  const statuses = useMemo(
+    () => (scheduled ? ['SCHEDULED'] : ALL_STATUSES.filter(s => selected.has(s))),
+    [scheduled, selected]
+  );
+  const toggleStatus = (s: TaskExecutionStatus) => setSelected(prev => {
+    const next = new Set(prev);
+    if (next.has(s)) next.delete(s); else next.add(s);
+    return next;
+  });
+
   const executions = useQuery({
-    queryKey: ['tasks', 'executions', from, to, type, status],
-    queryFn: () => tasksApi.executions({ from, to, type, status }),
+    queryKey: ['tasks', 'executions', from, to, type, statuses.join(',')],
+    queryFn: () => tasksApi.executions({ from, to, type, statuses }),
+    enabled: statuses.length > 0,
     // D33: só com rodada em execução; fora disso, o botão Atualizar
     refetchInterval: (q) => (q.state.data?.some(e => e.status === 'RUNNING') ? 5000 : false),
   });
   const tasks = useQuery({ queryKey: ['tasks', 'list'], queryFn: tasksApi.list });
 
   const typeOptions = useMemo(() => [...new Set((tasks.data ?? []).map(t => t.type))].sort(), [tasks.data]);
-  const rows = useMemo(() => executions.data ?? [], [executions.data]);
-  // A lista vem da mais nova para a mais velha, com as agendadas (futuro) no topo. Ao abrir ou trocar o filtro, a
-  // página vai para onde fica "agora": a primeira rodada que já começou.
-  const nowIndex = useMemo(() => rows.findIndex(r => r.status !== 'SCHEDULED'), [rows]);
-  const [positioned, setPositioned] = useState(false);
-  useEffect(() => setPositioned(false), [from, to, type, status]);
-  useEffect(() => {
-    if (positioned || !executions.data) return;
-    const index = nowIndex < 0 ? Math.max(rows.length - 1, 0) : Math.max(nowIndex - 2, 0);
-    setCurrentPage(Math.floor(index / itemsPerPage) + 1);
-    setPositioned(true);
-  }, [positioned, executions.data, nowIndex, rows.length, itemsPerPage]);
-  const totalPages = Math.max(1, Math.ceil(rows.length / itemsPerPage));
-  const paginated = rows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  // A API manda vigência decrescente; os Agendamentos invertem. É também o desempate quando se ordena por outra coluna.
+  const rows = useMemo<ExecutionRow[]>(() => {
+    const list = (statuses.length > 0 ? executions.data ?? [] : []).map(e => ({ ...e, resume: e.errorMessage ?? e.summary }));
+    return scheduled ? list.reverse() : list;
+  }, [executions.data, statuses.length, scheduled]);
+  const { sortedData, requestSort, getSortIndicator, getSortClass, sortConfig } = useSortable(rows, {
+    key: 'scheduledFor', direction: scheduled ? 'asc' : 'desc',
+  });
+  useEffect(() => setCurrentPage(1), [from, to, type, statuses, sortConfig]);
+  const totalPages = Math.max(1, Math.ceil(sortedData.length / itemsPerPage));
+  const paginated = sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const columns = scheduled ? 9 : 10;
+
+  const th = (key: string, label: string, extra = '') => (
+    <th className={clsx('px-4 py-3 cursor-pointer select-none whitespace-nowrap', extra, getSortClass(key))}
+        onClick={() => requestSort(key)}>
+      {label}{getSortIndicator(key)}
+    </th>
+  );
 
   return (
     <div className="space-y-6">
@@ -209,77 +273,73 @@ const MonitoringTab = ({ onOpenExecution }: { onOpenExecution: (id: number) => v
             {typeOptions.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
         </div>
-        <div>
-          <label className="block text-xs text-gray-400 mb-1">Status</label>
-          <select className={selectClass} value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">Todos</option>
-            {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
         <Button type="button" variant="outline" onClick={() => executions.refetch()} isLoading={executions.isFetching}
-                className="ml-auto">
+                disabled={statuses.length === 0} className="ml-auto">
           <RefreshCw className="w-4 h-4 mr-1.5" />Atualizar
         </Button>
       </div>
 
       <Card>
-        <div className="mb-4 flex items-center gap-2">
-          <h3 className="text-lg font-medium text-white">Execuções</h3>
-          <InfoTooltip content="Execuções que começaram no período e, de agora até o fim do período, as agendadas calculadas do horário de cada tarefa ligada (SCHEDULED)." />
-        </div>
-        {executions.isLoading ? (
+        {/* <div className="mb-4 flex items-center gap-2">
+          <h3 className="text-lg font-medium text-white">{scheduled ? 'Agendamentos' : 'Execuções'}</h3>
+          <InfoTooltip content={scheduled
+            ? 'Execuções agendadas de agora até o fim do período, calculadas do horário de cada tarefa ligada.'
+            : 'Execuções que começaram no período, filtradas pelos status marcados. SCHEDULED inclui as agendadas de agora até o fim do período (as mesmas da aba Agendamentos).'} />
+        </div>*/}
+        {!scheduled && (
+          <div className="pb-4">
+            <StatusFlags selected={selected} onToggle={toggleStatus} />
+          </div>
+        )}
+        {executions.isLoading && statuses.length > 0 ? (
           <div className="flex justify-center py-10"><LoadingSpinner className="h-6 w-6 text-accent" /></div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-gray-400 uppercase border-b border-white/10">
                 <tr>
-                  <th className="px-4 py-3">TAREFA</th>
-                  <th className="px-4 py-3">STATUS</th>
-                  <th className="px-4 py-3">VIGÊNCIA</th>
-                  <th className="px-4 py-3">INÍCIO</th>
-                  <th className="px-4 py-3">FIM</th>
-                  <th className="px-4 py-3 text-right">DURAÇÃO</th>
-                  <th className="px-4 py-3">ORIGEM</th>
-                  <th className="px-4 py-3">PEDIDO POR</th>
-                  <th className="px-4 py-3">RESUMO</th>
+                  {th('id', '#')}
+                  {th('taskName', 'TAREFA')}
+                  {scheduled && th('taskName', 'TIPO')}
+                  {th('scheduledFor', 'VIGÊNCIA')}
+                  {!scheduled && th('startedAt', 'INÍCIO')}
+                  {!scheduled && th('finishedAt', 'FIM')}
+                  {!scheduled && th('durationSeconds', 'DURAÇÃO', 'text-right')}
+                  {th('triggerType', 'ORIGEM')}
+                  {!scheduled && th('requestedBy', 'PEDIDO POR')}
+                  {!scheduled && th('resume', 'RESUMO')}
+                  {!scheduled && th('status', 'STATUS')}
                   <th className="px-4 py-3 text-center">AÇÕES</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                 {paginated.map((e, i) => (
-                  <Fragment key={e.id ?? `s-${e.taskId}-${e.scheduledFor}-${i}`}>
-                  {(currentPage - 1) * itemsPerPage + i === nowIndex && nowIndex > 0 && (
-                    <tr>
-                      <td colSpan={10} className="px-4 py-1.5 text-xs text-accent border-y border-accent/30 bg-accent/5">
-                        Agora — acima, as agendadas; abaixo, as rodadas que já começaram
-                      </td>
-                    </tr>
-                  )}
-                  <tr className="hover:bg-white/5 transition-colors">
+                  <tr key={e.id ?? `s-${e.taskId}-${e.scheduledFor}-${i}`} className="hover:bg-white/5 transition-colors">
+                    <td className="px-4 py-3">{e.taskId}</td>
                     <td className="px-4 py-3">
                       <div className="text-white font-medium">{e.taskName}</div>
                       {e.type !== e.taskName && <div className="text-xs text-gray-500">{e.type}</div>}
                     </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={e.status} />
-                      {e.stopRequestedAt && e.status === 'RUNNING' && (
-                        <div className="text-xs text-orange-300 mt-1">Stop pedido</div>
-                      )}
-                    </td>
+                    {scheduled && (<td className="px-4 py-3">{e.type}</td>)}
                     <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(e.scheduledFor)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(e.startedAt, true)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(e.finishedAt, true)}</td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">{formatDuration(e.durationSeconds)}</td>
+                    {!scheduled && (<td className="px-4 py-3 whitespace-nowrap">{formatDateTime(e.startedAt, true)}</td>)}
+                    {!scheduled && (<td className="px-4 py-3 whitespace-nowrap">{formatDateTime(e.finishedAt, true)}</td>)}
+                    {!scheduled && (<td className="px-4 py-3 text-right whitespace-nowrap">{formatDuration(e.durationSeconds)}</td>)}
                     <td className="px-4 py-3">
                       <span className="cursor-help text-gray-300" title={TRIGGER_HINT[e.triggerType]}>{e.triggerType}</span>
                     </td>
-                    <td className="px-4 py-3 text-gray-300">{e.id ? (e.requestedBy ?? 'Sistema') : ''}</td>
-                    <td className="px-4 py-3 max-w-xs">
-                      <span className="block truncate text-gray-300" title={e.errorMessage ?? e.summary}>
-                        {e.errorMessage ?? e.summary}
-                      </span>
-                    </td>
+                    {!scheduled && (<td className="px-4 py-3 text-gray-300">{e.id ? (e.requestedBy ?? 'Sistema') : ''}</td>)}
+                    {!scheduled && (<td className="px-4 py-3 max-w-xs">
+                      <span className="block truncate text-gray-300" title={e.resume}>{e.resume}</span>
+                    </td>)}
+                    {!scheduled && (
+                      <td className="px-4 py-3">
+                        <StatusBadge status={e.status} />
+                        {e.stopRequestedAt && e.status === 'RUNNING' && (
+                          <div className="text-xs text-orange-300 mt-1">Stop pedido</div>
+                        )}
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
                         <button type="button" className={TABLE_ACTION_CLASS} title="Run: executar agora"
@@ -299,19 +359,23 @@ const MonitoringTab = ({ onOpenExecution }: { onOpenExecution: (id: number) => v
                       </div>
                     </td>
                   </tr>
-                  </Fragment>
                 ))}
-                {rows.length === 0 && (
-                  <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-500">Nenhuma rodada no período.</td></tr>
+                {sortedData.length === 0 && (
+                  <tr>
+                    <td colSpan={columns} className="px-4 py-8 text-center text-gray-500">
+                      {statuses.length === 0 ? 'Marque ao menos um status.'
+                        : scheduled ? 'Nenhuma execução agendada no período.' : 'Nenhuma rodada no período.'}
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
           </div>
         )}
-        {rows.length > itemsPerPage && (
+        {sortedData.length > itemsPerPage && (
           <div className="mt-4">
             <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage}
-                        totalItems={rows.length} itemsPerPage={itemsPerPage}
+                        totalItems={sortedData.length} itemsPerPage={itemsPerPage}
                         onItemsPerPageChange={(n) => { setItemsPerPage(n); setCurrentPage(1); }} />
           </div>
         )}

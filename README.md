@@ -94,7 +94,7 @@ primevest/
 
 - ✅ Tarefas (22/10/2026, só administrador): as rotinas do sistema (fechamento, proventos, balanços, índices, Tesouro,
   cotações, logos, carga inicial, curadoria do catálogo, rotinas da carteira) como tarefas — acompanhamento das rodadas
-  e da agenda da semana, Run, Stop, log de cada rodada e configuração do horário e dos atributos (`/tasks`,
+  (filtro por status), agendamentos, Run, Stop, log de cada rodada e configuração do horário e dos atributos (`/tasks`,
   `docs/planos/PLANO_TAREFAS.md`)
 - ✅ Fontes públicas confiáveis (22/10/2026): o arquivo baixado só entra no cache depois de conferido (uma página de
   erro não passa mais por arquivo), a rotina do Tesouro falha com aviso quando a fonte recusa e avisa quando o Tesouro

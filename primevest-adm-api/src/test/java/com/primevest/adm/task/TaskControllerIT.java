@@ -164,6 +164,30 @@ class TaskControllerIT extends IntegrationTestBase {
     }
 
     @Test
+    @DisplayName("Filtro de status com vários valores: só agendadas (Agendamentos) ou só as rodadas marcadas (Acompanhamento)")
+    void filtroDeStatus() throws Exception {
+        long id = taskId("CVM_QUARTERS");
+        long executionId = body(post(admin, "/api/v1/tasks/" + id + "/run", null, String.class))
+            .get("executionId").asLong();
+        assertThat(waitStatus(executionId)).isEqualTo("SUCCEEDED");
+
+        JsonNode scheduled = body(get(admin, "/api/v1/tasks/executions?status=SCHEDULED", String.class));
+        assertThat(scheduled.size()).isPositive();
+        for (JsonNode e : scheduled) {
+            assertThat(e.get("status").asText()).isEqualTo("SCHEDULED");
+        }
+
+        JsonNode runs = body(get(admin, "/api/v1/tasks/executions?status=SUCCEEDED,FAILED", String.class));
+        assertThat(runs.size()).isPositive();
+        for (JsonNode e : runs) {
+            assertThat(e.get("status").asText()).isIn("SUCCEEDED", "FAILED");
+        }
+
+        JsonNode none = body(get(admin, "/api/v1/tasks/executions?status=CANCELLED", String.class));
+        assertThat(none.size()).isZero();
+    }
+
+    @Test
     @DisplayName("Run de tarefa da app-api sem mensagens entre os serviços: 503, nenhuma rodada")
     void remoteRunWithoutMessages() {
         ResponseEntity<String> r = post(admin, "/api/v1/tasks/" + taskId("POSITIONS_REFRESH") + "/run", null,

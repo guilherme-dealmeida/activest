@@ -451,7 +451,7 @@ escopo próprio.
 | PUT | `/api/v1/tasks/{id}` | edita nome, descrição, cron, `enabled` e valores dos atributos; valida pelo tipo; publica "tarefa mudou" |
 | POST | `/api/v1/tasks/{id}/run` | 202 com o `executionId`; tipo da app-api: comando pelo Redis e espera até 5 s a rodada aparecer (sem resposta: 503 "app-api não respondeu") |
 | POST | `/api/v1/tasks/executions/{id}/stop` | grava `stop_requested_at`; 422 se não estiver `RUNNING` ou o tipo não for `stoppable` |
-| GET | `/api/v1/tasks/executions?from=&to=&type=&status=&page=` | Acompanhamento: rodadas do período + as agendadas calculadas (`SCHEDULED`) até `to` (D3) |
+| GET | `/api/v1/tasks/executions?from=&to=&type=&status=&page=` | Acompanhamento: rodadas do período + as agendadas calculadas (`SCHEDULED`) até `to` (D3); `status` com vários valores (`A,B`, 23/10/2026) |
 | GET | `/api/v1/tasks/executions/{id}` | detalhe: atributos usados, resumo, erro, quem pediu |
 | GET | `/api/v1/tasks/executions/{id}/logs?level=&page=` | linhas da rodada |
 
@@ -676,3 +676,11 @@ continua fazendo o que faz hoje (passa os atributos equivalentes ao executor).
   `mvn clean verify`: core 210; integration 103; adm-api 118 + 78; app-api 210 + 263 — verdes. Dev: V65 aplicada; na
   subida seguinte nenhuma rodada `STARTUP` nova (Tesouro e abertura do dia já tinham rodado no dia; os outros 4 "em
   dia, nada a recuperar").
+- 23/10/2026 — **Pós-implementação**, pedido do Guilherme: aba **Agendamentos** (`?tab=schedules`, entre Acompanhamento
+  e Configuração) com só as agendadas (`SCHEDULED`), filtros De/Até/Tipo (padrão hoje e amanhã), a mesma tabela do
+  Acompanhamento sem a coluna STATUS, colunas ordenáveis, padrão vigência crescente. **Acompanhamento**: colunas
+  ordenáveis (padrão vigência decrescente; clique crescente → decrescente → ordem da API), STATUS passa a penúltima
+  coluna, o filtro de status vira tags como as da Carteira (várias marcadas; padrão todas menos `SCHEDULED`; nenhuma
+  marcada = nada a consultar) e sai a faixa "Agora" com o posicionamento na página de agora. API:
+  `GET /tasks/executions?status=` aceita vários valores (`status=FAILED,SUCCEEDED`) e só calcula as agendadas quando
+  `SCHEDULED` é pedido (e só lê as rodadas quando algum outro status é). Teste: `TaskControllerIT.filtroDeStatus`.

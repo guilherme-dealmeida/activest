@@ -45,4 +45,4 @@ export const TRIGGER_HINT: Record<TaskTriggerType, string> = {
   STARTUP: 'Recuperação na subida do serviço.',
 };
 
-export const ALL_STATUSES: TaskExecutionStatus[] = ['SCHEDULED', 'RUNNING', 'SUCCEEDED', 'FAILED', 'CANCELLED', 'SKIPPED'];
+export const ALL_STATUSES: TaskExecutionStatus[] = ['RUNNING', 'SUCCEEDED', 'FAILED', 'CANCELLED', 'SKIPPED', 'SCHEDULED'];

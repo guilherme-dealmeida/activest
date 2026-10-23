@@ -208,7 +208,9 @@ public class TaskController {
 
     /**
      * Rodadas iniciadas no período e, de agora até {@code to}, as agendadas calculadas do cron ({@code SCHEDULED},
-     * D3). Padrão: 7 dias para trás e 7 para frente (D35).
+     * D3). Padrão: 7 dias para trás e 7 para frente (D35). {@code status} aceita vários valores
+     * ({@code status=FAILED,SUCCEEDED}); ausente, vêm todos. A aba Agendamentos pede só {@code SCHEDULED}, o
+     * Acompanhamento os que estiverem marcados.
      */
     @GetMapping("/executions")
     @Transactional(readOnly = true)
@@ -216,7 +218,7 @@ public class TaskController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) String type,
-            @RequestParam(required = false) String status) {
+            @RequestParam(required = false) List<String> status) {
         requireAdmin();
         LocalDate today = LocalDate.now(TaskTime.ZONE);
         LocalDate first = from != null ? from : today.minusDays(7);
@@ -227,7 +229,12 @@ public class TaskController {
         LocalDateTime start = first.atStartOfDay();
         LocalDateTime end = last.plusDays(1).atStartOfDay();
 
-        List<TaskExecution> rows = executions.findStartedBetween(start, end);
+        Set<String> statuses = status == null ? Set.of() : status.stream()
+            .filter(v -> v != null && !v.isBlank()).map(String::trim).collect(Collectors.toSet());
+        boolean wantsRuns = statuses.isEmpty() || statuses.stream().anyMatch(v -> !"SCHEDULED".equals(v));
+        boolean wantsScheduled = statuses.isEmpty() || statuses.contains("SCHEDULED");
+
+        List<TaskExecution> rows = wantsRuns ? executions.findStartedBetween(start, end) : List.of();
         Map<UUID, String> names = userNames(rows.stream().map(TaskExecution::getRequestedBy).toList());
         Map<String, Boolean> stoppable = stoppableByType();
         List<ExecutionDTO> out = new ArrayList<>(rows.stream()
@@ -235,7 +242,7 @@ public class TaskController {
             .toList());
 
         LocalDateTime now = TaskTime.now();
-        if (end.isAfter(now)) {
+        if (wantsScheduled && end.isAfter(now)) {
             LocalDateTime from0 = start.isAfter(now) ? start : now;
             for (Task t : tasks.findAllAlive()) {
                 if (!t.isActive() || t.getCron() == null || !CronExpression.isValidExpression(t.getCron())) {
@@ -255,7 +262,7 @@ public class TaskController {
         }
         return out.stream()
             .filter(e -> type == null || type.isBlank() || type.equals(e.type()))
-            .filter(e -> status == null || status.isBlank() || status.equals(e.status()))
+            .filter(e -> statuses.isEmpty() || statuses.contains(e.status()))
             .sorted(Comparator.comparing(ExecutionDTO::scheduledFor).reversed()
                 .thenComparing(e -> e.id() == null ? 0L : e.id(), Comparator.reverseOrder()))
             .toList();

@@ -9,7 +9,8 @@ export interface TaskExecutionFilters {
   /** aaaa-mm-dd; ausente = 7 dias para frente. */
   to?: string;
   type?: string;
-  status?: string;
+  /** Vários status (vão como `status=A,B`); vazio = todos. */
+  statuses?: string[];
 }
 
 /** Tela de Tarefas (docs/planos/PLANO_TAREFAS.md, T5): o proxy manda /api/v1/tasks para a adm-api (D9). */
@@ -22,7 +23,7 @@ export const tasksApi = {
       from: f.from || undefined,
       to: f.to || undefined,
       type: f.type || undefined,
-      status: f.status || undefined,
+      status: f.statuses?.length ? f.statuses.join(',') : undefined,
     },
   })).data,
   execution: async (id: number) => (await apiClient.get<TaskExecutionDetail>(`/tasks/executions/${id}`)).data,
