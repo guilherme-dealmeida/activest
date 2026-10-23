@@ -3,7 +3,8 @@
 > Gerado em 02/10/2026 · revisado em 03/10/2026 (planos em `docs/planos/`, pendências em `docs/PENDENCIAS.md`,
 > carga em `carga/`), em 09/10/2026 (seção 8, banco de dados) e em 10/10/2026 (5.3: o Claude executa downloads e
 > esperas longas; a antiga 5.7 deixou de ser necessária), em 12/10/2026 (2.6: preço atual × fechamento) e em
-> 22/10/2026 (seção 9, nomes em inglês).
+> 22/10/2026 (seção 9, nomes em inglês) e em 23/10/2026 (seções 1 e 2: os dois tipos de trabalho, POR ESCOPO com as
+> 7 etapas e POR DÚVIDAS; 3.2 e seção 4 ajustadas às etapas).
 >
 > **Escopo:** só a **relação de trabalho**: como pedimos, executamos, validamos e documentamos. Regras de negócio do
 > sistema não entram aqui; elas ficam no `Claude.md` e nos planos.
@@ -14,9 +15,9 @@
 ## Sumário
 
 1. [Comunicação](#1-comunicação)
-2. [Planejamento × execução](#2-planejamento--execução)
+2. [Tipos de trabalho: POR ESCOPO e POR DÚVIDAS](#2-tipos-de-trabalho-por-escopo-e-por-dúvidas)
 3. [Git](#3-git)
-4. [Validação — a última etapa do Claude](#4-validação--a-última-etapa-do-claude)
+4. [Validação — Testing e Review](#4-validação--testing-e-review)
 5. [Execução na máquina do Guilherme](#5-execução-na-máquina-do-guilherme)
 6. [Arquivos, pastas e dados](#6-arquivos-pastas-e-dados)
 7. [Documentação](#7-documentação)
@@ -29,30 +30,58 @@
 
 **1.1** As respostas do Claude são sempre em português (Brasil).
 
-**1.2** Os pedidos seguem a estrutura:
+**1.2** (23/10/2026) Todo pedido é de um destes dois tipos de trabalho (seção 2), e o tipo se reconhece pelo formato:
 
-| Campo | Conteúdo |
-|---|---|
-| `ESCOPO` | o assunto/frente de trabalho |
-| `ETAPA` | em que fase o trabalho está (Planejamento, Execução, Documentação...) |
-| `DESCRIÇÃO` | o que se quer |
-| `PASSOS` | a lista numerada do que fazer |
+**POR ESCOPO** — mudanças a serem requisitadas e/ou funcionalidade nova:
 
-O Claude responde seguindo essa estrutura e os passos na ordem dada.
+```
+ESCOPO: [TÍTULO DO ESCOPO]
 
-## 2. Planejamento × execução
+DESCRIÇÃO: [DESCRIÇÃO COMPLETA DO ESCOPO]
+```
 
-**2.1** `ETAPA: Planejamento` pede **só o plano**. Nada é implementado.
+O título vira o assunto do plano (`docs/planos/PLANO_<ASSUNTO>.md`) e o trabalho segue as etapas de 2.1.
 
-**2.2** Implementação só com **ordem explícita** do Guilherme ("mandou executar"). Concordar com o plano, ou contestar
-algum ponto dele, **não** é ordem de execução.
+**POR DÚVIDAS** — entender uma problemática, estudar uma funcionalidade ou tirar dúvidas:
 
-**2.3** Quando mandar executar "por etapas", o Claude executa uma etapa de cada vez, na ordem do plano, cada uma
-fechada (bateria verde) antes da próxima.
+```
+DÚVIDAS:
+
+1- [DÚVIDA 1]
+2- [DÚVIDA 2]
+...
+```
+
+O Claude responde cada dúvida pelo número dela.
+
+## 2. Tipos de trabalho: POR ESCOPO e POR DÚVIDAS
+
+### POR ESCOPO
+
+**2.1** O trabalho POR ESCOPO percorre sete etapas, nesta ordem:
+
+| # | Etapa | O que se faz | Objetivo |
+|---|---|---|---|
+| 1 | **Discovery** (Descoberta) | analisar a demanda, compreender o comportamento atual do sistema, identificar requisitos, regras de negócio e componentes envolvidos | entender o problema antes de propor soluções |
+| 2 | **Impact** (Análise de Impacto) | identificar componentes, serviços, APIs, bancos de dados e integrações que podem ser afetados; avaliar riscos, dependências e efeitos colaterais | compreender o alcance e os riscos da mudança |
+| 3 | **Planning** (Planejamento e Aprovação) | definir a solução técnica, as alterações, a estratégia de implementação e os critérios de aceitação; apresentar o plano para aprovação antes de mexer no código | garantir alinhamento sobre o que será feito e como |
+| 4 | **Implementation** (Implementação) | executar as alterações aprovadas, seguindo os padrões arquiteturais, as boas práticas e as convenções do projeto | implementar a solução conforme o plano autorizado |
+| 5 | **Testing** (Testes) | criar ou atualizar testes unitários e de integração, executar as validações e verificar regressões | comprovar que a solução funciona sem comprometer o que existe |
+| 6 | **Review** (Revisão) | revisar o código implementado: qualidade, segurança, desempenho, aderência aos requisitos e aos padrões do projeto | identificar e corrigir problemas antes da entrega |
+| 7 | **Commit** (Registro da Alteração) | conferir as alterações finais e sugerir uma mensagem de commit clara e padronizada | registrar a alteração |
+
+**2.2** As etapas 1 a 3 **não alteram código**: terminam com o plano apresentado ao Guilherme. A Implementation (etapa 4)
+só começa com **aprovação explícita** dele ("mandou executar"). Concordar com o plano, ou contestar algum ponto dele,
+**não** é aprovação.
+
+**2.3** Quando mandar executar "por etapas" do plano, o Claude faz uma etapa do plano de cada vez, na ordem, cada uma
+fechada (implementada, testada e com a bateria verde) antes da próxima.
 
 **2.4** Cada escopo tem o seu plano em `docs/planos/PLANO_<ASSUNTO>.md`; **plano novo nasce nessa pasta**. O plano
-traz: objetivo, decisões numeradas (D1, D2...) para o Guilherme responder, etapas, tabela "Quem faz"
-(Claude × Guilherme) e a seção de andamento. As decisões tomadas por ele ficam registradas no plano, com data.
+registra o resultado das etapas 1 a 3: objetivo, o que o Discovery levantou, a análise de impacto (componentes, riscos,
+dependências), a solução, os critérios de aceitação, as decisões numeradas (D1, D2...) para o Guilherme responder, as
+etapas do plano, a tabela "Quem faz" (Claude × Guilherme) e a seção de andamento. As decisões tomadas por ele ficam
+registradas no plano, com data.
 
 **2.5** Pontos em aberto viram perguntas (decisões) no plano: o Claude não decide sozinho o que é escolha do
 Guilherme.
@@ -64,18 +93,32 @@ fechamento só entra numa regra de escopo de forma **explícita**, quando a func
 dele, e não do preço atual. Origem: Preço Teto (10/10) e alerta de preço das notificações (12/10), onde a mesma
 pergunta voltou.
 
+**2.7** Na etapa 7 (Commit), o Claude confere as alterações finais (só leitura: `git status`, `git diff`), confirma que a
+documentação foi atualizada (7.2) e **sugere** a mensagem de commit no padrão do repositório,
+`<TRACK> - <descrição em português>` (ex.: `TRACK_01 - Aba agendamentos em tarefas`). Quem comita é o Guilherme (3.1).
+
+### POR DÚVIDAS
+
+**2.8** O trabalho POR DÚVIDAS é respondido, não implementado: o Claude investiga (código, banco, logs, documentação) e
+responde às perguntas. Nada é alterado no código.
+
+**2.9** Se as respostas levarem a um raciocínio que pede mudança, o Claude propõe; com o OK do Guilherme, o trabalho
+**vira POR ESCOPO** e segue a partir da etapa 1, aproveitando o que já foi levantado.
+
 ## 3. Git
 
 **3.1** O git é do Guilherme. O Claude **não executa** comando de git (commit, branch, push, merge, checkout...).
 Exceção: comandos só de leitura para diagnóstico são permitidos.
 
-**3.2** O Claude **não comenta** o que está ou não comitado: nada de "segue não comitado", status de working tree ou
-sugestão de commit ao terminar.
+**3.2** O Claude **não comenta** o que está ou não comitado: nada de "segue não comitado" ou status de working tree ao
+longo do trabalho. A única exceção é a etapa 7 do POR ESCOPO (2.7), em que ele confere as alterações finais e sugere a
+mensagem de commit.
 
-## 4. Validação — a última etapa do Claude
+## 4. Validação — Testing e Review
 
-**4.1** Toda implementação termina com a validação feita pelo Claude: compilar, rodar os testes e o lint, subir o
-ambiente e conferir o comportamento. Entregue isso, o assunto está encerrado.
+**4.1** Toda implementação passa pela validação feita pelo Claude na etapa 5 (Testing): compilar, rodar os testes e o
+lint, subir o ambiente e conferir o comportamento. Em seguida vêm a Review (etapa 6), com as correções que ela
+apontar, e o Commit (etapa 7).
 
 **4.2** Testes visuais — "caminho 3", escolhido pelo Guilherme:
 
