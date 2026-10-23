@@ -1,7 +1,7 @@
 # PrimeVest → Activest — Plano de Renomeação do Projeto
 
-> Fase: **Planning (etapa 3) — D1–D20 respondidas pelo Guilherme em 23/10/2026; aguardando as pendências P1–P3 (seção 6.3)
-> e a ordem de execução.
+> Fase: **Planning (etapa 3) — D1–D20 respondidas pelo Guilherme em 23/10/2026; pendências P1–P3 resolvidas (seção 6.3);
+> aguardando a ordem de execução.
 >
 > **Git neste escopo (Guilherme, 23/10/2026):** o Claude tem autonomia total e é o responsável pelo git até o fim deste
 > escopo (exceção à regra 3.1 do `REGRAS_CLAUDE.md`, só aqui).** Discovery e Impact feitos em 23/10/2026, conferidos contra o repositório, o banco e o Docker do DEV.
@@ -222,6 +222,17 @@ D18 **(a)** e D19 **(a)** aceitas (23/10/2026). Pasta `E:\\repos\\activest` cone
 | P2 | `Claude.md`, `docs/REGRAS_CLAUDE.md` (metodologia de 23/10) e este plano ainda não estão em commit no `primevest`: comitar na `develop` do `primevest` e dar o push nos dois remotes, para entrarem no histórico levado ao `activest` | Claude, com o OK do Guilherme |
 | P3 | Fluxo de branch: o trabalho vai na `TRACK_01-renomeacao_activest` (a partir da `develop`); ao fim, o Claude faz o merge na `develop` ou deixa a branch para o pull request do Guilherme (não há `gh` instalado: o PR é aberto pelo site) | Guilherme decide |
 
+Resolução (23/10/2026):
+
+- **P1** — o Guilherme estendeu o token `R2_TOKEN_PRIMEVEST` (Workers R2 Storage Bucket Item **Write**) aos buckets
+  `primevest-data` e `activest-data`. Conferido: é o mesmo token do `rclone` e do `.env` (impressão digital do id e do
+  segredo iguais) e já lê o `activest-data` (vazio). O token da aplicação passa a ter escrita: item para
+  `PENDENCIAS.md` (token só leitura para a aplicação quando houver produção).
+- **P2** — o Guilherme comitou na branch `TRACK-01_novo_nome_activest` do `primevest` (`ea2a41d`) e fez o merge na
+  `develop` pelo PR #22 (`3e42a6d`).
+- **P3** — o trabalho segue na branch `TRACK-01_novo_nome_activest`, agora no repositório `activest`; o fechamento é
+  por pull request do Guilherme, como no PR #22.
+
 Itens conferidos e sem pendência: credencial do git no Windows lê o `activest` (`ls-remote` ok); espaço livre E: 9,7 GB
 (a pasta nova precisa de ~3 GB: `carga/data` 2,2 GB, `node_modules` 131 MB, `.git` 19 MB) e C: 34,5 GB (volume e
 imagens novas). No GitHub do `activest`, o branch padrão (`master`) é ajustado pelo Guilherme no site depois do push.
@@ -263,3 +274,4 @@ imagens novas). No GitHub do `activest`, o branch padrão (`master`) é ajustado
 | 23/10/2026 | Guilherme respondeu D1–D14: renomeação completa, pasta, banco, contêineres e bucket novos, migrations consolidadas, pilha antiga parada como backup, sem escopos paralelos. Plano revisto (riscos R12–R16, seção 4.2, etapas E0–E8) com D15–D20 em aberto. |
 | 23/10/2026 | Segunda rodada: D15, D16, D17 e D20 aceitas; riscos R12–R16 aceitos; repositório `activest` criado (vazio). D18 revista para levar o histórico (push de todas as branches + clone) e D19 aguardando confirmação. |
 | 23/10/2026 | Terceira rodada: D18 (a) e D19 (a) aceitas; git deste escopo passa ao Claude; pasta `activest` conectada. Pendências P1–P3 levantadas. |
+| 23/10/2026 | P1–P3 resolvidas: token R2 com escrita nos dois buckets (conferido), plano e metodologia no PR #22 do `primevest`, branch de trabalho `TRACK-01_novo_nome_activest`. |
