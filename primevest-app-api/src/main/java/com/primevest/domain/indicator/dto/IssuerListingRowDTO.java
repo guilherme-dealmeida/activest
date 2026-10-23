@@ -14,7 +14,7 @@ import java.util.List;
  * @param subsector     subsetor B3 (so acao)
  * @param segment       segmento B3 (acao) ou segmento do fundo (FII)
  * @param priceDate     data do preco atual
- * @param priceStale    preco sem pregao ha mais de {@code primevest.emissoras.dado-antigo.preco-dias} dias
+ * @param priceStale    preco sem pregao ha mais de {@code primevest.issuer-page.stale-data.price-days} dias
  * @param basePeriodEnd fim do trimestre do balanco (acao) ou do mes do informe (FII) usado no "Atual"
  * @param baseStale     balanco ou informe mais antigo que o limite (F4)
  * @param equity        patrimonio liquido em R$: PL da controladora (acao) ou do informe (FII)

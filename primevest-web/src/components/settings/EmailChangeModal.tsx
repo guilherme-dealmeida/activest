@@ -20,14 +20,14 @@ export const EmailChangeModal = ({ isOpen, onClose, onChanged }: Props) => {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const fechar = () => {
+  const close = () => {
     setEmail('');
     setSent(null);
     setError('');
     onClose();
   };
 
-  const pedir = async (e: React.FormEvent) => {
+  const request = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setBusy(true);
@@ -41,21 +41,21 @@ export const EmailChangeModal = ({ isOpen, onClose, onChanged }: Props) => {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={fechar} title="Alterar e-mail">
+    <Modal isOpen={isOpen} onClose={close} title="Alterar e-mail">
       {sent ? (
         <CodeStep
           sent={sent}
           confirmLabel="Confirmar novo e-mail"
           onConfirm={async (code) => {
             onChanged(await usersApi.confirmEmailChange(sent.requestId, code));
-            fechar();
+            close();
           }}
           onResend={() => usersApi.resendEmailChange(sent.requestId)}
           onBack={() => setSent(null)}
           backLabel="Trocar o endereço"
         />
       ) : (
-        <form onSubmit={pedir} className="space-y-4">
+        <form onSubmit={request} className="space-y-4">
           <p className="text-sm text-gray-300">
             O e-mail é o seu login. Enviaremos um código para o endereço novo; a troca só vale depois de confirmá-lo,
             e o endereço atual recebe um aviso.
@@ -63,7 +63,7 @@ export const EmailChangeModal = ({ isOpen, onClose, onChanged }: Props) => {
           {error && <p className="text-sm text-danger">{error}</p>}
           <Input label="Novo e-mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="ghost" onClick={fechar}>Cancelar</Button>
+            <Button type="button" variant="ghost" onClick={close}>Cancelar</Button>
             <Button type="submit" isLoading={busy} disabled={!email.trim()}>Enviar código</Button>
           </div>
         </form>

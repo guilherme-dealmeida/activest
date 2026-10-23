@@ -16,18 +16,18 @@ public final class Phones {
         if (phone == null || phone.isBlank()) {
             return null;
         }
-        String digitos = phone.replaceAll("\\D", "");
+        String digits = phone.replaceAll("\\D", "");
         if (phone.trim().startsWith("+")) {
-            if (digitos.length() < 8 || digitos.length() > 15) {
+            if (digits.length() < 8 || digits.length() > 15) {
                 throw new BusinessException("Informe um celular válido, com DDD.");
             }
-            return "+" + digitos;
+            return "+" + digits;
         }
-        if (digitos.length() == 10 || digitos.length() == 11) {
-            return "+55" + digitos;
+        if (digits.length() == 10 || digits.length() == 11) {
+            return "+55" + digits;
         }
-        if ((digitos.length() == 12 || digitos.length() == 13) && digitos.startsWith("55")) {
-            return "+" + digitos;
+        if ((digits.length() == 12 || digits.length() == 13) && digits.startsWith("55")) {
+            return "+" + digits;
         }
         throw new BusinessException("Informe um celular válido, com DDD.");
     }

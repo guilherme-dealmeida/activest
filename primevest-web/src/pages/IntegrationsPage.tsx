@@ -42,14 +42,14 @@ export const IntegrationsPage = () => {
   });
   // A B3 só aparece quando o servidor a liga (B3I_ENABLED).
   const { data: sources } = useQuery({ queryKey: ['integrations', 'sources'], queryFn: integrationsApi.sources });
-  const fontes = sources?.map(s => s.provider) ?? ['BINANCE'];
-  const conectar = () => setConnectOpen(fontes.length === 1 ? fontes[0] : 'choose');
+  const sourceList = sources?.map(s => s.provider) ?? ['BINANCE'];
+  const connect = () => setConnectOpen(sourceList.length === 1 ? sourceList[0] : 'choose');
 
   if (isLoading) {
     return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent" /></div>;
   }
 
-  const lista = connections ?? [];
+  const options = connections ?? [];
 
   return (
     <div className="space-y-6">
@@ -59,24 +59,24 @@ export const IntegrationsPage = () => {
           vendas. Você confere tudo antes de entrar na carteira; depois da primeira importação, a sincronização diária
           (08h45) traz o que for novo sozinha.
         </p>
-        <Button className="ml-auto" onClick={conectar}>
+        <Button className="ml-auto" onClick={connect}>
           <Plus className="mr-2 h-4 w-4" /> Conectar
         </Button>
       </div>
 
-      {lista.length === 0 ? (
+      {options.length === 0 ? (
         <Card className="flex flex-col items-center gap-3 py-12 text-center">
           <Plug className="h-10 w-10 text-accent" />
           <p className="text-white font-medium">Nenhuma fonte conectada</p>
           <div className="max-w-md space-y-1 text-sm text-gray-400">
-            {fontes.map(f => <p key={f}><span className="text-white">{providerName(f)}</span> — {SOURCE_TEXT[f]}</p>)}
+            {sourceList.map(f => <p key={f}><span className="text-white">{providerName(f)}</span> — {SOURCE_TEXT[f]}</p>)}
             <p>A credencial fica cifrada e só permite leitura: o PrimeVest não negocia, não saca e não transfere nada.</p>
           </div>
-          <Button onClick={conectar}><Plus className="mr-2 h-4 w-4" /> Conectar</Button>
+          <Button onClick={connect}><Plus className="mr-2 h-4 w-4" /> Conectar</Button>
         </Card>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          {lista.map(c => (
+          {options.map(c => (
             <ConnectionCard key={c.id} connection={c}
               onExclusions={() => setExclusionsOf(c)}
               onDisconnect={() => setDisconnecting(c)}
@@ -87,7 +87,7 @@ export const IntegrationsPage = () => {
 
       <Modal isOpen={connectOpen === 'choose'} onClose={() => setConnectOpen(null)} title="Conectar">
         <div className="space-y-3">
-          {fontes.map(f => (
+          {sourceList.map(f => (
             <button key={f} type="button" onClick={() => setConnectOpen(f)}
               className="w-full rounded-md border border-surface-light px-4 py-3 text-left hover:border-accent">
               <p className="text-white font-medium">{providerName(f)}</p>
@@ -126,16 +126,16 @@ const ConnectionCard = ({ connection: c, onExclusions, onDisconnect, onReconnect
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [showHistory, setShowHistory] = useState(false);
-  const revogada = c.status === 'REVOKED';
-  const aguardando = c.status === 'PENDING_AUTHORIZATION';
-  const buscando = isRunInProgress(c.lastRunStatus);
+  const revoked = c.status === 'REVOKED';
+  const awaiting = c.status === 'PENDING_AUTHORIZATION';
+  const searching = isRunInProgress(c.lastRunStatus);
 
   // Avisa quando a busca termina, mesmo que o usuário tenha ficado na lista.
-  const anterior = useRef(c.lastRunStatus);
+  const previous = useRef(c.lastRunStatus);
   useEffect(() => {
-    const antes = anterior.current;
-    anterior.current = c.lastRunStatus;
-    if (!isRunInProgress(antes) || isRunInProgress(c.lastRunStatus)) return;
+    const before = previous.current;
+    previous.current = c.lastRunStatus;
+    if (!isRunInProgress(before) || isRunInProgress(c.lastRunStatus)) return;
     if (c.lastRunStatus === 'AWAITING_CONFIRMATION') {
       showToast(`${c.label}: busca concluída. Confira a pré-visualização.`, 'success');
     } else if (c.lastRunStatus === 'FAILED') {
@@ -152,7 +152,7 @@ const ConnectionCard = ({ connection: c, onExclusions, onDisconnect, onReconnect
     onError: (e: unknown) => showToast(apiMessage(e) ?? 'Não foi possível sincronizar.', 'error', 8000),
   });
 
-  const { data: historico } = useQuery({
+  const { data: history } = useQuery({
     queryKey: ['integrations', c.id, 'runs'],
     queryFn: () => integrationsApi.runs(c.id),
     enabled: showHistory,
@@ -162,7 +162,7 @@ const ConnectionCard = ({ connection: c, onExclusions, onDisconnect, onReconnect
   const run = c.lastRunStatus ? RUN_STATUS[c.lastRunStatus] : null;
 
   return (
-    <Card className={revogada ? 'opacity-70' : undefined}>
+    <Card className={revoked ? 'opacity-70' : undefined}>
       <div className="flex items-start gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent font-bold">
           {providerName(c.provider).charAt(0)}
@@ -182,13 +182,13 @@ const ConnectionCard = ({ connection: c, onExclusions, onDisconnect, onReconnect
         </div>
       </div>
 
-      {!revogada && (
+      {!revoked && (
         <div className="mt-4 space-y-3">
           {run && (
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className="text-gray-400">Última busca:</span>
               <Badge variant={run.variant}>
-                {buscando && <LoadingSpinner className="mr-1 h-3 w-3" />}
+                {searching && <LoadingSpinner className="mr-1 h-3 w-3" />}
                 {run.label}
               </Badge>
               {c.lastRunStatus === 'AWAITING_CONFIRMATION' && c.lastRunId && (
@@ -203,12 +203,12 @@ const ConnectionCard = ({ connection: c, onExclusions, onDisconnect, onReconnect
               )}
             </div>
           )}
-          {buscando && (
+          {searching && (
             <p className="text-xs text-gray-400">
               Buscando na {providerName(c.provider)}… a primeira busca pode levar cerca de 2 minutos. Pode sair desta tela.
             </p>
           )}
-          {aguardando && !buscando && (
+          {awaiting && !searching && (
             <div className="space-y-2 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200">
               <p>
                 Falta autorizar o PrimeVest na {providerName(c.provider)}. Entre com o seu login, autorize e volte aqui
@@ -222,7 +222,7 @@ const ConnectionCard = ({ connection: c, onExclusions, onDisconnect, onReconnect
               )}
             </div>
           )}
-          {c.lastError && !buscando && !aguardando && (
+          {c.lastError && !searching && !awaiting && (
             <p className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">{c.lastError}</p>
           )}
           {c.divergenceCount > 0 && (
@@ -240,8 +240,8 @@ const ConnectionCard = ({ connection: c, onExclusions, onDisconnect, onReconnect
           )}
 
           <div className="flex flex-wrap gap-2 pt-1">
-            <Button size="sm" onClick={() => sync.mutate()} disabled={buscando} isLoading={sync.isPending}>
-              <RefreshCw className="mr-1.5 h-4 w-4" /> {aguardando ? 'Já autorizei — sincronizar' : 'Sincronizar'}
+            <Button size="sm" onClick={() => sync.mutate()} disabled={searching} isLoading={sync.isPending}>
+              <RefreshCw className="mr-1.5 h-4 w-4" /> {awaiting ? 'Já autorizei — sincronizar' : 'Sincronizar'}
             </Button>
             <Button size="sm" variant="outline" onClick={() => setShowHistory(v => !v)}>
               <History className="mr-1.5 h-4 w-4" /> Histórico
@@ -256,9 +256,9 @@ const ConnectionCard = ({ connection: c, onExclusions, onDisconnect, onReconnect
 
           {showHistory && (
             <div className="rounded-md border border-surface-light">
-              {!historico ? (
+              {!history ? (
                 <div className="flex justify-center py-4"><LoadingSpinner className="h-5 w-5 text-accent" /></div>
-              ) : historico.length === 0 ? (
+              ) : history.length === 0 ? (
                 <p className="py-4 text-center text-xs text-gray-500">Nenhuma sincronização ainda.</p>
               ) : (
                 <table className="w-full text-xs">
@@ -272,7 +272,7 @@ const ConnectionCard = ({ connection: c, onExclusions, onDisconnect, onReconnect
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {historico.map(h => (
+                    {history.map(h => (
                       <tr key={h.runId}>
                         <td className="px-3 py-2">{formatDateTime(h.createdAt)}</td>
                         <td className="px-3 py-2 text-gray-400">{h.trigger === 'SCHEDULED' ? 'Diária' : 'Manual'}</td>
@@ -293,7 +293,7 @@ const ConnectionCard = ({ connection: c, onExclusions, onDisconnect, onReconnect
         </div>
       )}
 
-      {revogada && (
+      {revoked && (
         <div className="mt-4 flex items-center gap-3 text-sm text-gray-400">
           {c.lastError ? `${c.lastError} ` : 'Desconectada: a credencial foi apagada. '}
           As operações importadas continuam na carteira.

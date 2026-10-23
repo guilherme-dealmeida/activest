@@ -28,7 +28,7 @@ class MarketIndexCalculatorTest {
 
     @Test
     @DisplayName("IPCA acumulado de 2024 = 4,83%, o numero oficial do IBGE")
-    void ipca2024Oficial() {
+    void officialIpca2024() {
         MarketIndexCalculator.Accumulated a = MarketIndexCalculator.compound(IndexUnit.PCT_MES, ipca2024(), null, null);
 
         assertThat(a.periods()).isEqualTo(12);
@@ -39,7 +39,7 @@ class MarketIndexCalculatorTest {
 
     @Test
     @DisplayName("Percentual do indice: 110% de 1% ao dia por 2 dias = 1,011^2")
-    void percentualDoIndice() {
+    void indexPercentage() {
         List<IndexPoint> r = List.of(new IndexPoint(LocalDate.of(2024, 1, 2), new BigDecimal("1")),
                 new IndexPoint(LocalDate.of(2024, 1, 3), new BigDecimal("1")));
 
@@ -51,7 +51,7 @@ class MarketIndexCalculatorTest {
 
     @Test
     @DisplayName("Spread: taxa zero por 252 dias uteis com 6% a.a. rende exatamente 6%")
-    void spreadAnual() {
+    void annualSpread() {
         List<IndexPoint> r = new ArrayList<>();
         LocalDate d = LocalDate.of(2024, 1, 1);
         for (int i = 0; i < 252; i++) {
@@ -66,7 +66,7 @@ class MarketIndexCalculatorTest {
 
     @Test
     @DisplayName("IPCA + 6% a.a. em 2024 (meses inteiros) = 1,0483 × 1,06")
-    void ipcaMaisSpread() {
+    void ipcaPlusSpread() {
         MarketIndexCalculator.Accumulated a = MarketIndexCalculator.compound(IndexUnit.PCT_MES, ipca2024(), null,
                 new BigDecimal("6"));
 
@@ -76,7 +76,7 @@ class MarketIndexCalculatorTest {
 
     @Test
     @DisplayName("Nivel: variacao do Ibovespa = fim ÷ base")
-    void nivel() {
+    void levelPoint() {
         MarketIndexCalculator.Accumulated a = MarketIndexCalculator.level(IndexUnit.PONTOS,
                 new IndexPoint(LocalDate.of(2024, 1, 2), new BigDecimal("132696.63")),
                 new IndexPoint(LocalDate.of(2024, 12, 30), new BigDecimal("120283.40")));
@@ -86,7 +86,7 @@ class MarketIndexCalculatorTest {
 
     @Test
     @DisplayName("TR e meta Selic nao acumulam; serie vazia e recusada")
-    void recusas() {
+    void rejections() {
         List<IndexPoint> um = List.of(new IndexPoint(LocalDate.of(2024, 1, 2), BigDecimal.ONE));
         assertThatThrownBy(() -> MarketIndexCalculator.compound(IndexUnit.PCT_PERIODO, um, null, null))
                 .isInstanceOf(IllegalArgumentException.class);

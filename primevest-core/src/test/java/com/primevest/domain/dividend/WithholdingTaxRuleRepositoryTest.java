@@ -21,57 +21,57 @@ class WithholdingTaxRuleRepositoryTest extends JpaTestBase {
     @Autowired private WithholdingTaxRuleRepository repository;
     @Autowired private AssetTypeRepository assetTypeRepository;
 
-    private Long tipo(String nome) {
-        return CatalogIds.type(assetTypeRepository, nome).getId();
+    private Long typeValue(String name) {
+        return CatalogIds.type(assetTypeRepository, name).getId();
     }
 
-    private WithholdingTaxRule regra(DividendType tipo, String ativo, LocalDate data) {
-        List<WithholdingTaxRule> achadas = repository.findAll().stream()
-            .filter(r -> r.getDividendType() == tipo && r.getAssetTypeId().equals(tipo(ativo)) && r.covers(data))
+    private WithholdingTaxRule rule(DividendType typeValue, String assetEntity, LocalDate data) {
+        List<WithholdingTaxRule> found = repository.findAll().stream()
+            .filter(r -> r.getDividendType() == typeValue && r.getAssetTypeId().equals(typeValue(assetEntity)) && r.covers(data))
             .toList();
-        assertThat(achadas).as("%s de %s em %s", tipo, ativo, data).hasSize(1);
-        return achadas.get(0);
+        assertThat(found).as("%s de %s em %s", typeValue, assetEntity, data).hasSize(1);
+        return found.get(0);
     }
 
     @Test
     @DisplayName("A carga da V23 existe, linha a linha")
-    void cargaInicial() {
+    void initialLoad() {
         assertThat(repository.count()).isEqualTo(7);
 
-        WithholdingTaxRule jcp2025 = regra(DividendType.JCP, "ACAO", LocalDate.of(2025, 12, 31));
+        WithholdingTaxRule jcp2025 = rule(DividendType.JCP, "ACAO", LocalDate.of(2025, 12, 31));
         assertThat(jcp2025.getRate()).isEqualByComparingTo("0.15");
         assertThat(jcp2025.getBaseDate()).isEqualTo(TaxBaseDate.CREDIT);
         assertThat(jcp2025.getValidTo()).isEqualTo(LocalDate.of(2025, 12, 31));
 
-        WithholdingTaxRule jcp2026 = regra(DividendType.JCP, "ACAO", LocalDate.of(2026, 1, 1));
+        WithholdingTaxRule jcp2026 = rule(DividendType.JCP, "ACAO", LocalDate.of(2026, 1, 1));
         assertThat(jcp2026.getRate()).isEqualByComparingTo("0.175");
         assertThat(jcp2026.getValidFrom()).isEqualTo(LocalDate.of(2026, 1, 1));
         assertThat(jcp2026.getValidTo()).isNull();
         assertThat(jcp2026.getLegalBasis()).contains("LC 224/2025");
 
-        LocalDate hoje = LocalDate.of(2026, 9, 24);
-        assertThat(regra(DividendType.DIVIDENDO, "ACAO", hoje).getRate()).isEqualByComparingTo("0");
-        assertThat(regra(DividendType.RENDIMENTO, "ACAO", hoje).getRate()).isEqualByComparingTo("0.225");
-        assertThat(regra(DividendType.RESTITUICAO_CAPITAL, "ACAO", hoje).getRate()).isEqualByComparingTo("0");
-        assertThat(regra(DividendType.RENDIMENTO, "FII", hoje).getRate()).isEqualByComparingTo("0");
-        assertThat(regra(DividendType.AMORTIZACAO, "FII", hoje).getRate()).isEqualByComparingTo("0");
+        LocalDate today = LocalDate.of(2026, 9, 24);
+        assertThat(rule(DividendType.DIVIDENDO, "ACAO", today).getRate()).isEqualByComparingTo("0");
+        assertThat(rule(DividendType.RENDIMENTO, "ACAO", today).getRate()).isEqualByComparingTo("0.225");
+        assertThat(rule(DividendType.RESTITUICAO_CAPITAL, "ACAO", today).getRate()).isEqualByComparingTo("0");
+        assertThat(rule(DividendType.RENDIMENTO, "FII", today).getRate()).isEqualByComparingTo("0");
+        assertThat(rule(DividendType.AMORTIZACAO, "FII", today).getRate()).isEqualByComparingTo("0");
     }
 
     @Test
     @DisplayName("Nenhuma vigencia se sobrepoe a outra do mesmo tipo de provento e de ativo")
-    void semSobreposicao() {
-        List<WithholdingTaxRule> regras = repository.findAll();
-        for (WithholdingTaxRule a : regras) {
-            for (WithholdingTaxRule b : regras) {
+    void withoutOverlap() {
+        List<WithholdingTaxRule> rules = repository.findAll();
+        for (WithholdingTaxRule a : rules) {
+            for (WithholdingTaxRule b : rules) {
                 if (a.getId().equals(b.getId()) || a.getDividendType() != b.getDividendType()
                         || !a.getAssetTypeId().equals(b.getAssetTypeId())) {
                     continue;
                 }
-                LocalDate inicioA = a.getValidFrom() != null ? a.getValidFrom() : LocalDate.MIN;
-                LocalDate fimA = a.getValidTo() != null ? a.getValidTo() : LocalDate.MAX;
-                LocalDate inicioB = b.getValidFrom() != null ? b.getValidFrom() : LocalDate.MIN;
-                LocalDate fimB = b.getValidTo() != null ? b.getValidTo() : LocalDate.MAX;
-                boolean sobrepoe = !inicioA.isAfter(fimB) && !inicioB.isAfter(fimA);
+                LocalDate startA = a.getValidFrom() != null ? a.getValidFrom() : LocalDate.MIN;
+                LocalDate endA = a.getValidTo() != null ? a.getValidTo() : LocalDate.MAX;
+                LocalDate startB = b.getValidFrom() != null ? b.getValidFrom() : LocalDate.MIN;
+                LocalDate endB = b.getValidTo() != null ? b.getValidTo() : LocalDate.MAX;
+                boolean sobrepoe = !startA.isAfter(endB) && !startB.isAfter(endA);
                 assertThat(sobrepoe).as("regras %d e %d (%s) se sobrepoem", a.getId(), b.getId(), a.getDividendType())
                     .isFalse();
             }

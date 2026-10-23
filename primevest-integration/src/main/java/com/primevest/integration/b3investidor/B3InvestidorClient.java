@@ -62,7 +62,7 @@ public class B3InvestidorClient {
 
     static final int MAX_PAGES = 5_000;
     private static final long MAX_RETRY_AFTER_SECONDS = 60;
-    private static final long PAUSA_FALHA_MILLIS = 2_000;
+    private static final long FAILURE_PAUSE_MILLIS = 2_000;
 
     private final WebClient webClient;
     private final B3InvestidorProperties props;
@@ -101,31 +101,31 @@ public class B3InvestidorClient {
         } catch (B3InvestidorException e) {
             if (e.status() == 401) {
                 log.info("B3 401 em {}: token descartado, nova tentativa", template);
-                invalidarToken();
+                invalidateToken();
                 return getOnce(template, vars, query);
             }
             if (!e.isTransient()) {
                 throw e;
             }
-            long espera = e.status() == 429
+            long wait = e.status() == 429
                 ? Math.min(e.retryAfterSeconds() != null ? e.retryAfterSeconds() : 5, MAX_RETRY_AFTER_SECONDS) * 1000
-                : PAUSA_FALHA_MILLIS;
-            log.warn("B3 {} em {}: nova tentativa em {} ms", e.status(), template, espera);
-            pause(espera);
+                : FAILURE_PAUSE_MILLIS;
+            log.warn("B3 {} em {}: nova tentativa em {} ms", e.status(), template, wait);
+            pause(wait);
             return getOnce(template, vars, query);
         }
     }
 
     /** Todas as paginas da rota, na ordem. */
     public List<JsonNode> getAll(String template, Map<String, String> vars, Map<String, ?> query) {
-        List<JsonNode> paginas = new ArrayList<>();
+        List<JsonNode> pages = new ArrayList<>();
         for (int page = 1; page <= MAX_PAGES; page++) {
             Map<String, Object> q = new LinkedHashMap<>(query);
             q.put("page", page);
             JsonNode body = get(template, vars, q);
-            paginas.add(body);
+            pages.add(body);
             if (!hasNext(body)) {
-                return paginas;
+                return pages;
             }
         }
         throw new B3InvestidorException(0, null, "B3: mais de " + MAX_PAGES + " páginas em " + template
@@ -141,8 +141,8 @@ public class B3InvestidorClient {
     // ------------------------------------------------------------------ token
 
     private synchronized String token() {
-        long agora = clock.getAsLong();
-        if (token != null && agora < tokenExpiresAt - props.getTokenRenewSeconds() * 1000) {
+        long now = clock.getAsLong();
+        if (token != null && now < tokenExpiresAt - props.getTokenRenewSeconds() * 1000) {
             return token;
         }
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
@@ -171,12 +171,12 @@ public class B3InvestidorClient {
         }
         try {
             JsonNode r = objectMapper.readTree(body);
-            String novo = r.path("access_token").asText(null);
-            if (novo == null || novo.isBlank()) {
+            String created = r.path("access_token").asText(null);
+            if (created == null || created.isBlank()) {
                 throw new B3InvestidorException(0, null, "Resposta de token da B3 sem access_token.", null);
             }
-            token = novo;
-            tokenExpiresAt = agora + r.path("expires_in").asLong(3599) * 1000;
+            token = created;
+            tokenExpiresAt = now + r.path("expires_in").asLong(3599) * 1000;
             return token;
         } catch (B3InvestidorException e) {
             throw e;
@@ -185,7 +185,7 @@ public class B3InvestidorClient {
         }
     }
 
-    synchronized void invalidarToken() {
+    synchronized void invalidateToken() {
         token = null;
     }
 
@@ -230,18 +230,18 @@ public class B3InvestidorClient {
         return joiner.toString();
     }
 
-    private Mono<String> handle(ClientResponse resp, String rota) {
+    private Mono<String> handle(ClientResponse resp, String route) {
         if (resp.statusCode().is2xxSuccessful()) {
             return resp.bodyToMono(String.class).defaultIfEmpty("");
         }
         int status = resp.statusCode().value();
         Long retryAfter = parseLong(resp.headers().asHttpHeaders().getFirst(HttpHeaders.RETRY_AFTER));
         return resp.bodyToMono(String.class).defaultIfEmpty("")
-            .flatMap(body -> Mono.error(toException(status, body, rota, retryAfter)));
+            .flatMap(body -> Mono.error(toException(status, body, route, retryAfter)));
     }
 
     /** Corpo de erro da B3: {@code errors[]} ou {@code Errors[]} com {@code code}/{@code title} (A3); do token, {@code error}. */
-    B3InvestidorException toException(int status, String body, String rota, Long retryAfter) {
+    B3InvestidorException toException(int status, String body, String route, Long retryAfter) {
         String code = null;
         String msg = null;
         try {
@@ -255,13 +255,13 @@ public class B3InvestidorClient {
         } catch (Exception ignored) {
             // corpo nao e JSON
         }
-        String detalhe = msg != null ? msg : (body.length() > 200 ? body.substring(0, 200) : body);
+        String detail = msg != null ? msg : (body.length() > 200 ? body.substring(0, 200) : body);
         return new B3InvestidorException(status, code, "B3 " + status + (code != null ? " (" + code + ")" : "")
-            + " em " + rota + ": " + detalhe, retryAfter);
+            + " em " + route + ": " + detail, retryAfter);
     }
 
-    private static String firstText(JsonNode n, String... campos) {
-        for (String c : campos) {
+    private static String firstText(JsonNode n, String... fields) {
+        for (String c : fields) {
             String v = text(n, c);
             if (v != null) {
                 return v;
@@ -270,8 +270,8 @@ public class B3InvestidorClient {
         return null;
     }
 
-    private static String text(JsonNode n, String campo) {
-        JsonNode v = n.path(campo);
+    private static String text(JsonNode n, String field) {
+        JsonNode v = n.path(field);
         return v.isMissingNode() || v.isNull() || v.asText().isBlank() ? null : v.asText();
     }
 
@@ -292,8 +292,8 @@ public class B3InvestidorClient {
         }
     }
 
-    private static SslContext sslContext(String p12, String senha) {
-        char[] pwd = senha == null ? new char[0] : senha.toCharArray();
+    private static SslContext sslContext(String p12, String password) {
+        char[] pwd = password == null ? new char[0] : password.toCharArray();
         try (InputStream in = Files.newInputStream(Path.of(p12))) {
             KeyStore ks = KeyStore.getInstance("PKCS12");
             ks.load(in, pwd);

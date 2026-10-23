@@ -21,22 +21,22 @@ class PaymentDateSurveyServiceTest {
 
     private static final LocalDate COM = LocalDate.of(2015, 12, 11);
 
-    private static Line linha(String ticker, String fracionario, String valor, String pagamento) {
-        return new Line(ticker, fracionario, "JCP", COM, new BigDecimal(valor), (short) 1,
-                pagamento == null ? null : LocalDate.parse(pagamento));
+    private static Line row(String ticker, String fracionario, String value, String payment) {
+        return new Line(ticker, fracionario, "JCP", COM, new BigDecimal(value), (short) 1,
+                payment == null ? null : LocalDate.parse(payment));
     }
 
-    private static Event evento(long id, String ticker, String valor) {
-        return new Event(id, 100 + id, ticker, "JCP", COM, (short) 1, new BigDecimal(valor), null);
+    private static Event eventRow(long id, String ticker, String value) {
+        return new Event(id, 100 + id, ticker, "JCP", COM, (short) 1, new BigDecimal(value), null);
     }
 
     @Test
     @DisplayName("Casa no ticker e no fracionario; sem fracionario na linha, tenta o ticker + F")
     void fracionario() {
         Matching m = PaymentDateSurveyService.match(
-                List.of(linha("ODER4", null, "0.07", "2022-07-20"), linha("AZEV4", "AZEV4F", "0.0064", "2016-01-15")),
-                List.of(evento(1, "ODER4F", "0.07000000000"), evento(2, "AZEV4", "0.00640000000"),
-                        evento(3, "AZEV4F", "0.00640000000")));
+                List.of(row("ODER4", null, "0.07", "2022-07-20"), row("AZEV4", "AZEV4F", "0.0064", "2016-01-15")),
+                List.of(eventRow(1, "ODER4F", "0.07000000000"), eventRow(2, "AZEV4", "0.00640000000"),
+                        eventRow(3, "AZEV4F", "0.00640000000")));
 
         assertThat(m.matches()).extracting(x -> x.event().id()).containsExactly(1L, 2L, 3L);
         assertThat(m.notFound()).isEmpty();
@@ -44,21 +44,21 @@ class PaymentDateSurveyServiceTest {
 
     @Test
     @DisplayName("Valor exato primeiro; dentro da tolerancia, o mais proximo; cada evento uma vez so")
-    void valorMaisProximo() {
+    void closestValue() {
         // AZEV3 11/12/2015: o banco tem dois eventos que diferem na 9a casa, e a planilha uma linha de cada
         Matching m = PaymentDateSurveyService.match(
-                List.of(linha("AZEV3", "-", "0.006419042", "2016-01-15"), linha("AZEV3", "-", "0.006419041", "2016-01-15")),
-                List.of(evento(1, "AZEV3", "0.00641904100"), evento(2, "AZEV3", "0.00641904200")));
+                List.of(row("AZEV3", "-", "0.006419042", "2016-01-15"), row("AZEV3", "-", "0.006419041", "2016-01-15")),
+                List.of(eventRow(1, "AZEV3", "0.00641904100"), eventRow(2, "AZEV3", "0.00641904200")));
 
         assertThat(m.matches()).extracting(x -> x.event().id()).containsExactly(2L, 1L);
     }
 
     @Test
     @DisplayName("Fora da tolerancia, em outro tipo ou em outra data-com: sem evento")
-    void semEvento() {
-        Line l = linha("PETR4", "PETR4F", "0.50", "2013-05-27");
+    void withoutEvent() {
+        Line l = row("PETR4", "PETR4F", "0.50", "2013-05-27");
         Matching m = PaymentDateSurveyService.match(List.of(l), List.of(
-                evento(1, "PETR4", "0.501"),
+                eventRow(1, "PETR4", "0.501"),
                 new Event(2, 2, "PETR4", "DIVIDENDO", COM, (short) 1, new BigDecimal("0.50"), null),
                 new Event(3, 3, "PETR4", "JCP", COM.plusDays(1), (short) 1, new BigDecimal("0.50"), null)));
 
@@ -68,7 +68,7 @@ class PaymentDateSurveyServiceTest {
 
     @Test
     @DisplayName("Le o arquivo: A DEFINIR vem sem data; fracionario vazio vira nulo")
-    void leArquivo(@TempDir Path dir) throws Exception {
+    void readsFile(@TempDir Path dir) throws Exception {
         Path f = dir.resolve(PaymentDateSurveyService.FILE);
         Files.createDirectories(f.getParent());
         Files.writeString(f, """
@@ -92,7 +92,7 @@ class PaymentDateSurveyServiceTest {
 
     @Test
     @DisplayName("Sem o arquivo (data pull nao feito): nada a fazer, sem erro")
-    void semArquivo(@TempDir Path dir) {
+    void withoutFile(@TempDir Path dir) {
         PaymentDateSurveyService s = new PaymentDateSurveyService(null, new ObjectMapper(), null, dir.toString());
 
         assertThat(s.run("teste").lines()).isZero();

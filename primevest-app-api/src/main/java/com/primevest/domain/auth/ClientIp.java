@@ -13,9 +13,9 @@ public final class ClientIp {
     }
 
     public static String of(HttpServletRequest request) {
-        String encaminhado = request.getHeader("X-Forwarded-For");
-        if (encaminhado != null && !encaminhado.isBlank()) {
-            return encaminhado.split(",")[0].trim();
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
         }
         return request.getRemoteAddr();
     }

@@ -45,9 +45,9 @@ public class CredentialVault {
     @Transactional
     public IntegrationCredential store(IntegrationConnection connection, SourceCredentials credentials) {
         IntegrationCredential entity = repository.findById(connection.getId()).orElseGet(() -> {
-            IntegrationCredential nova = new IntegrationCredential();
-            nova.setConnection(connection);
-            return nova;
+            IntegrationCredential newValue = new IntegrationCredential();
+            newValue.setConnection(connection);
+            return newValue;
         });
         byte[] plaintext = toJson(credentials);
         try {

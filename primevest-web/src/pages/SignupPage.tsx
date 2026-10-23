@@ -20,17 +20,17 @@ import { formatCpf, isValidCpf } from '@/utils/integrations';
 export const SignupPage = () => {
   const navigate = useNavigate();
   const { startSession, loginWithGoogle } = useAuth();
-  const { data: status, isLoading: carregando } = useQuery({
+  const { data: status, isLoading: loading_ } = useQuery({
     queryKey: ['signup-status'], queryFn: authApi.signupStatus, retry: false,
   });
 
   const [form, setForm] = useState({ name: '', email: '', phone: '', cpf: '', password: '', confirm: '' });
-  const [aceite, setAceite] = useState(false);
+  const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState<CodeSent | null>(null);
 
-  const set = (campo: keyof typeof form, valor: string) => setForm((f) => ({ ...f, [campo]: valor }));
+  const set = (field: keyof typeof form, amount: string) => setForm((f) => ({ ...f, [field]: amount }));
 
   const handleGoogle = useCallback(async (credential: string) => {
     await loginWithGoogle(credential);
@@ -38,27 +38,27 @@ export const SignupPage = () => {
   }, [loginWithGoogle, navigate]);
   const google = useGoogleSignIn({ onCredential: handleGoogle });
 
-  const cpfDigitos = form.cpf.replace(/\D/g, '');
-  const cpfOk = cpfDigitos.length === 0 || isValidCpf(form.cpf);
-  const senhaOk = form.password.length >= 8 && form.password.length <= 72;
-  const confirmaOk = form.password === form.confirm;
-  const podeEnviar = form.name.trim() && form.email.trim() && senhaOk && confirmaOk && cpfOk
-    && isPhoneComplete(form.phone) && aceite;
+  const cpfDigits = form.cpf.replace(/\D/g, '');
+  const cpfOk = cpfDigits.length === 0 || isValidCpf(form.cpf);
+  const passwordOk = form.password.length >= 8 && form.password.length <= 72;
+  const confirmOk = form.password === form.confirm;
+  const canSend = form.name.trim() && form.email.trim() && passwordOk && confirmOk && cpfOk
+    && isPhoneComplete(form.phone) && accepted;
 
-  const enviar = async (e: React.FormEvent) => {
+  const send = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setBusy(true);
-    const corpo: SignupRequest = {
+    const body: SignupRequest = {
       name: form.name.trim(),
       email: form.email.trim(),
       password: form.password,
-      acceptTerms: aceite,
+      acceptTerms: accepted,
       phone: form.phone.trim() || undefined,
-      cpf: cpfDigitos || undefined,
+      cpf: cpfDigits || undefined,
     };
     try {
-      setSent(await authApi.signupStart(corpo));
+      setSent(await authApi.signupStart(body));
     } catch (err) {
       setError(formErrorMessage(err, 'Não foi possível iniciar o cadastro.'));
     } finally {
@@ -66,7 +66,7 @@ export const SignupPage = () => {
     }
   };
 
-  if (carregando) {
+  if (loading_) {
     return <AuthShell title="Criar conta"><p className="text-sm text-gray-400">Carregando...</p></AuthShell>;
   }
 
@@ -103,7 +103,7 @@ export const SignupPage = () => {
     <AuthShell title="Criar conta" subtitle="Leva um minuto: os dados e um código enviado ao seu e-mail." wide
       footer={<>Já tem conta? <Link to="/login" className="text-accent hover:underline">Entrar</Link></>}>
       <FormError message={error || google.error} />
-      <form onSubmit={enviar} className="space-y-4" autoComplete="on">
+      <form onSubmit={send} className="space-y-4" autoComplete="on">
         <Input label="Nome" value={form.name} onChange={(e) => set('name', e.target.value)} maxLength={255}
           autoComplete="name" required />
         <Input label="E-mail" type="email" value={form.email} onChange={(e) => set('email', e.target.value)}
@@ -114,26 +114,26 @@ export const SignupPage = () => {
             error={!isPhoneComplete(form.phone) ? 'Informe DDD e número.' : undefined} />
           <Input label="CPF (opcional)" value={form.cpf} inputMode="numeric" maxLength={14}
             onChange={(e) => set('cpf', formatCpf(e.target.value))} placeholder="000.000.000-00"
-            error={cpfDigitos.length === 11 && !cpfOk ? 'CPF inválido.' : undefined}
+            error={cpfDigits.length === 11 && !cpfOk ? 'CPF inválido.' : undefined}
             info="Usado só nas integrações que dependem dele, como a B3. Guardado cifrado; na tela aparece mascarado." />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <Input label="Senha" type="password" value={form.password} autoComplete="new-password"
             onChange={(e) => set('password', e.target.value)}
-            error={form.password && !senhaOk ? 'De 8 a 72 caracteres.' : undefined}
+            error={form.password && !passwordOk ? 'De 8 a 72 caracteres.' : undefined}
             hint="Mínimo de 8 caracteres." required />
           <Input label="Confirme a senha" type="password" value={form.confirm} autoComplete="new-password"
             onChange={(e) => set('confirm', e.target.value)}
-            error={form.confirm && !confirmaOk ? 'As senhas não conferem.' : undefined} required />
+            error={form.confirm && !confirmOk ? 'As senhas não conferem.' : undefined} required />
         </div>
         <label className="flex items-start gap-3 text-sm text-gray-300 cursor-pointer">
-          <input type="checkbox" className="mt-1 accent-accent" checked={aceite} onChange={(e) => setAceite(e.target.checked)} />
+          <input type="checkbox" className="mt-1 accent-accent" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} />
           <span>
-            Li e aceito os <Link to="/termos" target="_blank" className="text-accent hover:underline">Termos de Uso</Link> e
-            a <Link to="/privacidade" target="_blank" className="text-accent hover:underline">Política de Privacidade</Link>.
+            Li e aceito os <Link to="/terms" target="_blank" className="text-accent hover:underline">Termos de Uso</Link> e
+            a <Link to="/privacy" target="_blank" className="text-accent hover:underline">Política de Privacidade</Link>.
           </span>
         </label>
-        <Button type="submit" className="w-full" disabled={!podeEnviar} isLoading={busy}>Continuar</Button>
+        <Button type="submit" className="w-full" disabled={!canSend} isLoading={busy}>Continuar</Button>
       </form>
 
       {google.enabled && (
@@ -150,8 +150,8 @@ export const SignupPage = () => {
           </div>
           <p className="mt-3 text-center text-xs text-gray-500">
             Ao continuar com o Google você aceita os{' '}
-            <Link to="/termos" target="_blank" className="text-accent hover:underline">Termos de Uso</Link> e a{' '}
-            <Link to="/privacidade" target="_blank" className="text-accent hover:underline">Política de Privacidade</Link>.
+            <Link to="/terms" target="_blank" className="text-accent hover:underline">Termos de Uso</Link> e a{' '}
+            <Link to="/privacy" target="_blank" className="text-accent hover:underline">Política de Privacidade</Link>.
           </p>
         </>
       )}

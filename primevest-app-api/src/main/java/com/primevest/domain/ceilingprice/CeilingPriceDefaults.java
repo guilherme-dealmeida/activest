@@ -34,7 +34,7 @@ import java.util.UUID;
  *   que falta vem nulo, com o motivo.</li>
  *   <li>N, preço, ROE e payout: pelas mesmas regras da tela de Emissoras ({@link IndicatorService}). ROE e payout =
  *   média dos 3 últimos exercícios fechados (D3).</li>
- *   <li>Desconto: Selic meta vigente (D5). Perpetuidade 3% e margem 15%: {@code primevest.preco-teto.*}.</li>
+ *   <li>Desconto: Selic meta vigente (D5). Perpetuidade 3% e margem 15%: {@code primevest.ceiling-price.*}.</li>
  * </ul>
  */
 @Service
@@ -54,8 +54,8 @@ public class CeilingPriceDefaults {
     @org.springframework.beans.factory.annotation.Autowired
     public CeilingPriceDefaults(JdbcTemplate jdbc, IndicatorService indicators,
                                 com.primevest.domain.asset.AssetLogos logos,
-                                @Value("${primevest.preco-teto.crescimento-perpetuidade:3}") BigDecimal perpetualGrowth,
-                                @Value("${primevest.preco-teto.margem-seguranca:15}") BigDecimal safetyMargin) {
+                                @Value("${primevest.ceiling-price.perpetual-growth:3}") BigDecimal perpetualGrowth,
+                                @Value("${primevest.ceiling-price.safety-margin:15}") BigDecimal safetyMargin) {
         this(jdbc, indicators, logos, perpetualGrowth, safetyMargin, Clock.system(ZONE));
     }
 
@@ -117,7 +117,7 @@ public class CeilingPriceDefaults {
         DefaultValue roe = average(roeYears, "ROE");
         DefaultValue payout = average(payoutYears, "payout (dividendos + JCP pagos ÷ lucro)");
 
-        DefaultValue discount = selicMeta();
+        DefaultValue discount = selicTarget();
         DefaultValue growth = new DefaultValue(perpetualGrowth, "definido no sistema (crescimento médio do PIB do Brasil)", null);
         DefaultValue margin = new DefaultValue(safetyMargin, "definido no sistema", null);
         DefaultValue price = f.price() == null
@@ -228,7 +228,7 @@ public class CeilingPriceDefaults {
 
     // ------------------------------------------------------------------ índices
 
-    DefaultValue selicMeta() {
+    DefaultValue selicTarget() {
         List<Map<String, Object>> r = jdbc.queryForList("""
                 SELECT v.reference_date, v.value FROM market_index_values v
                 JOIN market_indices i ON i.id = v.index_id

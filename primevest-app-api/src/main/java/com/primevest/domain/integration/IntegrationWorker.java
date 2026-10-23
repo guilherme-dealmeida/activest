@@ -39,12 +39,12 @@ public class IntegrationWorker {
      * {@code stale-minutes}. Vale enquanto houver uma instancia so da API.
      */
     @EventListener(ApplicationReadyEvent.class)
-    public void aoSubir() {
-        service.recuperarPerdidas(LocalDateTime.now());
+    public void onStartup() {
+        service.recoverStale(LocalDateTime.now());
     }
 
     @Scheduled(fixedDelayString = "${primevest.integrations.worker-delay-ms:5000}", initialDelay = 10_000)
-    public void processar() {
+    public void process() {
         try {
             while (service.processNext()) {
                 // uma por vez, ate esvaziar

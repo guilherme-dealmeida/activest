@@ -47,7 +47,7 @@ class CryptoHistoryServiceTest {
 
     @Test
     @DisplayName("Ultimo ponto de cada dia de Sao Paulo; o diario das 00:00 UTC e o fechamento do dia anterior; hoje fica de fora")
-    void diaDeSaoPaulo() {
+    void saoPauloDay() {
         when(coinGecko.fetchHistoryBrl(eq("bitcoin"), any(), any())).thenReturn(List.of(
                 p("2026-10-15T00:00:00Z", "100"),   // 14/10 21:00 em SP
                 p("2026-10-15T20:00:00Z", "110"),   // 15/10 17:00
@@ -66,7 +66,7 @@ class CryptoHistoryServiceTest {
 
     @Test
     @DisplayName("O arquivo guarda o que saiu da janela; sem rede, o arquivo responde")
-    void arquivoGuardaAJanela() throws Exception {
+    void fileKeepsTheWindow() throws Exception {
         Files.writeString(tmp.resolve("bitcoin.json"), "{\"2025-11-13\":\"500000\",\"2026-10-15\":\"1\"}");
         when(coinGecko.fetchHistoryBrl(eq("bitcoin"), any(), any())).thenReturn(List.of(
                 p("2026-10-16T00:00:00Z", "600000")));

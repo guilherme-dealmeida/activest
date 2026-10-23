@@ -64,7 +64,7 @@ class FixedIncomeIssuerImportIT extends IntegrationTestBase {
     TransactionTemplate tx;
 
     @BeforeEach
-    void cenario() throws Exception {
+    void scenario() throws Exception {
         jdbc.update("DELETE FROM fixed_income_issuers WHERE cnpj_root IS NOT NULL");
         jdbc.update("DELETE FROM fixed_income_groups");
 
@@ -78,9 +78,9 @@ class FixedIncomeIssuerImportIT extends IntegrationTestBase {
                 .thenReturn(Optional.of(CvmFixtures.zip("inf_mensal_cri_2026", year, tmp)));
     }
 
-    private FixedIncomeIssuer porRaiz(String raiz) {
+    private FixedIncomeIssuer byRoot(String root) {
         return tx.execute(s -> {
-            FixedIncomeIssuer i = issuers.findByCnpjRoot(raiz).orElseThrow();
+            FixedIncomeIssuer i = issuers.findByCnpjRoot(root).orElseThrow();
             if (i.getGroup() != null) {
                 i.getGroup().getName();
             }
@@ -99,28 +99,28 @@ class FixedIncomeIssuerImportIT extends IntegrationTestBase {
         assertThat(issuers.findByCnpjRoot("18236120")).isEmpty();
         assertThat(issuers.findByCnpjRoot("16501555")).isEmpty();
 
-        FixedIncomeIssuer nuFinanceira = porRaiz("30680829");
-        assertThat(nuFinanceira.getKind()).isEqualTo(FixedIncomeIssuerKind.FINANCEIRA);
-        assertThat(nuFinanceira.getGuarantor()).isEqualTo(Guarantor.FGC);
-        assertThat(nuFinanceira.getStatus()).isEqualTo("ATIVA");
-        assertThat(nuFinanceira.getWebsite()).isEqualTo("www.nubank.com.br");
-        assertThat(nuFinanceira.getGroup().getBcbCode()).isEqualTo("C0084693");
-        assertThat(nuFinanceira.getGroupSource()).isEqualTo(FixedIncomeIssuer.GroupSource.BCB);
+        FixedIncomeIssuer nuFinance = byRoot("30680829");
+        assertThat(nuFinance.getKind()).isEqualTo(FixedIncomeIssuerKind.FINANCEIRA);
+        assertThat(nuFinance.getGuarantor()).isEqualTo(Guarantor.FGC);
+        assertThat(nuFinance.getStatus()).isEqualTo("ATIVA");
+        assertThat(nuFinance.getWebsite()).isEqualTo("www.nubank.com.br");
+        assertThat(nuFinance.getGroup().getBcbCode()).isEqualTo("C0084693");
+        assertThat(nuFinance.getGroupSource()).isEqualTo(FixedIncomeIssuer.GroupSource.BCB);
 
-        assertThat(porRaiz("62169875").getKind()).isEqualTo(FixedIncomeIssuerKind.CORRETORA_DISTRIBUIDORA);
-        assertThat(porRaiz("72500705").getKind()).isEqualTo(FixedIncomeIssuerKind.COOPERATIVA);
-        assertThat(porRaiz("72500705").getGuarantor()).isEqualTo(Guarantor.FGCOOP);
+        assertThat(byRoot("62169875").getKind()).isEqualTo(FixedIncomeIssuerKind.CORRETORA_DISTRIBUIDORA);
+        assertThat(byRoot("72500705").getKind()).isEqualTo(FixedIncomeIssuerKind.COOPERATIVA);
+        assertThat(byRoot("72500705").getGuarantor()).isEqualTo(Guarantor.FGCOOP);
         // banco cooperativo: BANCO, mas FGCoop
-        assertThat(porRaiz("01181521").getKind()).isEqualTo(FixedIncomeIssuerKind.BANCO);
-        assertThat(porRaiz("01181521").getGuarantor()).isEqualTo(Guarantor.FGCOOP);
+        assertThat(byRoot("01181521").getKind()).isEqualTo(FixedIncomeIssuerKind.BANCO);
+        assertThat(byRoot("01181521").getGuarantor()).isEqualTo(Guarantor.FGCOOP);
         // mortas continuam no cadastro com a situacao (R3)
-        assertThat(porRaiz("33884941").getStatus()).isEqualTo("LIQUIDACAO_EXTRAJUDICIAL");
-        assertThat(porRaiz("39544456").getStatus()).isEqualTo("INATIVA");
+        assertThat(byRoot("33884941").getStatus()).isEqualTo("LIQUIDACAO_EXTRAJUDICIAL");
+        assertThat(byRoot("39544456").getStatus()).isEqualTo("INATIVA");
     }
 
     @Test
     @DisplayName("Grupos: nome automatico do BCB (Nubank fica 'NU PAGAMENTOS' ate a curadoria), lider e descricao")
-    void grupos() {
+    void groupList() {
         service.importAll("teste");
 
         FixedIncomeGroup nubank = groups.findByBcbCode("C0084693").orElseThrow();
@@ -138,19 +138,19 @@ class FixedIncomeIssuerImportIT extends IntegrationTestBase {
     void cvm() {
         FixedIncomeIssuerImportService.Result r = service.importAll("teste");
 
-        FixedIncomeIssuer nuInvest = porRaiz("62169875");
+        FixedIncomeIssuer nuInvest = byRoot("62169875");
         assertThat(nuInvest.getCnpj()).isEqualTo("62169875000179");
         assertThat(nuInvest.getTradeName()).isEqualTo("Nu Invest");
         assertThat(nuInvest.getSources()).isEqualTo("BCB,CVM_INTERMED");
         // a Warren nao esta no recorte do BCB: entra pela CVM
-        FixedIncomeIssuer warren = porRaiz("92875780");
+        FixedIncomeIssuer warren = byRoot("92875780");
         assertThat(warren.getKind()).isEqualTo(FixedIncomeIssuerKind.CORRETORA_DISTRIBUIDORA);
         assertThat(warren.getStatus()).isEqualTo("ATIVA");
         assertThat(warren.getSources()).isEqualTo("CVM_INTERMED");
 
-        assertThat(porRaiz("33000167").getKind()).isEqualTo(FixedIncomeIssuerKind.COMPANHIA);
-        assertThat(porRaiz("60664810").getStatus()).isEqualTo("CANCELADA");
-        FixedIncomeIssuer habitasec = porRaiz("09304427");
+        assertThat(byRoot("33000167").getKind()).isEqualTo(FixedIncomeIssuerKind.COMPANHIA);
+        assertThat(byRoot("60664810").getStatus()).isEqualTo("CANCELADA");
+        FixedIncomeIssuer habitasec = byRoot("09304427");
         assertThat(habitasec.getKind()).isEqualTo(FixedIncomeIssuerKind.SECURITIZADORA);
         assertThat(habitasec.getLegalName()).isEqualTo("HABITASEC SECURITIZADORA S.A.");
         assertThat(r.securitizers()).isEqualTo(2);
@@ -158,25 +158,25 @@ class FixedIncomeIssuerImportIT extends IntegrationTestBase {
 
     @Test
     @DisplayName("O curado fica (R9): nome MANUAL, ligacao MANUAL, regra de saida e logo; quem perde o conglomerado mantem o grupo")
-    void naoSobrescreveOCurado() {
+    void doesNotOverwriteCurated() {
         service.importAll("teste");
         tx.executeWithoutResult(s -> {
             FixedIncomeGroup nubank = groups.findByBcbCode("C0084693").orElseThrow();
             nubank.setName("Nubank");
             nubank.setNameSource(FixedIncomeGroup.NameSource.MANUAL);
             nubank.setLogoTicker("ROXO34");
-            FixedIncomeIssuer nuFinanceira = issuers.findByCnpjRoot("30680829").orElseThrow();
-            nuFinanceira.setSaleRule(SaleRule.UEPS);
+            FixedIncomeIssuer nuFinance = issuers.findByCnpjRoot("30680829").orElseThrow();
+            nuFinance.setSaleRule(SaleRule.UEPS);
             // a Nu DTVM, inativa, ja nao tem conglomerado no BCB: a curadoria a liga ao grupo antigo
             FixedIncomeIssuer nuDtvm = issuers.findByCnpjRoot("39544456").orElseThrow();
             nuDtvm.setGroup(nubank);
             nuDtvm.setGroupSource(FixedIncomeIssuer.GroupSource.MANUAL);
             // e o Banco XP vai para um grupo de curadoria qualquer
-            FixedIncomeGroup outro = groups.save(FixedIncomeGroup.builder().name("Outro")
+            FixedIncomeGroup other = groups.save(FixedIncomeGroup.builder().name("Outro")
                     .nameSource(FixedIncomeGroup.NameSource.MANUAL).build());
-            FixedIncomeIssuer bancoXp = issuers.findByCnpjRoot("33264668").orElseThrow();
-            bancoXp.setGroup(outro);
-            bancoXp.setGroupSource(FixedIncomeIssuer.GroupSource.MANUAL);
+            FixedIncomeIssuer xpBank = issuers.findByCnpjRoot("33264668").orElseThrow();
+            xpBank.setGroup(other);
+            xpBank.setGroupSource(FixedIncomeIssuer.GroupSource.MANUAL);
         });
 
         FixedIncomeIssuerImportService.Result r = service.importAll("teste de novo");
@@ -184,9 +184,9 @@ class FixedIncomeIssuerImportIT extends IntegrationTestBase {
         FixedIncomeGroup nubank = groups.findByBcbCode("C0084693").orElseThrow();
         assertThat(nubank.getName()).isEqualTo("Nubank");
         assertThat(nubank.getLogoTicker()).isEqualTo("ROXO34");
-        assertThat(porRaiz("30680829").getSaleRule()).isEqualTo(SaleRule.UEPS);
-        assertThat(porRaiz("39544456").getGroup().getName()).isEqualTo("Nubank");
-        assertThat(porRaiz("33264668").getGroup().getName()).isEqualTo("Outro");
+        assertThat(byRoot("30680829").getSaleRule()).isEqualTo(SaleRule.UEPS);
+        assertThat(byRoot("39544456").getGroup().getName()).isEqualTo("Nubank");
+        assertThat(byRoot("33264668").getGroup().getName()).isEqualTo("Outro");
         // idempotente: nada novo na segunda rodada
         assertThat(r.issuersCreated()).isZero();
         assertThat(r.groupsCreated()).isZero();
@@ -194,41 +194,41 @@ class FixedIncomeIssuerImportIT extends IntegrationTestBase {
 
     @Test
     @DisplayName("Empresa que perde o conglomerado na fonte mantem o grupo que tinha (ligacao BCB)")
-    void mortaMantemOGrupo() {
+    void deadKeepsTheGroup() {
         service.importAll("teste");
-        BcbInstitutionsClient.Registry sem = new BcbInstitutionsClient.Registry("202609",
+        BcbInstitutionsClient.Registry none = new BcbInstitutionsClient.Registry("202609",
                 BcbFixtures.registry().institutions().stream()
                         .map(i -> i.cnpjRoot().equals("62169875")
                                 ? new com.primevest.adm.integration.bcb.BcbInstitution(i.cnpjRoot(), i.name(),
                                         i.segment(), "I", null, null)
                                 : i).toList(),
                 BcbFixtures.registry().groups());
-        when(bcb.latestRegistry()).thenReturn(sem);
+        when(bcb.latestRegistry()).thenReturn(none);
 
         service.importAll("teste de novo");
 
-        FixedIncomeIssuer nuInvest = porRaiz("62169875");
+        FixedIncomeIssuer nuInvest = byRoot("62169875");
         assertThat(nuInvest.getStatus()).isEqualTo("INATIVA");
         assertThat(nuInvest.getGroup().getBcbCode()).isEqualTo("C0084693");
     }
 
     @Test
     @DisplayName("Companhia que tambem e securitizadora (informe de CRI) vira SECURITIZADORA")
-    void companhiaSecuritizadora() {
-        BcbInstitutionsClient.Registry vazio = new BcbInstitutionsClient.Registry("202606", List.of(), Map.of());
-        Map<String, CvmCompany> companhias = Map.of("07859971000130", new CvmCompany("07859971000130", 20257,
+    void securitizationCompany() {
+        BcbInstitutionsClient.Registry emptyValue = new BcbInstitutionsClient.Registry("202606", List.of(), Map.of());
+        Map<String, CvmCompany> companies = Map.of("07859971000130", new CvmCompany("07859971000130", 20257,
                 "TRANSMISSORA ALIANÇA DE ENERGIA ELÉTRICA S.A.", "TAESA", "ATIVO", "Energia Elétrica", "Categoria A", true));
 
-        tx.executeWithoutResult(s -> service.persist(vazio, Map.of(), Map.<String, CvmIntermediary>of(), companhias,
+        tx.executeWithoutResult(s -> service.persist(emptyValue, Map.of(), Map.<String, CvmIntermediary>of(), companies,
                 Map.of("07859971000130", "TAESA")));
 
-        assertThat(porRaiz("07859971").getKind()).isEqualTo(FixedIncomeIssuerKind.SECURITIZADORA);
-        assertThat(porRaiz("07859971").getLegalName()).isEqualTo("TRANSMISSORA ALIANÇA DE ENERGIA ELÉTRICA S.A.");
+        assertThat(byRoot("07859971").getKind()).isEqualTo(FixedIncomeIssuerKind.SECURITIZADORA);
+        assertThat(byRoot("07859971").getLegalName()).isEqualTo("TRANSMISSORA ALIANÇA DE ENERGIA ELÉTRICA S.A.");
     }
 
     @Test
     @DisplayName("As duas linhas fixas (Tesouro Nacional, nao listada) nao sao tocadas")
-    void linhasFixas() throws Exception {
+    void fixedRows() throws Exception {
         service.importAll("teste");
 
         assertThat(issuers.findFirstByKind(FixedIncomeIssuerKind.TESOURO).orElseThrow().getLegalName())

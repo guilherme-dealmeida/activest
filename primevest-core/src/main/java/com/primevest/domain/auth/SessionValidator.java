@@ -22,7 +22,7 @@ import java.util.UUID;
 @Component
 public class SessionValidator {
 
-    private static final ZoneId ZONA = ZoneId.systemDefault();
+    private static final ZoneId ZONE = ZoneId.systemDefault();
 
     private final JdbcTemplate jdbc;
 
@@ -41,8 +41,8 @@ public class SessionValidator {
             if (passwordChangedAt == null) {
                 return true;
             }
-            long corte = passwordChangedAt.atZone(ZONA).toEpochSecond();
-            return issuedAt.getEpochSecond() >= corte;
+            long cutoff = passwordChangedAt.atZone(ZONE).toEpochSecond();
+            return issuedAt.getEpochSecond() >= cutoff;
         }
     }
 

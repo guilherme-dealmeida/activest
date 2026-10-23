@@ -7,7 +7,7 @@
 //
 // Uso: node carga/scripts/conferencia/rentabilidade.mjs [--tipos ACAO,FII,ETF,TESOURO_DIRETO,CRIPTO] [--tol 0.01]
 //      [--db primevest-db] [--email ...] [--api URL]
-// Le o banco pelo psql do conteiner (docker exec) e a API com a PRIMEVEST_SENHA do .env.
+// Le o banco pelo psql do conteiner (docker exec) e a API com a PRIMEVEST_PASSWORD do .env.
 import { execFileSync } from 'node:child_process';
 import { apiUrls, loadEnv, option } from '../lib/env.mjs';
 
@@ -40,7 +40,7 @@ diasUteis.forEach(d => duMes.set(d.slice(0, 7), (duMes.get(d.slice(0, 7)) ?? 0) 
 
 async function token() {
   const r = await fetch(`${API}/api/v1/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: EMAIL, password: ENV.PRIMEVEST_SENHA }) });
+    body: JSON.stringify({ email: EMAIL, password: ENV.PRIMEVEST_PASSWORD }) });
   if (!r.ok) throw new Error(`login ${r.status}`);
   return (await r.json()).accessToken;
 }

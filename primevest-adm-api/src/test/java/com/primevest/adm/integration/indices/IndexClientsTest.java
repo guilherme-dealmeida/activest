@@ -44,7 +44,7 @@ class IndexClientsTest {
     private B3IndexClient b3;
 
     @BeforeEach
-    void subirServidor() throws IOException {
+    void startServer() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/", exchange -> {
             String uri = exchange.getRequestURI().toString();
@@ -81,14 +81,14 @@ class IndexClientsTest {
         });
         server.start();
         String base = "http://127.0.0.1:" + server.getAddress().getPort();
-        Clock hoje = Clock.fixed(Instant.parse("2026-10-05T12:00:00Z"), ZoneId.of("America/Sao_Paulo"));
+        Clock today = Clock.fixed(Instant.parse("2026-10-05T12:00:00Z"), ZoneId.of("America/Sao_Paulo"));
         IndexYearCache cache = new IndexYearCache(Duration.ofSeconds(5), 3, 1);
-        sgs = new BcbSgsClient(base + "/dados/serie", tmp.resolve("bcb/sgs"), cache, hoje);
-        b3 = new B3IndexClient(base, tmp.resolve("b3/indices"), cache, hoje);
+        sgs = new BcbSgsClient(base + "/dados/serie", tmp.resolve("bcb/sgs"), cache, today);
+        b3 = new B3IndexClient(base, tmp.resolve("b3/indices"), cache, today);
     }
 
     @AfterEach
-    void pararServidor() {
+    void stopServer() {
         server.stop(0);
     }
 
@@ -105,7 +105,7 @@ class IndexClientsTest {
 
     @Test
     @DisplayName("IPCA mensal datado no dia 1o; TR: um valor por dia de inicio, o do periodo de um mes cheio")
-    void mensalETr() {
+    void monthlyAndTr() {
         List<IndexPoint> ipca = sgs.year("433", 2024);
         assertThat(ipca).hasSize(12);
         assertThat(ipca.get(7)).isEqualTo(new IndexPoint(LocalDate.of(2024, 8, 1), new java.math.BigDecimal("-0.02")));
@@ -122,18 +122,18 @@ class IndexClientsTest {
 
     @Test
     @DisplayName("Ano fechado: a segunda leitura vem do disco, sem ir a fonte")
-    void anoFechadoDoDisco() {
+    void closedYearFromDisk() {
         sgs.year("12", 2024);
-        List<IndexPoint> deNovo = sgs.year("12", 2024);
+        List<IndexPoint> again = sgs.year("12", 2024);
 
-        assertThat(deNovo).hasSize(253);
+        assertThat(again).hasSize(253);
         assertThat(requests).hasSize(1);
         assertThat(tmp.resolve("bcb/sgs/12/2024.json")).exists();
     }
 
     @Test
     @DisplayName("Ano corrente e anterior sempre vao a fonte; 404 e 'sem valores' e grava []")
-    void anoCorrenteSempreNaFonte() throws IOException {
+    void currentYearAlwaysFromSource() throws IOException {
         assertThat(sgs.year("12", 2026)).isEmpty();
         assertThat(sgs.year("12", 2026)).isEmpty();
         assertThat(sgs.year("12", 2025)).isEmpty();
@@ -153,10 +153,10 @@ class IndexClientsTest {
 
     @Test
     @DisplayName("Fonte fora do ar: com arquivo fica com o disco; sem arquivo, erro — e corpo inesperado nao e gravado")
-    void foraDoAr() throws IOException {
-        Path arquivo = tmp.resolve("bcb/sgs/12/2026.json");
-        Files.createDirectories(arquivo.getParent());
-        Files.writeString(arquivo, "[{\"data\":\"02/01/2026\",\"valor\":\"0.055131\"}]");
+    void down() throws IOException {
+        Path filePath = tmp.resolve("bcb/sgs/12/2026.json");
+        Files.createDirectories(filePath.getParent());
+        Files.writeString(filePath, "[{\"data\":\"02/01/2026\",\"valor\":\"0.055131\"}]");
         failures.set(10);
 
         assertThat(sgs.year("12", 2026)).hasSize(1);

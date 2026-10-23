@@ -145,10 +145,10 @@ public class BinanceClient {
     private long serverTime() {
         Long offset = timeOffset;
         if (offset == null) {
-            long antes = clock.getAsLong();
+            long before = clock.getAsLong();
             JsonNode time = send("/api/v3/time", "", null);
-            long depois = clock.getAsLong();
-            offset = time.path("serverTime").asLong() - (antes + depois) / 2;
+            long after = clock.getAsLong();
+            offset = time.path("serverTime").asLong() - (before + after) / 2;
             timeOffset = offset;
         }
         return clock.getAsLong() + offset;
@@ -180,27 +180,27 @@ public class BinanceClient {
     }
 
     private JsonNode send(String path, String query, String apiKey) {
-        esperarOrcamento();
+        awaitBudget();
         try {
             return sendOnce(path, query, apiKey);
         } catch (BinanceException e) {
             if (e.status() != 429) {
                 throw e;
             }
-            long espera = Math.min(e.retryAfterSeconds() != null ? e.retryAfterSeconds() : 10, MAX_RETRY_AFTER_SECONDS);
-            log.warn("Binance 429 em {}: nova tentativa em {} s", path, espera);
-            pause(espera * 1000);
+            long wait = Math.min(e.retryAfterSeconds() != null ? e.retryAfterSeconds() : 10, MAX_RETRY_AFTER_SECONDS);
+            log.warn("Binance 429 em {}: nova tentativa em {} s", path, wait);
+            pause(wait * 1000);
             return sendOnce(path, query, apiKey);
         }
     }
 
     /** Passou do limiar de peso neste minuto: espera o minuto virar. */
-    private void esperarOrcamento() {
-        long agora = clock.getAsLong();
-        if (usedWeightMinute == agora / MINUTE && usedWeight >= weightThreshold) {
-            long espera = MINUTE - (agora % MINUTE) + 1000;
-            log.info("Binance: peso {} no minuto (limiar {}); esperando {} ms", usedWeight, weightThreshold, espera);
-            pause(espera);
+    private void awaitBudget() {
+        long now = clock.getAsLong();
+        if (usedWeightMinute == now / MINUTE && usedWeight >= weightThreshold) {
+            long wait = MINUTE - (now % MINUTE) + 1000;
+            log.info("Binance: peso {} no minuto (limiar {}); esperando {} ms", usedWeight, weightThreshold, wait);
+            pause(wait);
         }
     }
 
@@ -228,10 +228,10 @@ public class BinanceClient {
     }
 
     private Mono<String> handle(ClientResponse resp, String path) {
-        String peso = resp.headers().asHttpHeaders().getFirst("X-MBX-USED-WEIGHT-1M");
-        if (peso != null) {
+        String weight = resp.headers().asHttpHeaders().getFirst("X-MBX-USED-WEIGHT-1M");
+        if (weight != null) {
             try {
-                usedWeight = Integer.parseInt(peso.trim());
+                usedWeight = Integer.parseInt(weight.trim());
                 usedWeightMinute = clock.getAsLong() / MINUTE;
             } catch (NumberFormatException ignored) {
                 // cabecalho estranho: segue sem orcamento
@@ -266,9 +266,9 @@ public class BinanceClient {
         } catch (Exception ignored) {
             // corpo nao e JSON
         }
-        String detalhe = msg != null ? msg : (body.length() > 200 ? body.substring(0, 200) : body);
+        String detail = msg != null ? msg : (body.length() > 200 ? body.substring(0, 200) : body);
         return new BinanceException(status, code, "Binance " + status + (code != null ? " (" + code + ")" : "")
-                + " em " + path + ": " + detalhe, retryAfter);
+                + " em " + path + ": " + detail, retryAfter);
     }
 
     @FunctionalInterface

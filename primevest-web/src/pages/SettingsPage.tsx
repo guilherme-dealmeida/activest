@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/Badge';
 import { EmailChangeModal } from '@/components/settings/EmailChangeModal';
 import { DeleteAccountModal } from '@/components/settings/DeleteAccountModal';
 import { AvatarCropModal } from '@/components/settings/AvatarCropModal';
-import { AVATAR_MAX_MB, AVATAR_MIN_PX, AVATAR_TYPES, validarArquivoAvatar } from '@/utils/avatar';
+import { AVATAR_MAX_MB, AVATAR_MIN_PX, AVATAR_TYPES, validateAvatarFile } from '@/utils/avatar';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { formErrorMessage } from '@/utils/apiError';
 import { formatPhone, isPhoneComplete, phoneFromApi } from '@/utils/phone';
@@ -45,38 +45,38 @@ export const SettingsPage = () => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [cpf, setCpf] = useState('');
-  const [editandoCpf, setEditandoCpf] = useState(false);
-  const [salvando, setSalvando] = useState(false);
+  const [editingCpf, setEditingCpf] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [emailModal, setEmailModal] = useState(false);
-  const [excluirModal, setExcluirModal] = useState(false);
+  const [deleteModal, setDeleteModal] = useState(false);
 
   // ---------------- foto
-  const fotoInput = React.useRef<HTMLInputElement>(null);
-  const [fotoArquivo, setFotoArquivo] = useState<File | null>(null);
+  const photoInput = React.useRef<HTMLInputElement>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
 
-  const escolherFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const choosePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     e.target.value = ''; // escolher o mesmo arquivo de novo também dispara
     if (!f) return;
-    const problema = validarArquivoAvatar(f);
-    if (problema) {
-      showToast(problema, 'error', 8000);
+    const problem = validateAvatarFile(f);
+    if (problem) {
+      showToast(problem, 'error', 8000);
       return;
     }
-    setFotoArquivo(f);
+    setPhotoFile(f);
   };
 
-  const salvarFoto = async (image: Blob) => {
+  const savePhoto = async (image: Blob) => {
     try {
       setUser(await usersApi.uploadAvatar(image));
-      setFotoArquivo(null);
+      setPhotoFile(null);
       showToast('Foto atualizada.', 'success');
     } catch (err) {
       throw new Error(formErrorMessage(err, 'Não foi possível salvar a foto.'));
     }
   };
 
-  const removerFoto = async () => {
+  const removePhoto = async () => {
     try {
       setUser(await usersApi.deleteAvatar());
       showToast('Foto removida.', 'success');
@@ -90,64 +90,64 @@ export const SettingsPage = () => {
     setName(user.name);
     setPhone(phoneFromApi(user.phone));
     setCpf('');
-    setEditandoCpf(!user.cpfMasked);
+    setEditingCpf(!user.cpfMasked);
   }, [user]);
 
-  const cpfDigitos = cpf.replace(/\D/g, '');
-  const cpfOk = cpfDigitos.length === 0 || isValidCpf(cpf);
-  const perfilOk = name.trim() && isPhoneComplete(phone) && cpfOk;
+  const cpfDigits = cpf.replace(/\D/g, '');
+  const cpfOk = cpfDigits.length === 0 || isValidCpf(cpf);
+  const profileOk = name.trim() && isPhoneComplete(phone) && cpfOk;
 
-  const salvarPerfil = async (e: React.FormEvent, removerCpf = false) => {
+  const saveProfile = async (e: React.FormEvent, removeCpf = false) => {
     e.preventDefault();
-    setSalvando(true);
+    setSaving(true);
     try {
       // CPF: ausente = não mexe (a API só devolve o mascarado); '' = tira; número = troca.
-      const cpfEnvio = removerCpf ? '' : (editandoCpf && cpfDigitos ? cpfDigitos : undefined);
-      const atualizado = await usersApi.update({ name: name.trim(), phone: phone.trim() || null, cpf: cpfEnvio });
-      setUser(atualizado);
-      showToast(removerCpf ? 'CPF removido.' : 'Dados salvos.', 'success');
+      const cpfToSend = removeCpf ? '' : (editingCpf && cpfDigits ? cpfDigits : undefined);
+      const updated = await usersApi.update({ name: name.trim(), phone: phone.trim() || null, cpf: cpfToSend });
+      setUser(updated);
+      showToast(removeCpf ? 'CPF removido.' : 'Dados salvos.', 'success');
     } catch (err) {
       showToast(formErrorMessage(err, 'Não foi possível salvar os dados.'), 'error', 8000);
     } finally {
-      setSalvando(false);
+      setSaving(false);
     }
   };
 
   // ---------------- senha
-  const [senhaAtual, setSenhaAtual] = useState('');
-  const [senhaNova, setSenhaNova] = useState('');
-  const [senhaConfirma, setSenhaConfirma] = useState('');
-  const [trocandoSenha, setTrocandoSenha] = useState(false);
-  const senhaOk = senhaNova.length >= 8 && senhaNova.length <= 72 && senhaNova === senhaConfirma
-    && (!user?.hasPassword || senhaAtual.length > 0);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const passwordOk = newPassword.length >= 8 && newPassword.length <= 72 && newPassword === passwordConfirm
+    && (!user?.hasPassword || currentPassword.length > 0);
 
-  const salvarSenha = async (e: React.FormEvent) => {
+  const savePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setTrocandoSenha(true);
+    setChangingPassword(true);
     try {
-      const definia = !user?.hasPassword;
+      const defined = !user?.hasPassword;
       // A troca derruba as sessões (D15): os tokens novos mantêm esta aberta.
-      await startSession(await usersApi.changePassword(user?.hasPassword ? senhaAtual : undefined, senhaNova));
-      setSenhaAtual('');
-      setSenhaNova('');
-      setSenhaConfirma('');
-      showToast(definia ? 'Senha definida. Você também pode entrar por e-mail e senha.'
+      await startSession(await usersApi.changePassword(user?.hasPassword ? currentPassword : undefined, newPassword));
+      setCurrentPassword('');
+      setNewPassword('');
+      setPasswordConfirm('');
+      showToast(defined ? 'Senha definida. Você também pode entrar por e-mail e senha.'
         : 'Senha alterada. As outras sessões abertas foram encerradas.', 'success', 6000);
     } catch (err) {
       showToast(formErrorMessage(err, 'Não foi possível alterar a senha.'), 'error', 8000);
     } finally {
-      setTrocandoSenha(false);
+      setChangingPassword(false);
     }
   };
 
   // ---------------- Google
-  const vincular = useCallback(async (credential: string) => {
+  const link = useCallback(async (credential: string) => {
     setUser(await usersApi.linkGoogle(credential));
     showToast('Conta Google vinculada.', 'success');
   }, [setUser, showToast]);
-  const google = useGoogleSignIn({ onCredential: vincular });
+  const google = useGoogleSignIn({ onCredential: link });
 
-  const desvincular = async () => {
+  const unlink = async () => {
     try {
       setUser(await usersApi.unlinkGoogle());
       showToast('Conta Google desvinculada.', 'success');
@@ -169,7 +169,7 @@ export const SettingsPage = () => {
       <Section title="Perfil" icon={<UserIcon className="h-4 w-4 text-accent" />}>
         {/* Foto centralizada, com troca por upload (adendo de 05/10/2026). */}
         <div className="flex flex-col items-center text-center mb-8">
-          <button type="button" onClick={() => fotoInput.current?.click()}
+          <button type="button" onClick={() => photoInput.current?.click()}
             className="group relative rounded-full focus:outline-none focus:ring-2 focus:ring-accent"
             title="Alterar foto" aria-label="Alterar foto">
             <UserAvatar user={user} className="h-28 w-28 border-2 border-accent/40" textClassName="text-4xl font-bold" />
@@ -180,15 +180,15 @@ export const SettingsPage = () => {
               <Camera className="h-4 w-4" />
             </span>
           </button>
-          <input ref={fotoInput} type="file" accept={AVATAR_TYPES.join(',')} className="hidden" onChange={escolherFoto} />
+          <input ref={photoInput} type="file" accept={AVATAR_TYPES.join(',')} className="hidden" onChange={choosePhoto} />
           <h4 className="mt-4 text-lg font-semibold text-white">{user.name}</h4>
           <p className="text-gray-400 text-sm">Conta criada em {formatDate(user.createdAt)}</p>
           <div className="mt-3 flex gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={() => fotoInput.current?.click()}>
+            <Button type="button" size="sm" variant="outline" onClick={() => photoInput.current?.click()}>
               {user.avatarVersion ? 'Trocar foto' : 'Enviar foto'}
             </Button>
             {user.avatarVersion && (
-              <Button type="button" size="sm" variant="ghost" onClick={removerFoto}>Remover foto</Button>
+              <Button type="button" size="sm" variant="ghost" onClick={removePhoto}>Remover foto</Button>
             )}
           </div>
           <p className="mt-2 text-xs text-gray-500">
@@ -197,7 +197,7 @@ export const SettingsPage = () => {
           </p>
         </div>
 
-        <form onSubmit={salvarPerfil} className="space-y-5">
+        <form onSubmit={saveProfile} className="space-y-5">
           <Input label="Nome completo" value={name} onChange={(e) => setName(e.target.value)} maxLength={255} required />
 
           <div>
@@ -222,10 +222,10 @@ export const SettingsPage = () => {
                 hint="Opcional. Contato, não serve para entrar." />
             </div>
             <div>
-              {editandoCpf ? (
+              {editingCpf ? (
                 <Input label="CPF" value={cpf} inputMode="numeric" maxLength={14} placeholder="000.000.000-00"
                   onChange={(e) => setCpf(formatCpf(e.target.value))}
-                  error={cpfDigitos.length === 11 && !cpfOk ? 'CPF inválido.' : undefined}
+                  error={cpfDigits.length === 11 && !cpfOk ? 'CPF inválido.' : undefined}
                   hint={user.cpfMasked ? 'Digite o novo CPF e salve.' : 'Opcional. Usado na integração com a B3.'} />
               ) : (
                 <div>
@@ -234,8 +234,8 @@ export const SettingsPage = () => {
                   </label>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-mono text-sm text-white">{user.cpfMasked}</span>
-                    <Button type="button" size="sm" variant="outline" onClick={() => setEditandoCpf(true)}>Alterar</Button>
-                    <Button type="button" size="sm" variant="ghost" onClick={(e) => salvarPerfil(e, true)}>Remover</Button>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setEditingCpf(true)}>Alterar</Button>
+                    <Button type="button" size="sm" variant="ghost" onClick={(e) => saveProfile(e, true)}>Remover</Button>
                   </div>
                   <p className="mt-1 text-xs text-gray-500">Guardado cifrado. Não muda enquanto houver conexão com a B3.</p>
                 </div>
@@ -244,11 +244,11 @@ export const SettingsPage = () => {
           </div>
 
           <div className="pt-4 border-t border-white/10 flex gap-3">
-            <Button type="submit" disabled={!perfilOk} isLoading={salvando}>
+            <Button type="submit" disabled={!profileOk} isLoading={saving}>
               <Save className="w-4 h-4 mr-2" />Salvar alterações
             </Button>
-            {editandoCpf && user.cpfMasked && (
-              <Button type="button" variant="ghost" onClick={() => { setEditandoCpf(false); setCpf(''); }}>Manter CPF atual</Button>
+            {editingCpf && user.cpfMasked && (
+              <Button type="button" variant="ghost" onClick={() => { setEditingCpf(false); setCpf(''); }}>Manter CPF atual</Button>
             )}
           </div>
         </form>
@@ -257,7 +257,7 @@ export const SettingsPage = () => {
       {/* Acesso */}
       <Section title="Acesso" icon={<KeyRound className="h-4 w-4 text-accent" />}>
         <div className="space-y-8">
-          <form onSubmit={salvarSenha} className="space-y-4">
+          <form onSubmit={savePassword} className="space-y-4">
             <div>
               <h4 className="text-sm font-medium text-white">{user.hasPassword ? 'Alterar senha' : 'Definir senha'}</h4>
               <p className="text-xs text-gray-500 mt-0.5">
@@ -268,18 +268,18 @@ export const SettingsPage = () => {
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               {user.hasPassword && (
-                <Input label="Senha atual" type="password" value={senhaAtual} autoComplete="current-password"
-                  onChange={(e) => setSenhaAtual(e.target.value)} />
+                <Input label="Senha atual" type="password" value={currentPassword} autoComplete="current-password"
+                  onChange={(e) => setCurrentPassword(e.target.value)} />
               )}
-              <Input label="Nova senha" type="password" value={senhaNova} autoComplete="new-password"
-                onChange={(e) => setSenhaNova(e.target.value)}
-                error={senhaNova && (senhaNova.length < 8 || senhaNova.length > 72) ? 'De 8 a 72 caracteres.' : undefined} />
-              <Input label="Confirme" type="password" value={senhaConfirma} autoComplete="new-password"
-                onChange={(e) => setSenhaConfirma(e.target.value)}
-                error={senhaConfirma && senhaNova !== senhaConfirma ? 'As senhas não conferem.' : undefined} />
+              <Input label="Nova senha" type="password" value={newPassword} autoComplete="new-password"
+                onChange={(e) => setNewPassword(e.target.value)}
+                error={newPassword && (newPassword.length < 8 || newPassword.length > 72) ? 'De 8 a 72 caracteres.' : undefined} />
+              <Input label="Confirme" type="password" value={passwordConfirm} autoComplete="new-password"
+                onChange={(e) => setPasswordConfirm(e.target.value)}
+                error={passwordConfirm && newPassword !== passwordConfirm ? 'As senhas não conferem.' : undefined} />
             </div>
-            <Button type="submit" disabled={!senhaOk} isLoading={trocandoSenha}>
-              {!trocandoSenha && <KeyRound className="h-4 w-4 mr-2" />}
+            <Button type="submit" disabled={!passwordOk} isLoading={changingPassword}>
+              {!changingPassword && <KeyRound className="h-4 w-4 mr-2" />}
               {user.hasPassword ? 'Alterar senha' : 'Definir senha'}
             </Button>
           </form>
@@ -291,7 +291,7 @@ export const SettingsPage = () => {
             </div>
             {user.googleLinked ? (
               <div className="flex flex-wrap items-center gap-3">
-                <Button type="button" size="sm" variant="ghost" onClick={desvincular} disabled={!user.hasPassword}>
+                <Button type="button" size="sm" variant="ghost" onClick={unlink} disabled={!user.hasPassword}>
                   Desvincular
                 </Button>
                 {!user.hasPassword && (
@@ -317,8 +317,8 @@ export const SettingsPage = () => {
               {user.termsAcceptedAt
                 ? <>Versão <span className="text-white">{user.termsVersion}</span> aceita em {formatDate(user.termsAcceptedAt)}.</>
                 : 'Nenhum aceite registrado.'}{' '}
-              <Link to="/termos" target="_blank" className="text-accent hover:underline">Termos de Uso</Link> ·{' '}
-              <Link to="/privacidade" target="_blank" className="text-accent hover:underline">Política de Privacidade</Link>
+              <Link to="/terms" target="_blank" className="text-accent hover:underline">Termos de Uso</Link> ·{' '}
+              <Link to="/privacy" target="_blank" className="text-accent hover:underline">Política de Privacidade</Link>
             </p>
           </div>
         </div>
@@ -347,7 +347,7 @@ export const SettingsPage = () => {
       <Section title="Zona de perigo" icon={<ShieldAlert className="h-4 w-4" />} danger>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <p className="text-sm text-gray-300">Excluir a conta apaga definitivamente todos os seus dados no PrimeVest.</p>
-          <Button type="button" variant="danger" onClick={() => setExcluirModal(true)}>
+          <Button type="button" variant="danger" onClick={() => setDeleteModal(true)}>
             <Trash2 className="h-4 w-4 mr-2" />
             Excluir conta
           </Button>
@@ -356,8 +356,8 @@ export const SettingsPage = () => {
 
       <EmailChangeModal isOpen={emailModal} onClose={() => setEmailModal(false)}
         onChanged={(u) => { setUser(u); showToast('E-mail alterado.', 'success'); }} />
-      <AvatarCropModal file={fotoArquivo} onClose={() => setFotoArquivo(null)} onConfirm={salvarFoto} />
-      <DeleteAccountModal isOpen={excluirModal} onClose={() => setExcluirModal(false)}
+      <AvatarCropModal file={photoFile} onClose={() => setPhotoFile(null)} onConfirm={savePhoto} />
+      <DeleteAccountModal isOpen={deleteModal} onClose={() => setDeleteModal(false)}
         onDeleted={() => { tokens.clear(); logout(); }} />
     </div>
   );

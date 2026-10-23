@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class StrategyService {
 
-    private static final BigDecimal CEM = new BigDecimal("100.0");
+    private static final BigDecimal HUNDRED = new BigDecimal("100.0");
 
     private final StrategyRepository strategyRepository;
     private final AssetTypeRepository assetTypeRepository;
@@ -68,12 +68,12 @@ public class StrategyService {
         List<StrategyUpdateDTO.StrategyItemDTO> items =
             dto.items() != null ? dto.items() : List.of();
 
-        Map<Long, AssetType> tipos = new LinkedHashMap<>();
+        Map<Long, AssetType> types = new LinkedHashMap<>();
         for (StrategyUpdateDTO.StrategyItemDTO item : items) {
             AssetType assetType = assetTypeRepository.findById(item.assetTypeId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                     "Tipo de ativo não encontrado: " + item.assetTypeId()));
-            if (tipos.putIfAbsent(item.assetTypeId(), assetType) != null) {
+            if (types.putIfAbsent(item.assetTypeId(), assetType) != null) {
                 throw new BusinessException("O tipo " + displayNameOf(assetType)
                     + " aparece mais de uma vez na estratégia.");
             }
@@ -89,7 +89,7 @@ public class StrategyService {
         for (StrategyUpdateDTO.StrategyItemDTO item : items) {
             strategyRepository.save(Strategy.builder()
                 .user(user)
-                .assetType(tipos.get(item.assetTypeId()))
+                .assetType(types.get(item.assetTypeId()))
                 .targetPercentage(item.targetPercentage())
                 .build());
         }
@@ -110,14 +110,14 @@ public class StrategyService {
      * ele, redistribuindo os 100%.</p>
      */
     private void validateTotal(List<StrategyUpdateDTO.StrategyItemDTO> items) {
-        BigDecimal soma = items.stream()
+        BigDecimal sum = items.stream()
             .map(StrategyUpdateDTO.StrategyItemDTO::targetPercentage)
             .filter(Objects::nonNull)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        if (soma.setScale(1, RoundingMode.HALF_UP).compareTo(CEM) != 0) {
+        if (sum.setScale(1, RoundingMode.HALF_UP).compareTo(HUNDRED) != 0) {
             throw new BusinessException("A soma dos percentuais ideais deve ser 100%. Atual: "
-                + soma.stripTrailingZeros().toPlainString() + "%");
+                + sum.stripTrailingZeros().toPlainString() + "%");
         }
     }
 

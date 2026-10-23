@@ -12,11 +12,11 @@ package com.primevest.domain.integration.credential;
 public record InvestorDocument(String documentNumber) implements SourceCredentials {
 
     public InvestorDocument {
-        String digitos = documentNumber == null ? "" : documentNumber.replaceAll("\\D", "");
-        if (!cpfValido(digitos)) {
+        String digits = documentNumber == null ? "" : documentNumber.replaceAll("\\D", "");
+        if (!validCpf(digits)) {
             throw new IllegalArgumentException("Informe um CPF válido.");
         }
-        documentNumber = digitos;
+        documentNumber = digits;
     }
 
     /** Os 2 ultimos digitos: o que a tela mostra ("***.***.***-01"). */
@@ -30,19 +30,19 @@ public record InvestorDocument(String documentNumber) implements SourceCredentia
         return "InvestorDocument[documentNumber=*********" + fingerprint() + "]";
     }
 
-    static boolean cpfValido(String d) {
+    static boolean validCpf(String d) {
         if (d.length() != 11 || d.chars().distinct().count() == 1) {
             return false;
         }
-        return digito(d, 9) == d.charAt(9) - '0' && digito(d, 10) == d.charAt(10) - '0';
+        return digit(d, 9) == d.charAt(9) - '0' && digit(d, 10) == d.charAt(10) - '0';
     }
 
-    private static int digito(String d, int n) {
-        int soma = 0;
+    private static int digit(String d, int n) {
+        int sum = 0;
         for (int i = 0; i < n; i++) {
-            soma += (d.charAt(i) - '0') * (n + 1 - i);
+            sum += (d.charAt(i) - '0') * (n + 1 - i);
         }
-        int resto = (soma * 10) % 11;
-        return resto == 10 ? 0 : resto;
+        int remainder = (sum * 10) % 11;
+        return remainder == 10 ? 0 : remainder;
     }
 }

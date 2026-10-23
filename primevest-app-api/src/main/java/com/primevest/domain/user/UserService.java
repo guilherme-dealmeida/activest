@@ -86,7 +86,7 @@ public class UserService {
         user.setPhone(phone);
 
         if (dto.cpf() != null) {
-            atualizarCpf(user, dto.cpf());
+            updateCpf(user, dto.cpf());
         }
         return toDTO(userRepository.save(user));
     }
@@ -95,10 +95,10 @@ public class UserService {
      * CPF: vazio tira, número troca. Com conexão viva com a B3 o CPF não muda (D20): a conexão usa o
      * do perfil, e ficaria apontando para outro documento.
      */
-    private void atualizarCpf(User user, String raw) {
-        String novo = raw.isBlank() ? null : cpfService.normalize(raw);
-        String atual = cpfService.read(user).orElse(null);
-        if (Objects.equals(novo, atual)) {
+    private void updateCpf(User user, String raw) {
+        String created = raw.isBlank() ? null : cpfService.normalize(raw);
+        String current = cpfService.read(user).orElse(null);
+        if (Objects.equals(created, current)) {
             return;
         }
         if (connections.existsByUserIdAndProviderAndStatusNot(user.getId(), IntegrationProvider.B3,
@@ -106,14 +106,14 @@ public class UserService {
             throw new BusinessException("O CPF não pode ser alterado enquanto houver conexão com a B3. "
                 + "Desconecte a B3 em Integrações e tente de novo.");
         }
-        if (novo == null) {
+        if (created == null) {
             cpfService.clear(user);
             return;
         }
-        if (userRepository.existsByCpfHashAndIdNot(cpfService.hash(novo), user.getId())) {
+        if (userRepository.existsByCpfHashAndIdNot(cpfService.hash(created), user.getId())) {
             throw new BusinessException("Este CPF já está cadastrado em outra conta.");
         }
-        cpfService.apply(user, novo);
+        cpfService.apply(user, created);
     }
 
     @Transactional
@@ -138,7 +138,7 @@ public class UserService {
                 throw new BusinessException("A nova senha precisa ser diferente da atual.");
             }
         }
-        PasswordResetService.definirSenha(user, passwordEncoder.encode(dto.newPassword()));
+        PasswordResetService.setPassword(user, passwordEncoder.encode(dto.newPassword()));
         userRepository.save(user);
         mailer.sendNotice(AccountNotice.PASSWORD_CHANGED, user.getEmail(), user.getName());
         return authService.tokensFor(user);
@@ -147,43 +147,43 @@ public class UserService {
     /** Troca de e-mail: o código vai para o endereço NOVO; sem ele, nada muda (E3). */
     public CodeSentDTO requestEmailChange(UUID userId, EmailChangeDTO dto) {
         User user = find(userId);
-        String novo = Emails.normalize(dto.newEmail());
-        if (novo.equals(user.getEmail())) {
+        String created = Emails.normalize(dto.newEmail());
+        if (created.equals(user.getEmail())) {
             throw new BusinessException("Este já é o e-mail da sua conta.");
         }
-        if (userRepository.existsByEmail(novo)) {
+        if (userRepository.existsByEmail(created)) {
             throw new BusinessException("Este e-mail já está em uso em outra conta.");
         }
         String requestId = VerificationCodeService.newRequestId();
-        VerificationCodeService.Issued issued = codes.issue(requestId, VerificationPurpose.CHANGE_EMAIL, novo,
+        VerificationCodeService.Issued issued = codes.issue(requestId, VerificationPurpose.CHANGE_EMAIL, created,
             Map.of("userId", userId.toString()), false);
-        mailer.sendCode(VerificationPurpose.CHANGE_EMAIL, novo, user.getName(), issued.code(), codes.expiresInSeconds() / 60);
-        return enviado(requestId, novo);
+        mailer.sendCode(VerificationPurpose.CHANGE_EMAIL, created, user.getName(), issued.code(), codes.expiresInSeconds() / 60);
+        return sent(requestId, created);
     }
 
     public CodeSentDTO resendEmailChange(UUID userId, String requestId) {
         User user = find(userId);
         VerificationCodeService.Issued issued = codes.resend(requestId, VerificationPurpose.CHANGE_EMAIL);
-        exigirDono(issued.pending(), userId);
+        requireOwner(issued.pending(), userId);
         mailer.sendCode(VerificationPurpose.CHANGE_EMAIL, issued.pending().email(), user.getName(), issued.code(),
             codes.expiresInSeconds() / 60);
-        return enviado(requestId, issued.pending().email());
+        return sent(requestId, issued.pending().email());
     }
 
     @Transactional
     public UserResponseDTO confirmEmailChange(UUID userId, CodeConfirmDTO dto) {
         PendingCode p = codes.verify(dto.requestId(), VerificationPurpose.CHANGE_EMAIL, dto.code());
-        exigirDono(p, userId);
+        requireOwner(p, userId);
         User user = find(userId);
         if (userRepository.existsByEmail(p.email())) {
             throw new BusinessException("Este e-mail acabou de ser cadastrado em outra conta.");
         }
-        String antigo = user.getEmail();
+        String previous = user.getEmail();
         user.setEmail(p.email());
         user.setEmailVerifiedAt(LocalDateTime.now());
-        UserResponseDTO resposta = toDTO(userRepository.save(user));
-        mailer.sendNotice(AccountNotice.EMAIL_CHANGED, antigo, user.getName());
-        return resposta;
+        UserResponseDTO response = toDTO(userRepository.save(user));
+        mailer.sendNotice(AccountNotice.EMAIL_CHANGED, previous, user.getName());
+        return response;
     }
 
     @Transactional
@@ -191,8 +191,8 @@ public class UserService {
         User user = find(userId);
         GoogleTokenVerifier.GoogleProfile profile = googleTokenVerifier.verify(credential);
         userRepository.findByGoogleId(profile.subject())
-            .filter(outro -> !outro.getId().equals(userId))
-            .ifPresent(outro -> {
+            .filter(other -> !other.getId().equals(userId))
+            .ifPresent(other -> {
                 throw new BusinessException("Esta conta Google já está vinculada a outro usuário do PrimeVest.");
             });
         user.setGoogleId(profile.subject());
@@ -231,16 +231,16 @@ public class UserService {
             Map.of("userId", userId.toString()), false);
         mailer.sendCode(VerificationPurpose.DELETE_ACCOUNT, user.getEmail(), user.getName(), issued.code(),
             codes.expiresInSeconds() / 60);
-        return enviado(requestId, user.getEmail());
+        return sent(requestId, user.getEmail());
     }
 
     public CodeSentDTO resendDeletion(UUID userId, String requestId) {
         User user = find(userId);
         VerificationCodeService.Issued issued = codes.resend(requestId, VerificationPurpose.DELETE_ACCOUNT);
-        exigirDono(issued.pending(), userId);
+        requireOwner(issued.pending(), userId);
         mailer.sendCode(VerificationPurpose.DELETE_ACCOUNT, user.getEmail(), user.getName(), issued.code(),
             codes.expiresInSeconds() / 60);
-        return enviado(requestId, user.getEmail());
+        return sent(requestId, user.getEmail());
     }
 
     /**
@@ -251,7 +251,7 @@ public class UserService {
     @Transactional
     public void deleteAccount(UUID userId, CodeConfirmDTO dto) {
         PendingCode p = codes.verify(dto.requestId(), VerificationPurpose.DELETE_ACCOUNT, dto.code());
-        exigirDono(p, userId);
+        requireOwner(p, userId);
         User user = find(userId);
         String email = user.getEmail();
         String name = user.getName();
@@ -260,13 +260,13 @@ public class UserService {
         mailer.sendNotice(AccountNotice.ACCOUNT_DELETED, email, name);
     }
 
-    private void exigirDono(PendingCode p, UUID userId) {
+    private void requireOwner(PendingCode p, UUID userId) {
         if (!userId.toString().equals(p.get("userId"))) {
             throw new BusinessException("O código expirou ou já foi usado. Peça um novo código.");
         }
     }
 
-    private CodeSentDTO enviado(String requestId, String email) {
+    private CodeSentDTO sent(String requestId, String email) {
         return new CodeSentDTO(requestId, Emails.mask(email), codes.resendInSeconds(), codes.expiresInSeconds());
     }
 

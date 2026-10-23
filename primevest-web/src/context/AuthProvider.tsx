@@ -12,19 +12,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { setTheme } = useTheme();
 
   /** O tema é do usuário (D13): chegou o usuário, a tela fica no tema dele. */
-  const aplicar = useCallback((u: User) => {
+  const apply = useCallback((u: User) => {
     setUserState(u);
     setTheme(u.theme === 'LIGHT' ? 'light' : 'dark');
   }, [setTheme]);
 
   const fetchUser = useCallback(async () => {
     try {
-      aplicar(await usersApi.me());
+      apply(await usersApi.me());
     } catch {
       tokens.clear();
       setUserState(null);
     }
-  }, [aplicar]);
+  }, [apply]);
 
   useEffect(() => {
     if (tokens.access()) {
@@ -68,7 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <AuthContext.Provider value={{
       user, isAuthenticated: !!user, isLoading, login, loginWithGoogle, startSession,
-      setUser: aplicar, refreshUser: fetchUser, logout,
+      setUser: apply, refreshUser: fetchUser, logout,
     }}>
       {children}
     </AuthContext.Provider>

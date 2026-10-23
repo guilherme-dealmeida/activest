@@ -36,15 +36,15 @@ class FixedIncomeLogoServiceTest {
     Path dir;
 
     private HttpServer server;
-    private final Map<String, String[]> rotas = new HashMap<>();
+    private final Map<String, String[]> routes = new HashMap<>();
     private String base;
 
     @BeforeEach
-    void subir() throws Exception {
+    void startUp() throws Exception {
         PNG[0] = (byte) 0x89;
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/", ex -> {
-            String[] r = rotas.get(ex.getRequestURI().getPath());
+            String[] r = routes.get(ex.getRequestURI().getPath());
             byte[] body = r == null ? new byte[0]
                 : "image/png".equals(r[0]) ? PNG : r[1].getBytes(StandardCharsets.UTF_8);
             if (r != null) {
@@ -61,43 +61,43 @@ class FixedIncomeLogoServiceTest {
     }
 
     @AfterEach
-    void descer() {
+    void goDown() {
         server.stop(0);
     }
 
-    private FixedIncomeLogoService servico(FixedIncomeLogos logos) {
+    private FixedIncomeLogoService service(FixedIncomeLogos logos) {
         return new FixedIncomeLogoService(null, null, logos, WebClient.builder(),
             base + "/participants", base + "/lbb/");
     }
 
-    private void fontes() {
+    private void sources() {
         // Open Finance: Nu Financeira com SVG limpo; 11111111 com SVG que tem script
-        rotas.put("/participants", new String[] {"application/json", """
+        routes.put("/participants", new String[] {"application/json", """
             [{"RegistrationNumber":"30680829000143","AuthorisationServers":[
                {"CustomerFriendlyLogoUri":"%1$s/of/nu.svg"}]},
              {"RegistrationNumber":"11111111000100","AuthorisationServers":[
                {"CustomerFriendlyLogoUri":"%1$s/of/script.svg"}]},
              {"RegistrationNumber":"33333333000100","AuthorisationServers":[]}]
             """.formatted(base)});
-        rotas.put("/of/nu.svg", new String[] {"image/svg+xml", SVG});
-        rotas.put("/of/script.svg", new String[] {"image/svg+xml", SVG_COM_SCRIPT});
+        routes.put("/of/nu.svg", new String[] {"image/svg+xml", SVG});
+        routes.put("/of/script.svg", new String[] {"image/svg+xml", SVG_COM_SCRIPT});
         // logos-bancos-br: ISPB -> arquivo (o indice aponta o SVG da versao @0; vale o PNG da versao fixa)
-        rotas.put("/lbb/data/logo-urls.min.json", new String[] {"application/json", """
+        routes.put("/lbb/data/logo-urls.min.json", new String[] {"application/json", """
             {"00000000":"https://cdn.jsdelivr.net/npm/logos-bancos-br@0/logos/svg/00000000.svg",
              "11111111":"https://cdn.jsdelivr.net/npm/logos-bancos-br@0/logos/svg/11111111.svg",
              "44444444":"https://cdn.jsdelivr.net/npm/logos-bancos-br@0/logos/svg/00000000.svg"}
             """});
-        rotas.put("/lbb/logos/png/00000000.png", new String[] {"image/png", ""});
-        rotas.put("/lbb/logos/png/11111111.png", new String[] {"image/png", ""});
+        routes.put("/lbb/logos/png/00000000.png", new String[] {"image/png", ""});
+        routes.put("/lbb/logos/png/11111111.png", new String[] {"image/png", ""});
     }
 
     @Test
     @DisplayName("Open Finance primeiro; SVG com script cai para o PNG do logos-bancos-br; sem fonte, sem arquivo")
-    void ordemDasFontes() {
-        fontes();
+    void sourcesOrder() {
+        sources();
         FixedIncomeLogos logos = new FixedIncomeLogos(dir.toString());
 
-        FixedIncomeLogoService.Result r = servico(logos)
+        FixedIncomeLogoService.Result r = service(logos)
             .syncRoots(List.of("30680829", "11111111", "00000000", "44444444", "22222222"), true, "teste");
 
         assertThat(r.openFinance()).isEqualTo(1);
@@ -114,13 +114,13 @@ class FixedIncomeLogoServiceTest {
 
     @Test
     @DisplayName("Rotina mensal: quem ja tem arquivo nao e baixado de novo")
-    void soQuemFalta() throws Exception {
-        fontes();
+    void onlyMissing() throws Exception {
+        sources();
         Path rf = Files.createDirectories(dir.resolve("rf"));
         Files.writeString(rf.resolve("30680829.png"), "logo curado");
         FixedIncomeLogos logos = new FixedIncomeLogos(dir.toString());
 
-        FixedIncomeLogoService.Result r = servico(logos).syncRoots(List.of("30680829"), true, "teste");
+        FixedIncomeLogoService.Result r = service(logos).syncRoots(List.of("30680829"), true, "teste");
 
         assertThat(r.candidates()).isZero();
         assertThat(Files.readString(rf.resolve("30680829.png"))).isEqualTo("logo curado");
@@ -128,12 +128,12 @@ class FixedIncomeLogoServiceTest {
 
     @Test
     @DisplayName("Open Finance fora do ar: o logos-bancos-br segue sozinho")
-    void fonteForaDoAr() {
-        fontes();
-        rotas.remove("/participants");
+    void sourceDown() {
+        sources();
+        routes.remove("/participants");
         FixedIncomeLogos logos = new FixedIncomeLogos(dir.toString());
 
-        FixedIncomeLogoService.Result r = servico(logos).syncRoots(List.of("30680829", "00000000"), true, "teste");
+        FixedIncomeLogoService.Result r = service(logos).syncRoots(List.of("30680829", "00000000"), true, "teste");
 
         assertThat(r.openFinance()).isZero();
         assertThat(r.logosBancosBr()).isEqualTo(1);
@@ -142,7 +142,7 @@ class FixedIncomeLogoServiceTest {
 
     @Test
     @DisplayName("PNG com margem transparente: a margem sai e a marca fica centrada num quadrado")
-    void cortaMargem() throws Exception {
+    void cutsMargin() throws Exception {
         java.awt.image.BufferedImage img =
             new java.awt.image.BufferedImage(100, 100, java.awt.image.BufferedImage.TYPE_INT_ARGB);
         java.awt.Graphics2D g = img.createGraphics();
@@ -165,7 +165,7 @@ class FixedIncomeLogoServiceTest {
 
     @Test
     @DisplayName("SVG seguro: sem script, evento ou conteudo embutido")
-    void svgSeguro() {
+    void safeSvgFile() {
         assertThat(FixedIncomeLogoService.safeSvg(SVG.getBytes(StandardCharsets.UTF_8))).isTrue();
         assertThat(FixedIncomeLogoService.safeSvg(SVG_COM_SCRIPT.getBytes(StandardCharsets.UTF_8))).isFalse();
         assertThat(FixedIncomeLogoService.safeSvg("<svg onload=\"x()\"/>".getBytes(StandardCharsets.UTF_8))).isFalse();

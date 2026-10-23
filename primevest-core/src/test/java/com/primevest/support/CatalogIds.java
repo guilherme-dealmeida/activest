@@ -15,9 +15,9 @@ import com.primevest.domain.asset.AssetTypeRepository;
 public final class CatalogIds {
 
     /** Tickers usados nos testes; todos existem nos seeds V4–V7. */
-    public static final String ACAO = "PETR4";
+    public static final String STOCK = "PETR4";
     public static final String FII = "HGLG11";
-    public static final String TESOURO_IPCA_2050 = "Tesouro IPCA+ 2050";
+    public static final String TREASURY_IPCA_2050 = "Tesouro IPCA+ 2050";
     public static final String CDB = "CDB";
     /** Cripto do seed V19. */
     public static final String BTC = "BTC";

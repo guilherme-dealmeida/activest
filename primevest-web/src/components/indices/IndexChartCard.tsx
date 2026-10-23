@@ -67,32 +67,32 @@ const tooltipDate = (iso: string, monthly: boolean) => {
 export const IndexChartCard = ({ code }: { code: IndexCode }) => {
   const { isDark } = useTheme();
   const [range, setRangeState] = useState<PriceRange>(DEFAULT_RANGE);
-  const [de, setDe] = useState<string>('');
-  const [ate, setAte] = useState<string>('');
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
   const [view, setView] = useState<IndexView>('MENSAL');
   const isMonthlyIndex = MONTHLY.includes(code);
-  const custom = !!de || !!ate;
-  const period = custom ? { from: de || undefined, to: ate || undefined } : { range };
+  const custom = !!dateFrom || !!dateTo;
+  const period = custom ? { from: dateFrom || undefined, to: dateTo || undefined } : { range };
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['indices', 'chart', code, custom ? `${de}_${ate}` : range, isMonthlyIndex ? view : ''],
+    queryKey: ['indices', 'chart', code, custom ? `${dateFrom}_${dateTo}` : range, isMonthlyIndex ? view : ''],
     queryFn: () => indicesApi.chart(code, period, isMonthlyIndex ? view : undefined),
     placeholderData: (prev) => prev,
   });
 
   const setRange = (r: PriceRange) => {
-    setDe(''); setAte('');
+    setDateFrom(''); setDateTo('');
     setRangeState(r);
   };
 
-  const setDate = (key: 'de' | 'ate', value: string) => {
+  const setDate = (key: 'from' | 'to', value: string) => {
     // o outro extremo começa no intervalo mostrado agora, para o período não "pular"
-    if (key === 'de') {
-      setDe(value);
-      if (!ate && data?.to) setAte(data.to);
+    if (key === 'from') {
+      setDateFrom(value);
+      if (!dateTo && data?.to) setDateTo(data.to);
     } else {
-      setAte(value);
-      if (!de && data?.from) setDe(data.from);
+      setDateTo(value);
+      if (!dateFrom && data?.from) setDateFrom(data.from);
     }
   };
 
@@ -184,17 +184,17 @@ export const IndexChartCard = ({ code }: { code: IndexCode }) => {
             <label htmlFor={`${code}-de`}>de</label>
             <input
               id={`${code}-de`} type="date"
-              value={custom ? (de || data?.from || '') : ''}
+              value={custom ? (dateFrom || data?.from || '') : ''}
               min={data?.firstDate ?? undefined} max={data?.lastDate ?? undefined}
-              onChange={(e) => setDate('de', e.target.value)}
+              onChange={(e) => setDate('from', e.target.value)}
               className="rounded-md border border-surface-light bg-surface px-2 py-1 text-xs text-white"
             />
             <label htmlFor={`${code}-ate`}>até</label>
             <input
               id={`${code}-ate`} type="date"
-              value={custom ? (ate || data?.to || '') : ''}
+              value={custom ? (dateTo || data?.to || '') : ''}
               min={data?.firstDate ?? undefined} max={data?.lastDate ?? undefined}
-              onChange={(e) => setDate('ate', e.target.value)}
+              onChange={(e) => setDate('to', e.target.value)}
               className="rounded-md border border-surface-light bg-surface px-2 py-1 text-xs text-white"
             />
           </div>

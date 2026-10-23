@@ -21,34 +21,34 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class FixedIncomeTaxRuleRepositoryTest extends JpaTestBase {
 
-    private static final LocalDate APLICACAO = LocalDate.of(2026, 1, 1);
+    private static final LocalDate INVESTMENT = LocalDate.of(2026, 1, 1);
 
     @Autowired private FixedIncomeTaxRuleRepository repository;
     @Autowired private AssetRepository assetRepository;
 
-    private FixedIncomeTaxTable tabela() {
+    private FixedIncomeTaxTable table() {
         return new FixedIncomeTaxTable(repository.findAll());
     }
 
-    private Long produto(String ticker) {
+    private Long product(String ticker) {
         return CatalogIds.asset(assetRepository, ticker).getId();
     }
 
-    private FixedIncomeTaxTable.Rates aos(long dias, String ticker) {
-        return tabela().rates(ticker == null ? null : produto(ticker), APLICACAO, APLICACAO.plusDays(dias));
+    private FixedIncomeTaxTable.Rates aos(long days, String ticker) {
+        return table().rates(ticker == null ? null : product(ticker), INVESTMENT, INVESTMENT.plusDays(days));
     }
 
     @Test
     @DisplayName("Carga da V52: 4 faixas de IR, 30 de IOF e 14 excecoes por produto")
-    void carga() {
-        List<FixedIncomeTaxRule> regras = repository.findAll();
-        assertThat(regras).hasSize(4 + 30 + 14);
-        assertThat(regras).allSatisfy(r -> assertThat(r.getLegalBasis()).isNotBlank());
+    void load() {
+        List<FixedIncomeTaxRule> rules = repository.findAll();
+        assertThat(rules).hasSize(4 + 30 + 14);
+        assertThat(rules).allSatisfy(r -> assertThat(r.getLegalBasis()).isNotBlank());
     }
 
     @Test
     @DisplayName("IR regressivo nos limites das faixas: 180/181, 360/361, 720/721")
-    void irNosLimites() {
+    void irAtBoundaries() {
         assertThat(aos(0, "CDB").ir()).isEqualByComparingTo("0.225");
         assertThat(aos(180, "CDB").ir()).isEqualByComparingTo("0.225");
         assertThat(aos(181, "CDB").ir()).isEqualByComparingTo("0.20");
@@ -61,7 +61,7 @@ class FixedIncomeTaxRuleRepositoryTest extends JpaTestBase {
 
     @Test
     @DisplayName("IOF regressivo: dia 0 e 1 a 96%, dia 17 a 43%, dia 29 a 3%, dia 30 em diante zero")
-    void iofNosLimites() {
+    void iofAtBoundaries() {
         assertThat(aos(0, "CDB").iof()).isEqualByComparingTo("0.96");
         assertThat(aos(1, "CDB").iof()).isEqualByComparingTo("0.96");
         assertThat(aos(2, "CDB").iof()).isEqualByComparingTo("0.93");
@@ -73,7 +73,7 @@ class FixedIncomeTaxRuleRepositoryTest extends JpaTestBase {
 
     @Test
     @DisplayName("Isencoes de IR: LCI, LCA, CRI, CRA, debenture incentivada, LIG e poupanca")
-    void isencoesIr() {
+    void taxExemptions() {
         for (String ticker : List.of("LCI", "LCA", "CRI", "CRA", "DEBENTURE_INCENTIVADA", "LIG", "POUPANCA")) {
             assertThat(aos(10, ticker).ir()).as(ticker).isEqualByComparingTo("0");
             assertThat(aos(800, ticker).ir()).as(ticker).isEqualByComparingTo("0");
@@ -95,23 +95,23 @@ class FixedIncomeTaxRuleRepositoryTest extends JpaTestBase {
 
     @Test
     @DisplayName("Nenhuma faixa se sobrepoe a outra do mesmo imposto e produto na mesma vigencia")
-    void semSobreposicao() {
-        List<FixedIncomeTaxRule> regras = repository.findAll();
-        for (FixedIncomeTaxRule a : regras) {
-            for (FixedIncomeTaxRule b : regras) {
+    void withoutOverlap() {
+        List<FixedIncomeTaxRule> rules = repository.findAll();
+        for (FixedIncomeTaxRule a : rules) {
+            for (FixedIncomeTaxRule b : rules) {
                 if (a.getId().equals(b.getId()) || a.getTax() != b.getTax()
                         || !Objects.equals(a.getAssetId(), b.getAssetId())) {
                     continue;
                 }
-                LocalDate inicioA = a.getValidFrom() != null ? a.getValidFrom() : LocalDate.MIN;
-                LocalDate fimA = a.getValidTo() != null ? a.getValidTo() : LocalDate.MAX;
-                LocalDate inicioB = b.getValidFrom() != null ? b.getValidFrom() : LocalDate.MIN;
-                LocalDate fimB = b.getValidTo() != null ? b.getValidTo() : LocalDate.MAX;
-                boolean vigenciasSeTocam = !inicioA.isAfter(fimB) && !inicioB.isAfter(fimA);
-                long fimDiasA = a.getDaysTo() != null ? a.getDaysTo() : Long.MAX_VALUE;
-                long fimDiasB = b.getDaysTo() != null ? b.getDaysTo() : Long.MAX_VALUE;
-                boolean faixasSeTocam = a.getDaysFrom() <= fimDiasB && b.getDaysFrom() <= fimDiasA;
-                assertThat(vigenciasSeTocam && faixasSeTocam)
+                LocalDate startA = a.getValidFrom() != null ? a.getValidFrom() : LocalDate.MIN;
+                LocalDate endA = a.getValidTo() != null ? a.getValidTo() : LocalDate.MAX;
+                LocalDate startB = b.getValidFrom() != null ? b.getValidFrom() : LocalDate.MIN;
+                LocalDate endB = b.getValidTo() != null ? b.getValidTo() : LocalDate.MAX;
+                boolean validitiesTouch = !startA.isAfter(endB) && !startB.isAfter(endA);
+                long endDaysA = a.getDaysTo() != null ? a.getDaysTo() : Long.MAX_VALUE;
+                long endDaysB = b.getDaysTo() != null ? b.getDaysTo() : Long.MAX_VALUE;
+                boolean bandsTouch = a.getDaysFrom() <= endDaysB && b.getDaysFrom() <= endDaysA;
+                assertThat(validitiesTouch && bandsTouch)
                     .as("regras %d e %d (%s) se sobrepoem", a.getId(), b.getId(), a.getTax()).isFalse();
             }
         }
@@ -119,11 +119,11 @@ class FixedIncomeTaxRuleRepositoryTest extends JpaTestBase {
 
     @Test
     @DisplayName("As faixas gerais cobrem todo prazo, sem buraco")
-    void semBuraco() {
-        FixedIncomeTaxTable t = tabela();
-        for (long dias = 0; dias <= 800; dias++) {
-            BigDecimal ir = t.rate(FixedIncomeTax.IR, null, dias, APLICACAO);
-            assertThat(ir.signum()).as("IR no dia %d", dias).isPositive();
+    void withoutGap() {
+        FixedIncomeTaxTable t = table();
+        for (long days = 0; days <= 800; days++) {
+            BigDecimal ir = t.rate(FixedIncomeTax.IR, null, days, INVESTMENT);
+            assertThat(ir.signum()).as("IR no dia %d", days).isPositive();
         }
     }
 }

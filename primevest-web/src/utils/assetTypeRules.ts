@@ -1,5 +1,5 @@
 import { AssetType } from '@/types';
-import tesouroDiretoLogo from '@/assets/logos/tesouro-direto.svg';
+import treasuryDirectLogo from '@/assets/logos/tesouro-direto.svg';
 
 /**
  * Regras que dependem do tipo de ativo e valem em mais de uma tela.
@@ -45,7 +45,7 @@ export const isFixedIncomeNote = (type: AssetType) =>
  * null = o tipo segue a regra do ativo (hasLogo da API).
  */
 export const typeLogo = (typeName: string | null | undefined): { src?: string; label?: string } | null => {
-  if (typeName === TESOURO_DIRETO) return { src: tesouroDiretoLogo };
+  if (typeName === TESOURO_DIRETO) return { src: treasuryDirectLogo };
   if (typeName === RENDA_FIXA) return { label: 'RF' };
   return null;
 };

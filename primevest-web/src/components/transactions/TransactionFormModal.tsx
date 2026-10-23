@@ -116,11 +116,11 @@ const SalePreviewPanel = ({ preview, loading, treasury, fee }: {
   if (!preview) {
     return <p className="text-gray-400">{loading ? 'Calculando IR e IOF…' : 'Preencha a venda para ver a prévia.'}</p>;
   }
-  const linha = (rotulo: string, valor: number | null | undefined, destaque = false) => (
+  const row = (labelText: string, amount: number | null | undefined, highlight = false) => (
     <div className="flex items-baseline justify-between gap-4">
-      <span className={destaque ? 'text-gray-200' : 'text-gray-400'}>{rotulo}</span>
-      <span className={`tabular-nums ${destaque ? 'font-semibold text-white' : 'text-gray-200'}`}>
-        {valor == null ? '—' : formatCurrency(valor)}
+      <span className={highlight ? 'text-gray-200' : 'text-gray-400'}>{labelText}</span>
+      <span className={`tabular-nums ${highlight ? 'font-semibold text-white' : 'text-gray-200'}`}>
+        {amount == null ? '—' : formatCurrency(amount)}
       </span>
     </div>
   );
@@ -132,13 +132,13 @@ const SalePreviewPanel = ({ preview, loading, treasury, fee }: {
           : `O valor digitado é o líquido. O PrimeVest calcula o bruto pela curva, tirando dos aportes pela regra de saída (${SALE_RULE_LABEL[preview.saleRule] ?? preview.saleRule}), com o IOF e o IR de cada aporte.`}
       </p>
       <div className="grid gap-1">
-        {linha('Bruto', preview.gross)}
-        {linha('IOF', preview.iof)}
-        {linha('IR', preview.ir)}
-        {treasury && fee > 0 && linha('Taxas', fee)}
-        {!!preview.adjustment && linha('Ajuste sobre a curva (no bruto)', preview.adjustment)}
-        {linha('Líquido', preview.net, true)}
-        {!treasury && linha('Líquido disponível estimado na data', preview.availableNet)}
+        {row('Bruto', preview.gross)}
+        {row('IOF', preview.iof)}
+        {row('IR', preview.ir)}
+        {treasury && fee > 0 && row('Taxas', fee)}
+        {!!preview.adjustment && row('Ajuste sobre a curva (no bruto)', preview.adjustment)}
+        {row('Líquido', preview.net, true)}
+        {!treasury && row('Líquido disponível estimado na data', preview.availableNet)}
       </div>
       {preview.lots.length > 0 && (
         <table className="mt-3 w-full text-xs tabular-nums">
@@ -198,7 +198,7 @@ interface Props {
  * que for público do papel, vencimento e remuneração. Emissor e taxa são do
  * usuário. É o estado de "nenhum título escolhido" numa compra.
  */
-const termosDoCatalogo = (asset: Asset | null): FixedIncomeValues => asset ? {
+const catalogTerms = (asset: Asset | null): FixedIncomeValues => asset ? {
   assetCategoryId: asset.categoryId ?? null,
   issuer: null,
   distributor: null,
@@ -339,10 +339,10 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     if (!isOpen) return;
     const ticker = editing?.ticker ?? preset?.ticker;
     if (!ticker) return;
-    let cancelado = false;
+    let cancelled = false;
     assetsApi.getByTicker(ticker)
       .then((asset: Asset) => {
-        if (cancelado) return;
+        if (cancelled) return;
         setMatchedAsset(asset);
         setFixedIncome(prev => ({
           ...prev,
@@ -355,7 +355,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
         }));
       })
       .catch(() => { /* segue sem os dados do catálogo */ });
-    return () => { cancelado = true; };
+    return () => { cancelled = true; };
   }, [isOpen, editing, preset]);
 
   const invalidate = () => {
@@ -367,11 +367,11 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
    * A venda de Tesouro que o sistema repartiu entre títulos merece um aviso a
    * mais: o usuário lançou uma venda e o extrato vai mostrar várias linhas.
    */
-  const avisarDivisao = (saved: TransactionResponse | undefined) => {
-    const partes = saved?.groupParts ?? 0;
-    if (partes > 1) {
+  const warnSplit = (saved: TransactionResponse | undefined) => {
+    const parts = saved?.groupParts ?? 0;
+    if (parts > 1) {
       showToast(
-        `A venda de ${saved!.ticker} foi dividida em ${partes} títulos, do mais antigo para o mais novo.`,
+        `A venda de ${saved!.ticker} foi dividida em ${parts} títulos, do mais antigo para o mais novo.`,
         'info'
       );
     }
@@ -395,7 +395,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       } else {
         showToast(`Venda de ${ticker} registrada.`, 'success');
       }
-      avisarDivisao(saved);
+      warnSplit(saved);
     },
     onError: (e: unknown) => showToast(apiMessage(e) ?? 'Não foi possível salvar a transação.', 'error')
   });
@@ -407,18 +407,18 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       onClose();
       onSaved?.(saved, txData);
       showToast(`Transação de ${saved?.ticker ?? txData.ticker} atualizada.`, 'success');
-      avisarDivisao(saved);
+      warnSplit(saved);
     },
     onError: (e: unknown) => showToast(apiMessage(e) ?? 'Não foi possível atualizar a transação.', 'error')
   });
 
-  const travado = !!editing || !!preset;
-  const isTesouro = selectedType?.name === TESOURO_DIRETO;
-  const isValorTotal = selectedType?.name === RENDA_FIXA;
+  const locked = !!editing || !!preset;
+  const isTreasury = selectedType?.name === TESOURO_DIRETO;
+  const isTotalValue = selectedType?.name === RENDA_FIXA;
   // Cripto: quantidade e preço unitário com 8 casas, na mesma máscara dos
   // demais tipos (docs/planos/PLANO_CRIPTO_BINANCE.md, 6.12).
-  const isCripto = isCryptoType(selectedType);
-  const isVenda = formData.type === TransactionType.SELL;
+  const isCrypto = isCryptoType(selectedType);
+  const isSale = formData.type === TransactionType.SELL;
 
   /**
    * Renda Fixa pela Nova Transação: o título sai de uma lista dos títulos do ativo — o mesmo que os ícones da
@@ -428,19 +428,19 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
    * aplicação. Na COMPRA é opcional: escolhido, o aporte cai na mesma aplicação; "Novo Título" cria outro com o
    * que o usuário preencher no quadro. O Tesouro fica de fora — lá cada compra é um título novo e a venda é FIFO.
    */
-  const escolheTitulo = !travado && isValorTotal;
-  const vendaAvulsaRF = escolheTitulo && isVenda;
-  const tickerAtual = (matchedAsset?.ticker ?? tickerInput).trim().toUpperCase();
-  const { data: notas } = useQuery({
-    queryKey: ['transactions', 'notes', tickerAtual],
-    queryFn: () => transactionsApi.notes(tickerAtual),
-    enabled: isOpen && escolheTitulo && !!matchedAsset,
+  const choosesNote = !locked && isTotalValue;
+  const standaloneFiSale = choosesNote && isSale;
+  const currentTicker = (matchedAsset?.ticker ?? tickerInput).trim().toUpperCase();
+  const { data: noteOptions } = useQuery({
+    queryKey: ['transactions', 'notes', currentTicker],
+    queryFn: () => transactionsApi.notes(currentTicker),
+    enabled: isOpen && choosesNote && !!matchedAsset,
   });
   /** Só para o saldo do "Resgatar tudo": a carteira traz o valor na curva das posições abertas. */
   const { data: positions } = useQuery({
     queryKey: ['portfolio', 'assets'],
     queryFn: portfolioApi.getAssets,
-    enabled: isOpen && vendaAvulsaRF,
+    enabled: isOpen && standaloneFiSale,
   });
   /**
    * Todos os títulos do ativo — abertos, vencidos e liquidados —, na compra e na
@@ -448,55 +448,55 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
    * encerrado mas não estar na data da transação. Quem decide é a data (aporte
    * no vencimento ou depois é recusado, aqui e na API).
    */
-  const titulos = escolheTitulo && matchedAsset ? (notas ?? []) : [];
+  const noteList = choosesNote && matchedAsset ? (noteOptions ?? []) : [];
 
   /**
    * Venda do Tesouro (D7): a distribuidora sai das que têm título aberto do ativo — vender onde não há título nunca
    * fecha. A da venda editada entra mesmo que os títulos dela já tenham sido liquidados por ela.
    */
-  const tickerTesouro = isTesouro ? (matchedAsset?.ticker ?? editing?.ticker ?? preset?.ticker ?? '') : '';
-  const { data: notasTesouro } = useQuery({
-    queryKey: ['transactions', 'notes', tickerTesouro],
-    queryFn: () => transactionsApi.notes(tickerTesouro),
-    enabled: isOpen && isTesouro && isVenda && !!tickerTesouro,
+  const treasuryTicker = isTreasury ? (matchedAsset?.ticker ?? editing?.ticker ?? preset?.ticker ?? '') : '';
+  const { data: treasuryNotes } = useQuery({
+    queryKey: ['transactions', 'notes', treasuryTicker],
+    queryFn: () => transactionsApi.notes(treasuryTicker),
+    enabled: isOpen && isTreasury && isSale && !!treasuryTicker,
   });
-  const distribuidorasTesouro: IssuerPick[] | undefined = isTesouro && isVenda
+  const treasuryDistributors: IssuerPick[] | undefined = isTreasury && isSale
     ? (() => {
-        const mapa = new Map<number, IssuerPick>();
-        for (const n of notasTesouro ?? []) {
+        const map_ = new Map<number, IssuerPick>();
+        for (const n of treasuryNotes ?? []) {
           const d = distributorPickOf(n.noteInfo);
-          if (d && !n.settled) mapa.set(d.id, d);
+          if (d && !n.settled) map_.set(d.id, d);
         }
-        const atual = fixedIncome.distributor;
-        if (atual && !mapa.has(atual.id)) mapa.set(atual.id, atual);
-        return [...mapa.values()].sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+        const current = fixedIncome.distributor;
+        if (current && !map_.has(current.id)) map_.set(current.id, current);
+        return [...map_.values()].sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
       })()
     : undefined;
   // Uma distribuidora só: já vem escolhida
-  const unicaDistribuidora = distribuidorasTesouro?.length === 1 ? distribuidorasTesouro[0] : null;
+  const singleDistributor = treasuryDistributors?.length === 1 ? treasuryDistributors[0] : null;
   useEffect(() => {
-    if (unicaDistribuidora && !fixedIncome.distributor) {
-      setFixedIncome(prev => ({ ...prev, distributor: unicaDistribuidora }));
+    if (singleDistributor && !fixedIncome.distributor) {
+      setFixedIncome(prev => ({ ...prev, distributor: singleDistributor }));
     }
-  }, [unicaDistribuidora, fixedIncome.distributor]);
-  const picked = titulos.find(p => p.noteId === pickedNoteId) ?? null;
+  }, [singleDistributor, fixedIncome.distributor]);
+  const picked = noteList.find(p => p.noteId === pickedNoteId) ?? null;
   /**
    * O "resgatar tudo" preenche o LÍQUIDO estimado do título hoje (o valor digitado na venda é o que cai na conta): o da
    * linha da Carteira ou o do título escolhido. Sem estimativa (título sem curva), não aparece.
    */
-  const liquidoTitulo = preset?.note?.estimatedNet
+  const noteNet = preset?.note?.estimatedNet
     ?? (picked ? positions?.find(p => p.noteId === picked.noteId)?.estimatedNet ?? null : null);
 
   /**
    * Prévia da venda (PLANO_VENDA_RENDA_FIXA, seção 5): Renda Fixa pelo líquido digitado, com o título; Tesouro por
    * cotas × PU. Espera o usuário parar de digitar; erro da API aparece no painel, sem toast.
    */
-  const previewNoteId = isValorTotal
+  const previewNoteId = isTotalValue
     ? (editingNoteId ?? preset?.note?.noteId ?? picked?.noteId ?? null)
     : null;
-  const previewPayload: TransactionCreate | null = !isOpen || !isVenda || !formData.ticker || !formData.transactionDate
+  const previewPayload: TransactionCreate | null = !isOpen || !isSale || !formData.ticker || !formData.transactionDate
     ? null
-    : isValorTotal
+    : isTotalValue
       ? (previewNoteId && (formData.totalAmount || 0) > 0
           ? {
               ticker: formData.ticker, type: TransactionType.SELL, shares: null, pricePerShare: null,
@@ -504,7 +504,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
               transactionDate: formData.transactionDate, noteId: previewNoteId, isFullSettlement: fullSettlement
             }
           : null)
-      : isTesouro && (formData.shares || 0) > 0 && (formData.pricePerShare || 0) > 0
+      : isTreasury && (formData.shares || 0) > 0 && (formData.pricePerShare || 0) > 0
         ? {
             ticker: formData.ticker, type: TransactionType.SELL, shares: formData.shares,
             pricePerShare: formData.pricePerShare, totalAmount: null, brokerageFee: formData.brokerageFee ?? 0,
@@ -526,19 +526,19 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     retry: false,
   });
   /** R9: o líquido passa do disponível e a venda não está marcada como liquidação total — pergunta antes de gravar. */
-  const [perguntaTotal, setPerguntaTotal] = useState(false);
+  const [askTotal, setAskTotal] = useState(false);
   /** Troca de distribuidora do Tesouro com venda ligada: o modal da cascata (seção 5.1 do plano de emissoras). */
-  const [cascata, setCascata] = useState<{ preview: DistributorChangePreview; payload: TransactionCreate } | null>(null);
-  useEffect(() => { if (!isOpen) setCascata(null); }, [isOpen]);
-  useEffect(() => { setPerguntaTotal(false); }, [previewKey, isOpen]);
+  const [cascade, setCascade] = useState<{ preview: DistributorChangePreview; payload: TransactionCreate } | null>(null);
+  useEffect(() => { if (!isOpen) setCascade(null); }, [isOpen]);
+  useEffect(() => { setAskTotal(false); }, [previewKey, isOpen]);
 
   /**
    * "Novo Título" desfaz a escolha por inteiro. Na compra o quadro volta ao estado de
    * título novo, com o que o catálogo sabe do ativo — zerar tudo perderia a
    * categoria e, no papel que os tem, o vencimento e a remuneração travados.
    */
-  const escolherTitulo = (noteId: string, tipo: string = formData.type) => {
-    const p = noteId ? titulos.find(x => x.noteId === noteId) : undefined;
+  const chooseNote = (noteId: string, typeValue: string = formData.type) => {
+    const p = noteId ? noteList.find(x => x.noteId === noteId) : undefined;
     setPickedNoteId(p ? noteId : null);
     setFixedIncome(p ? {
       assetCategoryId: matchedAsset?.categoryId ?? null,
@@ -549,7 +549,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       rateType: p.rateType,
       indexer: p.indexer,
       indexerRate: p.indexerRate,
-    } : (tipo === TransactionType.BUY ? termosDoCatalogo(matchedAsset) : EMPTY_FIXED_INCOME));
+    } : (typeValue === TransactionType.BUY ? catalogTerms(matchedAsset) : EMPTY_FIXED_INCOME));
   };
 
   /**
@@ -557,10 +557,10 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
    * escolha, o quadro volta ao estado certo para a operação nova: título novo
    * com os dados do catálogo na compra, vazio na venda.
    */
-  const trocarOperacao = (tipo: TransactionType) => {
-    setFormData(prev => ({ ...prev, type: tipo }));
-    if (tipo === TransactionType.BUY) setFullSettlement(false);
-    if (escolheTitulo && tipo !== formData.type) escolherTitulo(pickedNoteId ?? '', tipo);
+  const switchOperation = (typeValue: TransactionType) => {
+    setFormData(prev => ({ ...prev, type: typeValue }));
+    if (typeValue === TransactionType.BUY) setFullSettlement(false);
+    if (choosesNote && typeValue !== formData.type) chooseNote(pickedNoteId ?? '', typeValue);
   };
 
   /**
@@ -593,10 +593,10 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     setTickerInput(ticker);
     setFormData(prev => ({ ...prev, ticker }));
     setMatchedAsset(asset);
-    setFixedIncome(termosDoCatalogo(asset));
+    setFixedIncome(catalogTerms(asset));
   };
 
-  const computedTotal = isValorTotal
+  const computedTotal = isTotalValue
     ? (formData.totalAmount || 0)
     : (formData.shares || 0) * (formData.pricePerShare || 0);
 
@@ -608,15 +608,15 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
    * dia e se digita), na venda só como identificação — ali a operação é do
    * ativo e os títulos saem por FIFO, então não há taxa a informar.
    */
-  const mostraDadosTitulo = !!selectedType?.fixedIncome
-    && (travado ? (!!editingNoteId || !!preset || isTesouro) : !!matchedAsset);
+  const showsNoteData = !!selectedType?.fixedIncome
+    && (locked ? (!!editingNoteId || !!preset || isTreasury) : !!matchedAsset);
 
   /**
    * O título já existe: os dados são dele, e editá-los aqui mudaria a aplicação
    * por tabela. Na venda de Tesouro nada é editável porque não há um título só.
    */
-  const tituloSomenteLeitura = (!!preset && !!preset.note) || (isTesouro && isVenda) || vendaAvulsaRF
-    || (escolheTitulo && !!picked);
+  const noteReadOnly = (!!preset && !!preset.note) || (isTreasury && isSale) || standaloneFiSale
+    || (choosesNote && !!picked);
 
   /**
    * O ativo já traz vencimento e forma de remuneração? Então são do papel, não
@@ -627,51 +627,51 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
    * travados: destravar primeiro e travar depois descartaria o que o usuário
    * tivesse digitado nesse intervalo.
    */
-  const lockedTerms = travado && !matchedAsset
+  const lockedTerms = locked && !matchedAsset
     ? true
     : (!!matchedAsset?.maturityDate || !!matchedAsset?.rateType);
 
 
-  const grupo = editing?.groupParts && editing.groupParts > 1 ? editing.groupParts : null;
+  const group = editing?.groupParts && editing.groupParts > 1 ? editing.groupParts : null;
 
   /**
    * R16: na edição de um título de renda fixa, a distribuidora nova com outra regra de saída recalcula os resgates
    * do título (o líquido fica; bruto, IR e IOF são refeitos). O aviso aparece antes de salvar.
    */
-  const regraAntes = editing && isValorTotal ? (editing.noteInfo?.distributorSaleRule ?? null) : null;
-  const regraDepois = fixedIncome.distributor?.saleRule ?? null;
-  const avisoRegraDeSaida = regraAntes && regraDepois && regraAntes !== regraDepois
+  const ruleBefore = editing && isTotalValue ? (editing.noteInfo?.distributorSaleRule ?? null) : null;
+  const ruleAfter = fixedIncome.distributor?.saleRule ?? null;
+  const exitRuleNotice = ruleBefore && ruleAfter && ruleBefore !== ruleAfter
     && fixedIncome.distributor?.id !== editing?.noteInfo?.distributorId
-    ? `A regra de saída passa de ${SALE_RULE_LABEL[regraAntes] ?? regraAntes} para ${SALE_RULE_LABEL[regraDepois] ?? regraDepois}. `
+    ? `A regra de saída passa de ${SALE_RULE_LABEL[ruleBefore] ?? ruleBefore} para ${SALE_RULE_LABEL[ruleAfter] ?? ruleAfter}. `
       + 'Os resgates deste título serão recalculados: o líquido recebido fica; bruto, IR e IOF são refeitos.'
     : null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // R9: venda parcial de Renda Fixa acima do líquido disponível. Não bloqueia: pergunta se é o resgate total.
-    if (isValorTotal && isVenda && !fullSettlement && preview?.aboveAvailable && debouncedKey === previewKey) {
-      setPerguntaTotal(true);
+    if (isTotalValue && isSale && !fullSettlement && preview?.aboveAvailable && debouncedKey === previewKey) {
+      setAskTotal(true);
       return;
     }
-    enviar(fullSettlement);
+    send(fullSettlement);
   };
 
-  const enviar = (liquidacaoTotal: boolean) => {
-    setPerguntaTotal(false);
+  const send = (settleInFull: boolean) => {
+    setAskTotal(false);
 
     // Renda Fixa manda o valor total e anula quantidade e preço; os demais
     // tipos mandam quantidade e preço e deixam o total para a API calcular.
     // Aporte num título que já existe só até a véspera do vencimento (no dia
     // ele já está vencido, a regra do selo da carteira). O modal fica aberto.
-    const vencimentoDoTitulo = !isVenda && !isTesouro && !editing
+    const noteMaturity = !isSale && !isTreasury && !editing
       ? (picked?.maturityDate ?? preset?.note?.maturityDate ?? null)
       : null;
-    if (vencimentoDoTitulo && formData.transactionDate >= vencimentoDoTitulo) {
+    if (noteMaturity && formData.transactionDate >= noteMaturity) {
       showToast('Título vencido para a data de transação escolhida', 'error');
       return;
     }
 
-    const valores: TransactionCreate = isValorTotal
+    const amounts: TransactionCreate = isTotalValue
       ? { ...formData, shares: null, pricePerShare: null, totalAmount: formData.totalAmount || 0 }
       : { ...formData, totalAmount: null };
 
@@ -680,12 +680,12 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     // carteira (noteId, que lança na nota que já existe). Mandar os campos na
     // edição não é opcional: a API só toca no título quando eles vêm, e é assim
     // que editar a quantidade de um CDB deixa de apagar o emissor e a taxa.
-    const dadosTitulo = mostraDadosTitulo && !(isTesouro && isVenda)
+    const noteData = showsNoteData && !(isTreasury && isSale)
       ? {
           // No Tesouro a emissora é sempre o Tesouro Nacional (a API ignora); o código do papel é da renda fixa
-          issuerId: isTesouro ? null : (fixedIncome.issuer?.id ?? null),
+          issuerId: isTreasury ? null : (fixedIncome.issuer?.id ?? null),
           distributorId: fixedIncome.distributor?.id ?? null,
-          paperCode: isTesouro ? null : (fixedIncome.paperCode || null),
+          paperCode: isTreasury ? null : (fixedIncome.paperCode || null),
           maturityDate: fixedIncome.maturityDate || null,
           rateType: fixedIncome.rateType,
           indexer: fixedIncome.indexer,
@@ -694,30 +694,30 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       : {};
 
     const payload: TransactionCreate = {
-      ...valores,
-      ...dadosTitulo,
+      ...amounts,
+      ...noteData,
       // O Tesouro nunca manda título: cada compra é um novo e a venda é do
       // ativo.
-      noteId: !isTesouro && !editing ? (preset?.note?.noteId ?? (escolheTitulo ? (picked?.noteId ?? null) : null)) : null,
-      isFullSettlement: isValorTotal && isVenda ? liquidacaoTotal : null,
+      noteId: !isTreasury && !editing ? (preset?.note?.noteId ?? (choosesNote ? (picked?.noteId ?? null) : null)) : null,
+      isFullSettlement: isTotalValue && isSale ? settleInFull : null,
       // A venda do Tesouro informa a distribuidora: o FIFO consome só os títulos dela (R13)
-      ...(isTesouro && isVenda ? { distributorId: fixedIncome.distributor?.id ?? null } : {})
+      ...(isTreasury && isSale ? { distributorId: fixedIncome.distributor?.id ?? null } : {})
     };
 
-    if (isTesouro && !fixedIncome.distributor) {
+    if (isTreasury && !fixedIncome.distributor) {
       showToast('Informe a distribuidora (onde o título foi comprado).', 'error');
       return;
     }
 
     if (editing) {
       // Compra de Tesouro com distribuidora nova: com venda ligada, a troca é pela cascata (seção 5.1 do plano)
-      const novaDistribuidora = fixedIncome.distributor?.id ?? null;
-      if (isTesouro && !isVenda && novaDistribuidora != null
-          && novaDistribuidora !== (editing.noteInfo?.distributorId ?? null)) {
-        transactionsApi.distributorChangePreview(editing.id, novaDistribuidora)
-          .then(previa => {
-            if (previa.items.some(i => i.type === 'SELL')) {
-              setCascata({ preview: previa, payload });
+      const newDistributor = fixedIncome.distributor?.id ?? null;
+      if (isTreasury && !isSale && newDistributor != null
+          && newDistributor !== (editing.noteInfo?.distributorId ?? null)) {
+        transactionsApi.distributorChangePreview(editing.id, newDistributor)
+          .then(fiSalePreview => {
+            if (fiSalePreview.items.some(i => i.type === 'SELL')) {
+              setCascade({ preview: fiSalePreview, payload });
             } else {
               updateMutation.mutate({ id: editing.id, txData: payload });
             }
@@ -741,15 +741,15 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
   // O (i) do título explica a venda de Tesouro, que é do ativo e não de um
   // título. Na edição de uma venda já repartida, o que importa é outra coisa:
   // que se edita a venda inteira.
-  const modalTitleInfo = grupo
-    ? `Esta venda foi dividida em ${grupo} títulos pelo sistema, do mais antigo para o mais novo. O que você edita aqui é a venda inteira.`
-    : isTesouro && isVenda
+  const modalTitleInfo = group
+    ? `Esta venda foi dividida em ${group} títulos pelo sistema, do mais antigo para o mais novo. O que você edita aqui é a venda inteira.`
+    : isTreasury && isSale
       ? 'A venda é do ativo, não de um título. As cotas saem dos títulos mais antigos primeiro, e o sistema divide a operação entre eles.'
       : undefined;
 
   // Prévia da venda (Renda Fixa e Tesouro): no popover do ícone ao lado do Líquido / Total bruto
-  const temPrevia = isVenda && (isValorTotal || isTesouro) && !!(previewPayload || preview);
-  const previaAtual = debouncedKey === previewKey ? preview : undefined;
+  const hasPreview = isSale && (isTotalValue || isTreasury) && !!(previewPayload || preview);
+  const currentPreview = debouncedKey === previewKey ? preview : undefined;
 
   return (
     <>
@@ -759,7 +759,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       title={modalTitle}
       titleInfo={modalTitleInfo}
       // Com o quadro do título (agora em duas colunas de campos), o modal ganha largura; sem ele, fica como era
-      size={mostraDadosTitulo ? '2xl' : 'xl'}
+      size={showsNoteData ? '2xl' : 'xl'}
       footer={
         <div className="flex justify-end gap-3">
           <Button type="button" variant="ghost" onClick={onClose}>
@@ -784,7 +784,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       <form
         id={FORM_ID}
         onSubmit={handleSubmit}
-        className={`grid grid-cols-1 gap-6 ${mostraDadosTitulo ? 'lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-start' : ''}`}
+        className={`grid grid-cols-1 gap-6 ${showsNoteData ? 'lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-start' : ''}`}
       >
         {/* Coluna da transação */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 content-start">
@@ -792,20 +792,20 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1.5">
               <LabelWithInfo
-                info={vendaAvulsaRF
+                info={standaloneFiSale
                   ? 'Na venda de Renda Fixa escolha de qual título sai o resgate.'
-                  : escolheTitulo
+                  : choosesNote
                     ? 'Na compra de Renda Fixa escolha um título para aportar na mesma aplicação, ou deixe "Novo Título" para criar outro.'
                     : undefined}
               >
                 Operação
               </LabelWithInfo>
             </label>
-            <div className={`flex bg-surface rounded-md border border-white/10 p-1 ${travado ? 'opacity-60 pointer-events-none' : ''}`}>
+            <div className={`flex bg-surface rounded-md border border-white/10 p-1 ${locked ? 'opacity-60 pointer-events-none' : ''}`}>
               <button
                 type="button"
-                disabled={travado}
-                onClick={() => trocarOperacao(TransactionType.BUY)}
+                disabled={locked}
+                onClick={() => switchOperation(TransactionType.BUY)}
                 className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded text-sm font-medium transition-all ${
                   formData.type === TransactionType.BUY
                     ? 'bg-success/15 text-success border border-success/30 shadow-sm'
@@ -817,8 +817,8 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
               </button>
               <button
                 type="button"
-                disabled={travado}
-                onClick={() => trocarOperacao(TransactionType.SELL)}
+                disabled={locked}
+                onClick={() => switchOperation(TransactionType.SELL)}
                 className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded text-sm font-medium transition-all ${
                   formData.type === TransactionType.SELL
                     ? 'bg-danger/15 text-danger border border-danger/30 shadow-sm'
@@ -834,13 +834,13 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
           {/* Tipo de Ativo — comanda o resto do formulário */}
           <AssetTypeSelect
             value={selectedType?.id ?? null}
-            disabled={travado}
+            disabled={locked}
             onChange={handleTypeChange}
           />
 
           {/* Ticker — autocomplete restrito ao tipo escolhido */}
           <div className="sm:col-span-2">
-            {travado ? (
+            {locked ? (
               <Input label="Ticker (Ativo)" value={tickerInput} readOnly disabled />
             ) : (
               <TickerAutocomplete
@@ -851,23 +851,23 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
             )}
           </div>
 
-          {escolheTitulo && (
+          {choosesNote && (
             <div className="sm:col-span-2">
               <label htmlFor="titulo-rf" className="block text-sm font-medium text-gray-300 mb-1.5">Título</label>
               <select
                 id="titulo-rf"
-                required={isVenda}
-                disabled={!isVenda && !matchedAsset}
+                required={isSale}
+                disabled={!isSale && !matchedAsset}
                 value={picked?.noteId ?? ''}
-                onChange={(e) => escolherTitulo(e.target.value)}
+                onChange={(e) => chooseNote(e.target.value)}
                 className="flex h-10 w-full rounded-md border border-surface-light bg-surface px-3 py-2 text-sm text-white disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <option value="">{!tickerAtual
+                <option value="">{!currentTicker
                   ? 'Escolha o ativo primeiro'
-                  : isVenda
-                    ? (titulos.length ? 'Escolha a aplicação' : `Nenhum título de ${tickerAtual}`)
+                  : isSale
+                    ? (noteList.length ? 'Escolha a aplicação' : `Nenhum título de ${currentTicker}`)
                     : 'Novo Título'}</option>
-                {titulos.map(p => (
+                {noteList.map(p => (
                   <option key={p.noteId} value={p.noteId}>
                     {[p.issuer || 'Sem emissor',
                       p.noteInfo?.paperCode || null,
@@ -880,17 +880,17 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
             </div>
           )}
 
-          {isValorTotal ? (
+          {isTotalValue ? (
             <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
               <CurrencyInput
-                label={isVenda ? 'Valor recebido (líquido)' : 'Valor'}
+                label={isSale ? 'Valor recebido (líquido)' : 'Valor'}
                 value={formData.totalAmount ?? 0}
                 onChange={(v) => setFormData({ ...formData, totalAmount: v })}
                 required
               />
               {/* A liquidação total só existe na venda: ela diz que este resgate
                   encerra a aplicação, e é o que autoriza a posição a zerar. */}
-              {isVenda && (
+              {isSale && (
                 <label className="flex h-10 items-center gap-2 rounded-md border border-white/10 bg-surface-light/40 px-3 cursor-pointer">
                   <input
                     type="checkbox"
@@ -902,16 +902,16 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
                   <InfoTooltip content="Marque quando este resgate encerra a aplicação. A posição é zerada e a valorização é ajustada para o valor resgatado." />
                 </label>
               )}
-              {isVenda && liquidoTitulo != null && liquidoTitulo > 0 && (
+              {isSale && noteNet != null && noteNet > 0 && (
                 <button
                   type="button"
                   onClick={() => {
-                    setFormData({ ...formData, totalAmount: Math.round(liquidoTitulo * 100) / 100 });
+                    setFormData({ ...formData, totalAmount: Math.round(noteNet * 100) / 100 });
                     setFullSettlement(true);
                   }}
                   className="sm:col-span-2 justify-self-start text-xs text-accent hover:underline"
                 >
-                  Resgatar tudo — líquido estimado hoje {formatCurrency(liquidoTitulo)}
+                  Resgatar tudo — líquido estimado hoje {formatCurrency(noteNet)}
                 </button>
               )}
             </div>
@@ -924,14 +924,14 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
                   (0,00197802 BTC) e no preço (R$ 525.297,05592977). */}
               <MaskedNumberInput
                 label="Quantidade"
-                decimals={isCripto ? CRYPTO_DECIMALS : 2}
+                decimals={isCrypto ? CRYPTO_DECIMALS : 2}
                 value={formData.shares ?? 0}
                 onChange={(v) => setFormData({ ...formData, shares: v })}
                 required
               />
               <CurrencyInput
                 label="Preço Unitário"
-                decimals={isCripto ? CRYPTO_DECIMALS : 2}
+                decimals={isCrypto ? CRYPTO_DECIMALS : 2}
                 value={formData.pricePerShare ?? 0}
                 onChange={(v) => setFormData({ ...formData, pricePerShare: v })}
                 required
@@ -957,15 +957,15 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
           <div className="sm:col-span-2 flex items-baseline justify-between gap-4 rounded-md border border-surface-light bg-surface-light/40 px-4 py-3">
             <span className="inline-flex items-center text-sm text-gray-400">
               <LabelWithInfo
-                info={selectedType && !isValorTotal
-                  ? (isTesouro && isVenda
+                info={selectedType && !isTotalValue
+                  ? (isTreasury && isSale
                       ? 'Quantidade × preço unitário: o valor bruto. IR e IOF de cada título estão na prévia da venda (ícone ao lado).'
                       : 'Quantidade × preço unitário. As taxas não entram no total.')
                   : undefined}
               >
-                {isValorTotal && isVenda ? 'Líquido' : isTesouro && isVenda ? 'Total bruto' : 'Total'}
+                {isTotalValue && isSale ? 'Líquido' : isTreasury && isSale ? 'Total bruto' : 'Total'}
               </LabelWithInfo>
-              {temPrevia && (
+              {hasPreview && (
                 <Popover
                   label="Prévia da venda"
                   title="Prévia da venda"
@@ -973,9 +973,9 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
                   className="ml-1.5"
                 >
                   <SalePreviewPanel
-                    preview={previaAtual}
+                    preview={currentPreview}
                     loading={previewLoading || debouncedKey !== previewKey}
-                    treasury={isTesouro}
+                    treasury={isTreasury}
                     fee={formData.brokerageFee ?? 0}
                   />
                 </Popover>
@@ -986,18 +986,18 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
             </span>
           </div>
 
-          {temPrevia && previewError && (
+          {hasPreview && previewError && (
             <div className="sm:col-span-2 rounded-md border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
               {apiMessage(previewError) ?? 'Não foi possível calcular a prévia.'}
             </div>
           )}
-          {temPrevia && previaAtual?.aboveAvailable && (
+          {hasPreview && currentPreview?.aboveAvailable && (
             <p className="sm:col-span-2 text-xs text-accent">
               O valor passa do líquido disponível estimado. Se é o resgate total, marque “Liquidação total”.
             </p>
           )}
 
-          {perguntaTotal && (
+          {askTotal && (
             <div className="sm:col-span-2 rounded-md border border-accent/40 bg-accent/10 px-4 py-3 text-sm">
               <p className="font-medium text-accent">É o resgate total?</p>
               <p className="mt-1 text-gray-300">
@@ -1007,10 +1007,10 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
                 ajuste da liquidação.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button type="button" size="sm" onClick={() => { setFullSettlement(true); enviar(true); }}>
+                <Button type="button" size="sm" onClick={() => { setFullSettlement(true); send(true); }}>
                   Sim, resgate total
                 </Button>
-                <Button type="button" size="sm" variant="ghost" onClick={() => enviar(false)}>
+                <Button type="button" size="sm" variant="ghost" onClick={() => send(false)}>
                   Não, lançar mesmo assim
                 </Button>
               </div>
@@ -1019,35 +1019,35 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
         </div>
 
         {/* Coluna do título — só para tipos com remuneração contratada */}
-        {mostraDadosTitulo && selectedType && (
+        {showsNoteData && selectedType && (
           <FixedIncomeFields
             typeId={selectedType.id}
             values={fixedIncome}
             lockedTerms={lockedTerms}
-            readOnly={tituloSomenteLeitura}
-            showIssuer={!isTesouro}
-            showRate={!(isTesouro && isVenda)}
+            readOnly={noteReadOnly}
+            showIssuer={!isTreasury}
+            showRate={!(isTreasury && isSale)}
             ticker={matchedAsset?.ticker ?? editing?.ticker ?? preset?.ticker ?? null}
-            distributorReadOnly={isTesouro && isVenda ? false : undefined}
-            distributorOptions={distribuidorasTesouro}
-            distributorWarning={avisoRegraDeSaida}
+            distributorReadOnly={isTreasury && isSale ? false : undefined}
+            distributorOptions={treasuryDistributors}
+            distributorWarning={exitRuleNotice}
             onChange={(patch) => setFixedIncome(prev => ({ ...prev, ...patch }))}
           />
         )}
       </form>
     </Modal>
-    {cascata && editing && (
+    {cascade && editing && (
       <DistributorChangeModal
         transactionId={editing.id}
-        preview={cascata.preview}
-        purchase={cascata.payload}
-        onCancel={() => setCascata(null)}
+        preview={cascade.preview}
+        purchase={cascade.payload}
+        onCancel={() => setCascade(null)}
         onDone={(saved) => {
-          setCascata(null);
+          setCascade(null);
           invalidate();
           onClose();
-          onSaved?.(saved, cascata.payload);
-          showToast(`Distribuidora de ${saved?.ticker ?? cascata.payload.ticker} trocada para ${cascata.preview.toName}.`, 'success');
+          onSaved?.(saved, cascade.payload);
+          showToast(`Distribuidora de ${saved?.ticker ?? cascade.payload.ticker} trocada para ${cascade.preview.toName}.`, 'success');
         }}
       />
     )}

@@ -1,8 +1,10 @@
 package com.primevest.adm.domain.dividend;
 
+import com.primevest.domain.task.TaskRun;
+
 import com.primevest.adm.integration.cvm.CvmDataset;
 import com.primevest.adm.integration.cvm.CvmOpenDataClient;
-import com.primevest.adm.integration.cvm.CvmProventosReport;
+import com.primevest.adm.integration.cvm.CvmDividendReport;
 import com.primevest.domain.catalog.CatalogChange;
 import com.primevest.domain.catalog.CatalogMessaging.CatalogChangePublisher;
 import lombok.extern.slf4j.Slf4j;
@@ -85,17 +87,19 @@ public class CvmPaymentDateService {
             int filled = 0;
             Set<Long> assets = new HashSet<>();
             for (int year = Math.max(from, FIRST_YEAR); year <= to; year++) {
+                TaskRun.checkStop(); // ponto de parada (docs/planos/PLANO_TAREFAS.md, D8)
                 Optional<Path> zip = cvm.yearly(CvmDataset.IPE, year);
                 if (zip.isEmpty()) {
                     continue;
                 }
-                List<CvmProventosReport.Entry> entries = CvmProventosReport.entries(zip.get(), year);
+                List<CvmDividendReport.Entry> entries = CvmDividendReport.entries(zip.get(), year);
                 List<Path> pdfs = download(entries, downloaded);
                 for (Path pdf : pdfs) {
+                    TaskRun.checkStop(); // ponto de parada (docs/planos/PLANO_TAREFAS.md, D8)
                     reports++;
-                    CvmProventosReport.Report report;
+                    CvmDividendReport.Report report;
                     try {
-                        report = CvmProventosReport.parse(CvmProventosReport.text(pdf));
+                        report = CvmDividendReport.parse(CvmDividendReport.text(pdf));
                     } catch (RuntimeException e) {
                         unreadable++;
                         log.debug("Datas de pagamento CVM: {} ilegivel: {}", pdf.getFileName(), e.getMessage());
@@ -105,7 +109,7 @@ public class CvmPaymentDateService {
                         unreadable++;
                         continue;
                     }
-                    for (CvmProventosReport.Item item : report.items()) {
+                    for (CvmDividendReport.Item item : report.items()) {
                         items++;
                         filled += fill(report.dataCom(), item, assets);
                     }
@@ -124,12 +128,13 @@ public class CvmPaymentDateService {
     }
 
     /** PDFs dos relatorios: os que estao em disco e os baixados agora (no maximo {@code parallel} juntos). */
-    private List<Path> download(List<CvmProventosReport.Entry> entries, AtomicInteger downloaded) {
+    private List<Path> download(List<CvmDividendReport.Entry> entries, AtomicInteger downloaded) {
         ExecutorService pool = Executors.newFixedThreadPool(parallel);
         try {
             List<Future<Optional<Path>>> futures = new ArrayList<>();
-            for (CvmProventosReport.Entry e : entries) {
-                futures.add(pool.submit(() -> {
+            for (CvmDividendReport.Entry e : entries) {
+                // TaskRun.propagate: o log do download entra no log da rodada (D6)
+                futures.add(pool.submit(TaskRun.propagateCall(() -> {
                     Path expected = cvm.dir().resolve("proventos").resolve(e.protocol() + "_" + e.version() + ".pdf");
                     boolean had = java.nio.file.Files.isRegularFile(expected);
                     Optional<Path> p = cvm.radDocument(e.link(), e.protocol(), e.version());
@@ -137,7 +142,7 @@ public class CvmPaymentDateService {
                         downloaded.incrementAndGet();
                     }
                     return p;
-                }));
+                })));
             }
             List<Path> out = new ArrayList<>();
             for (Future<Optional<Path>> f : futures) {
@@ -158,11 +163,11 @@ public class CvmPaymentDateService {
     }
 
     /** Completa os eventos sem data que batem com o provento; devolve quantos. */
-    private int fill(LocalDate dataCom, CvmProventosReport.Item item, Set<Long> assets) {
+    private int fill(LocalDate dataCom, CvmDividendReport.Item item, Set<Long> assets) {
         if (item.installments()) {
             int n = 0;
             short seq = 1;
-            for (CvmProventosReport.Parcel p : item.parcels()) {
+            for (CvmDividendReport.Parcel p : item.parcels()) {
                 if (p.paymentDate() != null) {
                     n += update(item.isin(), dataCom, p.value(), seq, p.paymentDate(), assets);
                 }

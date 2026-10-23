@@ -39,10 +39,10 @@ public class UserAvatarService {
 
     static final int MAX_BYTES_MB = 2;
     static final long MAX_BYTES = MAX_BYTES_MB * 1024L * 1024L;
-    static final int MIN_LADO = 128;
-    static final int MAX_LADO = 4096;
-    static final int SAIDA = 512;
-    private static final float QUALIDADE = 0.88f;
+    static final int MIN_SIDE = 128;
+    static final int MAX_SIDE = 4096;
+    static final int OUTPUT_FORMAT = 512;
+    private static final float QUALITY = 0.88f;
 
     private final UserAvatarRepository avatars;
     private final UserRepository users;
@@ -78,7 +78,7 @@ public class UserAvatarService {
         } catch (IOException e) {
             throw new BusinessException("Não foi possível ler a imagem.");
         }
-        byte[] jpeg = normalizar(bytes);
+        byte[] jpeg = normalize(bytes);
         UserAvatar avatar = avatars.findById(userId).orElseGet(() -> UserAvatar.builder().userId(userId).build());
         avatar.setImage(jpeg);
         avatar.setContentType("image/jpeg");
@@ -92,56 +92,56 @@ public class UserAvatarService {
     }
 
     /** Valida e regrava como JPEG quadrado. Público para os testes. */
-    static byte[] normalizar(byte[] bytes) {
+    static byte[] normalize(byte[] bytes) {
         if (!jpeg(bytes) && !png(bytes)) {
             throw new BusinessException("Formato não aceito: envie uma imagem JPEG, PNG ou WebP.");
         }
-        BufferedImage original = ler(bytes);
+        BufferedImage original = readImage(bytes);
 
         int w = original.getWidth();
         int h = original.getHeight();
-        int lado = Math.min(w, h);
-        if (lado < MIN_LADO) {
-            throw new BusinessException("A imagem é pequena demais: precisa de pelo menos " + MIN_LADO + "×"
-                + MIN_LADO + " px.");
+        int side = Math.min(w, h);
+        if (side < MIN_SIDE) {
+            throw new BusinessException("A imagem é pequena demais: precisa de pelo menos " + MIN_SIDE + "×"
+                + MIN_SIDE + " px.");
         }
-        int saida = Math.min(lado, SAIDA);
-        BufferedImage quadrada = new BufferedImage(saida, saida, BufferedImage.TYPE_INT_RGB);
-        Graphics2D g = quadrada.createGraphics();
+        int output = Math.min(side, OUTPUT_FORMAT);
+        BufferedImage square = new BufferedImage(output, output, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = square.createGraphics();
         try {
             g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
             g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             // PNG com transparência: o JPEG não tem canal alfa, o fundo vira branco
             g.setColor(Color.WHITE);
-            g.fillRect(0, 0, saida, saida);
-            int x = (w - lado) / 2;
-            int y = (h - lado) / 2;
-            g.drawImage(original, 0, 0, saida, saida, x, y, x + lado, y + lado, null);
+            g.fillRect(0, 0, output, output);
+            int x = (w - side) / 2;
+            int y = (h - side) / 2;
+            g.drawImage(original, 0, 0, output, output, x, y, x + side, y + side, null);
         } finally {
             g.dispose();
         }
-        return escreverJpeg(quadrada);
+        return writeJpeg(square);
     }
 
     /** Confere as dimensões no cabeçalho antes de decodificar: 20000×20000 não chega a ser alocado. */
-    private static BufferedImage ler(byte[] bytes) {
+    private static BufferedImage readImage(byte[] bytes) {
         try (ImageInputStream in = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
-            Iterator<ImageReader> leitores = ImageIO.getImageReaders(in);
-            if (in == null || !leitores.hasNext()) {
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(in);
+            if (in == null || !readers.hasNext()) {
                 throw new BusinessException("Arquivo de imagem inválido.");
             }
-            ImageReader leitor = leitores.next();
+            ImageReader reader = readers.next();
             try {
-                leitor.setInput(in, true, true);
-                int w = leitor.getWidth(0);
-                int h = leitor.getHeight(0);
-                if (w > MAX_LADO || h > MAX_LADO) {
-                    throw new BusinessException("A imagem é grande demais: no máximo " + MAX_LADO + "×" + MAX_LADO + " px.");
+                reader.setInput(in, true, true);
+                int w = reader.getWidth(0);
+                int h = reader.getHeight(0);
+                if (w > MAX_SIDE || h > MAX_SIDE) {
+                    throw new BusinessException("A imagem é grande demais: no máximo " + MAX_SIDE + "×" + MAX_SIDE + " px.");
                 }
-                return leitor.read(0);
+                return reader.read(0);
             } finally {
-                leitor.dispose();
+                reader.dispose();
             }
         } catch (IOException | RuntimeException e) {
             if (e instanceof BusinessException be) {
@@ -151,14 +151,14 @@ public class UserAvatarService {
         }
     }
 
-    private static byte[] escreverJpeg(BufferedImage img) {
+    private static byte[] writeJpeg(BufferedImage img) {
         ImageWriter writer = ImageIO.getImageWritersByFormatName("jpeg").next();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (ImageOutputStream ios = ImageIO.createImageOutputStream(out)) {
             writer.setOutput(ios);
             ImageWriteParam p = writer.getDefaultWriteParam();
             p.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-            p.setCompressionQuality(QUALIDADE);
+            p.setCompressionQuality(QUALITY);
             writer.write(null, new IIOImage(img, null, null), p);
         } catch (IOException e) {
             throw new IllegalStateException("Falha ao gravar a imagem.", e);

@@ -21,10 +21,10 @@ class PositionGuardTest {
 
     private final PositionGuard guard = new PositionGuard();
 
-    private static Transaction tx(TransactionType tipo, String data, String cotas) {
+    private static Transaction tx(TransactionType typeValue, String data, String shareCount) {
         return Transaction.builder()
-            .type(tipo)
-            .shares(new BigDecimal(cotas))
+            .type(typeValue)
+            .shares(new BigDecimal(shareCount))
             .pricePerShare(new BigDecimal("30.00"))
             .transactionDate(LocalDate.parse(data))
             .build();
@@ -32,7 +32,7 @@ class PositionGuardTest {
 
     @Test
     @DisplayName("Regra A — venda sem posicao com compras e recusada")
-    void regraA_vendaNaoAbrePosicao() {
+    void ruleA_saleDoesNotOpenPosition() {
         assertThatThrownBy(() -> guard.validateSellHasPosition(false, "PETR4"))
             .isInstanceOf(BusinessException.class)
             .hasMessage("Não há posição de PETR4 na carteira para vender.");
@@ -40,13 +40,13 @@ class PositionGuardTest {
 
     @Test
     @DisplayName("Regra A — com compras na posicao, a venda passa")
-    void regraA_comCompraPassa() {
+    void ruleA_withBuyPasses() {
         assertThatCode(() -> guard.validateSellHasPosition(true, "PETR4")).doesNotThrowAnyException();
     }
 
     @Test
     @DisplayName("Regra B — saldo suficiente em toda a linha do tempo passa")
-    void regraB_saldoSuficiente() {
+    void ruleB_enoughBalance() {
         assertThatCode(() -> guard.validateShareLedger(List.of(
             tx(TransactionType.BUY, "2026-09-01", "10"),
             tx(TransactionType.SELL, "2026-09-04", "8")), "PETR4"))
@@ -55,7 +55,7 @@ class PositionGuardTest {
 
     @Test
     @DisplayName("Regra B — a falta e apontada na data da venda, com quantas cotas faltam")
-    void regraB_mensagemTrazDataEQuantidade() {
+    void ruleB_messageHasDateAndQuantity() {
         assertThatThrownBy(() -> guard.validateShareLedger(List.of(
             tx(TransactionType.BUY, "2026-09-01", "10"),
             tx(TransactionType.SELL, "2026-09-04", "8"),
@@ -68,7 +68,7 @@ class PositionGuardTest {
 
     @Test
     @DisplayName("Regra B — olha a linha do tempo inteira: a compra posterior nao cobre a venda anterior")
-    void regraB_compraPosteriorNaoSalva() {
+    void ruleB_laterBuyDoesNotSave() {
         assertThatThrownBy(() -> guard.validateShareLedger(List.of(
             tx(TransactionType.BUY, "2026-09-01", "3"),
             tx(TransactionType.SELL, "2026-09-14", "5"),
@@ -80,19 +80,19 @@ class PositionGuardTest {
 
     @Test
     @DisplayName("Regra B — transacao sem quantidade (renda fixa) nao mexe no saldo por cota")
-    void regraB_ignoraTransacaoSemQuantidade() {
-        Transaction semCotas = Transaction.builder()
+    void ruleB_ignoresTransactionWithoutQuantity() {
+        Transaction withoutShares = Transaction.builder()
             .type(TransactionType.BUY)
             .totalAmount(new BigDecimal("1000.00"))
             .transactionDate(LocalDate.parse("2026-09-01"))
             .build();
 
-        assertThatCode(() -> guard.validateShareLedger(List.of(semCotas), "CDB")).doesNotThrowAnyException();
+        assertThatCode(() -> guard.validateShareLedger(List.of(withoutShares), "CDB")).doesNotThrowAnyException();
     }
 
     @Test
     @DisplayName("Regra B — a quantidade sai sem zeros a direita na mensagem")
-    void regraB_numeroLegivel() {
+    void ruleB_readableNumber() {
         assertThatThrownBy(() -> guard.validateShareLedger(List.of(
             tx(TransactionType.BUY, "2026-09-01", "1.50000000"),
             tx(TransactionType.SELL, "2026-09-02", "2.00000000")), "BTC"))
@@ -101,10 +101,10 @@ class PositionGuardTest {
 
     @Test
     @DisplayName("Regra I — posicao em aberto sem valor aplicado e recusada")
-    void regraI_posicaoAbertaSemAplicado() {
-        Position zerada = new Position(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+    void ruleI_openPositionWithoutInvested() {
+        Position zeroed = new Position(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
 
-        assertThatThrownBy(() -> guard.validateApplied(zerada, false, true, "CDB (BTG)"))
+        assertThatThrownBy(() -> guard.validateApplied(zeroed, false, true, "CDB (BTG)"))
             .isInstanceOf(BusinessException.class)
             .hasMessageContaining("A posição de CDB (BTG) ficaria sem valor aplicado")
             .hasMessageContaining("Uma posição em aberto precisa de pelo menos uma compra");
@@ -112,27 +112,27 @@ class PositionGuardTest {
 
     @Test
     @DisplayName("Regra I — posicao liquidada pode terminar zerada")
-    void regraI_liquidadaPassa() {
-        Position zerada = new Position(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+    void ruleI_settledPasses() {
+        Position zeroed = new Position(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
 
-        assertThatCode(() -> guard.validateApplied(zerada, true, true, "CDB")).doesNotThrowAnyException();
+        assertThatCode(() -> guard.validateApplied(zeroed, true, true, "CDB")).doesNotThrowAnyException();
     }
 
     @Test
     @DisplayName("Regra I — posicao sem transacao nenhuma passa (acabou de nascer)")
-    void regraI_semTransacaoPassa() {
-        Position zerada = new Position(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+    void ruleI_withoutTransactionPasses() {
+        Position zeroed = new Position(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
 
-        assertThatCode(() -> guard.validateApplied(zerada, false, false, "CDB")).doesNotThrowAnyException();
+        assertThatCode(() -> guard.validateApplied(zeroed, false, false, "CDB")).doesNotThrowAnyException();
     }
 
     @Test
     @DisplayName("Regra I — posicao com aplicado passa")
-    void regraI_comAplicadoPassa() {
-        Position comValor = new Position(new BigDecimal("10"), new BigDecimal("30.0000"),
+    void ruleI_withInvestedPasses() {
+        Position withValue = new Position(new BigDecimal("10"), new BigDecimal("30.0000"),
             new BigDecimal("300.00"), BigDecimal.ZERO);
 
-        assertThatCode(() -> guard.validateApplied(comValor, false, true, "PETR4")).doesNotThrowAnyException();
-        assertThat(comValor.hasInvestment()).isTrue();
+        assertThatCode(() -> guard.validateApplied(withValue, false, true, "PETR4")).doesNotThrowAnyException();
+        assertThat(withValue.hasInvestment()).isTrue();
     }
 }

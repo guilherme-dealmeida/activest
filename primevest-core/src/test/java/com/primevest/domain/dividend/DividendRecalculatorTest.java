@@ -46,65 +46,65 @@ class DividendRecalculatorTest {
     @Mock private AssetStockEventRepository stockEventRepository;
     @Mock private WithholdingTaxRuleRepository ruleRepository;
 
-    private static final long ACAO = 1L;
-    private static final WithholdingTaxRule JCP_2025 = regra(1L, DividendType.JCP, "0.1500", null, "2025-12-31");
-    private static final WithholdingTaxRule JCP_2026 = regra(2L, DividendType.JCP, "0.1750", "2026-01-01", null);
-    private static final WithholdingTaxRule DIVIDENDO_ISENTO = regra(3L, DividendType.DIVIDENDO, "0", null, null);
+    private static final long STOCK = 1L;
+    private static final WithholdingTaxRule JCP_2025 = rule(1L, DividendType.JCP, "0.1500", null, "2025-12-31");
+    private static final WithholdingTaxRule JCP_2026 = rule(2L, DividendType.JCP, "0.1750", "2026-01-01", null);
+    private static final WithholdingTaxRule EXEMPT_DIVIDEND = rule(3L, DividendType.DIVIDENDO, "0", null, null);
 
     private DividendRecalculator recalculator;
-    private PortfolioAsset posicao;
+    private PortfolioAsset position;
     private Asset petr4;
 
     @BeforeEach
-    void cenario() {
+    void scenario() {
         PositionCalculator calculator = new PositionCalculator(null, stockEventRepository, dividendRepository);
         recalculator = new DividendRecalculator(calculator, dividendRepository, cashEventRepository, ruleRepository);
         petr4 = Asset.builder().id(1L).ticker("PETR4").name("PETROBRAS")
-            .assetType(AssetType.builder().id(ACAO).name("ACAO").build()).build();
-        posicao = PortfolioAsset.builder().asset(petr4).build();
-        posicao.setId(UUID.randomUUID());
+            .assetType(AssetType.builder().id(STOCK).name("ACAO").build()).build();
+        position = PortfolioAsset.builder().asset(petr4).build();
+        position.setId(UUID.randomUUID());
         when(dividendRepository.findAutoByPortfolioAssetId(any())).thenReturn(List.of());
         when(stockEventRepository.findByAssetIdOrderByDataComAsc(anyLong())).thenReturn(List.of());
-        when(ruleRepository.findAll()).thenReturn(List.of(JCP_2025, JCP_2026, DIVIDENDO_ISENTO));
+        when(ruleRepository.findAll()).thenReturn(List.of(JCP_2025, JCP_2026, EXEMPT_DIVIDEND));
     }
 
-    private static WithholdingTaxRule regra(long id, DividendType tipo, String aliquota, String de, String ate) {
-        return WithholdingTaxRule.builder().id(id).dividendType(tipo).assetTypeId(ACAO)
+    private static WithholdingTaxRule rule(long id, DividendType typeValue, String aliquota, String de, String ate) {
+        return WithholdingTaxRule.builder().id(id).dividendType(typeValue).assetTypeId(STOCK)
             .rate(new BigDecimal(aliquota)).baseDate(TaxBaseDate.CREDIT)
             .validFrom(de == null ? null : LocalDate.parse(de)).validTo(ate == null ? null : LocalDate.parse(ate))
             .legalBasis("teste").build();
     }
 
-    private Dividend salvo() {
-        ArgumentCaptor<Dividend> salvo = ArgumentCaptor.forClass(Dividend.class);
-        verify(dividendRepository).save(salvo.capture());
-        return salvo.getValue();
+    private Dividend saved() {
+        ArgumentCaptor<Dividend> saved = ArgumentCaptor.forClass(Dividend.class);
+        verify(dividendRepository).save(saved.capture());
+        return saved.getValue();
     }
 
-    private static Transaction compra(String data, String cotas) {
-        return Transaction.builder().type(TransactionType.BUY).shares(new BigDecimal(cotas))
+    private static Transaction buy(String data, String shareCount) {
+        return Transaction.builder().type(TransactionType.BUY).shares(new BigDecimal(shareCount))
             .pricePerShare(new BigDecimal("30")).transactionDate(LocalDate.parse(data))
             .createdAt(LocalDateTime.of(2026, 1, 1, 0, 0)).build();
     }
 
-    private AssetCashEvent evento(long id, DividendType tipo, String dataCom, String valor) {
-        return AssetCashEvent.builder().id(id).asset(petr4).type(tipo).label(tipo == null ? "XPTO" : tipo.name())
+    private AssetCashEvent event(long id, DividendType typeValue, String dataCom, String value) {
+        return AssetCashEvent.builder().id(id).asset(petr4).type(typeValue).label(typeValue == null ? "XPTO" : typeValue.name())
             .dataCom(LocalDate.parse(dataCom)).paymentDate(LocalDate.parse(dataCom).plusMonths(2))
-            .valuePerShare(new BigDecimal(valor)).source(CashEventSource.B3).build();
+            .valuePerShare(new BigDecimal(value)).source(CashEventSource.B3).build();
     }
 
     @Test
     @DisplayName("Evento com cotas na data-com gera provento AUTO com cotas, total bruto truncado e referencia ao evento")
-    void geraProventoAuto() {
+    void generatesAutoDividend() {
         when(cashEventRepository.findByAssetIdOrderByDataComAsc(1L))
-            .thenReturn(List.of(evento(10L, DividendType.DIVIDENDO, "2026-08-21", "0.47156696000")));
+            .thenReturn(List.of(event(10L, DividendType.DIVIDENDO, "2026-08-21", "0.47156696000")));
 
-        int criados = recalculator.recalculate(posicao, List.of(compra("2026-08-01", "100")));
+        int created = recalculator.recalculate(position, List.of(buy("2026-08-01", "100")));
 
-        ArgumentCaptor<Dividend> salvo = ArgumentCaptor.forClass(Dividend.class);
-        verify(dividendRepository).save(salvo.capture());
-        Dividend d = salvo.getValue();
-        assertThat(criados).isEqualTo(1);
+        ArgumentCaptor<Dividend> saved = ArgumentCaptor.forClass(Dividend.class);
+        verify(dividendRepository).save(saved.capture());
+        Dividend d = saved.getValue();
+        assertThat(created).isEqualTo(1);
         assertThat(d.getOrigin()).isEqualTo(DividendOrigin.AUTO);
         assertThat(d.getCashEvent().getId()).isEqualTo(10L);
         assertThat(d.getSharesOnDate()).isEqualByComparingTo("100");
@@ -115,70 +115,70 @@ class DividendRecalculatorTest {
 
     @Test
     @DisplayName("Compra depois da data-com nao tem direito: nada e criado")
-    void compraDepoisDaDataCom() {
+    void buyAfterDataCom() {
         when(cashEventRepository.findByAssetIdOrderByDataComAsc(1L))
-            .thenReturn(List.of(evento(10L, DividendType.JCP, "2026-08-21", "0.67")));
+            .thenReturn(List.of(event(10L, DividendType.JCP, "2026-08-21", "0.67")));
 
-        recalculator.recalculate(posicao, List.of(compra("2026-08-22", "100")));
+        recalculator.recalculate(position, List.of(buy("2026-08-22", "100")));
 
         verify(dividendRepository, never()).save(any());
     }
 
     @Test
     @DisplayName("Provento pago depois de um desdobramento usa as cotas novas; antes, as antigas")
-    void proventoAntesEDepoisDoDesdobramento() {
+    void dividendBeforeAndAfterSplit() {
         when(stockEventRepository.findByAssetIdOrderByDataComAsc(1L)).thenReturn(List.of(AssetStockEvent.builder()
             .asset(petr4).type(StockEventType.DESDOBRAMENTO).dataCom(LocalDate.parse("2026-04-15"))
             .factor(new BigDecimal("100")).source("B3").build()));
         when(cashEventRepository.findByAssetIdOrderByDataComAsc(1L)).thenReturn(List.of(
-            evento(1L, DividendType.DIVIDENDO, "2026-03-31", "1.00"),
-            evento(2L, DividendType.DIVIDENDO, "2026-06-30", "1.00")));
+            event(1L, DividendType.DIVIDENDO, "2026-03-31", "1.00"),
+            event(2L, DividendType.DIVIDENDO, "2026-06-30", "1.00")));
 
-        recalculator.recalculate(posicao, List.of(compra("2026-03-02", "100")));
+        recalculator.recalculate(position, List.of(buy("2026-03-02", "100")));
 
-        ArgumentCaptor<Dividend> salvos = ArgumentCaptor.forClass(Dividend.class);
-        verify(dividendRepository, org.mockito.Mockito.times(2)).save(salvos.capture());
-        assertThat(salvos.getAllValues()).extracting(Dividend::getTotalAmount)
+        ArgumentCaptor<Dividend> saved = ArgumentCaptor.forClass(Dividend.class);
+        verify(dividendRepository, org.mockito.Mockito.times(2)).save(saved.capture());
+        assertThat(saved.getAllValues()).extracting(Dividend::getTotalAmount)
             .usingElementComparator(BigDecimal::compareTo)
             .containsExactly(new BigDecimal("100.00"), new BigDecimal("200.00"));
     }
 
     @Test
     @DisplayName("Rotulo desconhecido (tipo nulo) nao gera provento")
-    void rotuloDesconhecido() {
+    void unknownLabel() {
         when(cashEventRepository.findByAssetIdOrderByDataComAsc(1L))
-            .thenReturn(List.of(evento(10L, null, "2026-08-21", "0.50")));
+            .thenReturn(List.of(event(10L, null, "2026-08-21", "0.50")));
 
-        recalculator.recalculate(posicao, List.of(compra("2026-08-01", "100")));
+        recalculator.recalculate(position, List.of(buy("2026-08-01", "100")));
 
         verify(dividendRepository, never()).save(any());
     }
 
     @Test
     @DisplayName("AUTO que perdeu o direito (a compra mudou de data) e apagado; MANUAL nao e tocado")
-    void apagaAutoSemDireito() {
-        AssetCashEvent e = evento(10L, DividendType.DIVIDENDO, "2026-08-21", "0.50");
-        Dividend auto = Dividend.builder().id(5L).portfolioAsset(posicao).cashEvent(e).origin(DividendOrigin.AUTO)
+    void deletesAutoWithoutRight() {
+        AssetCashEvent e = event(10L, DividendType.DIVIDENDO, "2026-08-21", "0.50");
+        Dividend auto = Dividend.builder().id(5L).portfolioAsset(position).cashEvent(e).origin(DividendOrigin.AUTO)
             .type(DividendType.DIVIDENDO).amountPerShare(new BigDecimal("0.5")).exDate(e.getDataCom())
             .totalAmount(new BigDecimal("50.00")).sharesOnDate(new BigDecimal("100")).build();
         when(cashEventRepository.findByAssetIdOrderByDataComAsc(1L)).thenReturn(List.of(e));
-        when(dividendRepository.findAutoByPortfolioAssetId(posicao.getId())).thenReturn(List.of(auto));
+        when(dividendRepository.findAutoByPortfolioAssetId(position.getId())).thenReturn(List.of(auto));
 
-        recalculator.recalculate(posicao, List.of(compra("2026-09-01", "100")));
+        recalculator.recalculate(position, List.of(buy("2026-09-01", "100")));
 
         verify(dividendRepository).delete(auto);
         verify(dividendRepository, never()).save(any());
     }
     @Test
     @DisplayName("Provento criado sai com regra, aliquota, IR, liquidos e tax_checked_at (JCP 2026: 17,5%)")
-    void proventoNasceComIr() {
-        AssetCashEvent jcp = evento(10L, DividendType.JCP, "2026-04-22", "0.31311454");
+    void dividendBornWithTax() {
+        AssetCashEvent jcp = event(10L, DividendType.JCP, "2026-04-22", "0.31311454");
         jcp.setApprovedOn(LocalDate.parse("2026-04-16"));
         when(cashEventRepository.findByAssetIdOrderByDataComAsc(1L)).thenReturn(List.of(jcp));
 
-        recalculator.recalculate(posicao, List.of(compra("2026-04-01", "50")));
+        recalculator.recalculate(position, List.of(buy("2026-04-01", "50")));
 
-        Dividend d = salvo();
+        Dividend d = saved();
         assertThat(d.getWithholdingRule()).isSameAs(JCP_2026);
         assertThat(d.getWithholdingRate()).isEqualByComparingTo("0.175");
         assertThat(d.getTotalAmount()).isEqualByComparingTo("15.65");
@@ -190,27 +190,27 @@ class DividendRecalculatorTest {
 
     @Test
     @DisplayName("Isento: aliquota zero e liquido igual ao bruto")
-    void proventoIsento() {
+    void exemptDividend() {
         when(cashEventRepository.findByAssetIdOrderByDataComAsc(1L))
-            .thenReturn(List.of(evento(10L, DividendType.DIVIDENDO, "2026-08-21", "0.47156696000")));
+            .thenReturn(List.of(event(10L, DividendType.DIVIDENDO, "2026-08-21", "0.47156696000")));
 
-        recalculator.recalculate(posicao, List.of(compra("2026-08-01", "100")));
+        recalculator.recalculate(position, List.of(buy("2026-08-01", "100")));
 
-        Dividend d = salvo();
-        assertThat(d.getWithholdingRule()).isSameAs(DIVIDENDO_ISENTO);
+        Dividend d = saved();
+        assertThat(d.getWithholdingRule()).isSameAs(EXEMPT_DIVIDEND);
         assertThat(d.getWithholdingRate()).isEqualByComparingTo("0");
         assertThat(d.getNetAmount()).isEqualByComparingTo(d.getTotalAmount());
     }
 
     @Test
     @DisplayName("Tipo sem regra: aliquota e liquidos nulos, mas o provento sai conferido (tax_checked_at)")
-    void tipoSemRegra() {
+    void typeWithoutRule() {
         when(cashEventRepository.findByAssetIdOrderByDataComAsc(1L))
-            .thenReturn(List.of(evento(10L, DividendType.RENDIMENTO, "2026-08-21", "0.50")));
+            .thenReturn(List.of(event(10L, DividendType.RENDIMENTO, "2026-08-21", "0.50")));
 
-        recalculator.recalculate(posicao, List.of(compra("2026-08-01", "10")));
+        recalculator.recalculate(position, List.of(buy("2026-08-01", "10")));
 
-        Dividend d = salvo();
+        Dividend d = saved();
         assertThat(d.getWithholdingRule()).isNull();
         assertThat(d.getWithholdingRate()).isNull();
         assertThat(d.getNetAmount()).isNull();
@@ -221,56 +221,56 @@ class DividendRecalculatorTest {
 
     @Test
     @DisplayName("Provento existente sem IR (tax_checked_at nulo) e recalculado")
-    void existenteSemIrERecalculado() {
-        AssetCashEvent e = evento(10L, DividendType.DIVIDENDO, "2026-08-21", "0.50");
-        Dividend antigo = Dividend.builder().id(5L).portfolioAsset(posicao).cashEvent(e).origin(DividendOrigin.AUTO)
+    void existingWithoutTaxIsRecalculated() {
+        AssetCashEvent e = event(10L, DividendType.DIVIDENDO, "2026-08-21", "0.50");
+        Dividend previous = Dividend.builder().id(5L).portfolioAsset(position).cashEvent(e).origin(DividendOrigin.AUTO)
             .type(DividendType.DIVIDENDO).amountPerShare(new BigDecimal("0.50000000")).exDate(e.getDataCom())
             .paymentDate(e.getPaymentDate()).totalAmount(new BigDecimal("50.00"))
             .sharesOnDate(new BigDecimal("100")).build();
         when(cashEventRepository.findByAssetIdOrderByDataComAsc(1L)).thenReturn(List.of(e));
-        when(dividendRepository.findAutoByPortfolioAssetId(posicao.getId())).thenReturn(List.of(antigo));
+        when(dividendRepository.findAutoByPortfolioAssetId(position.getId())).thenReturn(List.of(previous));
 
-        recalculator.recalculate(posicao, List.of(compra("2026-08-01", "100")));
+        recalculator.recalculate(position, List.of(buy("2026-08-01", "100")));
 
-        verify(dividendRepository).save(antigo);
-        assertThat(antigo.getTaxCheckedAt()).isNotNull();
-        assertThat(antigo.getNetAmount()).isEqualByComparingTo("50.00");
+        verify(dividendRepository).save(previous);
+        assertThat(previous.getTaxCheckedAt()).isNotNull();
+        assertThat(previous.getNetAmount()).isEqualByComparingTo("50.00");
     }
 
     @Test
     @DisplayName("Provento ja calculado e igual nao e regravado")
-    void existenteIgualNaoRegrava() {
-        AssetCashEvent e = evento(10L, DividendType.DIVIDENDO, "2026-08-21", "0.50");
+    void existingEqualNotRewritten() {
+        AssetCashEvent e = event(10L, DividendType.DIVIDENDO, "2026-08-21", "0.50");
         when(cashEventRepository.findByAssetIdOrderByDataComAsc(1L)).thenReturn(List.of(e));
-        recalculator.recalculate(posicao, List.of(compra("2026-08-01", "100")));
-        Dividend calculado = salvo();
+        recalculator.recalculate(position, List.of(buy("2026-08-01", "100")));
+        Dividend calculated = saved();
         org.mockito.Mockito.clearInvocations(dividendRepository);
-        when(dividendRepository.findAutoByPortfolioAssetId(posicao.getId())).thenReturn(List.of(calculado));
+        when(dividendRepository.findAutoByPortfolioAssetId(position.getId())).thenReturn(List.of(calculated));
 
-        recalculator.recalculate(posicao, List.of(compra("2026-08-01", "100")));
+        recalculator.recalculate(position, List.of(buy("2026-08-01", "100")));
 
         verify(dividendRepository, never()).save(any());
     }
 
     @Test
     @DisplayName("Regra mudou (lei nova): o provento ja calculado e regravado com a aliquota nova")
-    void regraMudouRegrava() {
-        AssetCashEvent jcp = evento(10L, DividendType.JCP, "2026-04-22", "1.00");
+    void ruleChangedRewrites() {
+        AssetCashEvent jcp = event(10L, DividendType.JCP, "2026-04-22", "1.00");
         jcp.setApprovedOn(LocalDate.parse("2026-04-16"));
         when(cashEventRepository.findByAssetIdOrderByDataComAsc(1L)).thenReturn(List.of(jcp));
-        recalculator.recalculate(posicao, List.of(compra("2026-04-01", "100")));
-        Dividend calculado = salvo();
-        assertThat(calculado.getWithholdingRate()).isEqualByComparingTo("0.175");
+        recalculator.recalculate(position, List.of(buy("2026-04-01", "100")));
+        Dividend calculated = saved();
+        assertThat(calculated.getWithholdingRate()).isEqualByComparingTo("0.175");
         org.mockito.Mockito.clearInvocations(dividendRepository);
-        when(dividendRepository.findAutoByPortfolioAssetId(posicao.getId())).thenReturn(List.of(calculado));
-        WithholdingTaxRule jcp20 = regra(9L, DividendType.JCP, "0.2000", "2026-01-01", null);
+        when(dividendRepository.findAutoByPortfolioAssetId(position.getId())).thenReturn(List.of(calculated));
+        WithholdingTaxRule jcp20 = rule(9L, DividendType.JCP, "0.2000", "2026-01-01", null);
         when(ruleRepository.findAll()).thenReturn(List.of(JCP_2025, jcp20));
 
-        recalculator.recalculate(posicao, List.of(compra("2026-04-01", "100")));
+        recalculator.recalculate(position, List.of(buy("2026-04-01", "100")));
 
-        verify(dividendRepository).save(calculado);
-        assertThat(calculado.getWithholdingRule()).isSameAs(jcp20);
-        assertThat(calculado.getWithholdingTax()).isEqualByComparingTo("20.00");
-        assertThat(calculado.getNetAmount()).isEqualByComparingTo("80.00");
+        verify(dividendRepository).save(calculated);
+        assertThat(calculated.getWithholdingRule()).isSameAs(jcp20);
+        assertThat(calculated.getWithholdingTax()).isEqualByComparingTo("20.00");
+        assertThat(calculated.getNetAmount()).isEqualByComparingTo("80.00");
     }
 }

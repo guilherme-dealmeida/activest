@@ -7,13 +7,13 @@
 //                                                    docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md)
 //   node carga/scripts/admin.mjs fixed-income-issuers/logos   logos de renda fixa por raiz de CNPJ (so quem falta;
 //                                                    "fixed-income-issuers/logos?all=true" baixa tudo de novo)
-//   node carga/scripts/admin.mjs logos | closing | proventos | catalog-audit | cvm/proventos
+//   node carga/scripts/admin.mjs logos | closing | dividends | catalog-audit | cvm/payment-dates
 //   node carga/scripts/admin.mjs indices            indices de mercado 2010+ (docs/planos/PLANO_INDICES_MERCADO.md)
 //   node carga/scripts/admin.mjs "indices?codes=CDI,IPCA&from=2024"   so alguns indices / anos
 //   node carga/scripts/admin.mjs "indices?recent=true"                rodada incremental (a da rotina das 10:00)
-//   node carga/scripts/admin.mjs tesouro            preco oficial do Tesouro 2010+ (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md)
-//   node carga/scripts/admin.mjs "proventos?fnet=todos"   rele todos os avisos do FNET em disco (depois de limpeza de dados)
-//   node carga/scripts/admin.mjs proventos/fnet-status   situacao (ativo/inativo/cancelado) de cada aviso do FNET em disco
+//   node carga/scripts/admin.mjs treasury           preco oficial do Tesouro 2010+ (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md)
+//   node carga/scripts/admin.mjs "dividends?fnet=all"     rele todos os avisos do FNET em disco (depois de limpeza de dados)
+//   node carga/scripts/admin.mjs dividends/fnet-status   situacao (ativo/inativo/cancelado) de cada aviso do FNET em disco
 //                                                    (docs/planos/PLANO_CORRECAO_PROVENTOS.md, D5)
 //
 // Duas APIs (docs/planos/PLANO_ADM_API.md): o login e na app-api (API_PORT, 8080); as rotinas de
@@ -23,7 +23,7 @@
 //         --json arquivo.json   corpo da requisicao
 //         --body '{"a":1}'      corpo inline;  --method PUT  (padrao POST)
 //   ex.: node carga/scripts/admin.mjs assets/123/unit-composition --method PUT --body '{"ON":1,"PNA":2}'
-// Senha: PRIMEVEST_SENHA do ambiente ou do .env do projeto; sem ela, pedida no terminal.
+// Senha: PRIMEVEST_PASSWORD do ambiente ou do .env do projeto; sem ela, pedida no terminal.
 // As rotinas rodam em segundo plano na API (resposta 202); o resultado sai no
 // log: docker logs -f primevest-adm-api
 import { readFileSync } from 'node:fs';
@@ -47,7 +47,7 @@ function perguntaSenha(texto) {
   return new Promise((ok, falha) => {
     const entrada = process.stdin;
     if (!entrada.isTTY) {
-      falha(new Error('Sem terminal interativo: defina PRIMEVEST_SENHA (ambiente ou .env) para rodar assim.'));
+      falha(new Error('Sem terminal interativo: defina PRIMEVEST_PASSWORD (ambiente ou .env) para rodar assim.'));
       return;
     }
     process.stdout.write(texto);
@@ -82,7 +82,7 @@ function perguntaSenha(texto) {
 }
 
 async function main() {
-  const senha = ENV.PRIMEVEST_SENHA || await perguntaSenha(`Senha de ${EMAIL}: `);
+  const senha = ENV.PRIMEVEST_PASSWORD || await perguntaSenha(`Senha de ${EMAIL}: `);
   // No Windows, sair com o stdin ainda aberto em modo bruto derruba o libuv
   // ("Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)"): solta o stdin
   // e deixa o processo terminar sozinho, sem process.exit().

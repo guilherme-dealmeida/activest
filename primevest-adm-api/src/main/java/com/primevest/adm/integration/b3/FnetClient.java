@@ -1,5 +1,7 @@
 package com.primevest.adm.integration.b3;
 
+import com.primevest.domain.task.TaskRun;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
@@ -356,7 +358,7 @@ public class FnetClient {
             if (Files.isRegularFile(file)) {
                 readCached(id, file, notices, unreadable);
             } else {
-                pending.put(id, downloads.submit(() -> download(id)));
+                pending.put(id, downloads.submit(TaskRun.propagateCall(() -> download(id))));
             }
         }
         int downloaded = 0;
@@ -434,8 +436,8 @@ public class FnetClient {
     // ------------------------------------------------------------------ leitura
 
     /** Os proventos de um aviso. Publico para os testes com arquivo real. */
-    public static List<FnetProvento> parse(String xml) {
-        return parseNotice(xml).proventos();
+    public static List<FnetDividend> parse(String xml) {
+        return parseNotice(xml).dividends();
     }
 
     /**
@@ -444,7 +446,7 @@ public class FnetClient {
      * data-base depois do pagamento, CNPJ de outro fundo — sao do chamador.
      */
     public static FnetNotice parseNotice(String xml) {
-        List<FnetProvento> result = new ArrayList<>();
+        List<FnetDividend> result = new ArrayList<>();
         if (xml == null || xml.isBlank()) {
             return new FnetNotice(null, result);
         }
@@ -460,11 +462,11 @@ public class FnetClient {
             String cnpj = cnpj(general == null ? null : text(general, "CNPJFundo"));
             String quotaIsin = general == null ? null : text(general, "CodISINCota");
             String quotaTicker = general == null ? null : text(general, "CodNegociacaoCota");
-            Element informe = first(doc.getDocumentElement(), "InformeRendimentos");
-            if (informe == null) {
+            Element report = first(doc.getDocumentElement(), "InformeRendimentos");
+            if (report == null) {
                 return new FnetNotice(cnpj, result);
             }
-            for (Element item : children(informe)) {
+            for (Element item : children(report)) {
                 if ("Provento".equals(item.getTagName())) {
                     String isin = text(item, "CodISIN");
                     String ticker = text(item, "CodNegociacao");
@@ -481,7 +483,7 @@ public class FnetClient {
         }
     }
 
-    private static void add(Element item, String isin, String ticker, List<FnetProvento> out) {
+    private static void add(Element item, String isin, String ticker, List<FnetDividend> out) {
         String tag = item.getTagName().toLowerCase();
         boolean amortization = tag.startsWith("amortiza");
         if (!amortization && !tag.startsWith("rendimento")) {
@@ -492,7 +494,7 @@ public class FnetClient {
         if (value == null || value.signum() <= 0 || dataBase == null) {
             return;
         }
-        out.add(new FnetProvento(trim(isin), ticker(ticker), amortization, dataBase, value,
+        out.add(new FnetDividend(trim(isin), ticker(ticker), amortization, dataBase, value,
                 B3Values.date(text(item, "DataPagamento")), text(item, "PeriodoReferencia"),
                 exempt(firstTextContaining(item, "Isent"))));
     }

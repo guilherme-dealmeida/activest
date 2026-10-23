@@ -90,8 +90,8 @@ class PerformanceMathTest {
         assertThat(all.unavailable[2]).isTrue(); // a vespera sem preco tambem invalida o dia seguinte
         assertThat(ReturnMath.chain(ReturnMath.daily(all), 0, 2)).isNull();
         assertThat(all.missingTickers(0, 2)).containsExactly("BTC");
-        ScopeSeries semCripto = ScopeSeries.of(t, p -> !p.ticker().equals("BTC"), PerformanceBasis.NET);
-        assertThat(ReturnMath.chain(ReturnMath.daily(semCripto), 0, 2)).isCloseTo(0.21, within(1e-12));
+        ScopeSeries withoutCrypto = ScopeSeries.of(t, p -> !p.ticker().equals("BTC"), PerformanceBasis.NET);
+        assertThat(ReturnMath.chain(ReturnMath.daily(withoutCrypto), 0, 2)).isCloseTo(0.21, within(1e-12));
     }
 
     @Test
@@ -140,9 +140,9 @@ class PerformanceMathTest {
         assertThat(ReturnMath.chain(b.r(), first, last)).isCloseTo(0.01, within(1e-12));
         assertThat(Double.isNaN(b.r()[last + 1])).isTrue(); // outubro nao publicado
         assertThat(b.until()).isEqualTo(LocalDate.of(2026, 9, 30));
-        BenchmarkSeries.Daily mais = BenchmarkSeries.monthlyRate(axis, months, 6);
+        BenchmarkSeries.Daily more = BenchmarkSeries.monthlyRate(axis, months, 6);
         int du = last - first + 1;
-        assertThat(ReturnMath.chain(mais.r(), first, last))
+        assertThat(ReturnMath.chain(more.r(), first, last))
                 .isCloseTo(1.01 * Math.pow(1.06, du / 252.0) - 1, within(1e-12));
     }
 

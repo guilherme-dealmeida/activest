@@ -1,11 +1,11 @@
 # PrimeVest — Testes funcionais (de ponta a ponta)
 
 > Gerado em 02/10/2026 lendo direto o código de teste (classes `*IT`) · revisado em 03/10/2026 (Markdown) · 05/10/2026
-> (cadastro de usuário: `CadastroUsuarioIT`, `CadastroDesligadoIT`; `IntegracoesB3IT` e o 11º teste de `IntegracoesIT`
-> entraram na lista) · 10/10/2026 (Preço Teto: `PrecoTetoIT`; COTAHIST diário: 2 testes em `HistoricalQuotesImportIT`) · 21/10/2026
-> (`CorrecaoProventosIT` e `ProventosConferenciaIT` entram; `ExtratoProventosIT` sai — `docs/planos/PLANO_CORRECAO_PROVENTOS.md`). Contagens conferidas no `mvn clean verify` de 05/10/2026.
+> (cadastro de usuário: `SignupIT`, `SignupDisabledIT`; `IntegrationsB3IT` e o 11º teste de `IntegrationsIT`
+> entraram na lista) · 10/10/2026 (Preço Teto: `CeilingPriceIT`; COTAHIST diário: 2 testes em `HistoricalQuotesImportIT`) · 21/10/2026
+> (`DividendCorrectionIT` e `DividendReconciliationIT` entram; `ExtratoProventosIT` sai — `docs/planos/PLANO_CORRECAO_PROVENTOS.md`). Contagens conferidas no `mvn clean verify` de 05/10/2026.
 
-**O que é "funcional" aqui:** as classes `*IT`, rodadas pelo Failsafe no `mvn clean verify`. Sobem o Spring inteiro contra PostgreSQL 17 de verdade (Testcontainers, com Flyway e `ddl-auto: validate`) e exercitam a API por HTTP ou o serviço com o banco real. Fontes externas (B3, FNET, CVM, BRAPI, CoinGecko, Binance) são mockadas: nenhum teste depende de rede. Rotinas agendadas e mensagens Redis ficam desligadas no perfil de teste; os testes de ponta a ponta ligam adm-api e app-api direto (`CatalogoE2EBase`).
+**O que é "funcional" aqui:** as classes `*IT`, rodadas pelo Failsafe no `mvn clean verify`. Sobem o Spring inteiro contra PostgreSQL 17 de verdade (Testcontainers, com Flyway e `ddl-auto: validate`) e exercitam a API por HTTP ou o serviço com o banco real. Fontes externas (B3, FNET, CVM, BRAPI, CoinGecko, Binance) são mockadas: nenhum teste depende de rede. Rotinas agendadas e mensagens Redis ficam desligadas no perfil de teste; os testes de ponta a ponta ligam adm-api e app-api direto (`CatalogE2EBase`).
 
 Os nomes são os `@DisplayName` do código (sem acento, como estão lá).
 
@@ -21,34 +21,34 @@ mvn -pl primevest-app-api -am verify   # um módulo
 | Módulo | Classe | Testes |
 |---|---|---|
 | adm-api | [PaymentDateSurveyIT](#paymentdatesurveyit-2) | 2 |
-| adm-api | [ProventosCatalogoIT](#proventoscatalogoit-6) | 6 |
-| adm-api | [CorrecaoProventosIT](#correcaoproventosit-24) | 24 |
+| adm-api | [DividendCatalogIT](#proventoscatalogoit-6) | 6 |
+| adm-api | [DividendCorrectionIT](#correcaoproventosit-24) | 24 |
 | adm-api | [FiiMonthlyImportIT](#fiimonthlyimportit-3) | 3 |
 | adm-api | [FinancialStatementImportIT](#financialstatementimportit-6) | 6 |
 | adm-api | [IssuerImportIT](#issuerimportit-2) | 2 |
 | adm-api | [IssuerLinkIT](#issuerlinkit-5) | 5 |
 | adm-api | [HistoricalQuotesImportIT](#historicalquotesimportit-6) | 6 |
 | app-api | [PaymentDateSourceIT](#paymentdatesourceit-5) | 5 |
-| app-api | [AlocacaoIT](#alocacaoit-6) | 6 |
-| app-api | [CadastroDesligadoIT](#cadastrodesligadoit-1) | 1 |
-| app-api | [CadastroUsuarioIT](#cadastrousuarioit-14) | 14 |
-| app-api | [CarteiraIT](#carteirait-13) | 13 |
-| app-api | [EstrategiaIT](#estrategiait-13) | 13 |
-| app-api | [EventosSocietariosIT](#eventossocietariosit-5) | 5 |
-| app-api | [FechamentoIT](#fechamentoit-8) | 8 |
-| app-api | [IndicadoresIT](#indicadoresit-9) | 9 |
-| app-api | [ProventosConferenciaIT](#proventosconferenciait-5) | 5 |
-| app-api | [IntegracoesB3IT](#integracoesb3it-6) | 6 |
-| app-api | [IntegracoesConfirmacaoIT](#integracoesconfirmacaoit-9) | 9 |
-| app-api | [IntegracoesFilaIT](#integracoesfilait-9) | 9 |
-| app-api | [IntegracoesIT](#integracoesit-11) | 11 |
+| app-api | [AllocationIT](#alocacaoit-6) | 6 |
+| app-api | [SignupDisabledIT](#cadastrodesligadoit-1) | 1 |
+| app-api | [SignupIT](#cadastrousuarioit-14) | 14 |
+| app-api | [PortfolioIT](#carteirait-13) | 13 |
+| app-api | [StrategyIT](#estrategiait-13) | 13 |
+| app-api | [CorporateEventsIT](#eventossocietariosit-5) | 5 |
+| app-api | [ClosingIT](#fechamentoit-8) | 8 |
+| app-api | [IndicatorsIT](#indicadoresit-9) | 9 |
+| app-api | [DividendReconciliationIT](#proventosconferenciait-5) | 5 |
+| app-api | [IntegrationsB3IT](#integracoesb3it-6) | 6 |
+| app-api | [IntegrationsConfirmationIT](#integracoesconfirmacaoit-9) | 9 |
+| app-api | [IntegrationsQueueIT](#integracoesfilait-9) | 9 |
+| app-api | [IntegrationsIT](#integracoesit-11) | 11 |
 | app-api | [PositionRefreshIT](#positionrefreshit-3) | 3 |
-| app-api | [PrecoTetoIT](#precotetoit-6) | 6 |
-| app-api | [ProventosAReceberIT](#proventosareceberit-7) | 7 |
-| app-api | [ProventosIT](#proventosit-6) | 6 |
-| app-api | [ProventosIrIT](#proventosirit-15) | 15 |
-| app-api | [TelaEmissorasIT](#telaemissorasit-7) | 7 |
-| app-api | [TransacoesIT](#transacoesit-30) | 30 |
+| app-api | [CeilingPriceIT](#precotetoit-6) | 6 |
+| app-api | [DividendsToReceiveIT](#proventosareceberit-7) | 7 |
+| app-api | [DividendsIT](#proventosit-6) | 6 |
+| app-api | [DividendTaxIT](#proventosirit-15) | 15 |
+| app-api | [IssuerPageIT](#telaemissorasit-7) | 7 |
+| app-api | [TransactionsIT](#transacoesit-30) | 30 |
 
 ## Módulo adm-api (catálogo — porta 8081) — 7 classes, 28 testes
 
@@ -63,9 +63,9 @@ Datas de pagamento do levantamento no banco (docs/planos/PLANO_CARGA_INICIAL.md,
 | 1 | Completa o evento sem data (origem LEVANTAMENTO), mantem a data que ja existe e nao grava o A DEFINIR | `aplica` |
 | 2 | Rodar de novo nao muda nada; a data da propria fonte do evento substitui a do levantamento | `idempotenteEFonteManda` |
 
-### ProventosCatalogoIT (6)
+### DividendCatalogIT (6)
 
-`primevest-adm-api/src/test/java/com/primevest/adm/domain/dividend/ProventosCatalogoIT.java`
+`primevest-adm-api/src/test/java/com/primevest/adm/domain/dividend/DividendCatalogIT.java`
 
 F8 do docs/planos/PLANO_EMPRESAS_BALANCOS.md: a rodada de proventos cobre o catalogo (ativos ligados a emissor, sem ninguem ter posicao) e le o historico de FII do FNET pelo CNPJ, so do cache `carga/data/fnet` — avisos reais de VISC11, PLAG11 e MAXR11, nos dois formatos.
 
@@ -78,9 +78,9 @@ F8 do docs/planos/PLANO_EMPRESAS_BALANCOS.md: a rodada de proventos cobre o cata
 | 5 | AMORTIZACAO RF da B3 e amortizacao: completa a do FNET (outras casas) e entra quando so a B3 tem | `amortizacaoRf` |
 | 6 | Historico da B3 em disco (F10): baixado uma vez por emissor; sem evento gravado, relido do arquivo | `historicoDaEmpresaEmDisco` |
 
-### CorrecaoProventosIT (24)
+### DividendCorrectionIT (24)
 
-`primevest-adm-api/src/test/java/com/primevest/adm/domain/dividend/CorrecaoProventosIT.java`
+`primevest-adm-api/src/test/java/com/primevest/adm/domain/dividend/DividendCorrectionIT.java`
 
 docs/planos/PLANO_CORRECAO_PROVENTOS.md (21/10/2026): as classes de erro da investigacao de proventos, com as respostas reais da B3 (KLBN, RECV, TRIS, ETER, PETR) e os avisos reais do FNET (TRXF11, AIEC11, SMRE11, BRIP11, ARRI11, XLPR11, MXRF11, CYCR11, EURO11, URPR11, EXES11).
 
@@ -194,9 +194,9 @@ Precedencia no `CashEventWriter` (docs/planos/PLANO_CARGA_INICIAL.md): a data de
 | 4 | O historico longo da B3 (sem data) nao mexe na data que a B3 recente gravou | `historicoNaoMexeNaData` |
 | 5 | FII: o aviso do FNET assume o provento gravado pela B3 como reserva (fonte, aviso e data) | `fnetAssumeReservaDaB3` |
 
-### AlocacaoIT (6)
+### AllocationIT (6)
 
-`primevest-app-api/src/test/java/com/primevest/functional/AlocacaoIT.java`
+`primevest-app-api/src/test/java/com/primevest/functional/AllocationIT.java`
 
 A tela Alocacao e o Dashboard — que leem o mesmo endpoint com criterios diferentes sobre a reserva de emergencia.
 
@@ -209,9 +209,9 @@ A tela Alocacao e o Dashboard — que leem o mesmo endpoint com criterios difere
 | 5 | Marcar um CDB como reserva muda a alocacao sem nenhuma outra escrita | `reservaMudaAAlocacao` |
 | 6 | Posicao liquidada sai da alocacao | `posicaoLiquidadaSaiDaAlocacao` |
 
-### CadastroDesligadoIT (1)
+### SignupDisabledIT (1)
 
-`primevest-app-api/src/test/java/com/primevest/functional/CadastroDesligadoIT.java`
+`primevest-app-api/src/test/java/com/primevest/functional/SignupDisabledIT.java`
 
 Cadastro com `primevest.auth.signup-enabled=false` (docs/planos/PLANO_CADASTRO_USUARIO.md, D16, caso C10).
 
@@ -219,12 +219,12 @@ Cadastro com `primevest.auth.signup-enabled=false` (docs/planos/PLANO_CADASTRO_U
 |---|---|---|
 | 1 | Cadastro desligado: enabled=false e signup/start 403 | `desligado` |
 
-### CadastroUsuarioIT (14)
+### SignupIT (14)
 
-`primevest-app-api/src/test/java/com/primevest/functional/CadastroUsuarioIT.java`
+`primevest-app-api/src/test/java/com/primevest/functional/SignupIT.java`
 
 Cadastro, entrada e conta de ponta a ponta na API (docs/planos/PLANO_CADASTRO_USUARIO.md, seção 7). O e-mail é o mock
-`accountMailer` do `FuncionalBase`: o código é lido dele. Códigos e contadores ficam em memória no perfil de teste.
+`accountMailer` do `FunctionalBase`: o código é lido dele. Códigos e contadores ficam em memória no perfil de teste.
 
 | # | Teste | Método |
 |---|---|---|
@@ -243,9 +243,9 @@ Cadastro, entrada e conta de ponta a ponta na API (docs/planos/PLANO_CADASTRO_US
 | 13 | C23: excluir a conta com o codigo apaga o usuario e os dados; o token deixa de valer | `excluirConta` |
 | 14 | Foto de perfil: envio vira JPEG quadrado, sai com a versao no perfil, recusa invalida e remove | `fotoDePerfil` |
 
-### CarteiraIT (13)
+### PortfolioIT (13)
 
-`primevest-app-api/src/test/java/com/primevest/functional/CarteiraIT.java`
+`primevest-app-api/src/test/java/com/primevest/functional/PortfolioIT.java`
 
 A tela Carteira: posicao apurada das transacoes, valorizacao e o switch da reserva de emergencia.
 
@@ -265,9 +265,9 @@ A tela Carteira: posicao apurada das transacoes, valorizacao e o switch da reser
 | 12 | transactions.updated_at muda na edicao; created_at nao | `auditoriaDeDatas` |
 | 13 | Sem token, a carteira responde 401 | `semToken` |
 
-### EstrategiaIT (13)
+### StrategyIT (13)
 
-`primevest-app-api/src/test/java/com/primevest/functional/EstrategiaIT.java`
+`primevest-app-api/src/test/java/com/primevest/functional/StrategyIT.java`
 
 A tela Estrategia: ideal por tipo, rebalanceamento e reserva de emergencia.
 
@@ -287,9 +287,9 @@ A tela Estrategia: ideal por tipo, rebalanceamento e reserva de emergencia.
 | 12 | Marcar um CDB como reserva muda ao mesmo tempo o rebalanceamento, a reserva e a alocacao | `umSoSwitchMudaAsTresLeituras` |
 | 13 | A base da estrategia e o custo, e a da alocacao e o valor atual | `basesDiferentes` |
 
-### EventosSocietariosIT (5)
+### CorporateEventsIT (5)
 
-`primevest-app-api/src/test/java/com/primevest/functional/EventosSocietariosIT.java`
+`primevest-app-api/src/test/java/com/primevest/functional/CorporateEventsIT.java`
 
 Desdobramento, grupamento e bonificacao pela API, do jeito que a tela ve (docs/planos/PLANO_BRAPI.md, F6). O evento e gravado no catalogo; as transacoes do usuario nunca sao reescritas.
 
@@ -301,9 +301,9 @@ Desdobramento, grupamento e bonificacao pela API, do jeito que a tela ve (docs/p
 | 4 | Grupamento 10:1 com fracao: sobra a parte inteira e a fracao sai do custo | `grupamentoComFracao` |
 | 5 | Provento com data-com depois do desdobramento e pago sobre as cotas novas | `proventoDepoisDoDesdobramento` |
 
-### FechamentoIT (8)
+### ClosingIT (8)
 
-`primevest-app-api/src/test/java/com/primevest/functional/FechamentoIT.java`
+`primevest-app-api/src/test/java/com/primevest/functional/ClosingIT.java`
 
 Rotina de fechamento (docs/planos/PLANO_BRAPI.md, secao 3, F2 e F4): so ativos em carteira, 1 por chamada, OHLCV no historico e ultimo fechamento no preco.
 
@@ -318,9 +318,9 @@ Rotina de fechamento (docs/planos/PLANO_BRAPI.md, secao 3, F2 e F4): so ativos e
 | 7 | Recuperacao: sem o ultimo fechamento, a subida roda a rodada; depois dela, nada a recuperar | `recuperacao` |
 | 8 | Cripto: preco em reais pelo id da CoinGecko e fechamento do dia no historico | `cripto` |
 
-### IndicadoresIT (9)
+### IndicatorsIT (9)
 
-`primevest-app-api/src/test/java/com/primevest/functional/IndicadoresIT.java`
+`primevest-app-api/src/test/java/com/primevest/functional/IndicatorsIT.java`
 
 F9 do docs/planos/PLANO_EMPRESAS_BALANCOS.md de ponta a ponta: balancos (`company_quarters`), informe de FII (`fii_monthly`), proventos e precos no banco → endpoints da app-api. Numeros da Petrobras dos DFP 2024 e 2025 reais (lucro e PL da controladora, acoes, DVA).
 
@@ -336,11 +336,11 @@ F9 do docs/planos/PLANO_EMPRESAS_BALANCOS.md de ponta a ponta: balancos (`compan
 | 8 | Emissor: cadastro com tickers, serie trimestral da companhia, informe do FII | `emissor` |
 | 9 | Quantidade do ultimo balanco em revisao: vale a do anterior, com motivo; com evento no meio, nulo | `quantidadeEmRevisao` |
 
-### IntegracoesB3IT (6)
+### IntegrationsB3IT (6)
 
-`primevest-app-api/src/test/java/com/primevest/functional/IntegracoesB3IT.java`
+`primevest-app-api/src/test/java/com/primevest/functional/IntegrationsB3IT.java`
 
-Área do Investidor da B3 de ponta a ponta na API, com o cliente HTTP mockado (`ContaSinteticaB3`). Desde 05/10/2026 a
+Área do Investidor da B3 de ponta a ponta na API, com o cliente HTTP mockado (`SyntheticAccountB3`). Desde 05/10/2026 a
 conexão usa o CPF do perfil (docs/planos/PLANO_CADASTRO_USUARIO.md, D20).
 
 | # | Teste | Método |
@@ -352,9 +352,9 @@ conexão usa o CPF do perfil (docs/planos/PLANO_CADASTRO_USUARIO.md, D20).
 | 5 | C5: o investidor revoga na B3 -> a proxima busca encerra a conexao (REVOKED) e apaga o CPF | `revogacao` |
 | 6 | A rotina diaria tambem confere a conexao que aguarda autorizacao (G8) | `rotinaConfereAguardando` |
 
-### IntegracoesConfirmacaoIT (9)
+### IntegrationsConfirmationIT (9)
 
-`primevest-app-api/src/test/java/com/primevest/functional/IntegracoesConfirmacaoIT.java`
+`primevest-app-api/src/test/java/com/primevest/functional/IntegrationsConfirmationIT.java`
 
 Confirmacao da importacao, duplicatas e as regras E1, E2 e E4 (docs/planos/PLANO_CRIPTO_BINANCE.md, F4 e 6.10) — pela API, com a conta ficticia do `BinanceFake`: ordem 5001 (compra de 0,001998 BTC liquido), ordem 5002 (venda de 0,0002 BTC) e "Comprar Cripto" P1 (0,00025 ETH).
 
@@ -370,9 +370,9 @@ Confirmacao da importacao, duplicatas e as regras E1, E2 e E4 (docs/planos/PLANO
 | 8 | E2 e E4: excluir a importada registra a exclusao; restaurar a traz de volta na hora | `excluirERestaurar` |
 | 9 | Excluir um lancamento MANUAL nao registra exclusao | `excluirManual` |
 
-### IntegracoesFilaIT (9)
+### IntegrationsQueueIT (9)
 
-`primevest-app-api/src/test/java/com/primevest/functional/IntegracoesFilaIT.java`
+`primevest-app-api/src/test/java/com/primevest/functional/IntegrationsQueueIT.java`
 
 Fila, worker, rotina diaria e aviso de divergencia (docs/planos/PLANO_CRIPTO_BINANCE.md, F5) — com a conta ficticia do `BinanceFake`.
 
@@ -388,9 +388,9 @@ Fila, worker, rotina diaria e aviso de divergencia (docs/planos/PLANO_CRIPTO_BIN
 | 8 | Execucao RUNNING perdida (API caiu no meio) vira FAILED e libera a conexao | `execucaoPerdida` |
 | 9 | A lista de conexoes mostra a ultima execucao | `ultimaExecucaoNaLista` |
 
-### IntegracoesIT (11)
+### IntegrationsIT (11)
 
-`primevest-app-api/src/test/java/com/primevest/functional/IntegracoesIT.java`
+`primevest-app-api/src/test/java/com/primevest/functional/IntegrationsIT.java`
 
 Integracao com a Binance pela API, do jeito que qualquer usuario (e a tela de Integracoes, F6) vai usar — com a Binance mockada no cliente HTTP e uma conta ficticia (`BinanceFake`). docs/planos/PLANO_CRIPTO_BINANCE.md, F3.
 
@@ -420,9 +420,9 @@ A carteira reage ao "catalogo mudou" da adm-api (docs/planos/PLANO_ADM_API.md, 1
 | 2 | FECHAMENTO: preco novo so revaloriza, nao gera provento | `fechamento` |
 | 3 | Rede de seguranca diaria: sem mensagem nenhuma, recalcular tudo acerta a carteira | `recalculaTudo` |
 
-### PrecoTetoIT (6)
+### CeilingPriceIT (6)
 
-`primevest-app-api/src/test/java/com/primevest/functional/PrecoTetoIT.java`
+`primevest-app-api/src/test/java/com/primevest/functional/CeilingPriceIT.java`
 
 Preço Teto de ponta a ponta (docs/planos/PLANO_PRECO_TETO.md, 8.1): padrões do catálogo, cálculo sem gravar, gravação com as validações, origem de cada entrada, lista com as três comparações e o dono. Balanços sintéticos da Petrobras.
 
@@ -435,9 +435,9 @@ Preço Teto de ponta a ponta (docs/planos/PLANO_PRECO_TETO.md, 8.1): padrões do
 | 5 | Lucro em dólar: PTAX do fim do trimestre por padrão; câmbio informado vale | `lucroEmDolar` |
 | 6 | Só ações; o cálculo de um usuário não aparece para outro | `soAcoesEDono` |
 
-### ProventosAReceberIT (7)
+### DividendsToReceiveIT (7)
 
-`primevest-app-api/src/test/java/com/primevest/functional/ProventosAReceberIT.java`
+`primevest-app-api/src/test/java/com/primevest/functional/DividendsToReceiveIT.java`
 
 Proventos recebidos x a receber, de ponta a ponta. Recebido = pagamento ate hoje (fuso da B3, contando o proprio dia); sem data de pagamento, conforme a origem (Dividend.isReceived). A Carteira e o Dashboard so somam o recebido.
 
@@ -451,9 +451,9 @@ Proventos recebidos x a receber, de ponta a ponta. Recebido = pagamento ate hoje
 | 6 | Resumo: recebido e a receber separados, e os dois somam tudo | `resumoSeparado` |
 | 7 | Sem data de pagamento: recebido se veio do historico longo; a receber se veio da fonte recente | `semDataConformeAOrigem` |
 
-### ProventosConferenciaIT (5)
+### DividendReconciliationIT (5)
 
-`primevest-app-api/src/test/java/com/primevest/functional/ProventosConferenciaIT.java`
+`primevest-app-api/src/test/java/com/primevest/functional/DividendReconciliationIT.java`
 
 Conferencia dos proventos que a Area do Investidor da B3 informa pela API com os proventos da carteira (docs/planos/PLANO_INTEGRACAO_B3.md, 6.8 e C3). So le — nada vai para o catalogo nem para a carteira.
 
@@ -465,9 +465,9 @@ Conferencia dos proventos que a Area do Investidor da B3 informa pela API com os
 | 4 | Tres proventos iguais no mesmo dia (ISAE4) que ja existem: tres conferidos | `tresIguaisJaExistentes` |
 | 5 | Nao conferido: ativo fora do catalogo e tipo que a B3 informa sem correspondencia | `naoConferido` |
 
-### ProventosIT (6)
+### DividendsIT (6)
 
-`primevest-app-api/src/test/java/com/primevest/functional/ProventosIT.java`
+`primevest-app-api/src/test/java/com/primevest/functional/DividendsIT.java`
 
 Proventos pela B3 de ponta a ponta (docs/planos/PLANO_BRAPI.md, F5): a rotina grava os eventos do papel no catalogo e cada posicao recebe a sua conta.
 
@@ -480,9 +480,9 @@ Proventos pela B3 de ponta a ponta (docs/planos/PLANO_BRAPI.md, F5): a rotina gr
 | 5 | Rotulo desconhecido da B3: o evento fica no catalogo, mas nao gera provento | `rotuloDesconhecido` |
 | 6 | FII que ainda nao distribuiu (APXR11, resposta real da B3 sem proventos): rodada sem falha, carteira com zero | `fundoSemDistribuicao` |
 
-### ProventosIrIT (15)
+### DividendTaxIT (15)
 
-`primevest-app-api/src/test/java/com/primevest/functional/ProventosIrIT.java`
+`primevest-app-api/src/test/java/com/primevest/functional/DividendTaxIT.java`
 
 IR retido na fonte sobre proventos, de ponta a ponta (docs/planos/PLANO_IR_PROVENTOS.md, 5.2): uma regra por teste.
 
@@ -504,9 +504,9 @@ IR retido na fonte sobre proventos, de ponta a ponta (docs/planos/PLANO_IR_PROVE
 | 14 | F14 — Carteira e Dashboard somam o provento liquido (so o ja recebido) | `f14CarteiraEmLiquido` |
 | 15 | F15 — Resumo da tela de proventos: totais e byType em liquido; bruto e IR a parte | `f15ResumoDaTela` |
 
-### TelaEmissorasIT (7)
+### IssuerPageIT (7)
 
-`primevest-app-api/src/test/java/com/primevest/functional/TelaEmissorasIT.java`
+`primevest-app-api/src/test/java/com/primevest/functional/IssuerPageIT.java`
 
 Backend da tela de emissoras (docs/planos/PLANO_TELA_EMISSORES.md, B1–B6): historico de todos os indicadores numa chamada, emissor com logo/site/situacao, busca so com emissor, cotacao historica ajustada e o issuerId nas telas que linkam.
 
@@ -520,9 +520,9 @@ Backend da tela de emissoras (docs/planos/PLANO_TELA_EMISSORES.md, B1–B6): his
 | 6 | B5: erros — ticker inexistente 404, periodo invalido 400, datas invertidas 400; sem preco = serie vazia | `cotacaoErros` |
 | 7 | B6: issuerId na carteira e no preco teto; nulo no ativo sem emissor | `issuerIdNasTelas` |
 
-### TransacoesIT (30)
+### TransactionsIT (30)
 
-`primevest-app-api/src/test/java/com/primevest/functional/TransacoesIT.java`
+`primevest-app-api/src/test/java/com/primevest/functional/TransactionsIT.java`
 
 Transacoes de ponta a ponta: HTTP, regras e banco.
 

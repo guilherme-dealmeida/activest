@@ -21,7 +21,7 @@ class AuthHelpersTest {
 
     @Test
     @DisplayName("Celular em E.164: DDD brasileiro ganha +55; internacional com +; invalido recusado")
-    void celulares() {
+    void phones() {
         assertThat(Phones.normalize("(41) 99876-5432")).isEqualTo("+5541998765432");
         assertThat(Phones.normalize("4133334444")).isEqualTo("+554133334444");
         assertThat(Phones.normalize("+55 41 99876-5432")).isEqualTo("+5541998765432");
@@ -32,17 +32,17 @@ class AuthHelpersTest {
 
     @Test
     @DisplayName("Token de acesso e de renovacao nao se confundem (U1)")
-    void tiposDeToken() {
+    void tokenTypes() {
         JwtTokenProvider p = new JwtTokenProvider("chave-de-teste-com-pelo-menos-256-bits-para-hmac-sha256-primevest",
             60_000, 120_000);
         UUID id = UUID.randomUUID();
-        String acesso = p.generateToken(id, "a@b.c");
+        String access = p.generateToken(id, "a@b.c");
         String refresh = p.generateRefreshToken(id);
 
-        assertThat(p.parseAccess(acesso)).get().extracting(JwtTokenProvider.TokenClaims::userId).isEqualTo(id);
+        assertThat(p.parseAccess(access)).get().extracting(JwtTokenProvider.TokenClaims::userId).isEqualTo(id);
         assertThat(p.parseAccess(refresh)).isEmpty();
         assertThat(p.parseRefresh(refresh)).isPresent();
-        assertThat(p.parseRefresh(acesso)).isEmpty();
+        assertThat(p.parseRefresh(access)).isEmpty();
         assertThat(p.parseAccess("lixo")).isEmpty();
     }
 }

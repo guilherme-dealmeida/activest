@@ -31,7 +31,7 @@ import java.util.UUID;
 @Service
 public class PasswordResetService {
 
-    static final int MAX_PEDIDOS_POR_IP = 20;
+    static final int MAX_REQUESTS_PER_IP = 20;
 
     private final VerificationCodeService codes;
     private final AccountMailer mailer;
@@ -49,7 +49,7 @@ public class PasswordResetService {
     }
 
     public CodeSentDTO forgot(String rawEmail, String ip) {
-        rateLimiter.hit("forgot:ip:" + ip, MAX_PEDIDOS_POR_IP, Duration.ofHours(1),
+        rateLimiter.hit("forgot:ip:" + ip, MAX_REQUESTS_PER_IP, Duration.ofHours(1),
             "Muitos pedidos a partir deste endereço. Tente de novo mais tarde.");
         String email = Emails.normalize(rawEmail);
         String requestId = VerificationCodeService.newRequestId();
@@ -82,7 +82,7 @@ public class PasswordResetService {
         PendingCode p = codes.verify(dto.requestId(), VerificationPurpose.RESET_PASSWORD, dto.code());
         User user = users.findById(UUID.fromString(p.get("userId")))
             .orElseThrow(() -> new BusinessException("O código expirou ou já foi usado. Peça um novo código."));
-        definirSenha(user, passwordEncoder.encode(dto.newPassword()));
+        setPassword(user, passwordEncoder.encode(dto.newPassword()));
         // Quem recebeu o código no e-mail provou que é dono dele.
         if (user.getEmailVerifiedAt() == null) {
             user.setEmailVerifiedAt(LocalDateTime.now());
@@ -95,7 +95,7 @@ public class PasswordResetService {
      * Troca o hash e marca {@code password_changed_at} truncado no segundo: o {@code iat} do JWT tem
      * resolução de segundos, e o token emitido logo depois da troca precisa continuar valendo.
      */
-    public static void definirSenha(User user, String hash) {
+    public static void setPassword(User user, String hash) {
         user.setPasswordHash(hash);
         user.setPasswordChangedAt(LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
     }

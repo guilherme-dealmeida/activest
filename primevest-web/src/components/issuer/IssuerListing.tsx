@@ -4,19 +4,19 @@ import { IssuerListingTable } from '@/components/issuer/IssuerListingTable';
 import { IssuerSearch } from '@/components/issuer/IssuerSearch';
 import { ListingTab, TAB_LABEL } from '@/utils/issuerListing';
 
-const TABS: ListingTab[] = ['acoes', 'fiis'];
+const TABS: ListingTab[] = ['stocks', 'fiis'];
 
 /**
  * Listagem de ativos (antes "Emissoras", renomeada em 18/10/2026) no lugar do aviso vazio de /ativos (docs/planos/PLANO_LISTAGEM_EMISSORAS.md, 5.1):
- * abas Ações e FIIs, no estilo das abas de Dividendos. A aba fica na URL (`?aba=fiis`); cada aba guarda os seus
+ * abas Ações e FIIs, no estilo das abas de Dividendos. A aba fica na URL (`?tab=fiis`); cada aba guarda os seus
  * filtros, ordem e página nos parâmetros com o prefixo dela.
  */
 export const IssuerListing = ({ onOpen }: { onOpen: (ticker: string) => void }) => {
   const [params, setParams] = useSearchParams();
-  const tab: ListingTab = params.get('aba') === 'fiis' ? 'fiis' : 'acoes';
+  const tab: ListingTab = params.get('tab') === 'fiis' ? 'fiis' : 'stocks';
   const setTab = (t: ListingTab) => {
     const next = new URLSearchParams(params);
-    if (t === 'fiis') next.set('aba', 'fiis'); else next.delete('aba');
+    if (t === 'fiis') next.set('tab', 'fiis'); else next.delete('tab');
     setParams(next, { replace: true });
   };
 

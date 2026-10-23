@@ -102,7 +102,7 @@ public class BcbInstitutionsClient {
                 + "&$format=json&$top=20000");
         Path file;
         try {
-            file = files.fetch(url, target, false).orElse(null);
+            file = files.fetch(url, target, false, PublicFileCache.ContentCheck.json()).orElse(null);
         } catch (PublicFileCache.UnavailableException e) {
             throw new BcbException("IF.data indisponivel para " + baseMonth + ": " + e.getMessage(), e);
         }
@@ -125,7 +125,7 @@ public class BcbInstitutionsClient {
             Path target = dir.resolve("instituicoes").resolve(seat + ".json");
             URI url = URI.create(institutionsUrl + "/" + seat + "?$format=json&$top=50000");
             try {
-                files.fetch(url, target, true).ifPresent(f -> parseWebsites(read(f), out));
+                files.fetch(url, target, true, PublicFileCache.ContentCheck.json()).ifPresent(f -> parseWebsites(read(f), out));
             } catch (PublicFileCache.UnavailableException | BcbException e) {
                 log.warn("BCB instituicoes em funcionamento ({}): sem site agora: {}", seat, e.getMessage());
             }

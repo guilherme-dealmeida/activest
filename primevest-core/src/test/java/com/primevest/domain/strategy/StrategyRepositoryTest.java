@@ -22,58 +22,58 @@ class StrategyRepositoryTest extends JpaTestBase {
     @Autowired private UserRepository userRepository;
     @Autowired private AssetTypeRepository assetTypeRepository;
 
-    private User dono;
-    private User outro;
-    private AssetType acao;
+    private User owner;
+    private User other;
+    private AssetType stock;
     private AssetType fii;
 
     @BeforeEach
-    void cenario() {
-        dono = userRepository.save(Fixtures.user("dono@primevest.test"));
-        outro = userRepository.save(Fixtures.user("outro@primevest.test"));
-        acao = CatalogIds.type(assetTypeRepository, "ACAO");
+    void scenario() {
+        owner = userRepository.save(Fixtures.user("dono@primevest.test"));
+        other = userRepository.save(Fixtures.user("outro@primevest.test"));
+        stock = CatalogIds.type(assetTypeRepository, "ACAO");
         fii = CatalogIds.type(assetTypeRepository, "FII");
     }
 
     @Test
     @DisplayName("findByUserId traz so a estrategia do usuario")
-    void escopoPorUsuario() {
-        repository.save(Fixtures.strategy(dono, acao, "60.00"));
-        repository.save(Fixtures.strategy(dono, fii, "40.00"));
-        repository.save(Fixtures.strategy(outro, acao, "100.00"));
+    void scopeByUser() {
+        repository.save(Fixtures.strategy(owner, stock, "60.00"));
+        repository.save(Fixtures.strategy(owner, fii, "40.00"));
+        repository.save(Fixtures.strategy(other, stock, "100.00"));
 
-        assertThat(repository.findByUserId(dono.getId())).hasSize(2);
-        assertThat(repository.findByUserId(outro.getId())).hasSize(1);
+        assertThat(repository.findByUserId(owner.getId())).hasSize(2);
+        assertThat(repository.findByUserId(other.getId())).hasSize(1);
     }
 
     @Test
     @DisplayName("unique(user_id, asset_type_id): o mesmo tipo duas vezes para o mesmo usuario viola a unicidade")
-    void tipoRepetidoViolaUnicidade() {
-        repository.saveAndFlush(Fixtures.strategy(dono, acao, "60.00"));
+    void repeatedTypeViolatesUniqueness() {
+        repository.saveAndFlush(Fixtures.strategy(owner, stock, "60.00"));
 
-        assertThatThrownBy(() -> repository.saveAndFlush(Fixtures.strategy(dono, acao, "40.00")))
+        assertThatThrownBy(() -> repository.saveAndFlush(Fixtures.strategy(owner, stock, "40.00")))
             .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     @DisplayName("O mesmo tipo em usuarios diferentes e permitido")
-    void mesmoTipoEmUsuariosDiferentes() {
-        repository.saveAndFlush(Fixtures.strategy(dono, acao, "60.00"));
-        repository.saveAndFlush(Fixtures.strategy(outro, acao, "70.00"));
+    void sameTypeForDifferentUsers() {
+        repository.saveAndFlush(Fixtures.strategy(owner, stock, "60.00"));
+        repository.saveAndFlush(Fixtures.strategy(other, stock, "70.00"));
 
-        assertThat(repository.findByUserIdAndAssetTypeId(dono.getId(), acao.getId()))
+        assertThat(repository.findByUserIdAndAssetTypeId(owner.getId(), stock.getId()))
             .get().extracting(Strategy::getTargetPercentage)
             .satisfies(p -> assertThat(p).isEqualByComparingTo("60.00"));
-        assertThat(repository.findByUserIdAndAssetTypeId(outro.getId(), acao.getId()))
+        assertThat(repository.findByUserIdAndAssetTypeId(other.getId(), stock.getId()))
             .get().extracting(Strategy::getTargetPercentage)
             .satisfies(p -> assertThat(p).isEqualByComparingTo("70.00"));
     }
 
     @Test
     @DisplayName("findByUserIdAndAssetTypeId nao acha a estrategia de outro dono")
-    void buscaPorTipoEEscopada() {
-        repository.saveAndFlush(Fixtures.strategy(outro, fii, "40.00"));
+    void searchByTypeIsScoped() {
+        repository.saveAndFlush(Fixtures.strategy(other, fii, "40.00"));
 
-        assertThat(repository.findByUserIdAndAssetTypeId(dono.getId(), fii.getId())).isEmpty();
+        assertThat(repository.findByUserIdAndAssetTypeId(owner.getId(), fii.getId())).isEmpty();
     }
 }

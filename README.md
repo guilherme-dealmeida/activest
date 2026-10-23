@@ -92,10 +92,18 @@ primevest/
   entram depois de você conferir; proventos e eventos da B3 são conferidos com a carteira. A B3 real depende de contrato
   (Pacote de Acesso); até lá, um simulador com os seus extratos (`docs/planos/PLANO_INTEGRACAO_B3.md`)
 
+- ✅ Tarefas (22/10/2026, só administrador): as rotinas do sistema (fechamento, proventos, balanços, índices, Tesouro,
+  cotações, logos, carga inicial, curadoria do catálogo, rotinas da carteira) como tarefas — acompanhamento das rodadas
+  (filtro por status), agendamentos, Run, Stop, log de cada rodada e configuração do horário e dos atributos (`/tasks`,
+  `docs/planos/PLANO_TAREFAS.md`)
+- ✅ Fontes públicas confiáveis (22/10/2026): o arquivo baixado só entra no cache depois de conferido (uma página de
+  erro não passa mais por arquivo), a rotina do Tesouro falha com aviso quando a fonte recusa e avisa quando o Tesouro
+  fica dias sem publicar (`docs/planos/PLANO_FONTE_TESOURO.md`)
+
 ### Autenticação e conta
 - ✅ Login via Google (Google Identity Services, ID token)
 - ✅ Login via email/senha com JWT (token de acesso + renovação)
-- ✅ Criar conta com código de verificação por e-mail e aceite dos termos (`/cadastro`)
+- ✅ Criar conta com código de verificação por e-mail e aceite dos termos (`/signup`)
 - ✅ Esqueci a senha com código por e-mail
 - ✅ Configurações: perfil (celular, CPF cifrado), troca de e-mail com código, senha, vínculo Google, tema, excluir conta
 - No DEV, todo e-mail cai no **Mailpit** (http://localhost:8025); nada sai da máquina
@@ -164,7 +172,7 @@ Nada depende de pasta fora do projeto (`docs/planos/PLANO_CARGA_INICIAL.md`).
 
 **Antes:**
 
-1. **`.env`** a partir do `.env.example`: `PRIMEVEST_SENHA` (senha do administrador semeado,
+1. **`.env`** a partir do `.env.example`: `PRIMEVEST_PASSWORD` (senha do administrador semeado,
    `guilhermeunatec@gmail.com`, migration V9 — peça a quem mantém o projeto) e o **token só
    leitura** do bucket R2 (`S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`).
 2. **Pasta `carga/data/`** (fora do git, ~1,4 GB) baixada do bucket `primevest-data` (Cloudflare R2):
@@ -209,7 +217,7 @@ regrava os manifests. `data status` compara `carga/data/` com o bucket.
 
 Para provar a carga do zero na mesma máquina, sem tocar no ambiente de desenvolvimento: os mesmos serviços, com
 banco, Redis, rede e pasta de dados (`carga/data-teste/`) próprios e rotinas agendadas desligadas. Precisa do
-`.env.teste` (cópia do `.env.example` com as portas do teste e a `PRIMEVEST_SENHA`; fora do git).
+`.env.teste` (cópia do `.env.example` com as portas do teste e a `PRIMEVEST_PASSWORD`; fora do git).
 
 ```powershell
 function pvt { docker compose -p primevest-teste --env-file .env.teste -f docker-compose.yml -f docker-compose.teste.yml @args }

@@ -59,7 +59,7 @@ export const InformCostModal = ({ isOpen, params, onClose, onSaved }: InformCost
         <CurrencyInput
           label="Custo atribuído por ação"
           value={cost}
-          decimals={4}
+          decimals={8}
           onChange={setCost}
           autoFocus
         />

@@ -1,8 +1,9 @@
 package com.primevest.adm.domain.pricehistory;
 
 import com.primevest.adm.integration.PublicFileCache;
-import com.primevest.adm.integration.tesouro.TesouroPriceClient;
-import com.primevest.adm.integration.tesouro.TesouroSalesClient;
+import com.primevest.adm.integration.treasury.TreasuryPriceClient;
+import com.primevest.adm.integration.treasury.TreasurySalesClient;
+import com.primevest.domain.calendar.BusinessCalendar;
 import com.primevest.domain.catalog.CatalogChange;
 import com.primevest.domain.catalog.CatalogMessaging.CatalogChangePublisher;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +44,12 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <p><b>Idempotente.</b> Dia gravado com o mesmo PU nao muda; PU diferente e regravado. A carga historica comeca
  * em {@code from} (padrao 2010, D3); a rodada diaria rele so os ultimos dias.</p>
+ *
+ * <p><b>Fonte</b> (docs/planos/PLANO_FONTE_TESOURO.md). Recusa ou fonte fora do ar: mensagem
+ * {@code FONTE_INDISPONIVEL}; com copia em disco, a copia e lida (uma carga inicial ainda aproveita o arquivo) e o
+ * resultado leva o problema em {@link Result#sourceProblem()}, que faz a tarefa terminar {@code FAILED} (D2); sem
+ * copia, erro. A fonte respondeu e o dado mais recente esta mais de {@value #STALE_BUSINESS_DAYS} dias uteis atras:
+ * pendencia {@code FONTE_DESATUALIZADA}, resolvida quando o dado novo chega (D3).</p>
  */
 @Slf4j
 @Service
@@ -53,6 +60,10 @@ public class TreasuryPriceService {
     com.primevest.adm.domain.notice.AdminNotices notices;
 
     public static final int FIRST_YEAR = 2010;
+    /** Dias uteis sem data base nova, entre a ultima e hoje, que a fonte pode ficar sem aviso (D3). */
+    static final int STALE_BUSINESS_DAYS = 2;
+    private static final String ROUTINE = "Preço do Tesouro";
+    private static final String SOURCE = "Tesouro Transparente";
     /** A rodada diaria rele a partir de alguns dias antes do ultimo gravado (o Tesouro corrige o arquivo). */
     static final int DAILY_OVERLAP_DAYS = 10;
     private static final ZoneId ZONE = ZoneId.of("America/Sao_Paulo");
@@ -79,8 +90,8 @@ public class TreasuryPriceService {
                 rate_date = EXCLUDED.rate_date, buy_rate = EXCLUDED.buy_rate, sell_rate = EXCLUDED.sell_rate,
                 updated_at = now()""";
 
-    private final TesouroPriceClient client;
-    private final TesouroSalesClient sales;
+    private final TreasuryPriceClient client;
+    private final TreasurySalesClient sales;
     private final JdbcTemplate jdbc;
     private final TransactionTemplate tx;
     private final CatalogChangePublisher publisher;
@@ -88,12 +99,12 @@ public class TreasuryPriceService {
     private final ReentrantLock running = new ReentrantLock();
 
     @Autowired
-    public TreasuryPriceService(TesouroPriceClient client, TesouroSalesClient sales, JdbcTemplate jdbc,
+    public TreasuryPriceService(TreasuryPriceClient client, TreasurySalesClient sales, JdbcTemplate jdbc,
                                 PlatformTransactionManager txm, CatalogChangePublisher publisher) {
         this(client, sales, jdbc, txm, publisher, Clock.system(ZONE));
     }
 
-    TreasuryPriceService(TesouroPriceClient client, TesouroSalesClient sales, JdbcTemplate jdbc,
+    TreasuryPriceService(TreasuryPriceClient client, TreasurySalesClient sales, JdbcTemplate jdbc,
                          PlatformTransactionManager txm, CatalogChangePublisher publisher, Clock clock) {
         this.client = client;
         this.sales = sales;
@@ -110,13 +121,20 @@ public class TreasuryPriceService {
      * @param priced     titulos cujo preco atual mudou (avisados a app-api)
      * @param onSale     titulos do catalogo a venda hoje (arquivo de vendas); -1 se o arquivo estava fora do ar
      * @param unmatched  tipo + vencimento do arquivo sem titulo no catalogo
+     * @param sourceProblem a fonte recusou ou nao respondeu e foi lida a copia em disco (D2); nulo quando a fonte
+     *                      respondeu
+     * @param staleSince a data base mais recente, quando a fonte respondeu sem dado novo ha mais de
+     *                   {@value #STALE_BUSINESS_DAYS} dias uteis (D3); nula quando esta em dia ou nao se sabe
      */
-    public record Result(int titles, int rows, LocalDate lastDate, int priced, int onSale, List<String> unmatched) {
+    public record Result(int titles, int rows, LocalDate lastDate, int priced, int onSale, List<String> unmatched,
+                         String sourceProblem, LocalDate staleSince) {
         @Override
         public String toString() {
             return titles + " titulos, " + rows + " dias gravados, ultimo " + lastDate + ", " + priced
                     + " precos atuais novos, " + (onSale < 0 ? "oferta sem atualizar" : onSale + " a venda")
-                    + (unmatched.isEmpty() ? "" : ", sem titulo no catalogo: " + unmatched.size());
+                    + (unmatched.isEmpty() ? "" : ", sem titulo no catalogo: " + unmatched.size())
+                    + (staleSince == null ? "" : ", fonte sem dado novo desde " + staleSince)
+                    + (sourceProblem == null ? "" : "; " + sourceProblem);
         }
     }
 
@@ -153,14 +171,21 @@ public class TreasuryPriceService {
         }
         try {
             long started = System.currentTimeMillis();
-            Path file;
-            try {
-                file = client.fetch();
-            } catch (PublicFileCache.UnavailableException e) {
-                log.error("Tesouro ({}): arquivo de precos indisponivel: {}", trigger, e.getMessage());
-                notices.sourceUnavailable("Preço do Tesouro", "Tesouro Transparente", e.getMessage());
-                throw e;
+            PublicFileCache.Result fetched = client.fetch();
+            String sourceProblem = null;
+            if (!fetched.current()) {
+                // recusa (429, pagina no lugar do arquivo), sem resposta ou 404
+                String detail = fetched.detail() != null ? fetched.detail() : String.valueOf(fetched.outcome());
+                notices.sourceUnavailable(ROUTINE, SOURCE, detail);
+                if (fetched.file() == null) {
+                    log.error("Tesouro ({}): arquivo de precos indisponivel e sem copia em disco: {}", trigger, detail);
+                    throw new PublicFileCache.UnavailableException(
+                            SOURCE + " indisponivel (" + detail + ") e sem copia do arquivo em disco", null);
+                }
+                sourceProblem = SOURCE + " indisponivel (" + detail + "); lida a copia do arquivo em disco";
+                log.error("Tesouro ({}): {}", trigger, sourceProblem);
             }
+            Path file = fetched.file();
             Map<Key, Long> catalog = new HashMap<>();
             jdbc.query("""
                     SELECT a.id, regexp_replace(a.ticker, ' [0-9]{4}$', '') AS type, t.maturity_date
@@ -172,9 +197,9 @@ public class TreasuryPriceService {
             List<Object[]> batch = new ArrayList<>();
             Map<Long, TreeMap<LocalDate, BigDecimal>> latest = new HashMap<>();
             Set<String> unmatched = new TreeSet<>();
-            Map<Long, TesouroPriceClient.Row> lastRow = new HashMap<>();
+            Map<Long, TreasuryPriceClient.Row> lastRow = new HashMap<>();
             LocalDate[] lastDate = {null};
-            TesouroPriceClient.read(file, row -> {
+            TreasuryPriceClient.read(file, row -> {
                 if (lastDate[0] == null || row.date().isAfter(lastDate[0])) {
                     lastDate[0] = row.date();
                 }
@@ -231,19 +256,21 @@ public class TreasuryPriceService {
                 publisher.publish(new CatalogChange(CatalogChange.Origin.FECHAMENTO, priced));
             }
             int onSale = offers(lastRow, catalog, trigger);
-            Result r = new Result(latest.size(), written, lastDate[0], priced.size(), onSale, List.copyOf(unmatched));
+            LocalDate staleSince = fetched.current() ? staleness(lastDate[0], trigger) : null;
+            Result r = new Result(latest.size(), written, lastDate[0], priced.size(), onSale, List.copyOf(unmatched),
+                    sourceProblem, staleSince);
             log.info("Tesouro ({}) desde {} em {}s: {}", trigger, from, (System.currentTimeMillis() - started) / 1000, r);
             if (!unmatched.isEmpty()) {
                 log.warn("Tesouro: titulos do arquivo sem titulo no catalogo (entram por migration): {}", unmatched);
             }
-            List<String> semTitulo = unmatched.stream().map(String::valueOf).toList();
-            semTitulo.forEach(t -> notices.pending(
+            List<String> withoutBond = unmatched.stream().map(String::valueOf).toList();
+            withoutBond.forEach(t -> notices.pending(
                     com.primevest.domain.notification.NotificationKind.CATALOGO_TESOURO_SEM_TITULO, t,
                     "Tesouro sem título no catálogo: " + t,
                     "O arquivo de preços do Tesouro tem este título e o catálogo não. Título novo entra por migration; "
                             + "título antigo que ficou de fora de propósito pode ser dispensado.", List.of()));
             notices.resolveAllExcept(com.primevest.domain.notification.NotificationKind.CATALOGO_TESOURO_SEM_TITULO,
-                    semTitulo);
+                    withoutBond);
             return r;
         } finally {
             running.unlock();
@@ -251,16 +278,46 @@ public class TreasuryPriceService {
     }
 
     /**
+     * A fonte respondeu: o dado mais recente esta em dia? Mais de {@value #STALE_BUSINESS_DAYS} dias uteis entre a
+     * data base mais recente e hoje (exclusive nos dois lados) abre a pendencia; em dia, resolve (D3). O arquivo sai
+     * todo dia util pela manha com o D-1: em dia, a conta da 0 (ou 1 antes de o Tesouro publicar).
+     *
+     * @return a data base mais recente, quando atrasada; nula quando em dia
+     */
+    private LocalDate staleness(LocalDate lastDate, String trigger) {
+        if (lastDate == null) {
+            return null;
+        }
+        LocalDate today = LocalDate.now(clock);
+        int missing = lastDate.plusDays(1).isAfter(today.minusDays(1)) ? 0
+                : BusinessCalendar.businessDaysBetween(lastDate.plusDays(1), today.minusDays(1));
+        if (missing > STALE_BUSINESS_DAYS) {
+            log.warn("Tesouro ({}): a fonte respondeu, mas o dado mais recente e de {} ({} dias uteis sem publicacao)",
+                    trigger, lastDate, missing);
+            notices.sourceStale(ROUTINE, SOURCE, lastDate, missing);
+            return lastDate;
+        }
+        notices.sourceCurrent(ROUTINE, SOURCE);
+        return null;
+    }
+
+    /**
      * Taxa do ultimo dia de cada titulo e a oferta de hoje ({@code treasury_offers}, V59). O arquivo de vendas fora
      * do ar nao derruba a carga: a taxa e gravada e a oferta fica a da ultima rodada (devolve -1).
      */
-    private int offers(Map<Long, TesouroPriceClient.Row> lastRow, Map<Key, Long> catalog, String trigger) {
-        TesouroSalesClient.OnSale onSale;
+    private int offers(Map<Long, TreasuryPriceClient.Row> lastRow, Map<Key, Long> catalog, String trigger) {
+        TreasurySalesClient.OnSale onSale = null;
         try {
-            onSale = TesouroSalesClient.onSale(sales.fetch());
+            PublicFileCache.Result fetched = sales.fetch();
+            if (!fetched.current()) {
+                log.warn("Tesouro ({}): arquivo de vendas indisponivel ({}){}", trigger, fetched.detail(),
+                        fetched.file() != null ? ", usando a copia em disco" : ", oferta sem atualizar");
+            }
+            if (fetched.file() != null) {
+                onSale = TreasurySalesClient.onSale(fetched.file());
+            }
         } catch (PublicFileCache.UnavailableException | java.io.UncheckedIOException e) {
             log.warn("Tesouro ({}): arquivo de vendas indisponivel, oferta sem atualizar: {}", trigger, e.getMessage());
-            onSale = null;
         }
         Set<Long> selling = new HashSet<>();
         if (onSale != null) {

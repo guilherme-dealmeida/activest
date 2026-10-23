@@ -48,12 +48,12 @@ export const IssuerPage = () => {
   const goTo = (t: string) => {
     const from = new URLSearchParams(location.search);
     const keep = new URLSearchParams();
-    for (const k of ['periodo', 'de', 'ate']) {
+    for (const k of ['range', 'from', 'to']) {
       const v = from.get(k);
       if (v) keep.set(k, v);
     }
     const q = keep.toString();
-    navigate(`/ativos/${encodeURIComponent(t)}${q ? `?${q}` : ''}`);
+    navigate(`/assets/${encodeURIComponent(t)}${q ? `?${q}` : ''}`);
   };
 
   let content: ReactNode = null;
@@ -64,18 +64,18 @@ export const IssuerPage = () => {
     content = <div className="flex h-64 items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent" /></div>;
   } else if (current.isError) {
     const msg = apiMessage(current.error) ?? '';
-    const semEmissor = /sem emissor/i.test(msg);
-    const naoEncontrado = status(current.error) === 404 && !semEmissor;
+    const withoutIssuer = /sem emissor/i.test(msg);
+    const notFound = status(current.error) === 404 && !withoutIssuer;
     content = (
       <div className="rounded-xl border border-white/10 bg-surface p-8 text-center">
         <p className="text-white font-medium">
-          {naoEncontrado ? `Não achamos o ticker ${ticker}.`
-            : semEmissor ? `${ticker} não tem emissor cadastrado.`
+          {notFound ? `Não achamos o ticker ${ticker}.`
+            : withoutIssuer ? `${ticker} não tem emissor cadastrado.`
             : 'Não foi possível carregar o ativo.'}
         </p>
         <p className="mt-1 text-sm text-gray-400">
-          {naoEncontrado ? 'Confira o código ou use a busca acima.'
-            : semEmissor ? 'Indicadores e demonstrativos existem só para ações e FIIs ligados a um emissor (ETF, BDR, Tesouro, renda fixa e cripto ficam de fora).'
+          {notFound ? 'Confira o código ou use a busca acima.'
+            : withoutIssuer ? 'Indicadores e demonstrativos existem só para ações e FIIs ligados a um emissor (ETF, BDR, Tesouro, renda fixa e cripto ficam de fora).'
             : msg}
         </p>
       </div>

@@ -37,163 +37,163 @@ class PortfolioAssetRepositoryTest extends JpaTestBase {
     @Autowired private com.primevest.domain.fixedincome.FixedIncomeIssuerRepository issuerRepository;
     @Autowired private EntityManager em;
 
-    private User dono;
-    private User outro;
-    private Portfolio carteira;
-    private Portfolio carteiraDoOutro;
-    private Asset acao;
+    private User owner;
+    private User other;
+    private Portfolio portfolioEntity;
+    private Portfolio otherUsersPortfolio;
+    private Asset stock;
     private Asset cdb;
 
     @BeforeEach
-    void cenario() {
-        dono = userRepository.save(Fixtures.user("dono@primevest.test"));
-        outro = userRepository.save(Fixtures.user("outro@primevest.test"));
-        carteira = portfolioRepository.save(Fixtures.portfolio(dono));
-        carteiraDoOutro = portfolioRepository.save(Fixtures.portfolio(outro));
-        acao = CatalogIds.asset(assetRepository, CatalogIds.ACAO);
+    void scenario() {
+        owner = userRepository.save(Fixtures.user("dono@primevest.test"));
+        other = userRepository.save(Fixtures.user("outro@primevest.test"));
+        portfolioEntity = portfolioRepository.save(Fixtures.portfolio(owner));
+        otherUsersPortfolio = portfolioRepository.save(Fixtures.portfolio(other));
+        stock = CatalogIds.asset(assetRepository, CatalogIds.STOCK);
         cdb = CatalogIds.asset(assetRepository, CatalogIds.CDB);
     }
 
-    private FixedIncomeNote nota(User user, String emissor) {
-        return noteRepository.save(Fixtures.note(user, cdb, Fixtures.issuer(issuerRepository, emissor), LocalDate.of(2030, 1, 15),
+    private FixedIncomeNote noteEntity(User user, String issuerEntity) {
+        return noteRepository.save(Fixtures.note(user, cdb, Fixtures.issuer(issuerRepository, issuerEntity), LocalDate.of(2030, 1, 15),
             RateType.POS_FIXADO, Indexer.CDI, new BigDecimal("110.0000")));
     }
 
     @Test
     @DisplayName("findByPortfolioIdAndAssetIdAndNoteIsNull acha a posicao de renda variavel e ignora a que tem titulo")
-    void posicaoSemTitulo() {
-        PortfolioAsset semNota = repository.save(Fixtures.position(carteira, acao));
-        repository.save(Fixtures.position(carteira, cdb, nota(dono, "BTG")));
+    void positionWithoutNote() {
+        PortfolioAsset withoutNote = repository.save(Fixtures.position(portfolioEntity, stock));
+        repository.save(Fixtures.position(portfolioEntity, cdb, noteEntity(owner, "BTG")));
 
-        Optional<PortfolioAsset> achada =
-            repository.findByPortfolioIdAndAssetIdAndNoteIsNull(carteira.getId(), acao.getId());
+        Optional<PortfolioAsset> found =
+            repository.findByPortfolioIdAndAssetIdAndNoteIsNull(portfolioEntity.getId(), stock.getId());
 
-        assertThat(achada).get().extracting(PortfolioAsset::getId).isEqualTo(semNota.getId());
-        assertThat(repository.findByPortfolioIdAndAssetIdAndNoteIsNull(carteira.getId(), cdb.getId())).isEmpty();
+        assertThat(found).get().extracting(PortfolioAsset::getId).isEqualTo(withoutNote.getId());
+        assertThat(repository.findByPortfolioIdAndAssetIdAndNoteIsNull(portfolioEntity.getId(), cdb.getId())).isEmpty();
     }
 
     @Test
     @DisplayName("V56: posicao e titulo no mesmo produto — trocar so a posicao e recusado; trocar o titulo leva a posicao")
-    void tituloEPosicaoNoMesmoProduto() {
-        PortfolioAsset posicao = repository.saveAndFlush(Fixtures.position(carteira, cdb, nota(dono, "BTG")));
+    void noteAndPositionOnSameProduct() {
+        PortfolioAsset positionEntity = repository.saveAndFlush(Fixtures.position(portfolioEntity, cdb, noteEntity(owner, "BTG")));
         Asset rdb = CatalogIds.asset(assetRepository, "RDB");
 
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> em.createNativeQuery(
                 "UPDATE portfolio_assets SET asset_id = :a WHERE id = :id")
-                .setParameter("a", rdb.getId()).setParameter("id", posicao.getId()).executeUpdate())
+                .setParameter("a", rdb.getId()).setParameter("id", positionEntity.getId()).executeUpdate())
             .isInstanceOf(RuntimeException.class);
     }
 
     @Test
     @DisplayName("V56: trocar o produto do titulo leva a posicao junto (ON UPDATE CASCADE)")
-    void trocaDoProdutoNoTitulo() {
-        FixedIncomeNote nota = nota(dono, "Nu");
-        PortfolioAsset posicao = repository.saveAndFlush(Fixtures.position(carteira, cdb, nota));
+    void productChangeOnNote() {
+        FixedIncomeNote noteEntity = noteEntity(owner, "Nu");
+        PortfolioAsset positionEntity = repository.saveAndFlush(Fixtures.position(portfolioEntity, cdb, noteEntity));
         Asset rdb = CatalogIds.asset(assetRepository, "RDB");
 
         em.createNativeQuery("UPDATE fixed_income_notes SET asset_id = :a WHERE id = :id")
-            .setParameter("a", rdb.getId()).setParameter("id", nota.getId()).executeUpdate();
+            .setParameter("a", rdb.getId()).setParameter("id", noteEntity.getId()).executeUpdate();
 
-        Object ativo = em.createNativeQuery("SELECT asset_id FROM portfolio_assets WHERE id = :id")
-            .setParameter("id", posicao.getId()).getSingleResult();
-        assertThat(((Number) ativo).longValue()).isEqualTo(rdb.getId());
+        Object assetEntity = em.createNativeQuery("SELECT asset_id FROM portfolio_assets WHERE id = :id")
+            .setParameter("id", positionEntity.getId()).getSingleResult();
+        assertThat(((Number) assetEntity).longValue()).isEqualTo(rdb.getId());
     }
 
     @Test
     @DisplayName("Dois CDBs do mesmo ativo sao duas posicoes, cada uma achada pelo seu titulo")
-    void duasPosicoesDoMesmoAtivoComTitulosDiferentes() {
-        FixedIncomeNote btg = nota(dono, "BTG");
-        FixedIncomeNote inter = nota(dono, "Inter");
-        PortfolioAsset posicaoBtg = repository.save(Fixtures.position(carteira, cdb, btg));
-        PortfolioAsset posicaoInter = repository.save(Fixtures.position(carteira, cdb, inter));
+    void twoPositionsOfSameAssetWithDifferentNotes() {
+        FixedIncomeNote btg = noteEntity(owner, "BTG");
+        FixedIncomeNote inter = noteEntity(owner, "Inter");
+        PortfolioAsset btgPosition = repository.save(Fixtures.position(portfolioEntity, cdb, btg));
+        PortfolioAsset interPosition = repository.save(Fixtures.position(portfolioEntity, cdb, inter));
 
-        assertThat(posicaoBtg.getId()).isNotEqualTo(posicaoInter.getId());
-        assertThat(repository.findByPortfolioIdAndNoteId(carteira.getId(), btg.getId()))
-            .get().extracting(PortfolioAsset::getId).isEqualTo(posicaoBtg.getId());
-        assertThat(repository.findByPortfolioIdAndNoteId(carteira.getId(), inter.getId()))
-            .get().extracting(PortfolioAsset::getId).isEqualTo(posicaoInter.getId());
+        assertThat(btgPosition.getId()).isNotEqualTo(interPosition.getId());
+        assertThat(repository.findByPortfolioIdAndNoteId(portfolioEntity.getId(), btg.getId()))
+            .get().extracting(PortfolioAsset::getId).isEqualTo(btgPosition.getId());
+        assertThat(repository.findByPortfolioIdAndNoteId(portfolioEntity.getId(), inter.getId()))
+            .get().extracting(PortfolioAsset::getId).isEqualTo(interPosition.getId());
     }
 
     @Test
     @DisplayName("NULLS NOT DISTINCT: duas posicoes do mesmo ativo sem titulo violam a unicidade")
-    void unicidadeComNoteIdNulo() {
-        repository.saveAndFlush(Fixtures.position(carteira, acao));
+    void uniquenessWithNullNoteId() {
+        repository.saveAndFlush(Fixtures.position(portfolioEntity, stock));
 
-        assertThatThrownBy(() -> repository.saveAndFlush(Fixtures.position(carteira, acao)))
+        assertThatThrownBy(() -> repository.saveAndFlush(Fixtures.position(portfolioEntity, stock)))
             .isInstanceOf(DataIntegrityViolationException.class)
             .hasMessageContaining("uk_portfolio_assets_position");
     }
 
     @Test
     @DisplayName("A mesma posicao em carteiras diferentes e permitida")
-    void unicidadeEPorCarteira() {
-        repository.saveAndFlush(Fixtures.position(carteira, acao));
-        repository.saveAndFlush(Fixtures.position(carteiraDoOutro, acao));
+    void uniquenessIsPerPortfolio() {
+        repository.saveAndFlush(Fixtures.position(portfolioEntity, stock));
+        repository.saveAndFlush(Fixtures.position(otherUsersPortfolio, stock));
 
-        assertThat(repository.findByPortfolioId(carteira.getId())).hasSize(1);
-        assertThat(repository.findByPortfolioId(carteiraDoOutro.getId())).hasSize(1);
+        assertThat(repository.findByPortfolioId(portfolioEntity.getId())).hasSize(1);
+        assertThat(repository.findByPortfolioId(otherUsersPortfolio.getId())).hasSize(1);
     }
 
     @Test
     @DisplayName("findAllByPortfolioIdAndAssetId traz todos os titulos do ativo, com a nota carregada")
-    void titulosDoAtivo() {
-        repository.save(Fixtures.position(carteira, cdb, nota(dono, "BTG")));
-        repository.save(Fixtures.position(carteira, cdb, nota(dono, "Inter")));
-        repository.save(Fixtures.position(carteira, acao));
+    void assetNotes() {
+        repository.save(Fixtures.position(portfolioEntity, cdb, noteEntity(owner, "BTG")));
+        repository.save(Fixtures.position(portfolioEntity, cdb, noteEntity(owner, "Inter")));
+        repository.save(Fixtures.position(portfolioEntity, stock));
         em.flush();
         em.clear();
 
-        List<PortfolioAsset> titulos = repository.findAllByPortfolioIdAndAssetId(carteira.getId(), cdb.getId());
+        List<PortfolioAsset> notes = repository.findAllByPortfolioIdAndAssetId(portfolioEntity.getId(), cdb.getId());
 
-        assertThat(titulos).hasSize(2);
-        assertThat(titulos).allSatisfy(pa -> assertThat(pa.getNote().getIssuer().getLegalName()).isNotBlank());
+        assertThat(notes).hasSize(2);
+        assertThat(notes).allSatisfy(pa -> assertThat(pa.getNote().getIssuer().getLegalName()).isNotBlank());
     }
 
     @Test
     @DisplayName("findAllByPortfolioIdWithAssetEagerly traz renda variavel (sem nota) e renda fixa juntas")
-    void listagemDaCarteiraNaoPerdeRendaVariavel() {
-        repository.save(Fixtures.position(carteira, acao));
-        repository.save(Fixtures.position(carteira, cdb, nota(dono, "BTG")));
+    void portfolioListingKeepsEquities() {
+        repository.save(Fixtures.position(portfolioEntity, stock));
+        repository.save(Fixtures.position(portfolioEntity, cdb, noteEntity(owner, "BTG")));
         em.flush();
         em.clear();
 
-        List<PortfolioAsset> posicoes = repository.findAllByPortfolioIdWithAssetEagerly(carteira.getId());
+        List<PortfolioAsset> positions = repository.findAllByPortfolioIdWithAssetEagerly(portfolioEntity.getId());
 
-        assertThat(posicoes).hasSize(2);
-        assertThat(posicoes).anySatisfy(pa -> assertThat(pa.getNote()).isNull());
-        assertThat(posicoes).allSatisfy(pa -> assertThat(pa.getAsset().getTicker()).isNotBlank());
+        assertThat(positions).hasSize(2);
+        assertThat(positions).anySatisfy(pa -> assertThat(pa.getNote()).isNull());
+        assertThat(positions).allSatisfy(pa -> assertThat(pa.getAsset().getTicker()).isNotBlank());
     }
 
     @Test
     @DisplayName("findOwnedById devolve a posicao ao dono, com o tipo do ativo carregado")
-    void posicaoEscopadaPeloDono() {
-        PortfolioAsset posicao = repository.save(Fixtures.position(carteira, acao));
+    void positionScopedByOwner() {
+        PortfolioAsset positionEntity = repository.save(Fixtures.position(portfolioEntity, stock));
         em.flush();
         em.clear();
 
-        Optional<PortfolioAsset> achada = repository.findOwnedById(dono.getId(), posicao.getId());
+        Optional<PortfolioAsset> found = repository.findOwnedById(owner.getId(), positionEntity.getId());
 
-        assertThat(achada).isPresent();
-        assertThat(achada.get().getAsset().getAssetType().getName()).isEqualTo("ACAO");
+        assertThat(found).isPresent();
+        assertThat(found.get().getAsset().getAssetType().getName()).isEqualTo("ACAO");
     }
 
     @Test
     @DisplayName("findOwnedById nao devolve a posicao de outro usuario")
-    void posicaoDeOutroDonoNaoSai() {
-        PortfolioAsset posicao = repository.saveAndFlush(Fixtures.position(carteira, acao));
+    void otherOwnerPositionNotReturned() {
+        PortfolioAsset positionEntity = repository.saveAndFlush(Fixtures.position(portfolioEntity, stock));
 
-        assertThat(repository.findOwnedById(outro.getId(), posicao.getId())).isEmpty();
-        assertThat(repository.findOwnedById(dono.getId(), UUID.randomUUID())).isEmpty();
+        assertThat(repository.findOwnedById(other.getId(), positionEntity.getId())).isEmpty();
+        assertThat(repository.findOwnedById(owner.getId(), UUID.randomUUID())).isEmpty();
     }
 
     @Test
     @DisplayName("findAllByAssetIdIn atravessa carteiras — e o que a atualizacao de cotacao usa")
-    void posicoesPorAtivoEmTodasAsCarteiras() {
-        repository.save(Fixtures.position(carteira, acao));
-        repository.save(Fixtures.position(carteiraDoOutro, acao));
+    void positionsByAssetAcrossPortfolios() {
+        repository.save(Fixtures.position(portfolioEntity, stock));
+        repository.save(Fixtures.position(otherUsersPortfolio, stock));
         em.flush();
         em.clear();
 
-        assertThat(repository.findAllByAssetIdIn(List.of(acao.getId()))).hasSize(2);
+        assertThat(repository.findAllByAssetIdIn(List.of(stock.getId()))).hasSize(2);
     }
 }

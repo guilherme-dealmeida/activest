@@ -15,15 +15,15 @@ import { formErrorMessage } from '@/utils/apiError';
  */
 export const ForgotPasswordPage = () => {
   const navigate = useNavigate();
-  const inicial = (useLocation().state as { email?: string } | null)?.email ?? '';
-  const [email, setEmail] = useState(inicial);
+  const initial = (useLocation().state as { email?: string } | null)?.email ?? '';
+  const [email, setEmail] = useState(initial);
   const [sent, setSent] = useState<CodeSent | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [senha, setSenha] = useState('');
-  const [confirma, setConfirma] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmValue, setConfirmValue] = useState('');
 
-  const pedir = async (e: React.FormEvent) => {
+  const request = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setBusy(true);
@@ -36,7 +36,7 @@ export const ForgotPasswordPage = () => {
     }
   };
 
-  const senhaOk = senha.length >= 8 && senha.length <= 72;
+  const passwordOk = password.length >= 8 && password.length <= 72;
 
   if (sent) {
     return (
@@ -45,19 +45,19 @@ export const ForgotPasswordPage = () => {
         <CodeStep
           sent={sent}
           confirmLabel="Salvar nova senha"
-          extraValid={senhaOk && senha === confirma}
+          extraValid={passwordOk && password === confirmValue}
           onConfirm={async (code) => {
-            await authApi.reset(sent.requestId, code, senha);
+            await authApi.reset(sent.requestId, code, password);
             navigate('/login', { state: { message: 'Senha redefinida. Entre com a nova senha.', email: email.trim() } });
           }}
           onResend={() => authApi.forgotResend(sent.requestId)}
           onBack={() => setSent(null)}
           backLabel="Trocar o e-mail"
         >
-          <Input label="Nova senha" type="password" value={senha} onChange={(e) => setSenha(e.target.value)}
-            autoComplete="new-password" error={senha && !senhaOk ? 'De 8 a 72 caracteres.' : undefined} />
-          <Input label="Confirme a nova senha" type="password" value={confirma} onChange={(e) => setConfirma(e.target.value)}
-            autoComplete="new-password" error={confirma && senha !== confirma ? 'As senhas não conferem.' : undefined} />
+          <Input label="Nova senha" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password" error={password && !passwordOk ? 'De 8 a 72 caracteres.' : undefined} />
+          <Input label="Confirme a nova senha" type="password" value={confirmValue} onChange={(e) => setConfirmValue(e.target.value)}
+            autoComplete="new-password" error={confirmValue && password !== confirmValue ? 'As senhas não conferem.' : undefined} />
         </CodeStep>
       </AuthShell>
     );
@@ -67,7 +67,7 @@ export const ForgotPasswordPage = () => {
     <AuthShell title="Esqueci a senha" subtitle="Informe o e-mail da conta: enviaremos um código para criar uma nova senha."
       footer={<Link to="/login" className="text-accent hover:underline">Voltar para o login</Link>}>
       <FormError message={error} />
-      <form onSubmit={pedir} className="space-y-4">
+      <form onSubmit={request} className="space-y-4">
         <Input label="E-mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
         <Button type="submit" className="w-full" isLoading={busy} disabled={!email.trim()}>Enviar código</Button>
       </form>

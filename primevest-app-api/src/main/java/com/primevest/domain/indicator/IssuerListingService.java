@@ -41,9 +41,9 @@ public class IssuerListingService {
 
     @Autowired
     public IssuerListingService(IndicatorService indicators, JdbcTemplate jdbc, AssetLogos logos,
-                                @Value("${primevest.emissoras.dado-antigo.preco-dias:7}") int priceDays,
-                                @Value("${primevest.emissoras.dado-antigo.balanco-meses:6}") int balanceMonths,
-                                @Value("${primevest.emissoras.dado-antigo.informe-meses:3}") int reportMonths) {
+                                @Value("${primevest.issuer-page.stale-data.price-days:7}") int priceDays,
+                                @Value("${primevest.issuer-page.stale-data.statement-months:6}") int balanceMonths,
+                                @Value("${primevest.issuer-page.stale-data.report-months:3}") int reportMonths) {
         this(indicators, jdbc, logos, priceDays, balanceMonths, reportMonths, Clock.system(ZONE));
     }
 
@@ -58,18 +58,18 @@ public class IssuerListingService {
         this.clock = clock;
     }
 
-    private record Meta(String assetName, String tradeName, String legalName, String b3Sector, String b3Subsector,
+    private record ListingMeta(String assetName, String tradeName, String legalName, String b3Sector, String b3Subsector,
                         String b3Segment, String fundSegment) {
     }
 
     public List<IssuerListingRowDTO> list(IssuerKind kind) {
-        Map<Long, Meta> meta = new HashMap<>();
+        Map<Long, ListingMeta> metaById = new HashMap<>();
         jdbc.query("""
                 SELECT a.id, a.name, i.trade_name, i.legal_name, i.b3_sector, i.b3_subsector, i.b3_segment, i.segment
                 FROM assets a JOIN issuers i ON i.id = a.issuer_id
                 WHERE a.active AND i.kind = ?""",
                 rs -> {
-                    meta.put(rs.getLong("id"), new Meta(rs.getString("name"), rs.getString("trade_name"),
+                    metaById.put(rs.getLong("id"), new ListingMeta(rs.getString("name"), rs.getString("trade_name"),
                             rs.getString("legal_name"), rs.getString("b3_sector"), rs.getString("b3_subsector"),
                             rs.getString("b3_segment"), rs.getString("segment")));
                 }, kind.name());
@@ -78,7 +78,7 @@ public class IssuerListingService {
         List<IssuerListingRowDTO> out = new ArrayList<>();
         for (CurrentSnapshot s : indicators.currentAll(kind)) {
             AssetIndicatorsDTO dto = s.indicators();
-            Meta m = meta.get(s.assetId());
+            ListingMeta m = metaById.get(s.assetId());
             boolean company = kind == IssuerKind.COMPANY;
             String name = m == null ? dto.ticker()
                     : company && !blank(m.tradeName()) ? m.tradeName().trim()

@@ -272,9 +272,9 @@ public class IssuerLinkService {
             return ShareClass.ON;
         }
         if (type.contains("prefer")) {
-            String sigla = sec.preferredClass();
-            if (sigla != null) {
-                switch (sigla) {
+            String acronym = sec.preferredClass();
+            if (acronym != null) {
+                switch (acronym) {
                     case "PNA": return ShareClass.PNA;
                     case "PNB": return ShareClass.PNB;
                     case "PNC": return ShareClass.PNC;

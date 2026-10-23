@@ -5,6 +5,8 @@ import path from 'path';
 // Dentro do container, 'localhost' é o próprio container do front — o proxy
 // precisa apontar para o serviço 'api'. Fora do Docker, o padrão continua valendo.
 const apiTarget = process.env.VITE_API_TARGET || 'http://localhost:8080';
+// Tarefas (docs/planos/PLANO_TAREFAS.md, D9): a API da tela de Tarefas mora na adm-api.
+const admApiTarget = process.env.VITE_ADM_API_TARGET || 'http://localhost:8081';
 
 // Bind mount no Windows não propaga eventos de arquivo para o container Linux;
 // sem polling o hot reload não dispara.
@@ -25,6 +27,12 @@ export default defineConfig({
       usePolling,
     },
     proxy: {
+      // antes do '/api': o Vite usa a primeira regra que casa
+      '/api/v1/tasks': {
+        target: admApiTarget,
+        changeOrigin: true,
+        xfwd: true,
+      },
       '/api': {
         target: apiTarget,
         changeOrigin: true,

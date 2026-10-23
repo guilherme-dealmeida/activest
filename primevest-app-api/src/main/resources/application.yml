@@ -174,13 +174,14 @@ b3i:
 
 # Rotinas (fuso America/Sao_Paulo). Cron do Spring: segundo minuto hora dia mes dia-da-semana.
 primevest:
-  # Proventos sob demanda: a transacao pede o historico do ativo a adm-api (Redis).
-  proventos:
+  # Tarefas (docs/planos/PLANO_TAREFAS.md): os tipos de tarefa deste servico (task_types.service)
+  tasks:
+    service: APP_API
+  # Proventos sob demanda: a transacao pede o historico do ativo a adm-api (Redis). Interruptor tecnico (os testes
+  # desligam); quem desliga de verdade e o tipo DIVIDENDS_SYNC na tela de Tarefas (docs/planos/PLANO_TAREFAS.md, D30).
+  dividends:
     enabled: true
-  # Carteira: recalcula proventos e valorizacao de todas as posicoes uma vez por dia,
-  # depois do fechamento e dos proventos da adm-api (rede de seguranca das mensagens).
-  positions:
-    refresh-cron: "0 0 21 * * *"
+  # Horarios das rotinas da carteira: no banco (tabela tasks, docs/planos/PLANO_TAREFAS.md, D10).
   # Integracoes com corretoras (docs/planos/PLANO_CRIPTO_BINANCE.md, 6.3). A credencial de
   # cada usuario e cifrada com AES-256-GCM por esta chave-mestra, que fica fora
   # do banco (vem do .env). Vazia: a API sobe, mas conexoes ficam indisponiveis.
@@ -192,10 +193,8 @@ primevest:
       key-version: ${PRIMEVEST_CREDENTIALS_KEY_VERSION:1}
       previous-keys: ${PRIMEVEST_CREDENTIALS_PREVIOUS_KEYS:}
     # Sincronizacao em segundo plano (F5). O worker pega uma execucao da fila a
-    # cada worker-delay-ms; a rotina diaria enfileira todas as conexoes ativas.
-    # 08:45: depois das 8h, quando a B3 ja publicou o dia anterior (PLANO_INTEGRACAO_B3, A6).
+    # cada worker-delay-ms; a tarefa INTEGRATIONS_DAILY_SYNC (08:45, no banco) enfileira as conexoes ativas.
     worker-delay-ms: 5000
-    sync-cron: "0 45 8 * * *"
     # Execucao RUNNING ha mais tempo que isto e tida como perdida (API caiu no meio).
     stale-minutes: 30
     # Rotina diaria confirma sozinha quando nao ha nada a decidir (nenhuma
@@ -203,11 +202,11 @@ primevest:
     auto-confirm-scheduled: true
   # Listagem de emissoras (docs/planos/PLANO_LISTAGEM_EMISSORAS.md, F4): quando o preco, o balanco (acao) ou o
   # informe (FII) recebem a marca de "dado antigo".
-  emissoras:
-    dado-antigo:
-      preco-dias: 7
-      balanco-meses: 6
-      informe-meses: 3
+  issuer-page:
+    stale-data:
+      price-days: 7
+      statement-months: 6
+      report-months: 3
   logos:
     # Pasta fora do banco (B18), so leitura aqui; quem baixa e a adm-api. No Docker: ./data/logos.
     dir: ${LOGOS_DIR:../carga/data/logos}

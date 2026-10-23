@@ -32,7 +32,7 @@ import static org.mockito.Mockito.when;
 class FiiMonthlyImportIT extends IntegrationTestBase {
 
     static final String HGLG = "11728688000147";
-    static final String OUTRO = "00613094000174";
+    static final String OTHER = "00613094000174";
 
     @TempDir
     static Path tmp;
@@ -49,12 +49,12 @@ class FiiMonthlyImportIT extends IntegrationTestBase {
     long hglg;
 
     @BeforeEach
-    void cenario() {
+    void scenario() {
         // os testes de emissores apagam issuers; aqui os dois fundos sao garantidos pelo CNPJ
         jdbc.update("INSERT INTO issuers (kind, cnpj, legal_name) VALUES ('FII', ?, 'CSHG LOGISTICA') "
                 + "ON CONFLICT (cnpj) DO NOTHING", HGLG);
         jdbc.update("INSERT INTO issuers (kind, cnpj, legal_name) VALUES ('FII', ?, 'OUTRO FUNDO') "
-                + "ON CONFLICT (cnpj) DO NOTHING", OUTRO);
+                + "ON CONFLICT (cnpj) DO NOTHING", OTHER);
         hglg = jdbc.queryForObject("SELECT id FROM issuers WHERE cnpj = ?", Long.class, HGLG);
         when(cvm.yearly(any(), anyInt())).thenReturn(Optional.empty());
         when(cvm.yearly(CvmDataset.FII_MONTHLY, 2026))
@@ -63,7 +63,7 @@ class FiiMonthlyImportIT extends IntegrationTestBase {
 
     @Test
     @DisplayName("Oito meses de cada fundo: complemento e carteira juntos, versao mais alta")
-    void importa() {
+    void imports() {
         FiiMonthlyImportService.Result r = service.importYears(2016, 2026, false, "teste");
 
         assertThat(r.months()).isEqualTo(16);
@@ -120,7 +120,7 @@ class FiiMonthlyImportIT extends IntegrationTestBase {
 
     @Test
     @DisplayName("Versao nova de um mes ja gravado substitui a linha")
-    void reapresentacao() {
+    void restatement() {
         service.importYears(2026, 2026, false, "teste");
         jdbc.update("UPDATE fii_monthly SET version = 1, net_assets = 1 WHERE issuer_id = ? "
                 + "AND reference_month = '2026-04-01'", hglg);

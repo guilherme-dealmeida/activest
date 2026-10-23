@@ -11,8 +11,8 @@ const inputClass = 'w-full rounded-md border border-surface-light bg-surface-lig
 
 export const LoginPage = () => {
   const location = useLocation();
-  const aviso = (location.state as { message?: string; email?: string } | null) ?? null;
-  const [email, setEmail] = useState(aviso?.email ?? '');
+  const notice = (location.state as { message?: string; email?: string } | null) ?? null;
+  const [email, setEmail] = useState(notice?.email ?? '');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -50,10 +50,10 @@ export const LoginPage = () => {
     <AuthShell
       title="Entrar"
       footer={signup?.enabled && (
-        <>Não tem conta? <Link to="/cadastro" className="text-accent hover:underline">Criar conta</Link></>
+        <>Não tem conta? <Link to="/signup" className="text-accent hover:underline">Criar conta</Link></>
       )}
     >
-      <FormSuccess message={aviso?.message} />
+      <FormSuccess message={notice?.message} />
       <FormError message={error || google.error} />
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -64,7 +64,7 @@ export const LoginPage = () => {
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="block text-sm font-medium text-gray-300">Senha</label>
-            <Link to="/esqueci-senha" state={{ email }} className="text-xs text-accent hover:underline">Esqueci a senha</Link>
+            <Link to="/forgot-password" state={{ email }} className="text-xs text-accent hover:underline">Esqueci a senha</Link>
           </div>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass}
             placeholder="••••••••" autoComplete="current-password" required />
@@ -96,8 +96,8 @@ export const LoginPage = () => {
           {signup?.enabled && (
             <p className="mt-3 text-center text-xs text-gray-500">
               Sem conta ainda? Ao continuar com o Google você cria uma e aceita os{' '}
-              <Link to="/termos" target="_blank" className="text-accent hover:underline">Termos de Uso</Link> e a{' '}
-              <Link to="/privacidade" target="_blank" className="text-accent hover:underline">Política de Privacidade</Link>.
+              <Link to="/terms" target="_blank" className="text-accent hover:underline">Termos de Uso</Link> e a{' '}
+              <Link to="/privacy" target="_blank" className="text-accent hover:underline">Política de Privacidade</Link>.
             </p>
           )}
         </>

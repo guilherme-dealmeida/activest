@@ -13,51 +13,51 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class DividendReceivedTest {
 
-    private static final LocalDate HOJE = LocalDate.of(2026, 9, 24);
+    private static final LocalDate TODAY = LocalDate.of(2026, 9, 24);
 
-    private static Dividend pagoEm(String data) {
+    private static Dividend paidOn(String data) {
         return Dividend.builder().paymentDate(data == null ? null : LocalDate.parse(data))
             .cashEvent(AssetCashEvent.builder().source(CashEventSource.B3).build()).build();
     }
 
-    private static Dividend semDataDe(CashEventSource fonte) {
-        return Dividend.builder().cashEvent(AssetCashEvent.builder().source(fonte).build()).build();
+    private static Dividend withoutDateOf(CashEventSource sourceName) {
+        return Dividend.builder().cashEvent(AssetCashEvent.builder().source(sourceName).build()).build();
     }
 
     @Test
     @DisplayName("Pago ontem: recebido")
-    void ontem() {
-        assertThat(pagoEm("2026-09-23").isReceived(HOJE)).isTrue();
+    void yesterday() {
+        assertThat(paidOn("2026-09-23").isReceived(TODAY)).isTrue();
     }
 
     @Test
     @DisplayName("Pago hoje (D0): recebido")
-    void hoje() {
-        assertThat(pagoEm("2026-09-24").isReceived(HOJE)).isTrue();
+    void today() {
+        assertThat(paidOn("2026-09-24").isReceived(TODAY)).isTrue();
     }
 
     @Test
     @DisplayName("Pago amanha: a receber")
-    void amanha() {
-        assertThat(pagoEm("2026-09-25").isReceived(HOJE)).isFalse();
+    void tomorrow() {
+        assertThat(paidOn("2026-09-25").isReceived(TODAY)).isFalse();
     }
 
     @Test
     @DisplayName("Sem data, vindo do historico longo da B3: recebido (a fonte so lista o passado)")
-    void semDataHistorico() {
-        assertThat(semDataDe(CashEventSource.B3_HISTORICO).isReceived(HOJE)).isTrue();
+    void withoutDateHistory() {
+        assertThat(withoutDateOf(CashEventSource.B3_HISTORICO).isReceived(TODAY)).isTrue();
     }
 
     @Test
     @DisplayName("Sem data, vindo da fonte recente (pagamento a definir): a receber")
-    void semDataFonteRecente() {
-        assertThat(semDataDe(CashEventSource.B3).isReceived(HOJE)).isFalse();
-        assertThat(semDataDe(CashEventSource.FNET).isReceived(HOJE)).isFalse();
+    void withoutDateRecentSource() {
+        assertThat(withoutDateOf(CashEventSource.B3).isReceived(TODAY)).isFalse();
+        assertThat(withoutDateOf(CashEventSource.FNET).isReceived(TODAY)).isFalse();
     }
 
     @Test
     @DisplayName("Sem data e sem evento (MANUAL): recebido")
-    void manualSemData() {
-        assertThat(Dividend.builder().build().isReceived(HOJE)).isTrue();
+    void manualWithoutDate() {
+        assertThat(Dividend.builder().build().isReceived(TODAY)).isTrue();
     }
 }

@@ -1304,3 +1304,100 @@ export interface PendingBonusCost {
   newShares: number;
   label: string;
 }
+
+// ---------------------------------------------------------------------------
+// Tarefas (docs/planos/PLANO_TAREFAS.md): API /api/v1/tasks, na adm-api (D9). Status e origem em inglês, no banco e
+// na tela (D2); SCHEDULED é a agendada calculada do horário (D3).
+// ---------------------------------------------------------------------------
+
+export type TaskExecutionStatus = 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED' | 'SKIPPED' | 'SCHEDULED';
+export type TaskTriggerType = 'SCHEDULE' | 'MANUAL' | 'STARTUP';
+export type TaskValueType = 'YEAR' | 'DATE' | 'BOOLEAN' | 'INTEGER' | 'TEXT' | 'LIST';
+export type TaskService = 'ADM_API' | 'APP_API';
+
+export interface TaskAttributeItem {
+  typeAttributeId: number;
+  name: string;
+  valueType: TaskValueType;
+  required: boolean;
+  description: string;
+  defaultValue?: string;
+  value?: string;
+}
+
+export interface TaskItem {
+  id: number;
+  name: string;
+  description?: string;
+  effectiveDescription: string;
+  type: string;
+  typeDescription: string;
+  service: TaskService;
+  typeEnabled: boolean;
+  enabled: boolean;
+  /** Roda na subida do serviço, no máximo uma vez por dia (D37, D38). */
+  runOnStartup: boolean;
+  cron?: string;
+  nextRun?: string;
+  stoppable: boolean;
+  running: boolean;
+  lastRun?: { id: number; status: TaskExecutionStatus; startedAt: string; finishedAt?: string };
+  attributes: TaskAttributeItem[];
+}
+
+export interface TaskExecutionItem {
+  /** Ausente na agendada calculada (SCHEDULED). */
+  id?: number;
+  taskId: number;
+  taskName: string;
+  type: string;
+  status: TaskExecutionStatus;
+  triggerType: TaskTriggerType;
+  scheduledFor: string;
+  startedAt?: string;
+  finishedAt?: string;
+  durationSeconds?: number;
+  requestedBy?: string;
+  stopRequestedAt?: string;
+  summary?: string;
+  errorMessage?: string;
+  logLinesOmitted: number;
+  stoppable: boolean;
+}
+
+export interface TaskExecutionDetail {
+  execution: TaskExecutionItem;
+  parameters: Record<string, string | null>;
+  stopRequestedBy?: string;
+  logLines: number;
+}
+
+export interface TaskLogLine {
+  id: number;
+  loggedAt: string;
+  level: 'INFO' | 'WARN' | 'ERROR';
+  message: string;
+}
+
+export interface TaskLogPage {
+  lines: TaskLogLine[];
+  page: number;
+  size: number;
+  total: number;
+}
+
+export interface TaskUpdate {
+  name?: string;
+  description?: string;
+  /** "" tira o horário; ausente não muda. */
+  cron?: string;
+  enabled?: boolean;
+  runOnStartup?: boolean;
+  attributes?: Record<string, string>;
+}
+
+export interface TaskRunResponse {
+  executionId: number;
+  status: TaskExecutionStatus;
+  message: string;
+}

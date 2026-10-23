@@ -55,7 +55,8 @@ public class B3HistoricalQuotesClient {
     public Optional<Path> day(LocalDate date) {
         String name = "COTAHIST_D" + date.format(DAY) + ".ZIP";
         try {
-            return files.fetch(URI.create(baseUrl + name), dir.resolve("diario").resolve(name), false);
+            return files.fetch(URI.create(baseUrl + name), dir.resolve("diario").resolve(name), false,
+                    PublicFileCache.ContentCheck.zip());
         } catch (PublicFileCache.UnavailableException e) {
             throw new B3Exception("Cotacoes do pregao de " + date + " indisponiveis na B3: " + e.getMessage(), e);
         }
@@ -66,7 +67,8 @@ public class B3HistoricalQuotesClient {
         String name = "COTAHIST_A" + year + ".ZIP";
         int current = LocalDate.now(clock).getYear();
         try {
-            return files.fetch(URI.create(baseUrl + name), dir.resolve(name), year >= current - 1);
+            return files.fetch(URI.create(baseUrl + name), dir.resolve(name), year >= current - 1,
+                    PublicFileCache.ContentCheck.zip());
         } catch (PublicFileCache.UnavailableException e) {
             throw new B3Exception("Serie historica da B3 indisponivel para " + year + ": " + e.getMessage(), e);
         }

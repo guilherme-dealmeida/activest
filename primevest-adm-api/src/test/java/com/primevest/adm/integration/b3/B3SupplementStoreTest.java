@@ -14,8 +14,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** P1 do docs/planos/PLANO_CARGA_INICIAL.md: os 12 meses da B3 acumulam em disco e a data de pagamento nao se perde. */
 class B3SupplementStoreTest {
 
-    private static B3Supplement.CashDividend cash(String dataCom, String pagamento, String valor) {
-        return new B3Supplement.CashDividend("BRPETRACNPR6", pagamento, valor, "Anual/2025", "11/12/2025",
+    private static B3Supplement.CashDividend cash(String dataCom, String payment, String value) {
+        return new B3Supplement.CashDividend("BRPETRACNPR6", payment, value, "Anual/2025", "11/12/2025",
                 "BRPETRACNPR6", "DIVIDENDO", dataCom, null);
     }
 
@@ -25,11 +25,11 @@ class B3SupplementStoreTest {
 
     @Test
     @DisplayName("O que saiu da janela fica; o que voltou na resposta substitui (com a data corrigida)")
-    void acumula() {
-        B3Supplement antigo = sup(cash("22/12/2024", "20/02/2025", "0,47"), cash("22/06/2025", "20/08/2025", "0,30000"));
-        B3Supplement novo = sup(cash("22/06/2025", "21/08/2025", "0,3"), cash("22/12/2025", "20/03/2026", "0,29642144000"));
+    void accumulates() {
+        B3Supplement previous = sup(cash("22/12/2024", "20/02/2025", "0,47"), cash("22/06/2025", "20/08/2025", "0,30000"));
+        B3Supplement created = sup(cash("22/06/2025", "21/08/2025", "0,3"), cash("22/12/2025", "20/03/2026", "0,29642144000"));
 
-        B3Supplement r = B3SupplementStore.merge(antigo, novo);
+        B3Supplement r = B3SupplementStore.merge(previous, created);
 
         assertThat(r.cash()).extracting(B3Supplement.CashDividend::lastDatePrior, B3Supplement.CashDividend::paymentDate)
                 .containsExactly(
@@ -41,17 +41,17 @@ class B3SupplementStoreTest {
 
     @Test
     @DisplayName("Parcelas iguais que so mudam no pagamento entram juntas, sem virar duplicata")
-    void parcelas() {
-        B3Supplement antigo = sup(cash("25/03/2025", null, "0,0945"), cash("25/03/2025", null, "0,0945"));
-        B3Supplement novo = sup(cash("25/03/2025", "30/06/2025", "0,0945"), cash("25/03/2025", "30/12/2025", "0,0945"));
+    void installments() {
+        B3Supplement previous = sup(cash("25/03/2025", null, "0,0945"), cash("25/03/2025", null, "0,0945"));
+        B3Supplement created = sup(cash("25/03/2025", "30/06/2025", "0,0945"), cash("25/03/2025", "30/12/2025", "0,0945"));
 
-        assertThat(B3SupplementStore.merge(antigo, novo).cash()).extracting(B3Supplement.CashDividend::paymentDate)
+        assertThat(B3SupplementStore.merge(previous, created).cash()).extracting(B3Supplement.CashDividend::paymentDate)
                 .containsExactly("30/06/2025", "30/12/2025");
     }
 
     @Test
     @DisplayName("Grava em carga/data/b3/proventos-12m/{acoes|fundos}; sem resposta da B3 devolve o arquivo")
-    void disco(@TempDir Path dir) {
+    void disk(@TempDir Path dir) {
         B3SupplementStore store = new B3SupplementStore(new ObjectMapper(), dir);
 
         store.merge(false, "PETR", sup(cash("22/12/2025", "20/03/2026", "0,29")));

@@ -192,6 +192,8 @@ services:
     environment:
       # O proxy do Vite precisa apontar para o container da API, não para localhost.
       VITE_API_TARGET: http://app-api:8080
+      # Tela de Tarefas: /api/v1/tasks vai para a adm-api (docs/planos/PLANO_TAREFAS.md, D9)
+      VITE_ADM_API_TARGET: http://adm-api:8081
       # Bind mount no Windows não propaga eventos de arquivo: polling é necessário para o hot reload.
       CHOKIDAR_USEPOLLING: "true"
       # Mesma variável do .env que vai para a app-api, para não haver dois valores
@@ -210,6 +212,8 @@ services:
       - /app/node_modules
     depends_on:
       - app-api
+      # /api/v1/tasks (tela de Tarefas) vai para a adm-api; o nginx do runtime resolve o nome na subida
+      - adm-api
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
@@ -269,7 +273,7 @@ services:
     environment:
       PRIMEVEST_API_URL: http://app-api:8080
       PRIMEVEST_ADM_URL: http://adm-api:8081
-      PRIMEVEST_SENHA: ${PRIMEVEST_SENHA:-}
+      PRIMEVEST_PASSWORD: ${PRIMEVEST_PASSWORD:-}
     volumes:
       - ./carga/scripts:/work/carga/scripts:ro
 

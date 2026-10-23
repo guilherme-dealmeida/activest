@@ -18,13 +18,13 @@ export const DeleteAccountModal = ({ isOpen, onClose, onDeleted }: Props) => {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const fechar = () => {
+  const close = () => {
     setSent(null);
     setError('');
     onClose();
   };
 
-  const pedir = async () => {
+  const request = async () => {
     setError('');
     setBusy(true);
     try {
@@ -37,7 +37,7 @@ export const DeleteAccountModal = ({ isOpen, onClose, onDeleted }: Props) => {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={fechar} title="Excluir a conta">
+    <Modal isOpen={isOpen} onClose={close} title="Excluir a conta">
       {sent ? (
         <CodeStep
           sent={sent}
@@ -48,7 +48,7 @@ export const DeleteAccountModal = ({ isOpen, onClose, onDeleted }: Props) => {
             onDeleted();
           }}
           onResend={() => usersApi.resendDeletion(sent.requestId)}
-          onBack={fechar}
+          onBack={close}
           backLabel="Cancelar"
         />
       ) : (
@@ -63,8 +63,8 @@ export const DeleteAccountModal = ({ isOpen, onClose, onDeleted }: Props) => {
           <p className="text-sm text-gray-300">Para confirmar, enviaremos um código para o e-mail da conta.</p>
           {error && <p className="text-sm text-danger">{error}</p>}
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="ghost" onClick={fechar}>Cancelar</Button>
-            <Button type="button" variant="danger" onClick={pedir} isLoading={busy}>Enviar código</Button>
+            <Button type="button" variant="ghost" onClick={close}>Cancelar</Button>
+            <Button type="button" variant="danger" onClick={request} isLoading={busy}>Enviar código</Button>
           </div>
         </div>
       )}

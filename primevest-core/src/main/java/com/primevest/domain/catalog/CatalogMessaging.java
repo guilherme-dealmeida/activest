@@ -11,10 +11,10 @@ package com.primevest.domain.catalog;
 public final class CatalogMessaging {
 
     /** adm → app: {@link CatalogChange} em JSON. */
-    public static final String CATALOG_CHANNEL = "primevest:catalogo:ativos";
+    public static final String CATALOG_CHANNEL = "primevest:catalog:assets";
 
     /** app → adm: id do ativo cujo historico de proventos a carteira precisa. */
-    public static final String ON_DEMAND_CHANNEL = "primevest:proventos:sob-demanda";
+    public static final String ON_DEMAND_CHANNEL = "primevest:dividends:on-demand";
 
     public static final String ENABLED_PROPERTY = "primevest.messaging.enabled";
 

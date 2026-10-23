@@ -1,5 +1,7 @@
 package com.primevest.adm.domain.pricehistory;
 
+import com.primevest.domain.task.TaskRun;
+
 import com.primevest.domain.asset.Asset;
 import com.primevest.domain.asset.AssetRepository;
 import com.primevest.adm.integration.b3.B3HistoricalQuotesClient;
@@ -97,6 +99,7 @@ public class HistoricalQuotesImportService {
         // ticker, e os anos antigos usam esse ISIN para achar o ticker de antes da
         // renomeacao.
         for (int year = to; year >= from; year--) {
+            TaskRun.checkStop(); // ponto de parada (docs/planos/PLANO_TAREFAS.md, D8)
             Optional<java.nio.file.Path> zip = client.year(year);
             if (zip.isEmpty()) {
                 log.warn("Serie historica B3: {} nao existe na B3", year);
@@ -149,6 +152,7 @@ public class HistoricalQuotesImportService {
         List<DayResult> days = new ArrayList<>();
         long total = 0;
         for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
+            TaskRun.checkStop(); // ponto de parada (docs/planos/PLANO_TAREFAS.md, D8)
             if (d.getDayOfWeek() == java.time.DayOfWeek.SATURDAY || d.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
                 continue;
             }

@@ -248,7 +248,7 @@ sequenceDiagram
     participant ADM as adm-api :8081
     participant DB as PostgreSQL
 
-    A->>A: cp .env.example .env (PRIMEVEST_SENHA, token só leitura S3_*)
+    A->>A: cp .env.example .env (PRIMEVEST_PASSWORD, token só leitura S3_*)
     A->>D: docker compose --profile carga run --rm data pull
     D->>R2: baixa carga/data/ (~1,4 GB, --minimo = só o essencial)
     R2-->>D: arquivos + manifests
@@ -329,11 +329,11 @@ sequenceDiagram
 
     I->>APP: POST /api/v1/transactions (compra de XPTO3)
     APP->>DB: grava a transação (posição sai das transações)
-    APP->>RD: primevest:proventos:sob-demanda (assetId)
+    APP->>RD: primevest:dividends:on-demand (assetId)
     RD->>ADM: pedido "preciso do histórico"
     ADM->>EX: proventos/eventos do emissor + logo (se faltar)
     ADM->>DB: grava asset_cash_events / asset_stock_events
-    ADM->>RD: primevest:catalogo:ativos {PROVENTOS, assetIds}
+    ADM->>RD: primevest:catalog:assets {PROVENTOS, assetIds}
     RD->>APP: "catálogo mudou"
     APP->>DB: refaz dividends e valorização das posições
     Note over ADM,APP: 19:00 fechamento → {FECHAMENTO} → só revaloriza<br/>21:00 rede de segurança: recalcula tudo (cobre mensagem perdida)
@@ -372,13 +372,13 @@ Prefixo das rotas: `/api/v1`. Investidor = qualquer usuário logado; Admin = `is
 | UC20 | Carga inicial | Admin | 7 etapas em ordem, retomável (seção 6) | `POST /admin/bootstrap` · `admin.mjs bootstrap` |
 | UC21 | Manter emissores | Admin | Importar emissores, ligar ativos, lista curada de CNPJs de FII, ligação manual, composição de unit | `POST /admin/issuers/import`, `/issuers/link`, `/issuers/fii-cnpjs`, `PUT /admin/assets/{id}/issuer`, `/unit-composition` |
 | UC22 | Disparar rotina de catálogo | Admin | Qualquer rotina na hora (202, resultado no log) | `POST /admin/closing`, `/proventos`, `/logos`, `/catalog-audit`, `/cvm/import`, `/cvm/quarters`, `/cvm/fii-monthly` |
-| UC23 | Situação dos avisos do FNET | Admin | Grava se cada aviso de rendimento de FII está ativo, inativo ou cancelado no FNET; aviso inativo não vira provento (21/10/2026, `docs/planos/PLANO_CORRECAO_PROVENTOS.md`) | `POST /admin/proventos/fnet-status` |
+| UC23 | Situação dos avisos do FNET | Admin | Grava se cada aviso de rendimento de FII está ativo, inativo ou cancelado no FNET; aviso inativo não vira provento (21/10/2026, `docs/planos/PLANO_CORRECAO_PROVENTOS.md`) | `POST /admin/dividends/fnet-status` |
 | UC24 | Publicar dados no bucket | Mantenedor | Sobe o que é novo em `carga/data/` e regrava os manifests; nunca apaga no bucket | `docker compose --profile carga run --rm data push` |
 | UC25 | Baixar dados do bucket | Admin | Baixa `carga/data/` na primeira subida | `… data pull [--minimo]` |
 | UC26 | Subir o ambiente | Admin | db, redis, app-api, adm-api, web; migrations ao subir | `docker compose up -d --build` |
 | UC27 | Conferir a carga | Admin | Log da adm-api e contagens do catálogo | `docker compose logs -f adm-api`, `carga/scripts/sql/contagens.sql` |
 | UC28 | Recarregar série histórica | Admin | COTAHIST de um período | `POST /admin/b3/cotahist?from&to` |
-| UC29 | Completar datas de pagamento | Admin | Relatórios da CVM (2022+) e levantamento | `POST /admin/cvm/proventos`, `/admin/proventos/levantamento` |
+| UC29 | Completar datas de pagamento | Admin | Relatórios da CVM (2022+) e levantamento | `POST /admin/cvm/payment-dates`, `/admin/dividends/payment-date-survey` |
 | UC30 | Fechamento de preços | Agendador | BRAPI (B3, ativos em carteira) e CoinGecko; recupera na subida | 19:00 seg–sex (B3) e diário (cripto) |
 | UC31 | Proventos diários | Agendador | B3 por emissor, FNET para FII, histórico longo, datas da CVM | 20:00 diário |
 | UC32 | Balanços e informe FII | Agendador | DFP/ITR e informe do ano corrente e anterior | 07:30 diário |
@@ -387,8 +387,8 @@ Prefixo das rotas: `/api/v1`. Investidor = qualquer usuário logado; Admin = `is
 | UC35 | Logos e conferência | Agendador | Logos que faltam; tickers novos/sumidos/renomeados e índices atrasados (log e mensagem de administrador desde 13/10/2026) | dia 1 06:00; segunda 07:00 |
 | UC36 | Índices de mercado diários | Agendador | CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, PTAX (SGS do BCB), Ibovespa e IFIX (B3); janela de revisão; recupera na subida (05/10/2026) | 10:00 diário |
 | UC37 | Carregar índices de mercado | Admin | Histórico por índice e ano (padrão 2010 até hoje), ou a rodada incremental | `POST /admin/indices?codes&from&to&recent` |
-| UC39 | Preço do Tesouro | Agendador / Admin | PU de venda oficial de cada título; o Tesouro passa a valer cotas × PU | 08:00 diário; `POST /admin/tesouro` |
+| UC39 | Preço do Tesouro | Agendador / Admin | PU de venda oficial de cada título; o Tesouro passa a valer cotas × PU | 08:00 diário; `POST /admin/treasury` |
 | UC40 | Valorizar renda fixa privada | Agendador | Curva da taxa contratada (CDI, Selic, IPCA…), por transação, índice novo, 21:00 e subida | por evento e 21:00 |
 | UC42 | Abertura do dia | Agendador | Liquida os títulos vencidos (venda SISTEMA), avisa proventos pagos e eventos com data-ex no dia, confere bonificação sem custo, avisos de catálogo, alerta de preço e "padrão mudou" (docs/planos/PLANO_NOTIFICACOES.md, 13/10/2026) | 00:00 diário + subida da app-api |
-| UC41 | Cotações diárias do catálogo | Agendador / Admin | COTAHIST da B3 pregão a pregão para todas as ações e FIIs (sem cota da BRAPI), completando os dias que faltam; recupera na subida (10/10/2026) | 21:30 e 08:30 diário; `POST /admin/b3/cotahist/diario` |
+| UC41 | Cotações diárias do catálogo | Agendador / Admin | COTAHIST da B3 pregão a pregão para todas as ações e FIIs (sem cota da BRAPI), completando os dias que faltam; recupera na subida (10/10/2026) | 21:30 e 08:30 diário; `POST /admin/b3/cotahist/daily` |
 | UC38 | Consultar índices | Investidor | Tela Índices: um card por índice com período (1D…MAX, de/até) e gráfico; lista, série e acumulado no período (% do índice, spread; nível para Ibovespa/IFIX/dólar) | `/indices`; `GET /indices`, `/indices/{code}/chart`, `/history`, `/accumulated` |

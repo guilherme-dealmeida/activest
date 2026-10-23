@@ -17,12 +17,12 @@ public final class Emails {
 
     /** "gu*******@gmail.com": para a tela dizer para onde o código foi sem expor o endereço inteiro. */
     public static String mask(String email) {
-        int arroba = email.indexOf('@');
-        if (arroba <= 0) {
+        int at = email.indexOf('@');
+        if (at <= 0) {
             return "***";
         }
-        String nome = email.substring(0, arroba);
-        String visivel = nome.length() <= 2 ? nome.substring(0, 1) : nome.substring(0, 2);
-        return visivel + "*".repeat(Math.max(3, nome.length() - visivel.length())) + email.substring(arroba);
+        String name = email.substring(0, at);
+        String visible = name.length() <= 2 ? name.substring(0, 1) : name.substring(0, 2);
+        return visible + "*".repeat(Math.max(3, name.length() - visible.length())) + email.substring(at);
     }
 }

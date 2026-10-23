@@ -24,8 +24,8 @@ interface Props {
   /** Carteira total ou tipo que pode ser reserva (renda fixa e Tesouro: asset_types.fixed_income). */
   showReservation: boolean;
   range: PerformanceRange;
-  de: string;
-  ate: string;
+  dateFrom: string;
+  dateTo: string;
   firstDate?: string | null;
   lastDate?: string | null;
   benchmarks: BenchmarkPick[];
@@ -35,12 +35,12 @@ interface Props {
   onReservation: (v: ReservationFilter) => void;
   onBasis: (v: PerformanceBasis) => void;
   onRange: (v: PerformanceRange) => void;
-  onDates: (de: string, ate: string) => void;
+  onDates: (dateFrom: string, dateTo: string) => void;
   onBenchmarks: (v: BenchmarkPick[]) => void;
 }
 
 const selectClass = 'rounded-md border border-surface-light bg-surface px-2 py-1.5 text-sm text-white';
-const segClass = (on: boolean) => `rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+const segmentClass = (on: boolean) => `rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
   on ? 'bg-accent text-black' : 'bg-white/5 text-gray-300 hover:bg-white/10'}`;
 
 /**
@@ -113,32 +113,32 @@ export const PerformanceFilters = (p: Props) => {
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap gap-1" role="group" aria-label="Período">
           {RANGES.map(r => (
-            <button key={r} type="button" onClick={() => p.onRange(r)} aria-pressed={!p.de && !p.ate && p.range === r}
-              className={segClass(!p.de && !p.ate && p.range === r)}>{RANGE_LABEL[r]}</button>
+            <button key={r} type="button" onClick={() => p.onRange(r)} aria-pressed={!p.dateFrom && !p.dateTo && p.range === r}
+              className={segmentClass(!p.dateFrom && !p.dateTo && p.range === r)}>{RANGE_LABEL[r]}</button>
           ))}
         </div>
         <div className="flex items-center gap-1.5 text-xs text-gray-400">
           <label htmlFor="rent-de">de</label>
-          <input id="rent-de" type="date" value={p.de} min={p.firstDate ?? undefined} max={p.lastDate ?? undefined}
-            onChange={e => p.onDates(e.target.value, p.ate || (p.lastDate ?? ''))}
+          <input id="rent-de" type="date" value={p.dateFrom} min={p.firstDate ?? undefined} max={p.lastDate ?? undefined}
+            onChange={e => p.onDates(e.target.value, p.dateTo || (p.lastDate ?? ''))}
             className="rounded-md border border-surface-light bg-surface px-2 py-1 text-xs text-white" />
           <label htmlFor="rent-ate">até</label>
-          <input id="rent-ate" type="date" value={p.ate} min={p.firstDate ?? undefined} max={p.lastDate ?? undefined}
-            onChange={e => p.onDates(p.de || (p.firstDate ?? ''), e.target.value)}
+          <input id="rent-ate" type="date" value={p.dateTo} min={p.firstDate ?? undefined} max={p.lastDate ?? undefined}
+            onChange={e => p.onDates(p.dateFrom || (p.firstDate ?? ''), e.target.value)}
             className="rounded-md border border-surface-light bg-surface px-2 py-1 text-xs text-white" />
         </div>
         {/* Reserva e base na linha do período (17/10/2026); Bruto primeiro, é o padrão */}
         {p.showReservation && <div className="flex gap-1" role="group" aria-label="Reserva de emergência">
-          <button type="button" className={segClass(p.reservation === 'WITH')} aria-pressed={p.reservation === 'WITH'}
+          <button type="button" className={segmentClass(p.reservation === 'WITH')} aria-pressed={p.reservation === 'WITH'}
             onClick={() => p.onReservation('WITH')}>Com reserva</button>
-          <button type="button" className={segClass(p.reservation === 'WITHOUT')} aria-pressed={p.reservation === 'WITHOUT'}
+          <button type="button" className={segmentClass(p.reservation === 'WITHOUT')} aria-pressed={p.reservation === 'WITHOUT'}
             onClick={() => p.onReservation('WITHOUT')}>Sem reserva</button>
         </div>}
         {p.basisApplies && (
           <div className="flex items-center gap-1" role="group" aria-label="Base de cálculo">
-            <button type="button" className={segClass(p.basis === 'GROSS')} aria-pressed={p.basis === 'GROSS'}
+            <button type="button" className={segmentClass(p.basis === 'GROSS')} aria-pressed={p.basis === 'GROSS'}
               onClick={() => p.onBasis('GROSS')}>Bruto</button>
-            <button type="button" className={segClass(p.basis === 'NET')} aria-pressed={p.basis === 'NET'}
+            <button type="button" className={segmentClass(p.basis === 'NET')} aria-pressed={p.basis === 'NET'}
               onClick={() => p.onBasis('NET')}>Líquido</button>
             <InfoTooltip content="Líquido: renda fixa e Tesouro pelo valor de resgate estimado (IR e IOF do dia), vendas pelo valor recebido e proventos sem o IR retido. Bruto: os mesmos valores antes dos impostos. Os índices (CDI, IPCA...) são sempre brutos — compare em base bruta para uma comparação equivalente." />
           </div>

@@ -64,10 +64,10 @@ public class FixedIncomeSettlement {
      * igualar sem liquidar, entao a posicao fica com a menor sobra que o campo
      * de dinheiro representa.
      */
-    private static final BigDecimal RESIDUO = new BigDecimal("0.01");
+    private static final BigDecimal RESIDUE = new BigDecimal("0.01");
 
     private static final int MONEY_SCALE = 2;
-    private static final NumberFormat MOEDA = NumberFormat.getCurrencyInstance(Locale.of("pt", "BR"));
+    private static final NumberFormat MONEY = NumberFormat.getCurrencyInstance(Locale.of("pt", "BR"));
 
     /**
      * Regrava valorizacao e liquidacao da posicao e valida E, F e G.
@@ -89,74 +89,74 @@ public class FixedIncomeSettlement {
      * @param chronological transacoes da posicao em ordem cronologica
      * @param vendaLancada  a escrita que disparou este recalculo foi numa venda
      */
-    public void recompute(PortfolioAsset pa, List<Transaction> chronological, boolean vendaLancada) {
+    public void recompute(PortfolioAsset pa, List<Transaction> chronological, boolean recordedSale) {
         String label = label(pa);
 
-        BigDecimal aplicado = BigDecimal.ZERO;
-        BigDecimal resgatado = BigDecimal.ZERO;
-        boolean liquidacaoTotal = false;
+        BigDecimal invested = BigDecimal.ZERO;
+        BigDecimal redeemed = BigDecimal.ZERO;
+        boolean fullSettlement = false;
 
         for (Transaction tx : chronological) {
-            BigDecimal valor = tx.getTotalAmount() != null ? tx.getTotalAmount() : BigDecimal.ZERO;
+            BigDecimal value = tx.getTotalAmount() != null ? tx.getTotalAmount() : BigDecimal.ZERO;
             if (tx.getType() == TransactionType.BUY) {
-                aplicado = aplicado.add(valor);
+                invested = invested.add(value);
             } else {
-                resgatado = resgatado.add(valor);
-                liquidacaoTotal = liquidacaoTotal || tx.isFullSettlement();
+                redeemed = redeemed.add(value);
+                fullSettlement = fullSettlement || tx.isFullSettlement();
             }
         }
 
-        aplicado = escala(aplicado);
-        resgatado = escala(resgatado);
-        BigDecimal valorizacao = escala(pa.getAppreciation() != null ? pa.getAppreciation() : BigDecimal.ZERO);
+        invested = scale(invested);
+        redeemed = scale(redeemed);
+        BigDecimal appreciation = scale(pa.getAppreciation() != null ? pa.getAppreciation() : BigDecimal.ZERO);
 
-        if (liquidacaoTotal) {
+        if (fullSettlement) {
             // 3.1.1 — o resgate passa a definir quanto a posicao valia.
-            valorizacao = resgatado.subtract(aplicado);
-            if (valorizacao.signum() < 0) {
+            appreciation = redeemed.subtract(invested);
+            if (appreciation.signum() < 0) {
                 throw new BusinessException(
-                    "Liquidação total de " + label + ": o resgate de " + moeda(resgatado)
-                    + " é menor que o valor aplicado (" + moeda(aplicado) + ")."
+                    "Liquidação total de " + label + ": o resgate de " + money(redeemed)
+                    + " é menor que o valor aplicado (" + money(invested) + ")."
                     + " Em renda fixa não existe valorização negativa.");
             }
-        } else if (vendaLancada && resgatado.signum() > 0
-                && resgatado.compareTo(aplicado.add(valorizacao)) >= 0) {
+        } else if (recordedSale && redeemed.signum() > 0
+                && redeemed.compareTo(invested.add(appreciation)) >= 0) {
             // 3.1.2 — resgate parcial que alcanca o saldo: a posicao valia mais
             // do que estava registrado, e sobra o centavo que a regra F exige.
-            valorizacao = resgatado.subtract(aplicado).add(RESIDUO);
+            appreciation = redeemed.subtract(invested).add(RESIDUE);
         } else if (chronological.isEmpty()) {
             // Sem transacao nenhuma a posicao nao tem aplicado: a valorizacao
             // que restou de uma venda excluida nao pertence a mais nada.
-            valorizacao = BigDecimal.ZERO.setScale(MONEY_SCALE);
+            appreciation = BigDecimal.ZERO.setScale(MONEY_SCALE);
         }
 
         // Regra G.
-        if (valorizacao.signum() < 0) {
+        if (appreciation.signum() < 0) {
             throw new BusinessException(
-                "A valorização de " + label + " ficaria negativa (" + moeda(valorizacao) + ")."
+                "A valorização de " + label + " ficaria negativa (" + money(appreciation) + ")."
                 + " Em renda fixa isso não existe.");
         }
 
-        BigDecimal saldoBruto = aplicado.add(valorizacao);
+        BigDecimal grossBalance = invested.add(appreciation);
 
         // Regra E.
-        if (saldoBruto.compareTo(resgatado) < 0) {
+        if (grossBalance.compareTo(redeemed) < 0) {
             throw new BusinessException(
-                "Em " + label + ", o total resgatado (" + moeda(resgatado) + ") passaria do valor aplicado"
-                + " mais a valorização (" + moeda(saldoBruto) + ")."
+                "Em " + label + ", o total resgatado (" + money(redeemed) + ") passaria do valor aplicado"
+                + " mais a valorização (" + money(grossBalance) + ")."
                 + " Ajuste as compras ou a valorização antes desta alteração.");
         }
 
         // Regra F.
-        if (saldoBruto.compareTo(resgatado) == 0 && !liquidacaoTotal && resgatado.signum() > 0) {
+        if (grossBalance.compareTo(redeemed) == 0 && !fullSettlement && redeemed.signum() > 0) {
             throw new BusinessException(
-                "Em " + label + ", o total resgatado (" + moeda(resgatado) + ") igualaria o valor aplicado"
+                "Em " + label + ", o total resgatado (" + money(redeemed) + ") igualaria o valor aplicado"
                 + " mais a valorização. Zerar a posição só é possível marcando a venda"
                 + " como liquidação total.");
         }
 
-        pa.setAppreciation(valorizacao);
-        pa.setSettled(liquidacaoTotal);
+        pa.setAppreciation(appreciation);
+        pa.setSettled(fullSettlement);
     }
 
     /**
@@ -175,40 +175,40 @@ public class FixedIncomeSettlement {
                 || curve.status() == FixedIncomeCurve.Status.UNSUPPORTED || curve.balance() == null) {
             return false;
         }
-        BigDecimal aplicado = BigDecimal.ZERO;
-        BigDecimal resgatado = BigDecimal.ZERO;
+        BigDecimal invested = BigDecimal.ZERO;
+        BigDecimal redeemed = BigDecimal.ZERO;
         for (Transaction tx : chronological) {
-            BigDecimal valor = tx.getTotalAmount() != null ? tx.getTotalAmount() : BigDecimal.ZERO;
+            BigDecimal value = tx.getTotalAmount() != null ? tx.getTotalAmount() : BigDecimal.ZERO;
             if (tx.getType() == TransactionType.BUY) {
-                aplicado = aplicado.add(valor);
+                invested = invested.add(value);
             } else {
-                resgatado = resgatado.add(valor);
+                redeemed = redeemed.add(value);
             }
         }
-        BigDecimal valorizacao = escala(curve.balance().add(resgatado).subtract(aplicado));
-        if (valorizacao.signum() < 0) {
-            valorizacao = BigDecimal.ZERO.setScale(MONEY_SCALE); // regra G
+        BigDecimal appreciation = scale(curve.balance().add(redeemed).subtract(invested));
+        if (appreciation.signum() < 0) {
+            appreciation = BigDecimal.ZERO.setScale(MONEY_SCALE); // regra G
         }
-        BigDecimal atual = pa.getAppreciation() != null ? escala(pa.getAppreciation()) : null;
-        if (atual != null && atual.compareTo(valorizacao) == 0) {
+        BigDecimal current = pa.getAppreciation() != null ? scale(pa.getAppreciation()) : null;
+        if (current != null && current.compareTo(appreciation) == 0) {
             return false;
         }
-        pa.setAppreciation(valorizacao);
+        pa.setAppreciation(appreciation);
         return true;
     }
 
-    private BigDecimal escala(BigDecimal valor) {
-        return valor.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+    private BigDecimal scale(BigDecimal value) {
+        return value.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
     }
 
-    private String moeda(BigDecimal valor) {
-        return MOEDA.format(valor);
+    private String money(BigDecimal value) {
+        return MONEY.format(value);
     }
 
     private String label(PortfolioAsset pa) {
         String ticker = pa.getAsset() != null ? pa.getAsset().getTicker() : "";
         FixedIncomeNote note = pa.getNote();
-        String titulo = note != null ? note.getLabel() : "";
-        return titulo != null && !titulo.isBlank() ? ticker + " (" + titulo + ")" : ticker;
+        String noteLabel = note != null ? note.getLabel() : "";
+        return noteLabel != null && !noteLabel.isBlank() ? ticker + " (" + noteLabel + ")" : ticker;
     }
 }

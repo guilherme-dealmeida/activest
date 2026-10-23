@@ -53,14 +53,14 @@ const NumericCell = ({ row, column, tab }: { row: ListingRow; column: NumericCol
     title = value === null ? 'Sem balanço ou informe' : value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   } else {
     text = formatIndicator(value, column.unit);
-    title = value === null ? (note ?? (column.key === 'preco' ? 'Sem cotação' : undefined)) : undefined;
+    title = value === null ? (note ?? (column.key === 'price' ? 'Sem cotação' : undefined)) : undefined;
   }
   let stale: string | null = null;
-  if (column.key === 'preco' && row.priceStale && row.priceDate) {
+  if (column.key === 'price' && row.priceStale && row.priceDate) {
     stale = `Último pregão em ${formatDate(row.priceDate)}`;
   }
   if (column.unit === 'EQUITY' && row.baseStale && row.basePeriodEnd) {
-    stale = tab === 'acoes' ? `Balanço de ${formatDate(row.basePeriodEnd)}` : `Informe de ${monthLabel(row.basePeriodEnd)}`;
+    stale = tab === 'stocks' ? `Balanço de ${formatDate(row.basePeriodEnd)}` : `Informe de ${monthLabel(row.basePeriodEnd)}`;
   }
   return (
     <td className={clsx('px-3 py-3 text-right whitespace-nowrap',
@@ -107,7 +107,7 @@ export const IssuerListingTable = ({ tab }: { tab: ListingTab }) => {
   const filters = activeFilterCount(state);
 
   const header = (key: string, label: string, align: 'left' | 'right' = 'right') => {
-    const active = state.sort ? state.sort.key === key : key === 'patrimonio';
+    const active = state.sort ? state.sort.key === key : key === 'equity';
     const dir = state.sort ? state.sort.dir : 'desc';
     return (
       <th key={key}
@@ -167,8 +167,8 @@ export const IssuerListingTable = ({ tab }: { tab: ListingTab }) => {
           <thead className="text-xs uppercase border-b border-white/10">
             <tr>
               {header('ticker', 'ATIVO', 'left')}
-              {header('nome', 'NOME', 'left')}
-              {header('setor', tab === 'acoes' ? 'SETOR' : 'SEGMENTO', 'left')}
+              {header('name', 'NOME', 'left')}
+              {header('sector', tab === 'stocks' ? 'SETOR' : 'SEGMENTO', 'left')}
               {columns.map(c => header(c.key, c.label))}
               <th className="px-3 py-3 text-center text-gray-400">AÇÃO</th>
             </tr>
@@ -186,7 +186,7 @@ export const IssuerListingTable = ({ tab }: { tab: ListingTab }) => {
                   <span className="block max-w-[16rem] truncate" title={row.legalName ?? row.name}>{row.name}</span>
                 </td>
                 <td className="px-3 py-3">
-                  {tab === 'acoes' ? (
+                  {tab === 'stocks' ? (
                     <div className="max-w-[16rem]" title={[row.sector, row.subsector, row.segment].filter(Boolean).join(' › ')}>
                       <span className="block truncate text-gray-200">{row.sector ?? '—'}</span>
                       {(row.subsector || row.segment) && (
@@ -203,7 +203,7 @@ export const IssuerListingTable = ({ tab }: { tab: ListingTab }) => {
                 </td>
                 {columns.map(c => <NumericCell key={c.key} row={row} column={c} tab={tab} />)}
                 <td className="px-3 py-3 text-center">
-                  <Link to={`/ativos/${encodeURIComponent(row.ticker)}`} className={`inline-flex ${TABLE_ACTION_CLASS}`}
+                  <Link to={`/assets/${encodeURIComponent(row.ticker)}`} className={`inline-flex ${TABLE_ACTION_CLASS}`}
                     title="Abrir ativo" aria-label={`Abrir ativo ${row.ticker}`}>
                     <Building2 className="h-4 w-4" />
                   </Link>

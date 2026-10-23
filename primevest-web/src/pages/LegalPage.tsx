@@ -2,8 +2,8 @@ import { Link } from 'react-router-dom';
 import { PRIVACY, PROVISIONAL_NOTICE, TERMS, TERMS_VERSION } from '@/content/legal';
 
 /** /termos e /privacidade: públicas, abertas a partir do cadastro e do modal de novo aceite. */
-export const LegalPage = ({ kind }: { kind: 'termos' | 'privacidade' }) => {
-  const doc = kind === 'termos' ? TERMS : PRIVACY;
+export const LegalPage = ({ kind }: { kind: 'terms' | 'privacy' }) => {
+  const doc = kind === 'terms' ? TERMS : PRIVACY;
   return (
     <div className="min-h-screen bg-background p-4 sm:p-8">
       <div className="mx-auto max-w-3xl">
@@ -24,9 +24,9 @@ export const LegalPage = ({ kind }: { kind: 'termos' | 'privacidade' }) => {
             </section>
           ))}
           <footer className="border-t border-white/10 pt-4 text-sm">
-            {kind === 'termos'
-              ? <Link to="/privacidade" className="text-accent hover:underline">Ler a Política de Privacidade</Link>
-              : <Link to="/termos" className="text-accent hover:underline">Ler os Termos de Uso</Link>}
+            {kind === 'terms'
+              ? <Link to="/privacy" className="text-accent hover:underline">Ler a Política de Privacidade</Link>
+              : <Link to="/terms" className="text-accent hover:underline">Ler os Termos de Uso</Link>}
           </footer>
         </article>
       </div>

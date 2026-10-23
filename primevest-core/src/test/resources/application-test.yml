@@ -35,7 +35,7 @@ primevest:
   scheduling:
     enabled: false
   # Proventos sob demanda (depois de cada transacao) tambem sairiam para a rede.
-  proventos:
+  dividends:
     enabled: false
     pause-millis: 0
     # Os testes de ponta a ponta montam a carteira e conferem so ela: a rodada fica no

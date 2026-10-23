@@ -29,59 +29,59 @@ class B3InvestidorClientTest {
 
     private static final String CPF = "52998224725";
     private static final String TOKEN = "{\"token_type\":\"Bearer\",\"expires_in\":3599,\"access_token\":\"tok-%d\"}";
-    private static final String ROTA = "/api/position/v3/{product}/investors/{documentNumber}";
+    private static final String ROUTE = "/api/position/v3/{product}/investors/{documentNumber}";
     private static final Map<String, String> VARS = Map.of("product", "equities", "documentNumber", CPF);
-    private static final Map<String, Object> PERIODO = new LinkedHashMap<>();
+    private static final Map<String, Object> PERIOD = new LinkedHashMap<>();
 
     static {
-        PERIODO.put("referenceStartDate", "2024-01-01");
-        PERIODO.put("referenceEndDate", "2024-01-31");
+        PERIOD.put("referenceStartDate", "2024-01-01");
+        PERIOD.put("referenceEndDate", "2024-01-31");
     }
 
     /** Respostas enfileiradas e pedidos recebidos. */
     private static final class Fake implements ExchangeFunction {
-        final Deque<ClientResponse> respostas = new ArrayDeque<>();
-        final List<ClientRequest> pedidos = new ArrayList<>();
+        final Deque<ClientResponse> responses = new ArrayDeque<>();
+        final List<ClientRequest> requests = new ArrayList<>();
         int tokens;
 
         Fake token() {
             tokens++;
-            return responde(HttpStatus.OK, TOKEN.formatted(tokens));
+            return responds(HttpStatus.OK, TOKEN.formatted(tokens));
         }
 
-        Fake responde(HttpStatus status, String corpo) {
-            return responde(status, corpo, null);
+        Fake responds(HttpStatus status, String requestBody) {
+            return responds(status, requestBody, null);
         }
 
-        Fake responde(HttpStatus status, String corpo, String retryAfter) {
+        Fake responds(HttpStatus status, String requestBody, String retryAfter) {
             ClientResponse.Builder b = ClientResponse.create(status)
-                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE).body(corpo);
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE).body(requestBody);
             if (retryAfter != null) {
                 b.header(HttpHeaders.RETRY_AFTER, retryAfter);
             }
-            respostas.add(b.build());
+            responses.add(b.build());
             return this;
         }
 
         @Override
         public Mono<ClientResponse> exchange(ClientRequest request) {
-            pedidos.add(request);
-            return Mono.just(respostas.removeFirst());
+            requests.add(request);
+            return Mono.just(responses.removeFirst());
         }
 
         List<ClientRequest> gets() {
-            return pedidos.stream().filter(p -> p.method() == HttpMethod.GET).toList();
+            return requests.stream().filter(p -> p.method() == HttpMethod.GET).toList();
         }
 
         long posts() {
-            return pedidos.stream().filter(p -> p.method() == HttpMethod.POST).count();
+            return requests.stream().filter(p -> p.method() == HttpMethod.POST).count();
         }
     }
 
-    private final List<Long> pausas = new ArrayList<>();
-    private long agora = 1_700_000_000_000L;
+    private final List<Long> pauses = new ArrayList<>();
+    private long now = 1_700_000_000_000L;
 
-    private B3InvestidorClient cliente(Fake fake) {
+    private B3InvestidorClient apiClient(Fake fake) {
         B3InvestidorProperties props = new B3InvestidorProperties();
         props.setEnabled(true);
         props.setBaseUrl("https://b3.ficticia.test:2443/");
@@ -90,29 +90,29 @@ class B3InvestidorClientTest {
         props.setClientSecret("segredo-ficticio");
         props.setScope("escopo-ficticio/.default");
         B3InvestidorClient c = new B3InvestidorClient(WebClient.builder().exchangeFunction(fake), props);
-        c.clock = () -> agora;
-        c.sleeper = pausas::add;
+        c.clock = () -> now;
+        c.sleeper = pauses::add;
         return c;
     }
 
     @BeforeEach
-    void limpar() {
-        pausas.clear();
+    void cleanUp() {
+        pauses.clear();
     }
 
     @Test
     @DisplayName("Pede o token (client_credentials) uma vez e o usa como Bearer enquanto vale (A7)")
     void tokenEmCache() {
         Fake fake = new Fake().token()
-            .responde(HttpStatus.OK, "{\"data\":{\"equitiesPositions\":[]}}")
-            .responde(HttpStatus.OK, "{\"data\":{\"equitiesPositions\":[]}}");
-        B3InvestidorClient c = cliente(fake);
+            .responds(HttpStatus.OK, "{\"data\":{\"equitiesPositions\":[]}}")
+            .responds(HttpStatus.OK, "{\"data\":{\"equitiesPositions\":[]}}");
+        B3InvestidorClient c = apiClient(fake);
 
-        c.get(ROTA, VARS, PERIODO);
-        c.get(ROTA, VARS, PERIODO);
+        c.get(ROUTE, VARS, PERIOD);
+        c.get(ROUTE, VARS, PERIOD);
 
         assertThat(fake.posts()).isEqualTo(1);
-        ClientRequest token = fake.pedidos.get(0);
+        ClientRequest token = fake.requests.get(0);
         assertThat(token.url().toString()).isEqualTo("https://login.ficticio.test/tenant/oauth2/v2.0/token");
         ClientRequest get = fake.gets().get(0);
         assertThat(get.url().toString()).isEqualTo("https://b3.ficticia.test:2443/api/position/v3/equities/investors/"
@@ -122,13 +122,13 @@ class B3InvestidorClientTest {
 
     @Test
     @DisplayName("Renova o token 5 minutos antes de vencer")
-    void renovaToken() {
-        Fake fake = new Fake().token().responde(HttpStatus.OK, "{}").token().responde(HttpStatus.OK, "{}");
-        B3InvestidorClient c = cliente(fake);
+    void renewsToken() {
+        Fake fake = new Fake().token().responds(HttpStatus.OK, "{}").token().responds(HttpStatus.OK, "{}");
+        B3InvestidorClient c = apiClient(fake);
 
-        c.get(ROTA, VARS, Map.of());
-        agora += (3599 - 299) * 1000L;
-        c.get(ROTA, VARS, Map.of());
+        c.get(ROUTE, VARS, Map.of());
+        now += (3599 - 299) * 1000L;
+        c.get(ROUTE, VARS, Map.of());
 
         assertThat(fake.posts()).isEqualTo(2);
         assertThat(fake.gets().get(1).headers().getFirst(HttpHeaders.AUTHORIZATION)).isEqualTo("Bearer tok-2");
@@ -138,11 +138,11 @@ class B3InvestidorClientTest {
     @DisplayName("401 da API: descarta o token, pede outro e tenta UMA vez")
     void reautentica() {
         Fake fake = new Fake().token()
-            .responde(HttpStatus.UNAUTHORIZED, "{\"errors\":[{\"code\":\"401\",\"title\":\"Token expirado\"}]}")
+            .responds(HttpStatus.UNAUTHORIZED, "{\"errors\":[{\"code\":\"401\",\"title\":\"Token expirado\"}]}")
             .token()
-            .responde(HttpStatus.OK, "{\"ok\":true}");
+            .responds(HttpStatus.OK, "{\"ok\":true}");
 
-        JsonNode r = cliente(fake).get(ROTA, VARS, Map.of());
+        JsonNode r = apiClient(fake).get(ROUTE, VARS, Map.of());
 
         assertThat(r.path("ok").asBoolean()).isTrue();
         assertThat(fake.gets().get(1).headers().getFirst(HttpHeaders.AUTHORIZATION)).isEqualTo("Bearer tok-2");
@@ -150,23 +150,23 @@ class B3InvestidorClientTest {
 
     @Test
     @DisplayName("429: espera o Retry-After e tenta UMA vez (A8)")
-    void limite() {
+    void limit() {
         Fake fake = new Fake().token()
-            .responde(HttpStatus.TOO_MANY_REQUESTS, "{}", "3")
-            .responde(HttpStatus.OK, "{\"ok\":true}");
+            .responds(HttpStatus.TOO_MANY_REQUESTS, "{}", "3")
+            .responds(HttpStatus.OK, "{\"ok\":true}");
 
-        assertThat(cliente(fake).get(ROTA, VARS, Map.of()).path("ok").asBoolean()).isTrue();
-        assertThat(pausas).containsExactly(3000L);
+        assertThat(apiClient(fake).get(ROUTE, VARS, Map.of()).path("ok").asBoolean()).isTrue();
+        assertThat(pauses).containsExactly(3000L);
     }
 
     @Test
     @DisplayName("503 duas vezes: uma nova tentativa e o erro sobe com o status")
-    void instabilidade() {
+    void instability() {
         Fake fake = new Fake().token()
-            .responde(HttpStatus.SERVICE_UNAVAILABLE, "{\"errors\":[{\"code\":\"503\",\"title\":\"Indisponível\"}]}")
-            .responde(HttpStatus.SERVICE_UNAVAILABLE, "{\"errors\":[{\"code\":\"503\",\"title\":\"Indisponível\"}]}");
+            .responds(HttpStatus.SERVICE_UNAVAILABLE, "{\"errors\":[{\"code\":\"503\",\"title\":\"Indisponível\"}]}")
+            .responds(HttpStatus.SERVICE_UNAVAILABLE, "{\"errors\":[{\"code\":\"503\",\"title\":\"Indisponível\"}]}");
 
-        assertThatThrownBy(() -> cliente(fake).get(ROTA, VARS, Map.of()))
+        assertThatThrownBy(() -> apiClient(fake).get(ROUTE, VARS, Map.of()))
             .isInstanceOf(B3InvestidorException.class)
             .satisfies(e -> assertThat(((B3InvestidorException) e).status()).isEqualTo(503));
         assertThat(fake.gets()).hasSize(2);
@@ -174,11 +174,11 @@ class B3InvestidorClientTest {
 
     @Test
     @DisplayName("422 de negocio: sobe com o codigo da B3 e sem o CPF na mensagem")
-    void erroDeNegocio() {
-        Fake fake = new Fake().token().responde(HttpStatus.UNPROCESSABLE_ENTITY,
+    void businessError() {
+        Fake fake = new Fake().token().responds(HttpStatus.UNPROCESSABLE_ENTITY,
             "{\"Errors\":[{\"code\":\"422.02\",\"title\":\"Participante não autorizado acessar CPF/CNPJ\"}]}");
 
-        assertThatThrownBy(() -> cliente(fake).get(ROTA, VARS, Map.of()))
+        assertThatThrownBy(() -> apiClient(fake).get(ROUTE, VARS, Map.of()))
             .isInstanceOf(B3InvestidorException.class)
             .satisfies(e -> {
                 B3InvestidorException b = (B3InvestidorException) e;
@@ -191,12 +191,12 @@ class B3InvestidorClientTest {
 
     @Test
     @DisplayName("Credenciais do PrimeVest recusadas no token: erro claro, sem o segredo")
-    void tokenRecusado() {
+    void rejectedToken() {
         Fake fake = new Fake()
-            .responde(HttpStatus.UNAUTHORIZED, "{\"error\":\"invalid_client\",\"error_description\":\"x\"}")
-            .responde(HttpStatus.UNAUTHORIZED, "{\"error\":\"invalid_client\",\"error_description\":\"x\"}");
+            .responds(HttpStatus.UNAUTHORIZED, "{\"error\":\"invalid_client\",\"error_description\":\"x\"}")
+            .responds(HttpStatus.UNAUTHORIZED, "{\"error\":\"invalid_client\",\"error_description\":\"x\"}");
 
-        assertThatThrownBy(() -> cliente(fake).get(ROTA, VARS, Map.of()))
+        assertThatThrownBy(() -> apiClient(fake).get(ROUTE, VARS, Map.of()))
             .isInstanceOf(B3InvestidorException.class)
             .hasMessageContaining("recusou as credenciais")
             .satisfies(e -> assertThat(e.getMessage()).doesNotContain("segredo-ficticio"));
@@ -204,13 +204,13 @@ class B3InvestidorClientTest {
 
     @Test
     @DisplayName("Paginacao: segue pelo parametro page enquanto Links (ou links) trouxer next")
-    void paginas() {
+    void pages() {
         Fake fake = new Fake().token()
-            .responde(HttpStatus.OK, "{\"data\":{\"n\":1},\"Links\":{\"next\":\"https://outro.host/x?page=2\"}}")
-            .responde(HttpStatus.OK, "{\"data\":{\"n\":2},\"links\":{\"next\":\"https://outro.host/x?page=3\"}}")
-            .responde(HttpStatus.OK, "{\"data\":{\"n\":3},\"Links\":{\"next\":null}}");
+            .responds(HttpStatus.OK, "{\"data\":{\"n\":1},\"Links\":{\"next\":\"https://outro.host/x?page=2\"}}")
+            .responds(HttpStatus.OK, "{\"data\":{\"n\":2},\"links\":{\"next\":\"https://outro.host/x?page=3\"}}")
+            .responds(HttpStatus.OK, "{\"data\":{\"n\":3},\"Links\":{\"next\":null}}");
 
-        List<JsonNode> r = cliente(fake).getAll(ROTA, VARS, PERIODO);
+        List<JsonNode> r = apiClient(fake).getAll(ROUTE, VARS, PERIOD);
 
         assertThat(r).extracting(p -> p.path("data").path("n").asInt()).containsExactly(1, 2, 3);
         assertThat(fake.gets()).extracting(p -> p.url().getRawQuery()).containsExactly(

@@ -40,11 +40,11 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const setTheme = useCallback((t: Theme) => setThemeState(t), []);
 
   const toggleTheme = () => {
-    const novo: Theme = theme === 'dark' ? 'light' : 'dark';
-    setThemeState(novo);
+    const created: Theme = theme === 'dark' ? 'light' : 'dark';
+    setThemeState(created);
     if (tokens.access()) {
       // Falhar aqui não desfaz a troca na tela: o tema só não acompanha o usuário em outro navegador.
-      usersApi.preferences(novo === 'dark' ? 'DARK' : 'LIGHT').catch(() => {});
+      usersApi.preferences(created === 'dark' ? 'DARK' : 'LIGHT').catch(() => {});
     }
   };
 

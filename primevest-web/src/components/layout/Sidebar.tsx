@@ -13,10 +13,12 @@ import {
   Flag,
   CandlestickChart,
   LineChart,
+  Clock,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -27,14 +29,16 @@ const navItems = [
   { name: 'Carteira', path: '/portfolio', icon: Wallet },
   { name: 'Transações', path: '/transactions', icon: ArrowLeftRight },
   { name: 'Dividendos', path: '/dividends', icon: HandCoins },
-  { name: 'Rentabilidade', path: '/rentabilidade', icon: TrendingUp },
+  { name: 'Rentabilidade', path: '/performance', icon: TrendingUp },
   { name: 'Alocação', path: '/allocation', icon: PieChart },
   { name: 'Estratégia', path: '/strategy', icon: Target },
   { name: 'Rebalanceamento', path: '/rebalance', icon: Scale },
   { name: 'Preço Teto', path: '/ceiling-prices', icon: TrendingDown },
   { name: 'Metas', path: '/goals', icon: Flag },
-  { name: 'Ativos', path: '/ativos', icon: CandlestickChart },
+  { name: 'Ativos', path: '/assets', icon: CandlestickChart },
   { name: 'Índices', path: '/indices', icon: LineChart },
+  // Tarefas (docs/planos/PLANO_TAREFAS.md, D14): só administrador, último item, ícone de relógio
+  { name: 'Tarefas', path: '/tasks', icon: Clock, adminOnly: true },
 ];
 
 /**
@@ -55,6 +59,7 @@ const readCollapsed = () => {
 
 export const Sidebar = () => {
   const { isDark } = useTheme();
+  const { user } = useAuth();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(readCollapsed);
 
@@ -107,7 +112,7 @@ export const Sidebar = () => {
       </div>
 
       <nav className={clsx('flex-1 py-6 space-y-1 overflow-y-auto overflow-x-hidden', collapsed ? 'px-3' : 'px-4')}>
-        {navItems.map((item) => {
+        {navItems.filter(item => !item.adminOnly || user?.admin).map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname.startsWith(item.path);
 

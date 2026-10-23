@@ -37,11 +37,11 @@ class PortfolioControllerTest extends MvcTestBase {
     @Autowired
     private PortfolioController controller;
 
-    private static final UUID USUARIO = UUID.fromString(USER_ID);
+    private static final UUID USER = UUID.fromString(USER_ID);
 
     @Test
     @DisplayName("Sem token, todo endpoint da carteira responde 401 — e o 401 que leva o front ao login")
-    void semTokenEQuatrocentosEUm() throws Exception {
+    void withoutTokenIsFourHundredOne() throws Exception {
         mvc.perform(get("/api/v1/portfolio/")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/v1/portfolio/assets")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/v1/portfolio/allocation")).andExpect(status().isUnauthorized());
@@ -52,8 +52,8 @@ class PortfolioControllerTest extends MvcTestBase {
     @Test
     @WithMockUser(username = USER_ID)
     @DisplayName("O resumo responde 200 com os campos que a tela le")
-    void resumo() throws Exception {
-        when(portfolioService.getPortfolioSummary(USUARIO)).thenReturn(new PortfolioSummaryDTO(
+    void summary() throws Exception {
+        when(portfolioService.getPortfolioSummary(USER)).thenReturn(new PortfolioSummaryDTO(
             UUID.randomUUID(), "Minha Carteira", new BigDecimal("1000.00"), new BigDecimal("1200.00"),
             new BigDecimal("50.00"), new BigDecimal("250.00"), new BigDecimal("25.00"),
             new BigDecimal("600.00"), new BigDecimal("50.00"), new BigDecimal("1180.00")));
@@ -71,36 +71,36 @@ class PortfolioControllerTest extends MvcTestBase {
     @Test
     @WithMockUser(username = USER_ID)
     @DisplayName("O userId usado e sempre o do token, nunca um vindo da requisicao")
-    void userIdVemDoToken() throws Exception {
-        when(portfolioService.getPortfolioAssets(USUARIO)).thenReturn(List.of());
+    void userIdComesFromToken() throws Exception {
+        when(portfolioService.getPortfolioAssets(USER)).thenReturn(List.of());
 
         mvc.perform(get("/api/v1/portfolio/assets")).andExpect(status().isOk());
 
-        verify(portfolioService).getPortfolioAssets(USUARIO);
+        verify(portfolioService).getPortfolioAssets(USER);
     }
 
     @Test
     @WithMockUser(username = USER_ID)
     @DisplayName("A alocacao sem parametro nao exclui a reserva (Dashboard); com excludeReservation=true, exclui")
-    void parametroDeReserva() throws Exception {
-        when(portfolioService.getAllocation(eq(USUARIO), any(Boolean.class)))
+    void reserveParameter() throws Exception {
+        when(portfolioService.getAllocation(eq(USER), any(Boolean.class)))
             .thenReturn(List.of(new PortfolioAllocationDTO("Ações", "#c9a84c",
                 new BigDecimal("1000.00"), new BigDecimal("100.00"))));
 
         mvc.perform(get("/api/v1/portfolio/allocation")).andExpect(status().isOk());
-        verify(portfolioService).getAllocation(USUARIO, false);
+        verify(portfolioService).getAllocation(USER, false);
 
         mvc.perform(get("/api/v1/portfolio/allocation").param("excludeReservation", "true"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].typeName").value("Ações"));
-        verify(portfolioService).getAllocation(USUARIO, true);
+        verify(portfolioService).getAllocation(USER, true);
     }
 
     @Test
     @WithMockUser(username = USER_ID)
     @DisplayName("A alocacao da reserva devolve os dois lados e os dois percentuais")
-    void alocacaoDaReserva() throws Exception {
-        when(portfolioService.getReservationAllocation(USUARIO)).thenReturn(new ReservationAllocationDTO(
+    void reserveAllocation() throws Exception {
+        when(portfolioService.getReservationAllocation(USER)).thenReturn(new ReservationAllocationDTO(
             new BigDecimal("10000.00"), new BigDecimal("2000.00"), new BigDecimal("20.00"),
             new BigDecimal("8000.00"), new BigDecimal("80.00")));
 
@@ -113,12 +113,12 @@ class PortfolioControllerTest extends MvcTestBase {
     @Test
     @WithMockUser(username = USER_ID)
     @DisplayName("O switch da reserva manda o estado desejado e responde a posicao atualizada")
-    void ligarReserva() throws Exception {
-        UUID posicao = UUID.randomUUID();
-        when(portfolioService.setReservation(USUARIO, posicao, true))
-            .thenReturn(new PortfolioAssetReservationDTO(posicao, "CDB", true));
+    void enableReserve() throws Exception {
+        UUID position = UUID.randomUUID();
+        when(portfolioService.setReservation(USER, position, true))
+            .thenReturn(new PortfolioAssetReservationDTO(position, "CDB", true));
 
-        mvc.perform(patch("/api/v1/portfolio/assets/{id}/reservation", posicao)
+        mvc.perform(patch("/api/v1/portfolio/assets/{id}/reservation", position)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"isReservation\": true}")
                 .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf()))
@@ -129,7 +129,7 @@ class PortfolioControllerTest extends MvcTestBase {
     @Test
     @WithMockUser(username = USER_ID)
     @DisplayName("Corpo sem isReservation responde 400 com o campo apontado")
-    void corpoSemEstado() throws Exception {
+    void bodyWithoutState() throws Exception {
         mvc.perform(patch("/api/v1/portfolio/assets/{id}/reservation", UUID.randomUUID())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
@@ -141,12 +141,12 @@ class PortfolioControllerTest extends MvcTestBase {
     @Test
     @WithMockUser(username = USER_ID)
     @DisplayName("Ativo que nao e renda fixa na reserva responde 422 com a mensagem do dominio")
-    void reservaEmAtivoQueNaoERendaFixa() throws Exception {
-        UUID posicao = UUID.randomUUID();
-        when(portfolioService.setReservation(USUARIO, posicao, true))
+    void reserveOnNonFixedIncomeAsset() throws Exception {
+        UUID position = UUID.randomUUID();
+        when(portfolioService.setReservation(USER, position, true))
             .thenThrow(new BusinessException("Somente ativos de renda fixa podem compor a reserva de emergência"));
 
-        mvc.perform(patch("/api/v1/portfolio/assets/{id}/reservation", posicao)
+        mvc.perform(patch("/api/v1/portfolio/assets/{id}/reservation", position)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"isReservation\": true}"))
             .andExpect(status().isUnprocessableEntity())
@@ -156,12 +156,12 @@ class PortfolioControllerTest extends MvcTestBase {
     @Test
     @WithMockUser(username = USER_ID)
     @DisplayName("Posicao de outro dono responde 404, nunca 403")
-    void posicaoDeOutroDono() throws Exception {
-        UUID posicao = UUID.randomUUID();
-        when(portfolioService.setReservation(USUARIO, posicao, true))
+    void otherOwnerPosition() throws Exception {
+        UUID position = UUID.randomUUID();
+        when(portfolioService.setReservation(USER, position, true))
             .thenThrow(new ResourceNotFoundException("Posição não encontrada"));
 
-        mvc.perform(patch("/api/v1/portfolio/assets/{id}/reservation", posicao)
+        mvc.perform(patch("/api/v1/portfolio/assets/{id}/reservation", position)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"isReservation\": true}"))
             .andExpect(status().isNotFound())
@@ -171,7 +171,7 @@ class PortfolioControllerTest extends MvcTestBase {
     @Test
     @WithMockUser(username = USER_ID)
     @DisplayName("F9 — caminho sem rota responde 404, e nao 500")
-    void rotaInexistente() throws Exception {
+    void missingRoute() throws Exception {
         mvc.perform(get("/api/v1/portfolio/nao-existe"))
             .andExpect(status().isNotFound());
     }

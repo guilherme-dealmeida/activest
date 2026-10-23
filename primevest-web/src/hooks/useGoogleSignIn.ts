@@ -7,11 +7,11 @@ const GSI_SRC = 'https://accounts.google.com/gsi/client';
 function loadGsi(): Promise<void> {
   if (window.google?.accounts?.id) return Promise.resolve();
 
-  const existente = document.querySelector<HTMLScriptElement>(`script[src="${GSI_SRC}"]`);
-  if (existente) {
+  const existing = document.querySelector<HTMLScriptElement>(`script[src="${GSI_SRC}"]`);
+  if (existing) {
     return new Promise((resolve, reject) => {
-      existente.addEventListener('load', () => resolve());
-      existente.addEventListener('error', () => reject(new Error('gsi')));
+      existing.addEventListener('load', () => resolve());
+      existing.addEventListener('error', () => reject(new Error('gsi')));
     });
   }
 
@@ -60,11 +60,11 @@ export function useGoogleSignIn({ onCredential }: Options) {
 
   useEffect(() => {
     if (!enabled || !container) return;
-    let cancelado = false;
+    let cancelled = false;
 
     loadGsi()
       .then(() => {
-        if (cancelado || !container) return;
+        if (cancelled || !container) return;
 
         google.accounts.id.initialize({
           client_id: clientId!,
@@ -93,11 +93,11 @@ export function useGoogleSignIn({ onCredential }: Options) {
         });
       })
       .catch(() => {
-        if (!cancelado) setError('Não foi possível carregar o login do Google');
+        if (!cancelled) setError('Não foi possível carregar o login do Google');
       });
 
     return () => {
-      cancelado = true;
+      cancelled = true;
     };
   }, [clientId, enabled, container]);
 

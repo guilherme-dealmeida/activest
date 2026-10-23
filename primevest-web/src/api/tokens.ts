@@ -7,7 +7,7 @@ import { TokenResponse } from '@/types';
 const ACCESS_KEY = 'primevest_token';
 const REFRESH_KEY = 'primevest_refresh_token';
 
-const ler = (key: string): string | null => {
+const read = (key: string): string | null => {
   try {
     return localStorage.getItem(key);
   } catch {
@@ -16,8 +16,8 @@ const ler = (key: string): string | null => {
 };
 
 export const tokens = {
-  access: () => ler(ACCESS_KEY),
-  refresh: () => ler(REFRESH_KEY),
+  access: () => read(ACCESS_KEY),
+  refresh: () => read(REFRESH_KEY),
   save: (t: Pick<TokenResponse, 'accessToken' | 'refreshToken'>) => {
     try {
       localStorage.setItem(ACCESS_KEY, t.accessToken);

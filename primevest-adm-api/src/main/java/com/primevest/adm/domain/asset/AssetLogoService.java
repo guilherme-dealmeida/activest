@@ -1,5 +1,7 @@
 package com.primevest.adm.domain.asset;
 
+import com.primevest.domain.task.TaskRun;
+
 import com.primevest.domain.asset.Asset;
 import com.primevest.domain.asset.AssetLogos;
 import com.primevest.domain.asset.AssetRepository;
@@ -148,6 +150,7 @@ public class AssetLogoService {
         List<Future<Boolean>> results = new ArrayList<>();
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
             for (Asset asset : assets) {
+                TaskRun.checkStop(); // ponto de parada (docs/planos/PLANO_TAREFAS.md, D8)
                 boolean crypto = "CRIPTO".equals(asset.getAssetType().getName());
                 String url = crypto
                         ? coinImages.get(asset.getPriceSourceRef())
@@ -155,14 +158,14 @@ public class AssetLogoService {
                 if (url == null) {
                     continue;
                 }
-                results.add(pool.submit(() -> {
+                results.add(pool.submit(TaskRun.propagateCall(() -> {
                     slots.acquire();
                     try {
                         return fetchAndStore(asset, url);
                     } finally {
                         slots.release();
                     }
-                }));
+                })));
             }
         }
         int found = 0;

@@ -98,29 +98,29 @@ public class CatalogAuditService {
 
         // 1. Novos
         int news = 0;
-        List<String> novos = new java.util.ArrayList<>();
+        List<String> added = new java.util.ArrayList<>();
         for (Map.Entry<String, String> e : official.entrySet()) {
             if (!allTickers.contains(e.getKey()) && !ignored.contains(e.getKey())) {
                 news++;
-                novos.add(e.getKey() + " (" + e.getValue() + ")");
+                added.add(e.getKey() + " (" + e.getValue() + ")");
                 log.warn("Catalogo: ticker novo na B3 — {} ({}) apareceu na BRAPI e nao esta no catalogo", e.getKey(), e.getValue());
             }
         }
         // Uma mensagem por rodada com a lista (a semana pode trazer dezenas); a da rodada anterior fica resolvida.
-        String rodada = String.valueOf(com.primevest.domain.notification.NotificationService.today());
-        if (!novos.isEmpty()) {
-            java.util.Collections.sort(novos);
-            notices.pending(NotificationKind.CATALOGO_TICKER_NOVO, rodada,
+        String round = String.valueOf(com.primevest.domain.notification.NotificationService.today());
+        if (!added.isEmpty()) {
+            java.util.Collections.sort(added);
+            notices.pending(NotificationKind.CATALOGO_TICKER_NOVO, round,
                 news + (news == 1 ? " ticker novo na B3" : " tickers novos na B3"),
                 "Estão na lista oficial da BRAPI e não estão no catálogo. Para cadastrar, use a carga do catálogo; para "
-                    + "ignorar de propósito, ponha em primevest.catalog-audit.ignored.", novos);
+                    + "ignorar de propósito, ponha em primevest.catalog-audit.ignored.", added);
         }
-        notices.resolveAllExcept(NotificationKind.CATALOGO_TICKER_NOVO, novos.isEmpty() ? List.of() : List.of(rodada));
+        notices.resolveAllExcept(NotificationKind.CATALOGO_TICKER_NOVO, added.isEmpty() ? List.of() : List.of(round));
 
         // 2. Sumidos: fora da lista (o fracionario confere o papel inteiro) e com cotacao 404
         int missing = 0;
-        Set<String> sumidos = new HashSet<>();
-        boolean sumidosCompletos = brApiClient.hasToken();
+        Set<String> vanished = new HashSet<>();
+        boolean vanishedComplete = brApiClient.hasToken();
         for (Asset a : catalog) {
             String type = a.getAssetType().getName();
             if (!SUBTYPES.containsValue(type)) {
@@ -139,7 +139,7 @@ public class CatalogAuditService {
             } catch (BrApiException e) {
                 if (e.isNotFound()) {
                     missing++;
-                    sumidos.add(ticker);
+                    vanished.add(ticker);
                     log.warn("Catalogo: ticker sumido — {} nao esta na lista oficial e a cotacao da 404{}. Candidato a inativo (criterio 2.1).",
                             ticker, held.contains(a.getId()) ? " (TEM POSICAO ABERTA)" : "");
                     notices.assetPending(NotificationKind.CATALOGO_TICKER_SUMIDO, a, ticker,
@@ -149,18 +149,18 @@ public class CatalogAuditService {
                 } else if (e.isAuthOrPlan() || e.isRateLimited()) {
                     log.error("Conferencia do catalogo: confirmacao dos sumidos interrompida: {}", e.getMessage());
                     notices.sourceUnavailable("Conferência do catálogo", "BRAPI", e.getMessage());
-                    sumidosCompletos = false;
+                    vanishedComplete = false;
                     break;
                 } else {
                     // Nao conferido agora: a mensagem aberta dele (se houver) continua.
-                    sumidos.add(ticker);
+                    vanished.add(ticker);
                     log.warn("Catalogo: nao foi possivel conferir a cotacao de {}: {}", ticker, e.getMessage());
                 }
             }
         }
 
-        if (sumidosCompletos) {
-            notices.resolveAllExcept(NotificationKind.CATALOGO_TICKER_SUMIDO, sumidos);
+        if (vanishedComplete) {
+            notices.resolveAllExcept(NotificationKind.CATALOGO_TICKER_SUMIDO, vanished);
         }
 
         // 3. Renomeados
@@ -168,14 +168,14 @@ public class CatalogAuditService {
         try {
             Map<String, Asset> active = new HashMap<>();
             catalog.forEach(a -> active.put(a.getTicker().toUpperCase(), a));
-            Set<String> renomes = new HashSet<>();
+            Set<String> renames = new HashSet<>();
             for (BrApiRename r : brApiClient.fetchRenames()) {
                 if (r.oldSymbol() != null && active.containsKey(r.oldSymbol().toUpperCase())) {
                     renamed++;
                     log.warn("Catalogo: ticker renomeado — {} agora e {}{} (o ticker do catalogo nao e trocado sozinho)",
                             r.oldSymbol(), r.newSymbol(), since(r.effectiveDate()));
                     String key = renameKey(r.oldSymbol(), r.newSymbol());
-                    renomes.add(key);
+                    renames.add(key);
                     notices.assetPending(NotificationKind.CATALOGO_TICKER_RENOMEADO,
                             active.get(r.oldSymbol().toUpperCase()), key,
                             r.oldSymbol().toUpperCase() + " agora é " + r.newSymbol().toUpperCase(),
@@ -183,7 +183,7 @@ public class CatalogAuditService {
                                     + "sozinho: decida a troca manualmente.");
                 }
             }
-            notices.resolveAllExcept(NotificationKind.CATALOGO_TICKER_RENOMEADO, renomes);
+            notices.resolveAllExcept(NotificationKind.CATALOGO_TICKER_RENOMEADO, renames);
         } catch (BrApiException e) {
             log.warn("Conferencia do catalogo: renomes indisponiveis: {}", e.getMessage());
         }

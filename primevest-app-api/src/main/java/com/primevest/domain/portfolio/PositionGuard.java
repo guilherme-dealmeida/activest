@@ -63,32 +63,32 @@ public class PositionGuard {
         List<StockEventStep> events = stockEvents == null ? List.of()
             : stockEvents.stream().sorted(java.util.Comparator.comparing(StockEventStep::dataCom)).toList();
         int next = 0;
-        BigDecimal saldo = BigDecimal.ZERO;
+        BigDecimal balance = BigDecimal.ZERO;
         for (Transaction tx : chronological) {
             BigDecimal qtd = tx.getShares();
             if (qtd == null) {
                 continue;
             }
             while (next < events.size() && events.get(next).dataCom().isBefore(tx.getTransactionDate())) {
-                saldo = afterEvent(saldo, events.get(next++));
+                balance = afterEvent(balance, events.get(next++));
             }
-            saldo = tx.getType() == TransactionType.BUY ? saldo.add(qtd) : saldo.subtract(qtd);
-            if (saldo.signum() < 0) {
+            balance = tx.getType() == TransactionType.BUY ? balance.add(qtd) : balance.subtract(qtd);
+            if (balance.signum() < 0) {
                 throw new BusinessException(
                     "Saldo insuficiente de " + label + " em " + tx.getTransactionDate().format(DATA)
-                    + ": faltam " + numero(saldo.negate()) + " cotas nessa data."
+                    + ": faltam " + number(balance.negate()) + " cotas nessa data."
                     + " Ajuste as compras do período antes de lançar esta venda.");
             }
         }
-        LocalDate hoje = LocalDate.now(ZoneId.of("America/Sao_Paulo"));
-        while (next < events.size() && events.get(next).dataCom().isBefore(hoje)) {
-            saldo = afterEvent(saldo, events.get(next++));
+        LocalDate today = LocalDate.now(ZoneId.of("America/Sao_Paulo"));
+        while (next < events.size() && events.get(next).dataCom().isBefore(today)) {
+            balance = afterEvent(balance, events.get(next++));
         }
-        return saldo;
+        return balance;
     }
 
-    private static BigDecimal afterEvent(BigDecimal saldo, StockEventStep event) {
-        return CorporateActionApplier.apply(new CorporateActionApplier.Holding(saldo, BigDecimal.ZERO), event).shares();
+    private static BigDecimal afterEvent(BigDecimal balance, StockEventStep event) {
+        return CorporateActionApplier.apply(new CorporateActionApplier.Holding(balance, BigDecimal.ZERO), event).shares();
     }
 
     /**
@@ -98,8 +98,8 @@ public class PositionGuard {
      * gravava a venda: o lancamento errado ficava no banco, invisivel, porque o
      * calculo da posicao simplesmente ignorava uma venda sem cotas.</p>
      */
-    public void validateSellHasPosition(boolean temPosicaoComCompras, String label) {
-        if (!temPosicaoComCompras) {
+    public void validateSellHasPosition(boolean hasPositionWithBuys, String label) {
+        if (!hasPositionWithBuys) {
             throw new BusinessException(
                 "Não há posição de " + label + " na carteira para vender.");
         }
@@ -123,7 +123,7 @@ public class PositionGuard {
     }
 
     /** Numero para mensagem: sem zeros a direita, em formato simples. */
-    private String numero(BigDecimal valor) {
-        return valor.stripTrailingZeros().toPlainString();
+    private String number(BigDecimal value) {
+        return value.stripTrailingZeros().toPlainString();
     }
 }

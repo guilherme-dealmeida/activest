@@ -182,8 +182,8 @@ export const DashboardPage = () => {
           titleInfo="Rentabilidade bruta da carteira ponderada pelo tempo (TWR): aportes e retiradas não contam como rendimento. Ao lado, o resultado em reais (valorização + proventos). Detalhes e comparação com os índices na tela Rentabilidade."
           icon={<TrendingUp className="h-5 w-5" />}
           lines={[
-            returnLine('Últimos 12 meses', performance12, '/rentabilidade?periodo=1A'),
-            returnLine('Desde o início', performance, '/rentabilidade?periodo=MAX', true),
+            returnLine('Últimos 12 meses', performance12, '/performance?range=1A'),
+            returnLine('Desde o início', performance, '/performance?range=MAX', true),
           ]}
         />
         <StatCard
@@ -193,7 +193,7 @@ export const DashboardPage = () => {
           lines={[
             { label: 'Últimos 12 meses', value: formatCurrency(dividends?.last12Months || 0), to: '/dividends' },
             { label: 'Totais', value: formatCurrency(dividends?.totalDividends || 0), to: '/dividends' },
-            { label: 'A receber', value: formatCurrency(dividends?.totalToReceive || 0), to: '/dividends?aba=a-receber' },
+            { label: 'A receber', value: formatCurrency(dividends?.totalToReceive || 0), to: '/dividends?tab=to-receive' },
           ]}
         />
       </div>

@@ -108,7 +108,7 @@ bcb:
   sgs-base-url: https://api.bcb.gov.br/dados/serie
 # Preco oficial do Tesouro Direto (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md): um CSV com todo o historico
 # (~14 MB, ~1 min), cache em ${primevest.data.dir}/tesouro, so baixado de novo quando muda.
-tesouro:
+treasury:
   prices-url: https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/PrecoTaxaTesouroDireto.csv
   # Vendas diarias (~7,5 MB): quais titulos o Tesouro oferece hoje (benchmark padrao do Tesouro na Rentabilidade)
   sales-url: https://www.tesourotransparente.gov.br/ckan/dataset/f0468ecc-ae97-4287-89c2-6d8139fb4343/resource/e5f90e3a-8f8d-4895-9c56-4bb2f7877920/download/vendastesourodireto.csv
@@ -120,6 +120,9 @@ indices:
 
 # Rotinas (fuso America/Sao_Paulo). Cron do Spring: segundo minuto hora dia mes dia-da-semana.
 primevest:
+  # Tarefas (docs/planos/PLANO_TAREFAS.md): os tipos de tarefa deste servico (task_types.service)
+  tasks:
+    service: ADM_API
   # Cache das fontes publicas (CVM, B3, FNET) e logos. No Docker: /app/data,
   # volume ./data da raiz do projeto (docs/planos/PLANO_EMPRESAS_BALANCOS.md, secao 2).
   data:
@@ -127,45 +130,15 @@ primevest:
   issuers:
     # Pausa entre chamadas ao GetDetail da B3 (classificacao setorial).
     pause-millis: 1000
-  closing:
-    # Fechamento: B3 em dia util e cripto todo dia, as 19:00 (secao 3 do plano).
-    b3-cron: "0 0 19 * * MON-FRI"
-    crypto-cron: "0 0 19 * * *"
-  proventos:
-    enabled: true
-    cron: "0 0 20 * * *"
+  # Horarios e liga/desliga das rotinas: no banco, tabelas tasks e task_types (docs/planos/PLANO_TAREFAS.md, D10 e
+  # D11; editados na tela de Tarefas). Os crons que estavam aqui viraram o seed da V62.
+  dividends:
     # ALL: todo ativo ligado a um emissor + o que ja esteve em carteira (F8);
     # HELD: so o que ja esteve em carteira (como antes da F8).
     scope: ALL
     # Pausa entre chamadas a B3/FNET: o site e publico e nao documentado.
     pause-millis: 1000
-  fnet-status:
-    # Situacao dos avisos do FNET de todos os fundos + proventos relendo todos os avisos (PENDENCIAS 33.3):
-    # domingo 03:00, sem pregao e sem outra rotina; ~1h30. Desliga junto com proventos.enabled.
-    cron: "0 0 3 * * SUN"
-  cvm-statements:
-    # Balancos (DFP/ITR) do ano corrente e do anterior; a CVM atualiza de madrugada.
-    enabled: true
-    cron: "0 30 7 * * *"
-  cripto-historico:
-    # Historico de preco de cripto (PLANO_RENTABILIDADE, 3.3): CoinGecko 365 dias + Binance BTC/BRL, todo dia as 19:30.
-    enabled: true
-    cron: "0 30 19 * * *"
-  tesouro:
-    # PU de venda do Tesouro Direto todo dia as 08:00 (o arquivo sai ~07:20 com o D-1), com recuperacao na subida.
-    enabled: true
-    cron: "0 0 8 * * *"
-  cotahist-diario:
-    # Cotacoes do catalogo inteiro pelo arquivo diario da B3 (PLANO_PRECO_TETO, D6): 21:30 e 08:30 (o pregao que
-    # ainda nao tinha saido), completando o que faltar; recuperacao na subida.
-    enabled: true
-    cron: "0 30 8,21 * * *"
-  indices:
-    # Incremental todo dia as 10:00 (D5), com recuperacao na subida.
-    enabled: true
-    cron: "0 0 10 * * *"
   catalog-audit:
-    cron: "0 0 7 * * MON"
     # Ficaram de fora do catalogo de proposito (secao 2.2 e planilha de ETFs,
     # aba "Excluidos"): nao sao anunciados como "novos" toda semana.
     ignored: >-
@@ -176,7 +149,6 @@ primevest:
   logos:
     # Pasta fora do banco (B18). No Docker e o volume ./data/logos.
     dir: ${LOGOS_DIR:../carga/data/logos}
-    cron: "0 0 6 1 * *"
   # Logos das emissoras e distribuidoras de renda fixa por raiz de CNPJ, em logos/rf (docs/planos/
   # PLANO_EMISSORAS_RENDA_FIXA.md, Adendo A). Rodam junto da rotina mensal de emissoras. O logos-bancos-br vai com a
   # versao fixa: trocar a versao e decisao, nao atualizacao automatica.

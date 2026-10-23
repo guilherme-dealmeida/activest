@@ -36,7 +36,7 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles("test")
 public abstract class IntegrationTestBase {
 
-    private static final String[] TABELAS_DO_USUARIO = {
+    private static final String[] USER_TABLES = {
         "dividends", "transactions", "portfolio_assets", "fixed_income_notes",
         "strategies", "strategy_reservations", "ceiling_prices", "goals",
         "portfolios", "users",
@@ -71,7 +71,7 @@ public abstract class IntegrationTestBase {
     protected JwtTokenProvider jwtTokenProvider;
 
     /** Usuario com carteira, pronto para receber transacoes. */
-    protected User usuarioComCarteira(String email) {
+    protected User userWithPortfolio(String email) {
         User user = userRepository.save(Fixtures.user(email));
         portfolioRepository.save(Fixtures.portfolio(user));
         return user;
@@ -81,26 +81,26 @@ public abstract class IntegrationTestBase {
         return Tokens.bearer(jwtTokenProvider, user);
     }
 
-    protected <T> ResponseEntity<T> get(User user, String path, Class<T> tipo) {
-        return rest.exchange(path, HttpMethod.GET, new HttpEntity<>(headers(user)), tipo);
+    protected <T> ResponseEntity<T> get(User user, String path, Class<T> type) {
+        return rest.exchange(path, HttpMethod.GET, new HttpEntity<>(headers(user)), type);
     }
 
-    protected <T> ResponseEntity<T> post(User user, String path, Object corpo, Class<T> tipo) {
-        return rest.exchange(path, HttpMethod.POST, entidade(user, corpo), tipo);
+    protected <T> ResponseEntity<T> post(User user, String path, Object body, Class<T> type) {
+        return rest.exchange(path, HttpMethod.POST, entity(user, body), type);
     }
 
-    protected <T> ResponseEntity<T> put(User user, String path, Object corpo, Class<T> tipo) {
-        return rest.exchange(path, HttpMethod.PUT, entidade(user, corpo), tipo);
+    protected <T> ResponseEntity<T> put(User user, String path, Object body, Class<T> type) {
+        return rest.exchange(path, HttpMethod.PUT, entity(user, body), type);
     }
 
     protected ResponseEntity<String> delete(User user, String path) {
         return rest.exchange(path, HttpMethod.DELETE, new HttpEntity<>(headers(user)), String.class);
     }
 
-    private HttpEntity<Object> entidade(User user, Object corpo) {
+    private HttpEntity<Object> entity(User user, Object body) {
         HttpHeaders headers = headers(user);
         headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
-        return new HttpEntity<>(corpo, headers);
+        return new HttpEntity<>(body, headers);
     }
 
     /**
@@ -109,7 +109,7 @@ public abstract class IntegrationTestBase {
      * PATCH.
      */
     @BeforeEach
-    void suportarPatch() {
+    void supportPatch() {
         rest.getRestTemplate().setRequestFactory(
             new org.springframework.http.client.JdkClientHttpRequestFactory());
     }
@@ -122,7 +122,7 @@ public abstract class IntegrationTestBase {
      * sem ele, senao a resposta mockada de um teste vira o historico do seguinte.
      */
     @BeforeEach
-    void limparHistoricoEmDisco() throws java.io.IOException {
+    void clearHistoryOnDisk() throws java.io.IOException {
         java.nio.file.Path dir = java.nio.file.Path.of(dataDir, "b3", "proventos");
         if (java.nio.file.Files.isDirectory(dir)) {
             try (java.util.stream.Stream<java.nio.file.Path> files = java.nio.file.Files.list(dir)) {
@@ -134,7 +134,7 @@ public abstract class IntegrationTestBase {
     }
 
     @BeforeEach
-    void limparDadosDoUsuario() {
-        jdbc.execute("TRUNCATE TABLE " + String.join(", ", TABELAS_DO_USUARIO) + " RESTART IDENTITY CASCADE");
+    void clearUserData() {
+        jdbc.execute("TRUNCATE TABLE " + String.join(", ", USER_TABLES) + " RESTART IDENTITY CASCADE");
     }
 }

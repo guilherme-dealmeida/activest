@@ -32,27 +32,27 @@ class StrategyControllerTest extends MvcTestBase {
     @MockBean private StrategyService strategyService;
     @MockBean private StrategyReservationService strategyReservationService;
 
-    private static final UUID USUARIO = UUID.fromString(USER_ID);
+    private static final UUID USER = UUID.fromString(USER_ID);
 
-    private static final String ESTRATEGIA_VALIDA = """
+    private static final String VALID_STRATEGY = """
         {"items":[{"assetTypeId":1,"targetPercentage":60.00},{"assetTypeId":2,"targetPercentage":40.00}]}
         """;
 
     @Test
     @DisplayName("Sem token, todo endpoint de estrategia responde 401")
-    void semToken() throws Exception {
+    void withoutToken() throws Exception {
         mvc.perform(get("/api/v1/strategy/")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/v1/strategy/rebalance")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/v1/strategy/reservation")).andExpect(status().isUnauthorized());
-        mvc.perform(put("/api/v1/strategy/").contentType(MediaType.APPLICATION_JSON).content(ESTRATEGIA_VALIDA))
+        mvc.perform(put("/api/v1/strategy/").contentType(MediaType.APPLICATION_JSON).content(VALID_STRATEGY))
             .andExpect(status().isUnauthorized());
     }
 
     @Test
     @WithMockUser(username = USER_ID)
     @DisplayName("A estrategia responde 200 com tipo e percentual de cada item")
-    void listar() throws Exception {
-        when(strategyService.getUserStrategy(USUARIO)).thenReturn(List.of(
+    void list() throws Exception {
+        when(strategyService.getUserStrategy(USER)).thenReturn(List.of(
             new StrategyDTO(UUID.randomUUID(), 1L, "Ações", new BigDecimal("60.00"))));
 
         mvc.perform(get("/api/v1/strategy/"))
@@ -64,7 +64,7 @@ class StrategyControllerTest extends MvcTestBase {
     @Test
     @WithMockUser(username = USER_ID)
     @DisplayName("F2 — percentual acima de 100 em um item responde 400 (o @Valid desce na lista)")
-    void itemAcimaDeCem() throws Exception {
+    void itemAboveHundred() throws Exception {
         mvc.perform(put("/api/v1/strategy/").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"items\":[{\"assetTypeId\":1,\"targetPercentage\":150.00}]}"))
             .andExpect(status().isBadRequest())
@@ -74,7 +74,7 @@ class StrategyControllerTest extends MvcTestBase {
     @Test
     @WithMockUser(username = USER_ID)
     @DisplayName("F2 — item sem tipo de ativo ou sem percentual responde 400")
-    void itemIncompleto() throws Exception {
+    void incompleteItem() throws Exception {
         mvc.perform(put("/api/v1/strategy/").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"items\":[{\"targetPercentage\":100.00}]}"))
             .andExpect(status().isBadRequest());
@@ -87,11 +87,11 @@ class StrategyControllerTest extends MvcTestBase {
     @Test
     @WithMockUser(username = USER_ID)
     @DisplayName("F7 — soma diferente de 100% responde 422 com o total atual na mensagem")
-    void somaDiferenteDeCem() throws Exception {
-        when(strategyService.updateStrategy(eq(USUARIO), any()))
+    void sumDifferentFromHundred() throws Exception {
+        when(strategyService.updateStrategy(eq(USER), any()))
             .thenThrow(new BusinessException("A soma dos percentuais ideais deve ser 100%. Atual: 90%"));
 
-        mvc.perform(put("/api/v1/strategy/").contentType(MediaType.APPLICATION_JSON).content(ESTRATEGIA_VALIDA))
+        mvc.perform(put("/api/v1/strategy/").contentType(MediaType.APPLICATION_JSON).content(VALID_STRATEGY))
             .andExpect(status().isUnprocessableEntity())
             .andExpect(jsonPath("$.message").value("A soma dos percentuais ideais deve ser 100%. Atual: 90%"));
     }
@@ -99,8 +99,8 @@ class StrategyControllerTest extends MvcTestBase {
     @Test
     @WithMockUser(username = USER_ID)
     @DisplayName("F6 — tipo de ativo inexistente responde 404")
-    void tipoInexistente() throws Exception {
-        when(strategyService.updateStrategy(eq(USUARIO), any()))
+    void missingType() throws Exception {
+        when(strategyService.updateStrategy(eq(USER), any()))
             .thenThrow(new ResourceNotFoundException("Tipo de ativo não encontrado: 99"));
 
         mvc.perform(put("/api/v1/strategy/").contentType(MediaType.APPLICATION_JSON)
@@ -112,7 +112,7 @@ class StrategyControllerTest extends MvcTestBase {
     @Test
     @WithMockUser(username = USER_ID)
     @DisplayName("F8 — o DELETE da estrategia nao existe mais: responde 404")
-    void deleteNaoExisteMais() throws Exception {
+    void deleteNoLongerExists() throws Exception {
         mvc.perform(delete("/api/v1/strategy/{assetTypeId}", 1))
             .andExpect(status().isNotFound());
     }
@@ -120,8 +120,8 @@ class StrategyControllerTest extends MvcTestBase {
     @Test
     @WithMockUser(username = USER_ID)
     @DisplayName("A reserva trafega pelo nome do tipo (PERCENTAGE / VALUE)")
-    void reservaPeloNomeDoTipo() throws Exception {
-        when(strategyReservationService.get(USUARIO)).thenReturn(new StrategyReservationDTO(
+    void reserveByTypeName() throws Exception {
+        when(strategyReservationService.get(USER)).thenReturn(new StrategyReservationDTO(
             UUID.randomUUID(), ReservationType.PERCENTAGE, new BigDecimal("30.00"), null,
             new BigDecimal("10000.00"), new BigDecimal("2000.00"), new BigDecimal("8000.00"),
             new BigDecimal("20.00"), new BigDecimal("30.00"), new BigDecimal("-10.00")));
@@ -135,7 +135,7 @@ class StrategyControllerTest extends MvcTestBase {
     @Test
     @WithMockUser(username = USER_ID)
     @DisplayName("A reserva sem tipo, ou com percentual negativo, responde 400")
-    void reservaInvalida() throws Exception {
+    void invalidReserve() throws Exception {
         mvc.perform(put("/api/v1/strategy/reservation").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"targetPercentage\":30.00}"))
             .andExpect(status().isBadRequest())
@@ -150,8 +150,8 @@ class StrategyControllerTest extends MvcTestBase {
     @Test
     @WithMockUser(username = USER_ID)
     @DisplayName("O rebalanceamento devolve os itens por tipo e a linha da reserva separada")
-    void rebalanceamento() throws Exception {
-        when(strategyService.getRebalanceSuggestion(USUARIO)).thenReturn(new RebalanceDTO(
+    void rebalance() throws Exception {
+        when(strategyService.getRebalanceSuggestion(USER)).thenReturn(new RebalanceDTO(
             new BigDecimal("8000.00"),
             List.of(new RebalanceDTO.RebalanceItem("Ações", new BigDecimal("50.00"), new BigDecimal("75.00"),
                 new BigDecimal("25.00"), new BigDecimal("6000.00"), new BigDecimal("6000.00"), BigDecimal.ZERO)),

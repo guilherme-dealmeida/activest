@@ -21,15 +21,15 @@ class BusinessCalendarCdiTest {
 
     @Test
     @DisplayName("Todo dia com CDI em 2024 e dia util, e todo dia util de 2024 tem CDI")
-    void calendarioIgualAoCdi() {
+    void calendarMatchesCdi() {
         Set<LocalDate> cdi = BcbSgsClient.parse(IndexFixtures.body("sgs_12_2024")).stream()
                 .map(IndexPoint::date).collect(Collectors.toCollection(TreeSet::new));
-        Set<LocalDate> uteis = new TreeSet<>();
+        Set<LocalDate> businessDays = new TreeSet<>();
         for (LocalDate d = LocalDate.of(2024, 1, 1); d.getYear() == 2024; d = d.plusDays(1)) {
             if (BusinessCalendar.isBusinessDay(d)) {
-                uteis.add(d);
+                businessDays.add(d);
             }
         }
-        assertThat(cdi).hasSize(253).isEqualTo(uteis);
+        assertThat(cdi).hasSize(253).isEqualTo(businessDays);
     }
 }

@@ -41,77 +41,77 @@ class DividendServiceTest {
         .assetTypeId(1L).rate(new BigDecimal("0.1750")).baseDate(TaxBaseDate.CREDIT).legalBasis("LC 224/2025, art. 8º")
         .build();
 
-    private static Dividend provento(DividendType tipo, String bruto, String ir, String liquido, WithholdingTaxRule regra) {
-        Asset ativo = Asset.builder().id(1L).ticker("BBAS3").name("BANCO DO BRASIL")
+    private static Dividend dividendEvent(DividendType typeValue, String gross, String ir, String net, WithholdingTaxRule rule) {
+        Asset assetEntity = Asset.builder().id(1L).ticker("BBAS3").name("BANCO DO BRASIL")
             .assetType(AssetType.builder().id(1L).name("ACAO").description("Ações").build()).build();
-        PortfolioAsset pa = PortfolioAsset.builder().asset(ativo).build();
-        return Dividend.builder().id((long) bruto.hashCode()).portfolioAsset(pa).type(tipo)
+        PortfolioAsset pa = PortfolioAsset.builder().asset(assetEntity).build();
+        return Dividend.builder().id((long) gross.hashCode()).portfolioAsset(pa).type(typeValue)
             .amountPerShare(new BigDecimal("0.08157785")).exDate(LocalDate.of(2026, 6, 1))
-            .totalAmount(new BigDecimal(bruto))
-            .withholdingRule(regra)
-            .withholdingRate(regra != null ? regra.getRate() : null)
+            .totalAmount(new BigDecimal(gross))
+            .withholdingRule(rule)
+            .withholdingRate(rule != null ? rule.getRate() : null)
             .withholdingTax(ir == null ? null : new BigDecimal(ir))
-            .netAmount(liquido == null ? null : new BigDecimal(liquido))
-            .netAmountPerShare(liquido == null ? null : new BigDecimal("0.06730173"))
+            .netAmount(net == null ? null : new BigDecimal(net))
+            .netAmountPerShare(net == null ? null : new BigDecimal("0.06730173"))
             .build();
     }
 
     @Test
     @DisplayName("Totais e byType em liquido; bruto e IR a parte; tipo sem regra entra pelo bruto")
-    void resumoEmLiquido() {
-        UUID usuario = UUID.randomUUID();
-        Portfolio carteira = Portfolio.builder().build();
-        carteira.setId(UUID.randomUUID());
-        when(portfolioRepository.findFirstByUserId(usuario)).thenReturn(Optional.of(carteira));
+    void netSummary() {
+        UUID user = UUID.randomUUID();
+        Portfolio portfolioEntity = Portfolio.builder().build();
+        portfolioEntity.setId(UUID.randomUUID());
+        when(portfolioRepository.findFirstByUserId(user)).thenReturn(Optional.of(portfolioEntity));
         when(dividendCalendar.today()).thenReturn(LocalDate.of(2026, 9, 24));
-        when(dividendRepository.findByPortfolioIdWithAsset(carteira.getId())).thenReturn(List.of(
-            provento(DividendType.JCP, "10.19", "1.78", "8.41", JCP),
-            provento(DividendType.JCP, "7.46", "1.30", "6.16", JCP),
-            provento(DividendType.RENDIMENTO, "7.98", null, null, null)));
+        when(dividendRepository.findByPortfolioIdWithAsset(portfolioEntity.getId())).thenReturn(List.of(
+            dividendEvent(DividendType.JCP, "10.19", "1.78", "8.41", JCP),
+            dividendEvent(DividendType.JCP, "7.46", "1.30", "6.16", JCP),
+            dividendEvent(DividendType.RENDIMENTO, "7.98", null, null, null)));
 
-        DividendSummaryDTO resumo = service.getDividendSummary(usuario);
+        DividendSummaryDTO summary = service.getDividendSummary(user);
 
-        assertThat(resumo.totalDividends()).isEqualByComparingTo("22.55");   // 8,41 + 6,16 + 7,98
-        assertThat(resumo.totalGross()).isEqualByComparingTo("25.63");
-        assertThat(resumo.totalTax()).isEqualByComparingTo("3.08");
-        assertThat(resumo.byType().get("JCP")).isEqualByComparingTo("14.57");
-        assertThat(resumo.byType().get("RENDIMENTO")).isEqualByComparingTo("7.98");
+        assertThat(summary.totalDividends()).isEqualByComparingTo("22.55");   // 8,41 + 6,16 + 7,98
+        assertThat(summary.totalGross()).isEqualByComparingTo("25.63");
+        assertThat(summary.totalTax()).isEqualByComparingTo("3.08");
+        assertThat(summary.byType().get("JCP")).isEqualByComparingTo("14.57");
+        assertThat(summary.byType().get("RENDIMENTO")).isEqualByComparingTo("7.98");
 
-        DividendResponseDTO jcp = resumo.recent().get(0);
+        DividendResponseDTO jcp = summary.recent().get(0);
         assertThat(jcp.withholdingRate()).isEqualByComparingTo("0.175");
         assertThat(jcp.withholdingTax()).isEqualByComparingTo("1.78");
         assertThat(jcp.netAmount()).isEqualByComparingTo("8.41");
         assertThat(jcp.netAmountPerShare()).isEqualByComparingTo("0.06730173");
         assertThat(jcp.withholdingLegalBasis()).isEqualTo("LC 224/2025, art. 8º");
-        DividendResponseDTO semRegra = resumo.recent().get(2);
-        assertThat(semRegra.withholdingRate()).isNull();
-        assertThat(semRegra.netAmount()).isNull();
-        assertThat(semRegra.withholdingLegalBasis()).isNull();
+        DividendResponseDTO withoutRule = summary.recent().get(2);
+        assertThat(withoutRule.withholdingRate()).isNull();
+        assertThat(withoutRule.netAmount()).isNull();
+        assertThat(withoutRule.withholdingLegalBasis()).isNull();
     }
 
     @Test
     @DisplayName("Recebido x a receber: totais e byType so do recebido; a receber a parte; cada provento com a situacao")
-    void recebidoEAReceber() {
-        UUID usuario = UUID.randomUUID();
-        Portfolio carteira = Portfolio.builder().build();
-        carteira.setId(UUID.randomUUID());
-        when(portfolioRepository.findFirstByUserId(usuario)).thenReturn(Optional.of(carteira));
+    void receivedAndToReceive() {
+        UUID user = UUID.randomUUID();
+        Portfolio portfolioEntity = Portfolio.builder().build();
+        portfolioEntity.setId(UUID.randomUUID());
+        when(portfolioRepository.findFirstByUserId(user)).thenReturn(Optional.of(portfolioEntity));
         when(dividendCalendar.today()).thenReturn(LocalDate.of(2026, 9, 24));
-        Dividend pago = provento(DividendType.JCP, "10.19", "1.78", "8.41", JCP);
-        pago.setPaymentDate(LocalDate.of(2026, 9, 24));
-        Dividend futuro = provento(DividendType.JCP, "16.25", "2.84", "13.41", JCP);
-        futuro.setPaymentDate(LocalDate.of(2027, 1, 22));
-        when(dividendRepository.findByPortfolioIdWithAsset(carteira.getId())).thenReturn(List.of(pago, futuro));
+        Dividend paid = dividendEvent(DividendType.JCP, "10.19", "1.78", "8.41", JCP);
+        paid.setPaymentDate(LocalDate.of(2026, 9, 24));
+        Dividend future = dividendEvent(DividendType.JCP, "16.25", "2.84", "13.41", JCP);
+        future.setPaymentDate(LocalDate.of(2027, 1, 22));
+        when(dividendRepository.findByPortfolioIdWithAsset(portfolioEntity.getId())).thenReturn(List.of(paid, future));
 
-        DividendSummaryDTO resumo = service.getDividendSummary(usuario);
+        DividendSummaryDTO summary = service.getDividendSummary(user);
 
-        assertThat(resumo.totalDividends()).isEqualByComparingTo("8.41");
-        assertThat(resumo.totalGross()).isEqualByComparingTo("10.19");
-        assertThat(resumo.totalTax()).isEqualByComparingTo("1.78");
-        assertThat(resumo.byType().get("JCP")).isEqualByComparingTo("8.41");
-        assertThat(resumo.totalToReceive()).isEqualByComparingTo("13.41");
-        assertThat(resumo.toReceiveGross()).isEqualByComparingTo("16.25");
-        assertThat(resumo.toReceiveTax()).isEqualByComparingTo("2.84");
-        assertThat(resumo.recent()).extracting(DividendResponseDTO::received).containsExactly(true, false);
+        assertThat(summary.totalDividends()).isEqualByComparingTo("8.41");
+        assertThat(summary.totalGross()).isEqualByComparingTo("10.19");
+        assertThat(summary.totalTax()).isEqualByComparingTo("1.78");
+        assertThat(summary.byType().get("JCP")).isEqualByComparingTo("8.41");
+        assertThat(summary.totalToReceive()).isEqualByComparingTo("13.41");
+        assertThat(summary.toReceiveGross()).isEqualByComparingTo("16.25");
+        assertThat(summary.toReceiveTax()).isEqualByComparingTo("2.84");
+        assertThat(summary.recent()).extracting(DividendResponseDTO::received).containsExactly(true, false);
     }
 }

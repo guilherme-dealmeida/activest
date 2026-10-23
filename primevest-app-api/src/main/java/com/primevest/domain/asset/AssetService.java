@@ -84,7 +84,7 @@ public class AssetService {
      * 50 cobre com folga qualquer busca útil (a maior família do catálogo, o
      * Tesouro, tem 130 títulos) sem despejar centenas de linhas num dropdown.
      */
-    private static final int LIMITE_BUSCA = 50;
+    private static final int SEARCH_LIMIT = 50;
 
     /**
      * Searches assets by query.
@@ -101,10 +101,10 @@ public class AssetService {
     public List<AssetResponseDTO> searchAssets(String query, Long typeId) {
         // Pageable sem Sort: a ordenação vem do próprio @Query. Passar um Sort
         // aqui faria o Spring Data concatenar um segundo ORDER BY e quebrar.
-        Pageable limite = PageRequest.of(0, LIMITE_BUSCA);
+        Pageable limit = PageRequest.of(0, SEARCH_LIMIT);
         List<Asset> found = typeId != null
-            ? assetRepository.searchByTypeAndTickerOrName(typeId, query, limite)
-            : assetRepository.searchByTickerOrName(query, limite);
+            ? assetRepository.searchByTypeAndTickerOrName(typeId, query, limit)
+            : assetRepository.searchByTickerOrName(query, limit);
         return found.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
@@ -116,7 +116,7 @@ public class AssetService {
     public List<AssetResponseDTO> searchAssetsWithIssuer(String query, com.primevest.domain.issuer.IssuerKind kind) {
         java.util.List<com.primevest.domain.issuer.IssuerKind> kinds = kind == null
             ? java.util.List.of(com.primevest.domain.issuer.IssuerKind.values()) : java.util.List.of(kind);
-        return assetRepository.searchWithIssuerByTickerOrName(query, kinds, PageRequest.of(0, LIMITE_BUSCA))
+        return assetRepository.searchWithIssuerByTickerOrName(query, kinds, PageRequest.of(0, SEARCH_LIMIT))
             .stream().map(this::toDTO).collect(Collectors.toList());
     }
 

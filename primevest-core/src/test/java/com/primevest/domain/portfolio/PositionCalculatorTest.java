@@ -20,35 +20,35 @@ class PositionCalculatorTest {
 
     private final PositionCalculator calculator = new PositionCalculator(null, null, null);
 
-    private static Transaction tx(TransactionType tipo, String data, String cotas, String preco, int ordem) {
-        BigDecimal qtd = cotas == null ? null : new BigDecimal(cotas);
-        BigDecimal unit = preco == null ? null : new BigDecimal(preco);
+    private static Transaction tx(TransactionType typeValue, String data, String shareCount, String price, int order) {
+        BigDecimal qtd = shareCount == null ? null : new BigDecimal(shareCount);
+        BigDecimal unit = price == null ? null : new BigDecimal(price);
         return Transaction.builder()
-            .type(tipo)
+            .type(typeValue)
             .shares(qtd)
             .pricePerShare(unit)
             .totalAmount(qtd != null && unit != null ? qtd.multiply(unit) : null)
             .transactionDate(LocalDate.parse(data))
-            .createdAt(LocalDateTime.of(2026, 1, 1, 0, 0).plusMinutes(ordem))
+            .createdAt(LocalDateTime.of(2026, 1, 1, 0, 0).plusMinutes(order))
             .build();
     }
 
-    private static Transaction porValor(TransactionType tipo, String data, String total, int ordem) {
+    private static Transaction byValue(TransactionType typeValue, String data, String total, int order) {
         return Transaction.builder()
-            .type(tipo)
+            .type(typeValue)
             .totalAmount(new BigDecimal(total))
             .transactionDate(LocalDate.parse(data))
-            .createdAt(LocalDateTime.of(2026, 1, 1, 0, 0).plusMinutes(ordem))
+            .createdAt(LocalDateTime.of(2026, 1, 1, 0, 0).plusMinutes(order))
             .build();
     }
 
     @Nested
     @DisplayName("Saldo por cota")
-    class PorCota {
+    class PerShare {
 
         @Test
         @DisplayName("Compra soma cotas e custo")
-        void compraSomaCotasECusto() {
+        void buyAddsSharesAndCost() {
             Position p = calculator.calculate(false, List.of(tx(TransactionType.BUY, "2026-09-01", "10", "30.00", 1)));
 
             assertThat(p.shares()).isEqualByComparingTo("10");
@@ -58,7 +58,7 @@ class PositionCalculatorTest {
 
         @Test
         @DisplayName("A venda tira custo pelo preco medio do momento, e o preco medio nao muda")
-        void exemploDoProjeto_precoMedio15Custo1500() {
+        void projectExample_averagePrice15Cost1500() {
             Position p = calculator.calculate(false, List.of(
                 tx(TransactionType.BUY, "2026-09-01", "100", "10.00", 1),
                 tx(TransactionType.BUY, "2026-09-02", "100", "20.00", 2),
@@ -71,21 +71,21 @@ class PositionCalculatorTest {
 
         @Test
         @DisplayName("O preco de venda nao entra no custo: vender caro ou barato da o mesmo resultado")
-        void precoDeVendaNaoAfetaOCusto() {
-            Position cara = calculator.calculate(false, List.of(
+        void salePriceDoesNotAffectCost() {
+            Position expensive = calculator.calculate(false, List.of(
                 tx(TransactionType.BUY, "2026-09-01", "100", "10.00", 1),
                 tx(TransactionType.SELL, "2026-09-03", "50", "90.00", 2)));
-            Position barata = calculator.calculate(false, List.of(
+            Position cheap = calculator.calculate(false, List.of(
                 tx(TransactionType.BUY, "2026-09-01", "100", "10.00", 1),
                 tx(TransactionType.SELL, "2026-09-03", "50", "1.00", 2)));
 
-            assertThat(cara.invested()).isEqualByComparingTo(barata.invested());
-            assertThat(cara.invested()).isEqualByComparingTo("500.00");
+            assertThat(expensive.invested()).isEqualByComparingTo(cheap.invested());
+            assertThat(expensive.invested()).isEqualByComparingTo("500.00");
         }
 
         @Test
         @DisplayName("Venda de tudo zera cotas e custo")
-        void vendaTotalZera() {
+        void fullSaleZeroes() {
             Position p = calculator.calculate(false, List.of(
                 tx(TransactionType.BUY, "2026-09-01", "10", "30.00", 1),
                 tx(TransactionType.SELL, "2026-09-02", "10", "31.00", 2)));
@@ -96,7 +96,7 @@ class PositionCalculatorTest {
 
         @Test
         @DisplayName("Venda maior que a posicao zera em vez de deixar saldo negativo")
-        void vendaMaiorQueAPosicaoZera() {
+        void saleLargerThanPositionZeroes() {
             Position p = calculator.calculate(false, List.of(
                 tx(TransactionType.BUY, "2026-09-01", "10", "30.00", 1),
                 tx(TransactionType.SELL, "2026-09-02", "15", "31.00", 2)));
@@ -107,7 +107,7 @@ class PositionCalculatorTest {
 
         @Test
         @DisplayName("Venda sem cotas em carteira e ignorada")
-        void vendaSemPosicaoEIgnorada() {
+        void saleWithoutPositionIsIgnored() {
             Position p = calculator.calculate(false, List.of(
                 tx(TransactionType.SELL, "2026-09-01", "5", "30.00", 1),
                 tx(TransactionType.BUY, "2026-09-02", "10", "30.00", 2)));
@@ -118,7 +118,7 @@ class PositionCalculatorTest {
 
         @Test
         @DisplayName("Preco medio com 8 casas (a escala de price_per_share) e custo com 2")
-        void escalas() {
+        void scales() {
             Position p = calculator.calculate(false, List.of(
                 tx(TransactionType.BUY, "2026-09-01", "3", "10.00", 1),
                 tx(TransactionType.BUY, "2026-09-02", "3", "10.01", 2)));
@@ -130,7 +130,7 @@ class PositionCalculatorTest {
 
         @Test
         @DisplayName("Cripto de fracao de centavo: o preco medio nao arredonda para R$ 0,0001")
-        void precoMedioDeFracaoDeCentavo() {
+        void averagePriceWithFractionOfCent() {
             // Com 4 casas o medio abaixo virava 0.0001 — 40% acima do real.
             Position p = calculator.calculate(false, List.of(
                 tx(TransactionType.BUY, "2026-09-01", "1000000", "0.00007000", 1),
@@ -141,7 +141,7 @@ class PositionCalculatorTest {
 
         @Test
         @DisplayName("Cripto: as 8 casas da quantidade sobrevivem ao calculo")
-        void fracaoDeCripto() {
+        void cryptoFraction() {
             Position p = calculator.calculate(false, List.of(
                 tx(TransactionType.BUY, "2026-09-01", "0.00012345", "500000.00", 1)));
 
@@ -152,24 +152,24 @@ class PositionCalculatorTest {
 
     @Nested
     @DisplayName("Ordem cronologica")
-    class Cronologia {
+    class Chronology {
 
         @Test
         @DisplayName("Ordena por data e, no mesmo dia, pela criacao")
-        void dataDepoisCriacao() {
-            Transaction compraDoDia = tx(TransactionType.BUY, "2026-09-04", "10", "30.00", 2);
-            Transaction vendaDoDia = tx(TransactionType.SELL, "2026-09-04", "10", "31.00", 3);
-            Transaction compraAntiga = tx(TransactionType.BUY, "2026-09-01", "5", "20.00", 1);
+        void dateAfterCreation() {
+            Transaction sameDayBuy = tx(TransactionType.BUY, "2026-09-04", "10", "30.00", 2);
+            Transaction sameDaySale = tx(TransactionType.SELL, "2026-09-04", "10", "31.00", 3);
+            Transaction oldBuy = tx(TransactionType.BUY, "2026-09-01", "5", "20.00", 1);
 
-            List<Transaction> ordenadas =
-                PositionCalculator.chronological(List.of(vendaDoDia, compraAntiga, compraDoDia));
+            List<Transaction> sorted =
+                PositionCalculator.chronological(List.of(sameDaySale, oldBuy, sameDayBuy));
 
-            assertThat(ordenadas).containsExactly(compraAntiga, compraDoDia, vendaDoDia);
+            assertThat(sorted).containsExactly(oldBuy, sameDayBuy, sameDaySale);
         }
 
         @Test
         @DisplayName("No mesmo dia, a venda lancada DEPOIS da compra enxerga as cotas dela")
-        void vendaDepoisDaCompraNoMesmoDia() {
+        void saleAfterBuySameDay() {
             Position p = calculator.calculate(false, PositionCalculator.chronological(List.of(
                 tx(TransactionType.SELL, "2026-09-04", "12", "31.00", 3),
                 tx(TransactionType.BUY, "2026-09-04", "10", "30.00", 2),
@@ -181,44 +181,44 @@ class PositionCalculatorTest {
 
     @Nested
     @DisplayName("sharesOn — cotas numa data (a data-com dos proventos)")
-    class CotasNaData {
+    class SharesOnDate {
 
-        private final List<Transaction> historico = List.of(
+        private final List<Transaction> history = List.of(
             tx(TransactionType.BUY, "2026-09-01", "10", "30.00", 1),
             tx(TransactionType.SELL, "2026-09-10", "4", "31.00", 2),
             tx(TransactionType.BUY, "2026-09-20", "2", "32.00", 3));
 
         @Test
         @DisplayName("Compra na propria data conta")
-        void naDataDaCompra() {
-            assertThat(calculator.sharesOn(historico, LocalDate.parse("2026-09-01"))).isEqualByComparingTo("10");
+        void onBuyDate() {
+            assertThat(calculator.sharesOn(history, LocalDate.parse("2026-09-01"))).isEqualByComparingTo("10");
         }
 
         @Test
         @DisplayName("Antes da primeira compra, zero")
-        void antesDeTudo() {
-            assertThat(calculator.sharesOn(historico, LocalDate.parse("2026-08-31"))).isEqualByComparingTo("0");
+        void beforeAll() {
+            assertThat(calculator.sharesOn(history, LocalDate.parse("2026-08-31"))).isEqualByComparingTo("0");
         }
 
         @Test
         @DisplayName("Depois da venda, o saldo da data")
-        void depoisDaVenda() {
-            assertThat(calculator.sharesOn(historico, LocalDate.parse("2026-09-15"))).isEqualByComparingTo("6");
-            assertThat(calculator.sharesOn(historico, LocalDate.parse("2026-09-30"))).isEqualByComparingTo("8");
+        void afterTheSale() {
+            assertThat(calculator.sharesOn(history, LocalDate.parse("2026-09-15"))).isEqualByComparingTo("6");
+            assertThat(calculator.sharesOn(history, LocalDate.parse("2026-09-30"))).isEqualByComparingTo("8");
         }
     }
 
     @Nested
     @DisplayName("Renda fixa (lancada por valor total)")
-    class PorValor {
+    class ByValue {
 
         @Test
         @DisplayName("Aplicado e resgatado ficam separados; cotas e preco medio sao nulos")
-        void aplicadoEResgatadoSeparados() {
+        void investedAndRedeemedSeparate() {
             Position p = calculator.calculate(true, List.of(
-                porValor(TransactionType.BUY, "2026-09-01", "1000.00", 1),
-                porValor(TransactionType.BUY, "2026-09-05", "500.00", 2),
-                porValor(TransactionType.SELL, "2026-09-20", "300.00", 3)));
+                byValue(TransactionType.BUY, "2026-09-01", "1000.00", 1),
+                byValue(TransactionType.BUY, "2026-09-05", "500.00", 2),
+                byValue(TransactionType.SELL, "2026-09-20", "300.00", 3)));
 
             assertThat(p.totalShares()).isNull();
             assertThat(p.averagePrice()).isNull();
@@ -228,7 +228,7 @@ class PositionCalculatorTest {
 
         @Test
         @DisplayName("Sem transacao, a posicao e vazia")
-        void semTransacao() {
+        void withoutTransaction() {
             Position p = calculator.calculate(true, List.of());
 
             assertThat(p.invested()).isEqualByComparingTo("0.00");

@@ -64,7 +64,7 @@ public final class B3EquityImportRules implements ImportRules {
                 return Result.no("Empréstimo de ativos: não muda a posição (B10).");
             }
             case FIXED_INCOME -> {
-                return tesouro(m, catalog);
+                return treasury(m, catalog);
             }
             case OTHER -> {
                 return Result.no("Lançamento da B3 sem regra no PrimeVest (" + label(m) + "): não importado.");
@@ -99,9 +99,9 @@ public final class B3EquityImportRules implements ImportRules {
         BigDecimal shares = m.grossQuantity();
         BigDecimal price = m.quoteAmount().divide(shares, PRICE_SCALE, RoundingMode.HALF_UP);
         BigDecimal total = shares.multiply(price).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
-        BigDecimal diferenca = total.subtract(m.quoteAmount().setScale(MONEY_SCALE, RoundingMode.HALF_UP));
-        if (diferenca.abs().compareTo(TOLERANCE) > 0) {
-            return Result.no("Diferença de R$ " + diferenca.toPlainString()
+        BigDecimal difference = total.subtract(m.quoteAmount().setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+        if (difference.abs().compareTo(TOLERANCE) > 0) {
+            return Result.no("Diferença de R$ " + difference.toPlainString()
                 + " entre o calculado e o informado pela B3: acima do arredondamento aceito.");
         }
 
@@ -117,7 +117,7 @@ public final class B3EquityImportRules implements ImportRules {
             m.externalId(),
             shares,
             m.quoteAmount(),
-            diferenca));
+            difference));
     }
 
     /**
@@ -127,19 +127,19 @@ public final class B3EquityImportRules implements ImportRules {
      * Renda fixa privada (CDB...) nao: a Movimentacao nao traz taxa, indice nem o valor de resgate
      * (o vencimento vem com valor zero) — precisa da Posicao de renda fixa.
      */
-    private Result tesouro(ImportedMovement m, Function<String, Optional<Asset>> catalog) {
-        String titulo = m.asset() == null ? null : m.asset().strip();
-        if (titulo == null || !normalize(titulo).startsWith("TESOURO")) {
+    private Result treasury(ImportedMovement m, Function<String, Optional<Asset>> catalog) {
+        String bond = m.asset() == null ? null : m.asset().strip();
+        if (bond == null || !normalize(bond).startsWith("TESOURO")) {
             return Result.no("Renda fixa (" + label(m) + "): a Movimentação da B3 não traz taxa, índice nem o valor "
                 + "de resgate; lance pela tela de transações (F7).");
         }
-        String tipo = m.market() == null ? "" : normalize(m.market());
-        TransactionType tipoTx = tipo.equals("COMPRA") ? TransactionType.BUY
-            : tipo.equals("VENDA") ? TransactionType.SELL : null;
-        if (tipoTx == null) {
+        String type = m.market() == null ? "" : normalize(m.market());
+        TransactionType txType = type.equals("COMPRA") ? TransactionType.BUY
+            : type.equals("VENDA") ? TransactionType.SELL : null;
+        if (txType == null) {
             return Result.no("Tesouro Direto (" + label(m) + "): só a compra vira transação (F7).");
         }
-        if (tipoTx == TransactionType.SELL) {
+        if (txType == TransactionType.SELL) {
             // O PrimeVest reparte a venda de Tesouro entre os titulos (FIFO) e refaz essas linhas a cada
             // realocacao: a origem da B3 nao sobreviveria. Fica para lancar pela tela.
             return Result.no("Venda de Tesouro Direto (" + label(m) + "): o PrimeVest reparte a venda entre os "
@@ -148,17 +148,17 @@ public final class B3EquityImportRules implements ImportRules {
         if (m.tradeDate() == null || !positive(m.grossQuantity()) || !positive(m.quoteAmount())) {
             return Result.no("Tesouro Direto sem data, quantidade ou valor.");
         }
-        Optional<Asset> asset = catalog.apply(titulo);
+        Optional<Asset> asset = catalog.apply(bond);
         if (asset.isEmpty() || asset.get().getAssetType() == null || !asset.get().getAssetType().isTreasury()) {
-            return Result.no("Título " + titulo + " não está no catálogo do PrimeVest como Tesouro Direto.");
+            return Result.no("Título " + bond + " não está no catálogo do PrimeVest como Tesouro Direto.");
         }
         BigDecimal shares = m.grossQuantity();
         BigDecimal price = m.quoteAmount().divide(shares, PRICE_SCALE, RoundingMode.HALF_UP);
         BigDecimal total = shares.multiply(price).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
-        BigDecimal diferenca = total.subtract(m.quoteAmount().setScale(MONEY_SCALE, RoundingMode.HALF_UP));
-        return Result.ok(new ProposedTransaction(asset.get().getId(), asset.get().getTicker(), tipoTx, shares, price,
+        BigDecimal difference = total.subtract(m.quoteAmount().setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+        return Result.ok(new ProposedTransaction(asset.get().getId(), asset.get().getTicker(), txType, shares, price,
             BigDecimal.ZERO, m.tradeDate(), LocalDateTime.ofInstant(m.executedAt(), ZoneOffset.UTC), m.externalId(),
-            shares, m.quoteAmount(), diferenca, m.participant()));
+            shares, m.quoteAmount(), difference, m.participant()));
     }
 
     /** Renda variavel listada na B3: os tipos cotados pelo fechamento da bolsa (acao, FII, ETF, BDR). */

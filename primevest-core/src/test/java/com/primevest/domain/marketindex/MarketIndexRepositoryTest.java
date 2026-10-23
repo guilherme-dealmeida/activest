@@ -27,7 +27,7 @@ class MarketIndexRepositoryTest extends JpaTestBase {
 
     @Test
     @DisplayName("Os seis indexadores da renda fixa existem com o mesmo nome do enum Indexer")
-    void indexadoresDoEnum() {
+    void enumIndexers() {
         for (com.primevest.domain.asset.Indexer i : com.primevest.domain.asset.Indexer.values()) {
             assertThat(indices.findByCode(i.name())).as(i.name()).isPresent();
         }
@@ -43,7 +43,7 @@ class MarketIndexRepositoryTest extends JpaTestBase {
 
     @Test
     @DisplayName("Serie: intervalo ordenado, ultimo ate a data, primeiro e ultimo")
-    void consultas() {
+    void queries() {
         long cdi = indices.findByCode("CDI").orElseThrow().getId();
         insert(cdi, LocalDate.of(2024, 1, 3), "0.043739");
         insert(cdi, LocalDate.of(2024, 1, 2), "0.043739");
@@ -64,7 +64,7 @@ class MarketIndexRepositoryTest extends JpaTestBase {
 
     @Test
     @DisplayName("Um valor por indice por data: a mesma data duas vezes viola a chave")
-    void chave() {
+    void key() {
         long ipca = indices.findByCode("IPCA").orElseThrow().getId();
         insert(ipca, LocalDate.of(2024, 1, 1), "0.42");
 

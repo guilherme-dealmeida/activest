@@ -46,40 +46,40 @@ const PriceTooltip = ({ active, payload }: TooltipPayload) => {
 export const PriceChart = ({ ticker }: { ticker: string }) => {
   const { isDark } = useTheme();
   const [params, setParams] = useSearchParams();
-  const de = params.get('de');
-  const ate = params.get('ate');
-  const custom = (de && ISO.test(de)) || (ate && ISO.test(ate));
-  const periodoParam = (params.get('periodo') ?? '').toUpperCase() as PriceRange;
-  const range: PriceRange = RANGES.includes(periodoParam) ? periodoParam : DEFAULT_RANGE;
+  const dateFrom = params.get('from');
+  const dateTo = params.get('to');
+  const custom = (dateFrom && ISO.test(dateFrom)) || (dateTo && ISO.test(dateTo));
+  const rangeParam = (params.get('range') ?? '').toUpperCase() as PriceRange;
+  const range: PriceRange = RANGES.includes(rangeParam) ? rangeParam : DEFAULT_RANGE;
 
   const period = custom
-    ? { from: de && ISO.test(de) ? de : undefined, to: ate && ISO.test(ate) ? ate : undefined }
+    ? { from: dateFrom && ISO.test(dateFrom) ? dateFrom : undefined, to: dateTo && ISO.test(dateTo) ? dateTo : undefined }
     : { range };
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['prices', ticker, custom ? `${de ?? ''}_${ate ?? ''}` : range],
+    queryKey: ['prices', ticker, custom ? `${dateFrom ?? ''}_${dateTo ?? ''}` : range],
     queryFn: () => assetsApi.prices(ticker, period),
     placeholderData: (prev) => (prev?.ticker === ticker ? prev : undefined),
   });
 
   const setRange = (r: PriceRange) => {
     const next = new URLSearchParams(params);
-    next.delete('de'); next.delete('ate');
-    if (r === DEFAULT_RANGE) next.delete('periodo'); else next.set('periodo', r);
+    next.delete('from'); next.delete('to');
+    if (r === DEFAULT_RANGE) next.delete('range'); else next.set('range', r);
     setParams(next, { replace: true });
   };
 
-  const setDate = (key: 'de' | 'ate', value: string) => {
+  const setDate = (key: 'from' | 'to', value: string) => {
     const next = new URLSearchParams(params);
-    next.delete('periodo');
+    next.delete('range');
     if (value) next.set(key, value); else next.delete(key);
     // o outro extremo começa no intervalo mostrado agora, para o período não "pular"
-    const other = key === 'de' ? 'ate' : 'de';
+    const other = key === 'from' ? 'to' : 'from';
     if (!next.get(other) && data) {
-      const v = other === 'de' ? data.from : data.to;
+      const v = other === 'from' ? data.from : data.to;
       if (v) next.set(other, v);
     }
-    if (!next.get('de') && !next.get('ate')) next.delete('periodo');
+    if (!next.get('from') && !next.get('to')) next.delete('range');
     setParams(next, { replace: true });
   };
 
@@ -121,17 +121,17 @@ export const PriceChart = ({ ticker }: { ticker: string }) => {
             <label htmlFor="cot-de">de</label>
             <input
               id="cot-de" type="date"
-              value={custom ? (de ?? data?.from ?? '') : ''}
+              value={custom ? (dateFrom ?? data?.from ?? '') : ''}
               min={data?.firstDate ?? undefined} max={data?.lastDate ?? undefined}
-              onChange={(e) => setDate('de', e.target.value)}
+              onChange={(e) => setDate('from', e.target.value)}
               className="rounded-md border border-surface-light bg-surface px-2 py-1 text-xs text-white"
             />
             <label htmlFor="cot-ate">até</label>
             <input
               id="cot-ate" type="date"
-              value={custom ? (ate ?? data?.to ?? '') : ''}
+              value={custom ? (dateTo ?? data?.to ?? '') : ''}
               min={data?.firstDate ?? undefined} max={data?.lastDate ?? undefined}
-              onChange={(e) => setDate('ate', e.target.value)}
+              onChange={(e) => setDate('to', e.target.value)}
               className="rounded-md border border-surface-light bg-surface px-2 py-1 text-xs text-white"
             />
           </div>

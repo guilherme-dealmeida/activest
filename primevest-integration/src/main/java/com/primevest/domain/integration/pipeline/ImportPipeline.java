@@ -64,43 +64,43 @@ public class ImportPipeline {
     public ImportPreview preview(UUID connectionId, UUID userId, List<ImportedMovement> movements,
                                  ImportRules rules) {
         // Um externalId repetido no mesmo lote e o mesmo movimento: fica o primeiro.
-        Map<String, ImportedMovement> unicos = new LinkedHashMap<>();
+        Map<String, ImportedMovement> unique = new LinkedHashMap<>();
         movements.stream()
             .sorted(Comparator.comparing(ImportedMovement::executedAt))
-            .forEach(m -> unicos.putIfAbsent(m.externalId(), m));
+            .forEach(m -> unique.putIfAbsent(m.externalId(), m));
 
         BigDecimal fiatDeposited = BigDecimal.ZERO;
-        List<ImportedMovement> candidatos = new ArrayList<>();
-        for (ImportedMovement m : unicos.values()) {
+        List<ImportedMovement> candidates = new ArrayList<>();
+        for (ImportedMovement m : unique.values()) {
             if (m.kind() == MovementKind.FIAT_DEPOSIT) {
                 if (m.quoteAmount() != null) {
                     fiatDeposited = fiatDeposited.add(m.quoteAmount());
                 }
             } else {
-                candidatos.add(m);
+                candidates.add(m);
             }
         }
 
-        List<String> ids = candidatos.stream().map(ImportedMovement::externalId).toList();
-        Set<String> existentes = ids.isEmpty() ? Set.of() : transactionRepository.findImportedIds(connectionId, ids);
-        Set<String> excluidos = ids.isEmpty() ? Set.of() : exclusionRepository.findExcludedIds(connectionId, ids);
+        List<String> ids = candidates.stream().map(ImportedMovement::externalId).toList();
+        Set<String> existing = ids.isEmpty() ? Set.of() : transactionRepository.findImportedIds(connectionId, ids);
+        Set<String> excluded = ids.isEmpty() ? Set.of() : exclusionRepository.findExcludedIds(connectionId, ids);
 
-        Map<String, Optional<Asset>> catalogo = new HashMap<>();
-        List<PreviewItem> itens = new ArrayList<>();
-        for (ImportedMovement m : candidatos) {
-            if (existentes.contains(m.externalId())) {
-                itens.add(new PreviewItem(m, PreviewOutcome.EXISTING, null, null));
-            } else if (excluidos.contains(m.externalId())) {
-                itens.add(new PreviewItem(m, PreviewOutcome.EXCLUDED, null, null));
+        Map<String, Optional<Asset>> catalog = new HashMap<>();
+        List<PreviewItem> runItemList = new ArrayList<>();
+        for (ImportedMovement m : candidates) {
+            if (existing.contains(m.externalId())) {
+                runItemList.add(new PreviewItem(m, PreviewOutcome.EXISTING, null, null));
+            } else if (excluded.contains(m.externalId())) {
+                runItemList.add(new PreviewItem(m, PreviewOutcome.EXCLUDED, null, null));
             } else {
                 ImportRules.Result r = rules.apply(m,
-                    ticker -> catalogo.computeIfAbsent(ticker, assetRepository::findByTicker));
-                itens.add(r.mapped()
+                    ticker -> catalog.computeIfAbsent(ticker, assetRepository::findByTicker));
+                runItemList.add(r.mapped()
                     ? new PreviewItem(m, PreviewOutcome.NEW, r.transaction(), null)
                     : new PreviewItem(m, PreviewOutcome.UNMAPPED, null, r.reason()));
             }
         }
-        return new ImportPreview(connectionId, marcarDuplicatas(userId, itens), fiatDeposited);
+        return new ImportPreview(connectionId, markDuplicates(userId, runItemList), fiatDeposited);
     }
 
     /**
@@ -108,56 +108,56 @@ public class ImportPipeline {
      * importado que parece com um lancamento MANUAL vira POSSIBLE_DUPLICATE,
      * apontando para ele; a decisao e do usuario, na confirmacao.
      */
-    private List<PreviewItem> marcarDuplicatas(UUID userId, List<PreviewItem> itens) {
-        List<PreviewItem> novos = itens.stream().filter(i -> i.outcome() == PreviewOutcome.NEW).toList();
-        if (userId == null || novos.isEmpty()) {
-            return itens;
+    private List<PreviewItem> markDuplicates(UUID userId, List<PreviewItem> runItemList) {
+        List<PreviewItem> added = runItemList.stream().filter(i -> i.outcome() == PreviewOutcome.NEW).toList();
+        if (userId == null || added.isEmpty()) {
+            return runItemList;
         }
-        Set<Long> ativos = novos.stream().map(i -> i.transaction().assetId()).collect(Collectors.toSet());
-        LocalDate de = novos.stream().map(i -> i.transaction().transactionDate()).min(LocalDate::compareTo).orElseThrow();
-        LocalDate ate = novos.stream().map(i -> i.transaction().transactionDate()).max(LocalDate::compareTo).orElseThrow();
-        List<Transaction> manuais = new ArrayList<>(transactionRepository.findByOriginForAssets(
-            userId, TransactionOrigin.MANUAL, ativos, de.minusDays(1), ate.plusDays(1)));
-        if (manuais.isEmpty()) {
-            return itens;
+        Set<Long> assetTickers = added.stream().map(i -> i.transaction().assetId()).collect(Collectors.toSet());
+        LocalDate de = added.stream().map(i -> i.transaction().transactionDate()).min(LocalDate::compareTo).orElseThrow();
+        LocalDate ate = added.stream().map(i -> i.transaction().transactionDate()).max(LocalDate::compareTo).orElseThrow();
+        List<Transaction> manualTransactions = new ArrayList<>(transactionRepository.findByOriginForAssets(
+            userId, TransactionOrigin.MANUAL, assetTickers, de.minusDays(1), ate.plusDays(1)));
+        if (manualTransactions.isEmpty()) {
+            return runItemList;
         }
 
-        List<PreviewItem> resultado = new ArrayList<>();
-        for (PreviewItem item : itens) {
+        List<PreviewItem> result = new ArrayList<>();
+        for (PreviewItem item : runItemList) {
             if (item.outcome() != PreviewOutcome.NEW) {
-                resultado.add(item);
+                result.add(item);
                 continue;
             }
             ProposedTransaction t = item.transaction();
-            Transaction par = manuais.stream()
-                .filter(m -> parece(m, t))
+            Transaction match = manualTransactions.stream()
+                .filter(m -> looksLike(m, t))
                 .min(Comparator.comparingLong((Transaction m) ->
                         Math.abs(ChronoUnit.DAYS.between(m.getTransactionDate(), t.transactionDate())))
                     .thenComparing(m -> m.getShares().subtract(t.shares()).abs()))
                 .orElse(null);
-            if (par == null) {
-                resultado.add(item);
+            if (match == null) {
+                result.add(item);
             } else {
-                manuais.remove(par);
-                resultado.add(new PreviewItem(item.movement(), PreviewOutcome.POSSIBLE_DUPLICATE, t, null,
-                    new PreviewItem.DuplicateCandidate(par.getId(), par.getTransactionDate(), par.getShares(),
-                        par.getPricePerShare())));
+                manualTransactions.remove(match);
+                result.add(new PreviewItem(item.movement(), PreviewOutcome.POSSIBLE_DUPLICATE, t, null,
+                    new PreviewItem.DuplicateCandidate(match.getId(), match.getTransactionDate(), match.getShares(),
+                        match.getPricePerShare())));
             }
         }
-        return resultado;
+        return result;
     }
 
     /** Mesmo ativo e tipo, data a ate um dia, quantidade entre a liquida e a bruta (com folga de 0,1%). */
-    static boolean parece(Transaction manual, ProposedTransaction t) {
+    static boolean looksLike(Transaction manual, ProposedTransaction t) {
         if (manual.getShares() == null || manual.getPortfolioAsset() == null
                 || !manual.getPortfolioAsset().getAsset().getId().equals(t.assetId())
                 || manual.getType() != t.type()
                 || Math.abs(ChronoUnit.DAYS.between(manual.getTransactionDate(), t.transactionDate())) > 1) {
             return false;
         }
-        BigDecimal folga = t.shares().multiply(SHARES_TOLERANCE);
-        BigDecimal minimo = t.shares().subtract(folga);
-        BigDecimal maximo = t.grossQuantity().max(t.shares()).add(folga);
-        return manual.getShares().compareTo(minimo) >= 0 && manual.getShares().compareTo(maximo) <= 0;
+        BigDecimal slack = t.shares().multiply(SHARES_TOLERANCE);
+        BigDecimal lower = t.shares().subtract(slack);
+        BigDecimal upper = t.grossQuantity().max(t.shares()).add(slack);
+        return manual.getShares().compareTo(lower) >= 0 && manual.getShares().compareTo(upper) <= 0;
     }
 }

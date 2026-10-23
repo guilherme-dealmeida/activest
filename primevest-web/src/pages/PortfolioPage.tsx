@@ -193,7 +193,7 @@ const COLUMNS: Column[] = [
     label: 'ATIVO',
     align: 'left',
     render: (a, type) => {
-      const logoDoTipo = typeLogo(type.name);
+      const logoOfType = typeLogo(type.name);
       return (
       // Nome do ativo só no hover (tooltip nativo), não mais abaixo do ticker.
       <div className="flex items-center gap-3" title={a.assetName || undefined}>
@@ -202,8 +202,8 @@ const COLUMNS: Column[] = [
         {/* Renda fixa: o logo do grupo da emissora, quando há (D5); senão o "RF" do tipo */}
         {type.name === RENDA_FIXA && a.noteInfo?.issuerLogoUrl
           ? <AssetLogo ticker={a.ticker} hasLogo src={a.noteInfo.issuerLogoUrl} label="RF" size={38} shape="square" />
-          : logoDoTipo
-          ? <AssetLogo ticker={a.ticker} hasLogo={!!logoDoTipo.src} src={logoDoTipo.src} label={logoDoTipo.label} size={38} shape="square" />
+          : logoOfType
+          ? <AssetLogo ticker={a.ticker} hasLogo={!!logoOfType.src} src={logoOfType.src} label={logoOfType.label} size={38} shape="square" />
           : a.hasLogo !== null && a.hasLogo !== undefined && <AssetLogo ticker={a.ticker} hasLogo={a.hasLogo} size={38} shape="square" />}
         <TickerLink ticker={a.ticker} issuerId={a.issuerId} />
       </div>
@@ -469,7 +469,7 @@ const PortfolioTypeTable = ({ type, assets, reservation, twrByPosition, typeTwr,
 
   // Começa ordenada por ativo (A→Z); o clique no cabeçalho continua trocando.
   // A distribuidora vem dentro de noteInfo; o campo plano é o que a ordenação pelo cabeçalho lê
-  const linhas = useMemo(
+  const rowList = useMemo(
     () => assets.map(a => ({
       ...a,
       distributorName: a.noteInfo?.distributorName ?? null,
@@ -478,7 +478,7 @@ const PortfolioTypeTable = ({ type, assets, reservation, twrByPosition, typeTwr,
     })),
     [assets, twrByPosition]
   );
-  const { sortedData, requestSort, getSortIndicator, getSortClass } = useSortable(linhas, {
+  const { sortedData, requestSort, getSortIndicator, getSortClass } = useSortable(rowList, {
     key: 'ticker',
     direction: 'asc',
   });

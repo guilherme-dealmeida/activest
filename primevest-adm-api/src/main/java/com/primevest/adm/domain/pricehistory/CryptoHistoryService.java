@@ -1,5 +1,7 @@
 package com.primevest.adm.domain.pricehistory;
 
+import com.primevest.domain.task.TaskRun;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.primevest.adm.integration.binance.BinanceKlinesClient;
@@ -131,6 +133,7 @@ public class CryptoHistoryService {
         int total = 0;
         LocalDate today = LocalDate.now(clock);
         for (Coin c : coins) {
+            TaskRun.checkStop(); // ponto de parada (docs/planos/PLANO_TAREFAS.md, D8)
             int cg = 0;
             int bn = 0;
             List<String> errors = new ArrayList<>();
