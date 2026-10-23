@@ -20,6 +20,11 @@
 - **Subida** (22/10/2026, `docs/planos/PLANO_TAREFAS.md`, D37 e D38): roda só a tarefa marcada "Roda na subida"
   (`tasks.run_on_startup`), ativa e **sem rodada no dia** — reiniciar o serviço não repete —, e só se a rotina disser
   que há o que recuperar. Marcadas no seed: [A1], [A2], [A9], [A10], [A11] e [B7].
+- **Vigência e disparo adiantado** (23/10/2026): o agendador mede a espera por um contador da máquina e o cron fala do
+  relógio de parede; os dois se afastam (na VM do Docker Desktop, ~4 s por dia de espera) e o disparo chegava segundos
+  antes da hora — a abertura do dia de 00:00 podia rodar às 23:59:5x com a data de ontem. Agora a vigência
+  (`scheduled_for`) é o horário nominal do cron e a rodada espera o relógio chegar nela: o início é sempre igual ou
+  depois da vigência.
 
 | Módulo | Papel |
 |---|---|
