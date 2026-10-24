@@ -76,7 +76,8 @@ activest/
   ativo, com cotação, indicadores com histórico, cadastro e demonstrativos (`docs/planos/PLANO_TELA_EMISSORES.md`);
   desde 24/10/2026, 30 indicadores de ações em grupos (valuation, endividamento, eficiência, rentabilidade,
   crescimento) com janelas 3A | 5A | MAX, card "Dados da empresa" (valor de mercado, de firma, dívidas, liquidez) e
-  demonstrativos em Trimestre | Anual com valor simples | detalhado (`docs/planos/PLANO_TELA_ATIVOS.md`)
+  demonstrativos em Trimestre | Anual, janela de 6 colunas com ‹ › e ícone de copiar o valor exato (`docs/planos/PLANO_TELA_ATIVOS.md`,
+  `docs/planos/PLANO_USABILIDADE_PRECO_TETO.md`)
 - ✅ Rentabilidade (17/10/2026): a carteira contra CDI, Selic, IPCA, IPCA + x%, Ibovespa, IFIX, IVVB11 (proxy do
   S&P 500 em reais) e Bitcoin — TWR, % do CDI, rentabilidade real, retorno pessoal (XIRR), barras por período, tabela
   comparativa, contribuição por classe/categoria/ativo/emissora, mapa de calor, patrimônio nominal × real e risco

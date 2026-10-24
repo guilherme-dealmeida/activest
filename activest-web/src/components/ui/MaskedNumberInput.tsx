@@ -2,6 +2,7 @@ import React, { InputHTMLAttributes } from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { LabelWithInfo } from './InfoTooltip';
+import { parsePastedNumber } from '@/utils/numberPaste';
 
 export interface MaskedNumberInputProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> {
@@ -25,6 +26,11 @@ export interface MaskedNumberInputProps
   allowEmpty?: boolean;
   /** Com {@link allowEmpty}: o usuário apagou o campo. */
   onClear?: () => void;
+  /**
+   * Número colado, já com o sinal (o campo só mostra o valor absoluto). Sem isso, colar chama {@link onChange} com o
+   * valor absoluto. Quem tem o botão ± ({@link SignedNumberInput}) usa para ligar o sinal.
+   */
+  onPasteValue?: (value: number) => void;
 }
 
 /**
@@ -44,17 +50,47 @@ export interface MaskedNumberInputProps
  * máscara: se precisar de outra unidade, embrulhe este componente.
  */
 export const MaskedNumberInput = React.forwardRef<HTMLInputElement, MaskedNumberInputProps>(
-  ({ className, label, error, hint, info, value, onChange, decimals = 2, adornment, allowEmpty = false, onClear, id,
-     disabled, ...props }, ref) => {
+  ({ className, label, error, hint, info, value, onChange, decimals = 2, adornment, allowEmpty = false, onClear,
+     onPasteValue, id, disabled, ...props }, ref) => {
     // O useId e chamado incondicionalmente: encurtar com `id || useId()` mudava
     // a quantidade de hooks conforme a prop, o que quebra a ordem entre renders.
     const generatedId = React.useId();
     const inputId = id ?? generatedId;
 
-    // A máscara cresce pela direita, então o cursor só faz sentido no fim.
-    const caretToEnd = (e: React.FocusEvent<HTMLInputElement> | React.MouseEvent<HTMLInputElement>) => {
-      const el = e.currentTarget;
-      requestAnimationFrame(() => el.setSelectionRange(el.value.length, el.value.length));
+    // A máscara cresce pela direita, então o cursor só faz sentido no fim — mas só quando não há seleção: mover o
+    // cursor a cada clique desfazia o arraste, o duplo e o triplo clique, e não deixava copiar o valor
+    // (docs/planos/PLANO_USABILIDADE_PRECO_TETO.md, S1). O foco pelo mouse não mexe no cursor (o clique que vem
+    // depois decide); o foco pelo teclado (Tab) leva ao fim.
+    const pointerDown = React.useRef(false);
+    const collapsed = (el: HTMLInputElement) => el.selectionStart === el.selectionEnd;
+    // A conferência é no quadro seguinte: no instante do clique o navegador ainda informa a seleção anterior.
+    const caretToEnd = (el: HTMLInputElement) => {
+      requestAnimationFrame(() => {
+        if (document.activeElement === el && collapsed(el)) el.setSelectionRange(el.value.length, el.value.length);
+      });
+    };
+    const handleMouseDown = () => { pointerDown.current = true; };
+    const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+      if (pointerDown.current) return;
+      caretToEnd(e.currentTarget);
+    };
+    const handleClick = (e: React.MouseEvent<HTMLInputElement>) => {
+      pointerDown.current = false;
+      caretToEnd(e.currentTarget);
+    };
+    const handleBlur = () => { pointerDown.current = false; };
+
+    // Colar substitui o valor (S2): a máscara lê só dígitos e somava o colado ao que já estava no campo, e perdia o
+    // sinal. Texto que não é número não muda nada.
+    const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+      e.preventDefault();
+      const parsed = parsePastedNumber(e.clipboardData.getData('text'));
+      if (parsed === null) return;
+      const scale = 10 ** decimals;
+      const signed = Math.round(parsed * scale) / scale;
+      if (Math.round(Math.abs(signed) * scale) > 999_999_999_999_999) return; // o mesmo teto de 15 dígitos da digitação
+      if (onPasteValue) onPasteValue(signed);
+      else onChange(Math.abs(signed));
     };
 
     const shown = allowEmpty ? value !== null && value !== undefined : !!value;
@@ -110,8 +146,11 @@ export const MaskedNumberInput = React.forwardRef<HTMLInputElement, MaskedNumber
             disabled={disabled}
             value={display}
             onChange={handleChange}
-            onFocus={caretToEnd}
-            onClick={caretToEnd}
+            onMouseDown={handleMouseDown}
+            onFocus={handleFocus}
+            onClick={handleClick}
+            onBlur={handleBlur}
+            onPaste={handlePaste}
             placeholder={(0).toFixed(decimals).replace('.', ',')}
             className={twMerge(
               clsx(

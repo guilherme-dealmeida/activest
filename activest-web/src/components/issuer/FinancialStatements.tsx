@@ -1,11 +1,14 @@
 import { ReactNode, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { issuersApi } from '@/api/issuers';
 import { Card } from '@/components/ui/Card';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Toggle } from '@/components/ui/Toggle';
+import { CopyButton } from '@/components/ui/CopyButton';
+import { LabelWithInfo } from '@/components/ui/InfoTooltip';
 import { CompanyQuarter, CompanyYear, FiiMonth, Issuer } from '@/types';
-import { MONTHS, formatCompactCurrency, formatCompactNumber, formatFull } from '@/utils/indicators';
+import { MONTHS, formatCompactCurrency, formatCompactNumber } from '@/utils/indicators';
 import { apiMessage } from '@/utils/apiError';
 
 type Fmt = 'money' | 'count' | 'monthPct' | 'brl';
@@ -14,6 +17,8 @@ interface Row<T> {
   label: string;
   get: (r: T) => number | null | undefined;
   fmt: Fmt;
+  /** Explicação no (i) ao lado do rótulo. */
+  info?: string;
 }
 
 /** Coluna da tabela: rótulo do cabeçalho e o hover dele. */
@@ -23,20 +28,41 @@ interface Column {
 }
 
 const exact = (v: number) => v.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+const fixed = (v: number, d: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
 
-/**
- * Valor simples: abreviado, com o exato no hover. Valor detalhado (D12): o número inteiro, com todas as casas, só no
- * que hoje é abreviado (dinheiro e quantidade); percentual e R$ por cota já são completos.
- */
-const fmtCell = (v: number | null | undefined, fmt: Fmt, detailed: boolean): { text: string; title?: string } => {
+/** Valor simples: abreviado, com o exato no hover (o Valor detalhado saiu em 24/10/2026 — a cópia leva o exato). */
+const fmtCell = (v: number | null | undefined, fmt: Fmt): { text: string; title?: string } => {
   if (v == null) return { text: '—' };
   switch (fmt) {
-    case 'money': return detailed ? { text: formatFull(v, 'money') } : { text: formatCompactCurrency(v), title: `R$ ${exact(v)}` };
-    case 'count': return detailed ? { text: formatFull(v, 'count') } : { text: formatCompactNumber(v), title: exact(v) };
-    case 'monthPct': return { text: `${(v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` };
-    case 'brl': return { text: `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` };
+    case 'money': return { text: formatCompactCurrency(v), title: `R$ ${exact(v)}` };
+    case 'count': return { text: formatCompactNumber(v), title: exact(v) };
+    case 'monthPct': return { text: `${fixed(v * 100, 2)}%` };
+    case 'brl': return { text: `R$ ${fixed(v, 2)}` };
   }
 };
+
+/**
+ * Texto copiado (docs/planos/PLANO_USABILIDADE_PRECO_TETO.md, D2): o valor exato em pt-BR, sem símbolo —
+ * "52.445.000.000,00", "-17.040.000.000,00", ações "12.888.732.761", percentual em pontos "0,85". Cola certo nos
+ * campos do Activest e no Excel/Sheets em português.
+ */
+const copyText = (v: number, fmt: Fmt): string => {
+  switch (fmt) {
+    case 'money': return fixed(v, 2);
+    case 'count': return fixed(v, 0);
+    case 'monthPct': return fixed(v * 100, 2);
+    case 'brl': return fixed(v, 2);
+  }
+};
+
+/** Diferença em centavos, sem o ruído do ponto flutuante. */
+const minus = (a: number | null | undefined, b: number | null | undefined) =>
+  a == null || b == null ? null : Math.round((a - b) * 100) / 100;
+
+/** Rótulos e (i) do lucro (D8 revisada, 24/10/2026). */
+const NET_INCOME_INFO = 'Lucro do grupo inteiro (a companhia e as controladas), incluindo a parte que pertence aos sócios não controladores — os minoritários das controladas.';
+const NET_INCOME_PARENT_INFO = 'Parte do lucro consolidado atribuída aos acionistas da companhia. É a base do LPA e do Preço Teto.';
+const NET_INCOME_MINORITY_INFO = 'Parte do lucro das controladas que pertence aos sócios minoritários delas; não chega ao acionista da companhia. Calculado: lucro consolidado − lucro da controladora (zero quando a companhia publica só o balanço individual).';
 
 const quarterLabel = (iso: string) => {
   const [y, m] = iso.split('-').map(Number);
@@ -65,8 +91,9 @@ const COMPANY_QUARTER_ROWS: Row<CompanyQuarter>[] = [
   { label: 'Lucro bruto', get: r => r.grossProfitQ, fmt: 'money' },
   { label: 'EBITDA', get: r => r.ebitdaQ, fmt: 'money' },
   { label: 'EBIT', get: r => r.ebitQ, fmt: 'money' },
-  { label: 'Lucro líquido', get: r => r.netIncomeQ, fmt: 'money' },
-  { label: 'Lucro da controladora', get: r => r.netIncomeParentQ, fmt: 'money' },
+  { label: 'Lucro líquido consolidado', get: r => r.netIncomeQ, fmt: 'money', info: NET_INCOME_INFO },
+  { label: 'Lucro líquido da controladora', get: r => r.netIncomeParentQ, fmt: 'money', info: NET_INCOME_PARENT_INFO },
+  { label: 'Lucro líquido não controladores', get: r => minus(r.netIncomeQ, r.netIncomeParentQ), fmt: 'money', info: NET_INCOME_MINORITY_INFO },
   { label: 'FCO (caixa operacional)', get: r => r.fcoQ, fmt: 'money' },
   { label: 'Dividendos + JCP declarados (DVA)', get: r => r.dividendsDeclaredQ, fmt: 'money' },
   { label: 'Dividendos + JCP pagos (fluxo de caixa)', get: r => r.dividendsPaidQ, fmt: 'money' },
@@ -84,8 +111,9 @@ const COMPANY_YEAR_ROWS: Row<CompanyYear>[] = [
   { label: 'Lucro bruto', get: r => r.grossProfit, fmt: 'money' },
   { label: 'EBITDA', get: r => r.ebitda, fmt: 'money' },
   { label: 'EBIT', get: r => r.ebit, fmt: 'money' },
-  { label: 'Lucro líquido', get: r => r.netIncome, fmt: 'money' },
-  { label: 'Lucro da controladora', get: r => r.netIncomeParent, fmt: 'money' },
+  { label: 'Lucro líquido consolidado', get: r => r.netIncome, fmt: 'money', info: NET_INCOME_INFO },
+  { label: 'Lucro líquido da controladora', get: r => r.netIncomeParent, fmt: 'money', info: NET_INCOME_PARENT_INFO },
+  { label: 'Lucro líquido não controladores', get: r => minus(r.netIncome, r.netIncomeParent), fmt: 'money', info: NET_INCOME_MINORITY_INFO },
   { label: 'FCO (caixa operacional)', get: r => r.fco, fmt: 'money' },
   { label: 'Dividendos + JCP declarados (DVA)', get: r => r.dividendsDeclared, fmt: 'money' },
   { label: 'Dividendos + JCP pagos (fluxo de caixa)', get: r => r.dividendsPaid, fmt: 'money' },
@@ -115,9 +143,7 @@ const FII_ROWS: Row<FiiMonth>[] = [
   { label: 'Rendimentos a distribuir', get: r => r.incomeToDistribute, fmt: 'money' },
 ];
 
-function Table<T>({ columns, headers, rows, detailed }: {
-  columns: T[]; headers: Column[]; rows: Row<T>[]; detailed: boolean;
-}) {
+function Table<T>({ columns, headers, rows }: { columns: T[]; headers: Column[]; rows: Row<T>[] }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -135,17 +161,17 @@ function Table<T>({ columns, headers, rows, detailed }: {
           {rows.map(row => (
             <tr key={row.label} className="border-b border-white/5 last:border-0 hover:bg-white/5">
               <th scope="row" className="sticky left-0 z-10 bg-surface px-3 py-2 text-left font-normal text-gray-300 min-w-[8.5rem] sm:whitespace-nowrap">
-                {row.label}
+                <LabelWithInfo info={row.info}>{row.label}</LabelWithInfo>
               </th>
               {columns.map((c, i) => {
                 const v = row.get(c);
-                const cell = fmtCell(v, row.fmt, detailed);
-                // detalhado: fonte menor nos valores (D11, 23/10/2026) — o número inteiro e longo
-                const small = detailed && (row.fmt === 'money' || row.fmt === 'count');
+                const cell = fmtCell(v, row.fmt);
                 return (
-                  <td key={i} title={cell.title}
-                      className={`px-3 py-2 text-right whitespace-nowrap tabular-nums ${small ? 'text-[11px]' : ''} ${v != null && v < 0 ? 'text-danger' : 'text-white'}`}>
-                    {cell.text}
+                  <td key={i} className={`px-3 py-2 text-right whitespace-nowrap tabular-nums ${v != null && v < 0 ? 'text-danger' : 'text-white'}`}>
+                    <span className="inline-flex items-center justify-end gap-1">
+                      <span title={cell.title}>{cell.text}</span>
+                      {v != null && <CopyButton text={copyText(v, row.fmt)} />}
+                    </span>
                   </td>
                 );
               })}
@@ -159,17 +185,28 @@ function Table<T>({ columns, headers, rows, detailed }: {
 
 type Basis = 'quarter' | 'year';
 
+/** Colunas por janela (D4, D6 do PLANO_USABILIDADE_PRECO_TETO): companhia e FII. */
+const PAGE = 6;
+
+const NavButton = ({ dir, disabled, onClick }: { dir: 'newer' | 'older'; disabled: boolean; onClick: () => void }) => (
+  <button type="button" onClick={onClick} disabled={disabled}
+          aria-label={dir === 'newer' ? 'Mais recentes' : 'Mais antigos'} title={dir === 'newer' ? 'Mais recentes' : 'Mais antigos'}
+          className="rounded-md p-1.5 text-gray-400 hover:bg-white/5 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400">
+    {dir === 'newer' ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+  </button>
+);
+
 /**
- * Demonstrativos (docs/planos/PLANO_TELA_EMISSORES.md, 2.6; docs/planos/PLANO_TELA_ATIVOS.md, T3, T4, D8–D13): série
- * da companhia em Trimestre (trimestre isolado) | Anual (exercício fechado e o ano em andamento acumulado) ou informe
- * mensal do FII. Valor simples (padrão) | detalhado, sem lembrar a escolha. Mais recente à esquerda; padrão 8
- * colunas (12 no FII), com "Todos".
+ * Demonstrativos (docs/planos/PLANO_TELA_EMISSORES.md, 2.6; docs/planos/PLANO_TELA_ATIVOS.md, T3, T4, D8–D13;
+ * docs/planos/PLANO_USABILIDADE_PRECO_TETO.md, S3–S5): série da companhia em Trimestre (trimestre isolado) | Anual
+ * (exercício fechado e o ano em andamento acumulado) ou informe mensal do FII. Valor simples com o exato no hover e
+ * ícone de copiar o exato. Mais recente à esquerda, janela de 6 colunas: › anda 6 para os mais antigos, ‹ volta para
+ * os mais recentes (D5), sem passar das pontas.
  */
 export const FinancialStatements = ({ issuer }: { issuer: Issuer }) => {
   const company = issuer.kind === 'COMPANY';
   const [basis, setBasis] = useState<Basis>('quarter');
-  const [all, setAll] = useState(false);
-  const [detailed, setDetailed] = useState(false);
+  const [offset, setOffset] = useState(0);
   const annual = company && basis === 'year';
 
   const quarters = useQuery({
@@ -191,10 +228,14 @@ export const FinancialStatements = ({ issuer }: { issuer: Issuer }) => {
     staleTime: 10 * 60_000,
   });
   const q = !company ? months : annual ? years : quarters;
-  const limit = company ? 8 : 12;
   const total = (!company ? months.data?.length : annual ? years.data?.length : quarters.data?.length) ?? 0;
+  // a janela nunca passa do fim: a última mostra as 6 mais antigas
+  const start = Math.max(0, Math.min(offset, total - PAGE));
+  const end = Math.min(total, start + PAGE);
+  const visible = <T,>(list: T[] | undefined) => [...(list ?? [])].reverse().slice(start, end);
 
   let body: ReactNode;
+  let headers: Column[] = [];
   if (q.isLoading) {
     body = <div className="flex h-40 items-center justify-center"><LoadingSpinner className="h-6 w-6 text-accent" /></div>;
   } else if (q.isError) {
@@ -202,16 +243,17 @@ export const FinancialStatements = ({ issuer }: { issuer: Issuer }) => {
   } else if (total === 0) {
     body = <p className="text-sm text-gray-400">{company ? 'Nenhum balanço importado para esta companhia.' : 'Nenhum informe mensal da CVM para este fundo.'}</p>;
   } else if (annual) {
-    const cols = [...years.data!].reverse().slice(0, all ? undefined : limit);
-    body = <Table columns={cols} headers={cols.map(yearColumn)} rows={COMPANY_YEAR_ROWS} detailed={detailed} />;
+    const cols = visible(years.data);
+    headers = cols.map(yearColumn);
+    body = <Table columns={cols} headers={headers} rows={COMPANY_YEAR_ROWS} />;
   } else if (company) {
-    const cols = [...quarters.data!].reverse().slice(0, all ? undefined : limit);
-    body = <Table columns={cols} headers={cols.map(c => ({ label: quarterLabel(c.periodEnd) }))}
-                  rows={COMPANY_QUARTER_ROWS} detailed={detailed} />;
+    const cols = visible(quarters.data);
+    headers = cols.map(c => ({ label: quarterLabel(c.periodEnd) }));
+    body = <Table columns={cols} headers={headers} rows={COMPANY_QUARTER_ROWS} />;
   } else {
-    const cols = [...months.data!].reverse().slice(0, all ? undefined : limit);
-    body = <Table columns={cols} headers={cols.map(c => ({ label: monthLabel(c.referenceMonth) }))} rows={FII_ROWS}
-                  detailed={detailed} />;
+    const cols = visible(months.data);
+    headers = cols.map(c => ({ label: monthLabel(c.referenceMonth) }));
+    body = <Table columns={cols} headers={headers} rows={FII_ROWS} />;
   }
 
   return (
@@ -221,28 +263,31 @@ export const FinancialStatements = ({ issuer }: { issuer: Issuer }) => {
           {company ? 'Demonstrativos (CVM — DFP/ITR)' : 'Informe mensal (CVM)'}
         </h3>
         <div className="flex flex-wrap items-center gap-2">
-          <Toggle label="Formato dos valores" value={detailed ? 'detailed' : 'simple'} onChange={v => setDetailed(v === 'detailed')}
-                  options={[{ value: 'simple', label: 'Valor simples' }, { value: 'detailed', label: 'Valor detalhado' }]} />
           {company && (
-            <Toggle label="Base" value={basis} onChange={v => { setBasis(v); setAll(false); }}
+            <Toggle label="Base" value={basis} onChange={v => { setBasis(v); setOffset(0); }}
                     options={[{ value: 'quarter', label: 'Trimestre' }, { value: 'year', label: 'Anual' }]} />
           )}
-          {total > limit && (
-            <Toggle label="Quantidade" value={all ? 'all' : 'last'} onChange={v => setAll(v === 'all')}
-                    options={[{ value: 'last', label: `Últimos ${limit}` }, { value: 'all', label: `Todos (${total})` }]} />
+          {total > PAGE && headers.length > 0 && (
+            <div className="flex items-center gap-1">
+              {/* D7: posição da janela */}
+              <span className="mr-1 text-xs text-gray-500 tabular-nums whitespace-nowrap">
+                {headers[0].label} – {headers[headers.length - 1].label} · {end - start} de {total}
+              </span>
+              <NavButton dir="newer" disabled={start === 0} onClick={() => setOffset(Math.max(0, start - PAGE))} />
+              <NavButton dir="older" disabled={end >= total} onClick={() => setOffset(start + PAGE)} />
+            </div>
           )}
         </div>
       </div>
       {body}
-      {company && total > 0 && (
+      {total > 0 && (
         <p className="mt-3 text-xs text-gray-500">
-          {annual
+          {company && (annual
             ? 'Anual: exercício fechado (DFP); o ano em andamento soma os trimestres desde o início do exercício. '
-            : 'Receita a dividendos: trimestre isolado. '}
-          PL, ativo, circulantes, caixa, dívida e ações: posição na data do balanço. EBITDA = EBIT + depreciação e
-          amortização, sem a exaustão dos ativos biológicos.{!detailed && ' Passe o mouse para ver o valor exato.'}
-          {/* D23 (24/10/2026): o detalhado não tem mais precisão que a fonte */}
-          {detailed && ' Valor detalhado: a CVM publica quase todos os balanços em R$ mil, por isso os três últimos dígitos costumam ser zeros.'}
+            : 'Receita a dividendos: trimestre isolado. ')}
+          {company && 'PL, ativo, circulantes, caixa, dívida e ações: posição na data do balanço. EBITDA = EBIT + depreciação e amortização, sem a exaustão dos ativos biológicos. '}
+          Passe o mouse para ver o valor exato; o ícone ao lado copia o valor exato
+          {company && ' (em reais; a CVM publica quase todos os balanços em R$ mil, por isso os três últimos dígitos costumam ser zeros)'}.
         </p>
       )}
     </Card>

@@ -17,7 +17,7 @@ descontado por FCFE.
 
 | Entrada | Padrão (sugestão; o usuário altera o que quiser) | Fonte |
 |---|---|---|
-| Lucro de cada um dos 4 últimos trimestres (T-3 … T) | Lucro líquido atribuído a sócios da controladora, trimestre isolado, consolidado (individual só sem consolidado). O 4º trimestre é o anual (DFP) menos o acumulado de 9 meses (ITR) | CVM — DFP/ITR (`company_quarters.net_income_parent_q`) |
+| Lucro de cada um dos 4 últimos trimestres (T-3 … T) | Lucro líquido atribuído a sócios da controladora (linha "Lucro líquido da controladora" dos Demonstrativos; não o "Lucro líquido consolidado", que inclui a parte dos sócios não controladores das controladas), trimestre isolado, consolidado (individual só sem consolidado). O 4º trimestre é o anual (DFP) menos o acumulado de 9 meses (ITR) | CVM — DFP/ITR (`company_quarters.net_income_parent_q`) |
 | N — quantidade de ações | Ações em circulação **sem tesouraria** do último balanço com escala conferida, ajustadas por desdobramento, grupamento e bonificação posteriores. Unit: dividida pelas ações da unit | CVM — composição do capital; B3 — eventos societários |
 | ROE | Média dos **3 últimos exercícios fechados**: lucro da controladora ÷ PL da controladora médio (início e fim) | CVM (mesmo número da tela de Emissoras) |
 | Payout | Média dos 3 últimos exercícios fechados: **dividendos + JCP pagos** aos acionistas da controladora (DFC) ÷ lucro da controladora | CVM — DFC (desde 10/10/2026; antes era a DVA) |

@@ -4,7 +4,7 @@
 > carga em `carga/`), em 09/10/2026 (seção 8, banco de dados) e em 10/10/2026 (5.3: o Claude executa downloads e
 > esperas longas; a antiga 5.7 deixou de ser necessária), em 12/10/2026 (2.6: preço atual × fechamento) e em
 > 22/10/2026 (seção 9, nomes em inglês) e em 23/10/2026 (seções 1 e 2: os dois tipos de trabalho, POR ESCOPO com as
-> 7 etapas e POR DÚVIDAS; 3.2 e seção 4 ajustadas às etapas) e em 24/10/2026 (3.4, branches protegidas).
+> 7 etapas e POR DÚVIDAS; 3.2 e seção 4 ajustadas às etapas) e em 24/10/2026 (3.4, branches protegidas; 2.5, decisão pela recomendação só com aprovação explícita).
 >
 > **Escopo:** só a **relação de trabalho**: como pedimos, executamos, validamos e documentamos. Regras de negócio do
 > sistema não entram aqui; elas ficam no `Claude.md` e nos planos.
@@ -85,6 +85,10 @@ registradas no plano, com data.
 
 **2.5** Pontos em aberto viram perguntas (decisões) no plano: o Claude não decide sozinho o que é escolha do
 Guilherme.
+
+(24/10/2026) **Decisão pela recomendação do Claude só vale com aprovação explícita** do Guilherme, mesmo que
+genérica (ex.: "O restante das decisões estão aprovadas pela sua recomendação"). Decisão ignorada ou não respondida
+**não** está aprovada: continua em aberto no plano e é perguntada de novo.
 
 **2.6** (12/10/2026) **Preço atual × preço de fechamento.** Não se criam regras de escopo baseadas na insuficiência
 temporária de atualização do preço atual (hoje só há fechamento, sem intradiário). Isso é uma decisão financeira, pela
