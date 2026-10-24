@@ -1,5 +1,7 @@
 # Activest — Plano da alteração da tela de Ativos
 
+> Nota (24/10/2026): Valor simples | detalhado (D11, D12, D23) e Últimos 8 | Todos dos Demonstrativos foram
+> substituídos pelo `docs/planos/PLANO_USABILIDADE_PRECO_TETO.md` (cópia do exato, janela de 6 com ‹ ›).
 > Fase: **Encerrado em 24/10/2026** — as 7 etapas feitas; commit e push pelo Guilherme numa branch própria do TRACK_01; escopo declarado finalizado por ele (`docs/REGRAS_CLAUDE.md`,
 > 2.1); nada de código até a aprovação explícita.
 > Origem: pedido de 18/10/2026 (ESCOPO "Alteração da tela de Ativos (antiga Emissoras)", então no formato antigo, ETAPA

@@ -313,7 +313,8 @@ export const CeilingPriceDetailPage = () => {
             </div>
           </Card>
 
-          <Card title="Lucro líquido atribuível aos acionistas — 4 últimos trimestres">
+          {/* D8 revisada (docs/planos/PLANO_USABILIDADE_PRECO_TETO.md): mesmo nome da linha dos Demonstrativos */}
+          <Card title="Lucro líquido da controladora — 4 últimos trimestres" titleInfo="Lucro líquido atribuível aos acionistas">
             {newerQuarters && (
               <div className="mb-3 flex items-center justify-between rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-sm text-accent">
                 <span>Há balanço mais recente ({quarterLabel(defaults.latestQuarterEnd!)}).</span>

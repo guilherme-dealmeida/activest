@@ -1370,8 +1370,13 @@ reapresentados pelo Investidor10). A conferir se aparecer em outra companhia.
 **36.3** O comentario da `V7__company_quarters_new_accounts.sql` descreve a D&A como a 7.04.01 da DVA; desde a D22 a
 coluna e a DVA menos a exaustao biologica. Migration aplicada nao se edita: fica registrado aqui e no `Claude.md`.
 
-**36.4** Valor detalhado dos Demonstrativos (D23) segue em reais com a nota "a CVM publica em R$ mil". Se um dia
-incomodar, a alternativa e gravar a escala do documento (`ESCALA_MOEDA`) e mostrar em R$ mil.
+**36.4** ~~Valor detalhado dos Demonstrativos (D23)~~ — o Valor detalhado saiu em 24/10/2026
+(`docs/planos/PLANO_USABILIDADE_PRECO_TETO.md`); o exato agora sai pelo icone de copiar, em reais, com a mesma nota
+no rodape. A alternativa de gravar a escala do documento (`ESCALA_MOEDA`) continua valendo se um dia incomodar.
+
+**36.5** (24/10/2026) A linha "Lucro liquido nao controladores" dos Demonstrativos e calculada na tela (consolidado -
+controladora, D8.2). A conta da CVM ("Atribuido a Socios Nao Controladores") e lida pelo `FinancialMetricRules`, mas nao
+gravada; se um dia for preciso o valor da fonte (indicador, listagem), gravar a metrica e recarregar os balancos.
 
 ## ORDEM SUGERIDA
 

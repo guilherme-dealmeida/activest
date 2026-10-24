@@ -57,6 +57,12 @@ export const SignedNumberInput = ({ value, onChange, decimals = 2, adornment, al
         allowEmpty={allowEmpty}
         onClear={() => { setPendingNegative(negative); onClear?.(); }}
         {...(placeholder !== undefined ? { placeholder } : {})}
+        onPasteValue={v => {
+          // colado (S2 do PLANO_USABILIDADE_PRECO_TETO): o sinal do número colado vale, se o campo aceita negativo
+          const signed = allowNegative ? v : Math.abs(v);
+          setPendingNegative(signed < 0 || (signed === 0 && negative));
+          onChange(signed === 0 ? 0 : signed);
+        }}
         onChange={v => {
           if (v === 0) setPendingNegative(negative); // apagou até zero: o sinal continua o que estava
           onChange(negative && v !== 0 ? -v : v);
