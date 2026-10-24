@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Pagination } from '@/components/ui/Pagination';
+import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import { TABLE_ACTION_CLASS } from '@/components/ui/tableAction';
 import { useToast } from '@/context/ToastContext';
 import { apiMessage } from '@/utils/apiError';
@@ -234,6 +235,7 @@ const ExecutionsTab = ({ scheduled, onOpenExecution }: {
   const tasks = useQuery({ queryKey: ['tasks', 'list'], queryFn: tasksApi.list });
 
   const typeOptions = useMemo(() => [...new Set((tasks.data ?? []).map(t => t.type))].sort(), [tasks.data]);
+  const descriptions = useMemo(() => new Map((tasks.data ?? []).map(t => [t.id, t.effectiveDescription])), [tasks.data]);
   // A API manda vigência decrescente; os Agendamentos invertem. É também o desempate quando se ordena por outra coluna.
   const rows = useMemo<ExecutionRow[]>(() => {
     const list = (statuses.length > 0 ? executions.data ?? [] : []).map(e => ({ ...e, resume: e.errorMessage ?? e.summary }));
@@ -316,7 +318,10 @@ const ExecutionsTab = ({ scheduled, onOpenExecution }: {
                   <tr key={e.id ?? `s-${e.taskId}-${e.scheduledFor}-${i}`} className="hover:bg-white/5 transition-colors">
                     <td className="px-4 py-3">{e.taskId}</td>
                     <td className="px-4 py-3">
-                      <div className="text-white font-medium">{e.taskName}</div>
+                      <div className="flex items-center gap-1.5 text-white font-medium">
+                        <span>{e.taskName}</span>
+                        {descriptions.get(e.taskId) && <InfoTooltip content={descriptions.get(e.taskId)!} label={`Descrição de ${e.taskName}`} />}
+                      </div>
                       {e.type !== e.taskName && <div className="text-xs text-gray-500">{e.type}</div>}
                     </td>
                     {scheduled && (<td className="px-4 py-3">{e.type}</td>)}
@@ -441,8 +446,10 @@ const ConfigurationTab = ({ onOpenExecution }: { onOpenExecution: (id: number) =
                 {(tasks.data ?? []).map(t => (
                   <tr key={t.id} className="hover:bg-white/5 transition-colors">
                     <td className="px-4 py-3 max-w-md">
-                      <div className="text-white font-medium">{t.name}</div>
-                      <div className="text-xs text-gray-500 line-clamp-2" title={t.effectiveDescription}>{t.effectiveDescription}</div>
+                      <div className="flex items-center gap-1.5 text-white font-medium">
+                        <span>{t.name}</span>
+                        {t.effectiveDescription && <InfoTooltip content={t.effectiveDescription} label={`Descrição de ${t.name}`} />}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-gray-300">{t.type}</td>
                     <td className="px-4 py-3 text-gray-300">{t.service === 'APP_API' ? 'app-api' : 'adm-api'}</td>
