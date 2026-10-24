@@ -1,5 +1,10 @@
 # PrimeVest — Plano da Valorização da Renda Fixa
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > Fase: **implementado em 05/10/2026** (R1–R7) — andamento na seção 12. Criado em 05/10/2026; decisões D1–D14 tomadas no
 > mesmo dia (todas as recomendações) e execução autorizada em seguida.
 > Origem: `docs/PENDENCIAS.md` 2.1 (valorização de renda fixa dá sempre zero) e 2.2, com os itens ligados 4.1/4.2

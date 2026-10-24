@@ -1,5 +1,10 @@
 # PrimeVest — Plano da Fonte do Tesouro (cache com recusa, bloqueio e fonte parada)
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > Fase: **concluído** (22/10/2026; execução por etapas autorizada no mesmo dia) — andamento na seção 8. Decisões D1–D9
 > tomadas em 22/10/2026 (D9: aguardar, PENDENCIAS 34.8, em observação).
 > Origem: `docs/PENDENCIAS.md`, item **34.5** (achado da validação das Tarefas, 22/10/2026).

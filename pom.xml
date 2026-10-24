@@ -2,15 +2,15 @@
 <!--
     Agregador do backend (docs/planos/PLANO_ADM_API.md).
 
-      primevest-core     modelo JPA, repositorios, regras de posicao e proventos, migrations,
+      activest-core     modelo JPA, repositorios, regras de posicao e proventos, migrations,
                          validacao do JWT e tratamento de erro — biblioteca, sem main
-      primevest-integration  integracoes com corretoras: contrato da fonte, credenciais, pipeline e
+      activest-integration  integracoes com corretoras: contrato da fonte, credenciais, pipeline e
                          conectores (docs/planos/PLANO_INTEGRACAO_B3.md) — biblioteca, sem main
-      primevest-adm-api  rotinas de administrador: catalogo (porta 8081)
-      primevest-app-api  a API do usuario, a carteira (porta 8080)
+      activest-adm-api  rotinas de administrador: catalogo (porta 8081)
+      activest-app-api  a API do usuario, a carteira (porta 8080)
 
     Versoes, compilador e testes ficam aqui; cada modulo declara so as suas dependencias.
-    Rodar da raiz: mvn clean verify (todos) ou mvn -pl primevest-app-api -am verify (um so).
+    Rodar da raiz: mvn clean verify (todos) ou mvn -pl activest-app-api -am verify (um so).
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -24,18 +24,18 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.primevest</groupId>
-    <artifactId>primevest-parent</artifactId>
+    <groupId>com.activest</groupId>
+    <artifactId>activest-parent</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <name>PrimeVest</name>
-    <description>PrimeVest - Disciplina leva à liberdade. Investment Portfolio Management System.</description>
+    <name>Activest</name>
+    <description>Activest - Disciplina leva à liberdade. Investment Portfolio Management System.</description>
 
     <modules>
-        <module>primevest-core</module>
-        <module>primevest-integration</module>
-        <module>primevest-adm-api</module>
-        <module>primevest-app-api</module>
+        <module>activest-core</module>
+        <module>activest-integration</module>
+        <module>activest-adm-api</module>
+        <module>activest-app-api</module>
     </modules>
 
     <properties>
@@ -60,35 +60,35 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>com.primevest</groupId>
-                <artifactId>primevest-core</artifactId>
+                <groupId>com.activest</groupId>
+                <artifactId>activest-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.primevest</groupId>
-                <artifactId>primevest-core</artifactId>
-                <version>${project.version}</version>
-                <type>test-jar</type>
-            </dependency>
-            <dependency>
-                <groupId>com.primevest</groupId>
-                <artifactId>primevest-integration</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.primevest</groupId>
-                <artifactId>primevest-integration</artifactId>
+                <groupId>com.activest</groupId>
+                <artifactId>activest-core</artifactId>
                 <version>${project.version}</version>
                 <type>test-jar</type>
             </dependency>
             <dependency>
-                <groupId>com.primevest</groupId>
-                <artifactId>primevest-adm-api</artifactId>
+                <groupId>com.activest</groupId>
+                <artifactId>activest-integration</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.primevest</groupId>
-                <artifactId>primevest-adm-api</artifactId>
+                <groupId>com.activest</groupId>
+                <artifactId>activest-integration</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+            <dependency>
+                <groupId>com.activest</groupId>
+                <artifactId>activest-adm-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.activest</groupId>
+                <artifactId>activest-adm-api</artifactId>
                 <version>${project.version}</version>
                 <type>test-jar</type>
             </dependency>

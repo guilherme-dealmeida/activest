@@ -1,5 +1,10 @@
 # PrimeVest — Plano de Emissores (Empresas e FIIs), Balanços e Indicadores
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > Fase: **planejamento concluído** (26–27/09/2026) · nada implementado · não executar sem ordem explícita
 > Todas as decisões tomadas (seção 9). Andamento na seção 7.1. Versão consolidada em 27/09/2026: substitui os adendos das rodadas
 > anteriores. Branch de trabalho: `TRACK_01-ajustes_crud_inicial`.

@@ -26,19 +26,19 @@
 # container: a subida limpa target/classes (ver abaixo).
 #
 # Multi-módulo (docs/planos/PLANO_ADM_API.md): o contêiner roda um módulo ($MODULE, ex.:
-# primevest-app-api) e observa também o primevest-core. O Maven roda da raiz com
+# activest-app-api) e observa também o activest-core. O Maven roda da raiz com
 # -pl $MODULE -am: o reator compila o core junto e resolve a dependência para
-# primevest-core/target/classes — uma pasta, não um jar, então o DevTools põe o
+# activest-core/target/classes — uma pasta, não um jar, então o DevTools põe o
 # core no classloader de reinício e uma classe do core alterada também recarrega.
 
 POLL_SECONDS="${POLL_SECONDS:-2}"
-MODULE="${MODULE:-primevest-app-api}"
-WATCH="primevest-core/src $MODULE/src"
-TARGETS="primevest-core/target $MODULE/target"
-# A app-api usa o primevest-integration (docs/planos/PLANO_INTEGRACAO_B3.md, F1): mesma regra do core.
-if [ "$MODULE" = "primevest-app-api" ]; then
-  WATCH="$WATCH primevest-integration/src"
-  TARGETS="$TARGETS primevest-integration/target"
+MODULE="${MODULE:-activest-app-api}"
+WATCH="activest-core/src $MODULE/src"
+TARGETS="activest-core/target $MODULE/target"
+# A app-api usa o activest-integration (docs/planos/PLANO_INTEGRACAO_B3.md, F1): mesma regra do core.
+if [ "$MODULE" = "activest-app-api" ]; then
+  WATCH="$WATCH activest-integration/src"
+  TARGETS="$TARGETS activest-integration/target"
 fi
 MARKER=/tmp/.last-compile
 TRIGGER="$MODULE/target/classes/.reloadtrigger"

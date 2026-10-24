@@ -1,5 +1,10 @@
 # PrimeVest — Plano da listagem de emissoras (Ações e FIIs)
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > **Nota de 18/10/2026:** a tela passou a se chamar **Ativos** (menu, cabeçalho e rota `/ativos`; `/emissoras` redireciona). Este plano mantém o nome e os termos da época.
 
 > Fase: **escopo encerrado em 18/10/2026** pelo Guilherme; implementado em 17/10/2026 (L1–L6), com os ajustes da conferência — andamento na seção 9. Execução autorizada no mesmo dia, depois do

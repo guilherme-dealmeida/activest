@@ -1,4 +1,4 @@
-// Dispara uma rotina de administrador do PrimeVest pela API (POST /api/v1/admin/<rotina>).
+// Dispara uma rotina de administrador do Activest pela API (POST /api/v1/admin/<rotina>).
 //
 // Uso (na raiz do projeto, ou pelo conteiner: docker compose --profile carga run --rm tools node carga/scripts/admin.mjs ...):
 //   node carga/scripts/admin.mjs bootstrap          carga inicial num banco vazio (README.md)
@@ -18,14 +18,14 @@
 //
 // Duas APIs (docs/planos/PLANO_ADM_API.md): o login e na app-api (API_PORT, 8080); as rotinas de
 // catalogo na adm-api (ADM_API_PORT, 8081).
-// Opcoes: --api URL  --adm URL  (padrao: PRIMEVEST_API_URL / PRIMEVEST_ADM_URL, senao localhost nas portas do env)
+// Opcoes: --api URL  --adm URL  (padrao: ACTIVEST_API_URL / ACTIVEST_ADM_URL, senao localhost nas portas do env)
 //         --email guilhermeunatec@gmail.com
 //         --json arquivo.json   corpo da requisicao
 //         --body '{"a":1}'      corpo inline;  --method PUT  (padrao POST)
 //   ex.: node carga/scripts/admin.mjs assets/123/unit-composition --method PUT --body '{"ON":1,"PNA":2}'
-// Senha: PRIMEVEST_PASSWORD do ambiente ou do .env do projeto; sem ela, pedida no terminal.
+// Senha: ACTIVEST_PASSWORD do ambiente ou do .env do projeto; sem ela, pedida no terminal.
 // As rotinas rodam em segundo plano na API (resposta 202); o resultado sai no
-// log: docker logs -f primevest-adm-api
+// log: docker logs -f activest-adm-api
 import { readFileSync } from 'node:fs';
 import { apiUrls, loadEnv, option } from './lib/env.mjs';
 
@@ -33,7 +33,7 @@ const args = process.argv.slice(2);
 const ROTINA = args.find((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--')));
 const ENV = loadEnv();
 const { api: API, adm: ADM } = apiUrls(ENV, args);
-const EMAIL = option(args, '--email', ENV.PRIMEVEST_EMAIL || 'guilhermeunatec@gmail.com');
+const EMAIL = option(args, '--email', ENV.ACTIVEST_EMAIL || 'guilhermeunatec@gmail.com');
 const JSON_FILE = option(args, '--json', null);
 const BODY = option(args, '--body', null);
 const METHOD = option(args, '--method', 'POST').toUpperCase();
@@ -47,7 +47,7 @@ function perguntaSenha(texto) {
   return new Promise((ok, falha) => {
     const entrada = process.stdin;
     if (!entrada.isTTY) {
-      falha(new Error('Sem terminal interativo: defina PRIMEVEST_PASSWORD (ambiente ou .env) para rodar assim.'));
+      falha(new Error('Sem terminal interativo: defina ACTIVEST_PASSWORD (ambiente ou .env) para rodar assim.'));
       return;
     }
     process.stdout.write(texto);
@@ -82,7 +82,7 @@ function perguntaSenha(texto) {
 }
 
 async function main() {
-  const senha = ENV.PRIMEVEST_PASSWORD || await perguntaSenha(`Senha de ${EMAIL}: `);
+  const senha = ENV.ACTIVEST_PASSWORD || await perguntaSenha(`Senha de ${EMAIL}: `);
   // No Windows, sair com o stdin ainda aberto em modo bruto derruba o libuv
   // ("Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)"): solta o stdin
   // e deixa o processo terminar sozinho, sem process.exit().

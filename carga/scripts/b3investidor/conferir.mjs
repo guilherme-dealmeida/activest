@@ -8,10 +8,10 @@
 //   C5  (--revogar) revogar no simulador -> a próxima sincronização encerra a conexão
 //   C7  Tesouro Direto da pilha testada x gabarito (F7: compras e vendas de Tesouro pela Movimentação)
 //
-// Uso (na raiz; pilha primevest-teste no ar com --profile b3mock e B3I_* do .env.teste):
+// Uso (na raiz; pilha activest-teste no ar com --profile b3mock e B3I_* do .env.teste):
 //   node carga/scripts/b3investidor/conferir.mjs --api http://localhost:8082 --mock http://localhost:8190 \
 //        [--gabarito http://localhost:8080] [--cpf 52998224725] [--sem-confirmar] [--revogar]
-// Senha: PRIMEVEST_PASSWORD do ambiente ou do .env (a mesma do administrador semeado nas duas pilhas).
+// Senha: ACTIVEST_PASSWORD do ambiente ou do .env (a mesma do administrador semeado nas duas pilhas).
 // Não imprime CPF: só os 2 últimos dígitos.
 import { loadEnv, option } from '../lib/env.mjs';
 
@@ -21,8 +21,8 @@ const API = option(args, '--api', 'http://localhost:8082').replace(/\/$/, '');
 const MOCK = option(args, '--mock', 'http://localhost:8190').replace(/\/$/, '');
 const GABARITO = option(args, '--gabarito', null);
 const CPF = option(args, '--cpf', ENV.B3I_MOCK_DOCUMENT || '52998224725').replace(/\D/g, '');
-const EMAIL = option(args, '--email', ENV.PRIMEVEST_EMAIL || 'guilhermeunatec@gmail.com');
-const SENHA = option(args, '--senha', ENV.PRIMEVEST_PASSWORD);
+const EMAIL = option(args, '--email', ENV.ACTIVEST_EMAIL || 'guilhermeunatec@gmail.com');
+const SENHA = option(args, '--senha', ENV.ACTIVEST_PASSWORD);
 const CONFIRMAR = !args.includes('--sem-confirmar');
 const REVOGAR = args.includes('--revogar');
 const RENDA_VARIAVEL = new Set(['Ações', 'FIIs', 'ETFs', 'BDRs']);

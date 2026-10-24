@@ -1,4 +1,4 @@
-# PRIMEVEST — PENDENCIAS EM ABERTO
+# ACTIVEST — PENDENCIAS EM ABERTO
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
@@ -13,7 +13,7 @@ notificacoes (docs/planos/PLANO_NOTIFICACOES.md) e secao 26. Antes: 10/10/2026 �
 PRECO TETO V2, docs/planos/PLANO_PRECO_TETO.md) e 18.11 c (payout passa a vir da DFC). Antes: 05/10/2026 (noite) — 2.1, 2.2, 4.1, 4.2, 10.2, 10.3, 10.4, 23.1 e 23.2 resolvidos
 pela valorizacao da renda fixa (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md) e secao 24. Antes, no mesmo dia: 5.1 resolvido e secao 23 (indices de mercado,
 docs/planos/PLANO_INDICES_MERCADO.md). No mesmo dia: secao 22 (cadastro de usuario,
-docs/planos/PLANO_CADASTRO_USUARIO.md); 9.4 e 16.9 resolvidos. Antes: 03/10/2026 — secao 21 (pilha de teste primevest-teste,
+docs/planos/PLANO_CADASTRO_USUARIO.md); 9.4 e 16.9 resolvidos. Antes: 03/10/2026 — secao 21 (pilha de teste activest-teste,
 docs/planos/PLANO_PRIMEVEST_TESTE.md). Antes: 29/09/2026 — secao 20 (ambiente de carga inicial,
 docs/planos/PLANO_CARGA_INICIAL.md) e 18.10 d resolvido. Antes: 28/09/2026 (noite) — 11.6
 resolvido e secao 19 (tela de Emissoras, docs/planos/PLANO_TELA_EMISSORES.md). Antes, no mesmo dia: itens 14.1
@@ -329,10 +329,10 @@ migrations antigas, a V31 descartada e os tarballs temporarios tinham
 sumido antes, e restavam dois arquivos de teste somando 34 bytes.
 
 **9.3** Copia velha do projeto em
-C:\Users\guilh\.gemini\antigravity\scratch\primevest
+C:\Users\guilh\.gemini\antigravity\scratch\activest
 Esta defasada e aparece nas buscas. Apagar ou desconectar da sessao.
 
-**9.4** FEITO em 05/10/2026 — Client ID criado pelo Guilherme (projeto primevest-510701,
+**9.4** FEITO em 05/10/2026 — Client ID criado pelo Guilherme (projeto activest-510701,
 apendice A de docs/planos/PLANO_CADASTRO_USUARIO.md) e login Google conferido.
 
 **9.5** COMITADO em 18/09/2026. O acumulo das ultimas sessoes saiu do working
@@ -345,7 +345,7 @@ front (eslint.config.js, typescript-eslint e as quatro correcoes), a
 pasta .claude/ e a revisao de Claude.md, README.md e deste arquivo.
 A regra continua valendo: nao comitar sem instrucao explicita.
 
-**9.6** primevest-web/Dockerfile usa node:24 (Debian) em vez de node:24-alpine.
+**9.6** activest-web/Dockerfile usa node:24 (Debian) em vez de node:24-alpine.
 Nao foi escolha de projeto: as camadas da imagem -alpine estao
 corrompidas no store local do Docker Desktop (arquivos com tamanho certo
 e conteudo todo zero — "exec format error" no entrypoint, segfault no
@@ -390,7 +390,7 @@ nem consulta nomeada; afeta SELECT * e a saida do pg_dump.
 CORRECAO DE CONTAGEM: sao 116 categorias, nao 115. O numero errado
 circulava no Claude.md e aqui.
 
-**9.8** FEITO — a pasta "Claude outputs" dentro de src/main/java/com/primevest
+**9.8** FEITO — a pasta "Claude outputs" dentro de src/main/java/com/activest
 nao existe mais. Continha um unico claude_desktop_config.json, copia da
 configuracao do app desktop, sobra de sessao anterior.
 
@@ -465,7 +465,7 @@ AssetController e um "return ResponseEntity.ok().build()", com o
 comentario "Handled by pricehistory module, would call
 AssetPriceHistoryService here or redirect". Nunca foi ligado.
 O frontend tambem nao chama: nao ha nenhuma referencia a history em
-primevest-web/src.
+activest-web/src.
 
 **11.3** FEITO em 24/09/2026 — o fechamento usa o historico diario da BRAPI
 (range=5d) e grava abertura, maxima, minima, fechamento e volume.
@@ -536,7 +536,7 @@ de transacao — as mascaras mexidas no mesmo dia.
   Os imports de useAuth/useTheme/useToast nao mudaram; so o main.tsx
   passou a importar os providers de ./context/XProvider.
 Se o Vite do container reclamar de context/XContext.tsx inexistente,
-e cache da resolucao antiga: docker restart primevest-web.
+e cache da resolucao antiga: docker restart activest-web.
 
 **12.4** Nao ha lint no backend. Nenhum Checkstyle, SpotBugs ou formatador no
 pom.xml. Decidir se vale, e se vale, antes ou depois do item 8.
@@ -652,7 +652,7 @@ ainda aberto e usa essa cotacao como preco atual.
 
 A primeira versao da importacao de cripto so grava operacoes que trazem o valor
 em reais: compra ou venda contra BRL (par BTCBRL, Convert BRL -> BTC, "Comprar
-Cripto" com real). O PrimeVest guarda preco em reais, e essas operacoes ja
+Cripto" com real). O Activest guarda preco em reais, e essas operacoes ja
 trazem o numero pronto.
 
 Ficam de fora, listadas como "nao importadas" na pre-visualizacao e no
@@ -672,7 +672,7 @@ historico da sincronizacao (import_run_items), sem serem descartadas:
  precisa do preco do BNB no momento. Regra R8 do plano.
 
 **15.4** Saldo sem movimento de origem (na conta de teste: resíduo de USDC).
- Nao ha operacao para importar; a posicao no PrimeVest fica diferente do
+ Nao ha operacao para importar; a posicao no Activest fica diferente do
  saldo da corretora e o aviso de divergencia (D9) aponta isso.
 
 Quando tratar: depois da primeira versao estavel, ou quando aparecer um usuario
@@ -682,9 +682,9 @@ servico de "valor em reais no instante T" — resolver uma vez, servir a todos.
 ## 16. INTEGRACAO COM A B3 (docs/planos/PLANO_INTEGRACAO_B3.md, 25/09/2026)
 
 **Situacao em 03/10/2026:** F1 a F8 do PLANO_INTEGRACAO_B3 executadas. A integracao
-e pela API da Area do Investidor (nao por arquivo): modulo primevest-integration,
+e pela API da Area do Investidor (nao por arquivo): modulo activest-integration,
 conector da B3 com as regras B1-B10, testado contra o simulador com os extratos
-reais (pilha primevest-teste). O que falta para a B3 de verdade e o que ficou de fora:
+reais (pilha activest-teste). O que falta para a B3 de verdade e o que ficou de fora:
 
 **16.4** Contrato com a B3 (Pacote de Acesso: client_id, segredo, certificado .p12,
  link de opt-in) e conferir os contratos inferidos — Negociacao v2, Eventos
@@ -692,7 +692,7 @@ reais (pilha primevest-teste). O que falta para a B3 de verdade e o que ficou de
  e o mapeamento de campos, nao a arquitetura. Com o certificado, montar o .p12
  no conteiner da app-api (volume) e apontar B3I_CERT_P12_PATH.
 
-**16.5** Venda de Tesouro Direto pela B3: nao importada. O PrimeVest reparte a
+**16.5** Venda de Tesouro Direto pela B3: nao importada. O Activest reparte a
  venda entre os titulos (FIFO) e refaz essas linhas a cada realocacao, sem
  lugar para a origem da fonte. Hoje aparece em "nao importadas" com o motivo e
  e lancada pela tela. Resolver = o alocador do Tesouro carregar a origem.
@@ -945,7 +945,7 @@ preco teto", que vira o proximo e consome este. Fases F1 a F11 no plano.
  ISIN do evento diferente, parcelas "a definir", empresa que nao entregou
  o relatorio.
 **20.7** Testes de integracao da adm-api gravam na carga/data/ real do projeto
- (primevest.data.dir padrao ../data): o DividendCatalogIT passou a usar
+ (activest.data.dir padrao ../data): o DividendCatalogIT passou a usar
  target/it-data-proventos; os demais ITs ainda usam a carga/data/ real.
 **20.8** Proventos de acao A DEFINIR antigos (D17, decidido em 02/10/2026): 145
  linhas do levantamento (data-com 2010 a 2022) sem data de pagamento em
@@ -958,7 +958,7 @@ preco teto", que vira o proximo e consome este. Fases F1 a F11 no plano.
 
 ## 21. PILHA DE TESTE (docs/planos/PLANO_PRIMEVEST_TESTE.md, 03/10/2026)
 
-Achados da primeira carga inicial completa num banco novo (primevest-teste), comparada com o dev.
+Achados da primeira carga inicial completa num banco novo (activest-teste), comparada com o dev.
 
 **21.1** Emissor que o bootstrap nao recria: o FII BFC (CNPJ 31.145.875/0001-05)
  existe no dev (created_at 27/09/2026, 95 meses em fii_monthly, nenhum ativo
@@ -975,7 +975,7 @@ Achados da primeira carga inicial completa num banco novo (primevest-teste), com
 ## 22. CADASTRO DE USUARIO (docs/planos/PLANO_CADASTRO_USUARIO.md, 05/10/2026)
 
 **22.1** Termos de Uso e Politica de Privacidade com texto FICTICIO
- (primevest-web/src/content/legal.ts). Antes da producao: texto definitivo e
+ (activest-web/src/content/legal.ts). Antes da producao: texto definitivo e
  versao nova nos dois lados (TERMS_VERSION no front, LegalTerms.CURRENT_VERSION no
  core) — quem aceitou a provisoria passa pelo modal de novo aceite.
 **22.2** Producao: CAPTCHA no cadastro e no "esqueci a senha" (ex.: Cloudflare
@@ -989,7 +989,7 @@ Achados da primeira carga inicial completa num banco novo (primevest-teste), com
  conferir que ele sobrescreve o cabecalho (senao o cliente escolhe o proprio IP).
 **22.5** FEITO em 05/10/2026 (adendo): foto de perfil enviada pelo usuario, com recorte
  no navegador, guardada no banco (user_avatars, V42) e usada em Configuracoes e no menu.
-**22.6** npm audit no primevest-web aponta 10 vulnerabilidades (3 moderadas, 7
+**22.6** npm audit no activest-web aponta 10 vulnerabilidades (3 moderadas, 7
  altas) em dependencias ja existentes antes deste escopo; nao tratadas aqui.
 
 ## 23. INDICES DE MERCADO (docs/planos/PLANO_INDICES_MERCADO.md, 05/10/2026)
@@ -997,7 +997,7 @@ Achados da primeira carga inicial completa num banco novo (primevest-teste), com
 **23.1** FEITO em 05/10/2026: CatalogChange INDICES (plano da renda fixa, R5).
 A adm-api nao avisa a app-api quando um indice muda (D8). O resultado da
  carga ja devolve, por indice, a menor data que entrou ou mudou (changedFrom):
- o escopo da valorizacao da renda fixa cria o canal (ex.: primevest:catalogo:indices)
+ o escopo da valorizacao da renda fixa cria o canal (ex.: activest:catalogo:indices)
  e revaloriza as notas daquele indexador.
 **23.2** FEITO em 05/10/2026: BusinessCalendar (core), conferido contra o CDI 2010-2026.
 Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
@@ -1117,7 +1117,7 @@ Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
  desde a liquidacao da compra (D+1) e cobrada so em evento de saida — venda antecipada e vencimento (deduzida do valor
  recebido) e pagamento de cupom (deduzida dos juros). Tesouro Selic: isento ate R$ 10.000,00 de estoque por CPF,
  incide so sobre o excedente. Renda+ e Educa+: regras proprias. Vigente desde 31/12/2024 (Oficio Circular B3
- 014/2024-VPC, fim da cobranca semestral; pagina de tarifas da B3, conferidos em 15/10/2026). O PrimeVest nao a considera (nem na venda, nem no liquido estimado da Carteira). O usuario pode
+ 014/2024-VPC, fim da cobranca semestral; pagina de tarifas da B3, conferidos em 15/10/2026). O Activest nao a considera (nem na venda, nem no liquido estimado da Carteira). O usuario pode
  lancar a taxa no campo Taxas da venda, que entra no liquido. Decidir se vale calcular.
 **27.5** RESOLVIDO em 15/10/2026. Venda parcial de renda fixa acima do liquido disponivel lancada "mesmo assim"
  (R9 -> D4): o excesso e rendimento que a curva nao previu e agora paga IR e IOF — gross-up pelas aliquotas dos lotes,
@@ -1278,7 +1278,7 @@ fundo (E) e historico longo da B3 vazio para nome de pregao com barra (G, era o 
 **34.2** Tipo de tarefa (liga/desliga, valores padrão dos atributos, tipo novo) só por migration (D36); a tela mostra o
  `enabled` do tipo só para leitura.
 **34.3** RESOLVIDO em 22/10/2026 (`docs/planos/PLANO_NOMES_EM_INGLES.md`): nomes internos em inglês — código, testes,
- rotas e parâmetros do front (os antigos redirecionam), rotas da adm-api, configuração, `PRIMEVEST_PASSWORD`, canais do
+ rotas e parâmetros do front (os antigos redirecionam), rotas da adm-api, configuração, `ACTIVEST_PASSWORD`, canais do
  Redis e três nomes de constraint (V66, V67). Valores gravados ficam, por decisão do Guilherme. Fora, de propósito: a carga
  (`carga/scripts`, pastas de `carga/data` espelhadas no bucket).
 **34.4** Stop: 13 tipos sem ponto de parada (`stoppable = false`): `CRYPTO_CLOSING`, `CATALOG_AUDIT`,
@@ -1287,7 +1287,7 @@ fundo (E) e historico longo da B3 vazio para nome de pregao com barra (G, era o 
 **34.5** ~~Preço do Tesouro parado~~ — **resolvida em 22/10/2026** pelo `docs/planos/PLANO_FONTE_TESOURO.md` (E2–E5): o
  cache só grava o que passa na conferência do conteúdo, a recusa da fonte termina a rodada `FAILED` com
  `FONTE_INDISPONIVEL`, a fonte parada abre `FONTE_DESATUALIZADA` (aberta em 22/10: o Tesouro segue em 15/10) e, com a
- identificação `PrimeVest/1.0`, o download voltou a funcionar. Texto original: Preço do Tesouro parado (achado da
+ identificação `Activest/1.0`, o download voltou a funcionar. Texto original: Preço do Tesouro parado (achado da
  validação das Tarefas, 22/10/2026): o último PU gravado
  (`asset_price_history`, `source = TESOURO`) é de **15/10/2026**, e todas as rodadas de `TREASURY_PRICES` desde então
  terminam com `titles=0, rows=0` — inclusive as das 08:00. A valorização do Tesouro na carteira está usando o PU de
@@ -1305,16 +1305,50 @@ fundo (E) e historico longo da B3 vazio para nome de pregao com barra (G, era o 
 **34.6** Run de tarefa da app-api pela tela depende do Redis (comando `RUN`): sem resposta em 5 s, 503 e nenhuma rodada.
 **34.7** A trava por tipo é em memória, por serviço (uma instância de cada API). Com mais de uma instância seria preciso
  trava no banco (ex.: índice único parcial de `RUNNING` por tipo) e um agendador só.
-**34.8** (Em observação desde 22/10/2026, noite: com a identificação `PrimeVest/1.0` da D6 o filtro aceitou o download
+**34.8** (Em observação desde 22/10/2026, noite: com a identificação `Activest/1.0` da D6 o filtro aceitou o download
  do arquivo de preços às 19:26, enquanto o curl seguia recebendo 429 — o bloqueio era do cliente sem identificação. O
  arquivo de vendas, na mesma rodada, caiu com a conexão fechada sem resposta: conferir nas próximas rodadas das 08:00.
  Só volta a ser pendência se a chamada identificada passar a ser recusada.) Tesouro com o acesso automático recusado
  (D9 do `docs/planos/PLANO_FONTE_TESOURO.md`, 22/10/2026): o filtro do
- Tesouro Transparente deixa o navegador baixar o arquivo e recusa curl e o PrimeVest (HTTP 429, achado A8). Decidido
+ Tesouro Transparente deixa o navegador baixar o arquivo e recusa curl e o Activest (HTTP 429, achado A8). Decidido
  aguardar: esperar 48 h com a correção do plano no ar e, se continuar, chamado ao Tesouro pedindo liberação do acesso
  identificado (D8). Se nem o chamado resolver, escolher entre esperar, outra fonte oficial do PU (estudo próprio) ou
  carga manual do CSV pelo administrador como contingência. Sem urgência enquanto a fonte não publicar (parada desde
  16/10/2026).
+
+## 35. RENOMEACAO PARA ACTIVEST (docs/planos/PLANO_RENOMEACAO_ACTIVEST.md, 23/10/2026)
+
+**35.1** Reformulacao dos tokens do R2 (pendencia confirmada pelo Guilherme, 23/10/2026): o `R2_TOKEN_PRIMEVEST` (o
+do `.env` e do `rclone`) ganhou escrita no `activest-data` para a copia do bucket. Separar um token so leitura para a
+aplicacao e um de escrita para o `data push`, com nomes do Activest.
+
+**35.2** Residuos do PrimeVest, guardados como backup e apagados so por ordem do Guilherme: bucket `primevest-data`,
+volume `primevest_pgdata` (e `primevest_maven-repo`), contêineres parados da pilha `primevest`, pasta
+`E:\repos\primevest` e o repositorio `primevest` no GitHub (arquivar quando nao precisar mais dos PRs).
+
+**35.3** Externos com o nome antigo: nome do app na tela de consentimento do Client ID do Google; SMTP real do
+dominio `activest.com.br` (SPF/DKIM) para o remetente `contato@activest.com.br` — hoje o envio vai para o Mailpit
+(ver o item do cadastro de usuario sobre SMTP real).
+
+**35.4** Comentarios do codigo citam versoes de migration do PrimeVest ("V20", "V57"...). A linha "Origem" de cada
+tabela no `V1__schema.sql` faz a ponte; trocar as citacoes so se um escopo passar pelo arquivo.
+
+**35.5** Lint do front: aviso `'InfoTooltip' is defined but never used` em `TasksPage.tsx` (ja existia no PrimeVest;
+0 erros).
+
+**35.6** Carga inicial x tarefa agendada: na subida do Activest (23/10/2026, 20:00) a DIVIDENDS_SYNC agendada comecou
+junto com o `bootstrap`, e a etapa de proventos do `bootstrap` falhou com "nao rodou (outra execucao em andamento)";
+rodar o `bootstrap` de novo depois completou. Comportamento que ja existia (nao veio da renomeacao). Avaliar: o
+`bootstrap` esperar a outra rodada, ou o `carga/scripts/README.md` avisar para conferir a tela de Tarefas antes.
+
+**35.7** Integracao Binance no Activest: a conexao do PrimeVest nao veio para o banco novo. Recadastrar a chave e
+provar a integracao fica para um escopo proprio, junto com o teste dos ETFs americanos comprados pela Binance
+(escopo "ETFs americanos", aberto em 13/10/2026).
+
+**35.8** Foto do Google no usuario semeado: o login Google numa conta que ja existe so vincula o `google_id` — nome e
+foto vem do Google so na criacao da conta (decisao do cadastro de usuario, 05/10/2026). O administrador do V6 nasce
+sem foto; no PrimeVest a `avatar_url` tinha ficado de uma versao anterior a essa regra. Hoje: enviar a foto em
+Configuracoes, ou abrir escopo para "preencher a foto do Google quando a conta nao tem nenhuma".
 
 ## ORDEM SUGERIDA
 
@@ -1339,4 +1373,5 @@ Com o reset de 18/09/2026 o conjunto de migrations voltou a descrever o
 resultado. Ele so continua assim se as proximas mudancas de schema forem poucas
 e grandes, em vez de muitas e pequenas — um terceiro reset seria sintoma de que
 a regra de nao editar migration aplicada esta sendo usada como desculpa para
-empilhar ALTER.
+empilhar ALTER. (23/10/2026: o terceiro reset veio com a renomeacao para Activest — 67 migrations
+consolidadas em V1–V6, secao 35 e Claude.md, "Flyway".)

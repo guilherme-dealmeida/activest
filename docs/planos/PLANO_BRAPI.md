@@ -1,5 +1,10 @@
 # PrimeVest — Plano de Integração BRAPI
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > Fase: planejamento (23–24/09/2026) → **executado em 24/09/2026** (seção 8) · branch `TRACK_01-ajustes_crud_inicial`
 > Plano contratado: **Gratuito** (15.000 requisições/mês, 1 ativo por requisição, 1 requisição simultânea, dados a cada 30 min).
 > Carteira hoje: 11 ações · 11 FIIs · 1 ETF (**23 ativos via BRAPI**) · 9 Tesouros (MANUAL) · 1 cripto (CoinGecko).

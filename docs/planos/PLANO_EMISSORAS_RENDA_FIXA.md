@@ -1,5 +1,10 @@
 # PrimeVest — Plano de Emissoras e Distribuidoras de Renda Fixa
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > Fase: **finalizado** (plano criado em 16/10/2026; D1–D8 respondidas no mesmo dia, todas pela recomendação;
 > E1–E7 e Adendo A concluídos em 16/10/2026 — seção 13). Ficou aberto na PENDENCIAS: 28.1 (logos sem fonte, busca
 > manual), 28.2, 28.3, 28.4 e 28.5.

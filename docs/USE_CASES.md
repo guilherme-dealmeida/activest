@@ -1,7 +1,7 @@
-# USE_CASES — Casos de uso do PrimeVest
+# USE_CASES — Casos de uso do Activest
 
 > Gerado em 02/10/2026 a partir do código (controllers da app-api e da adm-api, rotinas agendadas, telas do
-> `primevest-web`) e do `carga/scripts/README.md` · 05/10/2026: UC36–UC38 (índices de mercado) · 10/10/2026: UC07 refeito
+> `activest-web`) e do `carga/scripts/README.md` · 05/10/2026: UC36–UC38 (índices de mercado) · 10/10/2026: UC07 refeito
 > (Preço Teto pelo modelo PREÇO TETO V2) e UC41 (cotações diárias do catálogo pelo COTAHIST). Diagramas em Mermaid (o GitHub e o IntelliJ renderizam).
 > Mermaid não tem diagrama UML de caso de uso nativo: os atores aparecem como círculos, os casos de uso como
 > elipses dentro da fronteira do sistema, e `«include»`/`«extend»` como setas tracejadas.
@@ -29,7 +29,7 @@
 | **Mantenedor (produtor de dados)** | Quem tem a chave de escrita do bucket R2 (hoje, o Guilherme) | contêiner `data` (`data push`) |
 | **Agendador** | O relógio das APIs (`@Scheduled`, fuso de São Paulo) | rotinas da adm-api e da app-api |
 | **Fontes externas** | B3, FNET, CVM, BRAPI, CoinGecko, Binance | chamadas da adm-api (catálogo) e da app-api (só Binance) |
-| **Bucket R2** | `primevest-data` (Cloudflare), cópia de referência da pasta `carga/data/` | contêiner `data` (`data pull` / `data push`) |
+| **Bucket R2** | `activest-data` (Cloudflare), cópia de referência da pasta `carga/data/` | contêiner `data` (`data pull` / `data push`) |
 
 ---
 
@@ -43,7 +43,7 @@ flowchart LR
     sch(("Agendador"))
     ext(("Fontes externas<br/>B3 · FNET · CVM<br/>BRAPI · CoinGecko<br/>Binance"))
 
-    subgraph APP["PrimeVest — app-api (carteira)"]
+    subgraph APP["Activest — app-api (carteira)"]
         uc01(["UC01 Autenticar"])
         uc02(["UC02 Registrar transação"])
         uc03(["UC03 Consultar carteira e reserva"])
@@ -59,7 +59,7 @@ flowchart LR
         uc34(["UC34 Sincronizar corretoras"])
     end
 
-    subgraph ADM["PrimeVest — adm-api (catálogo)"]
+    subgraph ADM["Activest — adm-api (catálogo)"]
         uc20(["UC20 Carga inicial"])
         uc21(["UC21 Manter emissores"])
         uc22(["UC22 Disparar rotinas de catálogo"])
@@ -197,7 +197,7 @@ conexão já teve uma importação confirmada pelo usuário.
 
 ## 6. Carga inicial (máquina nova)
 
-Objetivo: subir o PrimeVest numa máquina nova **só com o repositório + o bucket**, sem nada fora do projeto, e
+Objetivo: subir o Activest numa máquina nova **só com o repositório + o bucket**, sem nada fora do projeto, e
 chegar ao catálogo completo. O banco nasce das migrations (tipos, categorias, ativos, Tesouro, IR, emissores e
 ligações já vêm de seed); o volume vem dos arquivos de `carga/data/`.
 
@@ -207,7 +207,7 @@ ligações já vêm de seed); o volume vem dos arquivos de `carga/data/`.
 flowchart LR
     mnt(("Mantenedor"))
     adm(("Administrador"))
-    r2(("Bucket R2<br/>primevest-data"))
+    r2(("Bucket R2<br/>activest-data"))
     ext(("CVM · B3 · FNET"))
 
     subgraph CARGA["Carga inicial"]
@@ -248,7 +248,7 @@ sequenceDiagram
     participant ADM as adm-api :8081
     participant DB as PostgreSQL
 
-    A->>A: cp .env.example .env (PRIMEVEST_PASSWORD, token só leitura S3_*)
+    A->>A: cp .env.example .env (ACTIVEST_PASSWORD, token só leitura S3_*)
     A->>D: docker compose --profile carga run --rm data pull
     D->>R2: baixa carga/data/ (~1,4 GB, --minimo = só o essencial)
     R2-->>D: arquivos + manifests
@@ -329,11 +329,11 @@ sequenceDiagram
 
     I->>APP: POST /api/v1/transactions (compra de XPTO3)
     APP->>DB: grava a transação (posição sai das transações)
-    APP->>RD: primevest:dividends:on-demand (assetId)
+    APP->>RD: activest:dividends:on-demand (assetId)
     RD->>ADM: pedido "preciso do histórico"
     ADM->>EX: proventos/eventos do emissor + logo (se faltar)
     ADM->>DB: grava asset_cash_events / asset_stock_events
-    ADM->>RD: primevest:catalog:assets {PROVENTOS, assetIds}
+    ADM->>RD: activest:catalog:assets {PROVENTOS, assetIds}
     RD->>APP: "catálogo mudou"
     APP->>DB: refaz dividends e valorização das posições
     Note over ADM,APP: 19:00 fechamento → {FECHAMENTO} → só revaloriza<br/>21:00 rede de segurança: recalcula tudo (cobre mensagem perdida)

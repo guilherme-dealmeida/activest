@@ -41,7 +41,7 @@ from urllib.parse import parse_qs, urlencode, urlparse
 PAGE_SIZE = 20
 TOKEN_TTL = 3599
 
-CLIENT_ID = os.environ.get("B3I_MOCK_CLIENT_ID", "primevest-teste")
+CLIENT_ID = os.environ.get("B3I_MOCK_CLIENT_ID", "activest-teste")
 CLIENT_SECRET = os.environ.get("B3I_MOCK_CLIENT_SECRET", "segredo-teste")
 SCOPE = os.environ.get("B3I_MOCK_SCOPE", "b3i-simulador/.default")
 DOCUMENT = re.sub(r"\D", "", os.environ.get("B3I_MOCK_DOCUMENT", "52998224725"))
@@ -446,7 +446,7 @@ class Handler(BaseHTTPRequestHandler):
 .ok{{color:#15803d}}.no{{color:#b91c1c}}small{{color:#6b7280}}</style></head><body>
 <div class="box"><h2>Simulador da Área do Investidor (B3)</h2>
 <p>Investidor: <b>{html.escape(cpf)}</b></p>
-<p>Compartilhamento com o PrimeVest: <b class="{'ok' if ok else 'no'}">{'autorizado' if ok else 'não autorizado'}</b>
+<p>Compartilhamento com o Activest: <b class="{'ok' if ok else 'no'}">{'autorizado' if ok else 'não autorizado'}</b>
 {desde}</p>
 <form method="post" action="/optin/authorize" style="display:inline"><input type="hidden" name="documentNumber" value="{html.escape(doc)}">
 <button type="submit">Autorizar</button></form>

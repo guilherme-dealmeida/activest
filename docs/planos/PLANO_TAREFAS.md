@@ -1,5 +1,10 @@
 # PrimeVest — Plano de Tarefas (menu Tarefas: acompanhar, executar, parar e configurar as rotinas)
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > Fase: **Implementado em 22/10/2026** (T1–T7; execução autorizada pelo Guilherme no mesmo dia). Levantamento concluído em
 > 22/10/2026 (D1–D28, estrutura na seção 1.7); planejamento na seção 6, D29–D36 decididas.
 > Origem: ESCOPO "Criar menu Tarefas no Primevest", ETAPA LEVANTAMENTO, passos 1 a 4 do Guilherme.

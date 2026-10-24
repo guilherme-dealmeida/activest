@@ -1,5 +1,10 @@
 # PrimeVest — Plano de IR retido na fonte sobre proventos (bruto × líquido)
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > Fase: **implementado** (24/09/2026) · branch `TRACK_01-ajustes_crud_inicial`
 > Nomes na implementação: a tabela é a entidade `WithholdingTaxRule`; o cálculo (chamado de `WithholdingTaxRule` nas seções 4–6) ficou em `WithholdingTaxCalculator`.
 > Origem: conferência do JCP de BBAS3 pago em 11/06/2026 — portal B3 mostra **R$ 14,57**, PrimeVest **R$ 17,66**.

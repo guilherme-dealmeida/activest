@@ -46,7 +46,7 @@ dump.rdb
 # docs/planos/PLANO_EMPRESAS_BALANCOS.md secao 2. Reconstruiveis pela carga inicial.
 /carga/data/
 
-# Dados da carga da pilha primevest-teste (docs/planos/PLANO_PRIMEVEST_TESTE.md); o .env.teste esta em Environment
+# Dados da carga da pilha activest-teste (docs/planos/PLANO_PRIMEVEST_TESTE.md); o .env.teste esta em Environment
 /carga/data-teste/
 
 # Ponte de execucao do Claude (ver .claude/README.md)

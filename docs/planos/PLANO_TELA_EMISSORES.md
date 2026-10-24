@@ -1,5 +1,10 @@
 # PrimeVest — Plano da Tela de Emissoras e Indicadores
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > **Nota de 18/10/2026:** a tela passou a se chamar **Ativos** (menu, cabeçalho e rota `/ativos`; `/emissoras` redireciona). Este plano mantém o nome e os termos da época.
 
 > Fase: **implementado em 28/09/2026** (T1–T9) — andamento na seção 8

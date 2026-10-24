@@ -1,5 +1,10 @@
 # PrimeVest — Plano do Cadastro de Usuário
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > Fase: **implementado em 05/10/2026** (U1–U7) — andamento na seção 9. Criado em 04/10/2026; todas as decisões (D1–D20) tomadas em 04/10/2026 (seção 8). Execução autorizada em 05/10/2026.
 
 ---

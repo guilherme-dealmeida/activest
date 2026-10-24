@@ -1,5 +1,10 @@
 # PrimeVest — Plano dos Índices de Mercado
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > Fase: **implementado em 05/10/2026** (X1–X6) — andamento na seção 9. Criado em 05/10/2026; decisões D1–D10 tomadas
 > no mesmo dia (todas as recomendações, seção 8) e execução autorizada em seguida.
 > Origem: `docs/PENDENCIAS.md` item 5.1 (índices), que destrava o 2.1 (valorização de renda fixa dá sempre zero).

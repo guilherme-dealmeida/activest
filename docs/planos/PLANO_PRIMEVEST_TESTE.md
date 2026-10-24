@@ -1,5 +1,10 @@
 # PLANO_PRIMEVEST_TESTE.md — Pilha `primevest-teste` com a carga inicial completa
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > **Escopo:** Criar container com toda carga inicial do PrimeVest · **Etapa:** Execução — **E1 a E6 concluídas em 03/10/2026**
 > (planejado e executado no mesmo dia; andamento na seção 7)
 > **Objetivo:** uma segunda pilha Docker, `primevest-teste`, com os mesmos 5 serviços do `primevest` (db, redis, app-api,

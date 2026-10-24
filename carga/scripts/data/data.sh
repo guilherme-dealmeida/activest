@@ -13,7 +13,7 @@ set -f
 
 ACAO="${1:-status}"
 MODO="${2:-}"
-BUCKET="r2:${S3_BUCKET:-primevest-data}"
+BUCKET="r2:${S3_BUCKET:-activest-data}"
 DATA=/data
 # o minimo para uma carga completa sem rebaixar o que a origem nao devolve mais ou devolve devagar:
 # avisos do FNET, historico e 12 meses de proventos da B3, relatorios de proventos da CVM

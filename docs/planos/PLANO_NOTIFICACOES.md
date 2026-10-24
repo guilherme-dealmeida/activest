@@ -1,5 +1,10 @@
 # PrimeVest — Plano de Notificações (caixa de mensagens do usuário e do administrador)
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > Fase: **implementado em 13/10/2026** (N1–N10; andamento na seção 12). Em execução desde 13/10/2026 (plano criado no mesmo dia; D1–D6 respondidas seguindo as recomendações e
 > execução autorizada pelo Guilherme). A N7 entra agora, sobre a venda de RF de hoje (decidido em 13/10): quando o
 > escopo de venda de renda fixa terminar, a liquidação se ajusta junto.
