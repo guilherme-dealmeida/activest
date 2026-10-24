@@ -1,5 +1,10 @@
 # PrimeVest — Plano de Testes
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > Fase: **implementado em 22/09/2026** · branch `TRACK_01-ajustes_crud_inicial`
 > Resultado: **234 testes verdes** em `mvn clean verify` (~52s) — 176 rápidos + 58 funcionais.
 > 1 teste ignorado: o de fração de cripto, porque o catálogo semeado ainda não tem criptomoedas (F13).

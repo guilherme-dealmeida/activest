@@ -1,5 +1,10 @@
 # PrimeVest — Plano da alteração da tela de Ativos
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > Fase: **planejamento** (18/10/2026). Aguarda as decisões da seção 2 e a ordem de execução.
 > Origem: pedido de 18/10/2026 (ESCOPO "Alteração da tela de Ativos (antiga Emissoras)", ETAPA Planejamento), com os
 > anexos 1 a 4 (Demonstrativos, Indicadores, modal do P/L e o quadro "Informações sobre a empresa" do Investidor10).

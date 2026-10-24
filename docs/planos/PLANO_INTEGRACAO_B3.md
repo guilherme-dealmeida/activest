@@ -1,5 +1,10 @@
 # PrimeVest — Integração com a B3 (Área do Investidor): módulo `primevest-integration` e piloto com dados simulados
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > Fase: **execução — F1 a F8 concluídas em 03/10/2026** (planejado e executado no mesmo dia; andamento na seção 10) ·
 > branch `TRACK_01-integracao-b3`
 > Escopo: trazer da B3 os dados do investidor — ativos (posição), negociações e proventos. Piloto: Guilherme

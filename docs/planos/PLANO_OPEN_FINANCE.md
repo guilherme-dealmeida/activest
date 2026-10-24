@@ -1,5 +1,10 @@
 # PrimeVest — Plano de Integração Open Finance (Renda Fixa fora da B3)
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > Fase: **planejamento** (24/09/2026) · nada implementado · branch `TRACK_01-ajustes_crud_inicial`
 > Escopo: importar renda fixa que a B3 não mostra — Caixinhas (Nubank), Porquinhos (Inter), Cofrinhos (PicPay) e afins.
 > Entrada: anexo 1 (`PLANO INTEGRAÇÂO OPEN FINANCE.docx`, pesquisa feita em outra IA).

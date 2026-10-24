@@ -1,5 +1,10 @@
 # Plano de investigação — proventos duplicados/indevidos (divergência 2026 vs Investidor10)
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > ETAPA: Investigação (sem correção). Nada de git. Validação/conferência é a última etapa.
 
 ## 1. Contexto

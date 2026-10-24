@@ -1,5 +1,10 @@
 # PLANO_CARGA_INICIAL.md — Ambiente de carga inicial PrimeVest
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > **Escopo:** Ambiente de carga inicial PrimeVest · **Etapa:** Planejamento (29/09/2026)
 > **Objetivo:** subir o PrimeVest numa máquina nova só com o repositório + bucket, sem depender de nada fora do projeto,
 > com a informação do catálogo **completa**.

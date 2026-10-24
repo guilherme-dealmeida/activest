@@ -1,6 +1,6 @@
-# PRIMEVEST_DB — Modelo de dados
+# ACTIVEST_DB — Modelo de dados
 
-> Gerado em 02/10/2026 a partir do banco de desenvolvimento (`db_primevest`, Flyway na **V39**), lendo o `information_schema` e as constraints — não do texto do `Claude.md`.
+> Gerado em 02/10/2026 a partir do banco de desenvolvimento (`db_activest`, Flyway na **V39**), lendo o `information_schema` e as constraints — não do texto do `Claude.md`.
 > **31 tabelas** (fora `flyway_schema_history`), **43 chaves estrangeiras**. Acréscimo de 05/10/2026: `market_indices` e
 > `market_index_values` (V43, seção 5a — `docs/planos/PLANO_INDICES_MERCADO.md`); V44: `asset_types.price_source` e
 > `asset_price_history.source` aceitam `TESOURO` (preço oficial do Tesouro Direto). Acréscimo de 10/10/2026

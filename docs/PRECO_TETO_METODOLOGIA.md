@@ -1,4 +1,4 @@
-# PrimeVest — Metodologia do Preço Teto e do Preço Ideal
+# Activest — Metodologia do Preço Teto e do Preço Ideal
 
 > Versão 1 (10/10/2026), modelo **PREÇO TETO V2** (planilha do Guilherme). Plano e decisões:
 > `docs/planos/PLANO_PRECO_TETO.md`. Código: `CeilingPriceRules` (fórmulas), `CeilingPriceDefaults` (padrões) e
@@ -22,8 +22,8 @@ descontado por FCFE.
 | ROE | Média dos **3 últimos exercícios fechados**: lucro da controladora ÷ PL da controladora médio (início e fim) | CVM (mesmo número da tela de Emissoras) |
 | Payout | Média dos 3 últimos exercícios fechados: **dividendos + JCP pagos** aos acionistas da controladora (DFC) ÷ lucro da controladora | CVM — DFC (desde 10/10/2026; antes era a DVA) |
 | Taxa de desconto (d) | Selic meta vigente | BCB — SGS 432 |
-| Crescimento na perpetuidade (G) | 3% (crescimento médio do PIB) | `primevest.preco-teto.crescimento-perpetuidade` |
-| Margem de segurança (MS) | 15% | `primevest.preco-teto.margem-seguranca` |
+| Crescimento na perpetuidade (G) | 3% (crescimento médio do PIB) | `activest.preco-teto.crescimento-perpetuidade` |
+| Margem de segurança (MS) | 15% | `activest.preco-teto.margem-seguranca` |
 | Preço da ação | Último fechamento | B3 — COTAHIST diário (catálogo) / BRAPI (carteira) |
 
 Percentuais são guardados em pontos (13,75) e convertidos para fração só na conta. Os quatro lucros usam sempre o
@@ -62,7 +62,7 @@ são.
 | **Atenção** | ROE, payout, d ou G negativos ou acima de 100%; d fora de 5–30%; G acima de 6%; N mais de 20% longe do padrão; lucro digitado mais de 50% longe do da CVM; g negativo ou ≥ d; LL TTM ≤ 0; LL TTM abaixo de 3% do PL; balanço com mais de 150 dias; preço com mais de 7 dias; média de menos de 3 anos | calcula; ao salvar pede confirmação |
 | **Informação** | trimestre com prejuízo (entra na soma); reapresentação (soma dos 4 ≠ 12 meses do balanço); há balanço mais novo que a janela | só aviso |
 
-Limites em `primevest.preco-teto.alertas.*` (`application.yml` da app-api).
+Limites em `activest.preco-teto.alertas.*` (`application.yml` da app-api).
 
 ## 5. Guarda e atualização
 

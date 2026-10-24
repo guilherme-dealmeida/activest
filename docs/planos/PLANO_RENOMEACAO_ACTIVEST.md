@@ -1,16 +1,8 @@
 # PrimeVest → Activest — Plano de Renomeação do Projeto
 
-> Fase: **Planning (etapa 3) — D1–D20 respondidas pelo Guilherme em 23/10/2026; pendências P1–P3 resolvidas (seção 6.3);
-> aguardando a ordem de execução.
->
-> **Git neste escopo (Guilherme, 23/10/2026):** o Claude tem autonomia total e é o responsável pelo git até o fim deste
-> escopo (exceção à regra 3.1 do `REGRAS_CLAUDE.md`, só aqui).** Discovery e Impact feitos em 23/10/2026, conferidos contra o repositório, o banco e o Docker do DEV.
-> Nada de código foi alterado.
->
-> **Mudança de rumo (23/10/2026):** em vez de renomear o ambiente atual, o Activest nasce numa **pasta nova**
-> (`E:\repos\activest`), com **banco novo do zero**, **migrations consolidadas** e **contêineres novos**. A pasta
-> `E:\repos\primevest` e a pilha `primevest` (com o volume `primevest_pgdata`) ficam paradas, como backup para
-> conferência.
+> Fase: **Testing / Review (23/10/2026)** — E0–E8 implementadas e conferidas pelo Claude em 23/10/2026. Faltam a
+> conferência no navegador e o recadastro da Binance (D20) pelo Guilherme, e o pull request da branch
+> `TRACK-01_novo_nome_activest`.
 
 ---
 
@@ -127,8 +119,8 @@ de integração (ativos do catálogo, emissoras do BCB/CVM, proventos) misturado
 |---|---|
 | `V1__schema.sql` | todas as tabelas, constraints e índices finais (V1, V10, V11, V20–V29, V31–V54, V56–V59, V61, V63–V67) |
 | `V2__seed_reference.sql` | tipos de ativo, categorias, benchmarks, índices de mercado, tabelas de IR/IOF, tipos de tarefa e tarefas (V2, V3, V16, V23, V43, V52, V57, V62–V65) |
-| `V3__seed_assets.sql` | catálogo de ativos já com nomes, situação e ETFs/BDRs/cripto (V4–V8, V13–V15, V17–V19, V29) |
-| `V4__seed_issuers.sql` | emissores e ligações (V30) |
+| `V3__seed_issuers.sql` | emissores (V30) — antes dos ativos, que referenciam o emissor (ajuste na implementação) |
+| `V4__seed_assets.sql` | catálogo de ativos já com nomes, situação, emissor e ISIN finais, parâmetros do Tesouro, histórico de preço semeado, units, IR/IOF da RF e benchmarks (V4–V8, V13–V19, V29, V30, V52, V57) |
 | `V5__seed_fixed_income_issuers.sql` | emissoras/distribuidoras de RF e grupos (V54, V55 — 1,7 MB) |
 | `V6__seed_dev_user.sql` | usuário administrador e a reserva da estratégia (V9, V12) |
 
@@ -214,7 +206,7 @@ mostrando a história de cada arquivo.
 
 ### 6.3 Respondidas na terceira rodada e pendências antes da implementação
 
-D18 **(a)** e D19 **(a)** aceitas (23/10/2026). Pasta `E:\\repos\\activest` conectada à sessão.
+D18 **(a)** e D19 **(a)** aceitas (23/10/2026). Pasta `E:\repos\activest` conectada à sessão.
 
 | # | Pendência | Quem |
 |---|---|---|
@@ -275,3 +267,12 @@ imagens novas). No GitHub do `activest`, o branch padrão (`master`) é ajustado
 | 23/10/2026 | Segunda rodada: D15, D16, D17 e D20 aceitas; riscos R12–R16 aceitos; repositório `activest` criado (vazio). D18 revista para levar o histórico (push de todas as branches + clone) e D19 aguardando confirmação. |
 | 23/10/2026 | Terceira rodada: D18 (a) e D19 (a) aceitas; git deste escopo passa ao Claude; pasta `activest` conectada. Pendências P1–P3 levantadas. |
 | 23/10/2026 | P1–P3 resolvidas: token R2 com escrita nos dois buckets (conferido), plano e metodologia no PR #22 do `primevest`, branch de trabalho `TRACK-01_novo_nome_activest`. |
+| 23/10/2026 | **Execução autorizada.** E1: push de todas as branches (22) do `primevest` para o `activest`, sem divergência; clone em `E:\repos\activest`, branch `TRACK-01_novo_nome_activest`; `.env` e `carga/mocks/` copiados. |
+| 23/10/2026 | E0: V1–V67 aplicadas num Postgres descartável (`ref-v67`): `pg_dump --schema-only` idêntico ao banco do DEV (49 tabelas, 64 índices, 21 sequências); 20 tabelas com seed. |
+| 23/10/2026 | E2–E4: pastas, pacote, pom, configuração, Redis, front, compose (`name: activest`), textos, remetente e `User-Agent` — 708 arquivos, 3.154 trocas; `mvn clean verify` verde (com as migrations antigas). |
+| 23/10/2026 | E5: `carga/scripts/migrations/consolidate.mjs` gera V1–V6; `compare.mjs` contra o `ref-v67`: estrutura igual (336 objetos), dados iguais (49 tabelas), sequências iguais (21). Ajustes: seed dos emissores antes do dos ativos; `COMMENT ON` mantidos; `IN (...)` legível nas CHECK. Seeds com ids explícitos (exceção registrada nas convenções). `mvn clean verify` verde com V1–V6; build e lint do front verdes (1 aviso antigo). |
+| 23/10/2026 | E6: `primevest-data` → `activest-data` por cópia no servidor (rclone): 31.000 objetos, 2,161 GiB nos dois; `rclone check`: 0 diferenças. |
+| 23/10/2026 | E7: pilha `primevest` parada (`stop`, volume intacto); `data pull` do `activest-data` (30.990 arquivos); `docker compose up -d --build`: Flyway "Successfully applied 6 migrations", as duas APIs `Started`; login do administrador e `bootstrap` por `admin.mjs` com `ACTIVEST_PASSWORD`; e-mail de redefinição no Mailpit com remetente `Activest <contato@activest.com.br>`; canais `activest:*` no Redis. Carga inicial em andamento. |
+| 23/10/2026 | Commits na `TRACK-01_novo_nome_activest`: `703b025` (módulos, pacote, configuração e textos) e `7f24e30` (migrations consolidadas). |
+| 23/10/2026 | E7 concluída: 1ª rodada do `bootstrap` com a etapa de proventos recusada porque a DIVIDENDS_SYNC agendada (20:00) rodava junto (PENDENCIAS 35.6); 2ª rodada `SUCCEEDED` em 38 min. Catálogo igual ao do PrimeVest: `assets` 2.626, `asset_stock_events` 1.059, `company_quarters` 19.346, `cvm_documents` 19.351, `share_counts` 18.778, `treasury_offers` 128, emissoras de RF 6.922; diferenças só as esperadas — `asset_cash_events` 54.952 (+14), `issuers` 1.213 (+15), `market_index_values` +4 (dado novo das fontes), `asset_price_history` −394 e `fii_monthly` −171 (fechamentos da carteira e fundos fora do catálogo que só o DEV tinha), dados de usuário zerados. Download do Tesouro aceito com o `User-Agent` Activest. |
+| 23/10/2026 | E8: `Claude.md` (revisão, "Flyway — V1 a V6", "Renomeação para Activest" em Pontos de Atenção, Git), `README.md`, `docs/*.md`, `REGRAS_CLAUDE.md` (6.1), `PENDENCIAS.md` (seção 35), nota nos 26 planos anteriores. `git grep -i primevest` fora dos planos: só as referências intencionais (origem nas migrations e no `consolidate.mjs`, `PLANO_PRIMEVEST_TESTE.md`, `primevest-backups`, repositório e pilha antigos no `Claude.md`/`PENDENCIAS.md`, a saída de conferência de 10/10 em `docs/preco-teto`). |

@@ -1,5 +1,10 @@
 # PrimeVest — Cadastro de Criptomoedas: importação da Binance
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > Fase: **levantamento** (25/09/2026) · nada implementado no PrimeVest · branch `TRACK_01-ajustes_crud_inicial`
 > Escopo: importar os aportes em cripto das corretoras. A Binance é o piloto, com a conta do Guilherme;
 > o destino é **qualquer usuário** conectar as próprias contas (seção 6, revisada em 25/09/2026).

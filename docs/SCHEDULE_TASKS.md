@@ -1,4 +1,4 @@
-# PrimeVest — Rotinas agendadas e automáticas
+# Activest — Rotinas agendadas e automáticas
 
 > Gerado em 02/10/2026 a partir do código (`@Scheduled`, `ApplicationReadyEvent` e ouvintes do Redis) e dos
 > `application.yml` dos módulos · revisado em 03/10/2026 (Markdown, caminhos `carga/`) · 05/10/2026 ([A9] índices de
@@ -15,7 +15,7 @@
   banco** (`tasks.cron`) e se editam na tela de Tarefas (`/tasks`, só administrador); o liga/desliga também
   (`tasks.enabled` por tarefa, `task_types.enabled` por tipo). O agendador (`TaskScheduleRegistry`) relê ao editar e a
   cada 5 min. Os horários abaixo são os do seed (V62). Cada rodada fica em `task_executions`, com resumo e log.
-- **Chave geral:** `primevest.scheduling.enabled` (padrão `true`). No perfil de teste é `false`: nenhuma rotina
+- **Chave geral:** `activest.scheduling.enabled` (padrão `true`). No perfil de teste é `false`: nenhuma rotina
   agendada roda nos testes, nem a recuperação na subida.
 - **Subida** (22/10/2026, `docs/planos/PLANO_TAREFAS.md`, D37 e D38): roda só a tarefa marcada "Roda na subida"
   (`tasks.run_on_startup`), ativa e **sem rodada no dia** — reiniciar o serviço não repete —, e só se a rotina disser
@@ -122,7 +122,7 @@ hora, em segundo plano.
 |---|---|
 | **Quando** | 20:00, todos os dias |
 | **Classe** | tarefa `DIVIDENDS_SYNC` → `DividendsSyncTask` → `DividendCatalogService.syncAll` → `CvmPaymentDateService.run(ano anterior, ano corrente)` (atributo `WITH_CVM_PAYMENT_DATES`) |
-| **Config** | `DIVIDENDS_SYNC` (atributos `FNET_REREAD_ALL`, `WITH_CVM_PAYMENT_DATES`) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 20 * * *`; o tipo desligado desliga também o sob demanda [A8]; `primevest.dividends.scope = ALL` (todo ativo ligado a emissor + o que já esteve em carteira) ou `HELD` (só o que já esteve em carteira); `primevest.dividends.pause-millis = 1000` |
+| **Config** | `DIVIDENDS_SYNC` (atributos `FNET_REREAD_ALL`, `WITH_CVM_PAYMENT_DATES`) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 20 * * *`; o tipo desligado desliga também o sob demanda [A8]; `activest.dividends.scope = ALL` (todo ativo ligado a emissor + o que já esteve em carteira) ou `HELD` (só o que já esteve em carteira); `activest.dividends.pause-millis = 1000` |
 | **Fontes** | B3 (proventos ~12 meses, desdobramentos, grupamentos, bonificações), FNET (avisos de FII — fonte principal do FII), CVM "Relatórios Proventos" (data de pagamento de ação, 2022+) |
 | **Grava** | `asset_cash_events`, `asset_stock_events`; arquivos em `carga/data/` (`b3/proventos-12m`, `fnet`, `fnet/status` — situação de cada aviso no FNET, 21/10/2026 —, `cvm/ipe`, `cvm/proventos`) |
 | **Ao fim** | publica "catálogo mudou" (origem `PROVENTOS`) → a app-api refaz proventos e valorização das posições envolvidas |
@@ -171,7 +171,7 @@ ROE, payout, DY...).
 |---|---|
 | **Quando** | 07:00, toda segunda-feira |
 | **Classe** | tarefa `CATALOG_AUDIT` → `CatalogAuditTask` → `CatalogAuditService.run` e `MarketIndexImportService.audit` |
-| **Tarefa** | `CATALOG_AUDIT` (`primevest.catalog-audit.ignored` = tickers fora de propósito) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 7 * * MON` |
+| **Tarefa** | `CATALOG_AUDIT` (`activest.catalog-audit.ignored` = tickers fora de propósito) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 7 * * MON` |
 | **Fonte** | lista oficial e renomes da BRAPI |
 | **Grava** | nada no catálogo: cada diferença vira linha WARN no log **e** mensagem de administrador (`notifications`, 13/10/2026) — ticker novo (uma por rodada, com a lista), sumido e renomeado (uma por ticker), índice atrasado (uma por índice); a rodada seguinte que não acha mais a diferença resolve a mensagem |
 
@@ -188,7 +188,7 @@ com posição aberta também chega a quem tem a posição ([B7] e [B3], fan-out 
 |---|---|
 | **Quando** | 06:00, dia 1 de cada mês |
 | **Classe** | tarefa `ASSET_LOGOS` → `AssetLogosTask` → `AssetLogoService.sync(ONLY_MISSING, ...)` |
-| **Tarefa** | `ASSET_LOGOS` (atributo `ONLY_MISSING`; `primevest.logos.dir`) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 6 1 * *` |
+| **Tarefa** | `ASSET_LOGOS` (atributo `ONLY_MISSING`; `activest.logos.dir`) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 6 1 * *` |
 | **Fontes** | BRAPI (ação, FII, ETF, BDR) e CoinGecko (cripto) |
 | **Grava** | arquivos `carga/data/logos/{TICKER}.{ext}` (o arquivo é o estado; nada no banco) |
 
@@ -201,7 +201,7 @@ o arquivo existente.
 
 | | |
 |---|---|
-| **Quando** | a cada mensagem no canal Redis `primevest:dividends:on-demand`, publicada pela app-api depois de cada transação |
+| **Quando** | a cada mensagem no canal Redis `activest:dividends:on-demand`, publicada pela app-api depois de cada transação |
 | **Classe** | `AdmMessagingConfig.onDemandListener` → `DividendCatalogService.requestOnDemand(assetId)` → `AssetLogoService.fetchIfMissing(assetId)` |
 
 **Função.** Fila única: sincroniza os proventos/eventos do ativo da transação e baixa o logo se ele não tiver; responde
@@ -321,7 +321,7 @@ cotação.
 
 | | |
 |---|---|
-| **Quando** | a cada mensagem no canal Redis `primevest:catalog:assets`, publicada pela adm-api (`{origin: PROVENTOS\|FECHAMENTO\|INDICES, assetIds, indexCodes}`) |
+| **Quando** | a cada mensagem no canal Redis `activest:catalog:assets`, publicada pela adm-api (`{origin: PROVENTOS\|FECHAMENTO\|INDICES, assetIds, indexCodes}`) |
 | **Classe** | `CatalogMessagingConfig` → `PositionRefreshService` |
 
 **Função.** `PROVENTOS` → refaz proventos e valorização das posições dos ativos citados; `FECHAMENTO` → só a
@@ -342,7 +342,7 @@ Tesouro vencido que esperava o PU; `INDICES` → liquidação da RF privada venc
 |---|---|
 | **Quando** | 08:45, todos os dias (até 03/10/2026, 06:30) |
 | **Classe** | tarefa `INTEGRATIONS_DAILY_SYNC` → `IntegrationsDailySyncTask` → `IntegrationService.enqueueScheduled` |
-| **Tarefa** | `INTEGRATIONS_DAILY_SYNC` (`primevest.integrations.auto-confirm-scheduled = true`) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 45 8 * * *` |
+| **Tarefa** | `INTEGRATIONS_DAILY_SYNC` (`activest.integrations.auto-confirm-scheduled = true`) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 45 8 * * *` |
 | **Grava** | `integration_runs` (status `QUEUED`, trigger `SCHEDULED`) |
 
 **Função.** Só **enfileira** uma execução para cada conexão `ACTIVE` ou `PENDING_AUTHORIZATION` (B3: é a checagem que
@@ -361,7 +361,7 @@ publica o dia anterior a partir daí (docs/planos/PLANO_INTEGRACAO_B3.md, A6).
 |---|---|
 | **Quando** | a cada 5 s (`fixedDelay`), primeira execução 10 s após subir |
 | **Classe** | `IntegrationWorker.processar` → `IntegrationService.processNext` |
-| **Config** | `primevest.integrations.worker-delay-ms = 5000`; `primevest.integrations.stale-minutes = 30` |
+| **Config** | `activest.integrations.worker-delay-ms = 5000`; `activest.integrations.stale-minutes = 30` |
 | **Grava** | `integration_runs`, `integration_run_items`, `integration_cursors`, `transactions` (na confirmação), `integration_connections` (status) |
 
 **Função.** Pega as execuções `QUEUED` uma de cada vez e busca na corretora; o resultado vira pré-visualização (ou é
@@ -387,7 +387,7 @@ usuário responde na hora.
 |---|---|
 | **Quando** | 00:00, todos os dias, **e** na subida da app-api — "meia-noite ou o primeiro horário do dia com o sistema no ar" |
 | **Classe** | tarefa `DAILY_OPENING` → `DailyOpeningTask` (na subida: `needsRecovery` sempre verdadeiro) → `DailyOpeningService.run` |
-| **Tarefa** | `DAILY_OPENING` (chave geral `primevest.scheduling.enabled`) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 0 * * *` |
+| **Tarefa** | `DAILY_OPENING` (chave geral `activest.scheduling.enabled`) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 0 * * *` |
 | **Grava** | `notifications` |
 
 **Função.** Em ordem: (1) **títulos vencidos** (`MaturitySettlementService`): desde 15/10/2026 só avisa — pendência

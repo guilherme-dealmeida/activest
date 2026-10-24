@@ -1,5 +1,10 @@
 # PLANO — separação em módulos: `primevest-core`, `primevest-app-api`, `primevest-adm-api`
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > **ESCOPO:** separar a ingestão de dados de mercado (CVM, B3, FNET, BRAPI, CoinGecko) e as rotinas de
 > administração num serviço próprio, `primevest-adm-api`, antes que as fases F7–F11 do
 > docs/planos/PLANO_EMPRESAS_BALANCOS.md acrescentem mais código a elas.

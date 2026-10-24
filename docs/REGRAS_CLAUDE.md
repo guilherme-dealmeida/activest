@@ -1,4 +1,4 @@
-# PrimeVest — Regras de trabalho entre Guilherme e o Claude
+# Activest — Regras de trabalho entre Guilherme e o Claude
 
 > Gerado em 02/10/2026 · revisado em 03/10/2026 (planos em `docs/planos/`, pendências em `docs/PENDENCIAS.md`,
 > carga em `carga/`), em 09/10/2026 (seção 8, banco de dados) e em 10/10/2026 (5.3: o Claude executa downloads e
@@ -141,7 +141,7 @@ executa e confere o resultado (revisada em 10/10/2026 — antes o Guilherme roda
 **5.4** Quando a tabela "Quem faz" do plano disser que o Guilherme roda algo (ex.: a bateria completa numa etapa
 específica), o Claude prepara e depois confere; não roda por conta própria.
 
-**5.5** A senha de administrador do PrimeVest fica em `PRIMEVEST_PASSWORD` no `.env` da raiz: as rotinas de
+**5.5** A senha de administrador do Activest fica em `ACTIVEST_PASSWORD` no `.env` da raiz: as rotinas de
 administrador são disparadas por script (`carga/scripts/admin.mjs`) sem pedir a senha a cada vez.
 
 **5.6** Bloqueio de rede da política da organização (403/000 do proxy) é negação de política: não se contorna.
@@ -149,7 +149,7 @@ administrador são disparadas por script (`carga/scripts/admin.mjs`) sem pedir a
 
 ## 6. Arquivos, pastas e dados
 
-**6.1** Repositório local: `E:\repos\primevest`. O projeto roda por Docker Desktop no Windows (`docker compose up` na
+**6.1** Repositório local: `E:\repos\activest`. O projeto roda por Docker Desktop no Windows (`docker compose up` na
 raiz).
 
 **6.2** Tudo o que a carga inicial precisa fica **dentro do projeto**, em `carga/`: `carga/data` (dados; cópia de
@@ -192,7 +192,7 @@ em português para traduzir depois. Vale para:
 | API (app-api e adm-api) | rotas e parâmetros (`/api/v1/admin/dividends/payment-date-survey`, `fnet=all`), chaves do JSON de resposta (`task`, `result`) |
 | Java (produção) | pacotes, classes (inclusive a classe enum e os records), métodos, campos, constantes, variáveis |
 | Testes | classes, bases, helpers e nomes de método (o `@DisplayName` fica em português) |
-| Configuração e ambiente | chaves do `application.yml` (`primevest.dividends.*`, `treasury.*`), variáveis de ambiente (`PRIMEVEST_PASSWORD`), nomes de canal do Redis (`primevest:dividends:on-demand`) |
+| Configuração e ambiente | chaves do `application.yml` (`activest.dividends.*`, `treasury.*`), variáveis de ambiente (`ACTIVEST_PASSWORD`), nomes de canal do Redis (`activest:dividends:on-demand`) |
 | Banco | tabelas, colunas, constraints e índices (`ck_users_cpf_complete`) |
 | Pastas de recurso de teste | `treasury/`, não `tesouro/` |
 

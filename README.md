@@ -1,4 +1,4 @@
-# PrimeVest
+# Activest
 
 > **Disciplina leva à liberdade.**
 
@@ -7,13 +7,13 @@ Sistema completo de gestão de carteira de investimentos da B3, com acompanhamen
 ## 🏗️ Arquitetura
 
 ```
-primevest/
+activest/
 ├── pom.xml              # Backend: agregador Maven (Java 21 + Spring Boot 3.3)
-├── primevest-core/      # Backend: modelo, regras compartilhadas, migrations
-├── primevest-integration/  # Backend: integrações (Binance, B3 Área do Investidor): conectores, credenciais, importação
-├── primevest-adm-api/   # Backend: rotinas de administrador — catálogo (porta 8081)
-├── primevest-app-api/   # Backend: API do usuário, a carteira (porta 8080)
-└── primevest-web/       # Frontend - React + TypeScript + Tailwind
+├── activest-core/       # Backend: modelo, regras compartilhadas, migrations
+├── activest-integration/   # Backend: integrações (Binance, B3 Área do Investidor): conectores, credenciais, importação
+├── activest-adm-api/    # Backend: rotinas de administrador — catálogo (porta 8081)
+├── activest-app-api/    # Backend: API do usuário, a carteira (porta 8080)
+└── activest-web/        # Frontend - React + TypeScript + Tailwind
 ```
 
 ## 🚀 Tecnologias
@@ -51,7 +51,7 @@ primevest/
   oficial do Tesouro** (atualizado todo dia) e **renda fixa privada pela curva da taxa contratada** (% do CDI, CDI +
   spread, prefixado, IPCA + spread), valores brutos — ver `docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`
 - ✅ Venda de renda fixa pela Nova Transação (escolhendo o título) ou pela Carteira, com "Resgatar tudo"
-- ✅ Venda de renda fixa pelo **valor líquido** (15/10/2026): o PrimeVest calcula o bruto, o IR (tabela regressiva) e o
+- ✅ Venda de renda fixa pelo **valor líquido** (15/10/2026): o Activest calcula o bruto, o IR (tabela regressiva) e o
   IOF aporte a aporte, com prévia antes de gravar; no Tesouro, IR e IOF por título; a Carteira mostra o líquido
   estimado de cada título — ver `docs/planos/PLANO_VENDA_RENDA_FIXA.md`
 - ✅ Gráficos de alocação (pizza por tipo e por categoria)
@@ -85,7 +85,7 @@ primevest/
   receber), mais o gráfico de rentabilidade acumulada de 12 meses contra o CDI
 - ✅ Metas de investimento
 - ✅ Notificações (13/10/2026): caixa estilo e-mail pelo sino do cabeçalho — proventos pagos no dia, eventos societários,
-  título vencido (aviso com o líquido estimado e a venda preenchida — desde 15/10/2026 o PrimeVest não liquida
+  título vencido (aviso com o líquido estimado e a venda preenchida — desde 15/10/2026 o Activest não liquida
   sozinho), bonificação sem custo ("Informar custo"), alerta de preço abaixo do ideal,
   "padrão mudou" do Preço Teto, integrações e, para o administrador, rotinas e catálogo (`docs/planos/PLANO_NOTIFICACOES.md`)
 - ✅ Integrações: Binance (chave só de leitura) e B3 — Área do Investidor (CPF + autorização na B3): as negociações
@@ -135,7 +135,7 @@ docker compose up -d --build
 ### Opção 2 — Local, sem Docker
 
 Pré-requisitos: **Java 21**, **Maven 3.9+**, **Node 24**, **PostgreSQL 17** (o
-`NULLS NOT DISTINCT` usado na carteira exige 15+) com o banco `db_primevest`
+`NULLS NOT DISTINCT` usado na carteira exige 15+) com o banco `db_activest`
 criado, e Redis opcional para cache de cotações.
 
 ```bash
@@ -147,10 +147,10 @@ export SIGNUP_ENABLED=true                   # liga o "Criar conta"
 export MAIL_HOST=localhost MAIL_PORT=1025    # SMTP (ex.: um Mailpit local) para os códigos
 
 # Backend — porta 8080, da raiz
-mvn -pl primevest-app-api -am -Drun.module=primevest-app-api spring-boot:run
+mvn -pl activest-app-api -am -Drun.module=activest-app-api spring-boot:run
 
 # Frontend — porta 5173, proxy /api -> localhost:8080
-cd primevest-web
+cd activest-web
 npm install
 npm run dev
 npm run lint     # ESLint 9; hoje fecha em 0 erro
@@ -172,10 +172,10 @@ Nada depende de pasta fora do projeto (`docs/planos/PLANO_CARGA_INICIAL.md`).
 
 **Antes:**
 
-1. **`.env`** a partir do `.env.example`: `PRIMEVEST_PASSWORD` (senha do administrador semeado,
+1. **`.env`** a partir do `.env.example`: `ACTIVEST_PASSWORD` (senha do administrador semeado,
    `guilhermeunatec@gmail.com`, migration V9 — peça a quem mantém o projeto) e o **token só
    leitura** do bucket R2 (`S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`).
-2. **Pasta `carga/data/`** (fora do git, ~1,4 GB) baixada do bucket `primevest-data` (Cloudflare R2):
+2. **Pasta `carga/data/`** (fora do git, ~1,4 GB) baixada do bucket `activest-data` (Cloudflare R2):
    `cvm/`, `b3/cotahist/`, `b3/proventos/`, `b3/proventos-12m/`, `b3/indices/`, `bcb/`, `fnet/`, `levantamento/`,
    `logos/`, `tesouro/`, `coingecko/` e `binance/` (histórico de cripto). Com ela a
    carga lê quase tudo do disco; sem ela baixa ~2 GB da CVM e da B3, e perde o que as fontes não
@@ -213,14 +213,14 @@ fechamento do COTAHIST. Carteiras e transações são de cada usuário e não fa
 `carga/data/`; `docker compose --profile carga run --rm data push` sobe o que é novo (nunca apaga) e
 regrava os manifests. `data status` compara `carga/data/` com o bucket.
 
-### Pilha de teste (`primevest-teste`)
+### Pilha de teste (`activest-teste`)
 
 Para provar a carga do zero na mesma máquina, sem tocar no ambiente de desenvolvimento: os mesmos serviços, com
 banco, Redis, rede e pasta de dados (`carga/data-teste/`) próprios e rotinas agendadas desligadas. Precisa do
-`.env.teste` (cópia do `.env.example` com as portas do teste e a `PRIMEVEST_PASSWORD`; fora do git).
+`.env.teste` (cópia do `.env.example` com as portas do teste e a `ACTIVEST_PASSWORD`; fora do git).
 
 ```powershell
-function pvt { docker compose -p primevest-teste --env-file .env.teste -f docker-compose.yml -f docker-compose.teste.yml @args }
+function pvt { docker compose -p activest-teste --env-file .env.teste -f docker-compose.yml -f docker-compose.teste.yml @args }
 pvt --profile carga run --rm data pull
 pvt up -d --build
 pvt --profile carga run --rm tools node carga/scripts/admin.mjs bootstrap

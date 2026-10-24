@@ -1,5 +1,10 @@
 # PrimeVest — Plano de Rentabilidade Comparativa e Benchmarks
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > Fase: **implementado** (17/10/2026; criado no mesmo dia, ordem de execução dada após D1–D10). Metodologia em
 > `docs/RENTABILIDADE_METODOLOGIA.md`; desvios do texto original na seção 13 (andamento). Decisões novas deste plano: **D1–D10** (seção 11), respondidas em 17/10/2026 — todas pela
 > recomendação.

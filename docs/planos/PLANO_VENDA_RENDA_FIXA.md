@@ -1,5 +1,10 @@
 # PrimeVest — Plano de Venda de Renda Fixa (lotes, regra de saída, IR e IOF)
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > Fase: **planejamento** (criado em 15/10/2026; D1–D7 respondidas no mesmo dia, todas pela recomendação). Nada
 > implementado. Implementação só com ordem explícita (REGRAS_CLAUDE.md 2.2).
 > Origem: ESCOPO "Venda de Renda Fixa para o Primevest", levantamento de 09–15/10/2026 (seção 9). Mexe na

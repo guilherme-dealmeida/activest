@@ -1,5 +1,10 @@
 # PrimeVest — Plano de Nomes Internos em Inglês
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > Fase: **Encerrado em 22/10/2026** (E1a–E4 implementadas e conferidas pelo Guilherme no mesmo dia). Levantamento completo conferido contra o código em 22/10/2026
 > (seção 3). **Diretriz do Guilherme (22/10/2026, seção 2)**: nomes em inglês, valores de registro como estão — ela
 > substitui as decisões N1–N14 propostas antes. Etapas E1a–E4 (seção 5).

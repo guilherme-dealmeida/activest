@@ -1,4 +1,4 @@
-# PrimeVest — Endpoints administrativos
+# Activest — Endpoints administrativos
 
 > Gerado em 02/10/2026 a partir de `AdminController` (adm-api) · revisado em 03/10/2026 (Markdown, caminhos `carga/`) ·
 > 05/10/2026 ([18] índices de mercado, [19] preço do Tesouro) · 21/10/2026 ([17] situação dos avisos do FNET, no lugar
@@ -13,7 +13,7 @@
 | **Idempotência** | todas as rotinas podem ser rodadas de novo: o que já está gravado é pulado ou regravado com o mesmo valor; o que já está em `carga/data/` não é baixado de novo |
 | **Swagger** | http://localhost:8081/swagger-ui.html |
 
-**Disparo** pelo script do projeto (usa `PRIMEVEST_PASSWORD` do `.env`):
+**Disparo** pelo script do projeto (usa `ACTIVEST_PASSWORD` do `.env`):
 
 ```bash
 node carga/scripts/admin.mjs <rotina>

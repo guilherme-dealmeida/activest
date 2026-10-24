@@ -1,5 +1,10 @@
 # PrimeVest — Plano de Correção dos Proventos (catálogo e carteira)
 
+> **Nota (23/10/2026):** escrito quando o projeto se chamava **PrimeVest**. Nomes de módulo (`primevest-*`), pacote
+> (`com.primevest`), configuração (`primevest.*`, `PRIMEVEST_*`), contêineres e versões de migration (V1–V67) citados aqui
+> são os do repositório `primevest`; no Activest viraram `activest-*`, `com.activest`, `activest.*`/`ACTIVEST_*` e as
+> migrations consolidadas V1–V6 (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`).
+
 > Fase: **concluído** (21/10/2026; execução autorizada no mesmo dia) — andamento na seção 7.
 > Origem: `docs/planos/PLANO_INVESTIGACAO_PROVENTOS_DUPLICADOS.md` (seções 6 e 7), com as decisões D1–D5 tomadas
 > pelo Guilherme em 20–21/10/2026.

@@ -1,4 +1,4 @@
-# PrimeVest — Metodologia da Rentabilidade
+# Activest — Metodologia da Rentabilidade
 
 > Gerado em 17/10/2026 com a implementação do `docs/planos/PLANO_RENTABILIDADE.md` (passo 11 do escopo). Descreve o que
 > o código faz; a conferência independente está em `carga/scripts/conferencia/rentabilidade.mjs`.
@@ -21,7 +21,7 @@
 - **Retirada** (venda): no **fim** do dia — bruto (`total_amount`) ou líquido (`net_amount`; sem ele, o total).
 - **Proventos** (inclusive amortização e restituição de capital): no **pregão ex** — o primeiro dia útil depois da
   data-com, quando a cotação cai (L3). Bruto (`total_amount`) ou líquido de IR retido (`net_amount`). O provento sai da
-  carteira: o PrimeVest não tem conta de caixa, então ele é distribuição, não reinvestimento.
+  carteira: o Activest não tem conta de caixa, então ele é distribuição, não reinvestimento.
 - Corretagem fora (regra do projeto).
 
 ## 3. Fórmulas
