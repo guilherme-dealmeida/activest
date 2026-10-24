@@ -16,7 +16,7 @@ fazê-la de uma vez, sem perder o banco do DEV nem as credenciais cifradas.
 
 ### 2.1 A marca já começou a mudar
 
-- `primevest-web/index.html`: `<title>Activest | Disciplina Gera a Liberdade</title>`.
+- `primevest-web/index.html`: `<title>Activest | Disciplina leva à Liberdade</title>`.
 - `Sidebar.tsx`: logo aberto `activest1.png` / `activest2.png`, com `alt="Activest — Disciplina leva à liberdade"`;
   o logo **recolhido** ainda usa `gv2.png` / `v1.png`.
 - O resto do sistema (tela, e-mails, termos, código, configuração, infraestrutura, documentação) segue PrimeVest.
@@ -276,3 +276,4 @@ imagens novas). No GitHub do `activest`, o branch padrão (`master`) é ajustado
 | 23/10/2026 | Commits na `TRACK-01_novo_nome_activest`: `703b025` (módulos, pacote, configuração e textos) e `7f24e30` (migrations consolidadas). |
 | 23/10/2026 | E7 concluída: 1ª rodada do `bootstrap` com a etapa de proventos recusada porque a DIVIDENDS_SYNC agendada (20:00) rodava junto (PENDENCIAS 35.6); 2ª rodada `SUCCEEDED` em 38 min. Catálogo igual ao do PrimeVest: `assets` 2.626, `asset_stock_events` 1.059, `company_quarters` 19.346, `cvm_documents` 19.351, `share_counts` 18.778, `treasury_offers` 128, emissoras de RF 6.922; diferenças só as esperadas — `asset_cash_events` 54.952 (+14), `issuers` 1.213 (+15), `market_index_values` +4 (dado novo das fontes), `asset_price_history` −394 e `fii_monthly` −171 (fechamentos da carteira e fundos fora do catálogo que só o DEV tinha), dados de usuário zerados. Download do Tesouro aceito com o `User-Agent` Activest. |
 | 23/10/2026 | E8: `Claude.md` (revisão, "Flyway — V1 a V6", "Renomeação para Activest" em Pontos de Atenção, Git), `README.md`, `docs/*.md`, `REGRAS_CLAUDE.md` (6.1), `PENDENCIAS.md` (seção 35), nota nos 26 planos anteriores. `git grep -i primevest` fora dos planos: só as referências intencionais (origem nas migrations e no `consolidate.mjs`, `PLANO_PRIMEVEST_TESTE.md`, `primevest-backups`, repositório e pilha antigos no `Claude.md`/`PENDENCIAS.md`, a saída de conferência de 10/10 em `docs/preco-teto`). |
+| 23/10/2026 | Conferência do Guilherme: login Google ok, todos os menus sem quebra, título da página corrigido por ele. Foto do Google não aparece: regra do cadastro (Google preenche a foto só na criação da conta; PENDENCIAS 35.8), não efeito da renomeação. D20 (Binance) vai para escopo próprio com os ETFs americanos (35.7). Tokens do R2: pendência 35.1. Nada vai para a `master`: fluxo develop → uat (bateria de testes, escopo futuro) → master por release, registrado em `REGRAS_CLAUDE.md` 3.3. Avisos do Tesouro na caixa de notificações: os mesmos do PrimeVest (mesmos 4 títulos e fonte sem dado novo desde 15/10). |

@@ -114,6 +114,10 @@ Exceção: comandos só de leitura para diagnóstico são permitidos.
 longo do trabalho. A única exceção é a etapa 7 do POR ESCOPO (2.7), em que ele confere as alterações finais e sugere a
 mensagem de commit.
 
+**3.3** (23/10/2026) **Fluxo das branches.** O trabalho do dia a dia vai para a `develop` (branches `TRACK_01-*` por
+escopo, com pull request). A `uat` recebe o que vai ser testado, com uma bateria de testes própria (escopo futuro); só
+depois de aprovado na `uat` o código vai para a `master`, por release. Nada vai direto para a `master`.
+
 ## 4. Validação — Testing e Review
 
 **4.1** Toda implementação passa pela validação feita pelo Claude na etapa 5 (Testing): compilar, rodar os testes e o

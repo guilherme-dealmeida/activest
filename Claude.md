@@ -2084,6 +2084,8 @@ colado no chat.
   do `primevest` — commits, branches e merges — veio junto. Pull requests e issues anteriores ficam no repositório
   antigo, https://github.com/guilherme-dealmeida/primevest)
 - **Branches**: master, uat, develop e as `TRACK_01-*` de cada escopo
+- **Fluxo** (23/10/2026, `docs/REGRAS_CLAUDE.md` 3.3): escopo em `TRACK_01-*` → `develop` por pull request → `uat`
+  com a bateria de testes de aceitação (escopo futuro) → `master` só por release, depois de aprovado na `uat`
 - **Git é do usuário** (19/09/2026): o assistente **não executa** comando de
   git — nem commit, nem branch, nem push — e **não comenta** o que está ou não
   comitado ao longo do trabalho. O usuário cuida disso por fora.

@@ -1318,9 +1318,9 @@ fundo (E) e historico longo da B3 vazio para nome de pregao com barra (G, era o 
 
 ## 35. RENOMEACAO PARA ACTIVEST (docs/planos/PLANO_RENOMEACAO_ACTIVEST.md, 23/10/2026)
 
-**35.1** Token do R2 da aplicacao com escrita: o `R2_TOKEN_PRIMEVEST` (o do `.env` e do `rclone`) ganhou escrita no
-`activest-data` para a copia do bucket. Num ambiente de producao, a aplicacao deve usar um token so leitura (o
-`data push` continua com o de escrita). Renomear o token no painel da Cloudflare e opcional.
+**35.1** Reformulacao dos tokens do R2 (pendencia confirmada pelo Guilherme, 23/10/2026): o `R2_TOKEN_PRIMEVEST` (o
+do `.env` e do `rclone`) ganhou escrita no `activest-data` para a copia do bucket. Separar um token so leitura para a
+aplicacao e um de escrita para o `data push`, com nomes do Activest.
 
 **35.2** Residuos do PrimeVest, guardados como backup e apagados so por ordem do Guilherme: bucket `primevest-data`,
 volume `primevest_pgdata` (e `primevest_maven-repo`), contêineres parados da pilha `primevest`, pasta
@@ -1340,6 +1340,15 @@ tabela no `V1__schema.sql` faz a ponte; trocar as citacoes so se um escopo passa
 junto com o `bootstrap`, e a etapa de proventos do `bootstrap` falhou com "nao rodou (outra execucao em andamento)";
 rodar o `bootstrap` de novo depois completou. Comportamento que ja existia (nao veio da renomeacao). Avaliar: o
 `bootstrap` esperar a outra rodada, ou o `carga/scripts/README.md` avisar para conferir a tela de Tarefas antes.
+
+**35.7** Integracao Binance no Activest: a conexao do PrimeVest nao veio para o banco novo. Recadastrar a chave e
+provar a integracao fica para um escopo proprio, junto com o teste dos ETFs americanos comprados pela Binance
+(escopo "ETFs americanos", aberto em 13/10/2026).
+
+**35.8** Foto do Google no usuario semeado: o login Google numa conta que ja existe so vincula o `google_id` — nome e
+foto vem do Google so na criacao da conta (decisao do cadastro de usuario, 05/10/2026). O administrador do V6 nasce
+sem foto; no PrimeVest a `avatar_url` tinha ficado de uma versao anterior a essa regra. Hoje: enviar a foto em
+Configuracoes, ou abrir escopo para "preencher a foto do Google quando a conta nao tem nenhuma".
 
 ## ORDEM SUGERIDA
 
