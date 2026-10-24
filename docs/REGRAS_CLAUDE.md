@@ -4,7 +4,7 @@
 > carga em `carga/`), em 09/10/2026 (seção 8, banco de dados) e em 10/10/2026 (5.3: o Claude executa downloads e
 > esperas longas; a antiga 5.7 deixou de ser necessária), em 12/10/2026 (2.6: preço atual × fechamento) e em
 > 22/10/2026 (seção 9, nomes em inglês) e em 23/10/2026 (seções 1 e 2: os dois tipos de trabalho, POR ESCOPO com as
-> 7 etapas e POR DÚVIDAS; 3.2 e seção 4 ajustadas às etapas).
+> 7 etapas e POR DÚVIDAS; 3.2 e seção 4 ajustadas às etapas) e em 24/10/2026 (3.4, branches protegidas).
 >
 > **Escopo:** só a **relação de trabalho**: como pedimos, executamos, validamos e documentamos. Regras de negócio do
 > sistema não entram aqui; elas ficam no `Claude.md` e nos planos.
@@ -117,6 +117,12 @@ mensagem de commit.
 **3.3** (23/10/2026) **Fluxo das branches.** O trabalho do dia a dia vai para a `develop` (branches `TRACK_01-*` por
 escopo, com pull request). A `uat` recebe o que vai ser testado, com uma bateria de testes própria (escopo futuro); só
 depois de aprovado na `uat` o código vai para a `master`, por release. Nada vai direto para a `master`.
+
+**3.4** (24/10/2026) **Branches protegidas no GitHub.** O ruleset "Proteção da branch principal" do repositório
+`activest` cobre `develop`, `uat` e `master`: nenhuma das três aceita push direto, só merge por pull request. Origem:
+em 24/10/2026 a `develop` local foi renomeada por engano e os dois commits do escopo "Alteração da tela de Ativos"
+(`9039adf`, `7cd09ba`) entraram direto na `develop`, sem PR — ficaram assim, por decisão do Guilherme. O trabalho de
+cada escopo nasce numa branch `TRACK_01-*` criada a partir da `develop`.
 
 ## 4. Validação — Testing e Review
 
