@@ -68,15 +68,38 @@ public final class FinancialMetricRules {
         }
         groups.forEach((g, accounts) -> {
             switch (g.statement()) {
-                case DRE -> income(accounts, g, out);
+                case DRE -> income(accounts, g, layout, out);
                 case BPA -> assets(accounts, g, layout, out);
                 case BPP -> liabilities(accounts, g, layout, out);
-                case DFC_MI -> cashFlow(accounts, g, out);
-                case DVA -> valueAdded(accounts, g, out);
+                case DFC_MI -> cashFlow(accounts, g, layout, out);
+                case DVA -> valueAdded(accounts, g, layout, out);
                 default -> { }
             }
         });
-        return out;
+        return withoutBiologicalDepletion(out);
+    }
+
+    /**
+     * D22 (docs/planos/PLANO_TELA_ATIVOS.md, 24/10/2026): a D&A do EBITDA e a da DVA menos a exaustao dos ativos
+     * biologicos que a DFC traz em linha propria, no mesmo periodo. Klabin 2025: 4.990.437 - 2.697.982 = 2.292.455 mil
+     * (= a "depreciacao e amortizacao" da DFC, e o EBITDA bate com o Investidor10). Sem a linha, a DVA fica como esta.
+     */
+    private static List<Value> withoutBiologicalDepletion(List<Value> out) {
+        List<Value> result = new ArrayList<>(out.size());
+        for (Value v : out) {
+            if (v.metric() == FinancialMetric.DEPRECIACAO_AMORTIZACAO) {
+                BigDecimal depletion = out.stream()
+                        .filter(x -> x.metric() == FinancialMetric.EXAUSTAO_BIOLOGICA
+                                && Objects.equals(x.periodStart(), v.periodStart()) && x.periodEnd().equals(v.periodEnd()))
+                        .map(Value::value).findFirst().orElse(null);
+                if (depletion != null) {
+                    result.add(new Value(v.metric(), v.periodStart(), v.periodEnd(), v.value().subtract(depletion)));
+                    continue;
+                }
+            }
+            result.add(v);
+        }
+        return result;
     }
 
     private record GroupKey(Statement statement, LocalDate start, LocalDate end) {
@@ -84,9 +107,18 @@ public final class FinancialMetricRules {
 
     // ------------------------------------------------------------------ DRE
 
-    private static void income(Map<String, Line> a, GroupKey g, List<Value> out) {
+    private static void income(Map<String, Line> a, GroupKey g, StatementLayout layout, List<Value> out) {
         put(out, FinancialMetric.RECEITA, g, amount(a.get("3.01")));
         put(out, FinancialMetric.EBIT, g, amount(level1(a, "3", k -> k.startsWith("resultado antes do resultado financeiro"))));
+        // Contas novas (docs/planos/PLANO_TELA_ATIVOS.md, 2.5), por descricao como o EBIT: o codigo muda no banco
+        // (IR/CSLL e 3.06 la) e o lucro bruto do banco e "de intermediacao financeira" (outra conta, fora).
+        if (layout == StatementLayout.COMERCIAL) {
+            put(out, FinancialMetric.LUCRO_BRUTO, g,
+                    amount(level1(a, "3", k -> k.startsWith("resultado bruto") && !k.contains("intermediacao"))));
+        }
+        put(out, FinancialMetric.LAIR, g, amount(level1(a, "3", k -> k.startsWith("resultado antes dos tributos"))));
+        put(out, FinancialMetric.IR_CSLL, g,
+                amount(level1(a, "3", k -> k.startsWith("imposto de renda e contribuicao social"))));
 
         Line net = last(a, "3", FinancialMetricRules::isNetIncome);
         if (net != null) {
@@ -123,6 +155,7 @@ public final class FinancialMetricRules {
         put(out, FinancialMetric.ATIVO_TOTAL, g, amount(a.get("1")));
         if (layout == StatementLayout.COMERCIAL) {
             put(out, FinancialMetric.CAIXA, g, sum(amount(a.get("1.01.01")), amount(a.get("1.01.02"))));
+            put(out, FinancialMetric.ATIVO_CIRCULANTE, g, amount(byCode(a, "1.01", "ativo circulante")));
         }
     }
 
@@ -134,6 +167,7 @@ public final class FinancialMetricRules {
                     amount(child(a, equity.code(), k -> k.contains("nao controlador"))));
         }
         if (layout == StatementLayout.COMERCIAL) {
+            put(out, FinancialMetric.PASSIVO_CIRCULANTE, g, amount(byCode(a, "2.01", "passivo circulante")));
             Line shortTerm = a.get("2.01.04");
             Line longTerm = a.get("2.02.01");
             put(out, FinancialMetric.DIVIDA_BRUTA, g, sum(
@@ -144,9 +178,30 @@ public final class FinancialMetricRules {
 
     // ------------------------------------------------------------------ DFC
 
-    private static void cashFlow(Map<String, Line> a, GroupKey g, List<Value> out) {
+    private static void cashFlow(Map<String, Line> a, GroupKey g, StatementLayout layout, List<Value> out) {
         put(out, FinancialMetric.FCO, g, amount(a.get("6.01")));
         put(out, FinancialMetric.DIVIDENDOS_PAGOS, g, dividendsPaid(a));
+        if (layout == StatementLayout.COMERCIAL) {
+            put(out, FinancialMetric.EXAUSTAO_BIOLOGICA, g, biologicalDepletion(a));
+        }
+    }
+
+    /**
+     * Ajustes do FCO (6.01.01.*) so de exaustao — sem depreciacao nem amortizacao na mesma linha ("Exaustao dos ativos
+     * biologicos" da Klabin; a linha unica "Depreciacao, amortizacao e exaustao" fica, porque nao separa). Somadas;
+     * nulo sem nenhuma.
+     */
+    static BigDecimal biologicalDepletion(Map<String, Line> a) {
+        BigDecimal total = null;
+        for (Line l : a.values()) {
+            String k = l.key();
+            if (l.code().startsWith("6.01.01.") && l.depth() == 3 && k.contains("exaust")
+                    && !k.contains("deprec") && !k.contains("amortiz")) {
+                BigDecimal v = amount(l);
+                total = total == null ? v : total.add(v);
+            }
+        }
+        return total;
     }
 
     /**
@@ -184,7 +239,15 @@ public final class FinancialMetricRules {
 
     // ------------------------------------------------------------------ DVA
 
-    private static void valueAdded(Map<String, Line> a, GroupKey g, List<Value> out) {
+    private static void valueAdded(Map<String, Line> a, GroupKey g, StatementLayout layout, List<Value> out) {
+        if (layout == StatementLayout.COMERCIAL) {
+            // DVA 7.04.01 "Depreciacao, Amortizacao e Exaustao", filha de "Retencoes"; a conta vem negativa (retencao)
+            // e o valor gravado e a despesa, positiva (base do EBITDA — docs/planos/PLANO_TELA_ATIVOS.md, 2.5)
+            Line retentions = level1(a, "7", k -> k.startsWith("retencoes"));
+            Line da = retentions == null ? null : child(a, retentions.code(), k -> k.startsWith("depreciacao"));
+            BigDecimal v = amount(da);
+            put(out, FinancialMetric.DEPRECIACAO_AMORTIZACAO, g, v == null ? null : v.negate());
+        }
         Line own = a.values().stream()
                 .filter(l -> l.depth() == 2 && l.key().startsWith("remuneracao de capitais proprios"))
                 .findFirst().orElse(null);
@@ -196,6 +259,12 @@ public final class FinancialMetricRules {
     }
 
     // ------------------------------------------------------------------ arvore
+
+    /** A conta do codigo, se a descricao confere (codigo estavel no layout comercial, descricao como trava). */
+    private static Line byCode(Map<String, Line> a, String code, String keyPrefix) {
+        Line l = a.get(code);
+        return l != null && l.key().startsWith(keyPrefix) ? l : null;
+    }
 
     /** Conta de 1o nivel abaixo de {@code root} ("3.05", "2.03") cuja descricao atende. A primeira. */
     private static Line level1(Map<String, Line> a, String root, java.util.function.Predicate<String> test) {

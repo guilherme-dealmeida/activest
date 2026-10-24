@@ -25,11 +25,19 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Flyway roda ate a V6 (migrations consolidadas) e o schema valida contra as entidades")
+    @DisplayName("Flyway roda ate a V7 (V1-V6 consolidadas + contas novas da tela de Ativos) e o schema valida contra as entidades")
     void appliedMigrations() {
         Number version = (Number) em.createNativeQuery(
             "SELECT MAX(CAST(version AS NUMERIC)) FROM flyway_schema_history WHERE success").getSingleResult();
-        assertThat(version.intValue()).isEqualTo(6);
+        assertThat(version.intValue()).isEqualTo(7);
+
+        // V7 (docs/planos/PLANO_TELA_ATIVOS.md, 2.5): 10 colunas novas em company_quarters, nulas
+        Number newColumns = (Number) em.createNativeQuery("""
+            SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'company_quarters' AND is_nullable = 'YES'
+              AND column_name IN ('gross_profit_q', 'gross_profit_ttm', 'depreciation_amortization_q',
+                'depreciation_amortization_ttm', 'pretax_income_q', 'pretax_income_ttm', 'income_tax_q',
+                'income_tax_ttm', 'current_assets', 'current_liabilities')""").getSingleResult();
+        assertThat(newColumns.intValue()).isEqualTo(10);
 
         // Constraints com nome em ingles (PLANO_NOMES_EM_INGLES, E2), mantidas na consolidacao (PLANO_RENOMEACAO_ACTIVEST, 4.2)
         Number constraint = (Number) em.createNativeQuery(

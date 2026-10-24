@@ -1179,7 +1179,13 @@ Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
 **30.2** RESOLVIDO (17/10/2026): toda rentabilidade do Dashboard em base bruta (cards, Top 5 e grafico); a tela
  Rentabilidade abre em bruto e 12M.
 
-## 31. NOVOS INDICADORES DE ACOES (escopo futuro, aberto em 17/10/2026)
+## 31. NOVOS INDICADORES DE ACOES — RESOLVIDO em 24/10/2026 (docs/planos/PLANO_TELA_ATIVOS.md)
+
+Implementado no escopo "Alteracao da tela de Ativos": 31.1 (PL no card "Dados da empresa", D1 — sem cartao de
+indicador), 31.2 e 31.3 (23 indicadores com historico desde 2010, sparkline, modal e janelas 3A | 5A | MAX; contas
+novas da CVM e a V7) e 31.4 (bancos e seguradoras sem os 15 indicadores so do comercial, D17). 31.5 encerrada sem
+pendencia (D21): as colunas de hoje da listagem continuam as principais; acrescentar coluna e outro escopo.
+Texto original abaixo.
 
 Saiu do levantamento da listagem de emissoras (docs/planos/PLANO_LISTAGEM_EMISSORAS.md, A3). Escopo proprio, ainda
 sem plano. Todos os indicadores abaixo ganham historico desde 2010 e o modal com sparkline, como os de hoje.
@@ -1221,7 +1227,8 @@ da emissora mostra o mesmo). Diagnostico de 17/10/2026:
   b) AGXY3 (P/L ~0,01): ultimo balanco de 30/09/2025 (marca de dado antigo) com lucro de 12 meses de R$ 1,2 bi para
      16,7 mi acoes — ganho nao recorrente de empresa em recuperacao judicial; o numero e o do balanco.
 
-32.3 Os indicadores novos e o PL na pagina da emissora estao na secao 31.
+32.3 Os indicadores novos e o PL na pagina da emissora estao na secao 31 (resolvida em 24/10/2026). O 32.2 a (TIMS3
+com o DFP 2025 zerado) continua no Activest depois da recarga do zero e os indicadores novos herdam o erro.
 
 ## 33. CORRECAO DOS PROVENTOS (docs/planos/PLANO_CORRECAO_PROVENTOS.md, 21/10/2026)
 
@@ -1333,7 +1340,7 @@ dominio `activest.com.br` (SPF/DKIM) para o remetente `contato@activest.com.br` 
 **35.4** Comentarios do codigo citam versoes de migration do PrimeVest ("V20", "V57"...). A linha "Origem" de cada
 tabela no `V1__schema.sql` faz a ponte; trocar as citacoes so se um escopo passar pelo arquivo.
 
-**35.5** Lint do front: aviso `'InfoTooltip' is defined but never used` em `TasksPage.tsx` (ja existia no PrimeVest;
+**35.5** RESOLVIDO em 24/10/2026 (import removido a pedido do Guilherme; `tsc -b` e lint sem aviso). Lint do front: aviso `'InfoTooltip' is defined but never used` em `TasksPage.tsx` (ja existia no PrimeVest;
 0 erros).
 
 **35.6** Carga inicial x tarefa agendada: na subida do Activest (23/10/2026, 20:00) a DIVIDENDS_SYNC agendada comecou
@@ -1349,6 +1356,22 @@ provar a integracao fica para um escopo proprio, junto com o teste dos ETFs amer
 foto vem do Google so na criacao da conta (decisao do cadastro de usuario, 05/10/2026). O administrador do V6 nasce
 sem foto; no PrimeVest a `avatar_url` tinha ficado de uma versao anterior a essa regra. Hoje: enviar a foto em
 Configuracoes, ou abrir escopo para "preencher a foto do Google quando a conta nao tem nenhuma".
+
+## 36. TELA DE ATIVOS (docs/planos/PLANO_TELA_ATIVOS.md, 24/10/2026)
+
+**36.1** Free float e tag along do quadro do Investidor10 ficaram fora do card "Dados da empresa" (D2): nao estao na
+base. Free float pede importar a distribuicao do capital do FRE (ja baixado em `carga/data/cvm/fre`); tag along so
+seria presumido pelo segmento de listagem. Escopo proprio, se for querer.
+
+**36.2** EBITDA da Klabin contra o Investidor10 (D22): com a exaustao biologica fora, atual, 2020, 2022, 2023 e 2024
+batem; 2021 (39,50% x 38,06%) e 2025 (32,72% x 35,16%) nao — os arquivos da CVM nao explicam (provavel uso de numeros
+reapresentados pelo Investidor10). A conferir se aparecer em outra companhia.
+
+**36.3** O comentario da `V7__company_quarters_new_accounts.sql` descreve a D&A como a 7.04.01 da DVA; desde a D22 a
+coluna e a DVA menos a exaustao biologica. Migration aplicada nao se edita: fica registrado aqui e no `Claude.md`.
+
+**36.4** Valor detalhado dos Demonstrativos (D23) segue em reais com a nota "a CVM publica em R$ mil". Se um dia
+incomodar, a alternativa e gravar a escala do documento (`ESCALA_MOEDA`) e mostrar em R$ mil.
 
 ## ORDEM SUGERIDA
 

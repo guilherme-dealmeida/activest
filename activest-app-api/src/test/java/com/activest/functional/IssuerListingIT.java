@@ -93,14 +93,22 @@ class IssuerListingIT extends FunctionalBase {
     }
 
     @Test
-    @DisplayName("Os valores da lista são os da página da emissora")
+    @DisplayName("Os valores da lista são os da página da emissora; a linha leva só os indicadores das colunas (T11)")
+    @SuppressWarnings("unchecked")
     void sameValuesAsIssuer() {
         Map<String, Map<String, Object>> shares = byTicker(listing("COMPANY"));
         Map<String, Map<String, Object>> fiis = byTicker(listing("FII"));
+        List<String> stockColumns = List.of("LPA", "VPA", "PL", "PVP", "ROE", "PAYOUT", "DY");
+        List<String> fiiColumns = List.of("PVP", "DY", "VP_COTA", "COTISTAS", "IMOVEIS", "PAPEL", "ALAVANCAGEM");
         for (String t : TICKERS) {
-            Map<String, Object> row = t.endsWith("11") ? fiis.get(t) : shares.get(t);
+            boolean fii = t.endsWith("11");
+            Map<String, Object> row = fii ? fiis.get(t) : shares.get(t);
             Map<String, Object> page = current(t);
-            assertThat(row.get("indicators")).as(t).isEqualTo(page.get("indicators"));
+            List<Map<String, Object>> listed = (List<Map<String, Object>>) row.get("indicators");
+            List<String> columns = fii ? fiiColumns : stockColumns;
+            assertThat(listed).as(t).extracting(i -> i.get("indicator")).containsExactlyElementsOf(columns);
+            assertThat(listed).as(t).isEqualTo(((List<Map<String, Object>>) page.get("indicators")).stream()
+                    .filter(i -> columns.contains(i.get("indicator"))).toList());
             assertThat(row.get("price")).as(t).isEqualTo(page.get("price"));
             assertThat(row.get("basePeriodEnd")).as(t).isEqualTo(page.get("basePeriodEnd"));
         }

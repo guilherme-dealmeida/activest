@@ -202,9 +202,12 @@ public final class CvmStatements {
             return false;
         }
         return switch (s) {
-            case BPA -> code.equals("1") || code.equals("1.01.01") || code.equals("1.01.02");
+            // 1.01: ativo circulante (docs/planos/PLANO_TELA_ATIVOS.md, 2.5)
+            case BPA -> code.equals("1") || code.equals("1.01") || code.equals("1.01.01") || code.equals("1.01.02");
             // 6.01: FCO; 6.03: financiamento, onde estao os dividendos/JCP pagos (base do payout desde 10/10/2026)
-            case DFC_MI, DFC_MD -> code.equals("6.01") || code.equals("6.03") || code.startsWith("6.03.");
+            // 6.01.01.*: ajustes do FCO, onde fica a exaustao dos ativos biologicos (D22 da tela de Ativos)
+            case DFC_MI, DFC_MD -> code.equals("6.01") || code.startsWith("6.01.01.") || code.equals("6.03")
+                    || code.startsWith("6.03.");
             default -> true;
         };
     }

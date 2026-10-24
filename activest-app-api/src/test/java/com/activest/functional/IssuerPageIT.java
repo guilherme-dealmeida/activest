@@ -85,8 +85,10 @@ class IssuerPageIT extends FunctionalBase {
     @SuppressWarnings("unchecked")
     void historyInBatch() {
         List<Map<String, Object>> all = get(user, "/api/v1/assets/PETR4/indicators/history", List.class).getBody();
-        assertThat(all).extracting(h -> h.get("indicator"))
-                .containsExactly("LPA", "VPA", "PL", "PVP", "ROE", "PAYOUT", "DY");
+        // os 7 da F9 e os 23 da tela de Ativos (docs/planos/PLANO_TELA_ATIVOS.md, 2.4), na ordem do enum
+        assertThat(all).extracting(h -> h.get("indicator")).hasSize(30)
+                .startsWith("LPA", "VPA", "PL", "PVP", "ROE", "PAYOUT", "DY", "PSR")
+                .endsWith("CAGR_RECEITAS_5A", "CAGR_LUCROS_5A");
         Map<String, Object> lpa = get(user, "/api/v1/assets/PETR4/indicators/LPA/history", Map.class).getBody();
         assertThat(all.get(0)).isEqualTo(lpa);
         List<Map<String, Object>> fii = get(user, "/api/v1/assets/HGLG11/indicators/history", List.class).getBody();

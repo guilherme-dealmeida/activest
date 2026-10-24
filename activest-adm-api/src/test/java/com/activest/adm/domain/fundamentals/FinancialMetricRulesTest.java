@@ -96,6 +96,65 @@ class FinancialMetricRulesTest {
     }
 
     @Test
+    @DisplayName("Petrobras DFP 2025: contas novas da tela de Ativos (lucro bruto, D&A, LAIR, IR/CSLL, circulantes)")
+    void petrobrasNewAccounts() {
+        var v = metrics(doc(dfp, "33000167000101", DEC_2025));
+        assertThat(value(v, FinancialMetric.LUCRO_BRUTO, DEC_2025)).isEqualByComparingTo(mi(236_998));
+        // DVA 7.04.01 vem negativa (retencao); gravada como despesa positiva
+        assertThat(value(v, FinancialMetric.DEPRECIACAO_AMORTIZACAO, DEC_2025)).isEqualByComparingTo(mi(84_388));
+        assertThat(value(v, FinancialMetric.LAIR, DEC_2025)).isEqualByComparingTo(mi(150_599));
+        // IR/CSLL como informado: despesa negativa
+        assertThat(value(v, FinancialMetric.IR_CSLL, DEC_2025)).isEqualByComparingTo(mi(-39_994));
+        assertThat(value(v, FinancialMetric.ATIVO_CIRCULANTE, DEC_2025)).isEqualByComparingTo(mi(140_026));
+        assertThat(value(v, FinancialMetric.PASSIVO_CIRCULANTE, DEC_2025)).isEqualByComparingTo(mi(198_368));
+        assertThat(v).filteredOn(x -> x.metric() == FinancialMetric.ATIVO_CIRCULANTE).allMatch(x -> x.periodStart() == null);
+    }
+
+    @Test
+    @DisplayName("Klabin DFP 2025 (D22): D&A do EBITDA = DVA menos a exaustao dos ativos biologicos da DFC")
+    void klabinBiologicalDepletion() {
+        var v = metrics(doc(dfp, "89637490000145", DEC_2025));
+        assertThat(value(v, FinancialMetric.EXAUSTAO_BIOLOGICA, DEC_2025)).isEqualByComparingTo("2697982000");
+        // 4.990.437 (DVA 7.04.01) - 2.697.982 = 2.292.455 mil, a "depreciacao e amortizacao" da DFC
+        assertThat(value(v, FinancialMetric.DEPRECIACAO_AMORTIZACAO, DEC_2025)).isEqualByComparingTo("2292455000");
+        // Petrobras nao separa a exaustao ("depreciacao, deplecao e amortizacao"): a DVA fica como esta
+        var petr = metrics(doc(dfp, "33000167000101", DEC_2025));
+        assertThat(value(petr, FinancialMetric.EXAUSTAO_BIOLOGICA, DEC_2025)).isNull();
+        assertThat(value(petr, FinancialMetric.DEPRECIACAO_AMORTIZACAO, DEC_2025)).isEqualByComparingTo(mi(84_388));
+    }
+
+    @Test
+    @DisplayName("Banco e seguradora: LAIR e IR/CSLL pela descricao (3.05/3.06 no Itau); sem lucro bruto, D&A e circulantes")
+    void newAccountsBankAndInsurer() {
+        var itau = metrics(doc(dfp, "60872504000123", DEC_2025));
+        assertThat(value(itau, FinancialMetric.LAIR, DEC_2025)).isEqualByComparingTo(mi(50_250));
+        assertThat(value(itau, FinancialMetric.IR_CSLL, DEC_2025)).isEqualByComparingTo(mi(-4_401));
+        // "Resultado Bruto Intermediacao Financeira" nao e lucro bruto
+        assertThat(value(itau, FinancialMetric.LUCRO_BRUTO, DEC_2025)).isNull();
+        assertThat(value(itau, FinancialMetric.DEPRECIACAO_AMORTIZACAO, DEC_2025)).isNull();
+        assertThat(value(itau, FinancialMetric.ATIVO_CIRCULANTE, DEC_2025)).isNull();
+        assertThat(value(itau, FinancialMetric.PASSIVO_CIRCULANTE, DEC_2025)).isNull();
+
+        var irb = metrics(doc(dfp, "33376989000191", DEC_2025));
+        assertThat(value(irb, FinancialMetric.LAIR, DEC_2025)).isNotNull();
+        assertThat(value(irb, FinancialMetric.LUCRO_BRUTO, DEC_2025)).isNull();
+        assertThat(value(irb, FinancialMetric.ATIVO_CIRCULANTE, DEC_2025)).isNull();
+    }
+
+    @Test
+    @DisplayName("ITR 2T26 da Petrobras: D&A so no acumulado (DVA); lucro bruto no trimestre e no acumulado")
+    void newAccountsItr() {
+        LocalDate jun = LocalDate.of(2026, 6, 30);
+        var v = metrics(doc(itr, "33000167000101", jun));
+        assertThat(v).filteredOn(x -> x.metric() == FinancialMetric.DEPRECIACAO_AMORTIZACAO && x.periodEnd().equals(jun))
+                .extracting(FinancialMetricRules.Value::periodStart).containsExactly(LocalDate.of(2026, 1, 1));
+        assertThat(value(v, FinancialMetric.DEPRECIACAO_AMORTIZACAO, jun)).isEqualByComparingTo(mi(43_117));
+        assertThat(v).filteredOn(x -> x.metric() == FinancialMetric.LUCRO_BRUTO && x.periodEnd().equals(jun))
+                .extracting(FinancialMetricRules.Value::periodStart)
+                .containsExactlyInAnyOrder(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 4, 1));
+    }
+
+    @Test
     @DisplayName("Bancos: lucro e PL achados pela descricao (Itau 3.09/2.08, BB 3.11/2.07); sem caixa e divida")
     void bancos() {
         var itau = metrics(doc(dfp, "60872504000123", DEC_2025));

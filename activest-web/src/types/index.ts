@@ -1021,7 +1021,18 @@ export type IssuerKind = 'COMPANY' | 'FII';
 
 export type IndicatorCode =
   | 'LPA' | 'VPA' | 'PL' | 'PVP' | 'ROE' | 'PAYOUT' | 'DY'
-  | 'VP_COTA' | 'COTISTAS' | 'IMOVEIS' | 'PAPEL' | 'ALAVANCAGEM';
+  | 'VP_COTA' | 'COTISTAS' | 'IMOVEIS' | 'PAPEL' | 'ALAVANCAGEM'
+  // tela de Ativos (docs/planos/PLANO_TELA_ATIVOS.md, 2.4)
+  | 'PSR' | 'P_EBIT' | 'P_EBITDA' | 'EV_EBIT' | 'EV_EBITDA' | 'P_ATIVO' | 'P_CAP_GIRO' | 'P_ATIVO_CIRC_LIQ'
+  | 'DIV_LIQ_EBIT' | 'DIV_LIQ_EBITDA' | 'DIV_BRUTA_PATRIMONIO' | 'PATRIMONIO_ATIVOS' | 'PASSIVOS_ATIVOS'
+  | 'LIQUIDEZ_CORRENTE' | 'MARGEM_BRUTA' | 'MARGEM_EBITDA' | 'MARGEM_EBIT' | 'MARGEM_LIQUIDA'
+  | 'ROA' | 'ROIC' | 'GIRO_ATIVOS' | 'CAGR_RECEITAS_5A' | 'CAGR_LUCROS_5A';
+
+/** Janela dos indicadores (D14): os N últimos exercícios fechados + Atual; MAX = toda a série. */
+export type IndicatorWindow = '3A' | '5A' | 'MAX';
+
+/** Layout do balanço do emissor (ação); banco e seguradora não têm os indicadores só do comercial (D17). */
+export type StatementLayout = 'COMERCIAL' | 'BANCO' | 'SEGURADORA';
 
 /** PERCENT em pontos (37.44 = 37,44%); BRL e RATIO numéricos; COUNT inteiro. */
 export type IndicatorUnit = 'PERCENT' | 'RATIO' | 'BRL' | 'COUNT';
@@ -1044,6 +1055,8 @@ export interface AssetIndicators {
   price: number | null;
   /** Data do balanço (ação) ou fim do mês do informe (FII) usado no Atual. */
   basePeriodEnd: string | null;
+  /** Nulo no FII. Em banco e seguradora os indicadores só do comercial não vêm. */
+  statementLayout: StatementLayout | null;
   indicators: IndicatorItem[];
 }
 
@@ -1092,9 +1105,48 @@ export interface IndicatorHistory {
   unit: IndicatorUnit;
   period: IndicatorPeriod;
   current: IndicatorPoint;
-  /** Média dos pontos anuais + Atual (nulos fora, zeros dentro). */
+  /** Média dos pontos anuais + Atual (nulos fora, zeros dentro) — a de MAX. */
   companyAverage: number | null;
+  /** A mesma média por janela, na ordem 3A, 5A, MAX (docs/planos/PLANO_TELA_ATIVOS.md, D14). */
+  averages: IndicatorWindowAverage[];
   points: IndicatorPoint[];
+}
+
+export interface IndicatorWindowAverage {
+  window: IndicatorWindow;
+  /** Ano do primeiro exercício da janela ("desde 2021"). */
+  fromYear: number | null;
+  value: number | null;
+}
+
+/** GET /assets/{ticker}/company-data — card "Dados da empresa" / "Dados do fundo" (D2 a D7). */
+export interface CompanyData {
+  ticker: string;
+  issuerId: number;
+  kind: IssuerKind;
+  statementLayout: StatementLayout | null;
+  basePeriodEnd: string | null;
+  baseStale: boolean;
+  price: number | null;
+  priceDate: string | null;
+  priceStale: boolean;
+  /** Ação: ON + PN × preço de cada classe; FII: cotas × preço. */
+  marketValue: number | null;
+  /** Classe avaliada pelo preço da outra, ou o motivo do vazio. */
+  marketValueNote: string | null;
+  enterpriseValue: number | null;
+  /** Ação: PL da controladora; FII: PL do informe. */
+  equity: number | null;
+  /** Ação: total de ações (com tesouraria); FII: cotas. */
+  sharesTotal: number | null;
+  totalAssets: number | null;
+  currentAssets: number | null;
+  grossDebt: number | null;
+  netDebt: number | null;
+  cash: number | null;
+  averageDailyLiquidity: number | null;
+  liquiditySessions: number;
+  liquidityMonths: number;
 }
 
 export interface IssuerTicker {
@@ -1151,6 +1203,44 @@ export interface CompanyQuarter {
   grossDebt: number | null;
   sharesTotal: number | null;
   sharesOutstanding: number | null;
+  grossProfitQ?: number | null;
+  grossProfitTtm?: number | null;
+  /** EBIT + depreciação e amortização (sem a exaustão dos ativos biológicos, D22). */
+  ebitdaQ?: number | null;
+  ebitdaTtm?: number | null;
+  currentAssets?: number | null;
+  currentLiabilities?: number | null;
+}
+
+/**
+ * GET /issuers/{id}/years — uma coluna do Anual dos Demonstrativos (D8 a D10): fluxos do exercício (ou acumulados
+ * do ano em andamento, partial) e a posição do balanço da coluna.
+ */
+export interface CompanyYear {
+  /** Ano em que o exercício termina (D9). */
+  fiscalYear: number;
+  periodEnd: string;
+  fiscalYearStart: string | null;
+  partial: boolean;
+  months: number;
+  revenue?: number | null;
+  ebit?: number | null;
+  ebitda?: number | null;
+  grossProfit?: number | null;
+  netIncome?: number | null;
+  netIncomeParent?: number | null;
+  fco?: number | null;
+  dividendsDeclared?: number | null;
+  dividendsPaid?: number | null;
+  equity?: number | null;
+  equityParent?: number | null;
+  totalAssets?: number | null;
+  currentAssets?: number | null;
+  currentLiabilities?: number | null;
+  cash?: number | null;
+  grossDebt?: number | null;
+  sharesTotal?: number | null;
+  sharesOutstanding?: number | null;
 }
 
 /** GET /issuers/{id}/months — taxas em fração do mês (0.0068 = 0,68%). */

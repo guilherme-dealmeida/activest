@@ -14,7 +14,7 @@ export const AuthShell = ({ title, subtitle, children, footer, wide }: Props) =>
   <div className="min-h-screen bg-background flex items-center justify-center p-4">
     <div className={wide ? 'w-full max-w-lg' : 'w-full max-w-md'}>
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-accent">Prime<span className="text-white">Vest</span></h1>
+        <h1 className="text-3xl font-bold text-accent">Acti<span className="text-white">vest</span></h1>
         <p className="text-gray-400 mt-2 text-sm italic">Disciplina leva à liberdade</p>
       </div>
       <div className="bg-surface rounded-xl p-8 border border-white/10">

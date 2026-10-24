@@ -1,5 +1,6 @@
 package com.activest.domain.indicator;
 
+import com.activest.domain.indicator.IndicatorRules.Accounts;
 import com.activest.domain.indicator.IndicatorRules.CompanyBasis;
 import com.activest.domain.indicator.IndicatorRules.FundBasis;
 import com.activest.domain.indicator.IndicatorRules.Value;
@@ -61,15 +62,20 @@ public class IndicatorService {
 
     private final JdbcTemplate jdbc;
     private final Clock clock;
+    /** Janela da liquidez media (D3: serie PN de maior liquidez; D4: liquidez do card), em meses. */
+    private final int liquidityMonths;
 
     @org.springframework.beans.factory.annotation.Autowired
-    public IndicatorService(JdbcTemplate jdbc) {
-        this(jdbc, Clock.system(ZONE));
+    public IndicatorService(JdbcTemplate jdbc,
+                            @org.springframework.beans.factory.annotation.Value(
+                                    "${activest.issuer-page.liquidity-months:2}") int liquidityMonths) {
+        this(jdbc, Clock.system(ZONE), liquidityMonths);
     }
 
-    IndicatorService(JdbcTemplate jdbc, Clock clock) {
+    IndicatorService(JdbcTemplate jdbc, Clock clock, int liquidityMonths) {
         this.jdbc = jdbc;
         this.clock = clock;
+        this.liquidityMonths = liquidityMonths;
     }
 
     // ------------------------------------------------------------------ entradas
@@ -78,7 +84,7 @@ public class IndicatorService {
         Context ctx = context(ticker);
         boolean company = ctx.asset.kind == IssuerKind.COMPANY;
         return currentOf(ctx, company ? quarters(ctx.asset.issuerId) : List.of(),
-                company ? List.of() : months(ctx.asset.issuerId)).indicators();
+                company ? List.of() : months(ctx.asset.issuerId), false).indicators();
     }
 
     /**
@@ -93,7 +99,12 @@ public class IndicatorService {
                                   BigDecimal equity) {
     }
 
-    private CurrentSnapshot currentOf(Context ctx, List<QuarterRow> quarters, List<MonthRow> months) {
+    /**
+     * @param listedOnly so os indicadores das colunas da listagem (T11, docs/planos/PLANO_TELA_ATIVOS.md): a linha
+     *                   da listagem nao leva os demais
+     */
+    private CurrentSnapshot currentOf(Context ctx, List<QuarterRow> quarters, List<MonthRow> months,
+                                      boolean listedOnly) {
         List<AssetIndicatorsDTO.Item> items = new ArrayList<>();
         LocalDate base;
         BigDecimal equity;
@@ -102,7 +113,7 @@ public class IndicatorService {
             base = cc.basis().periodEnd();
             equity = quarters.isEmpty() ? null : quarters.get(quarters.size() - 1).equityParent;
             for (Indicator i : Indicator.values()) {
-                if (i.appliesTo(IssuerKind.COMPANY)) {
+                if (i.appliesTo(IssuerKind.COMPANY, ctx.asset.statementLayout) && (!listedOnly || i.listed())) {
                     Value v = cc.value(i);
                     items.add(new AssetIndicatorsDTO.Item(i, i.unit(), v.value(), v.note()));
                 }
@@ -112,14 +123,15 @@ public class IndicatorService {
             base = basis.month() == null ? null : basis.month().plusMonths(1).minusDays(1);
             equity = months.isEmpty() ? null : months.get(months.size() - 1).netAssets;
             for (Indicator i : Indicator.values()) {
-                if (i.appliesTo(IssuerKind.FII)) {
+                if (i.appliesTo(IssuerKind.FII) && (!listedOnly || i.listed())) {
                     Value v = IndicatorRules.fund(i, basis);
                     items.add(new AssetIndicatorsDTO.Item(i, i.unit(), v.value(), v.note()));
                 }
             }
         }
         return new CurrentSnapshot(ctx.asset.id, new AssetIndicatorsDTO(ctx.asset.ticker, ctx.asset.issuerId,
-                ctx.asset.kind, ctx.currentPrice, base, items), ctx.currentPriceDate, equity);
+                ctx.asset.kind, ctx.currentPrice, base, ctx.asset.statementLayout, items), ctx.currentPriceDate,
+                equity);
     }
 
     // ------------------------------------------------------------------ listagem (lote)
@@ -135,11 +147,12 @@ public class IndicatorService {
      * <b>o mesmo codigo</b> de {@link #current(String)}: so a origem dos dados muda. Ordem: a do ticker.
      */
     public List<CurrentSnapshot> currentAll(IssuerKind kind) {
-        record Row(long id, String ticker, long issuerId, String shareClass, BigDecimal currentPrice,
+        record Row(long id, String ticker, long issuerId, String shareClass, String layout, BigDecimal currentPrice,
                    LocalDate updatedAt, LocalDate lastDate, BigDecimal lastClose) {
         }
         List<Row> assets = jdbc.query("""
-                SELECT a.id, a.ticker, a.issuer_id, a.share_class, a.current_price, a.price_updated_at,
+                SELECT a.id, a.ticker, a.issuer_id, a.share_class, i.statement_layout, a.current_price,
+                       a.price_updated_at,
                        lc.reference_date AS last_date, lc.close_price AS last_close
                 FROM assets a JOIN issuers i ON i.id = a.issuer_id
                 LEFT JOIN LATERAL (SELECT h.reference_date, h.close_price FROM asset_price_history h
@@ -151,7 +164,8 @@ public class IndicatorService {
                     java.sql.Timestamp at = rs.getTimestamp("price_updated_at");
                     java.sql.Date last = rs.getDate("last_date");
                     return new Row(rs.getLong("id"), rs.getString("ticker"), rs.getLong("issuer_id"),
-                            rs.getString("share_class"), rs.getBigDecimal("current_price"),
+                            rs.getString("share_class"), rs.getString("statement_layout"),
+                            rs.getBigDecimal("current_price"),
                             at == null ? null : at.toLocalDateTime().toLocalDate(),
                             last == null ? null : last.toLocalDate(), rs.getBigDecimal("last_close"));
                 }, kind.name());
@@ -182,9 +196,10 @@ public class IndicatorService {
         String issuers = "SELECT a.issuer_id FROM assets a JOIN issuers i ON i.id = a.issuer_id"
                 + " WHERE a.active AND i.kind = ?";
         if (kind == IssuerKind.COMPANY) {
-            jdbc.query(QUARTERS_SELECT + " WHERE q.issuer_id IN (" + issuers + ") ORDER BY q.issuer_id, q.period_end",
+            // so as colunas dos indicadores da listagem (T11): sem as contas da tela de Ativos nem a quantidade por classe
+            jdbc.query(LISTING_QUARTERS_SELECT + " WHERE q.issuer_id IN (" + issuers + ") ORDER BY q.issuer_id, q.period_end",
                     rs -> {
-                        quarters.computeIfAbsent(rs.getLong("issuer_id"), k -> new ArrayList<>()).add(quarterRow(rs));
+                        quarters.computeIfAbsent(rs.getLong("issuer_id"), k -> new ArrayList<>()).add(listingQuarterRow(rs));
                     }, kind.name());
         } else {
             // so o ultimo informe de cada fundo: e o unico que o "Atual" le
@@ -205,7 +220,7 @@ public class IndicatorService {
                 }
                 // fracionario sem o lote padrao na lista (raro): o caminho de um ticker, que resolve o lote
                 out.add(currentOf(context(a.ticker), quarters.getOrDefault(a.issuerId, List.of()),
-                        months.getOrDefault(a.issuerId, List.of())));
+                        months.getOrDefault(a.issuerId, List.of()), true));
                 continue;
             }
             int unitShares = "UNIT".equals(a.shareClass) ? units.getOrDefault(a.id, 0) : 1;
@@ -218,10 +233,10 @@ public class IndicatorService {
                 price = a.lastClose;
                 priceDate = a.lastClose == null ? null : a.lastDate;
             }
-            Context ctx = new Context(new AssetRow(a.id, a.ticker, a.issuerId, kind, a.shareClass, a.id, unitShares),
-                    price, priceDate, stock.getOrDefault(a.id, List.of()), cash.getOrDefault(a.id, List.of()));
+            Context ctx = new Context(new AssetRow(a.id, a.ticker, a.issuerId, kind, a.shareClass, a.id, unitShares,
+                    a.layout), price, priceDate, stock.getOrDefault(a.id, List.of()), cash.getOrDefault(a.id, List.of()));
             out.add(currentOf(ctx, quarters.getOrDefault(a.issuerId, List.of()),
-                    months.getOrDefault(a.issuerId, List.of())));
+                    months.getOrDefault(a.issuerId, List.of()), true));
         }
         return out;
     }
@@ -231,6 +246,10 @@ public class IndicatorService {
         if (!indicator.appliesTo(ctx.asset.kind)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     indicator + " nao se aplica a " + (ctx.asset.kind == IssuerKind.FII ? "FII" : "acao"));
+        }
+        if (!indicator.appliesTo(ctx.asset.kind, ctx.asset.statementLayout)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    indicator + " nao se aplica a bancos e seguradoras");
         }
         return history(ctx, new Rows(ctx), indicator, period);
     }
@@ -245,7 +264,7 @@ public class IndicatorService {
         Rows rows = new Rows(ctx);
         List<IndicatorHistoryDTO> out = new ArrayList<>();
         for (Indicator i : Indicator.values()) {
-            if (i.appliesTo(ctx.asset.kind)) {
+            if (i.appliesTo(ctx.asset.kind, ctx.asset.statementLayout)) {
                 out.add(history(ctx, rows, i, period));
             }
         }
@@ -282,14 +301,92 @@ public class IndicatorService {
             annual = fundPoints(ctx, months, indicator, Period.YEAR);
             points = period == Period.YEAR ? annual : fundPoints(ctx, months, indicator, Period.QUARTER);
         }
-        List<BigDecimal> forAverage = new ArrayList<>(annual.stream().map(IndicatorPointDTO::value).toList());
-        forAverage.add(current.value());
+        List<IndicatorHistoryDTO.WindowAverage> averages = new ArrayList<>();
+        for (IndicatorWindow w : IndicatorWindow.values()) {
+            averages.add(windowAverage(w, annual, current, indicator.unit()));
+        }
         return new IndicatorHistoryDTO(ctx.asset.ticker, indicator, indicator.unit(), period.name(), current,
-                IndicatorRules.average(forAverage, indicator.unit()), points);
+                averages.get(averages.size() - 1).value(), averages, points);
+    }
+
+    /**
+     * Media de uma janela (D14): os N ultimos pontos anuais (exercicios fechados) + Atual, com a regra de
+     * {@link IndicatorRules#average} (nulos fora, zeros dentro). MAX = todos os anuais.
+     */
+    static IndicatorHistoryDTO.WindowAverage windowAverage(IndicatorWindow w, List<IndicatorPointDTO> annual,
+                                                          IndicatorPointDTO current, Indicator.Unit unit) {
+        List<IndicatorPointDTO> inWindow = w.years() == 0 || annual.size() <= w.years() ? annual
+                : annual.subList(annual.size() - w.years(), annual.size());
+        List<BigDecimal> values = new ArrayList<>(inWindow.stream().map(IndicatorPointDTO::value).toList());
+        values.add(current.value());
+        Integer from = inWindow.isEmpty() || inWindow.get(0).periodEnd() == null ? null
+                : inWindow.get(0).periodEnd().getYear();
+        return new IndicatorHistoryDTO.WindowAverage(w.label(), from, IndicatorRules.average(values, unit));
     }
 
     private static IndicatorPointDTO point(String label, Value v, LocalDate periodEnd) {
         return new IndicatorPointDTO(label, periodEnd, v.value(), v.note());
+    }
+
+    // ------------------------------------------------------------------ Dados da empresa (A3)
+
+    /**
+     * Base do card "Dados da empresa" / "Dados do fundo" (docs/planos/PLANO_TELA_ATIVOS.md, D2, D3 e D6), com as
+     * mesmas regras dos indicadores: preco atual do ticker; acao — ultimo balanco, valor de mercado da companhia
+     * (D3, com a nota) e a quantidade de acoes do balanco ajustada pelos eventos posteriores; FII — ultimo informe.
+     *
+     * @param sharesTotal acao: acoes da companhia com tesouraria ("nº total de papeis"); FII: cotas emitidas
+     * @param equity      acao: PL da controladora; FII: PL do informe
+     */
+    public record MarketData(long assetId, String ticker, Long issuerId, IssuerKind kind, String statementLayout,
+                             BigDecimal price, LocalDate priceDate, LocalDate basePeriodEnd, BigDecimal marketValue,
+                             String marketValueNote, BigDecimal equity, BigDecimal sharesTotal, BigDecimal totalAssets,
+                             BigDecimal currentAssets, BigDecimal grossDebt, BigDecimal cash) {
+    }
+
+    public MarketData marketData(String ticker) {
+        Context ctx = context(ticker);
+        if (ctx.asset.kind == IssuerKind.FII) {
+            List<MonthRow> months = months(ctx.asset.issuerId);
+            MonthRow last = months.isEmpty() ? null : months.get(months.size() - 1);
+            BigDecimal shares = last == null ? null : fundShares(ctx.asset.issuerId, last.month);
+            BigDecimal value = shares == null || ctx.currentPrice == null ? null : shares.multiply(ctx.currentPrice);
+            String note = last == null ? "sem informe mensal" : shares == null ? "cotas emitidas nao informadas"
+                    : ctx.currentPrice == null ? "sem cotacao" : null;
+            return new MarketData(ctx.asset.id, ctx.asset.ticker, ctx.asset.issuerId, ctx.asset.kind, null,
+                    ctx.currentPrice, ctx.currentPriceDate,
+                    last == null ? null : last.month.plusMonths(1).minusDays(1), value, note,
+                    last == null ? null : last.netAssets, shares, last == null ? null : last.totalAssets,
+                    null, null, null);
+        }
+        List<QuarterRow> quarters = quarters(ctx.asset.issuerId);
+        if (quarters.isEmpty()) {
+            return new MarketData(ctx.asset.id, ctx.asset.ticker, ctx.asset.issuerId, ctx.asset.kind,
+                    ctx.asset.statementLayout, ctx.currentPrice, ctx.currentPriceDate, null, null, "sem balanco",
+                    null, null, null, null, null, null);
+        }
+        QuarterRow last = quarters.get(quarters.size() - 1);
+        Accounts a = currentCompany(ctx, quarters).basis().accounts();
+        Long total = sharesTotal(ctx.asset.issuerId, last.periodEnd);
+        BigDecimal ratio = ctx.ratio(last.periodEnd, LocalDate.now(clock));
+        return new MarketData(ctx.asset.id, ctx.asset.ticker, ctx.asset.issuerId, ctx.asset.kind,
+                ctx.asset.statementLayout, ctx.currentPrice, ctx.currentPriceDate, last.periodEnd, a.marketValue(),
+                a.marketValueNote(), last.equityParent,
+                total == null ? null : BigDecimal.valueOf(total).multiply(ratio, MC).setScale(0, java.math.RoundingMode.HALF_UP),
+                last.totalAssets, last.currentAssets, last.grossDebt, last.cash);
+    }
+
+    private Long sharesTotal(long issuerId, LocalDate periodEnd) {
+        List<Long> v = jdbc.queryForList("SELECT shares_total FROM company_quarters WHERE issuer_id = ? AND period_end = ?",
+                Long.class, issuerId, java.sql.Date.valueOf(periodEnd));
+        return v.isEmpty() ? null : v.get(0);
+    }
+
+    private BigDecimal fundShares(long issuerId, LocalDate month) {
+        List<BigDecimal> v = jdbc.queryForList("""
+                SELECT shares_issued FROM fii_monthly WHERE issuer_id = ? AND reference_month = ?
+                ORDER BY version DESC LIMIT 1""", BigDecimal.class, issuerId, java.sql.Date.valueOf(month));
+        return v.isEmpty() ? null : v.get(0);
     }
 
     // ------------------------------------------------------------------ base do Preco Teto
@@ -362,8 +459,7 @@ public class IndicatorService {
     record CurrentCompany(CompanyBasis basis, String sharesNote) {
         Value value(Indicator i) {
             Value v = IndicatorRules.company(i, basis);
-            boolean usesShares = i == Indicator.LPA || i == Indicator.VPA || i == Indicator.PL || i == Indicator.PVP;
-            return sharesNote != null && usesShares && v.value() != null ? new Value(v.value(), sharesNote) : v;
+            return sharesNote != null && i.usesShares() && v.value() != null ? new Value(v.value(), sharesNote) : v;
         }
     }
 
@@ -375,8 +471,9 @@ public class IndicatorService {
                     ctx.asset.unitShares, null, ctx.currentPrice, dividends), null);
         }
         QuarterRow last = quarters.get(quarters.size() - 1);
-        CompanyBasis b = basis(last, quarters, ctx.ratio(last.periodEnd, today), ctx.asset.unitShares,
-                ctx.currentPrice, dividends);
+        BigDecimal ratio = ctx.ratio(last.periodEnd, today);
+        CompanyBasis b = basis(last, quarters, ratio, ctx.asset.unitShares, ctx.currentPrice, dividends);
+        b = b.withShares(b.sharesOutstanding(), withMarketValue(ctx, b.accounts(), last, ratio, null));
         if (last.sharesOutstanding != null && last.sharesOutstanding > 0) {
             return new CurrentCompany(b, null);
         }
@@ -391,9 +488,8 @@ public class IndicatorService {
             if (ctx.ratio(prev.periodEnd, last.periodEnd).compareTo(BigDecimal.ONE) != 0) {
                 break;
             }
-            CompanyBasis fallback = new CompanyBasis(b.periodEnd(), b.netIncomeParentTtm(), b.equityParent(),
-                    b.equityParentStart(), prev.sharesOutstanding, b.sharesRatio(), b.unitShares(),
-                    b.dividendsPaidTtm(), b.price(), b.dividends12m());
+            CompanyBasis fallback = b.withShares(prev.sharesOutstanding,
+                    withMarketValue(ctx, b.accounts(), prev, ratio, null));
             return new CurrentCompany(fallback, "quantidade de acoes do balanco de "
                     + prev.periodEnd.format(BR) + " (a do ultimo esta em revisao)");
         }
@@ -409,6 +505,10 @@ public class IndicatorService {
             }
             CompanyBasis b = basis(q, quarters, BigDecimal.ONE, ctx.asset.unitShares, ctx.priceAt(q.periodEnd),
                     ctx.dividends12m(q.periodEnd));
+            if (indicator == Indicator.EV_EBIT || indicator == Indicator.EV_EBITDA) {
+                b = b.withShares(b.sharesOutstanding(),
+                        withMarketValue(ctx, b.accounts(), q, BigDecimal.ONE, q.periodEnd));
+            }
             out.add(point(period == Period.YEAR ? String.valueOf(q.periodEnd.getYear()) : quarterLabel(q.periodEnd),
                     IndicatorRules.company(indicator, b), q.periodEnd));
         }
@@ -418,14 +518,26 @@ public class IndicatorService {
     private static CompanyBasis basis(QuarterRow q, List<QuarterRow> quarters, BigDecimal ratio, int unitShares,
                                       BigDecimal price, BigDecimal dividends) {
         QuarterRow start = yearBefore(q, quarters);
+        QuarterRow five = yearsBefore(q, quarters, 5);
+        Accounts a = new Accounts(q.revenueTtm, q.ebitTtm, q.depreciationTtm, q.grossProfitTtm, q.netIncomeTtm,
+                q.pretaxIncomeTtm, q.incomeTaxTtm, q.equity, q.totalAssets, q.cash, q.grossDebt, q.currentAssets,
+                q.currentLiabilities, start == null ? null : start.equity, start == null ? null : start.totalAssets,
+                start == null ? null : start.cash, start == null ? null : start.grossDebt,
+                five == null ? null : five.revenueTtm, five == null ? null : five.netIncomeTtm, null,
+                "sem valor de mercado");
         return new CompanyBasis(q.periodEnd, q.netIncomeParentTtm, q.equityParent,
                 start == null ? null : start.equityParent, q.sharesOutstanding, ratio, unitShares,
-                q.dividendsPaidTtm, price, dividends);
+                q.dividendsPaidTtm, price, dividends, a);
     }
 
     /** O balanco de 12 meses antes (inicio do periodo do ROE), com folga de 20 dias. */
     private static QuarterRow yearBefore(QuarterRow q, List<QuarterRow> quarters) {
-        LocalDate target = q.periodEnd.minusYears(1);
+        return yearsBefore(q, quarters, 1);
+    }
+
+    /** O balanco de N anos antes, com folga de 20 dias (CAGR: 5). */
+    private static QuarterRow yearsBefore(QuarterRow q, List<QuarterRow> quarters, int years) {
+        LocalDate target = q.periodEnd.minusYears(years);
         for (QuarterRow r : quarters) {
             if (!r.periodEnd.isBefore(target.minusDays(20)) && !r.periodEnd.isAfter(target.plusDays(20))) {
                 return r;
@@ -436,6 +548,109 @@ public class IndicatorService {
 
     static String quarterLabel(LocalDate d) {
         return ((d.getMonthValue() - 1) / 3 + 1) + "T" + String.format("%02d", d.getYear() % 100);
+    }
+
+    // ------------------------------------------------------------------ valor de mercado (D3)
+
+    /** Cotacao de uma classe: o papel escolhido, o preco atual e os fechamentos. */
+    private record ClassQuote(String ticker, BigDecimal current, NavigableMap<LocalDate, BigDecimal> closes) {
+
+        /** {@code at} nulo = preco atual; senao o fechamento do ultimo pregao ate a data, se nao for antigo. */
+        BigDecimal price(LocalDate at) {
+            if (at == null) {
+                return current;
+            }
+            Map.Entry<LocalDate, BigDecimal> e = closes.floorEntry(at);
+            return e == null || e.getKey().isBefore(at.minusDays(MAX_PRICE_GAP_DAYS)) ? null : e.getValue();
+        }
+    }
+
+    /** ON e PN do emissor; nulo a classe sem papel ativo no catalogo. */
+    private record ClassQuotes(ClassQuote on, ClassQuote pn) {
+    }
+
+    /**
+     * Os papeis ativos do emissor por classe (sem fracionario nem unit): ON e as series PN (PN, PNA, PNB...). Com mais
+     * de um na classe, o de maior liquidez media (quantidade x fechamento) nos ultimos {@code liquidityMonths} meses
+     * (D3: "PN em series usa a serie de maior liquidez").
+     */
+    private ClassQuotes loadClassQuotes(Context ctx) {
+        record Candidate(long id, String ticker, boolean ordinary, BigDecimal current, BigDecimal liquidity) {
+        }
+        LocalDate since = LocalDate.now(clock).minusMonths(liquidityMonths);
+        List<Candidate> all = jdbc.query("""
+                SELECT a.id, a.ticker, a.share_class, a.current_price,
+                       (SELECT AVG(h.volume * h.close_price) FROM asset_price_history h
+                        WHERE h.asset_id = a.id AND h.reference_date > ? AND h.volume IS NOT NULL) AS liquidity
+                FROM assets a
+                WHERE a.issuer_id = ? AND a.active AND (a.share_class = 'ON' OR a.share_class LIKE 'PN%')""",
+                (rs, i) -> new Candidate(rs.getLong("id"), rs.getString("ticker"), "ON".equals(rs.getString("share_class")),
+                        rs.getBigDecimal("current_price"), rs.getBigDecimal("liquidity")),
+                java.sql.Date.valueOf(since), ctx.asset.issuerId);
+        java.util.Comparator<Candidate> best = java.util.Comparator
+                .comparing((Candidate c) -> c.liquidity() == null ? BigDecimal.ZERO : c.liquidity()).reversed()
+                .thenComparing(Candidate::ticker);
+        ClassQuote[] chosen = new ClassQuote[2];
+        for (boolean ordinary : new boolean[]{true, false}) {
+            Candidate c = all.stream()
+                    .filter(x -> x.ordinary() == ordinary && baseTicker(x.ticker()).equals(x.ticker().trim().toUpperCase()))
+                    .sorted(best).findFirst().orElse(null);
+            if (c != null) {
+                NavigableMap<LocalDate, BigDecimal> closes = c.id() == ctx.asset.priceAssetId ? ctx.closes : closes(c.id());
+                BigDecimal current = c.current() != null ? c.current()
+                        : closes.isEmpty() ? null : closes.lastEntry().getValue();
+                chosen[ordinary ? 0 : 1] = new ClassQuote(c.ticker(), current, closes);
+            }
+        }
+        return new ClassQuotes(chosen[0], chosen[1]);
+    }
+
+    /**
+     * Valor de mercado da companhia no balanco {@code q} (docs/planos/PLANO_TELA_ATIVOS.md, 2.5 e D3): acoes ON e PN
+     * sem tesouraria (x {@code ratio}, os eventos depois do balanco) x o preco de cada classe — atual com
+     * {@code at} nulo, o fechamento na data no historico. Classe sem cotacao propria usa o preco da outra, com a nota.
+     * Unit nao entra: as classes que a compoem ja entram.
+     */
+    private Accounts withMarketValue(Context ctx, Accounts a, QuarterRow q, BigDecimal ratio, LocalDate at) {
+        ClassQuotes c = ctx.classQuotes();
+        if (c == null) {
+            return a;
+        }
+        if (q.ordinaryOutstanding == null && q.preferredOutstanding == null) {
+            return a.withMarketValue(null, "sem quantidade de acoes por classe (escala em revisao)");
+        }
+        long ordinary = q.ordinaryOutstanding == null ? 0 : q.ordinaryOutstanding;
+        long preferred = q.preferredOutstanding == null ? 0 : q.preferredOutstanding;
+        if (ordinary <= 0 && preferred <= 0) {
+            return a.withMarketValue(null, "sem acoes em circulacao");
+        }
+        BigDecimal on = c.on() == null ? null : c.on().price(at);
+        BigDecimal pn = c.pn() == null ? null : c.pn().price(at);
+        BigDecimal total = BigDecimal.ZERO;
+        String note = null;
+        if (ordinary > 0) {
+            BigDecimal price = on;
+            if (price == null && pn != null) {
+                price = pn;
+                note = "ON sem negociacao: avaliada pelo preco de " + c.pn().ticker();
+            }
+            if (price == null) {
+                return a.withMarketValue(null, "sem cotacao das acoes ON");
+            }
+            total = total.add(price.multiply(BigDecimal.valueOf(ordinary)));
+        }
+        if (preferred > 0) {
+            BigDecimal price = pn;
+            if (price == null && on != null) {
+                price = on;
+                note = "PN sem negociacao: avaliada pelo preco de " + c.on().ticker();
+            }
+            if (price == null) {
+                return a.withMarketValue(null, "sem cotacao das acoes PN");
+            }
+            total = total.add(price.multiply(BigDecimal.valueOf(preferred)));
+        }
+        return a.withMarketValue(total.multiply(ratio == null ? BigDecimal.ONE : ratio, MC), note);
     }
 
     // ------------------------------------------------------------------ FII
@@ -473,11 +688,20 @@ public class IndicatorService {
     // ------------------------------------------------------------------ dados
 
     private record AssetRow(long id, String ticker, Long issuerId, IssuerKind kind, String shareClass,
-                            long priceAssetId, int unitShares) {
+                            long priceAssetId, int unitShares, String statementLayout) {
     }
 
+    /**
+     * Uma linha de {@code company_quarters} com a quantidade por classe do documento ({@code share_counts}, sem
+     * tesouraria, em unidades; nulas sem escala conferida) — base do valor de mercado (D3).
+     */
     private record QuarterRow(LocalDate periodEnd, boolean annual, BigDecimal netIncomeParentTtm,
-                              BigDecimal equityParent, Long sharesOutstanding, BigDecimal dividendsPaidTtm) {
+                              BigDecimal equityParent, Long sharesOutstanding, BigDecimal dividendsPaidTtm,
+                              BigDecimal revenueTtm, BigDecimal ebitTtm, BigDecimal depreciationTtm,
+                              BigDecimal grossProfitTtm, BigDecimal netIncomeTtm, BigDecimal pretaxIncomeTtm,
+                              BigDecimal incomeTaxTtm, BigDecimal equity, BigDecimal totalAssets, BigDecimal cash,
+                              BigDecimal grossDebt, BigDecimal currentAssets, BigDecimal currentLiabilities,
+                              Long ordinaryOutstanding, Long preferredOutstanding) {
     }
 
     private record MonthRow(LocalDate month, BigDecimal navPerShare, Integer shareholders, BigDecimal realEstate,
@@ -500,6 +724,22 @@ public class IndicatorService {
         final LocalDate currentPriceDate;
         final List<StockEvent> stockEvents;
         final List<CashEvent> cashEvents;
+        /** Listagem em lote: so os indicadores das colunas (T11), sem as cotacoes das outras classes. */
+        final boolean batch;
+        private ClassQuotes classes;
+        private boolean classesLoaded;
+
+        /** Cotacoes das classes ON e PN do emissor (D3), lidas na primeira vez; nulo na listagem em lote. */
+        ClassQuotes classQuotes() {
+            if (batch) {
+                return null;
+            }
+            if (!classesLoaded) {
+                classes = loadClassQuotes(this);
+                classesLoaded = true;
+            }
+            return classes;
+        }
 
         /**
          * Com os dados ja lidos (listagem em lote): so o "Atual", que nao usa a serie de fechamentos —
@@ -508,6 +748,7 @@ public class IndicatorService {
         Context(AssetRow asset, BigDecimal currentPrice, LocalDate currentPriceDate, List<StockEvent> stockEvents,
                 List<CashEvent> cashEvents) {
             this.asset = asset;
+            this.batch = true;
             this.closes = new TreeMap<>();
             this.currentPrice = currentPrice;
             this.currentPriceDate = currentPriceDate;
@@ -517,6 +758,7 @@ public class IndicatorService {
 
         Context(AssetRow asset) {
             this.asset = asset;
+            this.batch = false;
             this.closes = closes(asset.priceAssetId);
             Map<String, Object> cur = jdbc.queryForMap(
                     "SELECT current_price, price_updated_at FROM assets WHERE id = ?", asset.priceAssetId);
@@ -581,13 +823,13 @@ public class IndicatorService {
     private Context context(String ticker) {
         String t = ticker == null ? "" : ticker.trim().toUpperCase();
         List<AssetRow> found = jdbc.query("""
-                SELECT a.id, a.ticker, a.issuer_id, i.kind, a.share_class
+                SELECT a.id, a.ticker, a.issuer_id, i.kind, a.share_class, i.statement_layout
                 FROM assets a LEFT JOIN issuers i ON i.id = a.issuer_id
                 WHERE upper(a.ticker) = ?""",
                 (rs, i) -> new AssetRow(rs.getLong("id"), rs.getString("ticker"),
                         (Long) rs.getObject("issuer_id", Long.class),
                         rs.getString("kind") == null ? null : IssuerKind.valueOf(rs.getString("kind")),
-                        rs.getString("share_class"), 0, 0), t);
+                        rs.getString("share_class"), 0, 0, rs.getString("statement_layout")), t);
         if (found.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Ativo nao encontrado: " + t);
         }
@@ -612,7 +854,8 @@ public class IndicatorService {
                 unitShares = unitShares(a.id);
             }
         }
-        return new Context(new AssetRow(a.id, a.ticker, a.issuerId, a.kind, a.shareClass, priceAsset, unitShares));
+        return new Context(new AssetRow(a.id, a.ticker, a.issuerId, a.kind, a.shareClass, priceAsset, unitShares,
+                a.statementLayout));
     }
 
     /** PETR4F -> PETR4: o fracionario e o mesmo papel (D8). */
@@ -634,6 +877,18 @@ public class IndicatorService {
 
     private static final String QUARTERS_SELECT = """
             SELECT q.issuer_id, q.period_end, d.doc_type, q.net_income_parent_ttm, q.equity_parent,
+                   q.shares_outstanding, q.dividends_paid_ttm, q.revenue_ttm, q.ebit_ttm,
+                   q.depreciation_amortization_ttm, q.gross_profit_ttm, q.net_income_ttm, q.pretax_income_ttm,
+                   q.income_tax_ttm, q.equity, q.total_assets, q.cash, q.gross_debt, q.current_assets,
+                   q.current_liabilities,
+                   (s.ordinary_shares - COALESCE(s.ordinary_treasury, 0)) * s.scale_factor AS ordinary_outstanding,
+                   (s.preferred_shares - COALESCE(s.preferred_treasury, 0)) * s.scale_factor AS preferred_outstanding
+            FROM company_quarters q JOIN cvm_documents d ON d.id = q.source_doc_id
+            LEFT JOIN share_counts s ON s.document_id = q.source_doc_id""";
+
+    /** O que os indicadores da listagem leem (T11): as colunas da F9. */
+    private static final String LISTING_QUARTERS_SELECT = """
+            SELECT q.issuer_id, q.period_end, d.doc_type, q.net_income_parent_ttm, q.equity_parent,
                    q.shares_outstanding, q.dividends_paid_ttm
             FROM company_quarters q JOIN cvm_documents d ON d.id = q.source_doc_id""";
 
@@ -644,7 +899,21 @@ public class IndicatorService {
     private static QuarterRow quarterRow(java.sql.ResultSet rs) throws java.sql.SQLException {
         return new QuarterRow(rs.getDate("period_end").toLocalDate(), "DFP".equals(rs.getString("doc_type")),
                 rs.getBigDecimal("net_income_parent_ttm"), rs.getBigDecimal("equity_parent"),
-                (Long) rs.getObject("shares_outstanding", Long.class), rs.getBigDecimal("dividends_paid_ttm"));
+                (Long) rs.getObject("shares_outstanding", Long.class), rs.getBigDecimal("dividends_paid_ttm"),
+                rs.getBigDecimal("revenue_ttm"), rs.getBigDecimal("ebit_ttm"),
+                rs.getBigDecimal("depreciation_amortization_ttm"), rs.getBigDecimal("gross_profit_ttm"),
+                rs.getBigDecimal("net_income_ttm"), rs.getBigDecimal("pretax_income_ttm"),
+                rs.getBigDecimal("income_tax_ttm"), rs.getBigDecimal("equity"), rs.getBigDecimal("total_assets"),
+                rs.getBigDecimal("cash"), rs.getBigDecimal("gross_debt"), rs.getBigDecimal("current_assets"),
+                rs.getBigDecimal("current_liabilities"), (Long) rs.getObject("ordinary_outstanding", Long.class),
+                (Long) rs.getObject("preferred_outstanding", Long.class));
+    }
+
+    private static QuarterRow listingQuarterRow(java.sql.ResultSet rs) throws java.sql.SQLException {
+        return new QuarterRow(rs.getDate("period_end").toLocalDate(), "DFP".equals(rs.getString("doc_type")),
+                rs.getBigDecimal("net_income_parent_ttm"), rs.getBigDecimal("equity_parent"),
+                (Long) rs.getObject("shares_outstanding", Long.class), rs.getBigDecimal("dividends_paid_ttm"),
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     private static MonthRow monthRow(java.sql.ResultSet rs) throws java.sql.SQLException {

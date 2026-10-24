@@ -39,18 +39,34 @@ public final class QuarterSeries {
         /** Dividendos + JCP declarados (DVA, remuneracao de capitais proprios). */
         DIVIDENDS_DECLARED,
         /** Dividendos + JCP pagos aos acionistas da controladora (DFC) — base do payout desde 10/10/2026. */
-        DIVIDENDS_PAID
+        DIVIDENDS_PAID,
+        // Contas novas (docs/planos/PLANO_TELA_ATIVOS.md, 2.5). A ordem do enum e a das colunas no INSERT.
+        /** Resultado bruto (DRE). So no layout comercial. */
+        GROSS_PROFIT,
+        /**
+         * Depreciacao e amortizacao: DVA menos a exaustao dos ativos biologicos informada a parte (D22 do
+         * PLANO_TELA_ATIVOS). So acumulado no ITR: o trimestre sai da diferenca.
+         */
+        DEPRECIATION_AMORTIZATION,
+        /** Resultado antes dos tributos sobre o lucro (DRE). */
+        PRETAX_INCOME,
+        /** IR e CSLL sobre o lucro (DRE), como informado. */
+        INCOME_TAX
     }
 
-    private static final Map<FinancialMetric, Flow> FLOW_OF = Map.of(
-            FinancialMetric.RECEITA, Flow.REVENUE,
-            FinancialMetric.EBIT, Flow.EBIT,
-            FinancialMetric.LUCRO_LIQUIDO, Flow.NET_INCOME,
-            FinancialMetric.LUCRO_CONTROLADORA, Flow.NET_INCOME_PARENT,
-            FinancialMetric.FCO, Flow.FCO,
-            FinancialMetric.JCP_DECLARADO, Flow.DIVIDENDS_DECLARED,
-            FinancialMetric.DIVIDENDOS_DECLARADOS, Flow.DIVIDENDS_DECLARED,
-            FinancialMetric.DIVIDENDOS_PAGOS, Flow.DIVIDENDS_PAID);
+    private static final Map<FinancialMetric, Flow> FLOW_OF = Map.ofEntries(
+            Map.entry(FinancialMetric.RECEITA, Flow.REVENUE),
+            Map.entry(FinancialMetric.EBIT, Flow.EBIT),
+            Map.entry(FinancialMetric.LUCRO_LIQUIDO, Flow.NET_INCOME),
+            Map.entry(FinancialMetric.LUCRO_CONTROLADORA, Flow.NET_INCOME_PARENT),
+            Map.entry(FinancialMetric.FCO, Flow.FCO),
+            Map.entry(FinancialMetric.JCP_DECLARADO, Flow.DIVIDENDS_DECLARED),
+            Map.entry(FinancialMetric.DIVIDENDOS_DECLARADOS, Flow.DIVIDENDS_DECLARED),
+            Map.entry(FinancialMetric.DIVIDENDOS_PAGOS, Flow.DIVIDENDS_PAID),
+            Map.entry(FinancialMetric.LUCRO_BRUTO, Flow.GROSS_PROFIT),
+            Map.entry(FinancialMetric.DEPRECIACAO_AMORTIZACAO, Flow.DEPRECIATION_AMORTIZATION),
+            Map.entry(FinancialMetric.LAIR, Flow.PRETAX_INCOME),
+            Map.entry(FinancialMetric.IR_CSLL, Flow.INCOME_TAX));
 
     /** Uma metrica gravada do documento; {@code start} nulo = posicao na data. */
     public record Value(FinancialMetric metric, LocalDate start, LocalDate end, BigDecimal value) {
@@ -67,7 +83,8 @@ public final class QuarterSeries {
     public record Quarter(LocalDate periodEnd, LocalDate fiscalYearStart, long sourceDocId,
                           Map<Flow, BigDecimal> quarter, Map<Flow, BigDecimal> ttm,
                           BigDecimal equity, BigDecimal equityParent, BigDecimal totalAssets,
-                          BigDecimal cash, BigDecimal grossDebt, Long sharesTotal, Long sharesOutstanding) {
+                          BigDecimal cash, BigDecimal grossDebt, BigDecimal currentAssets,
+                          BigDecimal currentLiabilities, Long sharesTotal, Long sharesOutstanding) {
     }
 
     private QuarterSeries() {
@@ -123,7 +140,8 @@ public final class QuarterSeries {
             Shares s = p.doc.shares() == null ? Shares.NONE : p.doc.shares();
             out.add(new Quarter(end, p.fiscalYearStart, p.doc.id(), q, ttm, equity, equityParent,
                     p.position(FinancialMetric.ATIVO_TOTAL), p.position(FinancialMetric.CAIXA),
-                    p.position(FinancialMetric.DIVIDA_BRUTA), s.total(), s.outstanding()));
+                    p.position(FinancialMetric.DIVIDA_BRUTA), p.position(FinancialMetric.ATIVO_CIRCULANTE),
+                    p.position(FinancialMetric.PASSIVO_CIRCULANTE), s.total(), s.outstanding()));
         }
         return out;
     }

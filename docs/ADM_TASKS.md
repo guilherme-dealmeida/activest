@@ -232,7 +232,9 @@ D5/R5). Num banco novo os arquivos chegam pelo bucket, como os XML.
 
 **Função.** DFP e ITR das companhias emissoras (consolidado ou, na falta, individual); métricas por descrição de conta;
 quantidade de ações (composição 2020+ com escala conferida, ou FRE antes de 2020). Mesma versão é pulada;
-reapresentação substitui. `force=true` reprocessa a partir de `carga/data/cvm` sem baixar de novo.
+reapresentação substitui. `force=true` reprocessa a partir de `carga/data/cvm` sem baixar de novo — é o que se roda
+quando entra métrica nova (24/10/2026, tela de Ativos: 6 contas novas e a exaustão biológica; ~5 a 7 min, refaz também
+`share_counts`, conferido idêntico antes e depois — `docs/planos/PLANO_TELA_ATIVOS.md`, A1 e D22).
 
 **Propósito.** Base dos indicadores fundamentalistas.
 

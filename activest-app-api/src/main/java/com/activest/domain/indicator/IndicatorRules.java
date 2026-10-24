@@ -48,7 +48,65 @@ public final class IndicatorRules {
     public record CompanyBasis(LocalDate periodEnd, BigDecimal netIncomeParentTtm, BigDecimal equityParent,
                                BigDecimal equityParentStart, Long sharesOutstanding, BigDecimal sharesRatio,
                                int unitShares, BigDecimal dividendsPaidTtm, BigDecimal price,
-                               BigDecimal dividends12m) {
+                               BigDecimal dividends12m, Accounts accounts) {
+
+        /** So com o que os indicadores da F9 usam (sem as contas da tela de Ativos). */
+        public CompanyBasis(LocalDate periodEnd, BigDecimal netIncomeParentTtm, BigDecimal equityParent,
+                            BigDecimal equityParentStart, Long sharesOutstanding, BigDecimal sharesRatio,
+                            int unitShares, BigDecimal dividendsPaidTtm, BigDecimal price, BigDecimal dividends12m) {
+            this(periodEnd, netIncomeParentTtm, equityParent, equityParentStart, sharesOutstanding, sharesRatio,
+                    unitShares, dividendsPaidTtm, price, dividends12m, Accounts.NONE);
+        }
+
+        public CompanyBasis {
+            accounts = accounts == null ? Accounts.NONE : accounts;
+        }
+
+        CompanyBasis withShares(Long shares, Accounts a) {
+            return new CompanyBasis(periodEnd, netIncomeParentTtm, equityParent, equityParentStart, shares,
+                    sharesRatio, unitShares, dividendsPaidTtm, price, dividends12m, a);
+        }
+    }
+
+    /**
+     * Contas da tela de Ativos (docs/planos/PLANO_TELA_ATIVOS.md, 2.5): fluxos de 12 meses e posicao do balanco do
+     * ponto, a posicao do balanco de 12 meses antes ({@code *Start}, para as medias do ROA, do ROIC e do giro), os
+     * 12 meses de 5 anos antes (CAGR) e o valor de mercado da companhia (D3), ja calculado, com a nota.
+     *
+     * <p>PL aqui e o <b>consolidado</b> ({@code equity}, com nao controladores), coerente com ativo, divida e EBIT
+     * consolidados; o ROE e o VPA seguem com o da controladora. Lucro liquido = consolidado, pelo mesmo motivo
+     * (margem, ROA, CAGR). IR/CSLL como a CVM informa: negativo quando e despesa.</p>
+     */
+    public record Accounts(BigDecimal revenueTtm, BigDecimal ebitTtm, BigDecimal depreciationTtm,
+                           BigDecimal grossProfitTtm, BigDecimal netIncomeTtm, BigDecimal pretaxIncomeTtm,
+                           BigDecimal incomeTaxTtm, BigDecimal equity, BigDecimal totalAssets, BigDecimal cash,
+                           BigDecimal grossDebt, BigDecimal currentAssets, BigDecimal currentLiabilities,
+                           BigDecimal equityStart, BigDecimal totalAssetsStart, BigDecimal cashStart,
+                           BigDecimal grossDebtStart, BigDecimal revenueTtm5y, BigDecimal netIncomeTtm5y,
+                           BigDecimal marketValue, String marketValueNote) {
+
+        public static final Accounts NONE = new Accounts(null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, "sem valor de mercado");
+
+        Accounts withMarketValue(BigDecimal value, String note) {
+            return new Accounts(revenueTtm, ebitTtm, depreciationTtm, grossProfitTtm, netIncomeTtm, pretaxIncomeTtm,
+                    incomeTaxTtm, equity, totalAssets, cash, grossDebt, currentAssets, currentLiabilities,
+                    equityStart, totalAssetsStart, cashStart, grossDebtStart, revenueTtm5y, netIncomeTtm5y, value,
+                    note);
+        }
+
+        /** EBIT + depreciacao e amortizacao; nulo sem um dos dois. */
+        BigDecimal ebitda() {
+            return ebitTtm == null || depreciationTtm == null ? null : ebitTtm.add(depreciationTtm);
+        }
+
+        BigDecimal netDebt() {
+            return grossDebt == null || cash == null ? null : grossDebt.subtract(cash);
+        }
+
+        BigDecimal netDebtStart() {
+            return grossDebtStart == null || cashStart == null ? null : grossDebtStart.subtract(cashStart);
+        }
     }
 
     /** Base de um ponto de FII: o informe do mes ({@code fii_monthly}) e o preco. */
@@ -122,8 +180,152 @@ public final class IndicatorRules {
                 yield Value.of(b.dividendsPaidTtm().divide(b.netIncomeParentTtm(), MC), indicator.unit());
             }
             case DY -> dy(b.price(), b.dividends12m(), indicator);
+            default -> assets(indicator, b);
+        };
+    }
+
+    // ------------------------------------------------------------------ acoes, tela de Ativos (2.5)
+
+    private static Value assets(Indicator indicator, CompanyBasis b) {
+        Accounts a = b.accounts();
+        Indicator.Unit u = indicator.unit();
+        return switch (indicator) {
+            case PSR -> priceOver(b, a.revenueTtm(), "receita 12 meses", u);
+            case P_EBIT -> priceOver(b, a.ebitTtm(), "EBIT 12 meses", u);
+            case P_EBITDA -> priceOver(b, a.ebitda(), "EBITDA 12 meses", u);
+            case P_ATIVO -> priceOver(b, a.totalAssets(), "ativo total", u);
+            case P_CAP_GIRO -> priceOver(b, diff(a.currentAssets(), a.currentLiabilities()), "capital de giro", u);
+            case P_ATIVO_CIRC_LIQ -> {
+                BigDecimal liabilities = diff(a.totalAssets(), a.equity());
+                yield priceOver(b, diff(a.currentAssets(), liabilities), "ativo circulante liquido", u);
+            }
+            case EV_EBIT -> enterprise(a, a.ebitTtm(), "EBIT 12 meses", u);
+            case EV_EBITDA -> enterprise(a, a.ebitda(), "EBITDA 12 meses", u);
+            case DIV_LIQ_EBIT -> over(a.netDebt(), "divida liquida", a.ebitTtm(), "EBIT 12 meses", u);
+            case DIV_LIQ_EBITDA -> over(a.netDebt(), "divida liquida", a.ebitda(), "EBITDA 12 meses", u);
+            case DIV_BRUTA_PATRIMONIO -> over(a.grossDebt(), "divida bruta", a.equity(), "patrimonio liquido", u);
+            case PATRIMONIO_ATIVOS -> over(a.equity(), "patrimonio liquido", a.totalAssets(), "ativo total", u);
+            case PASSIVOS_ATIVOS -> over(diff(a.totalAssets(), a.equity()), "patrimonio liquido",
+                    a.totalAssets(), "ativo total", u);
+            case LIQUIDEZ_CORRENTE -> over(a.currentAssets(), "ativo circulante", a.currentLiabilities(),
+                    "passivo circulante", u);
+            case MARGEM_BRUTA -> over(a.grossProfitTtm(), "lucro bruto 12 meses", a.revenueTtm(), "receita 12 meses", u);
+            case MARGEM_EBITDA -> over(a.ebitda(), "EBITDA 12 meses", a.revenueTtm(), "receita 12 meses", u);
+            case MARGEM_EBIT -> over(a.ebitTtm(), "EBIT 12 meses", a.revenueTtm(), "receita 12 meses", u);
+            case MARGEM_LIQUIDA -> over(a.netIncomeTtm(), "lucro liquido 12 meses", a.revenueTtm(),
+                    "receita 12 meses", u);
+            case ROA -> over(a.netIncomeTtm(), "lucro liquido 12 meses", mean(a.totalAssets(), a.totalAssetsStart()),
+                    "ativo total do inicio e do fim do periodo", u);
+            case GIRO_ATIVOS -> over(a.revenueTtm(), "receita 12 meses", mean(a.totalAssets(), a.totalAssetsStart()),
+                    "ativo total do inicio e do fim do periodo", u);
+            case ROIC -> roic(a, u);
+            case CAGR_RECEITAS_5A -> cagr(a.revenueTtm(), a.revenueTtm5y(), "receita", u);
+            case CAGR_LUCROS_5A -> cagr(a.netIncomeTtm(), a.netIncomeTtm5y(), "lucro liquido", u);
             default -> throw new IllegalArgumentException(indicator + " nao e indicador de acao");
         };
+    }
+
+    /** Preco do ticker / (valor da companhia / acoes, x acoes da unit); base negativa ou zero vira nulo. */
+    private static Value priceOver(CompanyBasis b, BigDecimal amount, String what, Indicator.Unit u) {
+        if (amount == null) {
+            return Value.none("sem " + what);
+        }
+        String shares = sharesProblem(b);
+        if (shares != null) {
+            return Value.none(shares);
+        }
+        if (b.price() == null) {
+            return Value.none("sem cotacao");
+        }
+        if (amount.signum() <= 0) {
+            return Value.none(what + " negativo ou zero");
+        }
+        BigDecimal perShare = amount.divide(shares(b), MC).multiply(BigDecimal.valueOf(b.unitShares()));
+        return Value.of(b.price().divide(perShare, MC), u);
+    }
+
+    /** Valor de firma (valor de mercado + divida liquida) / base, por empresa (D18). */
+    private static Value enterprise(Accounts a, BigDecimal base, String what, Indicator.Unit u) {
+        if (a.marketValue() == null) {
+            return Value.none(a.marketValueNote() == null ? "sem valor de mercado" : a.marketValueNote());
+        }
+        if (a.netDebt() == null) {
+            return Value.none("sem divida liquida");
+        }
+        Value v = over(a.marketValue().add(a.netDebt()), "valor de firma", base, what, u);
+        // nota do valor de mercado estimado (classe sem cotacao, D3) vai junto do valor
+        return v.value() != null && a.marketValueNote() != null ? new Value(v.value(), a.marketValueNote()) : v;
+    }
+
+    /** Numerador / denominador; denominador negativo ou zero vira nulo (numerador negativo fica). */
+    private static Value over(BigDecimal num, String numName, BigDecimal den, String denName, Indicator.Unit u) {
+        if (num == null) {
+            return Value.none("sem " + numName);
+        }
+        if (den == null) {
+            return Value.none("sem " + denName);
+        }
+        if (den.signum() <= 0) {
+            return Value.none(denName + " negativo ou zero");
+        }
+        return Value.of(num.divide(den, MC), u);
+    }
+
+    /**
+     * ROIC (D19): EBIT 12m x (1 - aliquota) / (PL + divida liquida) medio, aliquota = -(IR/CSLL) / LAIR (o IR vem
+     * negativo como despesa). Aliquota fora de 0-100% vira nulo com o motivo.
+     */
+    private static Value roic(Accounts a, Indicator.Unit u) {
+        if (a.ebitTtm() == null) {
+            return Value.none("sem EBIT 12 meses");
+        }
+        if (a.pretaxIncomeTtm() == null || a.incomeTaxTtm() == null) {
+            return Value.none("sem resultado antes dos tributos ou IR/CSLL de 12 meses");
+        }
+        if (a.pretaxIncomeTtm().signum() <= 0) {
+            return Value.none("resultado antes dos tributos negativo ou zero");
+        }
+        BigDecimal rate = a.incomeTaxTtm().negate().divide(a.pretaxIncomeTtm(), MC);
+        if (rate.signum() < 0 || rate.compareTo(BigDecimal.ONE) > 0) {
+            return Value.none("aliquota efetiva de IR/CSLL fora de 0-100% ("
+                    + rate.multiply(HUNDRED).setScale(1, RoundingMode.HALF_UP).toPlainString() + "%)");
+        }
+        BigDecimal end = sumOrNull(a.equity(), a.netDebt());
+        BigDecimal start = sumOrNull(a.equityStart(), a.netDebtStart());
+        BigDecimal invested = mean(end, start);
+        if (invested == null) {
+            return Value.none("sem capital investido (PL + divida liquida) do inicio e do fim do periodo");
+        }
+        if (invested.signum() <= 0) {
+            return Value.none("capital investido medio negativo ou zero");
+        }
+        BigDecimal nopat = a.ebitTtm().multiply(BigDecimal.ONE.subtract(rate), MC);
+        return Value.of(nopat.divide(invested, MC), u);
+    }
+
+    /** CAGR de 5 anos (D20): vazio com valor ausente, negativo ou zero no inicio ou no fim. */
+    private static Value cagr(BigDecimal now, BigDecimal before, String what, Indicator.Unit u) {
+        if (now == null || before == null) {
+            return Value.none("sem " + what + " de 12 meses de hoje e de 5 anos antes");
+        }
+        if (now.signum() <= 0 || before.signum() <= 0) {
+            return Value.none(what + " de 12 meses negativo ou zero no inicio ou no fim");
+        }
+        double g = Math.pow(now.divide(before, MC).doubleValue(), 1.0 / 5) - 1;
+        return Value.of(BigDecimal.valueOf(g), u);
+    }
+
+    private static BigDecimal diff(BigDecimal a, BigDecimal b) {
+        return a == null || b == null ? null : a.subtract(b);
+    }
+
+    private static BigDecimal sumOrNull(BigDecimal a, BigDecimal b) {
+        return a == null || b == null ? null : a.add(b);
+    }
+
+    /** Media do inicio e do fim; nulo sem um dos dois. */
+    private static BigDecimal mean(BigDecimal end, BigDecimal start) {
+        return end == null || start == null ? null : end.add(start).divide(BigDecimal.TWO, MC);
     }
 
     private static Value lpa(CompanyBasis b) {

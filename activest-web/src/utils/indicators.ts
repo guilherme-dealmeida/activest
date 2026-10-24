@@ -1,4 +1,4 @@
-import { IndicatorCode, IndicatorUnit, IssuerKind } from '@/types';
+import { IndicatorCode, IndicatorHistory, IndicatorPoint, IndicatorUnit, IndicatorWindow, IssuerKind } from '@/types';
 
 /**
  * Metadados dos indicadores da tela de emissoras (docs/planos/PLANO_TELA_EMISSORES.md, 2.4).
@@ -24,21 +24,88 @@ export const INDICATOR_META: Record<IndicatorCode, IndicatorMeta> = {
   IMOVEIS: { label: '% Imóveis', name: 'Imóveis sobre o investido', formula: '(Imóveis + imóveis via SPE) ÷ total investido.' },
   PAPEL: { label: '% Papel', name: 'Papel sobre o investido', formula: 'Recebíveis (CRI/CRA, LCI/LCA, LH, LIG) ÷ total investido.' },
   ALAVANCAGEM: { label: 'Alavancagem', name: 'Alavancagem', formula: 'Passivo ÷ ativo total do fundo.' },
+  // tela de Ativos (docs/planos/PLANO_TELA_ATIVOS.md, 2.5). PL consolidado e lucro líquido consolidado nos novos.
+  PSR: { label: 'P/Receita (PSR)', name: 'Preço / Receita', formula: 'Preço ÷ (receita de 12 meses ÷ ações em circulação).' },
+  P_EBIT: { label: 'P/EBIT', name: 'Preço / EBIT', formula: 'Preço ÷ (EBIT de 12 meses ÷ ações). Nulo com EBIT negativo ou zero.' },
+  P_EBITDA: { label: 'P/EBITDA', name: 'Preço / EBITDA', formula: 'Preço ÷ (EBITDA de 12 meses ÷ ações). EBITDA = EBIT + depreciação e amortização (sem a exaustão dos ativos biológicos).' },
+  EV_EBIT: { label: 'EV/EBIT', name: 'Valor de firma / EBIT', formula: '(Valor de mercado da companhia + dívida líquida) ÷ EBIT de 12 meses. Igual em todos os tickers da empresa.' },
+  EV_EBITDA: { label: 'EV/EBITDA', name: 'Valor de firma / EBITDA', formula: '(Valor de mercado da companhia + dívida líquida) ÷ EBITDA de 12 meses. Igual em todos os tickers da empresa.' },
+  P_ATIVO: { label: 'P/Ativo', name: 'Preço / Ativo', formula: 'Preço ÷ (ativo total ÷ ações).' },
+  P_CAP_GIRO: { label: 'P/Cap. Giro', name: 'Preço / Capital de giro', formula: 'Preço ÷ ((ativo circulante − passivo circulante) ÷ ações). Nulo com capital de giro negativo ou zero.' },
+  P_ATIVO_CIRC_LIQ: { label: 'P/Ativo Circ. Líq.', name: 'Preço / Ativo circulante líquido', formula: 'Preço ÷ ((ativo circulante − passivo total) ÷ ações), passivo total = ativo total − PL. Nulo com base negativa ou zero.' },
+  DIV_LIQ_EBIT: { label: 'Dív. Líq./EBIT', name: 'Dívida líquida / EBIT', formula: '(Dívida bruta − caixa) ÷ EBIT de 12 meses.' },
+  DIV_LIQ_EBITDA: { label: 'Dív. Líq./EBITDA', name: 'Dívida líquida / EBITDA', formula: '(Dívida bruta − caixa) ÷ EBITDA de 12 meses.' },
+  DIV_BRUTA_PATRIMONIO: { label: 'Dív. Bruta/PL', name: 'Dívida bruta / Patrimônio', formula: 'Dívida bruta ÷ patrimônio líquido.' },
+  PATRIMONIO_ATIVOS: { label: 'PL/Ativos', name: 'Patrimônio / Ativos', formula: 'Patrimônio líquido ÷ ativo total.' },
+  PASSIVOS_ATIVOS: { label: 'Passivos/Ativos', name: 'Passivos / Ativos', formula: '(Ativo total − patrimônio líquido) ÷ ativo total.' },
+  LIQUIDEZ_CORRENTE: { label: 'Liquidez Corrente', name: 'Liquidez corrente', formula: 'Ativo circulante ÷ passivo circulante.' },
+  MARGEM_BRUTA: { label: 'Margem Bruta', name: 'Margem bruta', formula: 'Lucro bruto de 12 meses ÷ receita de 12 meses.' },
+  MARGEM_EBITDA: { label: 'Margem EBITDA', name: 'Margem EBITDA', formula: 'EBITDA de 12 meses ÷ receita de 12 meses.' },
+  MARGEM_EBIT: { label: 'Margem EBIT', name: 'Margem EBIT', formula: 'EBIT de 12 meses ÷ receita de 12 meses.' },
+  MARGEM_LIQUIDA: { label: 'Margem Líquida', name: 'Margem líquida', formula: 'Lucro líquido de 12 meses ÷ receita de 12 meses.' },
+  ROA: { label: 'ROA', name: 'Retorno sobre os ativos', formula: 'Lucro líquido de 12 meses ÷ ativo total médio (início e fim do período).' },
+  ROIC: { label: 'ROIC', name: 'Retorno sobre o capital investido', formula: 'EBIT de 12 meses × (1 − IR/CSLL ÷ resultado antes dos tributos) ÷ (PL + dívida líquida) médio. Nulo com alíquota fora de 0–100%.' },
+  GIRO_ATIVOS: { label: 'Giro Ativos', name: 'Giro dos ativos', formula: 'Receita de 12 meses ÷ ativo total médio (início e fim do período).' },
+  CAGR_RECEITAS_5A: { label: 'CAGR Receitas 5a', name: 'Crescimento da receita em 5 anos', formula: 'Crescimento anual composto da receita de 12 meses contra a de 5 anos antes. Vazio com valor negativo ou zero.' },
+  CAGR_LUCROS_5A: { label: 'CAGR Lucros 5a', name: 'Crescimento do lucro em 5 anos', formula: 'Crescimento anual composto do lucro líquido de 12 meses contra o de 5 anos antes. Vazio com valor negativo ou zero.' },
 };
 
-/** Ordem dos cartões (decisão D3). */
+/** Um grupo de cartões com subtítulo (D16). FII: um grupo só, sem título. */
+export interface IndicatorGroup {
+  title: string | null;
+  codes: IndicatorCode[];
+}
+
+/** Ordem e grupos dos cartões (D3 da tela de emissoras; D16 da tela de Ativos). */
+export const INDICATOR_GROUPS: Record<IssuerKind, IndicatorGroup[]> = {
+  COMPANY: [
+    { title: 'Valuation', codes: ['PL', 'PVP', 'DY', 'PSR', 'P_EBIT', 'P_EBITDA', 'EV_EBIT', 'EV_EBITDA', 'P_ATIVO',
+      'P_CAP_GIRO', 'P_ATIVO_CIRC_LIQ', 'LPA', 'VPA'] },
+    { title: 'Endividamento', codes: ['DIV_LIQ_EBIT', 'DIV_LIQ_EBITDA', 'DIV_BRUTA_PATRIMONIO', 'PATRIMONIO_ATIVOS',
+      'PASSIVOS_ATIVOS', 'LIQUIDEZ_CORRENTE'] },
+    { title: 'Eficiência', codes: ['MARGEM_BRUTA', 'MARGEM_EBITDA', 'MARGEM_EBIT', 'MARGEM_LIQUIDA'] },
+    { title: 'Rentabilidade', codes: ['ROE', 'ROA', 'ROIC', 'GIRO_ATIVOS', 'PAYOUT'] },
+    { title: 'Crescimento', codes: ['CAGR_RECEITAS_5A', 'CAGR_LUCROS_5A'] },
+  ],
+  FII: [{ title: null, codes: ['PVP', 'DY', 'VP_COTA', 'COTISTAS', 'IMOVEIS', 'PAPEL', 'ALAVANCAGEM'] }],
+};
+
+/** Ordem dos cartões, sem os grupos (navegação ‹ › do modal). */
 export const INDICATOR_ORDER: Record<IssuerKind, IndicatorCode[]> = {
-  COMPANY: ['PL', 'PVP', 'DY', 'ROE', 'PAYOUT', 'LPA', 'VPA'],
-  FII: ['PVP', 'DY', 'VP_COTA', 'COTISTAS', 'IMOVEIS', 'PAPEL', 'ALAVANCAGEM'],
+  COMPANY: INDICATOR_GROUPS.COMPANY.flatMap(g => g.codes),
+  FII: INDICATOR_GROUPS.FII.flatMap(g => g.codes),
+};
+
+/** Janelas dos indicadores (D14); 5A é o padrão (T5). */
+export const INDICATOR_WINDOWS: IndicatorWindow[] = ['3A', '5A', 'MAX'];
+export const DEFAULT_WINDOW: IndicatorWindow = '5A';
+
+/**
+ * Pontos de uma janela (D14), como o backend calcula a média: no Anual, os N últimos pontos anuais; no Trimestral,
+ * do 1º trimestre do primeiro ano da janela em diante. MAX = todos.
+ */
+export const pointsInWindow = (h: IndicatorHistory, window: IndicatorWindow): IndicatorPoint[] => {
+  if (window === 'MAX') return h.points;
+  if (h.period === 'YEAR') {
+    const n = window === '3A' ? 3 : 5;
+    return h.points.slice(Math.max(0, h.points.length - n));
+  }
+  const from = h.averages?.find(a => a.window === window)?.fromYear;
+  return from == null ? h.points : h.points.filter(p => p.periodEnd != null && Number(p.periodEnd.slice(0, 4)) >= from);
+};
+
+/** Média e ano inicial de uma janela; sem `averages` (resposta antiga), a de MAX. */
+export const averageOf = (h: IndicatorHistory, window: IndicatorWindow): { value: number | null; fromYear: number | null } => {
+  const a = h.averages?.find(x => x.window === window);
+  if (a) return { value: a.value, fromYear: a.fromYear };
+  return { value: h.companyAverage, fromYear: h.points.length ? Number(h.points[0].label) || null : null };
 };
 
 /**
  * Indicadores com série histórica. Hoje todos têm; indicador novo sem série
  * fica fora e não ganha botão nem sparkline.
  */
-export const HISTORY_AVAILABLE = new Set<IndicatorCode>([
-  'LPA', 'VPA', 'PL', 'PVP', 'ROE', 'PAYOUT', 'DY', 'VP_COTA', 'COTISTAS', 'IMOVEIS', 'PAPEL', 'ALAVANCAGEM',
-]);
+export const HISTORY_AVAILABLE = new Set<IndicatorCode>(Object.keys(INDICATOR_META) as IndicatorCode[]);
 
 const nf = (min: number, max: number) =>
   new Intl.NumberFormat('pt-BR', { minimumFractionDigits: min, maximumFractionDigits: max });
@@ -83,6 +150,17 @@ export const formatCompactCurrency = (value: number | null | undefined): string 
   if (value === null || value === undefined) return '—';
   const c = formatCompactNumber(value);
   return c.startsWith('-') ? `-R$ ${c.slice(1)}` : `R$ ${c}`;
+};
+
+/**
+ * Valor detalhado (D12): o número inteiro, com todas as casas — R$ 548.490.000.000,00 / 12.888.732.761.
+ * `money` com 2 casas; `count` sem casas.
+ */
+export const formatFull = (value: number | null | undefined, kind: 'money' | 'count'): string => {
+  if (value === null || value === undefined) return '—';
+  if (kind === 'count') return nf(0, 0).format(value);
+  const f = nf(2, 2).format(Math.abs(value));
+  return value < 0 ? `-R$ ${f}` : `R$ ${f}`;
 };
 
 /** CNPJ só com dígitos → 33.000.167/0001-01. */

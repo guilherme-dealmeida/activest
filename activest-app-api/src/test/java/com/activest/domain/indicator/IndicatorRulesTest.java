@@ -127,6 +127,150 @@ class IndicatorRulesTest {
         assertThat(IndicatorRules.fund(Indicator.DY, b).value()).isEqualByComparingTo("9.02");
     }
 
+    // ------------------------------------------------------------------ tela de Ativos (PLANO_TELA_ATIVOS, 2.5)
+
+    static BigDecimal mi(long millions) {
+        return BigDecimal.valueOf(millions).multiply(BigDecimal.valueOf(1_000_000));
+    }
+
+    /**
+     * Petrobras, DFP 2025 (contas reais, conferidas na A1); o balanco de 12 meses antes, os 12 meses de 5 anos antes
+     * e o valor de mercado (R$ 900 bi) sao sinteticos, so para a conta.
+     */
+    static IndicatorRules.Accounts petrobrasAccounts(BigDecimal marketValue, String note) {
+        return new IndicatorRules.Accounts(mi(497_549), mi(145_628), mi(84_388), mi(236_998), mi(110_605),
+                mi(150_599), mi(-39_994), mi(417_587), mi(1_223_389), mi(50_608), mi(384_025), mi(140_026),
+                mi(198_368), mi(400_000), mi(1_100_000), mi(40_000), mi(350_000), mi(300_000), mi(50_000),
+                marketValue, note);
+    }
+
+    static CompanyBasis petrobrasFull(IndicatorRules.Accounts a) {
+        return new CompanyBasis(DEC_2025, new BigDecimal("110129000000"), new BigDecimal("415786000000"),
+                new BigDecimal("366006000000"), 12_888_732_761L, BigDecimal.ONE, 1,
+                new BigDecimal("41236000000"), new BigDecimal("30.00"), BigDecimal.ZERO, a);
+    }
+
+    @Test
+    @DisplayName("Indicadores novos de acoes: as 23 formulas com as contas da Petrobras 2025")
+    void newIndicators() {
+        CompanyBasis b = petrobrasFull(petrobrasAccounts(new BigDecimal("900000000000"), null));
+        assertThat(v(Indicator.PSR, b)).isEqualByComparingTo("0.78");
+        assertThat(v(Indicator.P_EBIT, b)).isEqualByComparingTo("2.66");
+        assertThat(v(Indicator.P_EBITDA, b)).isEqualByComparingTo("1.68");      // EBITDA = EBIT + D&A
+        assertThat(v(Indicator.P_ATIVO, b)).isEqualByComparingTo("0.32");
+        assertThat(v(Indicator.EV_EBIT, b)).isEqualByComparingTo("8.47");       // (900 bi + divida liquida) / EBIT
+        assertThat(v(Indicator.EV_EBITDA, b)).isEqualByComparingTo("5.36");
+        assertThat(v(Indicator.DIV_LIQ_EBIT, b)).isEqualByComparingTo("2.29");
+        assertThat(v(Indicator.DIV_LIQ_EBITDA, b)).isEqualByComparingTo("1.45");
+        assertThat(v(Indicator.DIV_BRUTA_PATRIMONIO, b)).isEqualByComparingTo("0.92");
+        assertThat(v(Indicator.PATRIMONIO_ATIVOS, b)).isEqualByComparingTo("34.13");
+        assertThat(v(Indicator.PASSIVOS_ATIVOS, b)).isEqualByComparingTo("65.87");
+        assertThat(v(Indicator.LIQUIDEZ_CORRENTE, b)).isEqualByComparingTo("0.71");
+        assertThat(v(Indicator.MARGEM_BRUTA, b)).isEqualByComparingTo("47.63");
+        assertThat(v(Indicator.MARGEM_EBITDA, b)).isEqualByComparingTo("46.23");
+        assertThat(v(Indicator.MARGEM_EBIT, b)).isEqualByComparingTo("29.27");
+        assertThat(v(Indicator.MARGEM_LIQUIDA, b)).isEqualByComparingTo("22.23");
+        assertThat(v(Indicator.ROA, b)).isEqualByComparingTo("9.52");           // ativo medio do inicio e do fim
+        assertThat(v(Indicator.GIRO_ATIVOS, b)).isEqualByComparingTo("0.43");
+        assertThat(v(Indicator.ROIC, b)).isEqualByComparingTo("14.64");         // aliquota 39.994 / 150.599
+        assertThat(v(Indicator.CAGR_RECEITAS_5A, b)).isEqualByComparingTo("10.65");
+        assertThat(v(Indicator.CAGR_LUCROS_5A, b)).isEqualByComparingTo("17.21");
+        // capital de giro e ativo circulante liquido negativos na Petrobras: nulo com o motivo
+        assertThat(IndicatorRules.company(Indicator.P_CAP_GIRO, b).note()).isEqualTo("capital de giro negativo ou zero");
+        assertThat(IndicatorRules.company(Indicator.P_ATIVO_CIRC_LIQ, b).note())
+                .isEqualTo("ativo circulante liquido negativo ou zero");
+    }
+
+    @Test
+    @DisplayName("Indicadores novos: nulos com o motivo, nunca zero inventado")
+    void newIndicatorsNulls() {
+        IndicatorRules.Accounts none = IndicatorRules.Accounts.NONE;
+        CompanyBasis empty = petrobrasFull(none);
+        assertThat(IndicatorRules.company(Indicator.PSR, empty).note()).isEqualTo("sem receita 12 meses");
+        assertThat(IndicatorRules.company(Indicator.EV_EBIT, empty).note()).isEqualTo("sem valor de mercado");
+        assertThat(IndicatorRules.company(Indicator.ROIC, empty).note()).isEqualTo("sem EBIT 12 meses");
+        assertThat(IndicatorRules.company(Indicator.CAGR_LUCROS_5A, empty).note())
+                .isEqualTo("sem lucro liquido de 12 meses de hoje e de 5 anos antes");
+
+        IndicatorRules.Accounts a = petrobrasAccounts(null, "sem cotacao das acoes ON");
+        // EBIT negativo: P/EBIT, EV/EBIT e Div. liq./EBIT nulos; a margem EBIT negativa fica
+        IndicatorRules.Accounts loss = new IndicatorRules.Accounts(a.revenueTtm(), mi(-10_000), BigDecimal.ZERO,
+                a.grossProfitTtm(), mi(-50), mi(-60), mi(10), a.equity(), a.totalAssets(), a.cash(), a.grossDebt(),
+                a.currentAssets(), a.currentLiabilities(), a.equityStart(), a.totalAssetsStart(), a.cashStart(),
+                a.grossDebtStart(), a.revenueTtm5y(), a.netIncomeTtm5y(), new BigDecimal("900000000000"), null);
+        CompanyBasis b = petrobrasFull(loss);
+        assertThat(IndicatorRules.company(Indicator.P_EBIT, b).note()).isEqualTo("EBIT 12 meses negativo ou zero");
+        assertThat(IndicatorRules.company(Indicator.EV_EBIT, b).note()).isEqualTo("EBIT 12 meses negativo ou zero");
+        assertThat(IndicatorRules.company(Indicator.DIV_LIQ_EBIT, b).note()).isEqualTo("EBIT 12 meses negativo ou zero");
+        assertThat(v(Indicator.MARGEM_EBIT, b)).isNegative();
+        assertThat(IndicatorRules.company(Indicator.ROIC, b).note())
+                .isEqualTo("resultado antes dos tributos negativo ou zero");
+        assertThat(IndicatorRules.company(Indicator.CAGR_LUCROS_5A, b).note())
+                .isEqualTo("lucro liquido de 12 meses negativo ou zero no inicio ou no fim");
+        // valor de mercado sem cotacao: o motivo vem do calculo do valor
+        assertThat(IndicatorRules.company(Indicator.EV_EBITDA, petrobrasFull(a)).note())
+                .isEqualTo("sem cotacao das acoes ON");
+    }
+
+    @Test
+    @DisplayName("ROIC: aliquota efetiva fora de 0-100% vira nulo com o motivo; valor estimado leva a nota da D3")
+    void roicAndEstimatedMarketValue() {
+        IndicatorRules.Accounts a = petrobrasAccounts(new BigDecimal("900000000000"),
+                "ON sem negociacao: avaliada pelo preco de PETR4");
+        IndicatorRules.Accounts credit = new IndicatorRules.Accounts(a.revenueTtm(), a.ebitTtm(), a.depreciationTtm(),
+                a.grossProfitTtm(), a.netIncomeTtm(), mi(100), mi(20), a.equity(), a.totalAssets(), a.cash(),
+                a.grossDebt(), a.currentAssets(), a.currentLiabilities(), a.equityStart(), a.totalAssetsStart(),
+                a.cashStart(), a.grossDebtStart(), a.revenueTtm5y(), a.netIncomeTtm5y(), a.marketValue(),
+                a.marketValueNote());
+        assertThat(IndicatorRules.company(Indicator.ROIC, petrobrasFull(credit)).note())
+                .isEqualTo("aliquota efetiva de IR/CSLL fora de 0-100% (-20.0%)");
+        Value ev = IndicatorRules.company(Indicator.EV_EBIT, petrobrasFull(a));
+        assertThat(ev.value()).isEqualByComparingTo("8.47");
+        assertThat(ev.note()).isEqualTo("ON sem negociacao: avaliada pelo preco de PETR4");
+    }
+
+    @Test
+    @DisplayName("Banco e seguradora: os 15 indicadores so do comercial nao se aplicam; listagem so com as 14 colunas")
+    void applicabilityAndListing() {
+        long commercialOnly = Arrays.stream(Indicator.values())
+                .filter(i -> i.appliesTo(com.activest.domain.issuer.IssuerKind.COMPANY))
+                .filter(i -> !i.appliesTo(com.activest.domain.issuer.IssuerKind.COMPANY, "BANCO")).count();
+        assertThat(commercialOnly).isEqualTo(15);
+        assertThat(Indicator.ROA.appliesTo(com.activest.domain.issuer.IssuerKind.COMPANY, "SEGURADORA")).isTrue();
+        assertThat(Indicator.ROIC.appliesTo(com.activest.domain.issuer.IssuerKind.COMPANY, "SEGURADORA")).isFalse();
+        assertThat(Indicator.ROIC.appliesTo(com.activest.domain.issuer.IssuerKind.COMPANY, null)).isTrue();
+        assertThat(Arrays.stream(Indicator.values()).filter(Indicator::listed).map(Enum::name))
+                .containsExactly("LPA", "VPA", "PL", "PVP", "ROE", "PAYOUT", "DY", "VP_COTA", "COTISTAS", "IMOVEIS",
+                        "PAPEL", "ALAVANCAGEM");
+        assertThat(Arrays.stream(Indicator.values()).filter(i -> i.appliesTo(com.activest.domain.issuer.IssuerKind.COMPANY)))
+                .hasSize(30);
+    }
+
+    @Test
+    @DisplayName("Media por janela (D14): os N ultimos anos fechados + Atual; MAX = todos; desde o 1o ano da janela")
+    void windowAverages() {
+        java.util.List<com.activest.domain.indicator.dto.IndicatorPointDTO> annual = new java.util.ArrayList<>();
+        for (int y = 2018; y <= 2025; y++) {
+            annual.add(new com.activest.domain.indicator.dto.IndicatorPointDTO(String.valueOf(y),
+                    LocalDate.of(y, 12, 31), BigDecimal.valueOf(y - 2017), null));   // 1..8
+        }
+        var current = new com.activest.domain.indicator.dto.IndicatorPointDTO("Atual", LocalDate.of(2026, 6, 30),
+                new BigDecimal("10"), null);
+        var y3 = IndicatorService.windowAverage(IndicatorWindow.Y3, annual, current, Indicator.Unit.RATIO);
+        assertThat(y3.window()).isEqualTo("3A");
+        assertThat(y3.fromYear()).isEqualTo(2023);
+        assertThat(y3.value()).isEqualByComparingTo("7.75");     // (6 + 7 + 8 + 10) / 4
+        var y5 = IndicatorService.windowAverage(IndicatorWindow.Y5, annual, current, Indicator.Unit.RATIO);
+        assertThat(y5.fromYear()).isEqualTo(2021);
+        assertThat(y5.value()).isEqualByComparingTo("6.67");     // (4..8 + 10) / 6
+        var max = IndicatorService.windowAverage(IndicatorWindow.MAX, annual, current, Indicator.Unit.RATIO);
+        assertThat(max.fromYear()).isEqualTo(2018);
+        assertThat(max.value()).isEqualByComparingTo("5.11");    // (1..8 + 10) / 9
+        // menos anos que a janela: todos
+        var few = IndicatorService.windowAverage(IndicatorWindow.Y5, annual.subList(0, 2), current, Indicator.Unit.RATIO);
+        assertThat(few.fromYear()).isEqualTo(2018);
+    }
+
     @Test
     @DisplayName("Media da empresa: nulos fora, zeros dentro")
     void media() {

@@ -214,6 +214,17 @@ class FinancialStatementImportIT extends IntegrationTestBase {
         assertThat(jun.getRevenueTtm()).isNull();                                       // falta o 3T de 2025
         assertThat(jun.getSourceDocId()).isNotNull();
 
+        // contas novas (docs/planos/PLANO_TELA_ATIVOS.md, 2.5)
+        assertThat(ten.getGrossProfitTtm()).isEqualByComparingTo("236998000000");
+        assertThat(ten.getDepreciationAmortizationTtm()).isEqualByComparingTo("84388000000"); // despesa, positiva
+        assertThat(ten.getPretaxIncomeTtm()).isEqualByComparingTo("150599000000");
+        assertThat(ten.getIncomeTaxTtm()).isEqualByComparingTo("-39994000000");
+        assertThat(ten.getCurrentAssets()).isEqualByComparingTo("140026000000");
+        assertThat(ten.getCurrentLiabilities()).isEqualByComparingTo("198368000000");
+        assertThat(jun.getGrossProfitQ()).isEqualByComparingTo("98300000000");                // coluna de 3 meses
+        // D&A so acumulada na DVA do ITR: 2T = 6 meses - 3 meses (43.117 - 21.614 mi)
+        assertThat(jun.getDepreciationAmortizationQ()).isEqualByComparingTo("21503000000");
+
         // recalcular de novo da o mesmo
         CompanyQuarterService.Result again = quarterService.rebuild("teste");
         assertThat(again.quarters()).isEqualTo(r.quarters());

@@ -27,6 +27,28 @@ public enum FinancialMetric {
      * dividendos, 0 (nao pagou).
      */
     DIVIDENDOS_PAGOS,
+    // Contas novas (docs/planos/PLANO_TELA_ATIVOS.md, 2.5, 23/10/2026): valores gravados em portugues, como os demais
+    /** Resultado bruto (DRE 3.03). So no layout comercial. */
+    LUCRO_BRUTO,
+    /**
+     * Depreciacao e amortizacao, positiva = despesa: a DVA (retencoes, "depreciacao, amortizacao e exaustao") menos a
+     * {@link #EXAUSTAO_BIOLOGICA} quando a companhia a informa a parte na DFC (D22, 24/10/2026 — como o Investidor10).
+     * So no layout comercial. Base do EBITDA.
+     */
+    DEPRECIACAO_AMORTIZACAO,
+    /**
+     * Exaustao dos ativos biologicos (florestas), informada em linha propria nos ajustes da DFC (6.01.01.*), positiva.
+     * Sai do EBITDA (D22). Gravada para conferencia; so no layout comercial.
+     */
+    EXAUSTAO_BIOLOGICA,
+    /** Resultado antes dos tributos sobre o lucro (DRE). Base da aliquota do ROIC. */
+    LAIR,
+    /** Imposto de renda e contribuicao social sobre o lucro (DRE), como informado: negativo quando e despesa. */
+    IR_CSLL,
+    /** Ativo circulante (BPA 1.01). So no layout comercial. */
+    ATIVO_CIRCULANTE,
+    /** Passivo circulante (BPP 2.01). So no layout comercial. */
+    PASSIVO_CIRCULANTE,
     /** LPA basico informado pela companhia, por classe. So conferencia (ver ShareScale). */
     LPA_ON,
     LPA_PN;

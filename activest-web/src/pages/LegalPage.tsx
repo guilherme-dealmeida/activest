@@ -8,7 +8,7 @@ export const LegalPage = ({ kind }: { kind: 'terms' | 'privacy' }) => {
     <div className="min-h-screen bg-background p-4 sm:p-8">
       <div className="mx-auto max-w-3xl">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-accent">Prime<span className="text-white">Vest</span></h1>
+          <h1 className="text-2xl font-bold text-accent">Acti<span className="text-white">vest</span></h1>
           <Link to="/login" className="text-sm text-gray-400 hover:text-white">Ir para o login</Link>
         </div>
         <article className="rounded-xl border border-white/10 bg-surface p-6 sm:p-8 space-y-6">

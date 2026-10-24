@@ -26,10 +26,21 @@ public class IndicatorController {
 
     private final IndicatorService service;
     private final IssuerListingService listing;
+    private final CompanyDataService companyData;
 
-    public IndicatorController(IndicatorService service, IssuerListingService listing) {
+    public IndicatorController(IndicatorService service, IssuerListingService listing, CompanyDataService companyData) {
         this.service = service;
         this.listing = listing;
+        this.companyData = companyData;
+    }
+
+    /**
+     * Card "Dados da empresa" / "Dados do fundo" (docs/planos/PLANO_TELA_ATIVOS.md, D2 a D7): valor de mercado, de
+     * firma, PL, papeis, ativos, circulante, dividas, caixa, liquidez media e as datas.
+     */
+    @GetMapping("/{ticker}/company-data")
+    public ResponseEntity<com.activest.domain.indicator.dto.CompanyDataDTO> companyData(@PathVariable String ticker) {
+        return ResponseEntity.ok(companyData.of(ticker));
     }
 
     /**

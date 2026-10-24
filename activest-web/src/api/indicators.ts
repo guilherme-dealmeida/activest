@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { AssetIndicators, IndicatorCode, IndicatorHistory, IndicatorPeriod, IssuerKind, IssuerListingRow } from '../types';
+import { AssetIndicators, CompanyData, IndicatorCode, IndicatorHistory, IndicatorPeriod, IssuerKind, IssuerListingRow } from '../types';
 
 /** Indicadores de ações e FIIs (app-api, F9 do docs/planos/PLANO_EMPRESAS_BALANCOS.md). */
 export const indicatorsApi = {
@@ -10,6 +10,11 @@ export const indicatorsApi = {
   },
   current: async (ticker: string) => {
     const { data } = await apiClient.get<AssetIndicators>(`/assets/${encodeURIComponent(ticker)}/indicators`);
+    return data;
+  },
+  /** Card "Dados da empresa" / "Dados do fundo" (docs/planos/PLANO_TELA_ATIVOS.md, D2 a D7). */
+  companyData: async (ticker: string) => {
+    const { data } = await apiClient.get<CompanyData>(`/assets/${encodeURIComponent(ticker)}/company-data`);
     return data;
   },
   /** Histórico de todos os indicadores numa chamada — sparklines (B4). */

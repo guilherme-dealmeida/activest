@@ -8,7 +8,7 @@ import { IssuerSearch } from '@/components/issuer/IssuerSearch';
 import { IssuerHeader } from '@/components/issuer/IssuerHeader';
 import { PriceChart } from '@/components/issuer/PriceChart';
 import { IndicatorGrid } from '@/components/issuer/IndicatorGrid';
-import { IssuerRegistry } from '@/components/issuer/IssuerRegistry';
+import { CompanyData } from '@/components/issuer/CompanyData';
 import { FinancialStatements } from '@/components/issuer/FinancialStatements';
 import { IssuerListing } from '@/components/issuer/IssuerListing';
 import { apiMessage } from '@/utils/apiError';
@@ -17,11 +17,10 @@ const status = (error: unknown): number | undefined =>
   (error as { response?: { status?: number } } | null)?.response?.status;
 
 /**
- * Tela de Emissoras (docs/planos/PLANO_TELA_EMISSORES.md): sem ticker, a listagem do catálogo em abas
- * (docs/planos/PLANO_LISTAGEM_EMISSORAS.md); a partir de um ticker, o
- * emissor (companhia ou FII), a cotação, os indicadores com histórico, o
- * cadastro e os demonstrativos. A URL é o estado: /ativos/PETR4?periodo=5A. A tela se chamava Emissoras até
- * 18/10/2026 (/emissoras redireciona para /ativos).
+ * Tela de Ativos (docs/planos/PLANO_TELA_EMISSORES.md, PLANO_TELA_ATIVOS.md): sem ticker, a listagem do catálogo
+ * em abas (docs/planos/PLANO_LISTAGEM_EMISSORAS.md); a partir de um ticker, o emissor (companhia ou FII), a cotação,
+ * os indicadores com histórico, os dados da empresa e os demonstrativos. A URL é o estado: /assets/PETR4?range=5A. A
+ * tela se chamava Emissoras até 18/10/2026 (/emissoras e /ativos redirecionam para /assets).
  */
 export const IssuerPage = () => {
   const { ticker: raw } = useParams();
@@ -86,7 +85,7 @@ export const IssuerPage = () => {
         <IssuerHeader ticker={current.data.ticker} issuer={issuer.data} current={current.data} />
         <PriceChart ticker={current.data.ticker} />
         <IndicatorGrid key={current.data.ticker} current={current.data} />
-        {issuer.data && <IssuerRegistry issuer={issuer.data} />}
+        {issuer.data && <CompanyData key={`company-data-${current.data.ticker}`} ticker={current.data.ticker} issuer={issuer.data} />}
         {issuer.data && <FinancialStatements key={issuer.data.id} issuer={issuer.data} />}
         {issuer.isError && (
           <p className="text-sm text-gray-400">{apiMessage(issuer.error) ?? 'Não foi possível carregar o cadastro do emissor.'}</p>

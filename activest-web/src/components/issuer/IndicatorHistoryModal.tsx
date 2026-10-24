@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { indicatorsApi } from '@/api/indicators';
 import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { Toggle } from '@/components/ui/Toggle';
 import { useTheme } from '@/context/ThemeContext';
-import { IndicatorCode, IndicatorHistory, IndicatorPeriod, IndicatorPoint, IndicatorUnit } from '@/types';
-import { INDICATOR_META, formatIndicator, formatIndicatorAxis } from '@/utils/indicators';
+import { IndicatorCode, IndicatorHistory, IndicatorPeriod, IndicatorPoint, IndicatorUnit, IndicatorWindow } from '@/types';
+import { INDICATOR_META, INDICATOR_WINDOWS, averageOf, formatIndicator, formatIndicatorAxis, pointsInWindow } from '@/utils/indicators';
 import { apiMessage } from '@/utils/apiError';
 
 interface Props {
@@ -15,6 +16,8 @@ interface Props {
   /** Indicadores navegáveis com ‹ › (a ordem dos cartões). */
   codes: IndicatorCode[];
   open: IndicatorCode | null;
+  /** Janela do cartão que abriu o modal (D15); a do modal fica ao navegar com ‹ ›. */
+  initialWindow: IndicatorWindow;
   onChange: (code: IndicatorCode | null) => void;
   /** Históricos anuais já carregados para as sparklines (B4). */
   annual: IndicatorHistory[] | undefined;
@@ -42,13 +45,20 @@ const BarTooltip = ({ active, payload, unit }: {
 };
 
 /**
- * Histórico de um indicador em modal (docs/planos/PLANO_TELA_EMISSORES.md, 2.4, D1):
- * Anual | Trimestral, barras com o Atual em dourado e a média da empresa
- * tracejada, tabela embaixo, ‹ › (e ← →) para o indicador vizinho.
+ * Histórico de um indicador em modal (docs/planos/PLANO_TELA_EMISSORES.md, 2.4, D1; docs/planos/PLANO_TELA_ATIVOS.md,
+ * D14, D15): 3A | 5A | MAX à esquerda de Anual | Trimestral, barras com o Atual em dourado e a média da janela
+ * tracejada, tabela embaixo, ‹ › (e ← →) para o indicador vizinho, mantendo a janela.
  */
-export const IndicatorHistoryModal = ({ ticker, codes, open, onChange, annual }: Props) => {
+export const IndicatorHistoryModal = ({ ticker, codes, open, initialWindow, onChange, annual }: Props) => {
   const { isDark } = useTheme();
   const [period, setPeriod] = useState<IndicatorPeriod>('YEAR');
+  const [win, setWin] = useState<IndicatorWindow>(initialWindow);
+  // ao abrir (fechado → aberto), começa na janela do cartão; navegando com ‹ › fica a do modal
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (open && !wasOpen.current) setWin(initialWindow);
+    wasOpen.current = !!open;
+  }, [open, initialWindow]);
   const idx = open ? codes.indexOf(open) : -1;
 
   const fromBatch = open && period === 'YEAR' ? annual?.find(h => h.indicator === open) : undefined;
@@ -82,8 +92,9 @@ export const IndicatorHistoryModal = ({ ticker, codes, open, onChange, annual }:
   const meta = INDICATOR_META[open];
   const unit = data?.unit ?? 'RATIO';
 
+  const average = data ? averageOf(data, win).value : null;
   const bars: BarDatum[] = data
-    ? [...data.points, data.current].map((p, i, all) => ({
+    ? [...pointsInWindow(data, win), data.current].map((p, i, all) => ({
         ...p, plot: p.value ?? 0, isCurrent: i === all.length - 1,
       }))
     : [];
@@ -109,23 +120,17 @@ export const IndicatorHistoryModal = ({ ticker, codes, open, onChange, annual }:
               </div>
             </div>
             <div>
-              <span className="text-xs uppercase text-gray-500">Média da empresa</span>
+              <span className="text-xs uppercase text-gray-500">Média {win}</span>
               <div className="text-xl font-semibold text-white">
-                {data ? formatIndicator(data.companyAverage, unit) : '…'}
+                {data ? formatIndicator(average, unit) : '…'}
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex rounded-md bg-white/5 p-0.5" role="group" aria-label="Periodicidade">
-              {(['YEAR', 'QUARTER'] as IndicatorPeriod[]).map(p => (
-                <button key={p} type="button" onClick={() => setPeriod(p)} aria-pressed={period === p}
-                        className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
-                          period === p ? 'bg-accent text-black' : 'text-gray-300 hover:text-white'
-                        }`}>
-                  {p === 'YEAR' ? 'Anual' : 'Trimestral'}
-                </button>
-              ))}
-            </div>
+            <Toggle label="Período" value={win} onChange={setWin}
+                    options={INDICATOR_WINDOWS.map(w => ({ value: w, label: w }))} />
+            <Toggle label="Periodicidade" value={period} onChange={setPeriod}
+                    options={[{ value: 'YEAR', label: 'Anual' }, { value: 'QUARTER', label: 'Trimestral' }]} />
             <button type="button" onClick={() => go(-1)} aria-label="Indicador anterior"
                     className="rounded-md p-1.5 text-gray-400 hover:bg-white/5 hover:text-white">
               <ChevronLeft className="h-5 w-5" />
@@ -158,9 +163,9 @@ export const IndicatorHistoryModal = ({ ticker, codes, open, onChange, annual }:
                            tickLine={false} axisLine={false} width={60} />
                     <Tooltip content={<BarTooltip unit={unit} />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }} />
                     <ReferenceLine y={0} stroke={axis} strokeOpacity={0.5} />
-                    {data.companyAverage != null && (
-                      <ReferenceLine y={data.companyAverage} stroke={GOLD} strokeDasharray="6 4" strokeOpacity={0.9}
-                                     label={{ value: `média ${formatIndicator(data.companyAverage, unit)}`, position: 'insideTopRight',
+                    {average != null && (
+                      <ReferenceLine y={average} stroke={GOLD} strokeDasharray="6 4" strokeOpacity={0.9}
+                                     label={{ value: `média ${win} ${formatIndicator(average, unit)}`, position: 'insideTopRight',
                                               fill: axis, fontSize: 11 }} />
                     )}
                     <Bar dataKey="plot" radius={[3, 3, 0, 0]} isAnimationActive={false}>
@@ -182,7 +187,7 @@ export const IndicatorHistoryModal = ({ ticker, codes, open, onChange, annual }:
                         {b.label}
                       </th>
                     ))}
-                    <th className="px-2 py-1.5 text-center font-medium text-gray-400">Média</th>
+                    <th className="px-2 py-1.5 text-center font-medium text-gray-400">Média {win}</th>
                   </tr>
                   <tr>
                     {bars.map((b, i) => (
@@ -192,7 +197,7 @@ export const IndicatorHistoryModal = ({ ticker, codes, open, onChange, annual }:
                       </td>
                     ))}
                     <td className="px-2 py-1.5 text-center font-semibold text-white whitespace-nowrap">
-                      {formatIndicator(data.companyAverage, unit, true)}
+                      {formatIndicator(average, unit, true)}
                     </td>
                   </tr>
                 </tbody>
@@ -200,8 +205,8 @@ export const IndicatorHistoryModal = ({ ticker, codes, open, onChange, annual }:
             </div>
             <p className="text-xs text-gray-500">
               {period === 'YEAR'
-                ? 'Ponto anual: balanço do exercício (ou informe de dezembro) com o fechamento da data. Média: pontos anuais + Atual; valores nulos ficam fora.'
-                : 'Ponto trimestral: cada balanço (ou informe de março, junho, setembro e dezembro). A média é sempre a dos pontos anuais + Atual.'}
+                ? 'Ponto anual: balanço do exercício (ou informe de dezembro) com o fechamento da data. Média: pontos anuais da janela + Atual; valores nulos ficam fora.'
+                : 'Ponto trimestral: cada balanço (ou informe de março, junho, setembro e dezembro), desde o 1º trimestre do primeiro ano da janela. A média é sempre a dos pontos anuais da janela + Atual.'}
               {' '}Passe o mouse num “—” para ver o motivo.
             </p>
           </>

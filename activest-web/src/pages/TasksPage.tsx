@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Pagination } from '@/components/ui/Pagination';
-import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import { TABLE_ACTION_CLASS } from '@/components/ui/tableAction';
 import { useToast } from '@/context/ToastContext';
 import { apiMessage } from '@/utils/apiError';

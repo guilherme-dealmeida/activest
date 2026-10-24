@@ -207,6 +207,9 @@ activest:
       price-days: 7
       statement-months: 6
       report-months: 3
+    # Liquidez media diaria (quantidade x fechamento) dos ultimos N meses: card Dados da empresa (D4) e a serie PN de
+    # maior liquidez no valor de mercado (D3) — docs/planos/PLANO_TELA_ATIVOS.md
+    liquidity-months: 2
   logos:
     # Pasta fora do banco (B18), so leitura aqui; quem baixa e a adm-api. No Docker: ./data/logos.
     dir: ${LOGOS_DIR:../carga/data/logos}

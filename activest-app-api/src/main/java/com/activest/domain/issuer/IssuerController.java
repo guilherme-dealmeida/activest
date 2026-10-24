@@ -1,6 +1,7 @@
 package com.activest.domain.issuer;
 
 import com.activest.domain.asset.AssetLogos;
+import com.activest.domain.issuer.dto.IssuerDTOs;
 import com.activest.domain.issuer.dto.IssuerDTOs.IssuerDTO;
 import com.activest.domain.issuer.dto.IssuerDTOs.MonthDTO;
 import com.activest.domain.issuer.dto.IssuerDTOs.QuarterDTO;
@@ -68,6 +69,25 @@ public class IssuerController {
         }
         return ResponseEntity.ok(quarters.findByIssuerIdAndPeriodEndGreaterThanEqualOrderByPeriodEnd(id,
                 from != null ? from : FIRST).stream().map(QuarterDTO::of).toList());
+    }
+
+    /**
+     * Demonstrativos no Anual (docs/planos/PLANO_TELA_ATIVOS.md, D8 a D10): uma coluna por exercicio fechado e a do ano
+     * em andamento, do mais antigo ao mais recente. Regras em {@link AnnualStatements}.
+     */
+    @GetMapping("/{id}/years")
+    @Transactional(readOnly = true)
+    public ResponseEntity<List<IssuerDTOs.YearDTO>> years(@PathVariable Long id) {
+        Issuer issuer = find(id);
+        if (issuer.getKind() != IssuerKind.COMPANY) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Demonstrativos anuais so de companhia");
+        }
+        java.util.Set<LocalDate> annual = new java.util.HashSet<>(jdbc.queryForList("""
+                SELECT q.period_end FROM company_quarters q JOIN cvm_documents d ON d.id = q.source_doc_id
+                WHERE q.issuer_id = ? AND d.doc_type = 'DFP'""", LocalDate.class, id));
+        List<AnnualStatements.Row> rows = quarters.findByIssuerIdAndPeriodEndGreaterThanEqualOrderByPeriodEnd(id, FIRST)
+                .stream().map(q -> new AnnualStatements.Row(q, annual.contains(q.getPeriodEnd()))).toList();
+        return ResponseEntity.ok(AnnualStatements.compute(rows));
     }
 
     /** Informe mensal do FII, do mais antigo ao mais recente. */

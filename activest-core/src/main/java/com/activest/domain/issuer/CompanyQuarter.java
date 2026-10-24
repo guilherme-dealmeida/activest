@@ -77,6 +77,29 @@ public class CompanyQuarter {
     @Column(name = "gross_debt")
     private BigDecimal grossDebt;
 
+    // Contas novas (V7, docs/planos/PLANO_TELA_ATIVOS.md, 2.5): lucro bruto e D&A so no layout comercial,
+    // LAIR e IR/CSLL em todos; circulantes so no comercial.
+    @Column(name = "gross_profit_q")
+    private BigDecimal grossProfitQ;
+    @Column(name = "gross_profit_ttm")
+    private BigDecimal grossProfitTtm;
+    @Column(name = "depreciation_amortization_q")
+    private BigDecimal depreciationAmortizationQ;
+    @Column(name = "depreciation_amortization_ttm")
+    private BigDecimal depreciationAmortizationTtm;
+    @Column(name = "pretax_income_q")
+    private BigDecimal pretaxIncomeQ;
+    @Column(name = "pretax_income_ttm")
+    private BigDecimal pretaxIncomeTtm;
+    @Column(name = "income_tax_q")
+    private BigDecimal incomeTaxQ;
+    @Column(name = "income_tax_ttm")
+    private BigDecimal incomeTaxTtm;
+    @Column(name = "current_assets")
+    private BigDecimal currentAssets;
+    @Column(name = "current_liabilities")
+    private BigDecimal currentLiabilities;
+
     /** Em unidades; nulo quando a escala da quantidade esta em REVISAR ou nao ha quantidade. */
     @Column(name = "shares_total")
     private Long sharesTotal;

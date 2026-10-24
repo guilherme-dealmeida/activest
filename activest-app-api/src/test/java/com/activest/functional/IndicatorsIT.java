@@ -30,6 +30,7 @@ class IndicatorsIT extends FunctionalBase {
     private BigDecimal petr4PriceBefore;
     private BigDecimal hglgPriceBefore;
     private BigDecimal apxrPriceBefore;
+    private BigDecimal petr3PriceBefore;
     private final LocalDate today = LocalDate.now(ZoneId.of("America/Sao_Paulo"));
 
     @BeforeEach
@@ -38,6 +39,7 @@ class IndicatorsIT extends FunctionalBase {
         petr4PriceBefore = jdbc.queryForObject("SELECT current_price FROM assets WHERE ticker = 'PETR4'", BigDecimal.class);
         hglgPriceBefore = jdbc.queryForObject("SELECT current_price FROM assets WHERE ticker = 'HGLG11'", BigDecimal.class);
         apxrPriceBefore = jdbc.queryForObject("SELECT current_price FROM assets WHERE ticker = 'APXR11'", BigDecimal.class);
+        petr3PriceBefore = jdbc.queryForObject("SELECT current_price FROM assets WHERE ticker = 'PETR3'", BigDecimal.class);
         jdbc.update("UPDATE assets SET current_price = 47.99 WHERE ticker = 'PETR4'");
         jdbc.update("UPDATE assets SET current_price = 147.86 WHERE ticker = 'HGLG11'");
         jdbc.update("UPDATE assets SET current_price = 95.00 WHERE ticker = 'APXR11'");
@@ -69,8 +71,10 @@ class IndicatorsIT extends FunctionalBase {
         jdbc.update("UPDATE assets SET current_price = ? WHERE ticker = 'PETR4'", petr4PriceBefore);
         jdbc.update("UPDATE assets SET current_price = ? WHERE ticker = 'HGLG11'", hglgPriceBefore);
         jdbc.update("UPDATE assets SET current_price = ? WHERE ticker = 'APXR11'", apxrPriceBefore);
+        jdbc.update("UPDATE assets SET current_price = ? WHERE ticker = 'PETR3'", petr3PriceBefore);
         jdbc.update("DELETE FROM asset_price_history WHERE asset_id IN "
-                + "(SELECT id FROM assets WHERE ticker IN ('PETR4', 'HGLG11', 'APXR11'))");
+                + "(SELECT id FROM assets WHERE ticker IN ('PETR4', 'HGLG11', 'APXR11', 'PETR3'))");
+        jdbc.update("UPDATE issuers SET statement_layout = NULL WHERE cnpj = '60872504000123'");
     }
 
     private long issuer(String cnpj) {
@@ -244,6 +248,83 @@ class IndicatorsIT extends FunctionalBase {
         assertThat(get(user, "/api/v1/issuers/" + hglg + "/months", List.class).getBody()).hasSize(2);
         assertThat(get(user, "/api/v1/issuers/" + hglg + "/quarters", String.class).getStatusCode())
                 .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    // ------------------------------------------------------------------ tela de Ativos (PLANO_TELA_ATIVOS, A2)
+
+    /** Contas novas e a quantidade por classe (ON 7.442.231.382 + PN 5.446.501.379) no DFP 2025 da Petrobras. */
+    private void petrobras2025Accounts() {
+        long petr = issuer(PETR);
+        Long doc = jdbc.queryForObject("SELECT source_doc_id FROM company_quarters WHERE issuer_id = ? AND period_end = DATE '2025-12-31'",
+                Long.class, petr);
+        jdbc.update("""
+                UPDATE company_quarters SET revenue_ttm = 497549000000, ebit_ttm = 145628000000,
+                       depreciation_amortization_ttm = 84388000000, gross_profit_ttm = 236998000000,
+                       net_income_ttm = 110605000000, pretax_income_ttm = 150599000000, income_tax_ttm = -39994000000,
+                       equity = 417587000000, total_assets = 1223389000000, cash = 50608000000,
+                       gross_debt = 384025000000, current_assets = 140026000000, current_liabilities = 198368000000
+                WHERE issuer_id = ? AND period_end = DATE '2025-12-31'""", petr);
+        jdbc.update("""
+                INSERT INTO share_counts (document_id, source, ordinary_shares, preferred_shares, total_shares,
+                                          ordinary_treasury, preferred_treasury, total_treasury, scale_factor, scale_status)
+                VALUES (?, 'COMPOSICAO', 7442231382, 5446501379, 12888732761, 0, 0, 0, 1, 'OK')""", doc);
+    }
+
+    @Test
+    @DisplayName("PETR4 atual: indicadores novos; EV pelo valor de mercado de ON (PETR3) + PN (PETR4)")
+    void petr4NewIndicators() {
+        petrobras2025Accounts();
+        jdbc.update("UPDATE assets SET current_price = 50.00 WHERE ticker = 'PETR3'");
+        Map<String, Object> a = current("PETR4");
+        assertThat(a.get("statementLayout")).isNull();
+        assertThat(indicator(a, "MARGEM_LIQUIDA")).isEqualByComparingTo("22.23");
+        assertThat(indicator(a, "MARGEM_EBITDA")).isEqualByComparingTo("46.23");
+        assertThat(indicator(a, "LIQUIDEZ_CORRENTE")).isEqualByComparingTo("0.71");
+        assertThat(indicator(a, "PSR")).isEqualByComparingTo("1.24");            // 47,99 / (497,549 bi / acoes)
+        // valor de mercado = 7.442.231.382 x 50,00 + 5.446.501.379 x 47,99; EV = + divida liquida
+        assertThat(indicator(a, "EV_EBIT")).isEqualByComparingTo("6.64");
+        assertThat(indicator(a, "P_CAP_GIRO")).isNull();                        // capital de giro negativo
+        // os 30 de acao, nenhum de FII
+        assertThat((List<?>) a.get("indicators")).hasSize(30);
+    }
+
+    @Test
+    @DisplayName("Classe sem cotacao (D3): ON avaliada pelo preco de PETR4, com a nota no EV")
+    @SuppressWarnings("unchecked")
+    void classWithoutQuote() {
+        petrobras2025Accounts();
+        jdbc.update("UPDATE assets SET current_price = NULL WHERE ticker = 'PETR3'");
+        Map<String, Object> ev = ((List<Map<String, Object>>) current("PETR4").get("indicators")).stream()
+                .filter(i -> "EV_EBIT".equals(i.get("indicator"))).findFirst().orElseThrow();
+        assertThat(number(ev.get("value"))).isEqualByComparingTo("6.54");     // 12.888.732.761 x 47,99 + divida liq.
+        assertThat(ev.get("note")).isEqualTo("ON sem negociacao: avaliada pelo preco de PETR4");
+    }
+
+    @Test
+    @DisplayName("Medias por janela (D14): 3A, 5A e MAX com o ano inicial; companyAverage = MAX")
+    @SuppressWarnings("unchecked")
+    void windowAverages() {
+        Map<String, Object> h = history("PETR4", "DY");
+        List<Map<String, Object>> averages = (List<Map<String, Object>>) h.get("averages");
+        assertThat(averages).extracting(x -> x.get("window")).containsExactly("3A", "5A", "MAX");
+        assertThat(averages).allSatisfy(x -> assertThat(x.get("fromYear")).isEqualTo(2024));
+        assertThat(number(averages.get(2).get("value"))).isEqualByComparingTo(number(h.get("companyAverage")));
+    }
+
+    @Test
+    @DisplayName("Banco (D17): sem os 15 indicadores so do comercial; historico de um deles 400")
+    @SuppressWarnings("unchecked")
+    void bankHidesCommercialOnly() {
+        jdbc.update("UPDATE issuers SET statement_layout = 'BANCO' WHERE cnpj = '60872504000123'");
+        Map<String, Object> a = current("ITUB4");
+        assertThat(a.get("statementLayout")).isEqualTo("BANCO");
+        assertThat((List<Map<String, Object>>) a.get("indicators")).extracting(i -> i.get("indicator"))
+                .hasSize(15).contains("PL", "ROE", "PSR", "ROA", "MARGEM_LIQUIDA", "CAGR_LUCROS_5A")
+                .doesNotContain("ROIC", "EV_EBITDA", "MARGEM_BRUTA", "LIQUIDEZ_CORRENTE");
+        assertThat(get(user, "/api/v1/assets/ITUB4/indicators/ROIC/history", String.class).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+        List<Map<String, Object>> all = get(user, "/api/v1/assets/ITUB4/indicators/history", List.class).getBody();
+        assertThat(all).hasSize(15);
     }
 
     @Test

@@ -8,7 +8,11 @@
 > (entradas do modelo PREÇO TETO V2) e `ceiling_price_quarters` (nova). Acréscimo de 13/10/2026
 > (`docs/planos/PLANO_NOTIFICACOES.md`): V48 `notifications` e `notification_states` (seção 5b); V49
 > `ceiling_prices.alert_enabled/alert_below_ideal/alert_last_on`; V50 `transactions.origin` aceita `SISTEMA` (venda da
-> liquidação automática); V51 `stock_event_costs`. Diagramas em Mermaid: o GitHub e o IntelliJ (plugin Mermaid) renderizam.
+> liquidação automática); V51 `stock_event_costs`. Acréscimo de 24/10/2026 (`docs/planos/PLANO_TELA_ATIVOS.md`, depois
+> da consolidação em V1–V6): V7 `company_quarters` ganha `gross_profit_q/_ttm`, `depreciation_amortization_q/_ttm`,
+> `pretax_income_q/_ttm`, `income_tax_q/_ttm`, `current_assets` e `current_liabilities` (nulas, no fim da tabela);
+> `cvm_statement_values.metric` ganha os valores `LUCRO_BRUTO`, `DEPRECIACAO_AMORTIZACAO`, `EXAUSTAO_BIOLOGICA`,
+> `LAIR`, `IR_CSLL`, `ATIVO_CIRCULANTE` e `PASSIVO_CIRCULANTE`. Diagramas em Mermaid: o GitHub e o IntelliJ (plugin Mermaid) renderizam.
 
 **A ideia que organiza o schema:** o *catálogo* é global (o que o instrumento É — `assets`, preços, proventos, emissores; gravado pela **adm-api**), e o *papel* é do usuário (posição, transações, título de renda fixa, proventos recebidos; gravado só pela **app-api**).
 
@@ -396,6 +400,16 @@ erDiagram
         bigint shares_total
         bigint shares_outstanding
         timestamp computed_at "not null"
+        numeric gross_profit_q
+        numeric gross_profit_ttm
+        numeric depreciation_amortization_q
+        numeric depreciation_amortization_ttm
+        numeric pretax_income_q
+        numeric pretax_income_ttm
+        numeric income_tax_q
+        numeric income_tax_ttm
+        numeric current_assets
+        numeric current_liabilities
     }
     cvm_documents {
         bigint id PK "not null"
@@ -678,7 +692,7 @@ erDiagram
 | Catálogo | `asset_types` | seed V2 | Os 12 tipos de ativo (Ações, FIIs, Renda Fixa, Tesouro, ETF, BDR, Cripto...), com a fonte de preço (price_source) e se é renda fixa (fixed_income). | (name) |
 | Catálogo | `assets` | seeds / adm-api | Catálogo global de instrumentos (sem dono): ticker, nome, tipo, categoria, preço atual, ISIN e a ligação com o emissor (issuer_id, share_class, issuer_link_source). | (ticker) |
 | Catálogo | `withholding_tax_rules` | seed V23 | Alíquotas de IR retido na fonte por tipo de provento, tipo de ativo e vigência, com a base legal. Lei nova = migration. | — |
-| Emissores | `company_quarters` | adm-api (derivada) | Série trimestral derivada por (issuer_id, period_end): trimestre isolado (_q), 12 meses (_ttm), posição do balanço e ações. Recalculada inteira ao fim de cada carga de balanços. Base dos indicadores. dividends_paid_q/_ttm (V45): dividendos + JCP pagos aos acionistas da controladora (DFC), base do payout desde 10/10/2026. | — |
+| Emissores | `company_quarters` | adm-api (derivada) | Série trimestral derivada por (issuer_id, period_end): trimestre isolado (_q), 12 meses (_ttm), posição do balanço e ações. Recalculada inteira ao fim de cada carga de balanços. Base dos indicadores. dividends_paid_q/_ttm (V45): dividendos + JCP pagos aos acionistas da controladora (DFC), base do payout desde 10/10/2026. V7 (24/10/2026): lucro bruto, D&A (DVA menos a exaustão biológica), LAIR e IR/CSLL (_q/_ttm) e ativo/passivo circulante — base dos indicadores novos da tela de Ativos. | — |
 | Emissores | `cvm_documents` | adm-api | Cada DFP ou ITR entregue à CVM por emissor e data de referência; version (reapresentação substitui) e se é consolidado. | (issuer_id, doc_type, reference_date) |
 | Emissores | `cvm_statement_values` | adm-api | Métricas extraídas de cada documento (receita, EBIT, lucro, PL, caixa, dívida, FCO, dividendos declarados, LPA...), em reais, por período. | (document_id, metric, period_start, period_end) |
 | Emissores | `fii_monthly` | adm-api | Informe mensal de FII da CVM por (issuer_id, reference_month): PL, cotas, VP por cota, cotistas, taxas, DY, amortização, carteira e passivo. | — |

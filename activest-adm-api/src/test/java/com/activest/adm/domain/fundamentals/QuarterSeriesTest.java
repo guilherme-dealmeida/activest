@@ -55,10 +55,13 @@ class QuarterSeriesTest {
         return new ArrayList<>(List.of(
                 doc("DFP", "2024-12-31", Shares.NONE, v(RECEITA, "2024-01-01", 400), v(FCO, "2024-01-01", 100)),
                 doc("ITR", "2025-03-31", Shares.NONE, v(RECEITA, "2025-01-01", 110), v(FCO, "2025-01-01", 30),
-                        v(DIVIDENDOS_PAGOS, "2025-01-01", 25),
+                        v(DIVIDENDOS_PAGOS, "2025-01-01", 25), v(DEPRECIACAO_AMORTIZACAO, "2025-01-01", 8),
+                        v(LUCRO_BRUTO, "2025-01-01", 44),
                         v(JCP_DECLARADO, "2025-01-01", 5), v(DIVIDENDOS_DECLARADOS, "2025-01-01", 7)),
                 doc("ITR", "2025-06-30", Shares.NONE, v(RECEITA, "2025-01-01", 230), v(RECEITA, "2025-04-01", 120),
                         v(FCO, "2025-01-01", 70), v(DIVIDENDOS_PAGOS, "2025-01-01", 60),
+                        v(DEPRECIACAO_AMORTIZACAO, "2025-01-01", 17), v(LUCRO_BRUTO, "2025-01-01", 94),
+                        v(LUCRO_BRUTO, "2025-04-01", 50),
                         v(JCP_DECLARADO, "2025-01-01", 10), v(DIVIDENDOS_DECLARADOS, "2025-01-01", 7)),
                 doc("ITR", "2025-09-30", Shares.NONE, v(RECEITA, "2025-01-01", 360), v(RECEITA, "2025-07-01", 130),
                         v(FCO, "2025-01-01", 95)),
@@ -86,6 +89,11 @@ class QuarterSeriesTest {
         // dividendos + JCP pagos (DFC, so acumulado): trimestre por diferenca, como o FCO
         assertThat(q(m, "2025-03-31", Flow.DIVIDENDS_PAID)).isEqualByComparingTo("25");
         assertThat(q(m, "2025-06-30", Flow.DIVIDENDS_PAID)).isEqualByComparingTo("35");   // 60 - 25
+
+        // contas novas: D&A so acumulada (DVA) por diferenca; lucro bruto pela coluna de 3 meses
+        assertThat(q(m, "2025-03-31", Flow.DEPRECIATION_AMORTIZATION)).isEqualByComparingTo("8");
+        assertThat(q(m, "2025-06-30", Flow.DEPRECIATION_AMORTIZATION)).isEqualByComparingTo("9");  // 17 - 8
+        assertThat(q(m, "2025-06-30", Flow.GROSS_PROFIT)).isEqualByComparingTo("50");
 
         assertThat(ttm(m, "2025-12-31", Flow.REVENUE)).isEqualByComparingTo("500"); // anual do DFP
         assertThat(ttm(m, "2026-03-31", Flow.REVENUE)).isEqualByComparingTo("540"); // 120+130+140+150
@@ -133,7 +141,8 @@ class QuarterSeriesTest {
         Map<LocalDate, Quarter> m = byDate(List.of(
                 doc("ITR", "2025-12-31", Shares.NONE, v(PL, null, 1)),
                 doc("DFP", "2025-12-31", new Shares(1000L, 990L), v(PL, null, 500), v(PL_NAO_CONTROLADORES, null, 20),
-                        v(ATIVO_TOTAL, null, 2000), v(CAIXA, null, 50), v(DIVIDA_BRUTA, null, 300)),
+                        v(ATIVO_TOTAL, null, 2000), v(CAIXA, null, 50), v(DIVIDA_BRUTA, null, 300),
+                        v(ATIVO_CIRCULANTE, null, 700), v(PASSIVO_CIRCULANTE, null, 400)),
                 doc("ITR", "2026-03-31", null, v(PL, null, 510))));
 
         Quarter ten = m.get(LocalDate.parse("2025-12-31"));
@@ -142,6 +151,8 @@ class QuarterSeriesTest {
         assertThat(ten.totalAssets()).isEqualByComparingTo("2000");
         assertThat(ten.cash()).isEqualByComparingTo("50");
         assertThat(ten.grossDebt()).isEqualByComparingTo("300");
+        assertThat(ten.currentAssets()).isEqualByComparingTo("700");
+        assertThat(ten.currentLiabilities()).isEqualByComparingTo("400");
         assertThat(ten.sharesTotal()).isEqualTo(1000L);
         assertThat(ten.sharesOutstanding()).isEqualTo(990L);
 
