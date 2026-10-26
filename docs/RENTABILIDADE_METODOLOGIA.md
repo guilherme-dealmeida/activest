@@ -13,7 +13,8 @@
 | Tesouro Direto | cotas × PU de venda do dia (Tesouro Transparente). Líquido: o título como um lote — rendimento sobre o PU de compra, IR e IOF pela idade no dia | `byShares` (mesma conta de `PositionValuationInfo.treasuryLot`) |
 | Renda fixa privada | saldo na curva contratada no dia (`FixedIncomeLots.path`, a mesma regra da Carteira, numa passada). Líquido: IR e IOF de cada aporte pela idade no dia. Depois da última taxa publicada o saldo fica parado | `fixedIncome` |
 | Hoje | preço atual (`assets.current_price`, REGRAS 2.6). O último ponto bate com o valor atual da Carteira (base bruta) | |
-| Sem negócio | último fechamento até **5 pregões** antes (D3), marcado "último negócio"; além disso, ou sem série, **sem preço** | `staleDays` |
+| Sem negócio | último fechamento até **5 pregões** antes (D3), marcado "último negócio"; além disso, o último fechamento segue **carregado** (revisão de 25/10/2026), marcado "preço carregado — último preço de dd/mm" | `staleDays` |
+| Sem série | o preço da última compra até o dia (**carregado**, com a data da compra); renda fixa sem curva (TR, série ausente) ou sem título: o **valor aplicado** em aberto, como a Carteira. **Sem preço** só quando não há número nenhum (ex.: bonificação sem preço de compra) | `lastBuyPrice`, `fixedIncome`, `noCurve` |
 
 ## 2. Fluxos e proventos
 
@@ -59,8 +60,10 @@ carteira total → CDI. **Tesouro → IPCA e IPCA + x%**, com x = taxa de compra
 
 ## 5. Disponibilidade
 
-Um dia é **indisponível** no recorte quando alguma posição exposta nele (saldo ontem ou hoje, ou movimento) está sem
-preço nele ou na véspera. Período com dia indisponível: TWR, XIRR, contribuição e risco ficam nulos, e a tela diz quem
+Desde 25/10/2026 (`PLANO_METAS.md`, 5.9, opção a) o preço que falta é **carregado** (último preço, preço da compra ou
+valor aplicado) e o dia continua disponível; a tela avisa quais ativos e desde quando, em amarelo ("Preço carregado").
+Um dia só é **indisponível** quando alguma posição exposta nele (saldo ontem ou hoje, ou movimento) não tem número
+nenhum nele ou na véspera. Período com dia indisponível: TWR, XIRR, contribuição e risco ficam nulos, e a tela diz quem
 faltou e quando — nada é calculado sem a posição (L16). Filtrando o recorte sem o ativo, o resultado volta.
 
 ## 6. Limitações conhecidas

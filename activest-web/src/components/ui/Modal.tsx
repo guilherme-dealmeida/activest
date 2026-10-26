@@ -9,6 +9,8 @@ interface ModalProps {
   title: string;
   /** Explicação no (i) ao lado do título. */
   titleInfo?: React.ReactNode;
+  /** Parágrafo curto abaixo do título (no cabeçalho fixo). */
+  description?: React.ReactNode;
   /** lg e xl alargam o painel para formulários de duas colunas. */
   size?: 'md' | 'lg' | 'xl' | '2xl';
   /**
@@ -43,7 +45,7 @@ const WIDTHS = {
  * Salvar embaixo. E como o modal trava o scroll do body ao abrir, não havia
  * como alcançar o que tinha vazado.
  */
-export const Modal = ({ isOpen, onClose, title, titleInfo, size = 'md', footer, children }: ModalProps) => {
+export const Modal = ({ isOpen, onClose, title, titleInfo, description, size = 'md', footer, children }: ModalProps) => {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -68,11 +70,14 @@ export const Modal = ({ isOpen, onClose, title, titleInfo, size = 'md', footer, 
         className={`relative z-50 flex max-h-[85vh] w-full ${WIDTHS[size]} flex-col overflow-hidden rounded-xl bg-surface border border-surface-light shadow-lg animate-in fade-in zoom-in-95 duration-200`}
       >
         {/* Cabeçalho e rodapé são shrink-0: só o miolo cede espaço. */}
-        <div className="flex shrink-0 items-center justify-between border-b border-surface-light px-6 py-4">
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
-            {title}
-            {titleInfo && <InfoTooltip content={titleInfo} />}
-          </h2>
+        <div className={`flex shrink-0 justify-between gap-4 border-b border-surface-light px-6 py-4 ${description ? 'items-start' : 'items-center'}`}>
+          <div className="min-w-0">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
+              {title}
+              {titleInfo && <InfoTooltip content={titleInfo} />}
+            </h2>
+            {description && <p className="mt-1 text-sm text-gray-400">{description}</p>}
+          </div>
           <button
             onClick={onClose}
             className="rounded-md p-1 text-gray-400 hover:bg-surface-light hover:text-white transition-colors"

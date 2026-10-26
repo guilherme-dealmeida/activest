@@ -39,8 +39,13 @@ public final class PerformanceDTOs {
 
     // ------------------------------------------------------------------ comum
 
-    /** Uma lacuna de preco no periodo: SEM_PRECO (indisponivel), ULTIMO_NEGOCIO (D3) ou ESTIMADO. */
-    public record GapDTO(String ticker, LocalDate from, LocalDate to, String status) {
+    /**
+     * Uma lacuna de preco no periodo: SEM_PRECO (indisponivel), ULTIMO_NEGOCIO (D3, ate 5 pregoes), PRECO_CARREGADO
+     * (revisao de 25/10/2026: ultimo preco, preco da compra ou valor aplicado) ou ESTIMADO.
+     *
+     * @param priceDate no PRECO_CARREGADO, a data do preco usado (nulo no valor aplicado da renda fixa sem curva)
+     */
+    public record GapDTO(String ticker, LocalDate from, LocalDate to, String status, LocalDate priceDate) {
     }
 
     /**

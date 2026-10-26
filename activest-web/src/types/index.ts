@@ -837,32 +837,7 @@ export interface DividendSummary {
   last12Months: number;
 }
 
-export type GoalStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
-
-export interface GoalResponse {
-  id: string;
-  name: string;
-  targetAmount: number;
-  currentAmount: number;
-  progressPercentage: number;
-  targetDate: string;
-  status: GoalStatus;
-  createdAt: string;
-}
-
-export interface GoalCreate {
-  name: string;
-  targetAmount: number;
-  targetDate?: string;
-}
-
-export interface GoalUpdate {
-  name?: string;
-  targetAmount?: number;
-  currentAmount?: number;
-  targetDate?: string;
-  status?: GoalStatus;
-}
+// Metas: tipos em types/goals.ts (docs/planos/PLANO_METAS.md)
 
 export interface PriceHistory {
   date: string;
@@ -1343,7 +1318,7 @@ export interface IndexChart {
 
 export type NotificationAudience = 'USER' | 'ADMIN';
 export type NotificationCategory =
-  | 'PROVENTOS' | 'EVENTOS' | 'RENDA_FIXA' | 'PRECO_TETO' | 'INTEGRACOES' | 'CARTEIRA' | 'SISTEMA';
+  | 'PROVENTOS' | 'EVENTOS' | 'RENDA_FIXA' | 'PRECO_TETO' | 'INTEGRACOES' | 'CARTEIRA' | 'METAS' | 'SISTEMA';
 /** Situação do assunto (pendência). Mensagem informativa vem sem status. */
 export type NotificationStatus = 'NAO_RESOLVIDA' | 'DISPENSADA' | 'RESOLVIDA';
 export type NotificationStateAction = 'READ' | 'UNREAD' | 'ARCHIVE' | 'UNARCHIVE' | 'DELETE';

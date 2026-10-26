@@ -87,7 +87,7 @@ activest/
 - ✅ Dashboard (17/10/2026): cards Patrimônio (atual bruto, líquido e investido), Aportes (compras − vendas em 12
   meses e média mensal), Rentabilidade bruta (12 meses e desde o início, em % e R$) e Proventos (12 meses, totais e a
   receber), mais o gráfico de rentabilidade acumulada de 12 meses contra o CDI
-- ✅ Metas de investimento
+- ✅ Metas financeiras calculadas a partir da carteira: 17 tipos (patrimônio, aportes, renda passiva, rentabilidade, alocação, risco, por ativo, aposentadoria), com projeção, fotografia diária e avisos (`docs/METAS_METODOLOGIA.md`)
 - ✅ Notificações (13/10/2026): caixa estilo e-mail pelo sino do cabeçalho — proventos pagos no dia, eventos societários,
   título vencido (aviso com o líquido estimado e a venda preenchida — desde 15/10/2026 o Activest não liquida
   sozinho), bonificação sem custo ("Informar custo"), alerta de preço abaixo do ideal,

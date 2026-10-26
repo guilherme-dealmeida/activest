@@ -398,6 +398,8 @@ Respondidas no mesmo dia, todas pela recomendação, com os acréscimos abaixo (
 | 17/10/2026 | ajustes | escopo "Mudanças de tela": Dashboard e tela em base **bruta**, tela abre em **12M**; Carteira revista (decidido pelo Guilherme): VALORIZAÇÃO em R$ + % (a "Variação" do Investidor10) e **RENTABILIDADE** = clássica com proventos (a do Investidor10) + "TWR: x%" embaixo, também no Top 5 do Dashboard — substitui o "Resultado s/ investido" da L13; totais com as mesmas contas e o TWR do tipo; D10 revista: a tela abre só com o CDI (sem `localStorage`) |
 | 17/10/2026 | decisão | Carteira cripto × BTC/BRL: a diferença vem da convenção R5 (no dia da compra a carteira mede do preço pago ao fechamento; o índice, de fechamento a fechamento). Mantida; aviso fixo no quadro de informações da tela |
 
+| 25/10/2026 | revisão | R10/D3 revistas no escopo Metas (`PLANO_METAS.md` 5.9, opção a, decidida pelo Guilherme): depois de 5 pregões o último fechamento segue **carregado** (`PriceStatus.CARRIED`, lacuna `PRECO_CARREGADO` com a data do preço); sem série, o preço da compra; renda fixa sem curva, o valor aplicado. O dia não fica mais indisponível por preço velho; a tela avisa em amarelo. Caso C6 passa a ser "carregado, disponível" |
+
 ### Desvios do texto do plano (17/10/2026, na implementação)
 
 - **R4 — pregão ex em vez da data-com.** `dividends.ex_date` é a data-com (último dia com direito); a cotação cai no

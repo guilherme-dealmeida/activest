@@ -36,6 +36,13 @@ public enum NotificationKind {
     INTEGRACAO_CONEXAO(USER, INTEGRACOES, ATENCAO, true),
     INTEGRACAO_FALHOU(USER, INTEGRACOES, ATENCAO, false),
     POSICAO_TICKER(USER, CARTEIRA, ATENCAO, true),
+    // Metas (docs/planos/PLANO_METAS.md, D20): concluida e prazo vencido sao informativas; fora do objetivo, atrasada
+    // e sem dados sao pendencias que se resolvem sozinhas quando a condicao volta.
+    META_CONCLUIDA(USER, METAS, INFO, false),
+    META_FORA_DO_OBJETIVO(USER, METAS, ATENCAO, true),
+    META_ATRASADA(USER, METAS, ATENCAO, true),
+    META_PRAZO_VENCIDO(USER, METAS, INFO, false),
+    META_SEM_DADOS(USER, METAS, ATENCAO, true),
 
     // --- administrador
     CATALOGO_TICKER_NOVO(ADMIN, SISTEMA, INFO, true),

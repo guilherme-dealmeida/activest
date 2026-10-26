@@ -25,11 +25,21 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Flyway roda ate a V7 (V1-V6 consolidadas + contas novas da tela de Ativos) e o schema valida contra as entidades")
+    @DisplayName("Flyway roda ate a V8 (V1-V6 consolidadas + contas novas da tela de Ativos + metas) e o schema valida contra as entidades")
     void appliedMigrations() {
         Number version = (Number) em.createNativeQuery(
             "SELECT MAX(CAST(version AS NUMERIC)) FROM flyway_schema_history WHERE success").getSingleResult();
-        assertThat(version.intValue()).isEqualTo(7);
+        assertThat(version.intValue()).isEqualTo(8);
+
+        // V8 (docs/planos/PLANO_METAS.md, M1): goals recriada, goal_events e goal_snapshots
+        Number goalTables = (Number) em.createNativeQuery("""
+            SELECT COUNT(*) FROM information_schema.tables
+             WHERE table_name IN ('goals', 'goal_events', 'goal_snapshots')""").getSingleResult();
+        assertThat(goalTables.intValue()).isEqualTo(3);
+        Number oldColumns = (Number) em.createNativeQuery("""
+            SELECT COUNT(*) FROM information_schema.columns
+             WHERE table_name = 'goals' AND column_name IN ('target_amount', 'current_amount', 'status')""").getSingleResult();
+        assertThat(oldColumns.intValue()).isZero();
 
         // V7 (docs/planos/PLANO_TELA_ATIVOS.md, 2.5): 10 colunas novas em company_quarters, nulas
         Number newColumns = (Number) em.createNativeQuery("""
@@ -50,13 +60,13 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Tarefas (V61, V62): 26 tipos (23 da adm-api, 3 da app-api), uma tarefa por tipo, atributos espelhados")
+    @DisplayName("Tarefas (V61, V62; V8 do Activest: GOALS_SNAPSHOT): 27 tipos (23 da adm-api, 4 da app-api), uma tarefa por tipo, atributos espelhados")
     void seededTasks() {
-        assertThat(count("task_types")).isEqualTo(26);
-        assertThat(count("task_types WHERE service = 'APP_API'")).isEqualTo(3);
-        assertThat(count("tasks")).isEqualTo(26);
+        assertThat(count("task_types")).isEqualTo(27);
+        assertThat(count("task_types WHERE service = 'APP_API'")).isEqualTo(4);
+        assertThat(count("tasks")).isEqualTo(27);
         assertThat(count("tasks t JOIN task_types y ON y.id = t.task_type_id WHERE t.name <> y.type")).isZero();
-        assertThat(count("tasks WHERE cron IS NOT NULL")).isEqualTo(16);
+        assertThat(count("tasks WHERE cron IS NOT NULL")).isEqualTo(17);
         assertThat(count("task_type_attributes")).isEqualTo(33);
         assertThat(count("task_attributes")).isEqualTo(33);
         assertThat(count("task_type_attributes WHERE position = 0")).isZero();

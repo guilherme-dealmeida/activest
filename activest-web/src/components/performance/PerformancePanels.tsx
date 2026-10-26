@@ -6,7 +6,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { formatCurrency, getReturnColor } from '@/utils/format';
 import { typeLogo } from '@/utils/assetTypeRules';
 import {
-  BreakdownLevel, Coverage, PerformanceBreakdown, PerformancePeriodic, PerformanceRisk, PerformanceSummary,
+  BreakdownLevel, Coverage, Gap, PerformanceBreakdown, PerformancePeriodic, PerformanceRisk, PerformanceSummary,
   PerformanceTable,
 } from '@/types/performance';
 import { MONTHS, date, monthYear, pct, pp } from './performanceFormat';
@@ -24,6 +24,13 @@ export const CoverageNotice = ({ coverage }: { coverage: Coverage }) => {
   }
   const missing = coverage.gaps.filter(g => g.status === 'SEM_PRECO');
   const stale = coverage.gaps.filter(g => g.status === 'ULTIMO_NEGOCIO');
+  // preço carregado (revisão de 25/10/2026): ativos com o mesmo intervalo e o mesmo preço numa linha só
+  const carried = Object.values(coverage.gaps.filter(g => g.status === 'PRECO_CARREGADO')
+    .reduce<Record<string, { gap: Gap; tickers: string[] }>>((acc, g) => {
+      const k = `${g.from}|${g.to}|${g.priceDate ?? ''}`;
+      (acc[k] ??= { gap: g, tickers: [] }).tickers.push(g.ticker);
+      return acc;
+    }, {}));
   const estimated = coverage.gaps.filter(g => g.status === 'ESTIMADO');
   return (
     <div className="space-y-2">
@@ -37,6 +44,21 @@ export const CoverageNotice = ({ coverage }: { coverage: Coverage }) => {
             ))}.
             {' '}O Activest não calcula a rentabilidade sem esses ativos para não mostrar um número distorcido —
             filtre o recorte sem eles para ver o restante.
+          </div>
+        </div>
+      )}
+      {carried.length > 0 && (
+        <div className="flex gap-2 rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm text-white" role="status">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-yellow-500 mt-0.5" aria-hidden="true" />
+          <div>
+            <strong>Preço carregado:</strong>{' '}
+            {carried.map(({ gap: g, tickers }, i) => (
+              <span key={`${g.from}${g.priceDate}${i}`}>{i > 0 ? '; ' : ''}{tickers.join(', ')} —{' '}
+                {g.from === g.to ? `em ${date(g.from)}` : `de ${date(g.from)} a ${date(g.to)}`},{' '}
+                {g.priceDate ? `com o último preço de ${date(g.priceDate)}` : 'pelo valor aplicado'}</span>
+            ))}.
+            {' '}Sem cotação nesses dias, o cálculo usa o último preço conhecido (ou o da compra; na renda fixa sem
+            curva, o valor aplicado). Os números podem mudar quando a cotação chegar.
           </div>
         </div>
       )}

@@ -57,6 +57,8 @@ rodada seguinte não achar mais a diferença. As mensagens do usuário são da a
 | 19:30 | adm | [A13] Histórico de preço de cripto |
 | 20:00 | adm | [A4] Proventos e eventos societários + datas de pagamento CVM |
 | 21:00 | app | [B1] Rede de segurança: recálculo de todas as posições |
+| 21:30 | app | [B8] Metas: fotografia diária, eventos e avisos |
+| a cada 15 s | app | [B8] Reavaliação das metas dos usuários com transação gravada ou "catálogo mudou" |
 | 21:30 | adm | [A11] Cotações do catálogo — COTAHIST diário |
 | ao subir | adm / app | [A3] recuperação do fechamento · [A9] recuperação dos índices · [A10] recuperação do Tesouro · [A11] recuperação das cotações · [B2] verificação da carteira · [B6] recuperação da fila · [B7] abertura do dia |
 | por mensagem | adm / app | [A8] "preciso do histórico" · [B3] "catálogo mudou" |
@@ -400,6 +402,25 @@ posição, alerta de preço e "padrão mudou" do Preço Teto. Uma etapa que falh
 Mensagem de D0 nunca é retroativa — se o sistema não subir no dia, ela não existe.
 
 **Propósito.** O usuário fica sabendo, na caixa de Notificações, do título vencido e do que aconteceu na carteira no dia.
+
+---
+
+### [B8] Metas (24/10/2026)
+
+| | |
+|---|---|
+| **Quando** | 21:30, todos os dias (depois do [B1]); e, por evento, a reavaliação a cada 15 s |
+| **Classe** | tarefa `GOALS_SNAPSHOT` → `GoalsSnapshotTask` → `GoalTracker.trackUser`; por evento: `GoalReevaluationQueue` (transação gravada, "catálogo mudou") → `GoalReevaluationWorker` |
+| **Tarefa** | `GOALS_SNAPSHOT` (V8; Stop entre usuários e entre metas) — horário e liga/desliga no banco; padrão do seed: `0 30 21 * * *` |
+| **Grava** | `goal_snapshots` (upsert do dia), `goal_events`, `goals` (conclusão automática, prazo vencido), `notifications` (categoria METAS) |
+
+**Função.** Avalia as metas ativas de cada usuário (`docs/METAS_METODOLOGIA.md`): fotografia do dia, eventos (atingiu,
+saiu/voltou ao objetivo, prazo vencido), conclusão automática da meta crescente atingida (D13) e os avisos da D20.
+
+**Sem coluna de controle.** A fotografia é por meta e dia: rodar de novo no dia regrava a mesma linha; os avisos
+dependem das chaves de repetição.
+
+**Propósito.** Histórico auditável das metas (o que cada uma mostrava em cada dia) e avisos sem o usuário abrir a tela.
 
 ---
 

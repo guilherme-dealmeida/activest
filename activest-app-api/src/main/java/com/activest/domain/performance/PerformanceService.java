@@ -170,9 +170,10 @@ public class PerformanceService {
                 switch (g.status()) {
                     case MISSING -> "SEM_PRECO";
                     case STALE -> "ULTIMO_NEGOCIO";
+                    case CARRIED -> "PRECO_CARREGADO";
                     case ESTIMATED -> "ESTIMADO";
                     default -> g.status().name();
-                })).toList();
+                }, g.priceDate())).toList();
         boolean available = true;
         for (int i = from; i <= to; i++) {
             if (s.unavailable[i]) {

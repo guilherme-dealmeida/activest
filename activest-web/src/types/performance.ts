@@ -43,7 +43,9 @@ export interface Gap {
   ticker: string;
   from: string;
   to: string;
-  status: 'SEM_PRECO' | 'ULTIMO_NEGOCIO' | 'ESTIMADO';
+  status: 'SEM_PRECO' | 'ULTIMO_NEGOCIO' | 'PRECO_CARREGADO' | 'ESTIMADO';
+  /** PRECO_CARREGADO: data do preço usado (nulo no valor aplicado da renda fixa sem curva). */
+  priceDate?: string | null;
 }
 
 export interface Coverage {

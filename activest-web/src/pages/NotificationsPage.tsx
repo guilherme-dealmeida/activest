@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Archive, ArchiveRestore, ArrowLeft, Bell, Building2, CheckCheck, ChevronLeft, ChevronRight, CircleSlash, DollarSign,
+  Archive, ArchiveRestore, ArrowLeft, Bell, Building2, CheckCheck, ChevronLeft, ChevronRight, CircleSlash, DollarSign, Flag,
   Inbox, Landmark, Mail, MailOpen, Plug, RotateCcw, Shield, Shuffle, Trash2, TrendingDown, Wallet,
 } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -28,6 +28,7 @@ const CATEGORY: Record<NotificationCategory, { label: string; icon: typeof Bell 
   PRECO_TETO: { label: 'Preço Teto', icon: TrendingDown },
   INTEGRACOES: { label: 'Integrações', icon: Plug },
   CARTEIRA: { label: 'Carteira', icon: Wallet },
+  METAS: { label: 'Metas', icon: Flag },
   SISTEMA: { label: 'Sistema', icon: Shield },
 };
 
