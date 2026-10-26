@@ -95,6 +95,23 @@ class PerformanceMathTest {
     }
 
     @Test
+    @DisplayName("C6b — preco carregado (revisao 25/10/2026): o dia continua disponivel, marcado, e a lacuna aparece")
+    void c6carried() {
+        PortfolioTimeline.PositionSeries a = pos("A", new double[]{100, 110, 121}, new double[]{100, 0, 0}, Z, Z);
+        // o titulo fica com o ultimo preco (50) carregado no dia 2
+        PortfolioTimeline.PositionSeries t1 = pos("TD", new double[]{50, 50, 55}, new double[]{50, 0, 0}, Z, Z,
+                PriceStatus.OK, PriceStatus.CARRIED, PriceStatus.OK);
+        ScopeSeries all = ScopeSeries.of(new PortfolioTimeline(D, List.of(a, t1), D.get(2)), x -> true,
+                PerformanceBasis.NET);
+        assertThat(all.unavailable).containsOnly(false);
+        assertThat(all.stale[1]).isTrue();
+        // (100 + 50) -> (110 + 50) -> (121 + 55)
+        assertThat(ReturnMath.chain(ReturnMath.daily(all), 0, 2)).isCloseTo(176.0 / 150 - 1, within(1e-12));
+        assertThat(all.missingTickers(0, 2)).isEmpty();
+        assertThat(all.gaps(0, 2)).extracting(ScopeSeries.Gap::status).containsExactly(PriceStatus.CARRIED);
+    }
+
+    @Test
     @DisplayName("C9 / D5 — % do CDI: negativo com carteira negativa; sem CDI positivo, nulo")
     void percentOfCdi() {
         assertThat(ReturnMath.percentOfCdi(-0.05, 0.10)).isCloseTo(-50, within(1e-9));

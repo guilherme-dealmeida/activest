@@ -75,7 +75,7 @@ export const CumulativeChart = ({ data }: { data: PerformanceSeries }) => {
   const benches = data.benchmarks;
   const rows = useMemo(() => data.points.map(p => ({
     date: p.date, [CARTEIRA]: p.portfolio, ...p.benchmarks,
-    _flag: p.unavailable ? 'sem preço' : p.estimated ? 'IPCA do mês estimado na renda fixa' : p.stale ? 'algum ativo sem negócio no dia' : '',
+    _flag: p.unavailable ? 'sem preço' : p.estimated ? 'IPCA do mês estimado na renda fixa' : p.stale ? 'algum ativo com o último preço conhecido' : '',
   })), [data]);
   const long = data.density !== 'DIARIA';
   const last = data.points.length ? data.points[data.points.length - 1] : null;

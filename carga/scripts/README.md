@@ -26,6 +26,8 @@ Sem Node na máquina, tudo roda pelos contêineres `data` e `tools` (profile `ca
 | `migrations/consolidate.mjs` | consolida as migrations: lê um banco já migrado e escreve o `V1__schema.sql` (cada tabela pronta, sem `ALTER`) e os seeds `V2`–`V6` (só `INSERT`, ids explícitos). Substituiu os antigos geradores de seed dos emissores e das emissoras de RF (`docs/planos/PLANO_RENOMEACAO_ACTIVEST.md`, 4.2) |
 | `migrations/compare.ps1` | compara dois bancos (estrutura, conteúdo das tabelas e sequências) — a prova da consolidação |
 | `data/data.sh` | `carga/data/` ↔ bucket R2 (rclone), pelo contêiner `data`: `pull [--minimo]`, `push` (só quem tem a chave de escrita — gera os manifests), `status` |
+| `primevest/importar_carteira.mjs` | traz a carteira do usuário do PrimeVest (banco antigo `primevest-db`, só leitura) para o Activest: relança as transações manuais pela API (as da Binance ficam de fora), reserva, estratégias, custo de bonificação e proventos manuais; roda o `POSITIONS_REFRESH` e confere posição por posição. `--dry-run` não grava; `--conferir` só confere. Recusa carteira que já tenha transação (`docs/planos/PLANO_METAS.md`, 5.3) |
+| `conferencia/metas.mjs` | confere as metas contra as telas de origem pela API, sem gravar (`POST /goals/preview`): patrimônio × Dashboard, proventos 12 meses × Dashboard, % por tipo × Rebalanceamento, rentabilidade 12M × Rentabilidade (carteira e por tipo); sai com 1 se algo não bater (`docs/planos/PLANO_METAS.md`, M-A2) |
 | `sql/contagens.sql` | contagens do catálogo, para comparar um banco novo com o de desenvolvimento |
 | `sql/datas_pagamento.sql` | cobertura da data de pagamento dos proventos, por ano |
 | `sql/conferir_balancos.sql` | conferência da carga de balanços (quantidade de ações, LPA) |

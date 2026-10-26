@@ -60,8 +60,10 @@ import java.util.stream.Collectors;
  *   Transacao em dia sem pregao (cripto no fim de semana) entra no pregao seguinte.</li>
  *   <li><b>Proventos</b> (R4, L3): no pregao ex — o primeiro dia util depois da data-com, quando a cotacao cai. O
  *   provento sai da carteira (nao ha conta de caixa).</li>
- *   <li><b>Preco</b> (R10, D3): do proprio dia; sem negocio, o ultimo fechamento ate 5 pregoes antes (STALE); alem
- *   disso, ou sem serie, MISSING.</li>
+ *   <li><b>Preco</b> (R10, D3, revisao de 25/10/2026): do proprio dia; sem negocio, o ultimo fechamento ate 5 pregoes
+ *   antes (STALE); alem disso o ultimo fechamento segue carregado (CARRIED); sem nenhum fechamento anterior, o preco
+ *   da ultima compra ate o dia (CARRIED); renda fixa sem curva, o valor aplicado (CARRIED). MISSING so quando nao ha
+ *   numero nenhum.</li>
  * </ul>
  *
  * <p><b>Cache</b> (4.5, L1): a linha do tempo fica em memoria por usuario e e refeita quando a "impressao digital" dos
@@ -305,16 +307,18 @@ public class PortfolioTimelineBuilder {
             } else {
                 Map.Entry<LocalDate, Double> e = closes != null ? closes.floorEntry(d) : null;
                 if (e == null) {
-                    a.status[i] = PriceStatus.MISSING;
-                    continue;
-                }
-                if (e.getKey().equals(d)) {
+                    e = lastBuyPrice(chron, d);
+                    if (e == null) {
+                        a.status[i] = PriceStatus.MISSING;
+                        continue;
+                    }
+                    a.status[i] = PriceStatus.CARRIED;
+                } else if (e.getKey().equals(d)) {
                     a.status[i] = PriceStatus.OK;
                 } else if (staleDays(dates, e.getKey(), i) <= PortfolioTimeline.MAX_STALE_DAYS) {
                     a.status[i] = PriceStatus.STALE;
                 } else {
-                    a.status[i] = PriceStatus.MISSING;
-                    continue;
+                    a.status[i] = PriceStatus.CARRIED;
                 }
                 price = e.getValue();
                 a.priceDate[i] = e.getKey();
@@ -334,6 +338,21 @@ public class PortfolioTimelineBuilder {
         }
         List<PortfolioTimeline.Distribution> dists = distributions(shell, dividends, a);
         return series(pa, a, dists, treasury || hasWithholding(dists));
+    }
+
+    /** Sem nenhum fechamento ate o dia: o preco da ultima compra ate ele (data da compra, preco por cota). */
+    private static Map.Entry<LocalDate, Double> lastBuyPrice(List<Transaction> chron, LocalDate d) {
+        Map.Entry<LocalDate, Double> out = null;
+        for (Transaction tx : chron) {
+            if (tx.getTransactionDate().isAfter(d)) {
+                break;
+            }
+            if (tx.getType() == TransactionType.BUY && tx.getPricePerShare() != null
+                    && tx.getPricePerShare().signum() > 0) {
+                out = Map.entry(tx.getTransactionDate(), tx.getPricePerShare().doubleValue());
+            }
+        }
+        return out;
     }
 
     /** Pregoes do eixo depois da data do preco ate o dia {@code i}. */
@@ -363,14 +382,15 @@ public class PortfolioTimelineBuilder {
             a.gross[i] = v.gross().doubleValue();
             a.net[i] = v.net().doubleValue();
             a.priceDate[i] = dates.get(i);
-            a.status[i] = unsupported ? PriceStatus.MISSING
+            // sem curva: o valor aplicado, parado (como a Carteira)
+            a.status[i] = unsupported ? PriceStatus.CARRIED
                     : v.estimated() ? PriceStatus.ESTIMATED : PriceStatus.OK;
         }
         List<PortfolioTimeline.Distribution> dists = distributions(shell, dividends, a);
         return series(pa, a, dists, true);
     }
 
-    /** Renda fixa sem titulo (dado antigo) ou que falhou: so os fluxos; o saldo e desconhecido. */
+    /** Renda fixa sem titulo (dado antigo) ou que falhou: o saldo e o valor aplicado em aberto, carregado (CARRIED). */
     private PortfolioTimeline.PositionSeries noCurve(PortfolioTimeline shell, PortfolioAsset pa,
                                                      List<Transaction> chron, List<Dividend> dividends) {
         Arrays a = new Arrays(shell.dates().size());
@@ -381,7 +401,9 @@ public class PortfolioTimelineBuilder {
             open += a.buy[i] - a.sellGross[i];
             if (byTotal ? open > 0.005 : positionCalculator.sharesOn(chron, shell.dates().get(i)).signum() > 0) {
                 a.held[i] = true;
-                a.status[i] = PriceStatus.MISSING;
+                a.gross[i] = Math.max(0, open);
+                a.net[i] = a.gross[i];
+                a.status[i] = PriceStatus.CARRIED;
             }
         }
         List<PortfolioTimeline.Distribution> dists = distributions(shell, dividends, a);

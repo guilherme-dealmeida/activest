@@ -1051,7 +1051,8 @@ Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
 **26.1** Arquivamento automatico por tempo: decidido que existe, prazo em aberto (L3). Hoje so arquivar manual.
 **26.2** Envio por e-mail e preferencias por tipo em Configuracoes: escopo proprio (L12). O envio de e-mail da conta
  (SmtpAccountMailer) ja existe e pode ser reaproveitado.
-**26.3** Metas: escopo proprio, que vai usar a central (kind novo em NotificationKind).
+**26.3** ~~Metas: escopo proprio, que vai usar a central (kind novo em NotificationKind).~~ RESOLVIDO em 24/10/2026
+(docs/planos/PLANO_METAS.md): categoria METAS e os tipos META_* (D20).
 **26.4** Exposicao sem token nas duas APIs (levantado em 12/10, detalhado em 13/10; escopo proprio). Conferido no
  ambiente DEV, sem token:
  a) Rotinas: os 19 endpoints de /api/v1/admin (adm-api) exigem token E is_admin (403 para os demais); o front nao chama
@@ -1377,6 +1378,24 @@ no rodape. A alternativa de gravar a escala do documento (`ESCALA_MOEDA`) contin
 **36.5** (24/10/2026) A linha "Lucro liquido nao controladores" dos Demonstrativos e calculada na tela (consolidado -
 controladora, D8.2). A conta da CVM ("Atribuido a Socios Nao Controladores") e lida pelo `FinancialMetricRules`, mas nao
 gravada; se um dia for preciso o valor da fonte (indicador, listagem), gravar a metrica e recarregar os balancos.
+
+## 37. METAS (docs/planos/PLANO_METAS.md, 24/10/2026)
+
+**37.1** Outras moedas (D16): escopo proprio para ativos e metas em outra moeda e as dimensoes regiao/moeda (ALO-1,
+RIS-1). Hoje tudo e em reais; `asset_types` nao tem regiao nem moeda.
+**37.2** Exibir a memoria de calculo das metas (D21): a API ja devolve `evaluation.steps`; a tela nao mostra, como no
+Preco Teto (o cartao de memoria saiu da tela em 11/10/2026).
+**37.3** Planilha de conferencia manual com exemplos calculados a mao por tipo (`docs/metas/Conferencia_Metas.xlsx`,
+Anexo A, M11): os testes de formula (`GoalProjectionTest`, `GoalEvaluatorTest`) e a conferencia contra as telas
+(`carga/scripts/conferencia/metas.mjs`) cobrem hoje; a planilha fica para a conferencia do Guilherme.
+**37.4** Cripto alem do BTC tem historico so dos ultimos 365 dias (CoinGecko): rentabilidade e queda do pico de um
+escopo com outra cripto mais antiga ficam indisponiveis antes disso.
+**37.5** Transacoes da Binance do PrimeVest (8, BTC e USDC) nao vieram na carga (I2): entram com o recadastro da
+Binance (escopo dos ETFs americanos).
+**37.7** Observações das metas: o campo existe (`goals.notes`, API), mas saiu do formulário e do detalhe na revisão de
+25/10/2026 — falta um lugar e um uso para ele na tela (como no Preço Teto). Na edição, a observação gravada é mantida.
+**37.6** `goal_events.occurred_at` e `created_at` usam a hora do conteiner (UTC), como as demais tabelas: perto da
+meia-noite de Sao Paulo a data exibida pode ser a do dia seguinte.
 
 ## ORDEM SUGERIDA
 

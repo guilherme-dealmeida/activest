@@ -53,7 +53,7 @@ public final class ScopeSeries {
                     PriceStatus s = p.status()[i];
                     if (s == PriceStatus.MISSING) {
                         missing[i] = true;
-                    } else if (s == PriceStatus.STALE) {
+                    } else if (s == PriceStatus.STALE || s == PriceStatus.CARRIED) {
                         stale[i] = true;
                     } else if (s == PriceStatus.ESTIMATED) {
                         estimated[i] = true;
@@ -115,8 +115,13 @@ public final class ScopeSeries {
         return new int[]{first, last};
     }
 
-    /** Uma lacuna de preco de um ativo: o intervalo e o motivo (R10). */
-    public record Gap(String ticker, LocalDate from, LocalDate to, PriceStatus status) {
+    /**
+     * Uma lacuna de preco de um ativo: o intervalo e o motivo (R10).
+     *
+     * @param priceDate data do preco usado no comeco do intervalo (CARRIED: o ultimo fechamento ou a compra); nulo
+     *                  quando nao ha (renda fixa sem curva, sem preco)
+     */
+    public record Gap(String ticker, LocalDate from, LocalDate to, PriceStatus status, LocalDate priceDate) {
     }
 
     /** Intervalos sem preco (MISSING) e com ultimo negocio (STALE) ou estimados, por ativo, entre os indices dados. */
@@ -125,15 +130,17 @@ public final class ScopeSeries {
         for (PortfolioTimeline.PositionSeries p : members) {
             PriceStatus cur = null;
             int start = -1;
+            LocalDate priceDate = null;
             for (int i = Math.max(0, from); i <= to + 1; i++) {
                 PriceStatus s = i <= to && i < size() && p.held()[i] && p.status()[i] != PriceStatus.OK
                         ? p.status()[i] : null;
                 if (s != cur) {
                     if (cur != null) {
-                        out.add(new Gap(label(p), dates.get(start), dates.get(i - 1), cur));
+                        out.add(new Gap(label(p), dates.get(start), dates.get(i - 1), cur, priceDate));
                     }
                     cur = s;
                     start = i;
+                    priceDate = s == PriceStatus.CARRIED && p.priceDate() != null ? p.priceDate()[i] : null;
                 }
             }
         }

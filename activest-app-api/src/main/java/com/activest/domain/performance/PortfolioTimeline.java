@@ -14,7 +14,10 @@ import java.util.UUID;
  */
 public final class PortfolioTimeline {
 
-    /** D3 (17/10/2026): pregoes sem negocio aceitos com o ultimo fechamento. */
+    /**
+     * D3 (17/10/2026): pregoes sem negocio com o ultimo fechamento como "ultimo negocio" (STALE). Alem disso o preco
+     * segue carregado ({@link PriceStatus#CARRIED}, revisao de 25/10/2026) — o dia nao fica mais indisponivel.
+     */
     public static final int MAX_STALE_DAYS = 5;
 
     private final List<LocalDate> dates;

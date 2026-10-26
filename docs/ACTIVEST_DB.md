@@ -58,6 +58,8 @@ erDiagram
     assets ||--o{ fixed_income_notes : "asset_id"
     users ||--o{ fixed_income_notes : "user_id"
     users ||--o{ goals : "user_id"
+    goals ||--o{ goal_events : "goal_id"
+    goals ||--o{ goal_snapshots : "goal_id"
     users ||--o{ integration_connections : "user_id"
     integration_connections ||--o| integration_credentials : "connection_id"
     assets ||--o{ integration_crypto_exclusions : "asset_id"
@@ -85,7 +87,7 @@ erDiagram
 
 ## 2. Usuário e carteira
 
-Tabelas: `ceiling_prices`, `ceiling_price_quarters`, `dividends`, `fixed_income_notes`, `goals`, `portfolio_assets`, `portfolios`, `strategies`, `strategy_reservations`, `transactions`, `users`.
+Tabelas: `ceiling_prices`, `ceiling_price_quarters`, `dividends`, `fixed_income_notes`, `goals`, `goal_events`, `goal_snapshots`, `portfolio_assets`, `portfolios`, `strategies`, `strategy_reservations`, `transactions`, `users`.
 
 Aparecem só como referência (de outro domínio): `asset_cash_events`, `asset_types`, `assets`, `integration_connections`, `integration_run_items`, `withholding_tax_rules`.
 
@@ -155,10 +157,41 @@ erDiagram
         uuid id PK "not null"
         uuid user_id FK "not null"
         varchar name "not null"
-        numeric target_amount "not null"
-        numeric current_amount
+        varchar type "not null"
+        varchar category "not null"
+        varchar lifecycle "not null"
+        varchar lifecycle_before_archive
+        numeric target_value
         date target_date
-        varchar status "not null"
+        jsonb scope "not null"
+        jsonb params "not null"
+        boolean notify "not null"
+        varchar notes
+        integer revision "not null"
+        date achieved_on
+        jsonb final_result
+        timestamp created_at "not null"
+        timestamp updated_at "not null"
+    }
+    goal_events {
+        bigint id PK "not null"
+        uuid goal_id FK "not null"
+        varchar kind "not null"
+        integer revision "not null"
+        jsonb definition
+        jsonb detail
+        timestamp occurred_at "not null"
+    }
+    goal_snapshots {
+        uuid goal_id PK "not null"
+        date reference_date PK "not null"
+        integer revision "not null"
+        numeric indicator
+        numeric target
+        numeric progress_pct
+        varchar situation "not null"
+        varchar quality "not null"
+        jsonb result "not null"
         timestamp created_at "not null"
         timestamp updated_at "not null"
     }
@@ -235,6 +268,8 @@ erDiagram
     assets ||--o{ fixed_income_notes : "asset_id"
     users ||--o{ fixed_income_notes : "user_id"
     users ||--o{ goals : "user_id"
+    goals ||--o{ goal_events : "goal_id"
+    goals ||--o{ goal_snapshots : "goal_id"
     users ||--o{ integration_connections : "user_id"
     transactions |o--o{ integration_run_items : "transaction_id"
     transactions |o--o{ integration_run_items : "duplicate_of"
@@ -677,7 +712,9 @@ erDiagram
 | Usuário | `stock_event_costs` | app-api | Custo por ação de uma bonificação que a B3 não informou, digitado pelo usuário para a posição dele (V51, "Informar custo"). | (portfolio_asset_id, stock_event_id) |
 | Usuário | `dividends` | app-api | Proventos da posição, gerados a partir do catálogo (asset_cash_events) × cotas na data-com. Bruto (total_amount), IR retido pela regra vigente e líquido (net_amount). Sem user_id: o dono vem da posição. | — |
 | Usuário | `fixed_income_notes` | app-api | O título de renda fixa do usuário (CDB, Tesouro...): emissor, vencimento, forma de remuneração, indexador e taxa contratada. Copia de asset_terms no lançamento. | — |
-| Usuário | `goals` | app-api | Metas de investimento: valor alvo, valor atual, data e status. | — |
+| Usuário | `goals` | app-api | Metas (V8): o que o usuário decide — tipo, alvo, prazo, escopo e parâmetros (JSONB), ciclo e revisão. Valor atual e progresso não são gravados: saem da avaliação (`docs/METAS_METODOLOGIA.md`). | — |
+| Usuário | `goal_events` | app-api | Alterações e resultados da meta (definição completa em cada revisão). | — |
+| Usuário | `goal_snapshots` | app-api | Fotografia diária da meta (upsert por dia, tarefa `GOALS_SNAPSHOT`). | — |
 | Usuário | `portfolio_assets` | app-api | A posição: um ativo (e, na renda fixa, um título) dentro da carteira. Não guarda cotas, preço médio nem custo — saem das transações. Guarda a reserva de emergência (is_reservation), se está liquidada e a valorização. Única por (portfolio_id, asset_id, note_id) com NULLS NOT DISTINCT. | (portfolio_id, asset_id, note_id) |
 | Usuário | `portfolios` | app-api | Carteira do usuário (uma por usuário). | — |
 | Usuário | `strategies` | app-api | Estratégia de geração de renda: % ideal por tipo de ativo; única por (user_id, asset_type_id). Base do rebalanceamento. | (user_id, asset_type_id) |
@@ -734,6 +771,8 @@ erDiagram
 | `fixed_income_notes` | `asset_id` | `assets.id` | bloqueia (NO ACTION) |
 | `fixed_income_notes` | `user_id` | `users.id` | CASCADE |
 | `goals` | `user_id` | `users.id` | CASCADE |
+| `goal_events` | `goal_id` | `goals.id` | CASCADE |
+| `goal_snapshots` | `goal_id` | `goals.id` | CASCADE |
 | `integration_connections` | `user_id` | `users.id` | CASCADE |
 | `integration_credentials` | `connection_id` | `integration_connections.id` | CASCADE |
 | `integration_crypto_exclusions` | `asset_id` | `assets.id` | bloqueia (NO ACTION) |

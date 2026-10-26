@@ -8,5 +8,7 @@ public enum NotificationCategory {
     PRECO_TETO,
     INTEGRACOES,
     CARTEIRA,
+    /** Metas (docs/planos/PLANO_METAS.md, D20 — PENDENCIAS 26.3). */
+    METAS,
     SISTEMA
 }

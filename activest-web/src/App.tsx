@@ -14,6 +14,7 @@ import { CeilingPricesPage } from '@/pages/CeilingPricesPage';
 import { CeilingPriceDetailPage } from '@/pages/CeilingPriceDetailPage';
 import { DividendsPage } from '@/pages/DividendsPage';
 import { GoalsPage } from '@/pages/GoalsPage';
+import { GoalDetailPage } from '@/pages/GoalDetailPage';
 import { IntegrationsPage } from '@/pages/IntegrationsPage';
 import { IntegrationRunPage } from '@/pages/IntegrationRunPage';
 import { SettingsPage } from '@/pages/SettingsPage';
@@ -70,6 +71,7 @@ function App() {
         <Route path="/indices" element={<IndicesPage />} />
         <Route path="/dividends" element={<DividendsPage />} />
         <Route path="/goals" element={<GoalsPage />} />
+        <Route path="/goals/:id" element={<GoalDetailPage />} />
         <Route path="/integrations" element={<IntegrationsPage />} />
         <Route path="/integrations/:id/runs/:runId" element={<IntegrationRunPage />} />
         <Route path="/settings" element={<SettingsPage />} />

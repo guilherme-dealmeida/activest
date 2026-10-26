@@ -85,9 +85,9 @@ class PerformanceIT extends FunctionalBase {
     }
 
     @Test
-    @DisplayName("C6: ativo sem preco deixa o periodo indisponivel, com o culpado; filtrando a classe, calcula")
+    @DisplayName("C6 (revisao 25/10/2026): ativo sem historico usa o preco da compra, carregado; o periodo segue disponivel")
     @SuppressWarnings("unchecked")
-    void withoutPriceUnavailable() {
+    void withoutPriceCarried() {
         quotes(CatalogIds.STOCK);
         recordSuccessfully(owner, buy(CatalogIds.STOCK, START.toString(), "10", "30.00"));
         jdbc.update("DELETE FROM asset_price_history WHERE asset_id = (SELECT id FROM assets WHERE ticker = ?)",
@@ -96,9 +96,15 @@ class PerformanceIT extends FunctionalBase {
 
         Map<String, Object> r = summary(owner, "");
         Map<String, Object> cov = (Map<String, Object>) r.get("coverage");
-        assertThat(cov.get("available")).isEqualTo(false);
-        assertThat((List<String>) cov.get("unavailable")).contains(CatalogIds.FII);
-        assertThat(r.get("twr")).isNull();
+        assertThat(cov.get("available")).isEqualTo(true);
+        assertThat((List<String>) cov.get("unavailable")).isEmpty();
+        List<Map<String, Object>> gaps = (List<Map<String, Object>>) cov.get("gaps");
+        assertThat(gaps).anySatisfy(g -> {
+            assertThat(g.get("ticker")).isEqualTo(CatalogIds.FII);
+            assertThat(g.get("status")).isEqualTo("PRECO_CARREGADO");
+            assertThat(g.get("priceDate")).isEqualTo(START.toString());
+        });
+        assertThat(r.get("twr")).isNotNull();
 
         assertThat(number(summary(owner, "?type=ACAO").get("twr"))).isEqualByComparingTo("10");
     }
