@@ -74,6 +74,79 @@ export interface AssetType {
   colorHex: string;
   /** Tipos com remuneração contratada: mostram os campos de renda fixa no cadastro. */
   fixedIncome: boolean;
+  /** Moeda sugerida e região do tipo (docs/planos/PLANO_CADASTRO_MOEDAS.md, D2/D4). */
+  defaultCurrencyCode?: string;
+  region?: 'BRASIL' | 'EXTERIOR' | 'CRIPTO';
+}
+
+/**
+ * Moeda do cadastro (docs/planos/PLANO_CADASTRO_MOEDAS.md). O usuário nunca escolhe moeda: ela vem do ativo.
+ * Ativo na moeda base (reais) não mostra câmbio.
+ */
+export interface Currency {
+  code: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  base: boolean;
+}
+
+/** Câmbio de uma data: o boletim usado (rateDate ≠ date = último boletim carregado). */
+export interface CurrencyRate {
+  currencyCode: string;
+  date: string;
+  buy: number;
+  sell: number;
+  rateDate: string;
+  carried: boolean;
+}
+
+export interface CurrencyRatePoint {
+  date: string;
+  buy: number;
+  sell: number;
+}
+
+/** Linha da tela de administrador Moedas (adm-api). */
+export interface CurrencyAdminRow {
+  code: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  base: boolean;
+  active: boolean;
+  rateSource: 'NONE' | 'BCB_PTAX';
+  countryCode: string | null;
+  rates: number;
+  firstDate: string | null;
+  lastDate: string | null;
+  lastBuy: number | null;
+  lastSell: number | null;
+}
+
+export interface ForeignTaxRule {
+  id: number;
+  tax: 'IOF_FX' | 'IR_FOREIGN' | 'WITHHOLDING_FOREIGN';
+  event: 'REMITTANCE_INVESTMENT' | 'REMITTANCE_OWN_ACCOUNT' | 'INFLOW' | 'DIVIDEND' | 'SALE';
+  countryCode: string | null;
+  assetType: string | null;
+  rate: number;
+  brackets: string | null;
+  validFrom: string | null;
+  validTo: string | null;
+  legalBasis: string;
+}
+
+/** Transação fora da moeda base: o lançado na moeda do ativo e o câmbio. Os valores da transação estão em reais. */
+export interface TransactionCurrencyInfo {
+  code: string;
+  symbol: string;
+  decimals: number;
+  fxRate: number;
+  fxRateOrigin: 'BASE' | 'PTAX' | 'INFORMED';
+  originalPricePerShare: number | null;
+  originalTotalAmount: number;
+  originalFee: number | null;
 }
 
 export interface AssetCategory {
@@ -108,6 +181,8 @@ export interface Asset {
   rateType: RateType | null;
   indexer: Indexer | null;
   active: boolean;
+  /** Moeda em que o ativo é cotado; currentPrice está nela. */
+  currencyCode?: string;
 }
 
 export interface PortfolioSummary {
@@ -199,6 +274,8 @@ export interface PortfolioAssetDetail {
   lots?: FixedIncomeLot[];
   /** Emissora e distribuidora do título (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md). null fora da renda fixa. */
   noteInfo?: NoteInfo | null;
+  /** Ativo cotado em outra moeda: cotação na moeda e câmbio usado. currentPrice e valores estão em reais. */
+  foreignQuote?: { currencyCode: string; symbol: string; price: number; fxRate: number | null; rateDate: string | null } | null;
   /** Só na tela: noteInfo.distributorName, para a coluna DISTRIBUIDORA ordenar pelo cabeçalho. */
   distributorName?: string | null;
   /**
@@ -432,6 +509,8 @@ export interface TransactionResponse {
   settlementAdjustment?: number | null;
   /** Emissora e distribuidora do título (plano de emissoras). `issuer` acima é o nome de exibição da emissora. */
   noteInfo?: NoteInfo | null;
+  /** Moeda do ativo quando não é a base (os valores acima estão em reais). */
+  currency?: TransactionCurrencyInfo | null;
 }
 
 /**
@@ -488,6 +567,11 @@ export interface TransactionCreate {
   distributorId?: number | null;
   /** Código do papel na B3 (ex.: CDBA2478FYE), opcional. */
   paperCode?: string | null;
+  /**
+   * Câmbio para reais, só em ativo cotado em outra moeda (nele preço, total e taxa vão na moeda do ativo). Ausente =
+   * PTAX de venda da data. Ativo em reais nunca manda.
+   */
+  fxRate?: number | null;
 }
 
 export interface Strategy {
@@ -819,6 +903,21 @@ export interface DividendResponse {
    * `issuer` da carteira, que é o emissor da NOTA de renda fixa.
    */
   issuerId: number | null;
+  /**
+   * Provento de ativo em outra moeda: valor na moeda, câmbio (PTAX compra do pagamento), retenção do país de origem e
+   * IR brasileiro estimado. null em reais. Os totais acima estão em reais.
+   */
+  foreign?: {
+    currencyCode: string;
+    symbol: string;
+    fxRate: number;
+    originalAmountPerShare: number;
+    originalTotalAmount: number | null;
+    withholdingRate: number | null;
+    withholdingTax: number | null;
+    withholdingLegalBasis: string | null;
+    incomeTax: number | null;
+  } | null;
 }
 
 export interface DividendSummary {

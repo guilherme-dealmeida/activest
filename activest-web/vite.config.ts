@@ -33,6 +33,12 @@ export default defineConfig({
         changeOrigin: true,
         xfwd: true,
       },
+      // Tela de administrador Moedas (docs/planos/PLANO_CADASTRO_MOEDAS.md, D13): o cadastro e catalogo, na adm-api
+      '/api/v1/admin/currencies': {
+        target: admApiTarget,
+        changeOrigin: true,
+        xfwd: true,
+      },
       '/api': {
         target: apiTarget,
         changeOrigin: true,

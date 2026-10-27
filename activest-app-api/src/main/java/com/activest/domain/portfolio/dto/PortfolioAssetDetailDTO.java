@@ -95,8 +95,18 @@ public record PortfolioAssetDetailDTO(
      * DISTRIBUIDORA (nome do grupo, razao social na dica), logo do grupo da emissora, codigo e garantia.
      * {@code issuer} acima e o nome de exibicao da emissora.
      */
-    com.activest.domain.fixedincome.FixedIncomeIssuers.NoteInfo noteInfo
+    com.activest.domain.fixedincome.FixedIncomeIssuers.NoteInfo noteInfo,
+    /**
+     * Ativo cotado em outra moeda (docs/planos/PLANO_CADASTRO_MOEDAS.md, C4): a cotação na moeda e o câmbio que a
+     * converteu. Nulo em reais. {@code currentPrice}, valores e preço médio acima estão sempre em reais.
+     */
+    ForeignQuote foreignQuote
 ) {
+    /** Cotação na moeda do ativo, câmbio de venda usado e a data do boletim (diferente de hoje = carregado, D27). */
+    public record ForeignQuote(String currencyCode, String symbol, BigDecimal price, BigDecimal fxRate,
+                               LocalDate rateDate) {
+    }
+
     /**
      * Um aporte ainda aplicado: data, dias corridos, aplicado que resta, saldo bruto, rendimento, aliquotas e
      * impostos de um resgate na data do valor, e o liquido.

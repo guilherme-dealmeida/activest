@@ -115,6 +115,11 @@ public class TaskExecutor {
             log.info("Tarefa {}: desligada, rodada {} nao executada", task.name(), trigger);
             return;
         }
+        if (trigger != TaskTriggerType.MANUAL && isOncePerDay(task.type()) && ranAutomaticallyToday(task.id())) {
+            log.info("Tarefa {}: ja teve rodada automatica hoje, rodada {} nao executada (uma por dia)", task.name(),
+                trigger);
+            return;
+        }
         try {
             execute(task, trigger, scheduledFor, null, Map.of(), true);
         } catch (RuntimeException e) {
@@ -141,11 +146,43 @@ public class TaskExecutor {
      * (no fuso de São Paulo) — reiniciar o serviço não repete a rodada.
      */
     public List<Long> startupTasksOf(String type) {
-        LocalDateTime today = TaskTime.now().toLocalDate().atStartOfDay();
+        LocalDateTime now = TaskTime.now();
+        LocalDateTime today = now.toLocalDate().atStartOfDay();
+        if (isOncePerDay(type)) {
+            // Uma automatica por dia: a subida so substitui a agendada perdida (horario de hoje ja passou)
+            return tasks.findAliveByType(type).stream()
+                .filter(t -> t.isActive() && t.isRunOnStartup())
+                .filter(t -> scheduledTimePassed(t.getCron(), now))
+                .filter(t -> !ranAutomaticallyToday(t.getId()))
+                .map(Task::getId).toList();
+        }
         return tasks.findAliveByType(type).stream()
             .filter(t -> t.isActive() && t.isRunOnStartup())
             .filter(t -> !executions.existsByTaskIdAndStartedAtGreaterThanEqual(t.getId(), today))
             .map(Task::getId).toList();
+    }
+
+    private boolean isOncePerDay(String type) {
+        TaskHandler h = handlers.get(type);
+        return h != null && h.oncePerDay();
+    }
+
+    private boolean ranAutomaticallyToday(Long taskId) {
+        return executions.existsByTaskIdAndTriggerTypeInAndStartedAtGreaterThanEqual(taskId,
+            List.of(TaskTriggerType.SCHEDULE, TaskTriggerType.STARTUP), TaskTime.now().toLocalDate().atStartOfDay());
+    }
+
+    /**
+     * O primeiro horário do cron hoje já passou? Sem cron (tarefa sem horário), a subida pode rodar a qualquer hora.
+     * Cron que não dispara hoje (ex.: só dias úteis num sábado) não roda na subida.
+     */
+    static boolean scheduledTimePassed(String cron, LocalDateTime now) {
+        if (cron == null || cron.isBlank()) {
+            return true;
+        }
+        LocalDateTime first = org.springframework.scheduling.support.CronExpression.parse(cron)
+            .next(now.toLocalDate().atStartOfDay().minusSeconds(1));
+        return first != null && first.toLocalDate().equals(now.toLocalDate()) && !first.isAfter(now);
     }
 
     private TaskSnapshot firstOfType(String type) {

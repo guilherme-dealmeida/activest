@@ -53,6 +53,23 @@ public class Asset {
     private LocalDateTime priceUpdatedAt;
 
     /**
+     * Moeda em que o ativo é cotado — a primária (V9, D2). {@link #currentPrice} e o histórico de preço estão nela
+     * (D11); a conversão para a moeda base é do {@code ExchangeRateService}. Vem do tipo no cadastro do catálogo e não
+     * é escolhida pelo usuário (D25).
+     */
+    @Column(name = "currency_code", nullable = false, length = 3)
+    @Builder.Default
+    private String currencyCode = com.activest.domain.currency.Currency.BRL;
+
+    /** Moeda que o ativo acompanha sem ser cotado nela: stablecoins (USDT, USDC → USD), D17. */
+    @Column(name = "reference_currency_code", length = 3)
+    private String referenceCurrencyCode;
+
+    /** País de origem (ISO 3166) para a retenção do exterior; nulo = o país da moeda. */
+    @Column(name = "country_code", length = 2)
+    private String countryCode;
+
+    /**
      * Parâmetros públicos do papel, quando existem. Nulo para renda variável e
      * para os produtos genéricos de renda fixa (CDB, LCI...), cujo prazo e taxa
      * são de cada aplicação.

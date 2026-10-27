@@ -14,6 +14,7 @@ import {
   CandlestickChart,
   LineChart,
   Clock,
+  Coins,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
@@ -39,6 +40,8 @@ const navItems = [
   { name: 'Índices', path: '/indices', icon: LineChart },
   // Tarefas (docs/planos/PLANO_TAREFAS.md, D14): só administrador, último item, ícone de relógio
   { name: 'Tarefas', path: '/tasks', icon: Clock, adminOnly: true },
+  // Moedas (docs/planos/PLANO_CADASTRO_MOEDAS.md, D13): só administrador, junto de Tarefas
+  { name: 'Moedas', path: '/currencies', icon: Coins, adminOnly: true },
 ];
 
 /**

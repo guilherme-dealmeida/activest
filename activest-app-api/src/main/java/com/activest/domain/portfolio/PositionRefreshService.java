@@ -74,6 +74,12 @@ public class PositionRefreshService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     List<com.activest.domain.notification.CatalogReaction> reactions = List.of();
 
+    @org.springframework.beans.factory.annotation.Autowired
+    com.activest.domain.currency.ExchangeRateService exchangeRates;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.activest.domain.currency.FiatCurrencies fiatCurrencies;
+
     /** "Catalogo mudou" vindo da adm-api. */
     public Result refresh(CatalogChange change) {
         Result r = recalculateFor(change);
@@ -92,6 +98,19 @@ public class PositionRefreshService {
         if (change.origin() == CatalogChange.Origin.BALANCOS) {
             return new Result(0, 0);
         }
+        if (change.origin() == CatalogChange.Origin.CAMBIO) {
+            // cambio novo: o cache e descartado e as posicoes em moeda estrangeira revalorizadas
+            // (docs/planos/PLANO_CADASTRO_MOEDAS.md, M2/M5)
+            exchangeRates.evict();
+            if (fiatCurrencies != null) {
+                fiatCurrencies.refresh(); // o cadastro pode ter mudado (tela de administrador)
+            }
+            Result r = recalculate(() -> portfolioAssetRepository.findAllWithAsset().stream()
+                    .filter(pa -> change.indexCodes().contains(pa.getAsset().getCurrencyCode())).toList());
+            log.info("Carteira: cambio mudou ({}) — {} posicoes em moeda estrangeira refeitas, {} proventos novos",
+                    change.indexCodes(), r.positions(), r.newDividends());
+            return r;
+        }
         if (change.origin() == CatalogChange.Origin.INDICES) {
             int changed = refreshFixedIncome();
             log.info("Carteira: indices mudaram ({}) — {} titulos de renda fixa revalorizados", change.indexCodes(), changed);
@@ -103,7 +122,7 @@ public class PositionRefreshService {
         Result r = switch (change.origin()) {
             case FECHAMENTO -> new Result(appreciationUpdater.refreshAssets(change.assetIds()), 0);
             case PROVENTOS -> recalculate(() -> portfolioAssetRepository.findAllByAssetIdIn(change.assetIds()));
-            case INDICES, BALANCOS -> new Result(0, 0);
+            case INDICES, BALANCOS, CAMBIO -> new Result(0, 0);
         };
         log.info("Carteira: catalogo mudou ({}, {} ativos) — {} posicoes, {} proventos novos",
                 change.origin(), change.assetIds().size(), r.positions(), r.newDividends());

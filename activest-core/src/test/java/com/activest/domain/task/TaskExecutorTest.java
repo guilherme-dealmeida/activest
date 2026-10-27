@@ -45,6 +45,26 @@ class TaskExecutorTest {
             return handler("B3_YEARLY_QUOTES", c -> yearly.accept(c));
         }
 
+        /** Tipo com uma rodada automatica por dia (PLANO_CADASTRO_MOEDAS, 10.3). */
+        @Bean
+        TaskHandler exchangeRatesHandler() {
+            return new TaskHandler() {
+                @Override
+                public String type() {
+                    return "EXCHANGE_RATES";
+                }
+
+                @Override
+                public void run(TaskRunContext ctx) {
+                }
+
+                @Override
+                public boolean oncePerDay() {
+                    return true;
+                }
+            };
+        }
+
         private static TaskHandler handler(String type, Consumer<TaskRunContext> body) {
             return new TaskHandler() {
                 @Override
@@ -342,6 +362,44 @@ class TaskExecutorTest {
         } finally {
             jdbc.update("UPDATE tasks SET run_on_startup = FALSE, enabled = TRUE WHERE id = ?", id);
         }
+    }
+
+    @Test
+    @DisplayName("Uma rodada automática por dia: agendada pula depois da subida/agendada; manual roda sempre e não conta")
+    void oncePerDay() throws Exception {
+        Long id = taskId("EXCHANGE_RATES");
+        String cron = jdbc.queryForObject("SELECT cron FROM tasks WHERE id = ?", String.class, id);
+        try {
+            // manual nao conta
+            waitFinished(executor.runManual(id, null).getId());
+            executor.runScheduled(id, TaskTriggerType.SCHEDULE, TaskTime.now());
+            executor.runScheduled(id, TaskTriggerType.SCHEDULE, TaskTime.now());
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM task_executions WHERE task_id = ? "
+                + "AND trigger_type = 'SCHEDULE'", Long.class, id)).isEqualTo(1);
+            waitFinished(executor.runManual(id, null).getId());
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM task_executions WHERE task_id = ?", Long.class, id))
+                .isEqualTo(3);
+
+            // subida: com rodada automatica hoje, nao roda
+            jdbc.update("UPDATE tasks SET cron = '0 0 0 * * *' WHERE id = ?", id);
+            assertThat(executor.startupTasksOf("EXCHANGE_RATES")).isEmpty();
+
+            // sem rodada automatica hoje e com o horario ja passado: roda
+            jdbc.update("DELETE FROM task_executions WHERE task_id = ? AND trigger_type <> 'MANUAL'", id);
+            assertThat(executor.startupTasksOf("EXCHANGE_RATES")).containsExactly(id);
+        } finally {
+            jdbc.update("UPDATE tasks SET cron = ? WHERE id = ?", cron, id);
+        }
+    }
+
+    @Test
+    @DisplayName("Horário do cron de hoje: antes não passou, depois passou; cron que não dispara hoje não roda")
+    void scheduledTimePassed() {
+        java.time.LocalDateTime monday = java.time.LocalDateTime.of(2026, 10, 26, 13, 0);
+        assertThat(TaskExecutor.scheduledTimePassed("0 30 13 * * *", monday)).isFalse();
+        assertThat(TaskExecutor.scheduledTimePassed("0 30 13 * * *", monday.withHour(14))).isTrue();
+        assertThat(TaskExecutor.scheduledTimePassed("0 30 13 * * SAT", monday.withHour(14))).isFalse();
+        assertThat(TaskExecutor.scheduledTimePassed(null, monday)).isTrue();
     }
 
     /** Cria uma segunda tarefa do mesmo tipo direto pelo repositório (o cadastro tem teste próprio). */

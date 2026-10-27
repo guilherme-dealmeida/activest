@@ -243,13 +243,28 @@ public class CeilingPriceDefaults {
                 RoundingMode.UNNECESSARY), "Selic meta vigente em " + fmt(d), null);
     }
 
-    /** PTAX de venda do dia (ou do último dia útil anterior); nulo sem série. */
-    public BigDecimal ptax(LocalDate date) {
-        List<BigDecimal> r = jdbc.queryForList("""
-                SELECT v.value FROM market_index_values v JOIN market_indices i ON i.id = v.index_id
-                WHERE i.code = 'USD_PTAX' AND v.reference_date <= ? ORDER BY v.reference_date DESC LIMIT 1""",
-                BigDecimal.class, java.sql.Date.valueOf(date));
-        return r.isEmpty() ? null : r.get(0);
+    /**
+     * Câmbio de venda da moeda no dia (ou do último boletim anterior); nulo sem série. Lido do cadastro de moedas
+     * (docs/planos/PLANO_CADASTRO_MOEDAS.md, D9) — antes, do índice USD_PTAX: o mesmo número (SGS 1 = PTAX venda).
+     */
+    public BigDecimal fxRate(String currencyCode, LocalDate date) {
+        return exchangeRates.rateOn(currencyCode, date, com.activest.domain.currency.RateSide.SELL)
+                .map(com.activest.domain.currency.ExchangeRateService.Quote::rate).orElse(null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    com.activest.domain.currency.ExchangeRateService exchangeRates;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    com.activest.domain.currency.CurrencyRepository currencies;
+
+    /** Moeda cadastrada e ativa (o lucro pode ser digitado em qualquer uma). */
+    public boolean acceptsCurrency(String code) {
+        return currencies.findById(code).map(com.activest.domain.currency.Currency::isActive).orElse(false);
+    }
+
+    public boolean isBaseCurrency(String code) {
+        return exchangeRates.isBase(code);
     }
 
     LocalDate today() {

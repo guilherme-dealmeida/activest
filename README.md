@@ -66,6 +66,9 @@ activest/
   `docs/planos/PLANO_CORRECAO_PROVENTOS.md`)
 - ✅ Atualização automática de cotações (BrAPI + CoinGecko para a carteira; COTAHIST diário da B3 para todas as
   ações, FIIs, ETFs e BDRs do catálogo, às 21:30 e 08:30; histórico de cripto às 19:30)
+- ✅ Cadastro de moedas (26/10/2026, `docs/planos/PLANO_CADASTRO_MOEDAS.md`): real como base e dólar, câmbio da PTAX
+  desde 2010, moeda no ativo, na transação e no provento, tributos do exterior por data (IOF de câmbio, IR da Lei
+  14.754/2023, retenção dos EUA) e a tela de administrador Moedas
 - ✅ Índices de mercado desde 2010 — CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, dólar PTAX, Ibovespa e IFIX —,
   atualizados todo dia às 10:00 (Banco Central e B3), com consulta da série e do acumulado no período
   (tela **Índices**: um card por índice com período e gráfico; `/api/v1/indices`). Base da futura valorização da
@@ -249,6 +252,7 @@ node carga/scripts/b3investidor/conferir.mjs --api http://localhost:8082 --mock 
 | **CoinGecko** | Cotações Crypto e histórico dos últimos 365 dias | [coingecko.com](https://www.coingecko.com/en/api) |
 | **Binance (pública)** | Histórico diário BTC/BRL desde 13/10/2020 (klines, sem chave) — benchmark da Rentabilidade | [binance-docs.github.io](https://binance-docs.github.io/apidocs/spot/en/) |
 | **Banco Central — SGS** | Índices: CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, dólar PTAX (sem token) | [dadosabertos.bcb.gov.br](https://dadosabertos.bcb.gov.br) |
+| **Banco Central — PTAX (Olinda)** | Câmbio das moedas cadastradas: compra e venda do boletim de fechamento, desde 2010 (sem token) — `docs/planos/PLANO_CADASTRO_MOEDAS.md` | [dadosabertos.bcb.gov.br](https://dadosabertos.bcb.gov.br/dataset/taxas-de-cambio-todos-os-boletins-diarios) |
 | **Site da B3** | Proventos, eventos societários, série histórica (COTAHIST) e os índices Ibovespa e IFIX | [b3.com.br](https://www.b3.com.br) |
 | **Tesouro Transparente** | Preço e taxa diários dos títulos do Tesouro Direto (PU de resgate) | [tesourotransparente.gov.br](https://www.tesourotransparente.gov.br) |
 | **Google OAuth** | Autenticação | [console.cloud.google.com](https://console.cloud.google.com) |

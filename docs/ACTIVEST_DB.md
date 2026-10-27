@@ -12,7 +12,15 @@
 > da consolidação em V1–V6): V7 `company_quarters` ganha `gross_profit_q/_ttm`, `depreciation_amortization_q/_ttm`,
 > `pretax_income_q/_ttm`, `income_tax_q/_ttm`, `current_assets` e `current_liabilities` (nulas, no fim da tabela);
 > `cvm_statement_values.metric` ganha os valores `LUCRO_BRUTO`, `DEPRECIACAO_AMORTIZACAO`, `EXAUSTAO_BIOLOGICA`,
-> `LAIR`, `IR_CSLL`, `ATIVO_CIRCULANTE` e `PASSIVO_CIRCULANTE`. Diagramas em Mermaid: o GitHub e o IntelliJ (plugin Mermaid) renderizam.
+> `LAIR`, `IR_CSLL`, `ATIVO_CIRCULANTE` e `PASSIVO_CIRCULANTE`. Acréscimo de 26/10/2026
+> (`docs/planos/PLANO_CADASTRO_MOEDAS.md`): V9 `currencies`, `exchange_rates`, `foreign_tax_rules`, `fx_operations`
+> (seção 5c); moeda em `asset_types` (`default_currency_code`, `region`), `assets` (`currency_code`,
+> `reference_currency_code`, `country_code`), `transactions` (`currency_code`, `fx_rate`, `fx_rate_origin`,
+> `original_price_per_share/_total_amount/_fee`) e `dividends` (`currency_code`, `fx_rate`, `original_*`,
+> `foreign_withholding_rate/_tax`, `foreign_tax_rule_id`); `ceiling_price_quarters.currency` vira FK. V10
+> `dividends.foreign_income_tax` e as constraints `ck_dividends_withholding`/`ck_dividends_fx` com o caso do exterior.
+> V11: EUR inativo em `currencies`.
+> Diagramas em Mermaid: o GitHub e o IntelliJ (plugin Mermaid) renderizam.
 
 **A ideia que organiza o schema:** o *catálogo* é global (o que o instrumento É — `assets`, preços, proventos, emissores; gravado pela **adm-api**), e o *papel* é do usuário (posição, transações, título de renda fixa, proventos recebidos; gravado só pela **app-api**).
 
@@ -26,6 +34,7 @@ Legenda das relações: `||--o{` um para muitos (FK obrigatória) · `|o--o{` um
 4. [Emissores, balanços e indicadores](#4-emissores-balanços-e-indicadores)
 5. [Integrações com corretoras](#5-integrações-com-corretoras)
 5a. [Índices de mercado](#5a-índices-de-mercado)
+5c. [Moedas e câmbio](#5c-moedas-e-câmbio)
 6. [Descrição das tabelas](#6-descrição-das-tabelas)
 5b. [Notificações](#5b-notificações)
 7. [Regras de exclusão (ON DELETE)](#7-regras-de-exclusão-on-delete)
@@ -653,6 +662,67 @@ erDiagram
     market_indices ||--o{ market_index_values : "index_id"
 ```
 
+## 5c. Moedas e câmbio
+
+Cadastro de moedas, câmbio da PTAX e tributos do exterior (V9/V10, `docs/planos/PLANO_CADASTRO_MOEDAS.md`). As colunas
+de valor de `transactions` e `dividends` continuam na moeda base; o lançado na moeda do ativo fica em `original_*`.
+
+```mermaid
+erDiagram
+    currencies {
+        varchar code PK "ISO 4217"
+        varchar name "not null"
+        varchar symbol "not null"
+        smallint decimals "not null"
+        boolean is_base "not null (uma so)"
+        boolean active "not null"
+        varchar rate_source "not null NONE|BCB_PTAX"
+        varchar country_code
+    }
+    exchange_rates {
+        varchar currency_code PK,FK "not null"
+        date reference_date PK "not null"
+        numeric buy_rate "not null (18,8)"
+        numeric sell_rate "not null (18,8)"
+        timestamp bulletin_at
+        varchar source "not null BCB_PTAX"
+    }
+    foreign_tax_rules {
+        bigint id PK
+        varchar tax "IOF_FX|IR_FOREIGN|WITHHOLDING_FOREIGN"
+        varchar event "REMITTANCE_*|INFLOW|DIVIDEND|SALE"
+        varchar country_code
+        bigint asset_type_id FK
+        numeric rate "not null (6,4)"
+        jsonb brackets
+        date valid_from
+        date valid_to
+        varchar legal_basis "not null"
+    }
+    fx_operations {
+        uuid id PK
+        uuid user_id FK "not null"
+        date operation_date "not null"
+        varchar from_currency_code FK "not null"
+        varchar to_currency_code FK "not null"
+        numeric amount_sent "not null"
+        numeric amount_received "not null"
+        numeric effective_rate "not null"
+        varchar purpose "INVESTMENT|OWN_ACCOUNT|INFLOW"
+        numeric iof_amount "not null"
+        bigint foreign_tax_rule_id FK
+    }
+    currencies ||--o{ exchange_rates : "currency_code"
+    currencies ||--o{ assets : "currency_code"
+    currencies ||--o{ asset_types : "default_currency_code"
+    currencies ||--o{ transactions : "currency_code"
+    currencies ||--o{ dividends : "currency_code"
+    currencies ||--o{ ceiling_price_quarters : "currency"
+    foreign_tax_rules |o--o{ dividends : "foreign_tax_rule_id"
+    foreign_tax_rules |o--o{ fx_operations : "foreign_tax_rule_id"
+    users ||--o{ fx_operations : "user_id"
+```
+
 ## 5b. Notificações
 
 Tabelas: `notifications`, `notification_states` (V48, 13/10/2026 — `docs/planos/PLANO_NOTIFICACOES.md`). Dois eixos
@@ -706,7 +776,7 @@ erDiagram
 | Domínio | Tabela | Quem grava | Descrição | Unicidade |
 |---|---|---|---|---|
 | Usuário | `ceiling_prices` | app-api | Cálculo de preço teto (modelo PREÇO TETO V2, V46) de uma ação pelo usuário: só as entradas, todas obrigatórias — N (shares), ROE, payout, desconto, perpetuidade, margem de segurança (pontos) e preço — com a origem de cada uma (inputs_origin, JSONB: PADRAO/INFORMADO + referência do padrão). O resultado não é gravado: sai das entradas. Um por (user_id, asset_id). | (user_id, asset_id) |
-| Usuário | `ceiling_price_quarters` | app-api | Os 4 lucros de um cálculo de preço teto (V46): valor digitado, unidade (UNIDADE/MIL/MILHAO/BILHAO), moeda (BRL/USD), câmbio, valor em reais (value_brl, o que entra no cálculo), origem (PADRAO = CVM sem alteração, INFORMADO). A fonte (source_ref) saiu na V47. | (ceiling_price_id, position) |
+| Usuário | `ceiling_price_quarters` | app-api | Os 4 lucros de um cálculo de preço teto (V46): valor digitado, unidade (UNIDADE/MIL/MILHAO/BILHAO), moeda (FK para `currencies` desde a V9), câmbio, valor em reais (value_brl, o que entra no cálculo), origem (PADRAO = CVM sem alteração, INFORMADO). A fonte (source_ref) saiu na V47. | (ceiling_price_id, position) |
 | Notificações | `notifications` | app-api e adm-api (as de administrador, D1) | Mensagem da caixa (V48): público, tipo, categoria, gravidade, texto, referência, payload (linhas e ações) e o status do assunto. Repetição barrada pela `dedup_key`. | (audience, user_id, dedup_key) parcial |
 | Notificações | `notification_states` | app-api | Estado de uma mensagem para uma pessoa: lida, arquivada, excluída (lógica). | (notification_id, user_id) |
 | Usuário | `stock_event_costs` | app-api | Custo por ação de uma bonificação que a B3 não informou, digitado pelo usuário para a posição dele (V51, "Informar custo"). | (portfolio_asset_id, stock_event_id) |
@@ -736,6 +806,10 @@ erDiagram
 | Emissores | `issuers` | seed V30 / adm-api | Emissores: companhia aberta ou FII, um por CNPJ. Código CVM, setores CVM e B3, segmento de listagem, administrador do FII e o segmento curado do FII. | (cnpj); (cvm_code) |
 | Emissores | `share_counts` | adm-api | Quantidade de ações (e em tesouraria) de cada documento, com a escala conferida (scale_factor, scale_status, scale_check). | — |
 | Emissores | `unit_compositions` | seed V30 / adm-api | Composição das units: quantas ações de cada classe (ON, PN...) formam uma unit. | — |
+| Moedas | `currencies` | seed V9; tela de administrador (adm-api) | Cadastro de moedas: código ISO, nome, símbolo, casas, moeda base (só uma, BRL), ativa, fonte do câmbio (PTAX), país. | (code) |
+| Moedas | `exchange_rates` | adm-api (tarefa EXCHANGE_RATES) | Câmbio de cada dia para a moeda base: compra e venda do boletim de fechamento da PTAX. | (currency_code, reference_date) |
+| Moedas | `foreign_tax_rules` | seed V9 | Tributos do exterior por data: IOF de câmbio, IR brasileiro sobre aplicações no exterior, retenção do país de origem; faixas/isenção em JSON; base legal. | (id) |
+| Moedas | `fx_operations` | app-api | Operações de câmbio do usuário (remessa e retorno), com IOF e câmbio efetivo. | (id) |
 | Índices | `market_indices` | seed V43 | Cadastro dos índices de mercado: código (o mesmo do enum Indexer para CDI, SELIC, IPCA, IGPM, INPC, TR; mais SELIC_META, USD_PTAX, IBOV, IFIX), periodicidade, unidade do valor publicado e a fonte (série do SGS ou sigla da B3). | (code); (source, source_ref) |
 | Índices | `market_index_values` | adm-api | Série de cada índice, um valor por data, como a fonte publica (mensal no dia 1º). O acumulado não é gravado: sai do MarketIndexCalculator. | (index_id, reference_date) |
 | Integrações | `integration_connections` | app-api | Conexão do usuário com uma corretora (hoje BINANCE): apelido único por usuário, status, aceite do consentimento, última sincronização e erro. | (user_id, label) |

@@ -26,6 +26,7 @@ import { SignupPage } from '@/pages/SignupPage';
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
 import { LegalPage } from '@/pages/LegalPage';
 import { TasksPage } from '@/pages/TasksPage';
+import { CurrenciesPage } from '@/pages/CurrenciesPage';
 import { isLegacyUrl, translateLegacyUrl } from '@/utils/legacyUrl';
 
 /** Tela só de administrador (Tarefas, D14): quem não é volta ao Dashboard. */
@@ -77,6 +78,7 @@ function App() {
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/tasks" element={<AdminOnly><TasksPage /></AdminOnly>} />
+        <Route path="/currencies" element={<AdminOnly><CurrenciesPage /></AdminOnly>} />
       </Route>
     </Routes>
   );

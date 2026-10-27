@@ -106,6 +106,17 @@ public class TransactionService {
     private final com.activest.domain.notification.NotificationService notifications;
 
     /**
+     * Moeda do ativo na transacao (docs/planos/PLANO_CADASTRO_MOEDAS.md, D3/C2). Campo, e nao construtor: os testes de
+     * unidade montam o servico sem ele e so lancam ativos em reais.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    TransactionCurrency currency;
+
+    /** IR estimado da venda de ativo do exterior (PLANO_CADASTRO_MOEDAS, C5). Campo pelo mesmo motivo. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    ForeignSaleTax foreignSaleTax;
+
+    /**
      * Gets user transactions.
      */
     public List<TransactionResponseDTO> getTransactions(UUID userId) {
@@ -410,6 +421,8 @@ public class TransactionService {
             .executedAt(importOrigin == null ? null : importOrigin.executedAt())
             .sourceSnapshot(importOrigin == null ? null : importOrigin.sourceSnapshot())
             .build();
+        applyCurrency(tx, asset, amounts.pricePerShare(), amounts.totalAmount(), fee(dto), dto.transactionDate(),
+            dto.fxRate());
 
         tx = transactionRepository.save(tx);
         transactionRepository.flush();
@@ -439,6 +452,8 @@ public class TransactionService {
         tx.setTotalAmount(p.shares().multiply(p.pricePerShare()));
         tx.setBrokerageFee(p.brokerageFee());
         tx.setTransactionDate(p.transactionDate());
+        applyCurrency(tx, tx.getPortfolioAsset().getAsset(), p.pricePerShare(), p.shares().multiply(p.pricePerShare()),
+            p.brokerageFee(), p.transactionDate(), null);
         tx.setEditedAt(null);
         PortfolioAsset pa = tx.getPortfolioAsset();
         tx = transactionRepository.save(tx);
@@ -488,6 +503,8 @@ public class TransactionService {
         tx.setBrokerageFee(fee(dto));
         tx.setTransactionDate(dto.transactionDate());
         tx.setFullSettlement(isFullSettlement(asset, dto));
+        applyCurrency(tx, asset, amounts.pricePerShare(), amounts.totalAmount(), fee(dto), dto.transactionDate(),
+            dto.fxRate());
         // Regra E1: importada editada ganha a marca, e a sincronizacao nao mexe mais nela.
         if (tx.getOrigin() == TransactionOrigin.AUTO) {
             tx.setEditedAt(java.time.LocalDateTime.now());
@@ -1077,6 +1094,9 @@ public class TransactionService {
             : positionCalculator.calculate(valuedByTotal, chronological, PositionEvents.ofStockEvents(stockEvents));
         positionGuard.validateApplied(position, pa.isSettled(), !chronological.isEmpty(), label);
         portfolioAssetRepository.save(pa);
+        if (!valuedByTotal && foreignSaleTax != null && foreignSaleTax.applies(pa.getAsset())) {
+            foreignSaleTax.recompute(pa, chronological, stockEvents);
+        }
 
         dividendRecalculator.recalculate(pa, chronological);
         appreciationUpdater.refresh(pa);
@@ -1169,6 +1189,24 @@ public class TransactionService {
             throw new BusinessException("Informe a quantidade e o preço unitário.");
         }
         return new Amounts(dto.shares(), dto.pricePerShare(), dto.shares().multiply(dto.pricePerShare()), null);
+    }
+
+    /**
+     * Moeda do ativo (C2/C3): em reais nada muda; em outra moeda o lancado vai para os campos original* e preco, total
+     * e taxa sao gravados em reais pelo cambio (o informado ou a PTAX venda da data).
+     */
+    private void applyCurrency(Transaction tx, Asset asset, BigDecimal price, BigDecimal total, BigDecimal fee,
+                               java.time.LocalDate date, BigDecimal fxRate) {
+        if (currency == null) {
+            if (!com.activest.domain.currency.Currency.BRL.equals(asset.getCurrencyCode())) {
+                throw new IllegalStateException("Transacao em moeda estrangeira sem o componente de moeda");
+            }
+            return;
+        }
+        TransactionCurrency.Converted c = currency.apply(tx, asset, price, total, fee, date, fxRate);
+        tx.setPricePerShare(c.pricePerShare());
+        tx.setTotalAmount(c.totalAmount());
+        tx.setBrokerageFee(c.brokerageFee());
     }
 
     /** O tipo de remuneracao por extenso, para a mensagem sair legivel. */
@@ -1442,7 +1480,8 @@ public class TransactionService {
             asset != null ? assetLogos.logoFlag(asset) : null,
             asset != null && asset.getIssuer() != null ? asset.getIssuer().getId() : null,
             tx.getNetAmount(), tx.getIncomeTax(), tx.getIofTax(), tx.getSettlementAdjustment(),
-            fixedIncomeIssuers.info(note)
+            fixedIncomeIssuers.info(note),
+            currency != null ? currency.info(tx) : null
         );
     }
 }

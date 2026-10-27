@@ -27,20 +27,20 @@ public final class MoneyNormalizer {
         }
     }
 
-    /** Moedas aceitas (D8): real e dólar (PTAX). */
-    public enum Currency { BRL, USD }
-
     /**
-     * @param fxRate câmbio para reais; obrigatório e positivo em USD, ignorado (1) em BRL
+     * A moeda vem do cadastro de moedas (docs/planos/PLANO_CADASTRO_MOEDAS.md, D9): quem chama diz se é a moeda base.
+     *
+     * @param base   valor na moeda base (reais): câmbio ignorado (1)
+     * @param fxRate câmbio para reais; obrigatório e positivo fora da moeda base
      */
-    public static BigDecimal toBrl(BigDecimal value, Unit unit, Currency currency, BigDecimal fxRate) {
-        if (value == null || unit == null || currency == null) {
-            throw new IllegalArgumentException("valor, unidade e moeda são obrigatórios");
+    public static BigDecimal toBrl(BigDecimal value, Unit unit, boolean base, BigDecimal fxRate) {
+        if (value == null || unit == null) {
+            throw new IllegalArgumentException("valor e unidade são obrigatórios");
         }
         BigDecimal rate = BigDecimal.ONE;
-        if (currency == Currency.USD) {
+        if (!base) {
             if (fxRate == null || fxRate.signum() <= 0) {
-                throw new IllegalArgumentException("câmbio obrigatório e positivo para valor em dólar");
+                throw new IllegalArgumentException("câmbio obrigatório e positivo para valor em outra moeda");
             }
             rate = fxRate;
         }

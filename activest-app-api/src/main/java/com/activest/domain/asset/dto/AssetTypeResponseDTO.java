@@ -5,5 +5,8 @@ public record AssetTypeResponseDTO(
     String name,
     String description,
     String colorHex,
-    boolean fixedIncome
+    boolean fixedIncome,
+    /** Moeda sugerida e região do tipo (docs/planos/PLANO_CADASTRO_MOEDAS.md, D2/D4). */
+    String defaultCurrencyCode,
+    String region
 ) {}

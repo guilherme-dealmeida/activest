@@ -45,6 +45,8 @@ import java.util.function.Supplier;
  *   <li><b>indices de mercado</b> 2010+ (CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, PTAX, Ibovespa, IFIX —
  *   docs/planos/PLANO_INDICES_MERCADO.md, 4.1): independente das outras; anos fechados de
  *   {@code carga/data/bcb} e {@code carga/data/b3/indices}.</li>
+ *   <li><b>cambio</b> 2010+ das moedas cadastradas (PTAX do BCB, docs/planos/PLANO_CADASTRO_MOEDAS.md): anos
+ *   fechados de {@code carga/data/bcb/ptax};</li>
  *   <li><b>preco do Tesouro Direto</b> 2010+ (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, R1): o PU de venda de cada
  *   titulo, de {@code carga/data/tesouro} (ou do Tesouro Transparente, se mudou).</li>
  *   <li><b>historico de cripto</b> (docs/planos/PLANO_RENTABILIDADE.md, 3.3): {@code carga/data/coingecko/historico}
@@ -81,6 +83,10 @@ public class BootstrapService {
     /** Historico de cripto (docs/planos/PLANO_RENTABILIDADE.md, 3.3); opcional para os testes que montam a carga. */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     com.activest.adm.domain.pricehistory.CryptoHistoryService cryptoHistory;
+
+    /** Cambio das moedas (docs/planos/PLANO_CADASTRO_MOEDAS.md, 10.3); opcional para os testes que montam a carga. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.activest.adm.domain.currency.ExchangeRateImportService exchangeRates;
 
     @org.springframework.beans.factory.annotation.Autowired
     public BootstrapService(IssuerImportService issuers, HistoricalQuotesImportService quotes,
@@ -148,6 +154,10 @@ public class BootstrapService {
             steps.add(step("informe FII " + FiiMonthlyImportService.FIRST_YEAR + "-" + year,
                     () -> fiiMonthly.importYears(FiiMonthlyImportService.FIRST_YEAR, year, false, reason)));
             steps.add(step("indices de mercado", () -> indices.importAll(reason)));
+            if (exchangeRates != null) {
+                steps.add(step("cambio " + com.activest.adm.domain.currency.ExchangeRateImportService.HISTORY_FROM
+                        .getYear() + "+", () -> exchangeRates.importRecent(reason)));
+            }
             steps.add(step("preco do Tesouro " + TreasuryPriceService.FIRST_YEAR + "+",
                     () -> treasury.importFrom(TreasuryPriceService.FIRST_YEAR, reason)));
             if (cryptoHistory != null) {

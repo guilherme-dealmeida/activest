@@ -31,5 +31,7 @@ public record AssetResponseDTO(
     LocalDate maturityDate,
     RateType rateType,
     Indexer indexer,
-    boolean active
+    boolean active,
+    /** Moeda em que o ativo é cotado; {@code currentPrice} está nela (docs/planos/PLANO_CADASTRO_MOEDAS.md, D2/D11). */
+    String currencyCode
 ) {}

@@ -52,6 +52,7 @@ rodada seguinte não achar mais a diferença. As mensagens do usuário são da a
 | 08:30 | adm | [A11] Cotações do catálogo — COTAHIST diário (o pregão que ainda não tinha saído) |
 | 08:45 | app | [B4] Sincronização diária das corretoras (enfileira) |
 | 10:00 | adm | [A9] Índices de mercado (CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, PTAX, Ibovespa, IFIX) |
+| 13:30 | adm | [A16] Câmbio das moedas (PTAX do BCB) — no máximo uma rodada automática por dia |
 | 19:00, seg–sex | adm | [A1] Fechamento B3 (BRAPI) |
 | 19:00 | adm | [A2] Fechamento cripto (CoinGecko) |
 | 19:30 | adm | [A13] Histórico de preço de cripto |
@@ -250,6 +251,21 @@ refaz a curva da renda fixa privada ([B3]).
 \+ vencimento e grava o PU de venda (sem ele, o PU base). Título do arquivo sem título no catálogo vai para o log.
 
 **Propósito.** Valor de mercado do Tesouro na carteira (`docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`).
+
+### [A16] Câmbio das moedas (26/10/2026)
+
+| | |
+|---|---|
+| **Quando** | 13:30, todos os dias (depois do boletim de fechamento da PTAX, ~13h). **No máximo uma rodada automática por dia**: a subida da adm-api só roda depois das 13:30 e se a agendada não rodou; a agendada pula se a subida já rodou; o Run manual roda sempre e não conta |
+| **Classe** | tarefa `EXCHANGE_RATES` → `ExchangeRatesTask` (`oncePerDay`; recuperação: `needsRecovery` = alguma moeda sem o boletim do último dia útil) → `ExchangeRateImportService.importRecent` |
+| **Tarefa** | `EXCHANGE_RATES` (atributos `CURRENCY_CODES`, `FROM_DATE`) — horário e liga/desliga no banco; padrão do seed: `0 30 13 * * *` |
+| **Fonte** | API PTAX do Banco Central (Olinda, `CotacaoMoedaPeriodo`), um ano por chamada e moeda, só o boletim "Fechamento" |
+| **Grava** | `exchange_rates` (compra e venda) e `carga/data/bcb/ptax/{moeda}/{ano}.json` |
+
+**Função.** Por moeda ativa com fonte `BCB_PTAX`: de (último boletim − 10 dias) até hoje; moeda sem série desde 2010.
+Corrigido pela fonte é sobrescrito com log. Fonte respondeu com o boletim mais recente a mais de 2 dias úteis →
+`FONTE_DESATUALIZADA` (mesma regra do Tesouro). Algo mudou → "catálogo mudou" (origem `CAMBIO`): a app-api descarta o
+cache de câmbio e refaz valorização e proventos das posições na moeda.
 
 ### [A11] Cotações do catálogo — COTAHIST diário (10/10/2026)
 

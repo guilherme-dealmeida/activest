@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { AssetLogo } from '@/components/ui/AssetLogo';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Pagination } from '@/components/ui/Pagination';
-import { formatCurrency, formatCurrencyPrecise, formatDate, formatShares } from '@/utils/format';
+import { formatCurrency, formatCurrencyPrecise, formatDate, formatFxRate, formatMoney, formatShares } from '@/utils/format';
 import { DIVIDEND_TYPE_LABELS, DividendResponse, DividendSummary, DividendType } from '@/types';
 import { CalendarClock, DollarSign, List, X } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -60,7 +60,8 @@ const ZERO: Totals = { net: 0, gross: 0, tax: 0 };
 const addRow = (acc: Totals, r: DividendRow): Totals => ({
   net: acc.net + r.total,
   gross: acc.gross + (r.totalAmount ?? 0),
-  tax: acc.tax + (r.withholdingTax ?? 0),
+  // provento do exterior: retenção do país de origem + IR brasileiro estimado (PLANO_CADASTRO_MOEDAS, C6)
+  tax: acc.tax + (r.withholdingTax ?? 0) + (r.foreign?.withholdingTax ?? 0) + (r.foreign?.incomeTax ?? 0),
 });
 
 const NO_TAX_RULE_HINT = 'Sem regra de IR para este tipo de provento e de ativo: o total é o bruto.';
@@ -441,9 +442,24 @@ const DividendsTabPanel = ({ tab, rows }: { tab: DividendTab; rows: DividendRow[
                   <td className="px-4 py-3 text-right">
                     {row.sharesOnDate != null ? formatShares(row.sharesOnDate) : <span className="text-gray-500">—</span>}
                   </td>
-                  <td className="px-4 py-3 text-right">{formatCurrencyPrecise(row.amountPerShare)}</td>
                   <td className="px-4 py-3 text-right">
-                    {formatRate(row.withholdingRate) != null
+                    <span className="inline-flex flex-col items-end">
+                      <span>{formatCurrencyPrecise(row.amountPerShare)}</span>
+                      {row.foreign && (
+                        <span className="text-xs text-gray-400 tabular-nums"
+                          title={`Câmbio ${formatFxRate(row.foreign.fxRate)} (PTAX compra do pagamento)`}>
+                          {formatMoney(row.foreign.originalAmountPerShare, row.foreign.symbol, 2, 8)}
+                        </span>
+                      )}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {row.foreign
+                      ? <span className="cursor-help" title={[row.foreign.withholdingLegalBasis ?? 'Sem retenção no país de origem',
+                          `IR brasileiro estimado: ${formatCurrency(row.foreign.incomeTax ?? 0)} (apuração anual pode mudar)`].join(' · ')}>
+                          {formatRate(row.foreign.withholdingRate) ?? '0%'} exterior
+                        </span>
+                      : formatRate(row.withholdingRate) != null
                       ? <span className="cursor-help" title={row.withholdingLegalBasis ?? undefined}>{formatRate(row.withholdingRate)}</span>
                       : <span className="text-gray-500 cursor-help" title={NO_TAX_RULE_HINT}>—</span>}
                   </td>
@@ -454,7 +470,10 @@ const DividendsTabPanel = ({ tab, rows }: { tab: DividendTab; rows: DividendRow[
                   </td>
                   <td
                     className="px-4 py-3 text-right text-success font-medium cursor-help"
-                    title={row.withholdingTax != null
+                    title={row.foreign
+                      ? `Bruto ${formatCurrency(row.totalAmount)} · retido no exterior ${formatCurrency(row.foreign.withholdingTax ?? 0)}`
+                        + ` · IR estimado ${formatCurrency(row.foreign.incomeTax ?? 0)}`
+                      : row.withholdingTax != null
                       ? `Bruto ${formatCurrency(row.totalAmount)} · IR ${formatCurrency(row.withholdingTax)}`
                       : NO_TAX_RULE_HINT}
                   >

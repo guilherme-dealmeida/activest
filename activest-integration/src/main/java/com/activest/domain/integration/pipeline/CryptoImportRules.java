@@ -28,14 +28,15 @@ public final class CryptoImportRules implements ImportRules {
     /** A instancia que os conectores de cripto devolvem em {@code rules()}. */
     public static final CryptoImportRules INSTANCE = new CryptoImportRules();
 
-    /** Moedas fiduciarias: saldo em dinheiro, nao posicao (D3). */
-    private static final Set<String> FIAT = Set.of("BRL", "USD", "EUR");
 
     /** Fuso da data de negocio (R3). O instante da fonte vem em UTC. */
     public static final ZoneId BUSINESS_ZONE = ZoneId.of("America/Sao_Paulo");
 
-    /** A unica moeda de cotacao que a primeira versao importa (R6). */
-    public static final String BRL = "BRL";
+    /**
+     * A unica moeda de cotacao que a primeira versao importa (R6): a moeda base do cadastro
+     * (docs/planos/PLANO_CADASTRO_MOEDAS.md, D12). Constante mantida para quem le o codigo da fonte.
+     */
+    public static final String BRL = com.activest.domain.currency.Currency.BRL;
 
     /** Diferenca de arredondamento aceita por operacao (4.5). */
     public static final BigDecimal TOLERANCE = new BigDecimal("0.01");
@@ -58,7 +59,8 @@ public final class CryptoImportRules implements ImportRules {
 
     @Override
     public Set<String> cashBalances() {
-        return FIAT;
+        // Moedas do cadastro: saldo em dinheiro, nao posicao (D3; antes a lista fixa BRL/USD/EUR)
+        return com.activest.domain.currency.FiatCurrencies.codes();
     }
 
     public static Result map(ImportedMovement m, Function<String, Optional<Asset>> catalog) {
@@ -86,7 +88,7 @@ public final class CryptoImportRules implements ImportRules {
         }
 
         // R6 — so o que ja traz o valor em reais.
-        if (!BRL.equals(m.quoteAsset())) {
+        if (!com.activest.domain.currency.FiatCurrencies.base().equals(m.quoteAsset())) {
             return Result.no("Sem valor em reais: operação contra " + m.quoteAsset()
                 + ". Fica para quando houver cotação em reais no instante da troca (PENDENCIAS 15).");
         }
@@ -118,7 +120,7 @@ public final class CryptoImportRules implements ImportRules {
                 shares = gross.subtract(m.feeAmount());
                 fee = m.feeAmount().multiply(price);
                 feeInAsset = true;
-            } else if (feeAsset.equals(BRL)) {
+            } else if (feeAsset.equals(com.activest.domain.currency.FiatCurrencies.base())) {
                 fee = m.feeAmount();
             } else {
                 return Result.no("Taxa cobrada em " + (feeAsset.isEmpty() ? "moeda não informada" : feeAsset)

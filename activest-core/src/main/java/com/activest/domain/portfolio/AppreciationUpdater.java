@@ -28,8 +28,10 @@ import java.util.stream.Collectors;
  * cobrir o que mudou enquanto ela estava fora (e as posicoes anteriores a esta
  * regra, que nasceram com zero).</p>
  *
- * <p>Valorizacao = cotas x cotacao atual - custo, com 2 casas. Cotas e custo
- * saem de {@link PositionCalculator}.</p>
+ * <p>Valorizacao = cotas x cotacao atual x cambio de hoje - custo, com 2 casas. Cotas e custo (em reais)
+ * saem de {@link PositionCalculator}. A cotacao esta na moeda do ativo (docs/planos/PLANO_CADASTRO_MOEDAS.md,
+ * D11); o cambio e o de venda do ultimo boletim (C4), 1 na moeda base. Ativo em moeda sem nenhum cambio
+ * carregado nao e tocado (o valor anterior fica).</p>
  *
  * <p>Posicao sem cotacao (Renda Fixa, Tesouro, tipos MANUAL) nao e tocada:
  * nela appreciation e apurada por fora (a curva da renda fixa, quando
@@ -44,6 +46,7 @@ public class AppreciationUpdater {
 
     private final PortfolioAssetRepository portfolioAssetRepository;
     private final PositionCalculator positionCalculator;
+    private final com.activest.domain.currency.ExchangeRateService exchangeRates;
 
     /** Uma posicao: depois de criar, editar ou excluir transacao dela. */
     @Transactional
@@ -61,6 +64,16 @@ public class AppreciationUpdater {
             return 0;
         }
         return refreshPositions(portfolioAssetRepository.findAllByAssetIdIn(assetIds));
+    }
+
+    /** Todas as posicoes de ativos cotados nas moedas informadas: depois de cambio novo (CAMBIO). */
+    @Transactional
+    public int refreshCurrencies(Collection<String> currencyCodes) {
+        if (currencyCodes == null || currencyCodes.isEmpty()) {
+            return 0;
+        }
+        return refreshPositions(portfolioAssetRepository.findAllWithAsset().stream()
+                .filter(pa -> currencyCodes.contains(pa.getAsset().getCurrencyCode())).toList());
     }
 
     /**
@@ -98,7 +111,19 @@ public class AppreciationUpdater {
         BigDecimal shares = position.totalShares() != null ? position.totalShares() : BigDecimal.ZERO;
         BigDecimal cost = position.totalInvested() != null ? position.totalInvested() : BigDecimal.ZERO;
 
+        BigDecimal rate = BigDecimal.ONE;
+        String currency = pa.getAsset().getCurrencyCode();
+        if (!exchangeRates.isBase(currency)) {
+            rate = exchangeRates.rateOn(currency, java.time.LocalDate.now(com.activest.domain.task.TaskTime.ZONE),
+                    com.activest.domain.currency.RateSide.SELL).map(q -> q.rate()).orElse(null);
+            if (rate == null) {
+                log.warn("Valorizacao: {} em {} sem cambio carregado; posicao {} mantida", pa.getAsset().getTicker(),
+                        currency, pa.getId());
+                return false;
+            }
+        }
         BigDecimal appreciation = pa.getAsset().getCurrentPrice()
+                .multiply(rate)
                 .multiply(shares)
                 .subtract(cost)
                 .setScale(MONEY_SCALE, RoundingMode.HALF_UP);

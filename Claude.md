@@ -5,7 +5,11 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 24/10/2026, noite (**Metas financeiras**, `docs/planos/PLANO_METAS.md` e `docs/METAS_METODOLOGIA.md`:
+> **Última revisão**: 26/10/2026 (**Cadastro de moedas**, `docs/planos/PLANO_CADASTRO_MOEDAS.md`: V9 e V10 — moedas
+> (BRL base + USD), câmbio da PTAX do BCB desde 2010 (tarefa `EXCHANGE_RATES`, 13:30, uma rodada automática por dia),
+> moeda no tipo de ativo, no ativo, na transação e no provento, tributos do exterior por data (IOF de câmbio, IR da
+> Lei 14.754/2023, retenção dos EUA), operações de câmbio e a tela de administrador `/currencies` — ver "Moedas
+> (26/10/2026)" em Pontos de Atenção). Antes: 24/10/2026, noite (**Metas financeiras**, `docs/planos/PLANO_METAS.md` e `docs/METAS_METODOLOGIA.md`:
 > 17 tipos de meta calculados a partir da carteira, V8 (`goals` recriada, `goal_events`, `goal_snapshots`, tarefa
 > `GOALS_SNAPSHOT`), telas `/goals` e `/goals/:id`; carteira do usuário trazida do PrimeVest por
 > `carga/scripts/primevest/importar_carteira.mjs` — ver "Metas (24/10/2026)" em Pontos de Atenção). Antes: 24/10/2026, tarde (**Usabilidade dos valores do Preço Teto**, `docs/planos/PLANO_USABILIDADE_PRECO_TETO.md`:
@@ -394,6 +398,7 @@ são os do seed (V62):
 | Balanços da CVM (DFP/ITR do ano corrente e do anterior) + série trimestral + informe mensal de FII (F7) — tarefa `CVM_STATEMENTS_IMPORT` | 07:30 | adm-api |
 | Preço oficial do Tesouro Direto (PU de venda, Tesouro Transparente), com recuperação na subida — tarefa `TREASURY_PRICES` (`docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`); desde 17/10/2026 também a taxa do último dia e os títulos à venda (`treasury_offers`, arquivo de vendas; fora do ar, a oferta fica a da última rodada); desde 22/10/2026 a fonte que recusa termina a rodada `FAILED` (`docs/planos/PLANO_FONTE_TESOURO.md`) | 08:00 | adm-api → "catálogo mudou" (FECHAMENTO) |
 | Índices de mercado, incremental com janela de revisão (30 dias nos diários, 3 meses nos mensais), com recuperação na subida — tarefa `MARKET_INDICES` (`docs/planos/PLANO_INDICES_MERCADO.md`) | 10:00 | adm-api |
+| Câmbio das moedas cadastradas (PTAX do BCB, boletim de fechamento, compra e venda; incremental com 10 dias de revisão; moeda sem série desde 2010) — tarefa `EXCHANGE_RATES` (`docs/planos/PLANO_CADASTRO_MOEDAS.md`). **No máximo uma rodada automática por dia**: a subida só roda depois do horário e se a agendada não rodou; Run manual sempre | 13:30 | adm-api → "catálogo mudou" (CAMBIO) |
 | Conferência do catálogo e dos índices atrasados (só loga) — tarefa `CATALOG_AUDIT` | seg 07:00 | adm-api |
 | Cotações de **todo o catálogo** (ações, FIIs e, desde 17/10/2026, ETFs e BDRs) pelo COTAHIST diário da B3, um arquivo por pregão, completando os que faltam, com recuperação na subida — tarefa `B3_DAILY_QUOTES` (`docs/planos/PLANO_PRECO_TETO.md`, 4.5; 10/10/2026) | 21:30 e 08:30 | adm-api |
 | Emissoras e distribuidoras de renda fixa (BCB IF.data + Instituições em funcionamento, CVM intermediários, companhias e securitizadoras) e, em seguida, os logos delas por raiz de CNPJ (Open Finance, logos-bancos-br — `FixedIncomeLogoService`, só quem não tem arquivo) — tarefa `FIXED_INCOME_ISSUERS` (`activest.fixed-income-issuers.cron`; `docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md`, 4.2) | dia 1, 05:30 | adm-api |
@@ -592,7 +597,7 @@ em desenvolvimento. **Não versione credenciais reais.**
 | `fixed_income_notes` | **O papel do usuário**: `issuer_id` e `distributor_id` (FK `fixed_income_issuers`, obrigatórias — títulos antigos com "Instituição não listada", V54), `paper_code` (opcional, só A–Z0–9, único por usuário), `maturity_date`, `rate_type`, `indexer`, `indexer_rate`. Regra H do Tesouro: único por `(user_id, asset_id, distributor_id, purchase_date)` |
 | `fixed_income_issuers` | Emissoras e distribuidoras de renda fixa (V54), **1 por raiz de CNPJ** (8 dígitos): `kind` (BANCO, FINANCEIRA, COOPERATIVA, CORRETORA_DISTRIBUIDORA, SECURITIZADORA, COMPANHIA, TESOURO, NAO_LISTADA), razão social, nome comercial, segmento, `status` (a morta nunca sai), `guarantor` (FGC/FGCOOP/NENHUM), `sale_rule` da distribuidora (PROPORCIONAL padrão; Nu Financeira UEPS), `group_id` + `group_source` (BCB/MANUAL). Duas linhas fixas: "Tesouro Nacional" e "Instituição não listada". Alimentada pela rotina `FixedIncomeIssuerImportService` (BCB + CVM); curadoria nunca sobrescrita |
 | `fixed_income_groups` | Grupos = conglomerado prudencial do BCB (`bcb_code`, inclusive os de uma empresa só), `name` + `name_source` (MANUAL não é tocado), `logo_ticker` (logo da linha de RF, D5), `extinct` (só em bases antigas) |
-| `asset_types` | 12 tipos |
+| `asset_types` | 12 tipos; desde a V9 com `default_currency_code` e `region` (BRASIL/EXTERIOR/CRIPTO) |
 | `asset_categories` | 81 categorias (RDC na V54), **um nível só**; na renda fixa `issuer_kinds` (tipos de emissora que o produto aceita: CDB só BANCO) e `guaranteed` (produto coberto por FGC/FGCoop) — plano de emissoras, 4.4: unicidade `(asset_type_id, name)` (V31). Ação: setor B3; FII: tipo de fundo (TIJOLO, PAPEL, FOF, HIBRIDO, OUTROS). O segundo nível está no emissor: segmento B3 da ação em `issuers.b3_segment`, segmento de atuação do FII em `issuers.segment` |
 | `strategies` | % ideal por tipo — `unique(user_id, asset_type_id)`. É a **geração de renda**: posição de reserva nunca entra (`include_reservation` saiu na V10) |
 | `strategy_reservations` | Estratégia da reserva de emergência — **uma por usuário** (`unique(user_id)`), nunca apagada. `type_reservation` 1 = por percentual (`target_percentage`), 2 = por valor (`target_value`); a outra coluna fica nula, e `ck_strategy_reservations_target` confere |
@@ -601,7 +606,11 @@ em desenvolvimento. **Não versione credenciais reais.**
 | `ceiling_prices` | Cálculo de preço teto de uma ação (V46, modelo PREÇO TETO V2) — `unique(user_id, asset_id)`. Guarda **só as entradas**, todas `NOT NULL`: `shares`, `roe_pct`, `payout_pct`, `discount_rate_pct`, `perpetual_growth_pct`, `safety_margin_pct` (pontos), `price`, e `inputs_origin` (JSONB: PADRAO/INFORMADO + referência e valor do padrão no "Salvar"). O resultado sai das entradas na leitura (`CeilingPriceRules`) |
 | `notifications`, `notification_states` | Caixa de Notificações (V48): a mensagem com o status do assunto; o estado de cada pessoa à parte — ver "Notificações (13/10/2026)" em Pontos de Atenção |
 | `stock_event_costs` | Custo da bonificação informado pelo usuário (V51), por posição e evento |
-| `ceiling_price_quarters` | Os 4 lucros de um cálculo (V46): valor digitado, unidade, moeda, câmbio, `value_brl` (o que entra na conta) e origem (a fonte saiu na V47). PK `(ceiling_price_id, position)` |
+| `ceiling_price_quarters` | Os 4 lucros de um cálculo (V46): valor digitado, unidade, moeda (FK para `currencies` desde a V9), câmbio, `value_brl` (o que entra na conta) e origem (a fonte saiu na V47). PK `(ceiling_price_id, position)` |
+| `currencies` | Cadastro de moedas (V9, `docs/planos/PLANO_CADASTRO_MOEDAS.md`): PK `code` (ISO 4217), `name`, `symbol`, `decimals`, `is_base` (só uma: BRL), `active`, `rate_source` (`NONE` na base, `BCB_PTAX`), `country_code`. Seed BRL + USD; EUR inativo (V11) |
+| `exchange_rates` | Câmbio para a moeda base (V9): PK `(currency_code, reference_date)`, `buy_rate`/`sell_rate` do boletim de fechamento da PTAX, `bulletin_at`, `source`. Só a adm-api grava |
+| `foreign_tax_rules` | Tributos do exterior por data (V9): `tax` (IOF_FX, IR_FOREIGN, WITHHOLDING_FOREIGN), `event` (remessa, ingresso, provento, venda), `country_code`, `asset_type_id`, `rate`, `brackets` (JSON: faixas e isenção mensal), vigência e `legal_basis`. Seed por migration |
+| `fx_operations` | Operações de câmbio do usuário (V9): remessa/retorno com valores, câmbio efetivo, finalidade, IOF calculado pela regra, tarifa. Insumo do saldo em moeda estrangeira (sem tela ainda) |
 | `goals`, `goal_events`, `goal_snapshots` | Metas (V8, `docs/planos/PLANO_METAS.md`): a meta guarda só o que o usuário decide — `type` (PAT_1…LP_1), `category`, `lifecycle` (ATIVA/PAUSADA/CONCLUIDA/ARQUIVADA), `target_value`, `target_date`, `scope` e `params` (JSONB validado pelo catálogo de tipos), `notify`, `revision`, `achieved_on`, `final_result`; os eventos (com a definição de cada revisão) e a fotografia diária (PK `(goal_id, reference_date)`) |
 | `asset_price_history` | Histórico de cotações. `source` (V29): `BRAPI`, `COINGECKO` ou `B3_COTAHIST`; `BINANCE` (V58) só preenche dia sem linha — a série da B3 vence e a BRAPI não a sobrescreve; `TESOURO` (V44): PU de venda do Tesouro Direto desde 2010 |
 | `integration_connections` | Conexão do usuário com uma fonte externa (hoje só `BINANCE`); `label` único por usuário, `status`, `consent_accepted_at` (V25) |
@@ -635,9 +644,9 @@ em desenvolvimento. **Não versione credenciais reais.**
 | 5 | ETF | ETFs | BRAPI | não |
 | 6 | FUNDO_INVESTIMENTO | Fundos de Investimentos | MANUAL | não |
 | 7 | BDR | BDRs | BRAPI | não |
-| 8 | STOCK | Stocks | MANUAL | não |
-| 9 | REIT | REITs | MANUAL | não |
-| 10 | ETF_INTERNACIONAL | ETFs Internacionais | MANUAL | não |
+| 8 | STOCK | Stocks | MANUAL | não (USD, EXTERIOR desde a V9) |
+| 9 | REIT | REITs | MANUAL | não (USD, EXTERIOR) |
+| 10 | ETF_INTERNACIONAL | ETFs Internacionais | MANUAL | não (USD, EXTERIOR) |
 | 11 | CRIPTO | Criptomoedas | COINGECKO | não |
 | 12 | OUTROS | Outros | MANUAL | não |
 
@@ -940,6 +949,12 @@ Parâmetros comuns: `range=1M|6M|YTD|1A|5A|MAX` (padrão MAX) ou `from`/`to`; `t
 | GET | `/api/v1/indices` | Os 10 índices: `code`, `name`, `periodicity`, `unit`, `source`, `accumulates` (falso para TR e meta Selic), `firstDate`, `lastDate`, `lastValue` |
 | GET | `/api/v1/indices/{code}/history?from=&to=` | Série no período (padrão: um ano até hoje), como a fonte publica |
 | GET | `/api/v1/indices/{code}/chart?range=1A` ou `?from=&to=` | Card da tela Índices (`IndexChart`): janela do atalho (mensal em meses inteiros: 1A = 12 meses, 1M = o último mês, 1D e 7D recusados com 422; CDI/Selic no 1D = o último dia), pontos no valor exibido (`displayUnit`; CDI e Selic anualizados em 252 dias úteis), densidade da cotação (diário até ~1 ano, semanal até ~5, mensal acima), `last`/`min`/`max`, `accumulatedPct` (taxa) ou `change`/`changePct` (nível), `firstDate`/`lastDate` da série inteira. Mensais: `view=MENSAL` (padrão) ou `ANUAL` — cada mês com o acumulado dos 12 meses terminados nele (`IndexChart.rolling12`). Atalho inválido, de depois de até ou `view` em índice que não é mensal: 422 |
+| GET | `/api/v1/currencies` | Moedas ativas (código, nome, símbolo, casas, base) — `docs/planos/PLANO_CADASTRO_MOEDAS.md` |
+| GET | `/api/v1/currencies/{code}/rate?date=` | Câmbio padrão da data (compra e venda; sem boletim no dia, o último carregado, com `rateDate` e `carried`). 404 sem nenhum boletim até a data |
+| GET | `/api/v1/currencies/{code}/rates?from=&to=` | Série do câmbio (padrão: último ano) |
+| GET | `/api/v1/foreign-tax-rules` | Regras de tributo do exterior por data (consulta) |
+| GET/POST/PUT/DELETE | `/api/v1/fx-operations[/{id}]` | Operações de câmbio do usuário (IOF pela finalidade e data; câmbio efetivo) |
+| GET/POST/PUT | `/api/v1/admin/currencies[/{code}]` | **adm-api** (o proxy do front manda para lá): cadastro de moedas, só `is_admin`; a base não perde a marca nem é desativada; moeda com ativo do catálogo não é desativada |
 | GET | `/api/v1/indices/{code}/accumulated?from=&to=&percent=&spread=` | Acumulado: taxa diária soma os dias entre `from` e `to`; taxa mensal os meses inteiros do mês de `from` ao de `to`; nível (Ibovespa, IFIX, dólar) = último até `to` ÷ último até `from`. `percent` = % do índice (110 = 110% do CDI), `spread` = % a.a. (`(1+s)^(1/252)` por dia útil, `^(1/12)` por mês). Devolve `factor` (10 casas) e `percent` (6). Índice desconhecido 404; TR, meta Selic, período sem valores ou `percent`/`spread` em índice de nível: 422 |
 
 Conferido com a série real em 05/10/2026: CDI 2024 = **10,875983%** (253 dias), IPCA 2024 = **4,831296%** (o IBGE
@@ -1009,6 +1024,7 @@ Rotas em `App.tsx`; tudo abaixo de `/login` é protegido por `ProtectedRoute`.
 | `/goals`, `/goals/:id` | **Metas** (24/10/2026, `docs/planos/PLANO_METAS.md`): resumo (ativas, no ritmo/dentro, atrasadas, fora do objetivo, concluídas), abas Ativas/Pausadas/Concluídas/Arquivadas, filtro de categoria e um cartão por meta (objetivo numa frase, indicador × alvo, barra de progresso nas crescentes, situação, dados parciais). "Nova meta": categoria → tipo → formulário gerado do catálogo (`GoalFormModal`, escopo, reserva, premissas opcionais) com o valor calculado ao vivo (`/preview`). Detalhe (`GoalDetailPage`): situação, números rotulados Observado/Calculado/Estimativa, projeção com as premissas, detalhamento, evolução (linha recalculada, pontos das fotografias, alvo tracejado), alterações e origem dos dados; ações Editar, Pausar/Retomar, Concluir, Arquivar/Desarquivar e Excluir (arquivada). A memória de cálculo não aparece (D21) |
 | `/integrations` | Integrações (Binance e, com `B3I_ENABLED`, B3): conectar (chave ou CPF + autorização na B3), sincronizar, histórico, excluídas |
 | `/integrations/:id/runs/:runId` | Pré-visualização / resultado de uma sincronização (decidir duplicatas, confirmar) |
+| `/currencies` | **Moedas** (26/10/2026, `docs/planos/PLANO_CADASTRO_MOEDAS.md`; só administrador — item do menu depois de Tarefas e rota): tabela das moedas (código, nome, símbolo, situação, fonte, último câmbio, cobertura da série) com Editar e Nova moeda (modal), gráfico do câmbio (compra e venda, 1A/5A/MAX) e a tabela das regras de tributo do exterior em consulta |
 | `/tasks` | **Tarefas** (22/10/2026, `docs/planos/PLANO_TAREFAS.md`; só administrador — item do menu e rota): abas na URL (`?tab=monitoring|schedules|configuration`). **Acompanhamento**: rodadas iniciadas no período (na tela, padrão ontem a amanhã), filtro de status por tags como as da Carteira (várias marcadas; padrão todas menos `SCHEDULED`), status e origem em inglês (D2); colunas tarefa, vigência, início, fim, duração, origem, quem pediu, resumo, status (penúltima) e ações, todas ordenáveis (padrão vigência decrescente). **Agendamentos** (23/10/2026): só as agendadas calculadas do horário (`SCHEDULED`), filtros De/Até/Tipo (padrão hoje e amanhã), a mesma tabela sem a coluna status, ordem padrão vigência crescente; Run (com confirmação), Stop (só `RUNNING` em tipo `stoppable`) e Ver log (modal: resumo, erro, atributos usados, linhas por nível); consulta a cada 5 s só com rodada em execução, e o botão Atualizar. **Configuração**: as tarefas com tipo, serviço, horário legível (cron no hover), próxima execução, situação e última rodada; Run, Editar (nome, descrição, ligada, horário pelo editor — todo dia, dias da semana, mensal ou cron —, atributos pelo tipo do valor) e Nova/Excluir desabilitados ("em breve", D15). `?execution=<id>` abre a rodada (link da mensagem `ROTINA_FALHOU`) |
 | `/notifications` | Notificações (13/10/2026, `docs/planos/PLANO_NOTIFICACOES.md`): aberta pelo sino do cabeçalho (até 17/10/2026 ficava no rodapé do menu lateral), com o número de não lidas no marcador amarelo, consulta a cada 60 s. Caixa estilo e-mail (`NotificationsPage`): Entrada/Arquivadas, filtros de categoria, situação, público (admin) e "só não lidas", lista à esquerda e leitura à direita (celular: uma de cada vez), seleção em lote (lida, não lida, arquivar, desarquivar, excluir), ações da mensagem (link, "Informar custo"), Dispensar/Reabrir na pendência |
 | `/settings` | Configurações (05/10/2026): Perfil (foto centralizada com envio e recorte no navegador — `AvatarCropModal`, JPEG/PNG/WebP até 5 MB, ≥ 128 px —, nome, e-mail com troca por código, celular, CPF mascarado), Acesso (alterar/definir senha — botão amarelo com ícone de chave desde 17/10/2026 —, vincular/desvincular Google, termos aceitos), Preferências (tema, gravado no usuário), Zona de perigo (excluir conta com código; botão com ícone de lixeira) |
@@ -1485,6 +1501,41 @@ publicou; o valor só existe no Comunicado ao Mercado da Petrobras — PENDENCIA
 - Testes: `DividendReconciliationIT` (5) e `PaymentDateSourceIT` (2: CVM cede à B3; FNET assume a reserva da B3).
 
 ## ⚠️ Pontos de Atenção
+
+### Moedas (26/10/2026)
+Plano: `docs/planos/PLANO_CADASTRO_MOEDAS.md`.
+
+- **A moeda vem do ativo, nunca de uma escolha** (D2): `assets.currency_code` é a moeda em que o ativo é cotado; a
+  "secundária" é sempre a moeda base do sistema (`currencies.is_base`, BRL). Ativo nacional fica como antes (R$, sem
+  câmbio; a API recusa câmbio ≠ 1 — C3).
+- **Colunas antigas continuam em reais** (D3): `transactions.price_per_share/total_amount/brokerage_fee/net_amount/
+  income_tax` e `dividends.amount_per_share/total_amount/net_*` são sempre na moeda base; o lançado na moeda do ativo
+  fica em `original_*`, com `fx_rate` e `fx_rate_origin` (BASE/PTAX/INFORMED). Por isso Carteira, Rentabilidade,
+  Metas, Dashboard e venda de RF não mudaram na leitura de transações e proventos.
+- **O preço do ativo está na moeda do ativo** (D11): `assets.current_price` e `asset_price_history`. Quem valoriza
+  posição pelo preço converte pelo `ExchangeRateService` (core): `AppreciationUpdater`, `PortfolioService` (preço em
+  reais + `foreignQuote`), `PortfolioTimelineBuilder` (fechamento × câmbio de venda do dia do eixo; a impressão digital
+  do cache inclui `exchange_rates`). `IndicatorService`, `CompanyDataService` e `BenchmarkData` seguem só com ativos em
+  reais (emissores brasileiros, IVVB11 e BTC/BRL).
+- **Câmbio nunca indisponível** (D27): sem boletim na data, o último carregado (sem limite de dias), com a data do
+  boletim devolvida para a tela; só antes do início da série não há câmbio. Fonte com mais de 2 dias úteis sem boletim
+  novo → aviso `FONTE_DESATUALIZADA` ao administrador (mesma regra do Tesouro).
+- **PTAX**: API Olinda do BCB (`PtaxClient`), um ano por chamada e moeda, só o boletim "Fechamento"; arquivos em
+  `carga/data/bcb/ptax/{moeda}/{ano}.json`. Conferido em 26/10/2026: 4.222 dias de 2010 a 23/10/2026 iguais ao índice
+  `USD_PTAX` (SGS 1), que continua existindo para a tela Índices (D6).
+- **Uma rodada automática por dia** (`TaskHandler.oncePerDay()`, só o câmbio liga): a agendada pula se já houve
+  agendada/subida no dia; a subida só roda depois do horário do cron e sem rodada automática no dia; Run manual sempre.
+- **Tributos do exterior** (seção 5 do plano, V9/V10): venda de ativo do exterior grava `income_tax` (estimado: 15%
+  sobre o ganho em reais desde 2024; antes, isenção de vendas do mês até R$ 35 mil e faixas de 15% a 22,5%) e
+  `net_amount`; provento do exterior grava a retenção do país de origem (`foreign_withholding_*`, EUA 30%) e o IR
+  brasileiro estimado (`foreign_income_tax`, 15% − retido, nunca negativo), sem `withholding_rule_id`. É estimativa por
+  operação: a apuração anual compensa perdas (D20). As alíquotas e as bases legais do seed vêm do levantamento do
+  plano (9.4) e aguardam a validação do Guilherme.
+- **Integração** (D12): "isto é dinheiro" passou a ser o cadastro (`FiatCurrencies`, carregado na subida e quando a
+  tela de administrador muda o cadastro) em vez da lista fixa BRL/USD/EUR. Por isso a **V11** cadastra o EUR inativo
+  (sem série de câmbio, invisível ao usuário): saldo em euro na Binance continua sendo dinheiro, não divergência.
+- **Catálogo sem ativo em dólar**: os testes usam o ativo fictício `ZZUSD` (tipo STOCK, USD). A prova real fica com os
+  escopos dos ETFs americanos e Internacionais.
 
 ### Metas (24/10/2026)
 Plano: `docs/planos/PLANO_METAS.md` (recuperado do PrimeVest, Anexo A); fórmulas e fontes: `docs/METAS_METODOLOGIA.md`.

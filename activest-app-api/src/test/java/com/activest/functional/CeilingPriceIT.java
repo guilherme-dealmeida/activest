@@ -59,6 +59,11 @@ class CeilingPriceIT extends FunctionalBase {
                 java.sql.Date.valueOf(today.minusDays(1)));
         index("SELIC_META", today.minusDays(5), "13.75");
         index("USD_PTAX", LocalDate.of(2026, 6, 30), "5.4321");
+        // o cambio do lucro em dolar vem do cadastro de moedas (docs/planos/PLANO_CADASTRO_MOEDAS.md, D9)
+        jdbc.update("DELETE FROM exchange_rates WHERE currency_code = 'USD'");
+        jdbc.update("INSERT INTO exchange_rates (currency_code, reference_date, buy_rate, sell_rate) "
+                + "VALUES ('USD', '2026-06-30', 5.4315, 5.4321)");
+        exchangeRates.evict();
     }
 
     @AfterEach
@@ -299,6 +304,9 @@ class CeilingPriceIT extends FunctionalBase {
         assertThat(get(other, BASE, List.class).getBody()).isEmpty();
         assertThat(delete(user, BASE + "/" + id).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
     }
+
+    @Autowired
+    private com.activest.domain.currency.ExchangeRateService exchangeRates;
 
     @Autowired
     CeilingPriceAlertService alerts;

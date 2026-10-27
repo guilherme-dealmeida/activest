@@ -59,6 +59,13 @@ public class DividendRecalculator {
     private final AssetCashEventRepository cashEventRepository;
     private final WithholdingTaxRuleRepository withholdingTaxRuleRepository;
 
+    /**
+     * Provento de ativo em moeda estrangeira (docs/planos/PLANO_CADASTRO_MOEDAS.md, C6). Campo: os testes de unidade
+     * montam o recalculo sem ele e so tem ativos em reais.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    ForeignDividendCalculator foreign;
+
     /** Transacoes da posicao em ordem cronologica (data, depois criacao). */
     public List<Transaction> chronologicalTransactions(PortfolioAsset pa) {
         return positionCalculator.chronologicalTransactions(pa);
@@ -100,6 +107,8 @@ public class DividendRecalculator {
         List<StockEventStep> stockEvents = positionCalculator.stockEventsOf(pa.getAsset());
         // Poucas linhas e raramente mudam: lidas uma vez por posicao.
         List<WithholdingTaxRule> taxRules = withholdingTaxRuleRepository.findAll();
+        boolean isForeign = foreign != null && foreign.isForeign(pa.getAsset());
+        List<com.activest.domain.currency.ForeignTaxRule> foreignRules = isForeign ? foreign.rules() : List.of();
         Long assetTypeId = pa.getAsset().getAssetType() != null ? pa.getAsset().getAssetType().getId() : null;
         Map<Long, Dividend> byEvent = new HashMap<>();
         for (Dividend d : autos) {
@@ -117,6 +126,40 @@ public class DividendRecalculator {
             BigDecimal shares = positionCalculator.sharesOn(chronological, stockEvents, event.getDataCom());
             Dividend existing = byEvent.get(event.getId());
             if (shares.signum() <= 0) {
+                continue;
+            }
+            if (isForeign) {
+                var calc = foreign.calculate(pa.getAsset(), event, shares, foreignRules);
+                if (calc.isEmpty()) {
+                    // sem cambio carregado ate a data: fica como estava (o CAMBIO novo refaz)
+                    if (existing != null) {
+                        kept.add(event.getId());
+                    }
+                    continue;
+                }
+                kept.add(event.getId());
+                Dividend.ForeignDividend f = calc.get();
+                if (existing == null) {
+                    Dividend d = Dividend.builder()
+                            .portfolioAsset(pa)
+                            .cashEvent(event)
+                            .origin(DividendOrigin.AUTO)
+                            .type(event.getType())
+                            .exDate(event.getDataCom())
+                            .paymentDate(event.getPaymentDate())
+                            .sharesOnDate(shares)
+                            .build();
+                    d.applyForeign(f);
+                    dividendRepository.save(d);
+                    created++;
+                } else if (foreignChanged(existing, event, shares, f)) {
+                    existing.setType(event.getType());
+                    existing.setExDate(event.getDataCom());
+                    existing.setPaymentDate(event.getPaymentDate());
+                    existing.setSharesOnDate(shares);
+                    existing.applyForeign(f);
+                    dividendRepository.save(existing);
+                }
                 continue;
             }
             kept.add(event.getId());
@@ -173,6 +216,21 @@ public class DividendRecalculator {
                 || differs(d.getWithholdingTax(), tax.tax())
                 || differs(d.getNetAmountPerShare(), tax.netPerShare())
                 || differs(d.getNetAmount(), tax.net());
+    }
+
+    static boolean foreignChanged(Dividend d, AssetCashEvent e, BigDecimal shares, Dividend.ForeignDividend f) {
+        return d.getTaxCheckedAt() == null
+                || d.getType() != e.getType()
+                || !java.util.Objects.equals(d.getPaymentDate(), e.getPaymentDate())
+                || !d.getExDate().equals(e.getDataCom())
+                || d.getSharesOnDate() == null || d.getSharesOnDate().compareTo(shares) != 0
+                || !java.util.Objects.equals(d.getCurrencyCode(), f.currencyCode())
+                || differs(d.getFxRate(), f.fxRate())
+                || differs(d.getAmountPerShare(), f.amountPerShare())
+                || differs(d.getTotalAmount(), f.gross())
+                || differs(d.getForeignWithholdingTax(), f.withholdingTax())
+                || differs(d.getForeignIncomeTax(), f.incomeTax())
+                || differs(d.getNetAmount(), f.net());
     }
 
     private static Long ruleId(WithholdingTaxRule r) {

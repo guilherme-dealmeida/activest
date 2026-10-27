@@ -92,6 +92,38 @@ public class Dividend {
     @Column(name = "net_amount", precision = 18, scale = 2)
     private BigDecimal netAmount;
 
+    // ----- moeda (V9, docs/planos/PLANO_CADASTRO_MOEDAS.md, C6) -----
+    // amount_per_share, total_amount e net_* continuam na MOEDA BASE. Provento de ativo de outra moeda guarda o
+    // valor por cota original, o cambio (PTAX compra da data de pagamento, D24) e a retencao do pais de origem.
+
+    @Column(name = "currency_code", nullable = false, length = 3)
+    @Builder.Default
+    private String currencyCode = com.activest.domain.currency.Currency.BRL;
+
+    @Column(name = "fx_rate", nullable = false, precision = 18, scale = 8)
+    @Builder.Default
+    private BigDecimal fxRate = BigDecimal.ONE;
+
+    @Column(name = "original_amount_per_share", precision = 18, scale = 8)
+    private BigDecimal originalAmountPerShare;
+
+    @Column(name = "original_total_amount", precision = 18, scale = 2)
+    private BigDecimal originalTotalAmount;
+
+    @Column(name = "foreign_withholding_rate", precision = 6, scale = 4)
+    private BigDecimal foreignWithholdingRate;
+
+    @Column(name = "foreign_withholding_tax", precision = 18, scale = 2)
+    private BigDecimal foreignWithholdingTax;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "foreign_tax_rule_id")
+    private com.activest.domain.currency.ForeignTaxRule foreignTaxRule;
+
+    /** IR brasileiro estimado sobre provento do exterior, já deduzida a retenção do país de origem (V10, C6). */
+    @Column(name = "foreign_income_tax", precision = 18, scale = 2)
+    private BigDecimal foreignIncomeTax;
+
     /**
      * Quando a regra foi aplicada. Nulo = ainda nao calculado (diferente de
      * "sem regra"): o {@link DividendTaxVerifier} recalcula na subida.
@@ -101,6 +133,7 @@ public class Dividend {
 
     /** Grava o resultado do calculo de IR e marca como conferido agora. */
     public void applyTax(WithholdingTaxCalculator.Result tax) {
+        clearForeign();
         this.totalAmount = tax.gross();
         this.withholdingRule = tax.rule();
         this.withholdingRate = tax.rate();
@@ -130,6 +163,48 @@ public class Dividend {
     }
 
     /** Liquido quando ha regra; bruto quando nao ha (o dinheiro nao some da soma). */
+    /**
+     * Grava o provento de ativo em moeda estrangeira (docs/planos/PLANO_CADASTRO_MOEDAS.md, C6): bruto e líquido em
+     * reais, o lançado na moeda, o câmbio e os tributos do exterior. Sem retenção brasileira.
+     */
+    public void applyForeign(ForeignDividend f) {
+        this.currencyCode = f.currencyCode();
+        this.fxRate = f.fxRate();
+        this.amountPerShare = f.amountPerShare();
+        this.originalAmountPerShare = f.originalAmountPerShare();
+        this.originalTotalAmount = f.originalTotalAmount();
+        this.totalAmount = f.gross();
+        this.withholdingRule = null;
+        this.withholdingRate = null;
+        this.withholdingTax = null;
+        this.foreignTaxRule = f.withholdingRule();
+        this.foreignWithholdingRate = f.withholdingRule() != null ? f.withholdingRule().getRate() : null;
+        this.foreignWithholdingTax = f.withholdingTax();
+        this.foreignIncomeTax = f.incomeTax();
+        this.netAmountPerShare = f.netPerShare();
+        this.netAmount = f.net();
+        this.taxCheckedAt = LocalDateTime.now();
+    }
+
+    private void clearForeign() {
+        this.currencyCode = com.activest.domain.currency.Currency.BRL;
+        this.fxRate = BigDecimal.ONE;
+        this.originalAmountPerShare = null;
+        this.originalTotalAmount = null;
+        this.foreignTaxRule = null;
+        this.foreignWithholdingRate = null;
+        this.foreignWithholdingTax = null;
+        this.foreignIncomeTax = null;
+    }
+
+    /** Resultado do cálculo do provento do exterior ({@link ForeignDividendCalculator}). */
+    public record ForeignDividend(String currencyCode, BigDecimal fxRate, BigDecimal amountPerShare,
+                                  BigDecimal originalAmountPerShare, BigDecimal originalTotalAmount, BigDecimal gross,
+                                  com.activest.domain.currency.ForeignTaxRule withholdingRule,
+                                  BigDecimal withholdingTax, BigDecimal incomeTax, BigDecimal netPerShare,
+                                  BigDecimal net) {
+    }
+
     public BigDecimal netOrGross() {
         return netAmount != null ? netAmount : totalAmount;
     }

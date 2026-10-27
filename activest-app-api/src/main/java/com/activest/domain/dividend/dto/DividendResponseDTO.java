@@ -38,5 +38,15 @@ public record DividendResponseDTO(
     /** Origem da data de pagamento quando nao e a da fonte do evento: CVM (V38). Nulo = da fonte. */
     String paymentDateSource,
     /** Emissor do catalogo (assets.issuer_id), para o link da tela de emissoras. Nulo sem emissor. */
-    Long issuerId
-) {}
+    Long issuerId,
+    /**
+     * Provento de ativo em outra moeda (docs/planos/PLANO_CADASTRO_MOEDAS.md, C6): valor na moeda, câmbio (PTAX compra
+     * do pagamento), retenção do país de origem e IR brasileiro estimado. Nulo em reais. Os totais acima estão em reais.
+     */
+    Foreign foreign
+) {
+    public record Foreign(String currencyCode, String symbol, BigDecimal fxRate, BigDecimal originalAmountPerShare,
+                          BigDecimal originalTotalAmount, BigDecimal withholdingRate, BigDecimal withholdingTax,
+                          String withholdingLegalBasis, BigDecimal incomeTax) {
+    }
+}

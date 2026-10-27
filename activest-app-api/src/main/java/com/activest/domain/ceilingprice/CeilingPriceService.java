@@ -390,9 +390,12 @@ public class CeilingPriceService {
             if (q.originalValue() != null && q.periodEnd() != null) {
                 try {
                     MoneyNormalizer.Unit u = MoneyNormalizer.Unit.valueOf(unit);
-                    MoneyNormalizer.Currency c = MoneyNormalizer.Currency.valueOf(currency);
-                    if (c == MoneyNormalizer.Currency.USD) {
-                        rate = q.fxRate() != null ? q.fxRate() : defaults.ptax(q.periodEnd());
+                    if (!defaults.acceptsCurrency(currency)) {
+                        throw new IllegalArgumentException("moeda fora do cadastro: " + currency);
+                    }
+                    boolean base = defaults.isBaseCurrency(currency);
+                    if (!base) {
+                        rate = q.fxRate() != null ? q.fxRate() : defaults.fxRate(currency, q.periodEnd());
                         if (rate == null) {
                             issues.add(new Issue("CAMBIO_AUSENTE", Level.BLOQUEIO, "quarters[" + i + "]",
                                     "Câmbio (PTAX) não encontrado para " + CeilingPriceDefaults.fmt(q.periodEnd())
@@ -400,7 +403,7 @@ public class CeilingPriceService {
                         }
                     }
                     if (rate != null) {
-                        brl = MoneyNormalizer.toBrl(q.originalValue(), u, c, rate);
+                        brl = MoneyNormalizer.toBrl(q.originalValue(), u, base, rate);
                     }
                 } catch (IllegalArgumentException e) {
                     issues.add(new Issue("UNIDADE_INVALIDA", Level.BLOQUEIO, "quarters[" + i + "]",

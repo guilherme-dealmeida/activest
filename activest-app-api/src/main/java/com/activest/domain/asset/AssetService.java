@@ -60,7 +60,8 @@ public class AssetService {
      */
     public List<AssetTypeResponseDTO> getAllTypes() {
         return assetTypeRepository.findAllByOrderByIdAsc().stream()
-            .map(t -> new AssetTypeResponseDTO(t.getId(), t.getName(), t.getDescription(), t.getColorHex(), t.isFixedIncome()))
+            .map(t -> new AssetTypeResponseDTO(t.getId(), t.getName(), t.getDescription(), t.getColorHex(), t.isFixedIncome(),
+                t.getDefaultCurrencyCode(), t.getRegion().name()))
             .collect(Collectors.toList());
     }
 
@@ -151,7 +152,8 @@ public class AssetService {
             terms != null ? terms.getMaturityDate() : null,
             terms != null ? terms.getRateType()     : null,
             terms != null ? terms.getIndexer()      : null,
-            asset.isActive()
+            asset.isActive(),
+            asset.getCurrencyCode()
         );
     }
 }

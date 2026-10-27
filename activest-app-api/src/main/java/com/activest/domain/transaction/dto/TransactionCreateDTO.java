@@ -70,5 +70,21 @@ public record TransactionCreateDTO(
      */
     Long distributorId,
     /** Código do papel na B3 (ex.: CDBA2478FYE), opcional (R8). */
-    String paperCode
-) {}
+    String paperCode,
+    /**
+     * Câmbio para reais (docs/planos/PLANO_CADASTRO_MOEDAS.md, D5/D16): só em ativo cotado em outra moeda — nele,
+     * preço, total e taxa vêm na moeda do ativo. Nulo = PTAX de venda da data. Em ativo em reais é recusado se ≠ 1.
+     */
+    BigDecimal fxRate
+) {
+    /** A forma de antes da moeda: sem câmbio (ativo em reais, ou PTAX da data). */
+    public TransactionCreateDTO(String ticker, TransactionType type, BigDecimal shares, BigDecimal pricePerShare,
+                                BigDecimal totalAmount, BigDecimal brokerageFee, LocalDate transactionDate,
+                                Boolean isReservation, Boolean isFullSettlement, UUID noteId, Long issuerId,
+                                LocalDate maturityDate, RateType rateType, Indexer indexer, BigDecimal indexerRate,
+                                Long distributorId, String paperCode) {
+        this(ticker, type, shares, pricePerShare, totalAmount, brokerageFee, transactionDate, isReservation,
+            isFullSettlement, noteId, issuerId, maturityDate, rateType, indexer, indexerRate, distributorId, paperCode,
+            null);
+    }
+}

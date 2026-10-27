@@ -29,4 +29,13 @@ public interface TaskHandler {
     default boolean needsRecovery() {
         return true;
     }
+
+    /**
+     * No máximo <b>uma rodada automática por dia</b> (docs/planos/PLANO_CADASTRO_MOEDAS.md, P2 e 10.3): a agendada pula
+     * se já houve rodada agendada ou de subida no dia; a subida só roda depois do horário do cron de hoje (antes dele,
+     * a agendada vai rodar). O Run manual roda sempre e não conta. Padrão: desligado (o comportamento de antes).
+     */
+    default boolean oncePerDay() {
+        return false;
+    }
 }
