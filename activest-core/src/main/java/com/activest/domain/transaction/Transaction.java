@@ -90,6 +90,34 @@ public class Transaction {
     @Column(name = "transaction_date", nullable = false)
     private LocalDate transactionDate;
 
+    // ----- moeda (V9, docs/planos/PLANO_CADASTRO_MOEDAS.md, D3) -----
+    // As colunas acima (preco, total, taxa, liquido, IR) continuam na MOEDA BASE (reais): e o que todos os calculos
+    // leem. Em ativo de outra moeda, o lancado pelo usuario fica nos campos original* e o cambio em fxRate.
+
+    /** Moeda da transação = moeda do ativo (não escolhida pelo usuário). */
+    @Column(name = "currency_code", nullable = false, length = 3)
+    @Builder.Default
+    private String currencyCode = com.activest.domain.currency.Currency.BRL;
+
+    /** Câmbio para a moeda base: 1 na base; PTAX venda da data por padrão nas demais (D5/D16), editável. */
+    @Column(name = "fx_rate", nullable = false, precision = 18, scale = 8)
+    @Builder.Default
+    private BigDecimal fxRate = BigDecimal.ONE;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fx_rate_origin", nullable = false, length = 10)
+    @Builder.Default
+    private com.activest.domain.currency.FxRateOrigin fxRateOrigin = com.activest.domain.currency.FxRateOrigin.BASE;
+
+    @Column(name = "original_price_per_share", precision = 18, scale = 8)
+    private BigDecimal originalPricePerShare;
+
+    @Column(name = "original_total_amount", precision = 18, scale = 2)
+    private BigDecimal originalTotalAmount;
+
+    @Column(name = "original_fee", precision = 18, scale = 2)
+    private BigDecimal originalFee;
+
     /**
      * A venda do usuario a que esta linha pertence.
      *

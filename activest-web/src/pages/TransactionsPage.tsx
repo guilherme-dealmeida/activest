@@ -12,7 +12,7 @@ import { Pagination } from '@/components/ui/Pagination';
 import { TransactionFormModal, TransactionPreset } from '@/components/transactions/TransactionFormModal';
 import { presetFromPosition, presetFromTransaction } from '@/components/transactions/transactionPreset';
 import { TABLE_ACTION_CLASS } from '@/components/ui/tableAction';
-import { formatCurrency, formatDate, formatPercentage, formatQuantity, formatUnitPrice, toLocalISODate } from '@/utils/format';
+import { formatCurrency, formatDate, formatFxRate, formatMoney, formatPercentage, formatQuantity, formatUnitPrice, toLocalISODate } from '@/utils/format';
 import { TransactionResponse, TransactionType, AssetType, TransactionCreate, PortfolioAssetDetail } from '@/types';
 import { useSortable } from '@/hooks/useSortable';
 import { isFixedIncomeNote, RENDA_FIXA, TESOURO_DIRETO, typeLogo } from '@/utils/assetTypeRules';
@@ -690,12 +690,29 @@ export const TransactionsPage = () => {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">{row.shares != null ? formatQuantity(row.shares, row.isCrypto) : '—'}</td>
-                  <td className="px-4 py-3 text-right">{row.pricePerShare != null ? formatUnitPrice(row.pricePerShare, row.isCrypto) : '—'}</td>
+                  {/* Ativo em outra moeda (PLANO_CADASTRO_MOEDAS, P3): reais como sempre e, embaixo, o lançado na moeda. */}
+                  <td className="px-4 py-3 text-right">
+                    <span className="inline-flex flex-col items-end">
+                      <span>{row.pricePerShare != null ? formatUnitPrice(row.pricePerShare, row.isCrypto) : '—'}</span>
+                      {row.currency?.originalPricePerShare != null && (
+                        <span className="text-xs text-gray-400 tabular-nums"
+                          title={`Câmbio ${formatFxRate(row.currency.fxRate)} (${row.currency.fxRateOrigin === 'INFORMED' ? 'informado' : 'PTAX venda'})`}>
+                          {formatMoney(row.currency.originalPricePerShare, row.currency.symbol, 2, 8)}
+                        </span>
+                      )}
+                    </span>
+                  </td>
                   {/* Venda de Renda Fixa e de Tesouro: o bruto e, embaixo, o líquido — o que caiu na conta —, como o
                       valor atual da Carteira (PLANO_VENDA_RENDA_FIXA, D4). */}
                   <td className="px-4 py-3 text-right font-medium text-white">
                     <span className="inline-flex flex-col items-end">
                       <span>{formatCurrency(row.totalAmount)}</span>
+                      {row.currency && (
+                        <span className="text-xs font-normal text-gray-400 tabular-nums"
+                          title={`Câmbio ${formatFxRate(row.currency.fxRate)} (${row.currency.fxRateOrigin === 'INFORMED' ? 'informado' : 'PTAX venda'})`}>
+                          {formatMoney(row.currency.originalTotalAmount, row.currency.symbol)}
+                        </span>
+                      )}
                       {row.netAmount != null && (
                         <span className="text-xs font-normal text-gray-400 tabular-nums">
                           líq. {formatCurrency(row.netAmount)}

@@ -17,7 +17,7 @@ import { presetFromPosition } from '@/components/transactions/transactionPreset'
 import { TABLE_ACTION_CLASS } from '@/components/ui/tableAction';
 import { useSortable } from '@/hooks/useSortable';
 import { AssetType, PortfolioAssetDetail, RateType, TransactionType } from '@/types';
-import { formatCurrency, formatDate, formatPercentage, formatQuantity, formatUnitPrice, getReturnColor } from '@/utils/format';
+import { formatCurrency, formatDate, formatFxRate, formatMoney, formatPercentage, formatQuantity, formatUnitPrice, getReturnColor } from '@/utils/format';
 import { RENDA_FIXA, TESOURO_DIRETO, isFixedIncomeNote, typeLogo } from '@/utils/assetTypeRules';
 import { apiMessage } from '@/utils/apiError';
 import { TickerLink } from '@/components/issuer/TickerLink';
@@ -310,7 +310,18 @@ const COLUMNS: Column[] = [
     label: 'PREÇO ATUAL',
     align: 'right',
     visible: showCurrentPrice,
-    render: (a) => formatUnitPrice(a.currentPrice, a.isCrypto),
+    // Ativo em outra moeda (PLANO_CADASTRO_MOEDAS, C4): o preço em reais e, embaixo, a cotação na moeda com o câmbio
+    render: (a) => a.foreignQuote ? (
+      <span className="inline-flex flex-col items-end">
+        <span>{formatUnitPrice(a.currentPrice, a.isCrypto)}</span>
+        <span className="text-xs text-gray-400 tabular-nums"
+          title={a.foreignQuote.fxRate != null
+            ? `Câmbio ${formatFxRate(a.foreignQuote.fxRate)} (PTAX venda de ${formatDate(a.foreignQuote.rateDate ?? '')})`
+            : 'Sem câmbio carregado'}>
+          {formatMoney(a.foreignQuote.price, a.foreignQuote.symbol, 2, 8)}
+        </span>
+      </span>
+    ) : formatUnitPrice(a.currentPrice, a.isCrypto),
   },
   {
     key: 'totalInvested',

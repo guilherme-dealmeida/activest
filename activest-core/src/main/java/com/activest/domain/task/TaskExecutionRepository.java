@@ -15,6 +15,11 @@ public interface TaskExecutionRepository extends JpaRepository<TaskExecution, Lo
     /** A tarefa já teve rodada (qualquer origem e status) desde {@code since} — a subida roda no máximo uma vez por dia. */
     boolean existsByTaskIdAndStartedAtGreaterThanEqual(Long taskId, java.time.LocalDateTime since);
 
+    /** A tarefa já teve rodada de uma destas origens desde {@code since} ({@link TaskHandler#oncePerDay()}). */
+    boolean existsByTaskIdAndTriggerTypeInAndStartedAtGreaterThanEqual(Long taskId,
+                                                                       java.util.Collection<TaskTriggerType> triggers,
+                                                                       java.time.LocalDateTime since);
+
     /** Rodadas em execução dos tipos de um serviço (órfãs na subida). */
     @Query("SELECT e FROM TaskExecution e JOIN FETCH e.task t JOIN FETCH t.taskType y "
          + "WHERE e.status = com.activest.domain.task.TaskExecutionStatus.RUNNING AND y.service = :service")

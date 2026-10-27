@@ -28,6 +28,7 @@ const routeNames: Record<string, string> = {
   '/settings': 'Configurações',
   '/notifications': 'Notificações',
   '/tasks': 'Tarefas',
+  '/currencies': 'Moedas',
 };
 
 /** Marcador amarelo de contagem (Notificações e Integrações), sobre o canto do ícone. */

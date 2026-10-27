@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowDownLeft, ArrowUpRight, Receipt, Save, X } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Receipt, RotateCcw, Save, X } from 'lucide-react';
 import { transactionsApi } from '@/api/transactions';
 import { assetsApi } from '@/api/assets';
 import { portfolioApi } from '@/api/portfolio';
+import { currenciesApi } from '@/api/currencies';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
@@ -18,7 +19,7 @@ import { TickerAutocomplete } from '@/components/forms/TickerAutocomplete';
 import { FixedIncomeFields, FixedIncomeValues } from '@/components/forms/FixedIncomeFields';
 import { IssuerPick, distributorPickOf, issuerPickOf } from '@/components/forms/issuerPick';
 import { DistributorChangeModal } from '@/components/transactions/DistributorChangeModal';
-import { formatCurrency, formatDate, toLocalISODate } from '@/utils/format';
+import { formatCurrency, formatDate, formatMoney, toLocalISODate } from '@/utils/format';
 import { CRYPTO_DECIMALS, isCryptoType } from '@/utils/assetTypeRules';
 import {
   Asset, AssetType, DistributorChangePreview, Indexer, NoteInfo, RateType, SalePreview, TransactionCreate,
@@ -229,6 +230,12 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
   const [fullSettlement, setFullSettlement] = useState(false);
   /** Renda Fixa pela Nova Transação: o título escolhido na lista — na venda é obrigatório, na compra é opcional. */
   const [pickedNoteId, setPickedNoteId] = useState<string | null>(null);
+  /**
+   * Câmbio do ativo cotado em outra moeda (docs/planos/PLANO_CADASTRO_MOEDAS.md, D5/C2): a PTAX de venda da data
+   * pré-preenchida; editado pelo usuário, fica o informado até ele voltar ao padrão (↻). Ativo em reais não tem câmbio.
+   */
+  const [fxRate, setFxRate] = useState<number | null>(null);
+  const [fxInformed, setFxInformed] = useState(false);
   const [formData, setFormData] = useState<TransactionCreate>({
     ticker: '',
     type: TransactionType.BUY,
@@ -247,6 +254,8 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     setFixedIncome(EMPTY_FIXED_INCOME);
     setFullSettlement(false);
     setPickedNoteId(null);
+    setFxRate(null);
+    setFxInformed(false);
     setFormData({
       ticker: '', type: TransactionType.BUY, shares: 0,
       pricePerShare: 0, totalAmount: 0, brokerageFee: 0,
@@ -276,12 +285,16 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
         // Numa venda repartida por título, o que se edita é a VENDA: a
         // quantidade e as taxas do grupo, não as da linha clicada.
         shares: editing.groupShares ?? editing.shares ?? 0,
-        pricePerShare: editing.pricePerShare ?? 0,
+        // Ativo em outra moeda: reabre com o que foi lançado na moeda dele (os campos da transação estão em reais)
+        pricePerShare: editing.currency?.originalPricePerShare ?? editing.pricePerShare ?? 0,
         // Venda de Renda Fixa: o que se digita é o LÍQUIDO; o bruto é calculado (PLANO_VENDA_RENDA_FIXA, R3).
         totalAmount: editing.netAmount ?? editing.totalAmount ?? 0,
-        brokerageFee: editing.groupBrokerageFee ?? editing.brokerageFee ?? 0,
+        brokerageFee: editing.currency ? (editing.currency.originalFee ?? 0)
+          : (editing.groupBrokerageFee ?? editing.brokerageFee ?? 0),
         transactionDate: editing.transactionDate
       });
+      setFxRate(editing.currency?.fxRate ?? null);
+      setFxInformed(editing.currency?.fxRateOrigin === 'INFORMED');
       // O que está no quadro é o que foi CONTRATADO, e isso mora no título —
       // não no catálogo. Um ajuste posterior em asset_terms não deve reescrever
       // uma posição já registrada.
@@ -305,6 +318,8 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       setEditingNoteId(preset.note?.noteId ?? null);
       setFullSettlement(preset.defaults?.fullSettlement ?? false);
       setPickedNoteId(null);
+      setFxRate(null);
+      setFxInformed(false);
       setFormData({
         ticker: preset.ticker,
         type: preset.operation,
@@ -419,6 +434,30 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
   // demais tipos (docs/planos/PLANO_CRIPTO_BINANCE.md, 6.12).
   const isCrypto = isCryptoType(selectedType);
   const isSale = formData.type === TransactionType.SELL;
+
+  /**
+   * Moeda do ativo (docs/planos/PLANO_CADASTRO_MOEDAS.md, D2/D5): vem do ativo, nunca de uma escolha. Ativo nacional
+   * fica exatamente como antes (R$, sem câmbio); ativo de outra moeda é lançado na moeda dele, com o câmbio da data.
+   */
+  const { data: currencyList } = useQuery({
+    queryKey: ['currencies'],
+    queryFn: currenciesApi.list,
+    enabled: isOpen,
+    staleTime: 5 * 60_000,
+  });
+  const baseCurrency = currencyList?.find(c => c.base)?.code ?? 'BRL';
+  const assetCurrency = editing?.currency?.code ?? matchedAsset?.currencyCode ?? baseCurrency;
+  const isForeign = assetCurrency !== baseCurrency;
+  const currencySymbol = editing?.currency?.symbol
+    ?? currencyList?.find(c => c.code === assetCurrency)?.symbol ?? assetCurrency;
+  const { data: ptax, isFetching: ptaxLoading } = useQuery({
+    queryKey: ['currencies', assetCurrency, 'rate', formData.transactionDate],
+    queryFn: () => currenciesApi.rate(assetCurrency, formData.transactionDate),
+    enabled: isOpen && isForeign && !!formData.transactionDate,
+  });
+  useEffect(() => {
+    if (isForeign && !fxInformed) setFxRate(ptax?.sell ?? null);
+  }, [isForeign, fxInformed, ptax]);
 
   /**
    * Renda Fixa pela Nova Transação: o título sai de uma lista dos títulos do ativo — o mesmo que os ícones da
@@ -700,9 +739,16 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       // ativo.
       noteId: !isTreasury && !editing ? (preset?.note?.noteId ?? (choosesNote ? (picked?.noteId ?? null) : null)) : null,
       isFullSettlement: isTotalValue && isSale ? settleInFull : null,
+      // Ativo em outra moeda: o câmbio da tela (PTAX da data ou o informado); em reais nunca vai
+      fxRate: isForeign ? fxRate : null,
       // A venda do Tesouro informa a distribuidora: o FIFO consome só os títulos dela (R13)
       ...(isTreasury && isSale ? { distributorId: fixedIncome.distributor?.id ?? null } : {})
     };
+
+    if (isForeign && !(fxRate && fxRate > 0)) {
+      showToast('Informe o câmbio da data para converter a transação em reais.', 'error');
+      return;
+    }
 
     if (isTreasury && !fixedIncome.distributor) {
       showToast('Informe a distribuidora (onde o título foi comprado).', 'error');
@@ -931,6 +977,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
               />
               <CurrencyInput
                 label="Preço Unitário"
+                symbol={isForeign ? currencySymbol : undefined}
                 decimals={isCrypto ? CRYPTO_DECIMALS : 2}
                 value={formData.pricePerShare ?? 0}
                 onChange={(v) => setFormData({ ...formData, pricePerShare: v })}
@@ -948,9 +995,42 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
           />
           <CurrencyInput
             label="Taxas"
+            symbol={isForeign ? currencySymbol : undefined}
             value={formData.brokerageFee ?? 0}
             onChange={(v) => setFormData({ ...formData, brokerageFee: v })}
           />
+
+          {isForeign && (
+            <div className="sm:col-span-2 flex items-end gap-2">
+              <div className="flex-1">
+                <MaskedNumberInput
+                  label={`Câmbio (R$ por ${currencySymbol} 1)`}
+                  info="Câmbio para reais: a PTAX de venda do Banco Central na data da transação. Se a sua corretora usou outro câmbio, informe-o."
+                  decimals={4}
+                  value={fxRate ?? 0}
+                  onChange={(v) => { setFxRate(v); setFxInformed(true); }}
+                  hint={ptaxLoading ? 'Buscando a PTAX da data…'
+                    : fxInformed ? 'Câmbio informado por você.'
+                    : ptax ? `PTAX venda de ${formatDate(ptax.rateDate)}${ptax.carried ? ' (último boletim antes da data)' : ''}.`
+                    : 'Sem câmbio publicado até a data: informe a taxa.'}
+                  required
+                />
+              </div>
+              {fxInformed && ptax && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mb-6"
+                  title="Voltar à PTAX da data"
+                  aria-label="Voltar à PTAX da data"
+                  onClick={() => { setFxInformed(false); setFxRate(ptax.sell); }}
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          )}
 
           {/* Total é resultado, não campo: uma linha de leitura ocupa metade
               da altura de um input com rótulo e texto de apoio. */}
@@ -981,9 +1061,20 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
                 </Popover>
               )}
             </span>
-            <span className="text-lg font-semibold tabular-nums text-white">
-              {formatCurrency(computedTotal)}
-            </span>
+            {isForeign ? (
+              <span className="text-right">
+                <span className="block text-lg font-semibold tabular-nums text-white">
+                  {formatMoney(computedTotal, currencySymbol)}
+                </span>
+                <span className="block text-xs tabular-nums text-gray-400">
+                  {fxRate ? `${formatCurrency(computedTotal * fxRate)} em reais` : 'em reais: informe o câmbio'}
+                </span>
+              </span>
+            ) : (
+              <span className="text-lg font-semibold tabular-nums text-white">
+                {formatCurrency(computedTotal)}
+              </span>
+            )}
           </div>
 
           {hasPreview && previewError && (

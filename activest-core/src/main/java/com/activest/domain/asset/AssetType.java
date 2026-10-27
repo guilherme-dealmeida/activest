@@ -39,6 +39,17 @@ public class AssetType {
     @Builder.Default
     private boolean fixedIncome = false;
 
+    /** Moeda sugerida para os ativos do tipo (V9, D2/D25): STOCK, REIT e ETF internacional em USD. */
+    @Column(name = "default_currency_code", nullable = false, length = 3)
+    @Builder.Default
+    private String defaultCurrencyCode = com.activest.domain.currency.Currency.BRL;
+
+    /** Região do tipo (V9, D4): BDR é EXTERIOR cotado em reais; cripto tem região própria. */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    @Builder.Default
+    private com.activest.domain.currency.Region region = com.activest.domain.currency.Region.BRASIL;
+
     /**
      * Tipos lancados por VALOR TOTAL, sem quantidade nem preco unitario. Hoje so
      * RENDA_FIXA: um CDB, uma LCI ou uma debenture comprados no banco tem valor

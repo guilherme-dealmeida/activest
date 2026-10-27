@@ -40,6 +40,11 @@ public class PortfolioService {
     /** Aportes dos ultimos 12 meses no resumo (Dashboard, 17/10/2026). Por campo: os testes de servico nao o usam. */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     com.activest.domain.transaction.TransactionRepository transactionRepository;
+    /** Cotacao em outra moeda convertida para reais (PLANO_CADASTRO_MOEDAS, C4). Por campo pelo mesmo motivo. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.activest.domain.currency.ExchangeRateService exchangeRates;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.activest.domain.currency.CurrencyRepository currencies;
 
     public PortfolioService(PortfolioRepository portfolioRepository, PortfolioAssetRepository portfolioAssetRepository,
                             UserRepository userRepository, DividendRepository dividendRepository,
@@ -146,8 +151,11 @@ public class PortfolioService {
                 BigDecimal currentValue = currentValue(pa, position);
 
                 BigDecimal currentPrice;
+                PortfolioAssetDetailDTO.ForeignQuote foreignQuote = foreignQuote(pa.getAsset());
                 if (AppreciationUpdater.hasMarketPrice(pa.getAsset())) {
-                    currentPrice = pa.getAsset().getCurrentPrice();
+                    currentPrice = foreignQuote != null && foreignQuote.fxRate() != null
+                        ? pa.getAsset().getCurrentPrice().multiply(foreignQuote.fxRate()).setScale(8, RoundingMode.HALF_EVEN)
+                        : pa.getAsset().getCurrentPrice();
                 } else {
                     // Sem cotacao (renda fixa e afins): preco implicito pelo valor atual
                     currentPrice = safe(position.totalShares()).compareTo(BigDecimal.ZERO) > 0
@@ -204,7 +212,8 @@ public class PortfolioService {
                         .map(l -> new PortfolioAssetDetailDTO.FixedIncomeLot(l.date(), l.days(), l.applied(),
                             l.balance(), l.income(), l.iofRate(), l.irRate(), l.iof(), l.ir(), l.net()))
                         .toList(),
-                    fixedIncomeIssuers != null ? fixedIncomeIssuers.info(note) : null
+                    fixedIncomeIssuers != null ? fixedIncomeIssuers.info(note) : null,
+                    foreignQuote
                 );
             }).collect(Collectors.toList());
     }
@@ -425,6 +434,19 @@ public class PortfolioService {
      * MANUAL), o valor e apurado por fora — na Renda Fixa, pela propria venda
      * (ver FixedIncomeSettlement).</p>
      */
+    /** Cotacao e cambio de hoje de ativo fora da moeda base; nulo em reais. */
+    private PortfolioAssetDetailDTO.ForeignQuote foreignQuote(com.activest.domain.asset.Asset asset) {
+        if (exchangeRates == null || asset == null || exchangeRates.isBase(asset.getCurrencyCode())) {
+            return null;
+        }
+        var quote = exchangeRates.rateOn(asset.getCurrencyCode(), dividendCalendar.today(),
+            com.activest.domain.currency.RateSide.SELL).orElse(null);
+        String symbol = currencies == null ? asset.getCurrencyCode() : currencies.findById(asset.getCurrencyCode())
+            .map(com.activest.domain.currency.Currency::getSymbol).orElse(asset.getCurrencyCode());
+        return new PortfolioAssetDetailDTO.ForeignQuote(asset.getCurrencyCode(), symbol, asset.getCurrentPrice(),
+            quote != null ? quote.rate() : null, quote != null ? quote.rateDate() : null);
+    }
+
     private BigDecimal appreciation(PortfolioAsset pa) {
         return safe(pa.getAppreciation());
     }

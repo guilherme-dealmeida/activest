@@ -50,6 +50,7 @@ Prefixo das rotas: `/api/v1/admin`.
 | 17 | POST | `/dividends/fnet-status` | adm | 202 | Proventos (FNET) |
 | 18 | POST | `/indices?codes&from&to&recent` | adm | 202 (400 com código desconhecido) | Índices de mercado |
 | 19 | POST | `/tesouro?from&recent` | adm | 202 | Preço do Tesouro |
+| 20 | GET/POST/PUT | `/currencies[/{code}]` | adm | 200 (403 sem `is_admin`) | Moedas (cadastro; câmbio pela tarefa `EXCHANGE_RATES`) |
 
 ---
 
@@ -323,3 +324,21 @@ node carga/scripts/admin.mjs "treasury?from=2002"
 
 **Propósito.** Carregar o histórico num banco existente (o `bootstrap` já faz num banco novo) ou estender para antes de
 2010 (`docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`).
+
+## Moedas
+
+### [20] `GET/POST/PUT /api/v1/admin/currencies` (26/10/2026) — síncrono
+
+**Serviço:** `CurrencyAdminController` (adm-api; o front chega pelo proxy `/api/v1/admin/currencies`) · **Grava:**
+`currencies`
+
+**Função.** Lista as moedas com a cobertura da série de câmbio; inclui (código ISO, nome, símbolo, casas, país, fonte
+`BCB_PTAX`, ativa) e edita. A moeda base não perde a marca, não ganha fonte e não é desativada; moeda com ativo do
+catálogo não é desativada. Toda mudança recarrega as moedas conhecidas das regras de importação e publica "catálogo
+mudou" (CAMBIO). A série de uma moeda nova entra pela tarefa `EXCHANGE_RATES` (Run com `CURRENCY_CODES`).
+
+```bash
+node carga/scripts/admin.mjs currencies --method GET
+```
+
+**Propósito.** Moeda nova = uma linha aqui + a série de câmbio (`docs/planos/PLANO_CADASTRO_MOEDAS.md`).

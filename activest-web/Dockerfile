@@ -37,12 +37,14 @@ RUN npm run build
 FROM nginx:alpine AS runtime
 COPY --from=build /app/dist /usr/share/nginx/html
 # SPA: qualquer rota desconhecida cai no index.html, senão F5 em /dashboard dá 404.
-# /api/v1/tasks vai para a adm-api (tela de Tarefas, docs/planos/PLANO_TAREFAS.md, D9).
+# /api/v1/tasks vai para a adm-api (tela de Tarefas, docs/planos/PLANO_TAREFAS.md, D9), e
+# /api/v1/admin/currencies também (tela Moedas, docs/planos/PLANO_CADASTRO_MOEDAS.md, D13).
 RUN printf 'server {\n\
   listen 80;\n\
   root /usr/share/nginx/html;\n\
   index index.html;\n\
   location /api/v1/tasks { proxy_pass http://adm-api:8081; proxy_set_header Host $host; }\n\
+  location /api/v1/admin/currencies { proxy_pass http://adm-api:8081; proxy_set_header Host $host; }\n\
   location /api/ { proxy_pass http://app-api:8080; proxy_set_header Host $host; }\n\
   location / { try_files $uri $uri/ /index.html; }\n\
 }\n' > /etc/nginx/conf.d/default.conf

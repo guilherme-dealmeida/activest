@@ -25,11 +25,24 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Flyway roda ate a V8 (V1-V6 consolidadas + contas novas da tela de Ativos + metas) e o schema valida contra as entidades")
+    @DisplayName("Flyway roda ate a V11 (V1-V6 consolidadas + contas novas da tela de Ativos + metas + moedas, proventos do exterior e euro) e o schema valida contra as entidades")
     void appliedMigrations() {
         Number version = (Number) em.createNativeQuery(
             "SELECT MAX(CAST(version AS NUMERIC)) FROM flyway_schema_history WHERE success").getSingleResult();
-        assertThat(version.intValue()).isEqualTo(8);
+        assertThat(version.intValue()).isEqualTo(11);
+        // V11: euro cadastrado e inativo
+        assertThat(count("currencies WHERE code = 'EUR' AND NOT active")).isEqualTo(1);
+
+        // V9 (docs/planos/PLANO_CADASTRO_MOEDAS.md, M1): moedas, cambio, regras do exterior, operacoes de cambio
+        Number currencyTables = (Number) em.createNativeQuery("""
+            SELECT COUNT(*) FROM information_schema.tables
+             WHERE table_name IN ('currencies', 'exchange_rates', 'foreign_tax_rules', 'fx_operations')""").getSingleResult();
+        assertThat(currencyTables.intValue()).isEqualTo(4);
+        assertThat(count("foreign_tax_rules")).isEqualTo(10);
+        assertThat(count("pg_constraint WHERE conname = 'ck_ceiling_price_quarters_currency'")).isZero();
+        // V10: IR brasileiro estimado do provento do exterior
+        assertThat(count("information_schema.columns WHERE table_name = 'dividends' AND column_name = 'foreign_income_tax'"))
+            .isEqualTo(1);
 
         // V8 (docs/planos/PLANO_METAS.md, M1): goals recriada, goal_events e goal_snapshots
         Number goalTables = (Number) em.createNativeQuery("""
@@ -60,17 +73,17 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Tarefas (V61, V62; V8 do Activest: GOALS_SNAPSHOT): 27 tipos (23 da adm-api, 4 da app-api), uma tarefa por tipo, atributos espelhados")
+    @DisplayName("Tarefas (V61, V62; V8 do Activest: GOALS_SNAPSHOT; V9: EXCHANGE_RATES): 28 tipos (24 da adm-api, 4 da app-api), uma tarefa por tipo, atributos espelhados")
     void seededTasks() {
-        assertThat(count("task_types")).isEqualTo(27);
+        assertThat(count("task_types")).isEqualTo(28);
         assertThat(count("task_types WHERE service = 'APP_API'")).isEqualTo(4);
-        assertThat(count("tasks")).isEqualTo(27);
+        assertThat(count("tasks")).isEqualTo(28);
         assertThat(count("tasks t JOIN task_types y ON y.id = t.task_type_id WHERE t.name <> y.type")).isZero();
-        assertThat(count("tasks WHERE cron IS NOT NULL")).isEqualTo(17);
-        assertThat(count("task_type_attributes")).isEqualTo(33);
-        assertThat(count("task_attributes")).isEqualTo(33);
+        assertThat(count("tasks WHERE cron IS NOT NULL")).isEqualTo(18);
+        assertThat(count("task_type_attributes")).isEqualTo(35);
+        assertThat(count("task_attributes")).isEqualTo(35);
         assertThat(count("task_type_attributes WHERE position = 0")).isZero();
-        assertThat(count("tasks WHERE run_on_startup")).isEqualTo(6);
+        assertThat(count("tasks WHERE run_on_startup")).isEqualTo(7);
         assertThat(count("task_attributes ta JOIN task_type_attributes a ON a.id = ta.task_type_attribute_id "
             + "WHERE ta.att_value IS DISTINCT FROM a.att_value")).isZero();
     }

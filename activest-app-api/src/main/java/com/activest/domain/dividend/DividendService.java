@@ -105,6 +105,26 @@ public class DividendService {
             .collect(Collectors.toList());
     }
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.activest.domain.currency.CurrencyRepository currencies;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.activest.domain.currency.ExchangeRateService exchangeRates;
+
+    /** Moeda e tributos do exterior do provento; nulo em reais (PLANO_CADASTRO_MOEDAS, C6). */
+    private DividendResponseDTO.Foreign foreign(Dividend d) {
+        if (d.getCurrencyCode() == null || (exchangeRates != null ? exchangeRates.isBase(d.getCurrencyCode())
+                : com.activest.domain.currency.Currency.BRL.equals(d.getCurrencyCode()))) {
+            return null;
+        }
+        String symbol = currencies == null ? d.getCurrencyCode() : currencies.findById(d.getCurrencyCode())
+            .map(com.activest.domain.currency.Currency::getSymbol).orElse(d.getCurrencyCode());
+        var rule = d.getForeignTaxRule();
+        return new DividendResponseDTO.Foreign(d.getCurrencyCode(), symbol, d.getFxRate(), d.getOriginalAmountPerShare(),
+            d.getOriginalTotalAmount(), d.getForeignWithholdingRate(), d.getForeignWithholdingTax(),
+            rule != null ? rule.getLegalBasis() : null, d.getForeignIncomeTax());
+    }
+
     private DividendResponseDTO toResponseDTO(Dividend d, LocalDate today) {
         PortfolioAsset pa = d.getPortfolioAsset();
         Asset asset = pa != null ? pa.getAsset() : null;
@@ -132,7 +152,8 @@ public class DividendService {
             d.getCashEvent() != null ? d.getCashEvent().getSource().name() : null,
             d.getCashEvent() != null && d.getCashEvent().getPaymentDateSource() != null
                 ? d.getCashEvent().getPaymentDateSource().name() : null,
-            asset != null && asset.getIssuer() != null ? asset.getIssuer().getId() : null
+            asset != null && asset.getIssuer() != null ? asset.getIssuer().getId() : null,
+            foreign(d)
         );
     }
 }

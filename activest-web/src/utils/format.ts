@@ -6,6 +6,22 @@ export const formatCurrency = (value: number): string => {
 };
 
 /**
+ * Valor na moeda de um ativo de fora (docs/planos/PLANO_CADASTRO_MOEDAS.md): o símbolo do cadastro ("US$ 1.234,56"),
+ * no formato brasileiro. Os valores em reais continuam com formatCurrency.
+ */
+export const formatMoney = (value: number, symbol: string, minDigits = 2, maxDigits = 2): string => {
+  const n = new Intl.NumberFormat('pt-BR', {
+    minimumFractionDigits: minDigits,
+    maximumFractionDigits: Math.max(minDigits, maxDigits),
+  }).format(Math.abs(value));
+  return `${value < 0 ? '-' : ''}${symbol}\u00a0${n}`;
+};
+
+/** Câmbio com 4 casas ("5,4321"), sem símbolo. */
+export const formatFxRate = (value: number): string =>
+  new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 8 }).format(value);
+
+/**
  * Moeda com casas fixas — valor por cota de provento, que a B3 publica com 8+
  * casas (R$ 0,47160378). Só exibição: a conta usa o valor exato.
  */

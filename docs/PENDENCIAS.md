@@ -2,7 +2,8 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 21/10/2026 — secao 33 (correcao dos proventos, docs/planos/PLANO_CORRECAO_PROVENTOS.md);
+Ultima atualizacao: 26/10/2026 — secao 38 (cadastro de moedas, docs/planos/PLANO_CADASTRO_MOEDAS.md); 37.1 resolvido;
+3.8 em parte (Stock/REIT/ETF internacional com retencao do exterior). Antes: 21/10/2026 — secao 33 (correcao dos proventos, docs/planos/PLANO_CORRECAO_PROVENTOS.md);
 19.1 e 20.5 resolvidos; 3.4, 3.5, 14 e 18.6 reescritos (sem a conferencia por extrato, que saiu). Antes: 17/10/2026 — secao 32 (listagem de emissoras implementada). No mesmo dia: secao 31 (novos indicadores de acoes, escopo futuro saido da listagem de
 emissoras, docs/planos/PLANO_LISTAGEM_EMISSORAS.md). No mesmo dia: secao 29 (rentabilidade comparativa, docs/planos/PLANO_RENTABILIDADE.md); 20.3, 23.3 e
 24.5 resolvidos. No mesmo dia, "Mudancas de tela" (cabecalho, menu, Dashboard, popover da previa da venda,
@@ -1381,8 +1382,9 @@ gravada; se um dia for preciso o valor da fonte (indicador, listagem), gravar a 
 
 ## 37. METAS (docs/planos/PLANO_METAS.md, 24/10/2026)
 
-**37.1** Outras moedas (D16): escopo proprio para ativos e metas em outra moeda e as dimensoes regiao/moeda (ALO-1,
-RIS-1). Hoje tudo e em reais; `asset_types` nao tem regiao nem moeda.
+**37.1** ~~Outras moedas (D16)~~ — estrutura entregue em 26/10/2026 (docs/planos/PLANO_CADASTRO_MOEDAS.md): moeda e
+regiao em `asset_types`, moeda no ativo, na transacao e no provento. Falta so o USO nas metas (dimensoes regiao/moeda
+em ALO-1 e RIS-1 e metas em outra moeda): item 38.6.
 **37.2** Exibir a memoria de calculo das metas (D21): a API ja devolve `evaluation.steps`; a tela nao mostra, como no
 Preco Teto (o cartao de memoria saiu da tela em 11/10/2026).
 **37.3** Planilha de conferencia manual com exemplos calculados a mao por tipo (`docs/metas/Conferencia_Metas.xlsx`,
@@ -1396,6 +1398,29 @@ Binance (escopo dos ETFs americanos).
 25/10/2026 — falta um lugar e um uso para ele na tela (como no Preço Teto). Na edição, a observação gravada é mantida.
 **37.6** `goal_events.occurred_at` e `created_at` usam a hora do conteiner (UTC), como as demais tabelas: perto da
 meia-noite de Sao Paulo a data exibida pode ser a do dia seguinte.
+
+## 38. MOEDAS (docs/planos/PLANO_CADASTRO_MOEDAS.md, 26/10/2026)
+
+**38.1** Consumo pelos ativos internacionais (escopos "ETFs americanos" e "Internacionais"): fonte de preco de Stock,
+ REIT e ETF internacional (hoje `MANUAL`), cadastro desses ativos com `currency_code = USD`, eventos de provento na
+ moeda do ativo (`asset_cash_events.value_per_share`), importacao de operacoes em USD da Binance (ETF americano) e o
+ recadastro da Binance (37.5).
+**38.2** Tela das operacoes de cambio (`fx_operations`, D19): API pronta (`/api/v1/fx-operations`), sem tela; saldo em
+ moeda estrangeira na corretora e "cambio medio das remessas" como sugestao na compra (D16) dependem dela.
+**38.3** IR do exterior e estimativa por operacao (D20): a apuracao anual (Lei 14.754/2023) compensa perdas do ano; a
+ isencao mensal do regime anterior (ate 2023) soma as vendas do mes da carteira, mas editar uma venda de um ativo nao
+ refaz o IR das vendas de OUTROS ativos do exterior no mesmo mes.
+**38.4** Bases legais e aliquotas do seed de `foreign_tax_rules` (V9) vem do levantamento do plano (9.4): validacao do
+ Guilherme pendente (decidido em 26/10/2026 que fica como pendencia; o restante do escopo foi validado); mudanca entra
+ por migration nova.
+**38.5** "Uma rodada automatica por dia" (`TaskHandler.oncePerDay`) so no cambio. Estender as demais tarefas e decisao
+ do Guilherme.
+**38.6** Metas: dimensoes regiao/moeda (ALO-1, RIS-1) e metas em outra moeda; "ver a carteira em dolar" (D14 — carteira
+ em reais ate segunda ordem).
+**38.7** ~~Saldo em EUR na Binance como divergencia~~ — resolvido em 26/10/2026: V11 cadastra o EUR inativo. Outra
+ moeda fora do cadastro na corretora continua aparecendo como divergencia ate ser cadastrada (pode ficar inativa).
+**38.8** Grafico de cotacao da tela de Ativos, `IndicatorService`, `CompanyDataService` e `BenchmarkData` supõem ativo em
+ reais (emissores brasileiros, IVVB11, BTC/BRL). Quando houver ativo do exterior nessas telas, mostrar a moeda.
 
 ## ORDEM SUGERIDA
 

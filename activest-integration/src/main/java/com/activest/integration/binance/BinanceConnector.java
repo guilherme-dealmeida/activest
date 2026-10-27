@@ -292,7 +292,7 @@ public class BinanceConnector implements SourceConnector {
         String to = t.path("toAsset").asText();
         BigDecimal qtdDe = dec(t.path("fromAmount"));
         BigDecimal quantityFor = dec(t.path("toAmount"));
-        boolean sale = "BRL".equalsIgnoreCase(to);
+        boolean sale = com.activest.domain.currency.FiatCurrencies.base().equalsIgnoreCase(to);
         return new ImportedMovement("binance:convert:" + t.path("quoteId").asText(), MovementKind.CONVERT,
             sale ? de : to,
             sale ? MovementSide.SELL : MovementSide.BUY,
@@ -342,7 +342,7 @@ public class BinanceConnector implements SourceConnector {
                 bases.add(m.asset().toUpperCase());
             }
         });
-        bases.remove("BRL");
+        bases.remove(com.activest.domain.currency.FiatCurrencies.base());
 
         Map<String, String[]> pairs = new HashMap<>();
         client.publicGet("/api/v3/exchangeInfo", Map.of()).path("symbols").forEach(s ->

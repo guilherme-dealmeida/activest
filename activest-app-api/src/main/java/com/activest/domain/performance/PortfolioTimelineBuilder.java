@@ -92,6 +92,14 @@ public class PortfolioTimelineBuilder {
 
     private final Map<UUID, Cached> cache = new ConcurrentHashMap<>();
 
+    /**
+     * Cambio das posicoes em moeda estrangeira (docs/planos/PLANO_CADASTRO_MOEDAS.md, C4): o fechamento esta na moeda
+     * do ativo (D11) e vira reais pelo cambio de venda do dia do eixo (ultimo boletim carregado, D27). Campo opcional:
+     * sem ele (testes de unidade) tudo e tratado como reais.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.activest.domain.currency.ExchangeRateService exchangeRates;
+
     @org.springframework.beans.factory.annotation.Autowired
     public PortfolioTimelineBuilder(PortfolioRepository portfolioRepository,
                                     PortfolioAssetRepository portfolioAssetRepository,
@@ -167,6 +175,7 @@ public class PortfolioTimelineBuilder {
                      FROM asset_price_history h
                     WHERE h.asset_id IN (SELECT pa.asset_id FROM portfolio_assets pa WHERE pa.portfolio_id = ?)),
                   (SELECT count(*) || ':' || coalesce(max(v.updated_at)::text, '') FROM market_index_values v),
+                  (SELECT count(*) || ':' || coalesce(max(x.updated_at)::text, '') FROM exchange_rates x),
                   (SELECT count(*) FROM stock_event_costs c JOIN portfolio_assets pa ON pa.id = c.portfolio_asset_id
                     WHERE pa.portfolio_id = ?),
                   ?::text)
@@ -278,6 +287,9 @@ public class PortfolioTimelineBuilder {
         LocalDate today = shell.today();
         Asset asset = pa.getAsset();
         double current = asset.getCurrentPrice() != null ? asset.getCurrentPrice().doubleValue() : 0;
+        com.activest.domain.currency.ExchangeRateService.Series fx = exchangeRates == null
+                || exchangeRates.isBase(asset.getCurrencyCode()) ? null
+                : exchangeRates.series(asset.getCurrencyCode(), com.activest.domain.currency.RateSide.SELL);
         boolean treasury = treasuryTaxes != null;
         // Tesouro: o titulo como um lote (PositionValuationInfo.treasuryLot)
         BigDecimal buyPrice = null;
@@ -300,18 +312,27 @@ public class PortfolioTimelineBuilder {
             }
             a.held[i] = true;
             double price;
+            BigDecimal rate = fx == null ? BigDecimal.ONE : fx.rateOn(d);
+            if (rate == null) {
+                // antes do primeiro boletim da moeda: sem como passar para reais
+                a.status[i] = PriceStatus.MISSING;
+                continue;
+            }
             if (d.equals(today) && current > 0) {
-                price = current;
+                price = current * rate.doubleValue();
                 a.status[i] = PriceStatus.OK;
                 a.priceDate[i] = d;
             } else {
                 Map.Entry<LocalDate, Double> e = closes != null ? closes.floorEntry(d) : null;
+                boolean inBase = false;
                 if (e == null) {
+                    // o preco da compra ja esta em reais (price_per_share)
                     e = lastBuyPrice(chron, d);
                     if (e == null) {
                         a.status[i] = PriceStatus.MISSING;
                         continue;
                     }
+                    inBase = true;
                     a.status[i] = PriceStatus.CARRIED;
                 } else if (e.getKey().equals(d)) {
                     a.status[i] = PriceStatus.OK;
@@ -320,7 +341,7 @@ public class PortfolioTimelineBuilder {
                 } else {
                     a.status[i] = PriceStatus.CARRIED;
                 }
-                price = e.getValue();
+                price = inBase ? e.getValue() : e.getValue() * rate.doubleValue();
                 a.priceDate[i] = e.getKey();
             }
             // centavo por posicao, como a Carteira (valorizacao com 2 casas): o ultimo ponto bate com o total dela

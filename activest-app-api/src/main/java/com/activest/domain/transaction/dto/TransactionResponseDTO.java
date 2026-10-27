@@ -102,5 +102,31 @@ public record TransactionResponseDTO(
      * Emissora e distribuidora do titulo (docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md): ids, nome de exibicao, razao
      * social, regra de saida, codigo do papel, logo e garantia. {@code issuer} acima e o nome de exibicao da emissora.
      */
-    com.activest.domain.fixedincome.FixedIncomeIssuers.NoteInfo noteInfo
-) {}
+    com.activest.domain.fixedincome.FixedIncomeIssuers.NoteInfo noteInfo,
+
+    /**
+     * Moeda da transação quando não é a base (docs/planos/PLANO_CADASTRO_MOEDAS.md, D3): código, símbolo, câmbio e o
+     * lançado na moeda do ativo. Nulo em reais. Os campos de valor acima estão sempre em reais.
+     */
+    com.activest.domain.transaction.TransactionCurrency.Info currency
+) {
+    /** A forma de antes da moeda (transação em reais). */
+    public TransactionResponseDTO(UUID id, UUID portfolioAssetId, String ticker, String assetName, Long assetTypeId,
+                                  String assetTypeName, Long assetCategoryId, String assetCategoryName,
+                                  TransactionType type, BigDecimal shares, BigDecimal pricePerShare,
+                                  BigDecimal totalAmount, BigDecimal brokerageFee, LocalDate transactionDate,
+                                  LocalDateTime createdAt, UUID saleGroupId, Integer groupPart, Integer groupParts,
+                                  BigDecimal groupShares, BigDecimal groupBrokerageFee, boolean isFullSettlement,
+                                  boolean isCrypto, TransactionOrigin origin, LocalDateTime editedAt,
+                                  String connectionLabel, String connectionProvider, UUID noteId, String issuer,
+                                  LocalDate maturityDate, RateType rateType, Indexer indexer, BigDecimal indexerRate,
+                                  Boolean hasLogo, Long issuerId, BigDecimal netAmount, BigDecimal incomeTax,
+                                  BigDecimal iofTax, BigDecimal settlementAdjustment,
+                                  com.activest.domain.fixedincome.FixedIncomeIssuers.NoteInfo noteInfo) {
+        this(id, portfolioAssetId, ticker, assetName, assetTypeId, assetTypeName, assetCategoryId, assetCategoryName,
+            type, shares, pricePerShare, totalAmount, brokerageFee, transactionDate, createdAt, saleGroupId, groupPart,
+            groupParts, groupShares, groupBrokerageFee, isFullSettlement, isCrypto, origin, editedAt, connectionLabel,
+            connectionProvider, noteId, issuer, maturityDate, rateType, indexer, indexerRate, hasLogo, issuerId,
+            netAmount, incomeTax, iofTax, settlementAdjustment, noteInfo, null);
+    }
+}
