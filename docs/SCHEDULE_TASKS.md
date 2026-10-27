@@ -8,7 +8,8 @@
 > [A5] e [A11] avisando a carteira — `docs/planos/PLANO_NOTIFICACOES.md`) · 22/10/2026 (**Tarefas**: cada rotina virou
 > uma tarefa no banco, com horário editável na tela `/tasks` — `docs/planos/PLANO_TAREFAS.md`; [A13] histórico de
 > cripto, [A14] emissoras de RF e [A15] limpeza do histórico das tarefas entraram aqui; [B7] corrigida: só avisa o
-> título vencido desde 15/10/2026).
+> título vencido desde 15/10/2026) · 27/10/2026 ([A17] fundos de investimento da CVM e a série dos fundos no [A8] —
+> `docs/planos/PLANO_FUNDOS_INVESTIMENTO.md`).
 
 - **Fuso** de todas as rotinas: `America/Sao_Paulo`.
 - **Cron do Spring:** `segundo minuto hora dia-do-mês mês dia-da-semana`. Desde 22/10/2026 os horários ficam **no
@@ -208,7 +209,8 @@ o arquivo existente.
 | **Classe** | `AdmMessagingConfig.onDemandListener` → `DividendCatalogService.requestOnDemand(assetId)` → `AssetLogoService.fetchIfMissing(assetId)` |
 
 **Função.** Fila única: sincroniza os proventos/eventos do ativo da transação e baixa o logo se ele não tiver; responde
-com "catálogo mudou".
+com "catálogo mudou". Cripto traz o histórico de preço; **fundo de investimento** (27/10/2026) traz a série de cotas
+desde 2010 dos ZIPs do informe em disco, só o que falta (`FundCatalogService.loadSeries`, ~1,5 min no DEV).
 
 **Propósito.** Ativo que entra numa carteira já ganha histórico de proventos e logo, sem esperar a rotina das 20:00 nem
 a do dia 1.
@@ -266,6 +268,25 @@ refaz a curva da renda fixa privada ([B3]).
 Corrigido pela fonte é sobrescrito com log. Fonte respondeu com o boletim mais recente a mais de 2 dias úteis →
 `FONTE_DESATUALIZADA` (mesma regra do Tesouro). Algo mudou → "catálogo mudou" (origem `CAMBIO`): a app-api descarta o
 cache de câmbio e refaz valorização e proventos das posições na moeda.
+
+### [A17] Fundos de investimento — cadastro e cota diária da CVM (27/10/2026)
+
+| | |
+|---|---|
+| **Quando** | 07:40, todos os dias (o informe da CVM é regerado de madrugada). **No máximo uma rodada automática por dia** (`oncePerDay`, como o câmbio): a subida só substitui a agendada perdida; o Run manual roda sempre |
+| **Classe** | tarefa `FUND_QUOTES` → `FundQuotesTask` (recuperação: `needsRecovery` = nenhuma cota de fundo ou a última com mais de 2 dias úteis) → `FundCatalogService.runDaily` |
+| **Tarefa** | `FUND_QUOTES` (atributo `FROM_MONTH`: rebaixa o informe desde o mês; vazio = mês corrente e os 12 anteriores) — padrão do seed: `0 40 7 * * *` |
+| **Fonte** | Dados abertos da CVM: `registro_fundo_classe.zip`, `cad_fi_hist.zip`, `cad_fi.csv` e `inf_diario_fi_AAAAMM.zip` (até 2020, os anuais de `HIST/`), pelo `PublicFileCache` (304 quando não mudou) |
+| **Grava** | `assets` (tipo `FUNDO_INVESTIMENTO`: cria fundo novo, nome, categoria, vivo, última cota), `investment_funds`, `investment_fund_names` (todos só quando pedido; senão os dos novos), `asset_price_history` (`source = CVM`) dos fundos em carteira e `carga/data/cvm/fi/` |
+| **Ao fim** | publica "catálogo mudou" (`FECHAMENTO`) com os fundos em carteira → a app-api refaz o come-cotas e a valorização |
+
+**Função.** Lê os cadastros e o informe (colunas pelo cabeçalho, 3 layouts), cadastra/atualiza os fundos (só o que
+mudou), grava a última cota de cada chave e a série dos fundos com posição aberta nos meses baixados. CVM que recusa e
+só a cópia em disco lida → `FAILED` + `FONTE_INDISPONIVEL`; CVM respondeu mas a cota mais nova tem mais de 2 dias úteis
+→ `FONTE_DESATUALIZADA`. No DEV: ~1 min (13 meses); desde 2010 (`FROM_MONTH` = 2010-01 ou a etapa do `BOOTSTRAP`),
+~7 min.
+
+**Propósito.** Fundo de investimento com preço e série como os demais ativos (`docs/planos/PLANO_FUNDOS_INVESTIMENTO.md`).
 
 ### [A11] Cotações do catálogo — COTAHIST diário (10/10/2026)
 

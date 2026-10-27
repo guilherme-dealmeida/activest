@@ -5,6 +5,7 @@ import { tokens, TERMS_REQUIRED_EVENT } from '@/api/tokens';
 import { TokenResponse, User } from '@/types';
 import { AuthContext } from './AuthContext';
 import { useTheme } from './ThemeContext';
+import { loadAssetLabels } from '@/utils/assetLabel';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUserState] = useState<User | null>(null);
@@ -15,6 +16,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const apply = useCallback((u: User) => {
     setUserState(u);
     setTheme(u.theme === 'LIGHT' ? 'light' : 'dark');
+    // nomes curtos dos fundos do usuario (o ticker do fundo e o CNPJ — PLANO_FUNDOS_INVESTIMENTO.md, D3)
+    void loadAssetLabels();
   }, [setTheme]);
 
   const fetchUser = useCallback(async () => {

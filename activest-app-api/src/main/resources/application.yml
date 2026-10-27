@@ -213,6 +213,10 @@ activest:
   logos:
     # Pasta fora do banco (B18), so leitura aqui; quem baixa e a adm-api. No Docker: ./data/logos.
     dir: ${LOGOS_DIR:../carga/data/logos}
+  funds:
+    # Informe diario dos fundos da CVM (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md, D23): so leitura aqui, para a cota
+    # da data na Nova transacao; quem baixa e a adm-api (tarefa FUND_QUOTES).
+    dir: ${FUNDS_DIR:../carga/data/cvm/fi}
 
 # Logging
 logging:

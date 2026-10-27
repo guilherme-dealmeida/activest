@@ -19,7 +19,11 @@
 > `original_price_per_share/_total_amount/_fee`) e `dividends` (`currency_code`, `fx_rate`, `original_*`,
 > `foreign_withholding_rate/_tax`, `foreign_tax_rule_id`); `ceiling_price_quarters.currency` vira FK. V10
 > `dividends.foreign_income_tax` e as constraints `ck_dividends_withholding`/`ck_dividends_fx` com o caso do exterior.
-> V11: EUR inativo em `currencies`.
+> V11: EUR inativo em `currencies`. Acréscimo de 27/10/2026 (`docs/planos/PLANO_FUNDOS_INVESTIMENTO.md`): V12
+> `investment_funds`, `investment_fund_names` e `fund_tax_events` (seção 5d); `asset_types.price_source` e
+> `asset_price_history.source` aceitam `CVM` (o tipo `FUNDO_INVESTIMENTO` passa a `CVM`); `fixed_income_tax_rules.regime`
+> (`GENERAL`, `FUND_LONG_TERM`, `FUND_SHORT_TERM`, `FUND_EQUITY`) e `tax` aceita `CC` (come-cotas); extensão `pg_trgm`;
+> saem os índices em cópia `idx_price_history_asset_date` e `idx_assets_ticker`.
 > Diagramas em Mermaid: o GitHub e o IntelliJ (plugin Mermaid) renderizam.
 
 **A ideia que organiza o schema:** o *catálogo* é global (o que o instrumento É — `assets`, preços, proventos, emissores; gravado pela **adm-api**), e o *papel* é do usuário (posição, transações, título de renda fixa, proventos recebidos; gravado só pela **app-api**).
@@ -35,6 +39,7 @@ Legenda das relações: `||--o{` um para muitos (FK obrigatória) · `|o--o{` um
 5. [Integrações com corretoras](#5-integrações-com-corretoras)
 5a. [Índices de mercado](#5a-índices-de-mercado)
 5c. [Moedas e câmbio](#5c-moedas-e-câmbio)
+5d. [Fundos de investimento](#5d-fundos-de-investimento)
 6. [Descrição das tabelas](#6-descrição-das-tabelas)
 5b. [Notificações](#5b-notificações)
 7. [Regras de exclusão (ON DELETE)](#7-regras-de-exclusão-on-delete)
@@ -723,6 +728,65 @@ erDiagram
     users ||--o{ fx_operations : "user_id"
 ```
 
+## 5d. Fundos de investimento
+
+Fundos da CVM como ativos do catálogo (V12, `docs/planos/PLANO_FUNDOS_INVESTIMENTO.md`): o ativo (`assets`, tipo
+`FUNDO_INVESTIMENTO`, ticker = CNPJ sem pontuação) é criado pela tarefa `FUND_QUOTES`; a cota fica em
+`asset_price_history` com `source = CVM`; o come-cotas de cada lote do usuário fica em `fund_tax_events`.
+
+```mermaid
+erDiagram
+    investment_funds {
+        bigint asset_id PK,FK "assets (cascade)"
+        varchar cnpj "not null (14, alfanumérico)"
+        varchar subclass_id
+        bigint parent_asset_id FK "subclasse -> classe"
+        varchar short_name "not null (rótulo das telas)"
+        varchar trade_name
+        varchar fund_kind "FIF|FI|FAPI..."
+        varchar cvm_classification
+        varchar anbima_classification
+        varchar target_audience
+        boolean exclusive
+        boolean open_ended
+        boolean long_term_tax
+        varchar manager_name
+        varchar administrator_name
+        varchar cvm_status
+        numeric net_worth
+        date last_quote_on
+        text search_text "not null (GIN pg_trgm)"
+    }
+    investment_fund_names {
+        bigint id PK
+        bigint asset_id FK "not null (cascade)"
+        varchar name "not null"
+        varchar kind "LEGAL|TRADE"
+        date valid_from
+        date valid_to
+    }
+    fund_tax_events {
+        bigint id PK
+        uuid user_id FK "not null (cascade)"
+        bigint asset_id FK "not null"
+        uuid lot_transaction_id FK "not null (cascade)"
+        date event_date "not null"
+        varchar kind "COME_COTAS"
+        numeric quote "not null (18,8)"
+        numeric base_quote "not null (18,8)"
+        numeric shares_before "not null"
+        numeric shares_withheld "not null"
+        numeric tax_amount "not null (18,2)"
+        numeric rate "not null (6,4)"
+        bigint fixed_income_tax_rule_id FK
+    }
+    assets ||--|| investment_funds : "asset_id"
+    assets |o--o{ investment_funds : "parent_asset_id"
+    assets ||--o{ investment_fund_names : "asset_id"
+    transactions ||--o{ fund_tax_events : "lot_transaction_id"
+    users ||--o{ fund_tax_events : "user_id"
+```
+
 ## 5b. Notificações
 
 Tabelas: `notifications`, `notification_states` (V48, 13/10/2026 — `docs/planos/PLANO_NOTIFICACOES.md`). Dois eixos
@@ -806,6 +870,9 @@ erDiagram
 | Emissores | `issuers` | seed V30 / adm-api | Emissores: companhia aberta ou FII, um por CNPJ. Código CVM, setores CVM e B3, segmento de listagem, administrador do FII e o segmento curado do FII. | (cnpj); (cvm_code) |
 | Emissores | `share_counts` | adm-api | Quantidade de ações (e em tesouraria) de cada documento, com a escala conferida (scale_factor, scale_status, scale_check). | — |
 | Emissores | `unit_compositions` | seed V30 / adm-api | Composição das units: quantas ações de cada classe (ON, PN...) formam uma unit. | — |
+| Fundos | `investment_funds` | adm-api (tarefa FUND_QUOTES) | Cadastro CVM do fundo, 1:1 com o ativo: CNPJ, subclasse, classe-mãe, nome curto das telas, denominação comercial, classificações CVM e ANBIMA, público-alvo, exclusivo, tributação de longo prazo, gestor, administrador, situação, PL, data da última cota e o texto de busca (pg_trgm). | (cnpj, coalesce(subclass_id, '')) |
+| Fundos | `investment_fund_names` | adm-api (tarefa FUND_QUOTES) | Denominações sociais e comerciais, atuais e anteriores, de cada fundo (cad_fi_hist). | — |
+| Fundos | `fund_tax_events` | app-api (FundTaxService) | Come-cotas de cada lote (compra) do usuário no último dia útil de maio e de novembro: cota, cota-base, cotas antes e retidas, IR e alíquota. Regerado a cada escrita na posição e a cada cota nova. | (lot_transaction_id, event_date, kind) |
 | Moedas | `currencies` | seed V9; tela de administrador (adm-api) | Cadastro de moedas: código ISO, nome, símbolo, casas, moeda base (só uma, BRL), ativa, fonte do câmbio (PTAX), país. | (code) |
 | Moedas | `exchange_rates` | adm-api (tarefa EXCHANGE_RATES) | Câmbio de cada dia para a moeda base: compra e venda do boletim de fechamento da PTAX. | (currency_code, reference_date) |
 | Moedas | `foreign_tax_rules` | seed V9 | Tributos do exterior por data: IOF de câmbio, IR brasileiro sobre aplicações no exterior, retenção do país de origem; faixas/isenção em JSON; base legal. | (id) |

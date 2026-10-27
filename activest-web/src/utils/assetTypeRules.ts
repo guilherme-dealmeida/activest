@@ -1,5 +1,6 @@
 import { AssetType } from '@/types';
 import treasuryDirectLogo from '@/assets/logos/tesouro-direto.svg';
+import investmentFundLogo from '@/assets/logos/fundo-investimento.png';
 
 /**
  * Regras que dependem do tipo de ativo e valem em mais de uma tela.
@@ -11,6 +12,14 @@ import treasuryDirectLogo from '@/assets/logos/tesouro-direto.svg';
  */
 export const TESOURO_DIRETO = 'TESOURO_DIRETO';
 export const RENDA_FIXA = 'RENDA_FIXA';
+
+/**
+ * Fundo de investimento da CVM (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md): lançado por valor e cota (as cotas são
+ * calculadas, D16), com o nome curto no lugar do ticker (o ticker é o CNPJ, D3) e o logo do tipo.
+ */
+export const FUNDO_INVESTIMENTO = 'FUNDO_INVESTIMENTO';
+
+export const isFundType = (type: AssetType | null | undefined) => type?.name === FUNDO_INVESTIMENTO;
 
 /**
  * Criptomoeda: quantidade e preço unitário com até 8 casas, a escala que o
@@ -40,12 +49,14 @@ export const isFixedIncomeNote = (type: AssetType) =>
  *
  * Tesouro Direto: o símbolo do programa, igual para todos os títulos. Renda
  * Fixa: por enquanto o texto "RF", no mesmo quadro de quem não tem logo —
- * o logo pelo emissor do título terá planejamento próprio.
+ * o logo pelo emissor do título terá planejamento próprio. Fundo de
+ * investimento: a imagem do tipo (D3 do PLANO_FUNDOS_INVESTIMENTO.md).
  *
  * null = o tipo segue a regra do ativo (hasLogo da API).
  */
 export const typeLogo = (typeName: string | null | undefined): { src?: string; label?: string } | null => {
   if (typeName === TESOURO_DIRETO) return { src: treasuryDirectLogo };
   if (typeName === RENDA_FIXA) return { label: 'RF' };
+  if (typeName === FUNDO_INVESTIMENTO) return { src: investmentFundLogo };
   return null;
 };

@@ -116,6 +116,10 @@ public class TransactionService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     ForeignSaleTax foreignSaleTax;
 
+    /** Come-cotas e imposto do resgate de fundo (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md, F7). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.activest.domain.fund.FundTaxService fundTax;
+
     /**
      * Gets user transactions.
      */
@@ -174,6 +178,9 @@ public class TransactionService {
         if (isTreasury(asset)) {
             return previewTreasurySale(portfolio, asset, dto, excludeId);
         }
+        if (isFund(asset) && fundTax != null) {
+            return previewFundSale(portfolio, asset, dto, excludeId);
+        }
         if (!isValuedByTotal(asset) || dto.noteId() == null) {
             throw new BusinessException("A prévia de venda é de Renda Fixa (com o título escolhido) ou Tesouro Direto.");
         }
@@ -205,6 +212,32 @@ public class TransactionService {
             lotsBefore.lots().stream().map(l -> new com.activest.domain.transaction.dto.SalePreviewDTO.LotDTO(
                 l.date(), l.days(), l.applied(), l.balance(), l.income(), l.iofRate(), l.irRate(), l.iof(), l.ir(),
                 l.net())).toList());
+    }
+
+    /**
+     * Previa do resgate de fundo (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md, C7, D24): valor bruto e cota informados;
+     * IR, IOF e liquido pelo PEPS dos aportes, com o come-cotas ja retido. Previdencia: liquido = bruto (D21).
+     */
+    private com.activest.domain.transaction.dto.SalePreviewDTO previewFundSale(Portfolio portfolio, Asset asset,
+                                                                               TransactionCreateDTO dto,
+                                                                               UUID excludeId) {
+        if (dto.totalAmount() == null || dto.pricePerShare() == null
+                || dto.totalAmount().signum() <= 0 || dto.pricePerShare().signum() <= 0) {
+            throw new BusinessException("Informe o valor e a cota do resgate.");
+        }
+        PortfolioAsset pa = portfolioAssetRepository
+            .findByPortfolioIdAndAssetIdAndNoteIsNull(portfolio.getId(), asset.getId())
+            .orElseThrow(() -> new BusinessException("Esse fundo não tem posição na carteira."));
+        LocalDate date = dto.transactionDate();
+        List<Transaction> before = positionCalculator.chronologicalTransactions(pa).stream()
+            .filter(t -> excludeId == null || !t.getId().equals(excludeId))
+            .toList();
+        com.activest.domain.fund.FundTax.SaleTax tax = fundTax.previewSale(pa, before, date, dto.totalAmount(),
+            dto.pricePerShare());
+        boolean pension = fundTax.regimeOf(asset) == null;
+        return new com.activest.domain.transaction.dto.SalePreviewDTO(tax.gross(), tax.iof(), tax.incomeTax(),
+            tax.net(), null, null, null, false, "PEPS", "OK",
+            pension ? "Previdência: o IR é do plano (PGBL/VGBL) e não é calculado." : null, List.of());
     }
 
     /**
@@ -1079,9 +1112,22 @@ public class TransactionService {
             // a curva contratada (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, R4) depois das regras da escrita
             fixedIncomeValuation.apply(pa, chronological, series);
         } else {
-            // Regra B com os desdobramentos, grupamentos e bonificacoes do
-            // papel no meio da linha do tempo: o saldo que sobra e o de hoje.
-            BigDecimal shareBalance = positionGuard.validateShareLedger(chronological, stockEvents, label);
+            BigDecimal shareBalance;
+            if (fundTax != null && com.activest.domain.fund.FundTaxService.applies(pa.getAsset())) {
+                // fundo (PLANO_FUNDOS_INVESTIMENTO.md, C7, C9, C10): come-cotas e imposto dos resgates, depois a regra
+                // B com as cotas retidas; resgate ajustado ao saldo (arredondamento) refaz o imposto
+                fundTax.recompute(pa, chronological);
+                PositionGuard.FundLedger ledger = positionGuard.validateFundLedger(chronological,
+                    positionCalculator.withholdingsOf(pa), label);
+                if (ledger.adjusted()) {
+                    fundTax.recompute(pa, chronological);
+                }
+                shareBalance = ledger.balance();
+            } else {
+                // Regra B com os desdobramentos, grupamentos e bonificacoes do
+                // papel no meio da linha do tempo: o saldo que sobra e o de hoje.
+                shareBalance = positionGuard.validateShareLedger(chronological, stockEvents, label);
+            }
             pa.setSettled(!chronological.isEmpty() && shareBalance.signum() <= 0);
         }
 
@@ -1185,10 +1231,31 @@ public class TransactionService {
                 : new Amounts(null, null, dto.totalAmount(), null);
         }
 
+        if (isFund(asset)) {
+            // Fundo de investimento (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md, D16/C6/C7): valor e cota informados,
+            // cotas = valor / cota, calculadas e nunca digitadas — a quantidade que viesse seria uma segunda fonte.
+            if (dto.totalAmount() == null || dto.pricePerShare() == null) {
+                throw new BusinessException("Informe o valor e a cota do fundo.");
+            }
+            if (dto.totalAmount().signum() <= 0 || dto.pricePerShare().signum() <= 0) {
+                throw new BusinessException("Valor e cota do fundo precisam ser maiores que zero.");
+            }
+            BigDecimal shares = dto.totalAmount().divide(dto.pricePerShare(), 8, java.math.RoundingMode.HALF_EVEN);
+            if (shares.signum() <= 0) {
+                throw new BusinessException("O valor não compra nenhuma cota do fundo.");
+            }
+            return new Amounts(shares, dto.pricePerShare(), dto.totalAmount(), null);
+        }
         if (dto.shares() == null || dto.pricePerShare() == null) {
             throw new BusinessException("Informe a quantidade e o preço unitário.");
         }
         return new Amounts(dto.shares(), dto.pricePerShare(), dto.shares().multiply(dto.pricePerShare()), null);
+    }
+
+    /** Fundo de investimento: cota da CVM (V12). */
+    private static boolean isFund(Asset asset) {
+        return asset.getAssetType() != null
+            && asset.getAssetType().getPriceSource() == com.activest.domain.asset.PriceSource.CVM;
     }
 
     /**

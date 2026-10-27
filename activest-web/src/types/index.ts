@@ -183,6 +183,22 @@ export interface Asset {
   active: boolean;
   /** Moeda em que o ativo é cotado; currentPrice está nela. */
   currencyCode?: string;
+  /** Rótulo das telas: o ticker, ou o nome curto do fundo (o ticker do fundo é o CNPJ). */
+  displayName?: string;
+  /** Cadastro CVM do fundo de investimento; ausente nos demais tipos. */
+  fund?: FundInfo | null;
+}
+
+/** O que a busca e o formulário mostram do fundo (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md, D11/D18). */
+export interface FundInfo {
+  cnpj: string;
+  subclassId: string | null;
+  anbimaClassification: string | null;
+  targetAudience: string | null;
+  exclusive: boolean | null;
+  pension: boolean;
+  cvmStatus: string | null;
+  lastQuoteOn: string | null;
 }
 
 export interface PortfolioSummary {
@@ -248,9 +264,10 @@ export interface PortfolioAssetDetail {
   hasLogo: boolean | null;
   /**
    * Base do valor atual na renda fixa (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md): CURVA (taxa contratada),
-   * MERCADO (preço oficial do Tesouro) ou SEM_CURVA. null fora da renda fixa.
+   * MERCADO (preço oficial do Tesouro), SEM_CURVA ou COTA (fundo de investimento, última cota da CVM —
+   * PLANO_FUNDOS_INVESTIMENTO.md, C10). null nos demais tipos.
    */
-  valuationBasis?: 'CURVA' | 'MERCADO' | 'SEM_CURVA' | null;
+  valuationBasis?: 'CURVA' | 'MERCADO' | 'SEM_CURVA' | 'COTA' | null;
   /** Até quando o valor vale: último CDI (curva) ou dia do preço do Tesouro. */
   valuationDate?: string | null;
   /** Motivo de não ter curva, ou a observação da inflação estimada. */

@@ -11,6 +11,7 @@ import { GoalCard } from '@/components/goals/GoalCard';
 import { GoalFormModal } from '@/components/goals/GoalFormModal';
 import { SITUATION } from '@/components/goals/goalFormat';
 import { Goal, GoalLifecycle, GoalSituation, GoalSummary } from '@/types/goals';
+import { useAssetLabel } from '@/utils/assetLabel';
 
 const TABS: { value: GoalLifecycle; label: string }[] = [
   { value: 'ATIVA', label: 'Ativas' },
@@ -72,6 +73,8 @@ const TAG_ACTIVE: Record<string, string> = {
  * atenção primeiro.
  */
 export const GoalsPage = () => {
+  // nomes curtos dos fundos (o ticker do fundo é o CNPJ — PLANO_FUNDOS_INVESTIMENTO.md, D3)
+  useAssetLabel();
   const [tab, setTab] = useState<GoalLifecycle>('ATIVA');
   const [category, setCategory] = useState('');
   const [situations, setSituations] = useState<GoalSituation[]>([]);

@@ -87,6 +87,61 @@ public class PositionGuard {
         return balance;
     }
 
+    /** Sobra de cotas, em reais, que o resgate de fundo pode ter só por arredondamento (valor ÷ cota). */
+    static final BigDecimal FUND_ROUNDING_TOLERANCE = new BigDecimal("0.01");
+
+    /**
+     * Regra B do fundo de investimento (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md, C7 e C10): o saldo cai também com as
+     * cotas retidas no come-cotas (no fim do dia do evento, como no cálculo da posição). O resgate é lançado em valor e
+     * cota, e as cotas saem da divisão: um "resgatar tudo" pelo valor do extrato pode passar do saldo por frações de
+     * cota. Se a sobra valer até R$ 0,01, a quantidade do resgate é ajustada ao saldo (a transação é alterada);
+     * acima disso, bloqueia como a regra B.
+     *
+     * @return o saldo de cotas de hoje, já sem as retidas; {@code adjusted} diz se algum resgate foi ajustado
+     */
+    public FundLedger validateFundLedger(List<Transaction> chronological, List<ShareWithholding> withholdings,
+                                         String label) {
+        List<ShareWithholding> held = withholdings == null ? List.of()
+            : withholdings.stream().sorted(java.util.Comparator.comparing(ShareWithholding::date)).toList();
+        int next = 0;
+        boolean adjusted = false;
+        BigDecimal balance = BigDecimal.ZERO;
+        for (Transaction tx : chronological) {
+            BigDecimal qtd = tx.getShares();
+            if (qtd == null) {
+                continue;
+            }
+            while (next < held.size() && held.get(next).date().isBefore(tx.getTransactionDate())) {
+                balance = balance.subtract(held.get(next++).shares()).max(BigDecimal.ZERO);
+            }
+            balance = tx.getType() == TransactionType.BUY ? balance.add(qtd) : balance.subtract(qtd);
+            if (balance.signum() < 0) {
+                BigDecimal missing = balance.negate();
+                BigDecimal price = tx.getPricePerShare() == null ? BigDecimal.ZERO : tx.getPricePerShare();
+                if (tx.getType() == TransactionType.SELL
+                        && missing.multiply(price).compareTo(FUND_ROUNDING_TOLERANCE) <= 0) {
+                    tx.setShares(qtd.subtract(missing));
+                    balance = BigDecimal.ZERO;
+                    adjusted = true;
+                    continue;
+                }
+                throw new BusinessException(
+                    "Saldo insuficiente de " + label + " em " + tx.getTransactionDate().format(DATA)
+                    + ": faltam " + number(missing) + " cotas nessa data (já descontadas as cotas do come-cotas)."
+                    + " Confira o valor e a cota do resgate.");
+            }
+        }
+        LocalDate today = LocalDate.now(ZoneId.of("America/Sao_Paulo"));
+        while (next < held.size() && held.get(next).date().isBefore(today)) {
+            balance = balance.subtract(held.get(next++).shares()).max(BigDecimal.ZERO);
+        }
+        return new FundLedger(balance, adjusted);
+    }
+
+    /** Saldo de cotas do fundo e se algum resgate teve a quantidade ajustada ao saldo. */
+    public record FundLedger(BigDecimal balance, boolean adjusted) {
+    }
+
     private static BigDecimal afterEvent(BigDecimal balance, StockEventStep event) {
         return CorporateActionApplier.apply(new CorporateActionApplier.Holding(balance, BigDecimal.ZERO), event).shares();
     }

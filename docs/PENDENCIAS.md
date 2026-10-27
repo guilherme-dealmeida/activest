@@ -2,7 +2,8 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 26/10/2026 — secao 38 (cadastro de moedas, docs/planos/PLANO_CADASTRO_MOEDAS.md); 37.1 resolvido;
+Ultima atualizacao: 27/10/2026 — secao 39 (fundos de investimento da CVM, docs/planos/PLANO_FUNDOS_INVESTIMENTO.md);
+29.7 resolvido na parte dos fundos. Antes: 26/10/2026 — secao 38 (cadastro de moedas, docs/planos/PLANO_CADASTRO_MOEDAS.md); 37.1 resolvido;
 3.8 em parte (Stock/REIT/ETF internacional com retencao do exterior). Antes: 21/10/2026 — secao 33 (correcao dos proventos, docs/planos/PLANO_CORRECAO_PROVENTOS.md);
 19.1 e 20.5 resolvidos; 3.4, 3.5, 14 e 18.6 reescritos (sem a conferencia por extrato, que saiu). Antes: 17/10/2026 — secao 32 (listagem de emissoras implementada). No mesmo dia: secao 31 (novos indicadores de acoes, escopo futuro saido da listagem de
 emissoras, docs/planos/PLANO_LISTAGEM_EMISSORAS.md). No mesmo dia: secao 29 (rentabilidade comparativa, docs/planos/PLANO_RENTABILIDADE.md); 20.3, 23.3 e
@@ -1161,8 +1162,9 @@ Calendario de feriados / dias uteis futuros (D9): necessario para o pro rata
 **29.5** Selecao de benchmarks gravada no usuario (D10): hoje URL + localStorage; Metas pode precisar.
 **29.6** Comparacao em base equivalente com a carteira liquida (L10): um "CDI liquido" exigiria aplicar a tabela de
  IR/IOF a um investimento hipotetico com os mesmos fluxos. Hoje a tela avisa e oferece a base bruta.
-**29.7** Tipos de preco MANUAL (Stock, REIT, ETF internacional, Fundos, Outros) nao tem serie: posicao deles deixa o
- periodo indisponivel na carteira consolidada (R10). Precisa de fonte de preco por tipo.
+**29.7** Tipos de preco MANUAL (Stock, REIT, ETF internacional, Outros) nao tem serie: posicao deles deixa o
+ periodo indisponivel na carteira consolidada (R10). Precisa de fonte de preco por tipo. Fundos resolvido em 27/10/2026:
+ o tipo passou a `CVM`, com a serie dos fundos em carteira (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md).
 **29.8** Desdobramento de BDR/ETF que o catalogo nao conhece (os eventos sao buscados so para ativo ligado a emissor)
  distorce a serie no dia do evento — o mesmo problema ja afeta o valor de hoje.
 **29.9** Cripto sem par em reais na Binance (so o BTC usa a Binance): fora da janela de 365 dias da CoinGecko, so o
@@ -1421,6 +1423,28 @@ meia-noite de Sao Paulo a data exibida pode ser a do dia seguinte.
  moeda fora do cadastro na corretora continua aparecendo como divergencia ate ser cadastrada (pode ficar inativa).
 **38.8** Grafico de cotacao da tela de Ativos, `IndicatorService`, `CompanyDataService` e `BenchmarkData` supõem ativo em
  reais (emissores brasileiros, IVVB11, BTC/BRL). Quando houver ativo do exterior nessas telas, mostrar a moeda.
+
+## 39. FUNDOS DE INVESTIMENTO (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md, 27/10/2026)
+
+**39.1** Pagina do fundo (cadastro, cota, grafico) e o fundo na busca da tela de Ativos (D18, D20): escopo proprio.
+**39.2** Imposto da previdencia (D21): fundo da categoria Previdencia vale bruto; o IR depende do plano (PGBL/VGBL,
+ tabela progressiva ou regressiva escolhida pelo participante), dado que a CVM nao tem. A tela avisa.
+**39.3** Compensacao de prejuizo (C9): come-cotas com a cota abaixo da base nao retem, mas o prejuizo nao compensa
+ ganhos posteriores no come-cotas nem no resgate, como a lei permite entre fundos do mesmo administrador/regime.
+**39.4** Proventos e amortizacao de fundo (D15): o informe diario nao traz distribuicao; fundo que distribui fica sem
+ o provento.
+**39.5** FIDC, FIP, FIAGRO e Funcine fora (D1): nao tem cota diaria na CVM.
+**39.6** Integracoes (B3, Binance) nao trazem fundo: o lancamento e manual.
+**39.7** "Vivo" pela situacao do cadastro (C2) inclui fundo "Em Liquidacao" ha anos sem cota nova (ex.: ultima cota em
+ 2024); ele aparece na busca entre os vivos. Ajustar a regra (ex.: exigir cota no ano) e decisao do Guilherme.
+**39.8** Rotulo no front por mapa (`utils/assetLabel.ts`, de `GET /funds/labels` e da busca) em vez de `displayName` em
+ todos os DTOs (11.5 do plano): texto montado pela API com o ticker (Rentabilidade, Metas) e trocado na tela; tela nova
+ que mostre ticker precisa usar `assetLabel`/`assetText`.
+**39.9** Come-cotas usa a cota do dia ou a ultima ate 7 dias antes; sem serie gravada (antes de a serie sob demanda
+ terminar), nao ha come-cotas — ele entra quando a serie chega ("catalogo mudou").
+**39.10** Etapa "fundos" do `BOOTSTRAP`: coberta pela `FundCatalogIT.bootstrap` e, com dados reais, pela mesma
+ varredura no DEV (`FUND_QUOTES` com `FROM_MONTH` = 2010-01, ~7 min, 54.741 fundos); a prova do zero na pilha de teste
+ (`activest-teste`, criterio 1 do plano) fica para a proxima carga completa. `cvm/fi` ja esta no bucket (27/10/2026).
 
 ## ORDEM SUGERIDA
 

@@ -10,11 +10,14 @@ import {
   PerformanceTable,
 } from '@/types/performance';
 import { MONTHS, date, monthYear, pct, pp } from './performanceFormat';
+import { assetText } from '@/utils/assetLabel';
 
 // ------------------------------------------------------------------ cobertura
 
 /** O que o resultado cobre (R10, critério 10): lacunas, preço de último negócio, estimativa, real até quando. */
 export const CoverageNotice = ({ coverage }: { coverage: Coverage }) => {
+  // fundo: o nome curto no lugar do ticker (CNPJ) — PLANO_FUNDOS_INVESTIMENTO.md, D3
+  const allGaps = coverage.gaps.map(g => ({ ...g, ticker: assetText(g.ticker) }));
   if (coverage.empty) {
     return (
       <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300">
@@ -22,16 +25,16 @@ export const CoverageNotice = ({ coverage }: { coverage: Coverage }) => {
       </div>
     );
   }
-  const missing = coverage.gaps.filter(g => g.status === 'SEM_PRECO');
-  const stale = coverage.gaps.filter(g => g.status === 'ULTIMO_NEGOCIO');
+  const missing = allGaps.filter(g => g.status === 'SEM_PRECO');
+  const stale = allGaps.filter(g => g.status === 'ULTIMO_NEGOCIO');
   // preço carregado (revisão de 25/10/2026): ativos com o mesmo intervalo e o mesmo preço numa linha só
-  const carried = Object.values(coverage.gaps.filter(g => g.status === 'PRECO_CARREGADO')
+  const carried = Object.values(allGaps.filter(g => g.status === 'PRECO_CARREGADO')
     .reduce<Record<string, { gap: Gap; tickers: string[] }>>((acc, g) => {
       const k = `${g.from}|${g.to}|${g.priceDate ?? ''}`;
       (acc[k] ??= { gap: g, tickers: [] }).tickers.push(g.ticker);
       return acc;
     }, {}));
-  const estimated = coverage.gaps.filter(g => g.status === 'ESTIMADO');
+  const estimated = allGaps.filter(g => g.status === 'ESTIMADO');
   return (
     <div className="space-y-2">
       {missing.length > 0 && (
@@ -232,11 +235,11 @@ export const BreakdownSection = ({ b, level, onLevel, showIssuer, onDrill }: {
                       <div>
                         <div className="text-white font-medium">
                           {level === 'POSITION' && r.ticker
-                            ? <Link to={`/transactions?position=${r.positionId}`} onClick={e => e.stopPropagation()} className="hover:underline">{r.label}</Link>
-                            : r.label}
+                            ? <Link to={`/transactions?position=${r.positionId}`} onClick={e => e.stopPropagation()} className="hover:underline">{assetText(r.label)}</Link>
+                            : assetText(r.label)}
                           {r.closed && <span className="ml-2 rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-gray-300">encerrada</span>}
                         </div>
-                        {r.detail && <div className="text-xs text-gray-500">{r.detail}</div>}
+                        {r.detail && <div className="text-xs text-gray-500">{assetText(r.detail)}</div>}
                       </div>
                     </div>
                   </td>

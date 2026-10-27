@@ -16,11 +16,14 @@ import { useToast } from '@/context/ToastContext';
 import { apiMessage } from '@/utils/apiError';
 import { AssetTypeSelect } from '@/components/forms/AssetTypeSelect';
 import { TickerAutocomplete } from '@/components/forms/TickerAutocomplete';
+import { FundAutocomplete } from '@/components/forms/FundAutocomplete';
+import { fundsApi } from '@/api/funds';
+import { assetLabel } from '@/utils/assetLabel';
 import { FixedIncomeFields, FixedIncomeValues } from '@/components/forms/FixedIncomeFields';
 import { IssuerPick, distributorPickOf, issuerPickOf } from '@/components/forms/issuerPick';
 import { DistributorChangeModal } from '@/components/transactions/DistributorChangeModal';
 import { formatCurrency, formatDate, formatMoney, toLocalISODate } from '@/utils/format';
-import { CRYPTO_DECIMALS, isCryptoType } from '@/utils/assetTypeRules';
+import { CRYPTO_DECIMALS, isCryptoType, isFundType } from '@/utils/assetTypeRules';
 import {
   Asset, AssetType, DistributorChangePreview, Indexer, NoteInfo, RateType, SalePreview, TransactionCreate,
   TransactionResponse, TransactionType
@@ -111,8 +114,8 @@ const SALE_RULE_LABEL: Record<string, string> = {
  * data (RF) ou as partes da venda por título (Tesouro). Desde 17/10/2026 abre num popover pelo ícone ao lado do
  * Líquido (Total bruto, no Tesouro); o erro do cálculo e o aviso de "passa do disponível" continuam no formulário.
  */
-const SalePreviewPanel = ({ preview, loading, treasury, fee }: {
-  preview: SalePreview | undefined; loading: boolean; treasury: boolean; fee: number;
+const SalePreviewPanel = ({ preview, loading, treasury, fee, fund = false }: {
+  preview: SalePreview | undefined; loading: boolean; treasury: boolean; fee: number; fund?: boolean;
 }) => {
   if (!preview) {
     return <p className="text-gray-400">{loading ? 'Calculando IR e IOF…' : 'Preencha a venda para ver a prévia.'}</p>;
@@ -128,7 +131,9 @@ const SalePreviewPanel = ({ preview, loading, treasury, fee }: {
   return (
     <div className={loading ? 'opacity-60' : ''}>
       <p className="mb-3 text-xs text-gray-400">
-        {treasury
+        {fund
+          ? `O valor digitado é o bruto. IR e IOF calculados aporte a aporte, do mais antigo para o mais novo (PEPS), sobre o rendimento (cota do resgate − cota da aplicação), já descontado o come-cotas retido.${preview.reason ? ` ${preview.reason}` : ''}`
+          : treasury
           ? 'IR e IOF calculados por título, do mais antigo para o mais novo, sobre o rendimento (PU de venda − PU de compra). O líquido desconta também as taxas.'
           : `O valor digitado é o líquido. O Activest calcula o bruto pela curva, tirando dos aportes pela regra de saída (${SALE_RULE_LABEL[preview.saleRule] ?? preview.saleRule}), com o IOF e o IR de cada aporte.`}
       </p>
@@ -139,7 +144,7 @@ const SalePreviewPanel = ({ preview, loading, treasury, fee }: {
         {treasury && fee > 0 && row('Taxas', fee)}
         {!!preview.adjustment && row('Ajuste sobre a curva (no bruto)', preview.adjustment)}
         {row('Líquido', preview.net, true)}
-        {!treasury && row('Líquido disponível estimado na data', preview.availableNet)}
+        {!treasury && !fund && row('Líquido disponível estimado na data', preview.availableNet)}
       </div>
       {preview.lots.length > 0 && (
         <table className="mt-3 w-full text-xs tabular-nums">
@@ -224,6 +229,8 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
 
   const [selectedType, setSelectedType] = useState<AssetType | null>(null);
   const [matchedAsset, setMatchedAsset] = useState<Asset | null>(null);
+  /** Fundo: a cota foi digitada (ou é a da edição) — a da CVM não a substitui mais. */
+  const [fundQuoteTouched, setFundQuoteTouched] = useState(false);
   const [tickerInput, setTickerInput] = useState('');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [fixedIncome, setFixedIncome] = useState<FixedIncomeValues>(EMPTY_FIXED_INCOME);
@@ -288,11 +295,14 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
         // Ativo em outra moeda: reabre com o que foi lançado na moeda dele (os campos da transação estão em reais)
         pricePerShare: editing.currency?.originalPricePerShare ?? editing.pricePerShare ?? 0,
         // Venda de Renda Fixa: o que se digita é o LÍQUIDO; o bruto é calculado (PLANO_VENDA_RENDA_FIXA, R3).
-        totalAmount: editing.netAmount ?? editing.totalAmount ?? 0,
+        // Fundo de investimento: o valor digitado é o bruto (D24); IR e IOF são calculados (PLANO_FUNDOS_INVESTIMENTO).
+        totalAmount: (isFundType((assetTypes || []).find(t => t.id === editing.assetTypeId))
+          ? editing.totalAmount : editing.netAmount) ?? editing.totalAmount ?? 0,
         brokerageFee: editing.currency ? (editing.currency.originalFee ?? 0)
           : (editing.groupBrokerageFee ?? editing.brokerageFee ?? 0),
         transactionDate: editing.transactionDate
       });
+      setFundQuoteTouched(true); // edição: a cota gravada fica, não é trocada pela da CVM
       setFxRate(editing.currency?.fxRate ?? null);
       setFxInformed(editing.currency?.fxRateOrigin === 'INFORMED');
       // O que está no quadro é o que foi CONTRATADO, e isso mora no título —
@@ -386,7 +396,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     const parts = saved?.groupParts ?? 0;
     if (parts > 1) {
       showToast(
-        `A venda de ${saved!.ticker} foi dividida em ${parts} títulos, do mais antigo para o mais novo.`,
+        `A venda de ${assetLabel(saved!.ticker)} foi dividida em ${parts} títulos, do mais antigo para o mais novo.`,
         'info'
       );
     }
@@ -402,7 +412,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       invalidate();
       onClose();
       onSaved?.(saved, txData);
-      const ticker = saved?.ticker ?? txData.ticker;
+      const ticker = assetLabel(saved?.ticker ?? txData.ticker);
       if (txData.type === TransactionType.BUY) {
         showToast(`Compra de ${ticker} registrada.`, 'success');
       } else if (txData.isFullSettlement) {
@@ -421,7 +431,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       invalidate();
       onClose();
       onSaved?.(saved, txData);
-      showToast(`Transação de ${saved?.ticker ?? txData.ticker} atualizada.`, 'success');
+      showToast(`Transação de ${assetLabel(saved?.ticker ?? txData.ticker)} atualizada.`, 'success');
       warnSplit(saved);
     },
     onError: (e: unknown) => showToast(apiMessage(e) ?? 'Não foi possível atualizar a transação.', 'error')
@@ -430,6 +440,20 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
   const locked = !!editing || !!preset;
   const isTreasury = selectedType?.name === TESOURO_DIRETO;
   const isTotalValue = selectedType?.name === RENDA_FIXA;
+  // Fundo de investimento (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md, D16): Valor e Cota informados, cotas calculadas.
+  const isFund = isFundType(selectedType);
+  const fundTicker = isFund ? (matchedAsset?.ticker ?? (locked ? tickerInput : '')) : '';
+  const { data: fundQuote, isFetching: fundQuoteLoading } = useQuery({
+    queryKey: ['funds', fundTicker, 'quote', formData.transactionDate],
+    queryFn: () => fundsApi.quote(fundTicker, formData.transactionDate),
+    enabled: isOpen && isFund && !!fundTicker && !!formData.transactionDate,
+    retry: false,
+  });
+  useEffect(() => {
+    if (isFund && fundQuote && !fundQuoteTouched) {
+      setFormData(prev => ({ ...prev, pricePerShare: fundQuote.quote }));
+    }
+  }, [isFund, fundQuote, fundQuoteTouched]);
   // Cripto: quantidade e preço unitário com 8 casas, na mesma máscara dos
   // demais tipos (docs/planos/PLANO_CRIPTO_BINANCE.md, 6.12).
   const isCrypto = isCryptoType(selectedType);
@@ -543,6 +567,15 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
               transactionDate: formData.transactionDate, noteId: previewNoteId, isFullSettlement: fullSettlement
             }
           : null)
+      : isFund
+        // Fundo (D24): bruto e cota; a prévia devolve IR, IOF e líquido pelo PEPS (PLANO_FUNDOS_INVESTIMENTO.md, C7)
+        ? ((formData.totalAmount || 0) > 0 && (formData.pricePerShare || 0) > 0
+            ? {
+                ticker: formData.ticker, type: TransactionType.SELL, shares: null,
+                pricePerShare: formData.pricePerShare, totalAmount: formData.totalAmount,
+                brokerageFee: formData.brokerageFee ?? 0, transactionDate: formData.transactionDate
+              }
+            : null)
       : isTreasury && (formData.shares || 0) > 0 && (formData.pricePerShare || 0) > 0
         ? {
             ticker: formData.ticker, type: TransactionType.SELL, shares: formData.shares,
@@ -629,15 +662,20 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
    */
   const handleTickerChange = (ticker: string, asset: Asset | null) => {
     setPickedNoteId(null);
+    setFundQuoteTouched(false);
     setTickerInput(ticker);
     setFormData(prev => ({ ...prev, ticker }));
     setMatchedAsset(asset);
     setFixedIncome(catalogTerms(asset));
   };
 
-  const computedTotal = isTotalValue
+  const computedTotal = isTotalValue || isFund
     ? (formData.totalAmount || 0)
     : (formData.shares || 0) * (formData.pricePerShare || 0);
+  // Fundo: cotas = valor / cota, 8 casas (o mesmo cálculo da API, que é quem grava).
+  const fundShares = isFund && (formData.pricePerShare || 0) > 0
+    ? Math.round(((formData.totalAmount || 0) / (formData.pricePerShare || 1)) * 1e8) / 1e8
+    : 0;
 
   /**
    * O quadro do título aparece quando há título para mostrar.
@@ -712,7 +750,9 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
 
     const amounts: TransactionCreate = isTotalValue
       ? { ...formData, shares: null, pricePerShare: null, totalAmount: formData.totalAmount || 0 }
-      : { ...formData, totalAmount: null };
+      : isFund
+        ? { ...formData, shares: null, totalAmount: formData.totalAmount || 0 }
+        : { ...formData, totalAmount: null };
 
     // O título vai junto em dois casos, por motivos opostos: quando o usuário o
     // preencheu (Renda Fixa avulsa, que cria a nota) e quando ele veio da
@@ -794,7 +834,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       : undefined;
 
   // Prévia da venda (Renda Fixa e Tesouro): no popover do ícone ao lado do Líquido / Total bruto
-  const hasPreview = isSale && (isTotalValue || isTreasury) && !!(previewPayload || preview);
+  const hasPreview = isSale && (isTotalValue || isTreasury || isFund) && !!(previewPayload || preview);
   const currentPreview = debouncedKey === previewKey ? preview : undefined;
 
   return (
@@ -887,13 +927,25 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
           {/* Ticker — autocomplete restrito ao tipo escolhido */}
           <div className="sm:col-span-2">
             {locked ? (
-              <Input label="Ticker (Ativo)" value={tickerInput} readOnly disabled />
+              <Input label={isFund ? 'Fundo' : 'Ticker (Ativo)'} value={isFund ? assetLabel(tickerInput) : tickerInput}
+                readOnly disabled />
+            ) : isFund ? (
+              <FundAutocomplete
+                value={tickerInput}
+                typeId={selectedType?.id ?? null}
+                onChange={handleTickerChange}
+              />
             ) : (
               <TickerAutocomplete
                 value={tickerInput}
                 typeId={selectedType?.id ?? null}
                 onChange={handleTickerChange}
               />
+            )}
+            {isFund && matchedAsset?.fund?.pension && (
+              <p className="text-xs text-gray-400 mt-1">
+                Fundo de previdência: vale o valor bruto. O IR é do plano (PGBL/VGBL) e não é calculado.
+              </p>
             )}
           </div>
 
@@ -926,7 +978,28 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
             </div>
           )}
 
-          {isTotalValue ? (
+          {isFund ? (
+            <>
+              <CurrencyInput
+                label={isSale ? 'Valor resgatado (bruto)' : 'Valor'}
+                value={formData.totalAmount ?? 0}
+                onChange={(v) => setFormData({ ...formData, totalAmount: v })}
+                required
+              />
+              <MaskedNumberInput
+                label="Cota"
+                info="Valor da cota do fundo na data da transação, do informe diário da CVM. Se o seu extrato mostrar outra cota, informe-a."
+                decimals={8}
+                value={formData.pricePerShare ?? 0}
+                onChange={(v) => { setFundQuoteTouched(true); setFormData({ ...formData, pricePerShare: v }); }}
+                hint={fundQuoteLoading ? 'Buscando a cota da data…'
+                  : fundQuoteTouched ? 'Cota informada por você.'
+                  : fundQuote ? `Cota da CVM de ${formatDate(fundQuote.date)}.`
+                  : (matchedAsset || locked) ? 'Sem cota publicada até a data: informe a cota.' : undefined}
+                required
+              />
+            </>
+          ) : isTotalValue ? (
             <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
               <CurrencyInput
                 label={isSale ? 'Valor recebido (líquido)' : 'Valor'}
@@ -1037,13 +1110,17 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
           <div className="sm:col-span-2 flex items-baseline justify-between gap-4 rounded-md border border-surface-light bg-surface-light/40 px-4 py-3">
             <span className="inline-flex items-center text-sm text-gray-400">
               <LabelWithInfo
-                info={selectedType && !isTotalValue
+                info={selectedType && isFund
+                  ? (isSale
+                      ? 'O valor bruto do resgate. IR e IOF estão na prévia (ícone ao lado).'
+                      : 'O valor aplicado. As cotas saem da divisão pela cota e não são editáveis.')
+                  : selectedType && !isTotalValue
                   ? (isTreasury && isSale
                       ? 'Quantidade × preço unitário: o valor bruto. IR e IOF de cada título estão na prévia da venda (ícone ao lado).'
                       : 'Quantidade × preço unitário. As taxas não entram no total.')
                   : undefined}
               >
-                {isTotalValue && isSale ? 'Líquido' : isTreasury && isSale ? 'Total bruto' : 'Total'}
+                {isTotalValue && isSale ? 'Líquido' : (isTreasury || isFund) && isSale ? 'Total bruto' : 'Total'}
               </LabelWithInfo>
               {hasPreview && (
                 <Popover
@@ -1056,6 +1133,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
                     preview={currentPreview}
                     loading={previewLoading || debouncedKey !== previewKey}
                     treasury={isTreasury}
+                    fund={isFund}
                     fee={formData.brokerageFee ?? 0}
                   />
                 </Popover>
@@ -1068,6 +1146,16 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
                 </span>
                 <span className="block text-xs tabular-nums text-gray-400">
                   {fxRate ? `${formatCurrency(computedTotal * fxRate)} em reais` : 'em reais: informe o câmbio'}
+                </span>
+              </span>
+            ) : isFund ? (
+              // D16: as cotas são calculadas (valor ÷ cota) e só lidas — se não baterem com o extrato, corrige-se a cota
+              <span className="text-right">
+                <span className="block text-lg font-semibold tabular-nums text-white">{formatCurrency(computedTotal)}</span>
+                <span className="block text-xs tabular-nums text-gray-400">
+                  {fundShares > 0
+                    ? `${fundShares.toLocaleString('pt-BR', { maximumFractionDigits: 8 })} cotas`
+                    : 'cotas: informe valor e cota'}
                 </span>
               </span>
             ) : (

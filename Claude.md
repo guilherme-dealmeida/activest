@@ -5,7 +5,11 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 26/10/2026 (**Cadastro de moedas**, `docs/planos/PLANO_CADASTRO_MOEDAS.md`: V9 e V10 — moedas
+> **Última revisão**: 27/10/2026 (**Fundos de investimento da CVM**, `docs/planos/PLANO_FUNDOS_INVESTIMENTO.md`: V12 —
+> o tipo `FUNDO_INVESTIMENTO` passa a ter catálogo criado por integração (~55 mil fundos do cadastro da CVM, ticker =
+> CNPJ sem pontuação, nome curto nas telas), cota diária da CVM (tarefa `FUND_QUOTES`, 07:40, uma rodada automática
+> por dia), série sob demanda dos fundos em carteira, lançamento por valor e cota, IR/IOF/come-cotas e Previdência
+> bruta — ver "Fundos de investimento (27/10/2026)" em Pontos de Atenção). Antes: 26/10/2026 (**Cadastro de moedas**, `docs/planos/PLANO_CADASTRO_MOEDAS.md`: V9 e V10 — moedas
 > (BRL base + USD), câmbio da PTAX do BCB desde 2010 (tarefa `EXCHANGE_RATES`, 13:30, uma rodada automática por dia),
 > moeda no tipo de ativo, no ativo, na transação e no provento, tributos do exterior por data (IOF de câmbio, IR da
 > Lei 14.754/2023, retenção dos EUA), operações de câmbio e a tela de administrador `/currencies` — ver "Moedas
@@ -607,6 +611,9 @@ em desenvolvimento. **Não versione credenciais reais.**
 | `notifications`, `notification_states` | Caixa de Notificações (V48): a mensagem com o status do assunto; o estado de cada pessoa à parte — ver "Notificações (13/10/2026)" em Pontos de Atenção |
 | `stock_event_costs` | Custo da bonificação informado pelo usuário (V51), por posição e evento |
 | `ceiling_price_quarters` | Os 4 lucros de um cálculo (V46): valor digitado, unidade, moeda (FK para `currencies` desde a V9), câmbio, `value_brl` (o que entra na conta) e origem (a fonte saiu na V47). PK `(ceiling_price_id, position)` |
+| `investment_funds` | Cadastro CVM do fundo (V12, 1:1 com `assets`, PK `asset_id`): `cnpj` (14, alfanumérico), `subclass_id`, `parent_asset_id` (subclasse → classe), `short_name` (rótulo das telas), `trade_name`, `fund_kind`, classificações CVM e ANBIMA, público-alvo, exclusivo, condomínio, `long_term_tax`, gestor e administrador (texto + CNPJ), situação CVM e datas, PL, `last_quote_on` e `search_text` (CNPJ e nomes normalizados, índice GIN `pg_trgm`). Único `(cnpj, coalesce(subclass_id,''))` — `docs/planos/PLANO_FUNDOS_INVESTIMENTO.md` |
+| `investment_fund_names` | Denominações sociais e comerciais, atuais e anteriores (`cad_fi_hist`), do fundo (V12): registro; a busca usa `investment_funds.search_text` |
+| `fund_tax_events` | Come-cotas por lote (V12, D22): `user_id`, `asset_id`, `lot_transaction_id` (a compra, cascade), `event_date`, cota e cota-base, cotas antes e retidas, IR e alíquota. Regerado a cada escrita na posição e quando a cota muda (`FundTaxService`) |
 | `currencies` | Cadastro de moedas (V9, `docs/planos/PLANO_CADASTRO_MOEDAS.md`): PK `code` (ISO 4217), `name`, `symbol`, `decimals`, `is_base` (só uma: BRL), `active`, `rate_source` (`NONE` na base, `BCB_PTAX`), `country_code`. Seed BRL + USD; EUR inativo (V11) |
 | `exchange_rates` | Câmbio para a moeda base (V9): PK `(currency_code, reference_date)`, `buy_rate`/`sell_rate` do boletim de fechamento da PTAX, `bulletin_at`, `source`. Só a adm-api grava |
 | `foreign_tax_rules` | Tributos do exterior por data (V9): `tax` (IOF_FX, IR_FOREIGN, WITHHOLDING_FOREIGN), `event` (remessa, ingresso, provento, venda), `country_code`, `asset_type_id`, `rate`, `brackets` (JSON: faixas e isenção mensal), vigência e `legal_basis`. Seed por migration |
@@ -642,7 +649,7 @@ em desenvolvimento. **Não versione credenciais reais.**
 | 3 | RENDA_FIXA | Renda Fixa | MANUAL | **sim** |
 | 4 | TESOURO_DIRETO | Tesouro Direto | MANUAL | **sim** |
 | 5 | ETF | ETFs | BRAPI | não |
-| 6 | FUNDO_INVESTIMENTO | Fundos de Investimentos | MANUAL | não |
+| 6 | FUNDO_INVESTIMENTO | Fundos de Investimentos | **CVM** (V12; antes MANUAL) | não |
 | 7 | BDR | BDRs | BRAPI | não |
 | 8 | STOCK | Stocks | MANUAL | não (USD, EXTERIOR desde a V9) |
 | 9 | REIT | REITs | MANUAL | não (USD, EXTERIOR) |
@@ -690,6 +697,7 @@ existir: o banco novo não tem o dado que elas corrigiam.
 | `V6__seed_dev_user.sql` | o administrador semeado, a carteira dele e a reserva da estratégia |
 | `V7__company_quarters_new_accounts.sql` | (24/10/2026, primeira depois da consolidação) 10 colunas nulas no fim de `company_quarters`: lucro bruto, D&A, LAIR e IR/CSLL (`_q`/`_ttm`), ativo e passivo circulante — `docs/planos/PLANO_TELA_ATIVOS.md`. O comentário dela descreve a D&A como a 7.04.01 da DVA; desde a D22 (mesmo dia) a coluna é a DVA menos a exaustão biológica (migration aplicada não se edita) |
 
+| `V12__investment_funds.sql` | (27/10/2026) fundos de investimento: fonte `CVM` no tipo 6 e no histórico de preço, apaga os índices em cópia `idx_price_history_asset_date` e `idx_assets_ticker` (D7), 6 categorias do tipo (1º nível ANBIMA), `investment_funds`, `investment_fund_names`, extensão `pg_trgm`, `regime` em `fixed_income_tax_rules` (+ IR e come-cotas dos fundos), `fund_tax_events`, tipo e tarefa `FUND_QUOTES` — `docs/planos/PLANO_FUNDOS_INVESTIMENTO.md` |
 | `V8__goals.sql` | (24/10/2026) metas: `goals` recriada (guarda: recusa se a antiga tiver linha — estava vazia), `goal_events`, `goal_snapshots`, tipo e tarefa `GOALS_SNAPSHOT` (21:30) — `docs/planos/PLANO_METAS.md` |
 
 **Como foi verificado** — o método a repetir num próximo reset. As 67 migrations
@@ -851,7 +859,7 @@ passo a passo no apêndice A do plano); origens autorizadas `http://localhost` e
 | GET | `/api/v1/transactions/notes?ticker=` | Títulos de renda fixa do usuário no ativo, para o seletor da Nova Transação — **todos**, inclusive liquidados e vencidos (`settled`, `matured`); título sem posição fica de fora (07/10/2026) |
 | GET | `/api/v1/transactions/{id}` | Buscar por ID |
 | POST | `/api/v1/transactions/` | Criar (cria a nota se for renda fixa; recalcula proventos). Venda de renda fixa: `totalAmount` é o **líquido** (15/10/2026) |
-| POST | `/api/v1/transactions/sale-preview?excludeId=` | Prévia da venda, sem gravar (15/10/2026): renda fixa pelo líquido (bruto, IOF, IR, ajuste, líquido disponível, `aboveAvailable`, regra de saída, lotes na data); Tesouro por cotas × PU (IR e IOF por título). Na edição, `excludeId` é a própria venda |
+| POST | `/api/v1/transactions/sale-preview?excludeId=` | Prévia da venda, sem gravar (15/10/2026): renda fixa pelo líquido (bruto, IOF, IR, ajuste, líquido disponível, `aboveAvailable`, regra de saída, lotes na data); Tesouro por cotas × PU (IR e IOF por título); fundo de investimento (27/10/2026) por valor bruto e cota (IR, IOF e líquido pelo PEPS, com o come-cotas; Previdência = bruto). Na edição, `excludeId` é a própria venda |
 | PUT | `/api/v1/transactions/{id}` | Editar (atualiza a nota; recalcula proventos) |
 | DELETE | `/api/v1/transactions/{id}` | Excluir (recalcula proventos) |
 
@@ -867,8 +875,10 @@ passo a passo no apêndice A do plano); origens autorizadas `http://localhost` e
 ### Assets
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| GET | `/api/v1/assets/` | Listar — params `typeId`, `query` (autocomplete, teto 50), `withIssuer=true` (com `query`: só ações e FIIs ligados a emissor — busca da tela de Emissoras), `issuerKind=COMPANY|FII` (com `withIssuer`: só um tipo de emissor — o Preço Teto busca só ações, 18/10/2026) |
+| GET | `/api/v1/assets/` | Busca — **`query` obrigatória** desde 27/10/2026 (sem ela, 400: o catálogo inteiro passaria de 55 mil itens com os fundos — C12). Com `typeId` do tipo fundo, a busca dos fundos (CNPJ com ou sem máscara, nome curto, social, comercial e anteriores, sem acento, índice `pg_trgm`; vivos antes, maior PL primeiro; `includeInactive=true` traz os encerrados e o cabeçalho `X-Inactive-Count` diz quantos casam; cada item com `displayName` = nome curto e `fund` = cadastro CVM). Sem `typeId`, fundo fica de fora. Demais params: `typeId`, `query` (autocomplete, teto 50), `withIssuer=true` (com `query`: só ações e FIIs ligados a emissor — busca da tela de Emissoras), `issuerKind=COMPANY|FII` (com `withIssuer`: só um tipo de emissor — o Preço Teto busca só ações, 18/10/2026) |
 | GET | `/api/v1/assets/{ticker}` | Buscar por ticker |
+| GET | `/api/v1/funds/{ticker}/quote?date=` | Cota do fundo na data, ou a última anterior com a data dela (27/10/2026, D23): a app-api lê o ZIP do mês em `carga/data/cvm/fi/inf_diario` (montado só leitura) — pré-preenche a Cota da Nova transação |
+| GET | `/api/v1/funds/labels` | Ticker → nome curto dos fundos que o usuário lançou (o front troca o CNPJ pelo nome em todas as telas, `utils/assetLabel.ts`) |
 | GET | `/api/v1/assets/types` | Tipos de ativo |
 | GET | `/api/v1/assets/categories` | Categorias — param `typeId` |
 | GET | `/api/v1/assets/{ticker}/prices` | Cotação histórica (28/09/2026, `AssetPriceHistoryService`/`PriceSeries`): `?range=1D\|7D\|1M\|6M\|YTD\|1A\|5A\|MAX` (padrão 1A) ou `?from=&to=`. **Ajustada** por desdobramento, grupamento e bonificação (preço até a data-com ÷ razão do evento; sem ajuste por proventos). Densidade: diário até ~1 ano, semanal até ~5, mensal acima; 1D = fechamento anterior → último (`closeOnly`; `INTRADAY` reservado para o futuro). Fracionário usa o lote padrão (`priceTicker`). Traz `firstDate`/`lastDate`, variação, mín/máx. Substitui o antigo esboço `/history`, que devolvia vazio |
@@ -1502,6 +1512,44 @@ publicou; o valor só existe no Comunicado ao Mercado da Petrobras — PENDENCIA
 
 ## ⚠️ Pontos de Atenção
 
+### Fundos de investimento (27/10/2026)
+Plano: `docs/planos/PLANO_FUNDOS_INVESTIMENTO.md` (decisões D1–D28, regras C1–C12).
+
+- **Primeiro tipo com catálogo criado por integração.** Os fundos não estão no seed: a tarefa `FUND_QUOTES` (adm-api,
+  07:40, `oncePerDay`) lê `registro_fundo_classe.zip`, `cad_fi_hist.zip`, `cad_fi.csv` e o informe diário da CVM
+  (mês corrente + 12 anteriores, que a CVM regera; atributo `FROM_MONTH` rebaixa desde um mês) pelo `PublicFileCache`,
+  em `carga/data/cvm/fi`. Universo: toda classe FIF/subclasse do registro e toda chave que já informou cota desde 2010
+  (D1, D2 — FII/FIIM vêm da B3; FIDC, FIP, FIAGRO e Funcine ficam fora). No DEV (27/10/2026): **54.741 fundos, 28.342
+  vivos**; rodada diária em ~1 min; varredura desde 2010 (a do `BOOTSTRAP`, etapa "fundos") em ~7 min.
+- **Ticker = CNPJ sem pontuação** (alfanumérico; subclasse `CNPJ-ID_SUBCLASSE`), só chave e endereço. O que a tela
+  mostra é `investment_funds.short_name` (C1: denominação comercial vigente, senão a social, abreviada por tabela
+  fixa — `FundLabel`). No front, `utils/assetLabel.ts` troca o ticker pelo nome curto (`assetLabel`, `assetText`, mapa
+  vindo de `GET /funds/labels` e da busca); a API devolve `displayName` na busca de ativos.
+- **Vivo** (C2): situação "Em Funcionamento Normal", "Fase Pré-Operacional" ou "Em Liquidação" **ou** cota nos últimos
+  30 dias. Um CNPJ pode ter registros de vários tipos (FI cancelado + FIDC vivo): o registro de tipo que não informa
+  cota serve só de nome (`FundRegistry.informeType`). Categoria = 1º nível ANBIMA (Multimercado, Renda Fixa,
+  Previdência, Ações, Cambial, Outros — C3).
+- **Cota**: `asset_price_history` com `source = CVM` (D6), `close_price` = `VL_QUOTA` com 8 casas; `current_price` =
+  última cota informada (`price_updated_at` = data dela). Cota ≥ 10^10 (não cabe em `NUMERIC(18,8)`) é dado inválido do
+  informe e é descartada (`FundDailyReportReader.usableQuote`). O leitor acha as colunas pelo cabeçalho (3 layouts).
+- **Série só de quem está em carteira** (D5): a primeira transação publica o pedido sob demanda de sempre
+  (`activest:dividends:on-demand`, a mesma fila dos proventos e da cripto); a adm-api lê os ZIPs de 2010 em diante
+  daquela chave e grava em lote só o que falta (~1,5 min no DEV; 4.222 cotas do fundo do Guilherme). A rodada diária
+  mantém a série dos fundos em carteira nos meses baixados e avisa a app-api (`FECHAMENTO`).
+- **Lançamento** (D16, D24): Valor e Cota informados (a cota vem pré-preenchida da CVM na data — `GET
+  /funds/{ticker}/quote`); cotas = valor ÷ cota, 8 casas, nunca digitadas. Resgate pelo **bruto**; regra B com as cotas
+  retidas no come-cotas; "resgatar tudo" pelo valor do extrato que passa do saldo por fração de cota valendo até R$ 0,01
+  é ajustado ao saldo (`PositionGuard.validateFundLedger`).
+- **Impostos** (D17, D21, C7–C10, V12): regime pelo cadastro — Previdência sem imposto (o IR é do plano; tela avisa);
+  Ações `FUND_EQUITY` (15% no resgate); demais `FUND_LONG_TERM` (22,5/20/17,5/15%, come-cotas 15%) ou
+  `FUND_SHORT_TERM` (22,5/20%, come-cotas 20%) por `long_term_tax`; IOF regressivo da tabela geral nos 30 primeiros
+  dias. Come-cotas no último dia útil de maio e novembro, por lote, gravado em `fund_tax_events` e regerado
+  (`FundTaxService`) a cada escrita na posição e a cada cota nova; as cotas retidas saem da quantidade
+  (`PositionCalculator.withholdingsOf`). Resgate: PEPS, IR do prazo menos o come-cotas já retido daquelas cotas.
+  Carteira: líquido estimado de um resgate total hoje (`estimatedNet`, base `COTA`). Limitação: prejuízo não compensa.
+- **Fora da tela de Ativos** (D18, D20): fundo não tem emissor nem página; não entra na busca do topo, e a busca de
+  ativos sem tipo o deixa de fora.
+
 ### Moedas (26/10/2026)
 Plano: `docs/planos/PLANO_CADASTRO_MOEDAS.md`.
 
@@ -2024,7 +2072,7 @@ não "quando o usuário mexeu nesta posição" — para a segunda pergunta, o qu
 
 ### Testes — existem desde 22/09/2026
 
-**Em 24/10/2026, noite (metas: `GoalProjectionTest` 5, `GoalTypeCatalogTest` 6, `GoalEvaluatorTest` 13, `GoalsIT` 9; `SchemaTest` na V8 e `TaskControllerIT` com 27 tarefas): core 217; integration 103; adm-api 131 + 83; app-api 234 + 284 — todos verdes em `mvn clean verify` (12 min).** Antes, **em 24/10/2026 (tela de Ativos: `FinancialMetricRulesTest` +4, `QuarterSeriesTest` e `FinancialStatementImportIT` com as contas novas, `IndicatorRulesTest` +5, `IndicatorsIT` +4, `CompanyDataIT` 4, `AnnualStatementsIT` 4, `SchemaTest` na V7): core 212; integration 103; adm-api 131 + 83; app-api 215 + 275 — todos verdes em `mvn clean verify` (11 min).** Antes, **em 23/10/2026 (Tarefas, pós-implementação: `TaskControllerIT.filtroDeStatus`; vigência nominal e disparo adiantado — `TaskScheduleRegistryTest` 2 → 4): core 212; integration 103; adm-api 127 + 83; app-api 210 + 263 — todos verdes em `mvn clean verify`.** Antes, **em 22/10/2026, mais tarde (nomes internos em inglês: classes, bases, helpers e métodos dos testes em inglês — `FunctionalBase`, `CatalogE2EBase`, `SyntheticAccount`, `DividendsIT`…; os `@DisplayName` ficam em português): a mesma contagem, core 210; integration 103; adm-api 127 + 82; app-api 210 + 263 — todos verdes em `mvn clean verify`.** Antes, **em 22/10/2026, noite (fonte do Tesouro: `PublicFileCacheTest` 7, `TreasuryPricesTaskTest` 2, `TreasuryPriceIT` 4 → 8): core 210; integration 103; adm-api 127 + 82; app-api 210 + 263 — todos verdes em `mvn clean verify`** (numa primeira rodada o `TaskExecutorTest.runLog`, que depende de tempo — espera o lote de 1 s do log —, falhou uma vez e passou na seguinte, sem mudança). Antes, **em 22/10/2026 (Tarefas: `TaskAttributeValuesTest` 3, `TaskCatalogServiceTest` 3, `TaskExecutorTest` 11, `TaskScheduleRegistryTest` 2, `FnetStatusSyncTaskTest` 2 no lugar do `FnetStatusSchedulerTest` 3, `TaskControllerIT` 5): core 210; integration 103; adm-api 118 + 78; app-api 210 + 263 — todos verdes em `mvn clean verify`.** Antes, em 21/10/2026 (correção dos proventos: `DividendCorrectionIT` 24, `DividendReconciliationIT` 5; `ExtratoProventosIT` saiu): core 190; integration 103; adm-api 116 + 73; app-api 210 + 261 — todos verdes em `mvn clean verify`. Depois, no mesmo dia (rotina semanal [A12] e data da B3 que muda — `FnetStatusSchedulerTest` 3, `PaymentDateSourceIT` 5): core 190; integration 103; adm-api 119 + 73; app-api 210 + 263 — verdes. Antes, **em 17/10/2026, mais tarde (listagem de emissoras: `IssuerListingIT`): core 190; integration 103; adm-api 116 + 49; app-api 210 + 261 — todos verdes em `mvn clean verify` (~6 min).** Antes, no mesmo dia, à noite ("Mudanças de tela": `DashboardSummaryIT` — aportes compras − vendas em 12 meses, valor líquido do Patrimônio — e os proventos de 12 meses no `DividendsToReceiveIT`): core 190; integration 103; adm-api 116 + 49; app-api 210 + 256 — todos verdes em `mvn clean verify` (~7 min). Antes, no mesmo dia (Rentabilidade, com o padrão do Tesouro e a V59): core 190; integration 103; adm-api 116 + 49; app-api 210 + 251. Antes, na entrega da Rentabilidade: core 189; integration 103; adm-api 116 + 48; app-api 210 + 250. Antes, em 10/10/2026 (Preço Teto, payout pela DFC, COTAHIST diário): core 158; integration 103; adm-api 89 + 40; app-api 189 + 199 — todos verdes em `mvn verify` (~6 min).** Antes, em 05/10/2026, noite (valorização da renda fixa): 521 unitários + 231 de integração, por módulo: core 158; integration 103; adm-api 88 + 38; app-api 172 + 193, todos verdes em `mvn clean verify` (~7 min). Na F11 (28/09/2026) eram 394 + 180.
+**Em 27/10/2026 (fundos de investimento: `FundLabelTest` 3, `FundKeysTest` 3, `FundDailyReportReaderTest` 3, `FundTaxTest` 7, `SchemaTest` na V12, `FundQuotesTaskTest` 5, `FundCatalogIT` 4, `FundTransactionsIT` 4, `FundTaxesIT` 4, `TaskControllerIT` com 29 tarefas; o PostgreSQL dos testes com `max_connections=300` — o contexto novo da `FundCatalogIT` passou das 100 conexões): core 248; integration 103; adm-api 138 + 91; app-api 236 + 305 — todos verdes em `mvn clean verify`** (numa primeira rodada o `TaskExecutorTest.runLog`, o que depende de tempo, falhou e passou na seguinte, sem mudança). Antes, **em 24/10/2026, noite (metas: `GoalProjectionTest` 5, `GoalTypeCatalogTest` 6, `GoalEvaluatorTest` 13, `GoalsIT` 9; `SchemaTest` na V8 e `TaskControllerIT` com 27 tarefas): core 217; integration 103; adm-api 131 + 83; app-api 234 + 284 — todos verdes em `mvn clean verify` (12 min).** Antes, **em 24/10/2026 (tela de Ativos: `FinancialMetricRulesTest` +4, `QuarterSeriesTest` e `FinancialStatementImportIT` com as contas novas, `IndicatorRulesTest` +5, `IndicatorsIT` +4, `CompanyDataIT` 4, `AnnualStatementsIT` 4, `SchemaTest` na V7): core 212; integration 103; adm-api 131 + 83; app-api 215 + 275 — todos verdes em `mvn clean verify` (11 min).** Antes, **em 23/10/2026 (Tarefas, pós-implementação: `TaskControllerIT.filtroDeStatus`; vigência nominal e disparo adiantado — `TaskScheduleRegistryTest` 2 → 4): core 212; integration 103; adm-api 127 + 83; app-api 210 + 263 — todos verdes em `mvn clean verify`.** Antes, **em 22/10/2026, mais tarde (nomes internos em inglês: classes, bases, helpers e métodos dos testes em inglês — `FunctionalBase`, `CatalogE2EBase`, `SyntheticAccount`, `DividendsIT`…; os `@DisplayName` ficam em português): a mesma contagem, core 210; integration 103; adm-api 127 + 82; app-api 210 + 263 — todos verdes em `mvn clean verify`.** Antes, **em 22/10/2026, noite (fonte do Tesouro: `PublicFileCacheTest` 7, `TreasuryPricesTaskTest` 2, `TreasuryPriceIT` 4 → 8): core 210; integration 103; adm-api 127 + 82; app-api 210 + 263 — todos verdes em `mvn clean verify`** (numa primeira rodada o `TaskExecutorTest.runLog`, que depende de tempo — espera o lote de 1 s do log —, falhou uma vez e passou na seguinte, sem mudança). Antes, **em 22/10/2026 (Tarefas: `TaskAttributeValuesTest` 3, `TaskCatalogServiceTest` 3, `TaskExecutorTest` 11, `TaskScheduleRegistryTest` 2, `FnetStatusSyncTaskTest` 2 no lugar do `FnetStatusSchedulerTest` 3, `TaskControllerIT` 5): core 210; integration 103; adm-api 118 + 78; app-api 210 + 263 — todos verdes em `mvn clean verify`.** Antes, em 21/10/2026 (correção dos proventos: `DividendCorrectionIT` 24, `DividendReconciliationIT` 5; `ExtratoProventosIT` saiu): core 190; integration 103; adm-api 116 + 73; app-api 210 + 261 — todos verdes em `mvn clean verify`. Depois, no mesmo dia (rotina semanal [A12] e data da B3 que muda — `FnetStatusSchedulerTest` 3, `PaymentDateSourceIT` 5): core 190; integration 103; adm-api 119 + 73; app-api 210 + 263 — verdes. Antes, **em 17/10/2026, mais tarde (listagem de emissoras: `IssuerListingIT`): core 190; integration 103; adm-api 116 + 49; app-api 210 + 261 — todos verdes em `mvn clean verify` (~6 min).** Antes, no mesmo dia, à noite ("Mudanças de tela": `DashboardSummaryIT` — aportes compras − vendas em 12 meses, valor líquido do Patrimônio — e os proventos de 12 meses no `DividendsToReceiveIT`): core 190; integration 103; adm-api 116 + 49; app-api 210 + 256 — todos verdes em `mvn clean verify` (~7 min). Antes, no mesmo dia (Rentabilidade, com o padrão do Tesouro e a V59): core 190; integration 103; adm-api 116 + 49; app-api 210 + 251. Antes, na entrega da Rentabilidade: core 189; integration 103; adm-api 116 + 48; app-api 210 + 250. Antes, em 10/10/2026 (Preço Teto, payout pela DFC, COTAHIST diário): core 158; integration 103; adm-api 89 + 40; app-api 189 + 199 — todos verdes em `mvn verify` (~6 min).** Antes, em 05/10/2026, noite (valorização da renda fixa): 521 unitários + 231 de integração, por módulo: core 158; integration 103; adm-api 88 + 38; app-api 172 + 193, todos verdes em `mvn clean verify` (~7 min). Na F11 (28/09/2026) eram 394 + 180.
 O suporte comum (container do PostgreSQL, bases, fixtures, `application-test.yml`) vem do
 test-jar do core. A app-api tem a adm-api **só no classpath de teste**, para os testes de ponta a ponta de
 proventos e fechamento (`CatalogE2EBase`: fonte mockada → catálogo pela adm-api → recálculo pela app-api →

@@ -161,4 +161,17 @@ class PositionCalculatorEventsTest {
         assertThat(compute(txs, List.of(), List.of()))
             .isEqualTo(calculator.calculate(false, txs));
     }
+
+    @Test
+    @DisplayName("Come-cotas: as cotas retidas saem no fim do dia, o aplicado fica (PLANO_FUNDOS_INVESTIMENTO.md, C10)")
+    void comeCotasWithholding() {
+        List<Transaction> txs = List.of(tx(TransactionType.BUY, "2024-01-10", "1000", "1", 0));
+        PositionEvents events = new PositionEvents(List.of(), List.of(),
+            List.of(new ShareWithholding(LocalDate.parse("2024-05-31"), new BigDecimal("13.63636364"))));
+        Position p = calculator.calculate(false, txs, events, LocalDate.parse("2024-06-01"));
+        assertThat(p.shares()).isEqualByComparingTo("986.36363636");
+        assertThat(p.totalInvested()).isEqualByComparingTo("1000.00");
+        Position before = calculator.calculate(false, txs, events, LocalDate.parse("2024-05-30"));
+        assertThat(before.shares()).isEqualByComparingTo("1000");
+    }
 }

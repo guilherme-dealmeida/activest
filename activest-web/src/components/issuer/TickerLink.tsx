@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useAssetLabel } from '@/utils/assetLabel';
 
 interface Props {
   ticker: string;
@@ -13,8 +14,10 @@ interface Props {
  * sobe para a linha da tabela.
  */
 export const TickerLink = ({ ticker, issuerId, className = 'font-medium' }: Props) => {
+  const label = useAssetLabel();
   if (issuerId == null || issuerId === undefined) {
-    return <span className={className}>{ticker}</span>;
+    // sem emissor: texto — no fundo de investimento, o nome curto (o ticker dele é o CNPJ; D3, D18)
+    return <span className={className} title={label(ticker) !== ticker ? ticker : undefined}>{label(ticker)}</span>;
   }
   return (
     <Link

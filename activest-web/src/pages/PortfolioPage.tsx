@@ -23,6 +23,7 @@ import { apiMessage } from '@/utils/apiError';
 import { TickerLink } from '@/components/issuer/TickerLink';
 import { performanceApi } from '@/api/performance';
 import { POSITIONS_TWR_KEY, classicReturn } from '@/utils/returns';
+import { assetText, useAssetLabel } from '@/utils/assetLabel';
 
 /** "17,5%" — alíquota (0,175) em percentual. */
 const pct = (v: number) => `${(v * 100).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%`;
@@ -34,6 +35,16 @@ const pct = (v: number) => `${(v * 100).toLocaleString('pt-BR', { maximumFractio
 const EstimatedNet = ({ asset }: { asset: PortfolioAssetDetail }) => {
   const [open, setOpen] = useState(false);
   const lots = asset.lots ?? [];
+  if (lots.length === 0) {
+    // fundo de investimento (PLANO_FUNDOS_INVESTIMENTO.md, C10): o líquido de um resgate total hoje, sem a tabela de
+    // aportes; na Previdência, o bruto (IR do plano não calculado — D21)
+    return (
+      <span className="text-xs text-gray-400 tabular-nums"
+        title={asset.valuationNote ?? 'Líquido estimado de um resgate total hoje: bruto − IOF − IR, aporte a aporte (PEPS), já descontado o come-cotas.'}>
+        líq. {formatCurrency(asset.estimatedNet ?? 0)}
+      </span>
+    );
+  }
   return (
     <>
       <button
@@ -47,7 +58,7 @@ const EstimatedNet = ({ asset }: { asset: PortfolioAssetDetail }) => {
       <Modal
         isOpen={open}
         onClose={() => setOpen(false)}
-        title={`${asset.ticker}${asset.issuer ? ` ${asset.issuer}` : ''} — aportes`}
+        title={`${assetText(asset.ticker)}${asset.issuer ? ` ${asset.issuer}` : ''} — aportes`}
         size="xl"
       >
         <p className="mb-4 text-sm text-gray-400">
@@ -588,7 +599,7 @@ const PortfolioTypeTable = ({ type, assets, reservation, twrByPosition, typeTwr,
                       checked={asset.isReservation}
                       disabled={reservation.pendingId === asset.id}
                       onChange={(next) => reservation.onToggle(asset, next)}
-                      label={`Reserva de emergência — ${asset.ticker}`}
+                      label={`Reserva de emergência — ${assetText(asset.ticker)}`}
                       title={
                         asset.isReservation
                           ? 'Retirar da reserva de emergência'
@@ -703,6 +714,8 @@ const PortfolioTypeSection = ({ type, assets, reservation, twrByPosition, typeTw
 };
 
 export const PortfolioPage = () => {
+  // nomes curtos dos fundos: redesenha quando chegam (o ticker do fundo é o CNPJ — PLANO_FUNDOS_INVESTIMENTO.md, D3)
+  useAssetLabel();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
@@ -757,8 +770,8 @@ export const PortfolioPage = () => {
       queryClient.invalidateQueries({ queryKey: ['strategy'] });
       showToast(
         updated.isReservation
-          ? `O ${updated.ticker} selecionado agora faz parte da sua reserva de emergência`
-          : `O ${updated.ticker} selecionado NÃO faz mais parte da sua reserva de emergência`,
+          ? `O ${assetText(updated.ticker)} selecionado agora faz parte da sua reserva de emergência`
+          : `O ${assetText(updated.ticker)} selecionado NÃO faz mais parte da sua reserva de emergência`,
         'success'
       );
     },

@@ -13,6 +13,7 @@ import { AllocationPieChart } from '@/components/charts/AllocationPieChart';
 import { CumulativeCard } from '@/components/performance/CumulativeCard';
 import { PerformanceSummary } from '@/types/performance';
 import { POSITIONS_TWR_KEY, classicReturn } from '@/utils/returns';
+import { assetText, useAssetLabel } from '@/utils/assetLabel';
 
 /** Uma linha de card do Dashboard: rótulo e valor (link quando leva a outra tela). */
 interface StatLine {
@@ -94,6 +95,8 @@ const returnLine = (label: string, perf: PerformanceSummary | undefined, to: str
 };
 
 export const DashboardPage = () => {
+  // nomes curtos dos fundos: redesenha quando chegam (o ticker do fundo é o CNPJ — PLANO_FUNDOS_INVESTIMENTO.md, D3)
+  useAssetLabel();
   const { data: summary, isLoading: loadingSummary } = useQuery({
     queryKey: ['portfolio', 'summary'],
     queryFn: portfolioApi.getSummary
@@ -233,7 +236,7 @@ export const DashboardPage = () => {
                   <tr key={asset.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                     <td className="py-3 px-4">
                       <div>
-                        <span className="text-white font-medium">{asset.ticker}</span>
+                        <span className="text-white font-medium">{assetText(asset.ticker)}</span>
                         <p className="text-gray-500 text-xs">{asset.assetName}</p>
                       </div>
                     </td>

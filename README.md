@@ -69,6 +69,11 @@ activest/
 - ✅ Cadastro de moedas (26/10/2026, `docs/planos/PLANO_CADASTRO_MOEDAS.md`): real como base e dólar, câmbio da PTAX
   desde 2010, moeda no ativo, na transação e no provento, tributos do exterior por data (IOF de câmbio, IR da Lei
   14.754/2023, retenção dos EUA) e a tela de administrador Moedas
+- ✅ Fundos de investimento da CVM (27/10/2026, `docs/planos/PLANO_FUNDOS_INVESTIMENTO.md`): ~55 mil fundos no
+  catálogo, criados e atualizados pela tarefa `FUND_QUOTES` (07:40) a partir dos dados abertos da CVM, com o nome curto
+  nas telas (o ticker é o CNPJ); busca por nome ou CNPJ, inclusive previdência; lançamento por valor e cota (a cota da
+  data vem da CVM, as cotas são calculadas); a série desde 2010 entra sozinha depois da primeira compra; IR, IOF e
+  come-cotas como a lei (previdência vale bruto) e o líquido estimado na Carteira
 - ✅ Índices de mercado desde 2010 — CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, dólar PTAX, Ibovespa e IFIX —,
   atualizados todo dia às 10:00 (Banco Central e B3), com consulta da série e do acumulado no período
   (tela **Índices**: um card por índice com período e gráfico; `/api/v1/indices`). Base da futura valorização da
@@ -183,7 +188,7 @@ Nada depende de pasta fora do projeto (`docs/planos/PLANO_CARGA_INICIAL.md`).
    `guilhermeunatec@gmail.com`, migration V9 — peça a quem mantém o projeto) e o **token só
    leitura** do bucket R2 (`S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`).
 2. **Pasta `carga/data/`** (fora do git, ~1,4 GB) baixada do bucket `activest-data` (Cloudflare R2):
-   `cvm/`, `b3/cotahist/`, `b3/proventos/`, `b3/proventos-12m/`, `b3/indices/`, `bcb/`, `fnet/`, `levantamento/`,
+   `cvm/` (com `cvm/fi`, os fundos de investimento, 1,4 GB — fora do `--minimo`), `b3/cotahist/`, `b3/proventos/`, `b3/proventos-12m/`, `b3/indices/`, `bcb/`, `fnet/`, `levantamento/`,
    `logos/`, `tesouro/`, `coingecko/` e `binance/` (histórico de cripto). Com ela a
    carga lê quase tudo do disco; sem ela baixa ~2 GB da CVM e da B3, e perde o que as fontes não
    devolvem mais (avisos antigos do FNET, datas de pagamento que já saíram da janela da B3 e as
@@ -207,7 +212,9 @@ relatórios de proventos da CVM (2022+), datas de pagamento do levantamento 2010
 (`carga/data/levantamento/datas-pagamento.json`, só onde ainda falta data), balanços com a série
 trimestral, informe mensal de FII, o preço oficial do Tesouro Direto desde 2010 (`tesouro/`) e os índices de mercado desde 2010 (CDI, Selic, IPCA, IGP-M, INPC,
 TR, meta Selic, dólar PTAX, Ibovespa e IFIX — `docs/planos/PLANO_INDICES_MERCADO.md`; ~2 min sem os
-arquivos de `bcb/` e `b3/indices/`, segundos com eles).
+arquivos de `bcb/` e `b3/indices/`, segundos com eles) e, por último, os fundos de investimento da CVM (cadastro e a
+última cota de cada fundo, varrendo o informe diário desde 2010 em `cvm/fi`, ~7 min; sem série — ela entra quando o
+fundo vai para uma carteira).
 Com `carga/data/` cheia leva **~1 h**. É retomável: se uma etapa falhar (a B3 às vezes cai), rode de
 novo — o que já entrou é pulado. Conferência: `carga/scripts/sql/contagens.sql` e
 `carga/scripts/sql/datas_pagamento.sql` (ver `carga/scripts/README.md`).
@@ -254,6 +261,7 @@ node carga/scripts/b3investidor/conferir.mjs --api http://localhost:8082 --mock 
 | **Banco Central — SGS** | Índices: CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, dólar PTAX (sem token) | [dadosabertos.bcb.gov.br](https://dadosabertos.bcb.gov.br) |
 | **Banco Central — PTAX (Olinda)** | Câmbio das moedas cadastradas: compra e venda do boletim de fechamento, desde 2010 (sem token) — `docs/planos/PLANO_CADASTRO_MOEDAS.md` | [dadosabertos.bcb.gov.br](https://dadosabertos.bcb.gov.br/dataset/taxas-de-cambio-todos-os-boletins-diarios) |
 | **Site da B3** | Proventos, eventos societários, série histórica (COTAHIST) e os índices Ibovespa e IFIX | [b3.com.br](https://www.b3.com.br) |
+| **CVM — dados abertos dos fundos** | Cadastro dos fundos (`registro_fundo_classe`, `cad_fi_hist`, `cad_fi`) e informe diário com a cota (sem token) — `docs/planos/PLANO_FUNDOS_INVESTIMENTO.md` | [dados.cvm.gov.br](https://dados.cvm.gov.br/dataset/fi-doc-inf_diario) |
 | **Tesouro Transparente** | Preço e taxa diários dos títulos do Tesouro Direto (PU de resgate) | [tesourotransparente.gov.br](https://www.tesourotransparente.gov.br) |
 | **Google OAuth** | Autenticação | [console.cloud.google.com](https://console.cloud.google.com) |
 | **Binance** | Operações de cripto do usuário (chave só de leitura) | [binance-docs.github.io](https://binance-docs.github.io/apidocs/spot/en/) |
@@ -267,6 +275,7 @@ node carga/scripts/b3investidor/conferir.mjs --api http://localhost:8082 --mock 
 | Tesouro Direto | SELIC, IPCA+, Prefixado |
 | FII | Tijolo, Papel, Fundo de Fundos, Híbrido |
 | Renda Variável | Banco, Commodity, Seguro, Energia, Financeiro, Telefonia, Saneamento, Tecnologia |
+| Fundo de Investimento | Multimercado, Renda Fixa, Previdência, Ações, Cambial, Outros (1º nível ANBIMA) |
 | Internacional | ETF, BDR |
 | Crypto | Blockchain |
 

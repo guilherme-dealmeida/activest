@@ -4,7 +4,7 @@
 > 05/10/2026 ([18] índices de mercado, [19] preço do Tesouro) · 21/10/2026 ([17] situação dos avisos do FNET, no lugar
 > da antiga conferência por extrato, removida — `docs/planos/PLANO_CORRECAO_PROVENTOS.md`) · 22/10/2026 (Tarefas: os
 > endpoints passam pelo executor das tarefas e cada pedido vira uma rodada na tela `/tasks` — `docs/planos/PLANO_TAREFAS.md`,
-> D16 e D22).
+> D16 e D22) · 27/10/2026 (Fundos de investimento: sem endpoint próprio — tarefa `FUND_QUOTES` e etapa do `BOOTSTRAP`).
 
 | Tema | Como funciona |
 |---|---|
@@ -342,3 +342,13 @@ node carga/scripts/admin.mjs currencies --method GET
 ```
 
 **Propósito.** Moeda nova = uma linha aqui + a série de câmbio (`docs/planos/PLANO_CADASTRO_MOEDAS.md`).
+
+## Fundos de investimento
+
+### (27/10/2026) — sem endpoint próprio
+
+O cadastro e a cota dos fundos da CVM entram pela tarefa `FUND_QUOTES` (tela `/tasks`: Run; atributo `FROM_MONTH`
+para rebaixar desde um mês — ver `docs/SCHEDULE_TASKS.md`, [A17]) e pela etapa "fundos de investimento" do
+`POST /api/v1/admin/bootstrap` (o informe inteiro desde 2010, para cadastrar também os encerrados; sem série). A série
+de cada fundo entra sob demanda, depois da primeira transação, pelo mesmo pedido "preciso do histórico" dos proventos
+(`docs/planos/PLANO_FUNDOS_INVESTIMENTO.md`, C11).

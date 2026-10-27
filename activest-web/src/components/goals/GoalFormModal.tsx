@@ -17,6 +17,7 @@ import { FieldLabel } from './FieldLabel';
 import { MultiPicker } from './MultiPicker';
 import { formatGoalValue, SITUATION } from './goalFormat';
 import { Badge } from '@/components/ui/Badge';
+import { assetText } from '@/utils/assetLabel';
 
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
   <p className="text-xs uppercase tracking-wide text-gray-500">{children}</p>
@@ -318,7 +319,7 @@ export const GoalFormModal = ({ isOpen, onClose, catalog, goal, onSaved }: Props
             {ev && !preview.isError && (
               <>
                 <p className="text-sm text-white">{ev.objective}</p>
-                {preview.data?.scopeLabel && <p className="text-xs text-gray-400">{preview.data.scopeLabel}</p>}
+                {preview.data?.scopeLabel && <p className="text-xs text-gray-400">{assetText(preview.data.scopeLabel)}</p>}
                 <div>
                   <p className="text-xs text-gray-400">{ev.indicatorLabel}</p>
                   <p className="text-2xl font-semibold text-white">{formatGoalValue(ev.indicator, ev.unit)}</p>

@@ -7,6 +7,7 @@ import { PercentInput } from '@/components/ui/PercentInput';
 import { MaskedNumberInput } from '@/components/ui/MaskedNumberInput';
 import { GoalField, Option } from '@/types/goals';
 import { FieldLabel } from './FieldLabel';
+import { assetText } from '@/utils/assetLabel';
 
 interface Props {
   field: GoalField;
@@ -65,7 +66,7 @@ export const GoalFieldInput = ({ field, value, onChange, required, options }: Pr
       input = (
         <Select id={id} value={(value as string) ?? ''} onChange={e => onChange(e.target.value || null)}>
           {!required && <option value="">—</option>}
-          {(field.options ?? []).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          {(field.options ?? []).map(o => <option key={o.value} value={o.value}>{assetText(o.label)}</option>)}
         </Select>
       );
       break;
@@ -89,7 +90,7 @@ export const GoalFieldInput = ({ field, value, onChange, required, options }: Pr
         input = (
           <Select id={id} value={(value as string) ?? ''} onChange={e => onChange(e.target.value || null)}>
             <option value="">Escolha…</option>
-            {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {options.map(o => <option key={o.value} value={o.value}>{assetText(o.label)}</option>)}
           </Select>
         );
       } else {
@@ -98,7 +99,7 @@ export const GoalFieldInput = ({ field, value, onChange, required, options }: Pr
           <>
             <Input id={id} list={options ? listId : undefined} value={(value as string) ?? ''}
               onChange={e => onChange(field.kind === 'TICKER' ? e.target.value.toUpperCase() : e.target.value)} />
-            {options && <datalist id={listId}>{options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</datalist>}
+            {options && <datalist id={listId}>{options.map(o => <option key={o.value} value={o.value}>{assetText(o.label)}</option>)}</datalist>}
           </>
         );
       }

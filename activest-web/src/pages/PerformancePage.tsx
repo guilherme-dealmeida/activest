@@ -1,3 +1,4 @@
+import { useAssetLabel } from '@/utils/assetLabel';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -46,6 +47,8 @@ try {
  * eles a tela abre em 12M, bruto e só com o CDI (17/10/2026).
  */
 export const PerformancePage = () => {
+  // nomes curtos dos fundos nos rótulos (o ticker do fundo é o CNPJ — PLANO_FUNDOS_INVESTIMENTO.md, D3)
+  useAssetLabel();
   const [params, setParams] = useSearchParams();
   const type = params.get('type') ?? '';
   const category = params.get('category') ?? '';

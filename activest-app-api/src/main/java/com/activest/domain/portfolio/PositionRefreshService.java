@@ -47,6 +47,10 @@ public class PositionRefreshService {
     private final TreasuryAllocator treasuryAllocator;
     private final TransactionTemplate tx;
 
+    /** Come-cotas dos fundos (PLANO_FUNDOS_INVESTIMENTO.md, F7); opcional nos testes que montam o servico. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.activest.domain.fund.FundTaxService fundTax;
+
     public PositionRefreshService(PortfolioAssetRepository portfolioAssetRepository,
                                   DividendRecalculator dividendRecalculator,
                                   AppreciationUpdater appreciationUpdater,
@@ -120,13 +124,33 @@ public class PositionRefreshService {
             return new Result(0, 0);
         }
         Result r = switch (change.origin()) {
-            case FECHAMENTO -> new Result(appreciationUpdater.refreshAssets(change.assetIds()), 0);
+            case FECHAMENTO -> {
+                refreshFundTaxes(change.assetIds());
+                yield new Result(appreciationUpdater.refreshAssets(change.assetIds()), 0);
+            }
             case PROVENTOS -> recalculate(() -> portfolioAssetRepository.findAllByAssetIdIn(change.assetIds()));
             case INDICES, BALANCOS, CAMBIO -> new Result(0, 0);
         };
         log.info("Carteira: catalogo mudou ({}, {} ativos) — {} posicoes, {} proventos novos",
                 change.origin(), change.assetIds().size(), r.positions(), r.newDividends());
         return r;
+    }
+
+    /**
+     * Cota nova de fundo muda o come-cotas (cota do ultimo dia util de maio/novembro) e o imposto dos resgates: refeitos
+     * antes da valorizacao (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md, F7).
+     */
+    private void refreshFundTaxes(java.util.Collection<Long> assetIds) {
+        if (fundTax == null) {
+            return;
+        }
+        tx.executeWithoutResult(s -> {
+            for (PortfolioAsset pa : portfolioAssetRepository.findAllByAssetIdIn(assetIds)) {
+                if (com.activest.domain.fund.FundTaxService.applies(pa.getAsset())) {
+                    fundTax.recompute(pa, dividendRecalculator.chronologicalTransactions(pa));
+                }
+            }
+        });
     }
 
     /** Todas as posicoes: proventos e valorizacao. Rede de seguranca diaria. */
@@ -143,7 +167,12 @@ public class PositionRefreshService {
             List<PortfolioAsset> all = positions.get();
             for (PortfolioAsset pa : all) {
                 TaskRun.checkStop(); // ponto de parada (docs/planos/PLANO_TAREFAS.md, D8)
-                dividends += dividendRecalculator.recalculate(pa, dividendRecalculator.chronologicalTransactions(pa));
+                List<com.activest.domain.transaction.Transaction> chronological =
+                        dividendRecalculator.chronologicalTransactions(pa);
+                if (fundTax != null && com.activest.domain.fund.FundTaxService.applies(pa.getAsset())) {
+                    fundTax.recompute(pa, chronological);
+                }
+                dividends += dividendRecalculator.recalculate(pa, chronological);
                 appreciationUpdater.refresh(pa);
             }
             fixedIncomeValuation.refresh(all);

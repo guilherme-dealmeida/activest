@@ -3,6 +3,10 @@ package com.activest.domain.asset;
 import com.activest.domain.asset.dto.AssetCategoryResponseDTO;
 import com.activest.domain.asset.dto.AssetResponseDTO;
 import com.activest.domain.asset.dto.AssetTypeResponseDTO;
+import com.activest.domain.fund.FundCategory;
+import com.activest.domain.fund.FundKeys;
+import com.activest.domain.fund.InvestmentFund;
+import com.activest.domain.fund.InvestmentFundRepository;
 import com.activest.domain.portfolio.AppreciationUpdater;
 import com.activest.exception.ResourceNotFoundException;
 import org.springframework.data.domain.PageRequest;
@@ -23,27 +27,59 @@ public class AssetService {
     private final AssetTypeRepository assetTypeRepository;
     private final AssetCategoryRepository assetCategoryRepository;
     private final AppreciationUpdater appreciationUpdater;
+    private final InvestmentFundRepository fundRepository;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     public AssetService(AssetRepository assetRepository, AssetTypeRepository assetTypeRepository,
-                        AssetCategoryRepository assetCategoryRepository, AppreciationUpdater appreciationUpdater) {
+                        AssetCategoryRepository assetCategoryRepository, AppreciationUpdater appreciationUpdater,
+                        InvestmentFundRepository fundRepository, org.springframework.jdbc.core.JdbcTemplate jdbc) {
         this.assetRepository = assetRepository;
         this.assetTypeRepository = assetTypeRepository;
         this.assetCategoryRepository = assetCategoryRepository;
         this.appreciationUpdater = appreciationUpdater;
+        this.fundRepository = fundRepository;
+        this.jdbc = jdbc;
+    }
+
+    /** Resultado da busca de fundos: a lista e quantos encerrados também casam (o "Mostrar N encerrados", D11). */
+    public record FundSearch(List<AssetResponseDTO> assets, int inactiveMatches) {
     }
 
     /**
-     * Gets all assets.
+     * Busca de fundo de investimento (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md, C11/D11/D25): CNPJ com ou sem máscara,
+     * nome curto, social, comercial e anteriores, sem acento, pelo índice pg_trgm de {@code investment_funds.search_text}.
+     * Vivos primeiro (todos, sem filtro por exclusivo ou público-alvo — I1); encerrados só com {@code includeInactive}.
      */
-    public List<AssetResponseDTO> getAllAssets() {
-        return assetRepository.findAllWithTerms().stream().map(this::toDTO).collect(Collectors.toList());
+    public FundSearch searchFunds(String query, boolean includeInactive) {
+        String q = FundKeys.normalize(query);
+        if (q.length() < 2) {
+            return new FundSearch(List.of(), 0);
+        }
+        String like = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+        String cnpj = FundKeys.cnpj(query);
+        List<Long> ids = jdbc.queryForList("""
+                SELECT a.id FROM investment_funds f JOIN assets a ON a.id = f.asset_id
+                 WHERE f.search_text LIKE ? AND (? OR a.active)
+                 ORDER BY a.active DESC,
+                          CASE WHEN f.cnpj = ? THEN 0 WHEN f.short_name LIKE ? THEN 1 ELSE 2 END,
+                          f.net_worth DESC NULLS LAST, f.short_name
+                 LIMIT ?""", Long.class, like, includeInactive, cnpj == null ? "" : cnpj, q + "%", SEARCH_LIMIT);
+        Integer inactive = includeInactive ? 0 : jdbc.queryForObject("""
+                SELECT COUNT(*) FROM investment_funds f JOIN assets a ON a.id = f.asset_id
+                 WHERE f.search_text LIKE ? AND NOT a.active""", Integer.class, like);
+        java.util.Map<Long, Asset> byId = assetRepository.findAllById(ids).stream()
+            .collect(Collectors.toMap(Asset::getId, a -> a));
+        java.util.Map<Long, InvestmentFund> funds = fundRepository.findByAssetIdIn(ids).stream()
+            .collect(Collectors.toMap(InvestmentFund::getAssetId, f -> f));
+        List<AssetResponseDTO> out = ids.stream().map(byId::get).filter(java.util.Objects::nonNull)
+            .map(a -> toDTO(a, funds.get(a.getId()))).toList();
+        return new FundSearch(out, inactive == null ? 0 : inactive);
     }
 
-    /**
-     * Gets assets by type.
-     */
-    public List<AssetResponseDTO> getAssetsByType(Long typeId) {
-        return assetRepository.findByAssetTypeId(typeId).stream().map(this::toDTO).collect(Collectors.toList());
+    /** O tipo é o dos fundos de investimento (cota da CVM)? */
+    public boolean isFundType(Long typeId) {
+        return typeId != null && assetTypeRepository.findById(typeId)
+            .map(t -> t.getPriceSource() == PriceSource.CVM).orElse(false);
     }
 
     /**
@@ -106,7 +142,10 @@ public class AssetService {
         List<Asset> found = typeId != null
             ? assetRepository.searchByTypeAndTickerOrName(typeId, query, limit)
             : assetRepository.searchByTickerOrName(query, limit);
-        return found.stream().map(this::toDTO).collect(Collectors.toList());
+        // Sem tipo, fundo de investimento fica de fora: ele tem busca própria (searchFunds) e não tem página (D20).
+        return found.stream()
+            .filter(a -> typeId != null || a.getAssetType() == null || a.getAssetType().getPriceSource() != PriceSource.CVM)
+            .map(this::toDTO).collect(Collectors.toList());
     }
 
     /**
@@ -136,6 +175,12 @@ public class AssetService {
     }
 
     private AssetResponseDTO toDTO(Asset asset) {
+        InvestmentFund fund = asset.getAssetType() != null && asset.getAssetType().getPriceSource() == PriceSource.CVM
+            ? fundRepository.findById(asset.getId()).orElse(null) : null;
+        return toDTO(asset, fund);
+    }
+
+    private AssetResponseDTO toDTO(Asset asset, InvestmentFund fund) {
         // Ativo sem parametros publicos nao tem linha em asset_terms: a
         // ausencia da linha JA e a informacao "nao tem prazo nem indexador".
         AssetTerms terms = asset.getTerms();
@@ -153,7 +198,12 @@ public class AssetService {
             terms != null ? terms.getRateType()     : null,
             terms != null ? terms.getIndexer()      : null,
             asset.isActive(),
-            asset.getCurrencyCode()
+            asset.getCurrencyCode(),
+            fund != null ? fund.getShortName() : asset.getTicker(),
+            fund == null ? null : new AssetResponseDTO.FundInfo(FundKeys.format(fund.getCnpj()), fund.getSubclassId(),
+                fund.getAnbimaClassification(), fund.getTargetAudience(), fund.getExclusive(),
+                asset.getAssetCategory() != null && FundCategory.PREVIDENCIA.equals(asset.getAssetCategory().getName()),
+                fund.getCvmStatus(), fund.getLastQuoteOn())
         );
     }
 }

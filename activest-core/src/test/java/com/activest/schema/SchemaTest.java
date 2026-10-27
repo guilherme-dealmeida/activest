@@ -25,11 +25,22 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Flyway roda ate a V11 (V1-V6 consolidadas + contas novas da tela de Ativos + metas + moedas, proventos do exterior e euro) e o schema valida contra as entidades")
+    @DisplayName("Flyway roda ate a V12 (V1-V6 consolidadas + contas novas da tela de Ativos + metas + moedas, proventos do exterior, euro e fundos de investimento) e o schema valida contra as entidades")
     void appliedMigrations() {
         Number version = (Number) em.createNativeQuery(
             "SELECT MAX(CAST(version AS NUMERIC)) FROM flyway_schema_history WHERE success").getSingleResult();
-        assertThat(version.intValue()).isEqualTo(11);
+        assertThat(version.intValue()).isEqualTo(12);
+        // V12 (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md, F1): fonte CVM, tabelas do fundo, indices em copia apagados
+        assertThat(count("asset_types WHERE name = 'FUNDO_INVESTIMENTO' AND price_source = 'CVM'")).isEqualTo(1);
+        Number fundTables = (Number) em.createNativeQuery("""
+            SELECT COUNT(*) FROM information_schema.tables
+             WHERE table_name IN ('investment_funds', 'investment_fund_names', 'fund_tax_events')""").getSingleResult();
+        assertThat(fundTables.intValue()).isEqualTo(3);
+        assertThat(count("investment_funds")).isZero();
+        assertThat(count("pg_indexes WHERE indexname IN ('idx_price_history_asset_date', 'idx_assets_ticker')")).isZero();
+        assertThat(count("pg_indexes WHERE indexname = 'idx_investment_funds_search'")).isEqualTo(1);
+        assertThat(em.createNativeQuery("SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+                + "WHERE conname = 'ck_price_history_source'").getSingleResult().toString()).contains("CVM");
         // V11: euro cadastrado e inativo
         assertThat(count("currencies WHERE code = 'EUR' AND NOT active")).isEqualTo(1);
 
@@ -73,17 +84,17 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Tarefas (V61, V62; V8 do Activest: GOALS_SNAPSHOT; V9: EXCHANGE_RATES): 28 tipos (24 da adm-api, 4 da app-api), uma tarefa por tipo, atributos espelhados")
+    @DisplayName("Tarefas (V61, V62; V8 do Activest: GOALS_SNAPSHOT; V9: EXCHANGE_RATES; V12: FUND_QUOTES): 29 tipos (25 da adm-api, 4 da app-api), uma tarefa por tipo, atributos espelhados")
     void seededTasks() {
-        assertThat(count("task_types")).isEqualTo(28);
+        assertThat(count("task_types")).isEqualTo(29);
         assertThat(count("task_types WHERE service = 'APP_API'")).isEqualTo(4);
-        assertThat(count("tasks")).isEqualTo(28);
+        assertThat(count("tasks")).isEqualTo(29);
         assertThat(count("tasks t JOIN task_types y ON y.id = t.task_type_id WHERE t.name <> y.type")).isZero();
-        assertThat(count("tasks WHERE cron IS NOT NULL")).isEqualTo(18);
-        assertThat(count("task_type_attributes")).isEqualTo(35);
-        assertThat(count("task_attributes")).isEqualTo(35);
+        assertThat(count("tasks WHERE cron IS NOT NULL")).isEqualTo(19);
+        assertThat(count("task_type_attributes")).isEqualTo(36);
+        assertThat(count("task_attributes")).isEqualTo(36);
         assertThat(count("task_type_attributes WHERE position = 0")).isZero();
-        assertThat(count("tasks WHERE run_on_startup")).isEqualTo(7);
+        assertThat(count("tasks WHERE run_on_startup")).isEqualTo(8);
         assertThat(count("task_attributes ta JOIN task_type_attributes a ON a.id = ta.task_type_attribute_id "
             + "WHERE ta.att_value IS DISTINCT FROM a.att_value")).isZero();
     }
@@ -142,7 +153,10 @@ class SchemaTest extends JpaTestBase {
         assertThat(count("asset_types")).isEqualTo(12);
         // 165 linhas (name, segment) consolidadas em uma por (tipo, name) na V31:
         // ACAO 11, BDR 20, CRIPTO 14, ETF 9, FII 5, RENDA_FIXA 15 (+ RDC na V54), TESOURO_DIRETO 6
-        assertThat(count("asset_categories")).isEqualTo(81);
+        assertThat(count("asset_categories")).isEqualTo(87);
+        // V12: as 6 categorias dos fundos de investimento (1o nivel ANBIMA, D18)
+        assertThat(count("asset_categories c JOIN asset_types t ON t.id = c.asset_type_id "
+            + "WHERE t.name = 'FUNDO_INVESTIMENTO'")).isEqualTo(6);
         // nenhum ativo perdeu a categoria na consolidacao
         assertThat(count("assets WHERE asset_category_id IS NULL")).isZero();
         // 1264 + 23 novos da B3 (V15) + 219 ETFs (V17) + 892 BDRs (V18) + 227 criptos (V19) + RDC (V54)
@@ -151,7 +165,10 @@ class SchemaTest extends JpaTestBase {
         // Regras de IR retido nos proventos (V23)
         assertThat(count("withholding_tax_rules")).isEqualTo(7);
         // IR e IOF da renda fixa (V52): 4 faixas de IR, 30 de IOF, 14 excecoes por produto
-        assertThat(count("fixed_income_tax_rules")).isEqualTo(48);
+        assertThat(count("fixed_income_tax_rules")).isEqualTo(57);
+        // V12: 9 regras de fundo (IR e come-cotas por regime); as 48 da V52 ficam GENERAL
+        assertThat(count("fixed_income_tax_rules WHERE regime = 'GENERAL'")).isEqualTo(48);
+        assertThat(count("fixed_income_tax_rules WHERE tax = 'CC'")).isEqualTo(2);
         // Indices de mercado (V43, D1): 6 indexadores de renda fixa + meta Selic, PTAX, Ibovespa e IFIX; serie vazia
         assertThat(count("market_indices")).isEqualTo(10);
         assertThat(count("market_indices WHERE code IN ('CDI','SELIC','IPCA','IGPM','INPC','TR')")).isEqualTo(6);

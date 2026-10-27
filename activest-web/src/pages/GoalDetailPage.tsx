@@ -21,6 +21,7 @@ import { getReturnColor } from '@/utils/format';
 import { GoalFormModal } from '@/components/goals/GoalFormModal';
 import { formatDateBR, formatGoalValue, LIFECYCLE, NATURE, QUALITY, SITUATION } from '@/components/goals/goalFormat';
 import { GoalEvaluation, GoalFigure, GoalUnit } from '@/types/goals';
+import { assetText, useAssetLabel } from '@/utils/assetLabel';
 
 const EVENT_LABEL: Record<string, string> = {
   CRIADA: 'Criada', EDITADA: 'Editada', PAUSADA: 'Pausada', RETOMADA: 'Retomada', CONCLUIDA: 'Concluída',
@@ -192,6 +193,8 @@ const Situation = ({ e, limit }: { e: GoalEvaluation; limit: string | null }) =>
  * cálculo existe na API e não aparece na tela (D21).
  */
 export const GoalDetailPage = () => {
+  // nomes curtos dos fundos (o ticker do fundo é o CNPJ — PLANO_FUNDOS_INVESTIMENTO.md, D3)
+  useAssetLabel();
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -288,10 +291,10 @@ export const GoalDetailPage = () => {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Link to="/goals" className="text-sm text-gray-400 hover:text-white inline-flex items-center gap-1"><ArrowLeft className="w-4 h-4" />Metas</Link>
-          <h2 className="text-xl font-semibold text-white mt-1">{goal.name}</h2>
+          <h2 className="text-xl font-semibold text-white mt-1">{assetText(goal.name)}</h2>
           <p className="text-sm text-gray-400">{goal.categoryLabel} · {goal.typeLabel} · {LIFECYCLE[lc]}{goal.revision > 1 ? ` · ${goal.revision}ª versão` : ''}</p>
           <p className="text-sm text-gray-300 mt-1">{e?.objective ?? (final?.objective as string)}</p>
-          {goal.scopeLabel && <p className="text-xs text-gray-500">{goal.scopeLabel}</p>}
+          {goal.scopeLabel && <p className="text-xs text-gray-500">{assetText(goal.scopeLabel)}</p>}
         </div>
         <div className="flex flex-wrap gap-2">
           {(lc === 'ATIVA' || lc === 'PAUSADA') && <Button variant="outline" size="sm" onClick={() => setEditing(true)} disabled={!catalog}><Pencil className="w-4 h-4 mr-1" />Editar</Button>}
