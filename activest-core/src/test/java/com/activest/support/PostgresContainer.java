@@ -23,7 +23,11 @@ public class PostgresContainer {
         new PostgreSQLContainer<>("postgres:17-alpine")
             .withDatabaseName("db_activest_test")
             .withUsername("postgres")
-            .withPassword("postgres");
+            .withPassword("postgres")
+            // Cada combinacao de @MockBean e um contexto Spring proprio, guardado em cache com o seu pool (10
+            // conexoes): com a FundCatalogIT a adm-api passou das 100 conexoes padrao ("too many clients already",
+            // 27/10/2026). fsync=off e o padrao do Testcontainers, repetido porque withCommand o substitui.
+            .withCommand("postgres", "-c", "fsync=off", "-c", "max_connections=300");
 
     static {
         POSTGRES.start();

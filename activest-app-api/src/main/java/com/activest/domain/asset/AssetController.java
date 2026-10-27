@@ -50,23 +50,32 @@ public class AssetController {
             .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    /**
+     * Busca de ativos. Exige {@code query}: sem ela a resposta seria o catálogo inteiro (~55 mil ativos com os fundos)
+     * — 400 (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md, C12/D27). Com {@code typeId} do tipo fundo, a busca é a dos
+     * fundos ({@code includeInactive} traz os encerrados; o cabeçalho {@code X-Inactive-Count} diz quantos casam).
+     */
     @GetMapping("/")
     public ResponseEntity<List<AssetResponseDTO>> listAssets(
             @RequestParam(required = false) Long typeId,
             @RequestParam(required = false) String query,
             @RequestParam(defaultValue = "false") boolean withIssuer,
-            @RequestParam(required = false) com.activest.domain.issuer.IssuerKind issuerKind) {
-        if (query != null && !query.isEmpty() && withIssuer) {
+            @RequestParam(required = false) com.activest.domain.issuer.IssuerKind issuerKind,
+            @RequestParam(defaultValue = "false") boolean includeInactive) {
+        if (query == null || query.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (!withIssuer && assetService.isFundType(typeId)) {
+            AssetService.FundSearch found = assetService.searchFunds(query, includeInactive);
+            return ResponseEntity.ok().header("X-Inactive-Count", String.valueOf(found.inactiveMatches()))
+                .header("Access-Control-Expose-Headers", "X-Inactive-Count").body(found.assets());
+        }
+        if (withIssuer) {
             // tela de emissoras: so acoes e FIIs ligados a emissor; issuerKind=COMPANY so acoes (Preco Teto)
             return ResponseEntity.ok(assetService.searchAssetsWithIssuer(query, issuerKind));
         }
-        if (query != null && !query.isEmpty()) {
-            // typeId junto com query restringe o autocomplete ao tipo escolhido
-            return ResponseEntity.ok(assetService.searchAssets(query, typeId));
-        } else if (typeId != null) {
-            return ResponseEntity.ok(assetService.getAssetsByType(typeId));
-        }
-        return ResponseEntity.ok(assetService.getAllAssets());
+        // typeId junto com query restringe o autocomplete ao tipo escolhido
+        return ResponseEntity.ok(assetService.searchAssets(query, typeId));
     }
 
     @GetMapping("/{ticker}")

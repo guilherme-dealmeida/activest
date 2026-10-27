@@ -51,6 +51,8 @@ import java.util.function.Supplier;
  *   titulo, de {@code carga/data/tesouro} (ou do Tesouro Transparente, se mudou).</li>
  *   <li><b>historico de cripto</b> (docs/planos/PLANO_RENTABILIDADE.md, 3.3): {@code carga/data/coingecko/historico}
  *   e {@code carga/data/binance/klines} — o benchmark BTC e o que estiver em carteira.</li>
+ *   <li><b>fundos de investimento</b> (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md, F2): cadastros e informe diario da CVM
+ *   de {@code carga/data/cvm/fi} — os fundos que ja reportaram desde 2010, com a ultima cota, sem serie (D5).</li>
  * </ol>
  *
  * <p><b>Retomavel:</b> toda etapa e idempotente e o que ja esta em {@code carga/data/} nao e baixado de novo
@@ -79,6 +81,10 @@ public class BootstrapService {
     private final com.activest.adm.domain.fixedincome.FixedIncomeIssuerImportService fixedIncomeIssuers;
     private final Clock clock;
     private final AtomicBoolean running = new AtomicBoolean();
+
+    /** Fundos de investimento da CVM (PLANO_FUNDOS_INVESTIMENTO.md, F2): cadastro + ultima cota, sem serie (D5). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.activest.adm.domain.fund.FundCatalogService funds;
 
     /** Historico de cripto (docs/planos/PLANO_RENTABILIDADE.md, 3.3); opcional para os testes que montam a carga. */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -162,6 +168,9 @@ public class BootstrapService {
                     () -> treasury.importFrom(TreasuryPriceService.FIRST_YEAR, reason)));
             if (cryptoHistory != null) {
                 steps.add(step("historico de cripto", () -> cryptoHistory.importAll(reason)));
+            }
+            if (funds != null) {
+                steps.add(step("fundos de investimento", () -> funds.bootstrap(reason)));
             }
             Result r = new Result(steps, (System.currentTimeMillis() - started) / 1000);
             log.info("Carga inicial ({}) concluida em {}s{}", trigger, r.seconds(),

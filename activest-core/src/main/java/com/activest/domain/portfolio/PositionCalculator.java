@@ -98,6 +98,10 @@ public class PositionCalculator {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     com.activest.domain.corporateaction.StockEventCostRepository stockEventCostRepository;
 
+    /** Come-cotas dos fundos (V12, PLANO_FUNDOS_INVESTIMENTO.md C10). Opcional, como o de cima. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.activest.domain.fund.FundTaxEventRepository fundTaxEventRepository;
+
     public PositionCalculator(TransactionRepository transactionRepository,
                               AssetStockEventRepository stockEventRepository,
                               DividendRepository dividendRepository) {
@@ -162,13 +166,39 @@ public class PositionCalculator {
     /** Eventos societarios do ativo e devolucoes de capital recebidas pela posicao. */
     public PositionEvents eventsOf(PortfolioAsset pa) {
         if (dividendRepository == null) {
-            return PositionEvents.ofStockEvents(stockEventsOf(pa));
+            return PositionEvents.ofStockEvents(stockEventsOf(pa)).withWithholdings(withholdingsOf(pa));
         }
         List<CapitalReturn> returns = dividendRepository
                 .findByPortfolioAssetIdAndTypeIn(pa.getId(), CAPITAL_RETURN_TYPES).stream()
                 .map(PositionCalculator::toCapitalReturn)
                 .toList();
-        return new PositionEvents(stockEventsOf(pa), returns);
+        return new PositionEvents(stockEventsOf(pa), returns, withholdingsOf(pa));
+    }
+
+    /** Cotas retidas no come-cotas de uma posicao de fundo; vazio nos demais tipos. */
+    public List<ShareWithholding> withholdingsOf(PortfolioAsset pa) {
+        if (fundTaxEventRepository == null || pa.getId() == null || !isFund(pa.getAsset())) {
+            return List.of();
+        }
+        List<UUID> lots = transactionRepository.findByPortfolioAssetIdOrderByTransactionDateDesc(pa.getId()).stream()
+                .map(Transaction::getId).toList();
+        return withholdings(lots);
+    }
+
+    private List<ShareWithholding> withholdings(Collection<UUID> lotIds) {
+        if (fundTaxEventRepository == null || lotIds.isEmpty()) {
+            return List.of();
+        }
+        Map<LocalDate, BigDecimal> byDate = new java.util.TreeMap<>();
+        for (com.activest.domain.fund.FundTaxEvent e : fundTaxEventRepository.findByLotTransactionIdIn(lotIds)) {
+            byDate.merge(e.getEventDate(), e.getSharesWithheld(), BigDecimal::add);
+        }
+        return byDate.entrySet().stream().map(e -> new ShareWithholding(e.getKey(), e.getValue())).toList();
+    }
+
+    private static boolean isFund(com.activest.domain.asset.Asset asset) {
+        return asset != null && asset.getAssetType() != null
+                && asset.getAssetType().getPriceSource() == com.activest.domain.asset.PriceSource.CVM;
     }
 
     /** Posicao de uma unica linha da carteira, com os eventos do papel. */
@@ -222,7 +252,8 @@ public class PositionCalculator {
             Map<Long, BigDecimal> mine = costs.getOrDefault(pa.getId(), Map.of());
             PositionEvents events = new PositionEvents(
                     stockByAsset.getOrDefault(assetId, List.of()).stream().map(e -> e.toStep(mine.get(e.getId()))).toList(),
-                    returnsByPosition.getOrDefault(pa.getId(), List.of()));
+                    returnsByPosition.getOrDefault(pa.getId(), List.of()),
+                    isFund(pa.getAsset()) ? withholdings(txs.stream().map(Transaction::getId).toList()) : List.of());
             result.put(pa.getId(), calculate(isValuedByTotal(pa.getAsset()), chronological(txs), events));
         }
         return result;
@@ -310,13 +341,16 @@ public class PositionCalculator {
     private static final class Walk {
         private final List<StockEventStep> stock;
         private final List<CapitalReturn> capital;
+        private final List<ShareWithholding> withheld;
         private int nextStock;
         private int nextCapital;
+        private int nextWithheld;
         Holding holding = Holding.NONE;
 
         Walk(PositionEvents events) {
             this.stock = events.stockEvents();
             this.capital = events.capitalReturns();
+            this.withheld = events.withholdings();
         }
 
         /**
@@ -334,6 +368,13 @@ public class PositionCalculator {
         }
 
         private void apply(LocalDate limit, boolean end) {
+            // Come-cotas: no fim do dia — vale antes de transacao do dia seguinte, e ate asOf inclusive.
+            while (nextWithheld < withheld.size()
+                    && (end ? !withheld.get(nextWithheld).date().isAfter(limit)
+                            : withheld.get(nextWithheld).date().isBefore(limit))) {
+                holding = holding.minusShares(withheld.get(nextWithheld).shares());
+                nextWithheld++;
+            }
             while (true) {
                 StockEventStep s = nextStock < stock.size() ? stock.get(nextStock) : null;
                 CapitalReturn c = nextCapital < capital.size() ? capital.get(nextCapital) : null;
@@ -390,6 +431,15 @@ public class PositionCalculator {
             CorporateActionApplier.Holding next =
                     CorporateActionApplier.apply(new CorporateActionApplier.Holding(shares, cost), event);
             return new Holding(next.shares(), next.cost());
+        }
+
+        /** Cotas retidas no come-cotas: a quantidade cai, o custo fica (sem passar de zero cotas). */
+        Holding minusShares(BigDecimal withheld) {
+            if (shares.signum() <= 0 || withheld == null || withheld.signum() <= 0) {
+                return this;
+            }
+            BigDecimal left = shares.subtract(withheld);
+            return left.signum() <= 0 ? NONE : new Holding(left, cost);
         }
 
         /** Amortizacao ou restituicao: sai do custo, sem passar de zero. */

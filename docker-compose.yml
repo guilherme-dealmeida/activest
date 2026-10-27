@@ -125,6 +125,9 @@ services:
       - maven-repo:/root/.m2
       # Logos baixados pela adm-api: aqui so leitura, para a tela.
       - ./carga/data/logos:/app/data/logos:ro
+      # Informe diario dos fundos (CVM), baixado pela adm-api: so leitura, cota da data na Nova transacao
+      # (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md, D23)
+      - ./carga/data/cvm/fi:/app/data/cvm/fi:ro
     depends_on:
       db:
         condition: service_healthy

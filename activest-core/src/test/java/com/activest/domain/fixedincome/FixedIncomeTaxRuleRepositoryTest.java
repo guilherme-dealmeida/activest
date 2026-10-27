@@ -39,10 +39,11 @@ class FixedIncomeTaxRuleRepositoryTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Carga da V52: 4 faixas de IR, 30 de IOF e 14 excecoes por produto")
+    @DisplayName("Carga da V52: 4 faixas de IR, 30 de IOF e 14 excecoes por produto; V12: 9 regras de fundo por regime")
     void load() {
         List<FixedIncomeTaxRule> rules = repository.findAll();
-        assertThat(rules).hasSize(4 + 30 + 14);
+        assertThat(rules).hasSize(4 + 30 + 14 + 9);
+        assertThat(rules.stream().filter(r -> r.getRegime() == TaxRegime.GENERAL)).hasSize(4 + 30 + 14);
         assertThat(rules).allSatisfy(r -> assertThat(r.getLegalBasis()).isNotBlank());
     }
 
@@ -99,7 +100,7 @@ class FixedIncomeTaxRuleRepositoryTest extends JpaTestBase {
         List<FixedIncomeTaxRule> rules = repository.findAll();
         for (FixedIncomeTaxRule a : rules) {
             for (FixedIncomeTaxRule b : rules) {
-                if (a.getId().equals(b.getId()) || a.getTax() != b.getTax()
+                if (a.getId().equals(b.getId()) || a.getTax() != b.getTax() || a.getRegime() != b.getRegime()
                         || !Objects.equals(a.getAssetId(), b.getAssetId())) {
                     continue;
                 }
@@ -125,5 +126,27 @@ class FixedIncomeTaxRuleRepositoryTest extends JpaTestBase {
             BigDecimal ir = t.rate(FixedIncomeTax.IR, null, days, INVESTMENT);
             assertThat(ir.signum()).as("IR no dia %d", days).isPositive();
         }
+    }
+
+    @Test
+    @DisplayName("V12: regimes de fundo isolados da renda fixa — longo prazo 22,5→15% e come-cotas 15%, curto prazo 22,5/20% e come-cotas 20%, acoes 15%")
+    void fundRegimes() {
+        List<FixedIncomeTaxRule> all = repository.findAll();
+        FixedIncomeTaxTable lp = FixedIncomeTaxTable.ofRegime(all, TaxRegime.FUND_LONG_TERM);
+        assertThat(lp.rate(FixedIncomeTax.IR, null, 100, INVESTMENT)).isEqualByComparingTo("0.225");
+        assertThat(lp.rate(FixedIncomeTax.IR, null, 800, INVESTMENT)).isEqualByComparingTo("0.15");
+        assertThat(lp.rate(FixedIncomeTax.CC, null, 0, INVESTMENT)).isEqualByComparingTo("0.15");
+        assertThat(lp.rate(FixedIncomeTax.IOF, null, 1, INVESTMENT)).isZero();
+        FixedIncomeTaxTable cp = FixedIncomeTaxTable.ofRegime(all, TaxRegime.FUND_SHORT_TERM);
+        assertThat(cp.rate(FixedIncomeTax.IR, null, 180, INVESTMENT)).isEqualByComparingTo("0.225");
+        assertThat(cp.rate(FixedIncomeTax.IR, null, 181, INVESTMENT)).isEqualByComparingTo("0.20");
+        assertThat(cp.rate(FixedIncomeTax.IR, null, 5000, INVESTMENT)).isEqualByComparingTo("0.20");
+        assertThat(cp.rate(FixedIncomeTax.CC, null, 0, INVESTMENT)).isEqualByComparingTo("0.20");
+        FixedIncomeTaxTable eq = FixedIncomeTaxTable.ofRegime(all, TaxRegime.FUND_EQUITY);
+        assertThat(eq.rate(FixedIncomeTax.IR, null, 1, INVESTMENT)).isEqualByComparingTo("0.15");
+        assertThat(eq.rate(FixedIncomeTax.CC, null, 1, INVESTMENT)).isZero();
+        // a tabela da renda fixa nao enxerga as linhas de fundo
+        assertThat(table().rate(FixedIncomeTax.CC, null, 0, INVESTMENT)).isZero();
+        assertThat(table().rate(FixedIncomeTax.IR, null, 5000, INVESTMENT)).isEqualByComparingTo("0.15");
     }
 }

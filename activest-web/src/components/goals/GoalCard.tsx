@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/Badge';
 import { Goal } from '@/types/goals';
 import { formatDateBR, formatGoalValue, LIFECYCLE, SITUATION } from './goalFormat';
+import { assetText } from '@/utils/assetLabel';
 
 /**
  * Cartão da meta na lista (docs/planos/PLANO_METAS.md, Anexo A 12): objetivo em uma frase, indicador atual × alvo,
@@ -20,7 +21,7 @@ export const GoalCard = ({ goal }: { goal: Goal }) => {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs text-gray-400">{goal.categoryLabel} · {goal.typeLabel}</p>
-          <h3 className="text-white font-semibold truncate">{goal.name}</h3>
+          <h3 className="text-white font-semibold truncate">{assetText(goal.name)}</h3>
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
           {e && goal.lifecycle === 'ATIVA' && <Badge variant={SITUATION[e.situation].variant}>{SITUATION[e.situation].label}</Badge>}

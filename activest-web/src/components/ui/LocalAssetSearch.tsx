@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
+import { assetText, useAssetLabel } from '@/utils/assetLabel';
 
 export interface LocalAssetOption {
   ticker: string;
@@ -29,6 +30,8 @@ const normalizeText = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').
  * tem o efeito do ícone Listar.
  */
 export const LocalAssetSearch = ({ options, onSelect, ariaLabel = 'Buscar ativo por ticker ou nome' }: Props) => {
+  // nomes curtos dos fundos: redesenha quando chegam (o ticker do fundo é o CNPJ — PLANO_FUNDOS_INVESTIMENTO.md, D3)
+  useAssetLabel();
   const [value, setValue] = useState('');
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(-1);
@@ -39,7 +42,8 @@ export const LocalAssetSearch = ({ options, onSelect, ariaLabel = 'Buscar ativo 
     const q = normalizeText(value.trim());
     if (q.length < 2) return [];
     return options
-      .filter(o => normalizeText(o.ticker).includes(q) || normalizeText(o.name).includes(q))
+      .filter(o => normalizeText(o.ticker).includes(q) || normalizeText(o.name).includes(q)
+        || normalizeText(assetText(o.ticker)).includes(q))
       .sort((a, b) => {
         const pa = normalizeText(a.ticker).startsWith(q) ? 0 : 1;
         const pb = normalizeText(b.ticker).startsWith(q) ? 0 : 1;
@@ -109,7 +113,7 @@ export const LocalAssetSearch = ({ options, onSelect, ariaLabel = 'Buscar ativo 
                 idx === highlight ? 'bg-accent/15 text-white' : 'text-gray-300 hover:bg-white/5'
               }`}
             >
-              <span className="font-semibold text-white min-w-[80px]">{opt.ticker}</span>
+              <span className="font-semibold text-white min-w-[80px]">{assetText(opt.ticker)}</span>
               <span className="truncate flex-1 text-gray-400">{opt.name}</span>
               <span className="text-xs text-gray-500">{opt.typeLabel}</span>
             </button>

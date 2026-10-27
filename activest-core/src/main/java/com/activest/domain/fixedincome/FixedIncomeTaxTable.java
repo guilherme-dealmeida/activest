@@ -31,8 +31,22 @@ public final class FixedIncomeTaxTable {
 
     private final List<FixedIncomeTaxRule> rules;
 
+    /** As regras da renda fixa e do Tesouro: só as linhas {@link TaxRegime#GENERAL} (as de fundo ficam de fora). */
     public FixedIncomeTaxTable(List<FixedIncomeTaxRule> rules) {
-        this.rules = List.copyOf(rules);
+        this(rules, TaxRegime.GENERAL);
+    }
+
+    private FixedIncomeTaxTable(List<FixedIncomeTaxRule> rules, TaxRegime regime) {
+        this.rules = rules.stream().filter(r -> r.getRegime() == null ? regime == TaxRegime.GENERAL : r.getRegime() == regime)
+                .toList();
+    }
+
+    /**
+     * As linhas de um regime de fundo (V12): IR e come-cotas ({@link FixedIncomeTax#CC}) do regime. O IOF dos fundos
+     * de longo e curto prazo vem da tabela geral (ver {@code FundTaxTable}).
+     */
+    public static FixedIncomeTaxTable ofRegime(List<FixedIncomeTaxRule> rules, TaxRegime regime) {
+        return new FixedIncomeTaxTable(rules, regime);
     }
 
     /** Sem regras: tudo isento. Para quem nao tem a tabela (ex.: testes da curva). */

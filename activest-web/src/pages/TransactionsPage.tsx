@@ -22,6 +22,7 @@ import { LocalAssetOption, LocalAssetSearch } from '@/components/ui/LocalAssetSe
 import { apiMessage } from '@/utils/apiError';
 import { useToast } from '@/context/ToastContext';
 import { providerName } from '@/utils/integrations';
+import { assetText, useAssetLabel } from '@/utils/assetLabel';
 
 /** Rótulo do tipo como a listagem o mostra — a mesma convenção dos DTOs. */
 const labelOfType = (type: AssetType) => type.description || type.name;
@@ -70,6 +71,8 @@ function getDateFromDaysAgo(days: number): string {
 }
 
 export const TransactionsPage = () => {
+  // nomes curtos dos fundos: redesenha quando chegam (o ticker do fundo é o CNPJ — PLANO_FUNDOS_INVESTIMENTO.md, D3)
+  useAssetLabel();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -170,8 +173,8 @@ export const TransactionsPage = () => {
       const parts = row.groupParts ?? 1;
       showToast(
         parts > 1
-          ? `Venda de ${row.ticker} excluída, com os ${parts} títulos.`
-          : `Transação de ${row.ticker} excluída.`,
+          ? `Venda de ${assetText(row.ticker)} excluída, com os ${parts} títulos.`
+          : `Transação de ${assetText(row.ticker)} excluída.`,
         'success'
       );
     },
@@ -186,7 +189,7 @@ export const TransactionsPage = () => {
     onSuccess: (_, row) => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['portfolio'] });
-      showToast(`Transação de ${row.ticker} voltou aos dados da corretora.`, 'success');
+      showToast(`Transação de ${assetText(row.ticker)} voltou aos dados da corretora.`, 'success');
     },
     onError: (e: unknown) => {
       showToast(apiMessage(e) ?? 'Não foi possível restaurar a transação.', 'error');
@@ -361,7 +364,7 @@ export const TransactionsPage = () => {
 
   const handleRestore = (row: TransactionResponse) => {
     const broker = providerName(row.connectionProvider) || 'da corretora';
-    if (window.confirm(`Desfazer suas alterações em ${row.ticker} e voltar aos dados de ${broker}?`)) {
+    if (window.confirm(`Desfazer suas alterações em ${assetText(row.ticker)} e voltar aos dados de ${broker}?`)) {
       restoreMutation.mutate(row);
     }
   };
@@ -413,9 +416,9 @@ export const TransactionsPage = () => {
     const parts = row.groupParts ?? 1;
     const broker = providerName(row.connectionProvider) || 'a corretora';
     const question = parts > 1
-      ? `Esta venda de ${row.ticker} está dividida em ${parts} títulos. Excluir a venda inteira?`
+      ? `Esta venda de ${assetText(row.ticker)} está dividida em ${parts} títulos. Excluir a venda inteira?`
       : row.origin === 'AUTO'
-        ? `Esta transação de ${row.ticker} veio de ${broker}. Excluída, ela não volta nas próximas sincronizações; `
+        ? `Esta transação de ${assetText(row.ticker)} veio de ${broker}. Excluída, ela não volta nas próximas sincronizações; `
           + 'dá para restaurar em Integrações › Excluídas. Excluir?'
         : 'Tem certeza?';
     if (window.confirm(question)) {
@@ -435,7 +438,7 @@ export const TransactionsPage = () => {
             Mostrando apenas as transações de{' '}
             {positionFilter ? (
               <>
-                <span className="font-medium text-white">{filteredPosition?.ticker ?? 'uma posição da carteira'}</span>
+                <span className="font-medium text-white">{filteredPosition?.ticker ? assetText(filteredPosition.ticker) : 'uma posição da carteira'}</span>
                 {filteredPosition?.issuer ? ` · ${filteredPosition.issuer}` : ''}
                 {filteredPosition?.maturityDate ? ` · venc. ${formatDate(filteredPosition.maturityDate)}` : ''}
               </>
@@ -483,7 +486,7 @@ export const TransactionsPage = () => {
               className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2"
             >
               <option value="ALL">Todos</option>
-              {assetsOfType.map(a => <option key={a} value={a}>{a}</option>)}
+              {assetsOfType.map(a => <option key={a} value={a}>{assetText(a)}</option>)}
             </select>
           </div>
         ) : (

@@ -1,7 +1,7 @@
 # USE_CASES — Casos de uso do Activest
 
 > Gerado em 02/10/2026 a partir do código (controllers da app-api e da adm-api, rotinas agendadas, telas do
-> `activest-web`) e do `carga/scripts/README.md` · 05/10/2026: UC36–UC38 (índices de mercado) · 10/10/2026: UC07 refeito
+> `activest-web`) e do `carga/scripts/README.md` · 27/10/2026: UC46–UC47 (fundos de investimento da CVM) · 05/10/2026: UC36–UC38 (índices de mercado) · 10/10/2026: UC07 refeito
 > (Preço Teto pelo modelo PREÇO TETO V2) e UC41 (cotações diárias do catálogo pelo COTAHIST). Diagramas em Mermaid (o GitHub e o IntelliJ renderizam).
 > Mermaid não tem diagrama UML de caso de uso nativo: os atores aparecem como círculos, os casos de uso como
 > elipses dentro da fronteira do sistema, e `«include»`/`«extend»` como setas tracejadas.
@@ -75,7 +75,7 @@ flowchart LR
     inv --- uc01 & uc02 & uc03 & uc04 & uc05 & uc06 & uc07 & uc08 & uc09 & uc10 & uc11
     adm --- uc20 & uc21 & uc22 & uc23
     mnt --- uc24
-    sch --- uc30 & uc31 & uc32 & uc35 & uc33 & uc34
+    sch --- uc30 & uc31 & uc32 & uc35 & uc33 & uc46 & uc34
     uc10 & uc34 --- ext
     uc20 & uc21 & uc30 & uc31 & uc32 & uc35 --- ext
 ```
@@ -299,6 +299,7 @@ flowchart LR
         uc28(["UC28 Recarregar série histórica<br/>COTAHIST"])
         uc29(["UC29 Completar datas de pagamento<br/>CVM · levantamento"])
         uc23(["UC23 Situação dos avisos do FNET"])
+        uc46(["UC46 Cadastro e cota dos fundos<br/>07:40 (CVM)"])
     end
 
     subgraph APP["app-api (carteira)"]
@@ -308,7 +309,7 @@ flowchart LR
     adm --- uc21 & uc22 & uc23
     sch --- uc30 & uc31 & uc32 & uc35 & uc33
     uc22 -.->|«include» qualquer uma| uc28 & uc29 & uc30 & uc31 & uc32 & uc35
-    uc21 & uc28 & uc29 & uc30 & uc31 & uc32 & uc35 --- ext
+    uc21 & uc28 & uc29 & uc30 & uc31 & uc32 & uc35 & uc46 --- ext
 ```
 
 Detalhe de cada rotina e endpoint: `docs/SCHEDULE_TASKS.md` e `docs/ADM_TASKS.md`.
@@ -394,4 +395,6 @@ Prefixo das rotas: `/api/v1`. Investidor = qualquer usuário logado; Admin = `is
 | UC43 | Câmbio das moedas | Agendador / Admin | PTAX do BCB (compra e venda, boletim de fechamento) das moedas cadastradas desde 2010; no máximo uma rodada automática por dia; aviso de fonte desatualizada (26/10/2026) | 13:30 diário; Run na tela de Tarefas |
 | UC44 | Cadastrar moedas | Admin | Tela Moedas: incluir, editar e ativar moedas; gráfico do câmbio; regras de tributo do exterior em consulta (docs/planos/PLANO_CADASTRO_MOEDAS.md) | `/currencies`; `GET/POST/PUT /admin/currencies` (adm-api) |
 | UC45 | Lançar ativo em outra moeda | Investidor | Transação na moeda do ativo com o câmbio da data (PTAX venda, editável); venda com IR estimado do exterior; provento com retenção do país de origem | `/transactions`; `POST /transactions`, `GET /currencies/{code}/rate` |
+| UC46 | Cadastro e cota dos fundos | Agendador / Admin | Fundos de investimento da CVM no catálogo (~55 mil, ticker = CNPJ, nome curto nas telas), última cota de todos os vivos e a série dos fundos em carteira; no máximo uma rodada automática por dia; avisos de fonte (27/10/2026, docs/planos/PLANO_FUNDOS_INVESTIMENTO.md) | 07:40 diário (tarefa `FUND_QUOTES`, Run com `FROM_MONTH`); etapa "fundos" do `POST /admin/bootstrap` |
+| UC47 | Lançar fundo de investimento | Investidor | Busca por nome ou CNPJ (encerrados no "Mostrar N"); Valor e Cota (pré-preenchida da CVM) → cotas calculadas; resgate pelo bruto com IR/IOF pelo PEPS e come-cotas; Previdência vale bruto; a série desde 2010 entra sozinha depois da primeira compra | `GET /assets/?typeId=&query=&includeInactive=`, `GET /funds/{ticker}/quote`, `POST /transactions/`, `POST /transactions/sale-preview` |
 | UC38 | Consultar índices | Investidor | Tela Índices: um card por índice com período (1D…MAX, de/até) e gráfico; lista, série e acumulado no período (% do índice, spread; nível para Ibovespa/IFIX/dólar) | `/indices`; `GET /indices`, `/indices/{code}/chart`, `/history`, `/accumulated` |

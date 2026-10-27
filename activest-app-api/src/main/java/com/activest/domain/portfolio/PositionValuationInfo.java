@@ -48,6 +48,10 @@ public class PositionValuationInfo {
         }
     }
 
+    /** Líquido estimado dos fundos (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md, C10); opcional nos testes. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.activest.domain.fund.FundTaxService fundTax;
+
     private final FixedIncomeValuation valuation;
     private final PositionCalculator positionCalculator;
     private final JdbcTemplate jdbc;
@@ -69,6 +73,18 @@ public class PositionValuationInfo {
         LocalDate today = LocalDate.now(ZONE);
         for (PortfolioAsset pa : positions) {
             AssetType type = type(pa);
+            if (fundTax != null && com.activest.domain.fund.FundTaxService.applies(pa.getAsset())) {
+                // fundo: bruto pela última cota, líquido de um resgate total hoje (C10); Previdência vale bruto (D21)
+                com.activest.domain.fund.FundTax.SaleTax est =
+                        fundTax.estimate(pa, positionCalculator.chronologicalTransactions(pa));
+                boolean pension = fundTax.regimeOf(pa.getAsset()) == null;
+                LocalDate quoteDate = pa.getAsset().getPriceUpdatedAt() == null ? null
+                        : pa.getAsset().getPriceUpdatedAt().toLocalDate();
+                out.put(pa.getId(), new Info("COTA", quoteDate,
+                        pension ? "Previdência: IR do plano (PGBL/VGBL) não calculado" : null, false,
+                        est != null ? est.net() : null, List.of()));
+                continue;
+            }
             if (type == null || !type.isFixedIncome()) {
                 continue;
             }

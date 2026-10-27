@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { Option } from '@/types/goals';
+import { assetText } from '@/utils/assetLabel';
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -21,10 +22,11 @@ export const MultiPicker = ({ options, value, onChange, placeholder = 'Buscar…
     return () => document.removeEventListener('mousedown', close);
   }, []);
 
-  const label = useMemo(() => new Map(options.map(o => [o.value, o.label])), [options]);
+  // fundo: o nome curto no lugar do ticker (CNPJ) — PLANO_FUNDOS_INVESTIMENTO.md, D3
+  const label = useMemo(() => new Map(options.map(o => [o.value, assetText(o.label)])), [options]);
   const filtered = useMemo(() => {
     const q = norm(query.trim());
-    return options.filter(o => !value.includes(o.value) && (!q || norm(o.label).includes(q) || norm(o.value).includes(q)));
+    return options.filter(o => !value.includes(o.value) && (!q || norm(assetText(o.label)).includes(q) || norm(o.value).includes(q)));
   }, [options, query, value]);
 
   return (
@@ -46,7 +48,7 @@ export const MultiPicker = ({ options, value, onChange, placeholder = 'Buscar…
             <li key={o.value}>
               <button type="button" onClick={() => { onChange([...value, o.value]); setQuery(''); }}
                 className="w-full px-3 py-1.5 text-left text-sm text-gray-300 hover:bg-surface-light hover:text-white">
-                {o.label}
+                {assetText(o.label)}
               </button>
             </li>
           ))}

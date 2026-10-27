@@ -44,6 +44,9 @@ spring:
 activest:
   logos:
     dir: /app/data/logos
+  # Informe diario da CVM (cota do dia na Nova transacao, PLANO_FUNDOS_INVESTIMENTO.md D23): volume so leitura.
+  funds:
+    dir: /app/data/cvm/fi
 
 logging:
   level:

@@ -120,6 +120,11 @@ public class DividendCatalogService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     com.activest.adm.domain.pricehistory.CryptoHistoryService cryptoHistory;
 
+    /** Serie de cotas dos fundos sob demanda (PLANO_FUNDOS_INVESTIMENTO.md, F4). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.activest.adm.domain.fund.FundCatalogService funds;
+
+
 
     /** Pausa entre as buscas da situacao dos avisos no FNET (o FNET segura buscas seguidas). */
     @org.springframework.beans.factory.annotation.Value("${fnet.status-pause-millis:3000}")
@@ -320,6 +325,15 @@ public class DividendCatalogService {
                 cryptoHistory.importAsset(asset.getId(), "sob demanda");
             } catch (RuntimeException e) {
                 log.error("Historico de cripto sob demanda de {} falhou: {}", asset.getTicker(), e.getMessage());
+            }
+            return;
+        }
+        if (asset != null && asset.getAssetType().getPriceSource() == PriceSource.CVM && funds != null) {
+            // Fundo nao tem provento (D15); o pedido traz a serie de cotas desde 2010 (PLANO_FUNDOS_INVESTIMENTO, C11).
+            try {
+                funds.loadSeries(asset.getId(), "sob demanda");
+            } catch (RuntimeException e) {
+                log.error("Serie do fundo {} sob demanda falhou: {}", asset.getTicker(), e.getMessage());
             }
             return;
         }

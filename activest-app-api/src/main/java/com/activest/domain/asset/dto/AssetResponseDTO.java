@@ -33,5 +33,18 @@ public record AssetResponseDTO(
     Indexer indexer,
     boolean active,
     /** Moeda em que o ativo é cotado; {@code currentPrice} está nela (docs/planos/PLANO_CADASTRO_MOEDAS.md, D2/D11). */
-    String currencyCode
-) {}
+    String currencyCode,
+    /**
+     * Rótulo das telas: o ticker, e no fundo de investimento o nome curto — o ticker do fundo é o CNPJ, chave e
+     * endereço, nunca título (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md, D3).
+     */
+    String displayName,
+    /** Cadastro CVM do fundo; nulo fora de FUNDO_INVESTIMENTO. */
+    FundInfo fund
+) {
+
+    /** O que a busca e o formulário mostram do fundo (D11, D18). */
+    public record FundInfo(String cnpj, String subclassId, String anbimaClassification, String targetAudience,
+                           Boolean exclusive, boolean pension, String cvmStatus, java.time.LocalDate lastQuoteOn) {
+    }
+}

@@ -31,6 +31,12 @@ public class FixedIncomeTaxRule {
     @Column(nullable = false, length = 3)
     private FixedIncomeTax tax;
 
+    /** Regime da linha (V12): GENERAL = renda fixa e Tesouro; FUND_* = fundos de investimento. */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private TaxRegime regime = TaxRegime.GENERAL;
+
     /** Nulo = regra geral (todo produto de RF e o Tesouro); preenchido = excecao do produto. */
     @Column(name = "asset_id")
     private Long assetId;

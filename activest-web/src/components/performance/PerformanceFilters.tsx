@@ -1,3 +1,4 @@
+import { assetText } from '@/utils/assetLabel';
 import { useState } from 'react';
 import { X, Plus } from 'lucide-react';
 import { InfoTooltip } from '@/components/ui/InfoTooltip';
@@ -104,7 +105,7 @@ export const PerformanceFilters = (p: Props) => {
           <option value="">Todos os ativos</option>
           {p.positions.map(r => (
             <option key={r.key} value={r.positionId ?? ''}>
-              {r.label}{r.detail && r.detail !== r.label ? ` — ${r.detail}` : ''}{r.closed ? ' (encerrada)' : ''}
+              {assetText(r.label)}{r.detail && r.detail !== r.label ? ` — ${assetText(r.detail)}` : ''}{r.closed ? ' (encerrada)' : ''}
             </option>
           ))}
         </select>
