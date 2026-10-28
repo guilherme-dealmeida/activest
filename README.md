@@ -168,7 +168,7 @@ cd activest-web
 npm install
 npm run dev
 npm run lint     # ESLint 9; hoje fecha em 0 erro
-npm test         # Vitest (27/10/2026): testes das contas do front
+npm test         # Vitest: as contas do front (148 testes; também roda no build da imagem)
 ```
 
 > Não existe `GOOGLE_CLIENT_SECRET`: o login usa o fluxo de ID token do Google

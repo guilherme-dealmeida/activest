@@ -11,6 +11,7 @@ import {
 } from '@/types/performance';
 import { MONTHS, date, monthYear, pct, pp } from './performanceFormat';
 import { assetText } from '@/utils/assetLabel';
+import { heatmapYears } from '@/utils/heatmap';
 
 // ------------------------------------------------------------------ cobertura
 
@@ -271,13 +272,8 @@ export const BreakdownSection = ({ b, level, onLevel, showIssuer, onDrill }: {
 /** Mapa de calor mês × ano da carteira (L15). Azul = positivo, vermelho = negativo, cinza = zero. */
 export const ReturnHeatmap = ({ data }: { data: PerformancePeriodic }) => {
   const { isDark } = useTheme();
-  const byYear = new Map<number, Map<number, { v: number | null; partial: boolean }>>();
-  data.rows.forEach(r => {
-    const [y, m] = r.key.split('-').map(Number);
-    if (!byYear.has(y)) byYear.set(y, new Map());
-    byYear.get(y)!.set(m, { v: r.portfolio, partial: r.partial });
-  });
-  const years = [...byYear.keys()].sort((a, b) => b - a);
+  // anos e a coluna "Ano" composta: utils/heatmap.ts (testado)
+  const years = heatmapYears(data.rows);
   const cap = 4; // % que satura a cor
   const mid = isDark ? [56, 56, 53] : [240, 239, 236];
   const pos = isDark ? [57, 135, 229] : [42, 120, 214];
@@ -288,14 +284,6 @@ export const ReturnHeatmap = ({ data }: { data: PerformancePeriodic }) => {
     const pole = v >= 0 ? pos : neg;
     const c = mid.map((m, i) => Math.round(m + (pole[i] - m) * k));
     return `rgb(${c.join(',')})`;
-  };
-  const yearReturn = (m: Map<number, { v: number | null }>) => {
-    let f = 1;
-    for (const { v } of m.values()) {
-      if (v == null) return null;
-      f *= 1 + v / 100;
-    }
-    return (f - 1) * 100;
   };
   return (
     <div className="overflow-x-auto">
@@ -308,9 +296,7 @@ export const ReturnHeatmap = ({ data }: { data: PerformancePeriodic }) => {
           </tr>
         </thead>
         <tbody>
-          {years.map(y => {
-            const months = byYear.get(y)!;
-            const yr = yearReturn(months);
+          {years.map(({ year: y, months, yearReturn: yr }) => {
             return (
               <tr key={y}>
                 <td className="px-1 text-gray-300 font-medium">{y}</td>

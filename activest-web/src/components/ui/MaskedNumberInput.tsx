@@ -2,7 +2,7 @@ import React, { InputHTMLAttributes } from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { LabelWithInfo } from './InfoTooltip';
-import { parsePastedNumber } from '@/utils/numberPaste';
+import { maskedChange, maskedDisplay, maskedPaste } from '@/utils/maskedNumber';
 
 export interface MaskedNumberInputProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> {
@@ -84,35 +84,23 @@ export const MaskedNumberInput = React.forwardRef<HTMLInputElement, MaskedNumber
     // sinal. Texto que não é número não muda nada.
     const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
       e.preventDefault();
-      const parsed = parsePastedNumber(e.clipboardData.getData('text'));
-      if (parsed === null) return;
-      const scale = 10 ** decimals;
-      const signed = Math.round(parsed * scale) / scale;
-      if (Math.round(Math.abs(signed) * scale) > 999_999_999_999_999) return; // o mesmo teto de 15 dígitos da digitação
+      // regra em utils/maskedNumber.ts (testada): com sinal, nas casas do campo, até o teto de 15 dígitos
+      const signed = maskedPaste(e.clipboardData.getData('text'), decimals);
+      if (signed === null) return;
       if (onPasteValue) onPasteValue(signed);
       else onChange(Math.abs(signed));
     };
 
-    const shown = allowEmpty ? value !== null && value !== undefined : !!value;
-    const display = shown
-      ? (value as number).toLocaleString('pt-BR', {
-          minimumFractionDigits: decimals,
-          maximumFractionDigits: decimals,
-        })
-      : '';
+    const display = maskedDisplay(value, decimals, allowEmpty);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      // 15 dígitos cobrem NUMERIC(18,2) com folga e evitam estourar o Number.
-      // Com 8 casas (quantidade de cripto) o teto é 9.999.999,99999999.
-      const digits = e.target.value.replace(/\D/g, '').slice(0, 15);
-      // Com allowEmpty: apagar tudo esvazia; apagar de novo um campo que já está em zero também (sem isso o
-      // backspace num "0,00" volta sempre para "0,00").
-      const deletingZero = Number(digits) === 0 && value === 0 && e.target.value.length < display.length;
-      if (allowEmpty && (!digits || deletingZero)) {
+      // regra em utils/maskedNumber.ts (testada): pela direita, até 15 dígitos; com allowEmpty, apagar esvazia
+      const change = maskedChange(e.target.value, decimals, value, display, allowEmpty);
+      if (change.kind === 'clear') {
         onClear?.();
         return;
       }
-      onChange(digits ? Number(digits) / 10 ** decimals : 0);
+      onChange(change.value);
     };
 
     const left = adornment?.side === 'left';

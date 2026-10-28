@@ -7,16 +7,17 @@ import { AssetLogo } from '@/components/ui/AssetLogo';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Pagination } from '@/components/ui/Pagination';
 import { formatCurrency, formatCurrencyPrecise, formatDate, formatFxRate, formatMoney, formatShares } from '@/utils/format';
-import { DIVIDEND_TYPE_LABELS, DividendResponse, DividendSummary, DividendType } from '@/types';
+import { DIVIDEND_TYPE_LABELS, DividendResponse, DividendSummary } from '@/types';
 import { CalendarClock, DollarSign, List } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useSortable } from '@/hooks/useSortable';
 import { TABLE_ACTION_CLASS } from '@/components/ui/tableAction';
 import { TickerLink } from '@/components/issuer/TickerLink';
-import { TYPE_GROUP_LABELS, TYPE_ORDER } from '@/components/dividends/dividendLabels';
+import { TYPE_GROUP_LABELS } from '@/components/dividends/dividendLabels';
 import { useDividendFilters } from '@/components/dividends/useDividendFilters';
 import { DividendFilterBar, DividendFilterNotice } from '@/components/dividends/DividendFilters';
 import { DividendEvolutionTab } from '@/components/dividends/DividendEvolutionTab';
+import { ZERO_TOTALS, addDividend, dividendNet, totalsByType } from '@/utils/dividendTotals';
 
 // Proventos de ação vindos só do histórico longo da B3 não têm data de
 // pagamento: a fonte não traz o campo (docs/PENDENCIAS.md, 3.4).
@@ -43,14 +44,6 @@ const formatRate = (rate: number | null): string | null => {
   return `${(rate * 100).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%`;
 };
 
-type Totals = { net: number; gross: number; tax: number };
-const ZERO: Totals = { net: 0, gross: 0, tax: 0 };
-const addRow = (acc: Totals, r: DividendRow): Totals => ({
-  net: acc.net + r.total,
-  gross: acc.gross + (r.totalAmount ?? 0),
-  // provento do exterior: retenção do país de origem + IR brasileiro estimado (PLANO_CADASTRO_MOEDAS, C6)
-  tax: acc.tax + (r.withholdingTax ?? 0) + (r.foreign?.withholdingTax ?? 0) + (r.foreign?.incomeTax ?? 0),
-});
 
 const NO_TAX_RULE_HINT = 'Sem regra de IR para este tipo de provento e de ativo: o total é o bruto.';
 
@@ -127,7 +120,7 @@ export const DividendsPage = () => {
 
   // TOTAL = líquido (docs/planos/PLANO_IR_PROVENTOS.md); sem regra de IR, o bruto.
   const allRows = useMemo<DividendRow[]>(
-    () => (summary?.recent ?? []).map(r => ({ ...r, total: r.netAmount ?? r.totalAmount })),
+    () => (summary?.recent ?? []).map(r => ({ ...r, total: dividendNet(r) })),
     [summary]
   );
   const receivedRows = useMemo(() => allRows.filter(r => r.received), [allRows]);
@@ -193,12 +186,9 @@ const DividendsTabPanel = ({ tab, rows, listRequest }: { tab: ListTab; rows: Div
   }, [listRequest?.nonce]);
 
   // Cards acompanham o filtro e mostram o líquido, com bruto e IR embaixo.
-  const totals = useMemo(() => filtered.reduce(addRow, ZERO), [filtered]);
-  const byTypeFiltered = useMemo(() => {
-    const sums = new Map<DividendType, Totals>();
-    filtered.forEach(r => sums.set(r.type, addRow(sums.get(r.type) ?? ZERO, r)));
-    return TYPE_ORDER.filter(t => sums.has(t)).map(t => ({ type: t, ...(sums.get(t) as Totals) }));
-  }, [filtered]);
+  // contas em utils/dividendTotals.ts (testadas)
+  const totals = useMemo(() => filtered.reduce(addDividend, ZERO_TOTALS), [filtered]);
+  const byTypeFiltered = useMemo(() => totalsByType(filtered), [filtered]);
 
   // Padrão pela data de pagamento (12/10/2026): no histórico, o mais recente
   // primeiro; no a receber, o próximo a pagar primeiro. Sem data de pagamento

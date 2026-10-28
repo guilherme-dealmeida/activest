@@ -2,7 +2,8 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 27/10/2026 — secao 40 (testes de front para as telas com calculo, levantamento; origem:
+Ultima atualizacao: 27/10/2026, mais tarde — secao 40 baixada (testes de front, docs/planos/PLANO_TESTES_FRONT.md; 40.13
+novo). Antes, no mesmo dia: secao 40 (testes de front para as telas com calculo, levantamento; origem:
 docs/planos/PLANO_DIVIDENDOS_POR_PERIODO.md, D9). No mesmo dia: secao 39 (fundos de investimento da CVM, docs/planos/PLANO_FUNDOS_INVESTIMENTO.md);
 29.7 resolvido na parte dos fundos. Antes: 26/10/2026 — secao 38 (cadastro de moedas, docs/planos/PLANO_CADASTRO_MOEDAS.md); 37.1 resolvido;
 3.8 em parte (Stock/REIT/ETF internacional com retencao do exterior). Antes: 21/10/2026 — secao 33 (correcao dos proventos, docs/planos/PLANO_CORRECAO_PROVENTOS.md);
@@ -1457,45 +1458,48 @@ funcao pura em `utils/` (ou no proprio modulo, exportada) e testar a funcao; tel
 Playwright, escopo futuro, 25.5 e 29.10).
 
 **40.1** FEITO (27/10/2026) — Vitest 2.1 (`npm test` = `vitest run`, sem config propria: usa o `vite.config.ts`).
-**40.2** FEITO em parte (27/10/2026) — `utils/dividendPeriods.test.ts` (17): mes pelo pagamento, recebido sem data pela
+**40.2** FEITO (27/10/2026; o resto da tela em `utils/dividendTotals.test.ts`, PLANO_TESTES_FRONT) — `utils/dividendPeriods.test.ts` (17): mes pelo pagamento, recebido sem data pela
  data com, a receber sem data fora, meses vazios, FIIs na base, anos, janelas, detalhe do mes, copiar tabela, centavos.
  Fica para depois o resto da tela
  (`DividendsPage.tsx`): `addRow` (liquido = `netAmount ?? totalAmount`; IR = retido + retencao do exterior + IR
  brasileiro estimado), totais por tipo e os filtros encadeados (tipo de ativo zera o ativo).
-**40.3** Rentabilidade — `ReturnHeatmap.yearReturn` (`components/performance/PerformancePanels.tsx`): a coluna "Ano" do
+**40.3** FEITO (27/10/2026, docs/planos/PLANO_TESTES_FRONT.md) — Rentabilidade — `ReturnHeatmap.yearReturn` (`components/performance/PerformancePanels.tsx`): a coluna "Ano" do
  mapa de calor COMPOE os meses no navegador (produto de 1 + r); com mes nulo o ano fica "—". E a unica conta de
  rentabilidade feita fora do motor do backend. Prioridade alta.
-**40.4** Carteira (`pages/PortfolioPage.tsx`) — rodape: somas de investido, vendido, atual, proventos e valorizacao;
+**40.4** FEITO (27/10/2026, docs/planos/PLANO_TESTES_FRONT.md) — Carteira (`pages/PortfolioPage.tsx`) — rodape: somas de investido, vendido, atual, proventos e valorizacao;
  % de valorizacao e rentabilidade classica sobre as SOMAS (`utils/returns.ts` `classicReturn`, a do Investidor10);
  liquido estimado da aba (`estimatedNet ?? currentValue`); nos lotes da renda fixa, soma do rendimento e de IOF + IR.
  Prioridade alta.
-**40.5** Transacoes (`components/transactions/TransactionFormModal.tsx`) — total = cotas x preco; cotas do fundo =
+**40.5** FEITO (27/10/2026, docs/planos/PLANO_TESTES_FRONT.md) — Transacoes (`components/transactions/TransactionFormModal.tsx`) — total = cotas x preco; cotas do fundo =
  valor / cota com 8 casas (tem de bater com a API, que grava); "Liquidacao total" preenche o liquido arredondado em
  centavos. Prioridade alta.
-**40.6** Campos numericos (`components/ui/MaskedNumberInput.tsx`, `utils/numberPaste.ts` `parsePastedNumber`) — mascara
+**40.6** FEITO (27/10/2026, docs/planos/PLANO_TESTES_FRONT.md) — Campos numericos (`components/ui/MaskedNumberInput.tsx`, `utils/numberPaste.ts` `parsePastedNumber`) — mascara
  pela direita, sinal, teto de 15 digitos, colar "15.563.000.000,00", "-17.040.000.000,00", "(1.234,56)", "R$ 58,68", "1234.56" e recusar
  "R$ 52,45 bi"; o caso ambiguo "12.888" (milhar ou decimal). Usado em
  toda a aplicacao (Transacoes, Estrategia, Preco Teto, filtros de Ativos, Informar custo). Prioridade alta.
-**40.7** Estrategia — `pages/StrategyPage.tsx`: soma dos percentuais tem de dar 100% (`Math.round(total * 10) === 1000`)
+**40.7** FEITO (27/10/2026, docs/planos/PLANO_TESTES_FRONT.md) — Estrategia — `pages/StrategyPage.tsx`: soma dos percentuais tem de dar 100% (`Math.round(total * 10) === 1000`)
  e a mensagem com a soma; `components/strategy/ReservationStrategyTab.tsx`: % da reserva no Por Valor
  (min(100, valor / carteira)), Geracao de Renda = total - reserva (piso 0) e a diferenca acima/abaixo do ideal.
-**40.8** Rebalanceamento (`pages/RebalancePage.tsx`) — total a aportar e total estrategico (somas dos itens).
-**40.9** Alocacao e roscas — total da `AllocationPage`; `components/charts/donut.ts` (`byValueDesc`, giro 90 -> -270);
+**40.8** FEITO (27/10/2026, docs/planos/PLANO_TESTES_FRONT.md) — Rebalanceamento (`pages/RebalancePage.tsx`) — total a aportar e total estrategico (somas dos itens).
+**40.9** FEITO (27/10/2026, docs/planos/PLANO_TESTES_FRONT.md) — Alocacao e roscas — total da `AllocationPage`; `components/charts/donut.ts` (`byValueDesc`, giro 90 -> -270);
  `PieOfPieChart` (angulo da fatia aberta e as linhas de ligacao, inclusive fatia maior que meia volta);
  `CornerLegendDonut` (quando a legenda sobe para o lado da rosca).
-**40.10** Metas (`pages/GoalDetailPage.tsx`, `components/goals/GoalCard.tsx`, `GoalFormModal.tsx`) — progresso
+**40.10** FEITO (27/10/2026, docs/planos/PLANO_TESTES_FRONT.md) — Metas (`pages/GoalDetailPage.tsx`, `components/goals/GoalCard.tsx`, `GoalFormModal.tsx`) — progresso
  = max(0, indicador) / alvo, barra limitada a 100%; inteiros truncados no `GoalFieldInput`.
-**40.11** Ativos — `utils/issuerListing.ts`: `applyFilters` (fator da unidade: percentual em pontos, PL em R$
+**40.11** FEITO (27/10/2026, docs/planos/PLANO_TESTES_FRONT.md) — Ativos — `utils/issuerListing.ts`: `applyFilters` (fator da unidade: percentual em pontos, PL em R$
  milhoes; faixa preenchida tira quem nao tem o indicador; busca sem acento), `sortRows` (vazios no fim, desempate pelo
  ticker), `parseRange`/`readTabState`/`writeTabState` (estado na URL); `components/issuer/FinancialStatements.tsx`
  (`minus`: nao controladores = consolidado - controladora, em centavos); `utils/indicators.ts` (`pointsInWindow`,
  `averageOf`, abreviacao `formatCompactCurrency`).
-**40.12** Utilitarios sem tela propria — `utils/format.ts` (moeda, percentual, data e `toLocalISODate` no fuso local),
+**40.12** FEITO (27/10/2026, docs/planos/PLANO_TESTES_FRONT.md) — Utilitarios sem tela propria — `utils/format.ts` (moeda, percentual, data e `toLocalISODate` no fuso local),
  `utils/cron.ts` (`parseCron`/`buildCron`/`describeCron` da tela Tarefas), `utils/legacyUrl.ts` (rotas e parametros
  antigos), `utils/integrations.ts` (`isValidCpf`), `utils/phone.ts`.
 
-Ordem sugerida depois do 40.1/40.2: 40.3, 40.4, 40.5 e 40.6 (contas de dinheiro que o usuario ve ou grava), depois
-40.7 a 40.11, e o 40.12 aos poucos, junto de quem mexer em cada utilitario.
+Resultado (27/10/2026): 148 testes em 15 arquivos de `utils/`, rodando tambem no build da imagem do front
+(`activest-web/Dockerfile`). O total da Alocacao (`AllocationPage`, uma soma) nao foi extraido: e soma simples, sem regra.
+**40.13** RESOLVIDO (27/10/2026, D8 = alinhar) — Cotas do fundo no formulario: a previa arredondava meio para cima
+ (ponto flutuante) e a API grava com HALF_EVEN (`TransactionService`); diferiam no empate da 9a casa (1 / 512 =
+ 0,001953125: tela 0,00195313, API 0,00195312). `fundShares` passou a calcular em inteiros exatos (BigInt) com HALF_EVEN.
 
 ## ORDEM SUGERIDA
 

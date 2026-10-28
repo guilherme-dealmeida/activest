@@ -23,6 +23,7 @@ import { apiMessage } from '@/utils/apiError';
 import { TickerLink } from '@/components/issuer/TickerLink';
 import { performanceApi } from '@/api/performance';
 import { POSITIONS_TWR_KEY, classicReturn } from '@/utils/returns';
+import { lotTotals, portfolioTotals } from '@/utils/portfolioTotals';
 import { assetText, useAssetLabel } from '@/utils/assetLabel';
 
 /** "17,5%" — alíquota (0,175) em percentual. */
@@ -96,9 +97,9 @@ const EstimatedNet = ({ asset }: { asset: PortfolioAssetDetail }) => {
             <tfoot>
               <tr className="font-semibold">
                 <td className="py-2 px-2" colSpan={3}>Total (bruto {formatCurrency(asset.currentValue)})</td>
-                <td className="py-2 px-2 text-right">{formatCurrency(lots.reduce((s, l) => s + l.income, 0))}</td>
+                <td className="py-2 px-2 text-right">{formatCurrency(lotTotals(lots).income)}</td>
                 <td className="py-2 px-2" colSpan={2} />
-                <td className="py-2 px-2 text-right">{formatCurrency(lots.reduce((s, l) => s + l.iof + l.ir, 0))}</td>
+                <td className="py-2 px-2 text-right">{formatCurrency(lotTotals(lots).taxes)}</td>
                 <td className="py-2 px-2 text-right">{formatCurrency(asset.estimatedNet ?? 0)}</td>
               </tr>
             </tfoot>
@@ -507,18 +508,12 @@ const PortfolioTypeTable = ({ type, assets, reservation, twrByPosition, typeTwr,
 
   const columns = COLUMNS.filter((c) => !c.visible || c.visible(type));
 
-  const totalInvested = assets.reduce((sum, a) => sum + a.totalInvested, 0);
-  const totalSold = assets.reduce((sum, a) => sum + a.totalSold, 0);
-  const totalCurrent = assets.reduce((sum, a) => sum + a.currentValue, 0);
-  const totalDividends = assets.reduce((sum, a) => sum + a.totalDividends, 0);
-  const totalValorization = assets.reduce((sum, a) => sum + a.valorization, 0);
-  // Totais (17/10/2026): as mesmas contas das linhas, sobre as somas. Até então o total da coluna somava os proventos
-  // e as linhas não — a mesma coluna fazia duas contas.
-  const totalValorizationPct = totalInvested > 0 ? (totalValorization / totalInvested) * 100 : 0;
-  const totalClassic = classicReturn(totalValorization, totalDividends, totalInvested) ?? 0;
-  // Liquido estimado da aba: o do titulo quando ha, senao o proprio valor (sem curva, nao ha estimativa).
-  const hasNet = assets.some((a) => a.estimatedNet != null);
-  const totalNet = assets.reduce((sum, a) => sum + (a.estimatedNet ?? a.currentValue), 0);
+  // Totais (17/10/2026): as mesmas contas das linhas, sobre as somas; líquido estimado da aba (o da posição quando
+  // há, senão o próprio valor). Contas em utils/portfolioTotals.ts (testadas).
+  const {
+    invested: totalInvested, sold: totalSold, current: totalCurrent, dividends: totalDividends, valorization: totalValorization,
+    valorizationPct: totalValorizationPct, classic: totalClassic, hasNet, net: totalNet,
+  } = portfolioTotals(assets);
 
   const footer: Partial<Record<keyof PortfolioAssetDetail, ReactNode>> = {
     totalInvested: formatCurrency(totalInvested),

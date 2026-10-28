@@ -18,6 +18,7 @@ import { MultiPicker } from './MultiPicker';
 import { formatGoalValue, SITUATION } from './goalFormat';
 import { Badge } from '@/components/ui/Badge';
 import { assetText } from '@/utils/assetLabel';
+import { barWidth } from '@/utils/goalProgress';
 
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
   <p className="text-xs uppercase tracking-wide text-gray-500">{children}</p>
@@ -327,7 +328,7 @@ export const GoalFormModal = ({ isOpen, onClose, catalog, goal, onSaved }: Props
                 </div>
                 {ev.progressPct !== null && (
                   <div className="h-2 w-full rounded-full bg-surface-light overflow-hidden">
-                    <div className="h-full bg-accent" style={{ width: `${Math.min(100, Number(ev.progressPct))}%` }} />
+                    <div className="h-full bg-accent" style={{ width: `${barWidth(ev.progressPct)}%` }} />
                   </div>
                 )}
                 <Badge variant={SITUATION[ev.situation].variant}>{SITUATION[ev.situation].label}</Badge>

@@ -23,6 +23,7 @@ import { FixedIncomeFields, FixedIncomeValues } from '@/components/forms/FixedIn
 import { IssuerPick, distributorPickOf, issuerPickOf } from '@/components/forms/issuerPick';
 import { DistributorChangeModal } from '@/components/transactions/DistributorChangeModal';
 import { formatCurrency, formatDate, formatMoney, toLocalISODate } from '@/utils/format';
+import { fullRedemptionAmount, fundShares as fundSharesOf, transactionTotal } from '@/utils/transactionAmounts';
 import { CRYPTO_DECIMALS, isCryptoType, isFundType } from '@/utils/assetTypeRules';
 import {
   Asset, AssetType, DistributorChangePreview, Indexer, NoteInfo, RateType, SalePreview, TransactionCreate,
@@ -669,13 +670,10 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     setFixedIncome(catalogTerms(asset));
   };
 
-  const computedTotal = isTotalValue || isFund
-    ? (formData.totalAmount || 0)
-    : (formData.shares || 0) * (formData.pricePerShare || 0);
-  // Fundo: cotas = valor / cota, 8 casas (o mesmo cálculo da API, que é quem grava).
-  const fundShares = isFund && (formData.pricePerShare || 0) > 0
-    ? Math.round(((formData.totalAmount || 0) / (formData.pricePerShare || 1)) * 1e8) / 1e8
-    : 0;
+  // Contas em utils/transactionAmounts.ts (testadas): RF e fundo pelo valor, os demais cotas × preço; fundo: cotas =
+  // valor ÷ cota com 8 casas (a API é quem grava).
+  const computedTotal = transactionTotal(isTotalValue || isFund, formData.shares, formData.pricePerShare, formData.totalAmount);
+  const fundShares = isFund ? fundSharesOf(formData.totalAmount, formData.pricePerShare) : 0;
 
   /**
    * O quadro do título aparece quando há título para mostrar.
@@ -1025,7 +1023,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
                 <button
                   type="button"
                   onClick={() => {
-                    setFormData({ ...formData, totalAmount: Math.round(noteNet * 100) / 100 });
+                    setFormData({ ...formData, totalAmount: fullRedemptionAmount(noteNet) });
                     setFullSettlement(true);
                   }}
                   className="sm:col-span-2 justify-self-start text-xs text-accent hover:underline"

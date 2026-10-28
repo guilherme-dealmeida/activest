@@ -10,6 +10,7 @@ import { STRATEGY_HELP } from '@/components/strategy/strategyHelp';
 import { REBALANCE_TABLE_CLASS, RebalanceColGroup } from '@/components/strategy/rebalanceColumns';
 import { LabelWithInfo } from '@/components/ui/InfoTooltip';
 import { PageLink } from '@/components/ui/PageLink';
+import { rebalanceTotals } from '@/utils/strategyRules';
 
 /**
  * Rebalanceamento (11/10/2026): era a terceira aba de Estratégia de Investimentos e virou tela própria, com item no
@@ -29,8 +30,7 @@ export const RebalancePage = () => {
   }
 
   // Totais: quanto aportar somado e quanto a carteira passa a valer depois desses aportes.
-  const totalToInvest = (rebalance?.items || []).reduce((acc, item) => acc + item.amountToRebalance, 0);
-  const strategicTotal = (rebalance?.items || []).reduce((acc, item) => acc + item.idealValue, 0);
+  const { toInvest: totalToInvest, strategic: strategicTotal } = rebalanceTotals(rebalance?.items || []);
 
   return (
     <div className="space-y-6">

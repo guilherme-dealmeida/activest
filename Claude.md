@@ -5,7 +5,10 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 27/10/2026, noite (**Evolução dos Proventos**, `docs/planos/PLANO_DIVIDENDOS_POR_PERIODO.md`: aba
+> **Última revisão**: 27/10/2026, mais tarde (**Testes do front**, `docs/planos/PLANO_TESTES_FRONT.md`: as contas que o
+> navegador faz saíram dos componentes para funções em `utils/` com teste — 148 testes em 15 arquivos, rodando também no
+> build da imagem do front; a soma da Estratégia e as cotas do fundo passaram a ser calculadas como no backend — ver
+> "Testes do front"). Antes: 27/10/2026, noite (**Evolução dos Proventos**, `docs/planos/PLANO_DIVIDENDOS_POR_PERIODO.md`: aba
 > nova, primeira e padrão de `/dividends`, com os proventos por mês e por ano — sempre líquidos e pela data de
 > pagamento —, gráficos com o recebido por tipo de ativo (FIIs na base) e o a receber hachurado, tabela mês a mês com o
 > detalhe do mês e "Copiar tabela"; filtros das abas num hook só (`useDividendFilters`); primeiros testes do front, com
@@ -2171,12 +2174,39 @@ a se manifestar porque `id` é estável por instância, mas é o componente que 
 `CurrencyInput`, `PercentInput` e a Quantidade do modal de transação.
 
 ### Testes do front — Vitest (27/10/2026)
-`npm test` (`vitest run`, Vitest 2.1, sem config própria: lê o `vite.config.ts`, com o alias `@`). Os testes ficam ao
-lado do que testam (`*.test.ts`) e cobrem **funções puras** — conta tirada do componente para `utils/`; a tela não é
-testada aqui (E2E é o Playwright, escopo futuro). Primeiro: `utils/dividendPeriods.test.ts` (17, Evolução dos
-Proventos). As outras telas com conta no navegador estão levantadas em `docs/PENDENCIAS.md`, seção 40. O `tsc -b` do
-build também checa os testes. A imagem do front precisa ser reconstruída (`docker compose build web`) para ter o
-Vitest dentro do container; o dev server não depende dele.
+`npm test` (`vitest run`, Vitest 2.1, sem config própria: lê o `vite.config.ts`, com o alias `@`; ambiente Node). Os
+testes ficam ao lado do que testam (`*.test.ts`) e cobrem **funções puras** — conta tirada do componente para um `.ts`
+de `utils/` (o `.tsx` fica só com componente, por causa do `react-refresh`); a tela não é testada aqui (E2E é o
+Playwright, escopo futuro). O `tsc -b` do build também checa os testes, e o **build da imagem roda `npm test`** antes do
+`npm run build` (`activest-web/Dockerfile`): imagem não sai com teste vermelho (D5 de `docs/planos/PLANO_TESTES_FRONT.md`).
+
+Em 27/10/2026: **148 testes em 15 arquivos**, verdes no Windows e no build Linux da imagem (UTC):
+
+| Arquivo (`utils/`) | O que cobre | Usado por |
+|---|---|---|
+| `dividendPeriods` (17) | Evolução dos Proventos: mês, ano, janelas, detalhe, cópia | `components/dividends/*` |
+| `dividendTotals` (4) | cards de Dividendos: líquido, bruto, IR (com exterior), por tipo | `DividendsPage` |
+| `heatmap` (8) | coluna "Ano" do mapa de calor composta (∏(1+r) − 1), conferida com o ano do motor (2024: 13,2942%) | `PerformancePanels` |
+| `portfolioTotals` (7, com `returns`) | rodapé da Carteira sobre as somas, líquido estimado, aportes da RF | `PortfolioPage` |
+| `transactionAmounts` (8) | total, cotas do fundo (8 casas, HALF_EVEN em inteiros exatos — igual à API), "Resgatar tudo" | `TransactionFormModal` |
+| `maskedNumber` (17, com `numberPaste`) | digitação pela direita, teto de 15 dígitos, `allowEmpty`, colar | `MaskedNumberInput` |
+| `strategyRules` (12) | soma de 100% da Estratégia, reserva por valor/percentual, % Diff, totais do Rebalanceamento | `StrategyPage`, `ReservationStrategyTab`, `RebalancePage` |
+| `goalProgress` (5) | uso da meta de limite, cor e largura das barras | `GoalDetailPage`, `GoalCard`, `GoalFormModal` |
+| `donutGeometry` (12, com `donut`) | ordem das roscas, pizza de pizza (ângulos e linhas), legenda do canto | `PieOfPieChart`, `CornerLegendDonut` |
+| `issuerListing` (16) | filtros, ordem e estado na URL da listagem de Ativos | `IssuerListing*` |
+| `indicators` (9) | janelas e médias, formatos, não controladores (`centsDifference`) | Ativos, Demonstrativos |
+| `format` (10), `cron` (9), `legacyUrl` (8), `people` (6: CPF, data/hora, celular) | utilitários | toda a aplicação |
+
+**Soma da Estratégia (27/10/2026, A1/D2 do plano):** a tela somava os percentuais em ponto flutuante e arredondava com
+`Math.round(soma × 10)`; 0,10 + 99,85 virava 99,9499… (recusado na tela, aceito pelo backend) e 32,23 + 67,82 virava
+100,0499… (aceito na tela, recusado pelo backend). Agora soma em centésimos inteiros e arredonda a uma casa com
+HALF_UP, como o `StrategyService.validateTotal`; o "Total" da tabela fica verde pela mesma regra (antes, 33,33 × 3 =
+99,99% aparecia em vermelho, embora pudesse ser salvo).
+
+**Cotas do fundo no formulário (27/10/2026, D8):** a prévia "~ X cotas" calculava valor ÷ cota em ponto flutuante e
+arredondava meio para cima; a API grava `totalAmount.divide(pricePerShare, 8, HALF_EVEN)`. No empate da 9ª casa as duas
+diferiam (1 ÷ 512: tela 0,00195313, gravado 0,00195312). `fundShares` agora faz a conta em inteiros exatos (`BigInt`:
+centavos × 10¹⁴ ÷ cota × 10⁸, o resto decide e o meio vai para o par).
 
 ### `tsc -b` do front — corrigido em 23/09/2026
 `npm run build` é `tsc -b && vite build`, e o `tsc -b` falhava em

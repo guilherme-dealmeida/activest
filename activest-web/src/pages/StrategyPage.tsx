@@ -20,6 +20,7 @@ import { useToast } from '@/context/ToastContext';
 import { apiMessage } from '@/utils/apiError';
 import { TABLE_ACTION_CLASS } from '@/components/ui/tableAction';
 import { PageLink } from '@/components/ui/PageLink';
+import { isStrategyTotalValid, strategyTotal, strategyTotalLabel } from '@/utils/strategyRules';
 
 const PIE_COLORS = ['#c9a84c', '#38a169', '#e53e3e', '#3182ce', '#805ad5', '#d69e2e', '#ed8936', '#dd6b20'];
 
@@ -158,10 +159,11 @@ export const StrategyPage = () => {
 
   // Save: persist all local rows to backend (full replace)
   const handleSave = () => {
-    const total = Object.values(editingRows).reduce((acc, row) => acc + Number(row.value), 0);
-    if (Math.round(total * 10) !== 1000) {
+    // Soma em centésimos e arredondada a uma casa, como o backend (utils/strategyRules.ts; PLANO_TESTES_FRONT, D2)
+    const values = Object.values(editingRows).map(row => row.value);
+    if (!isStrategyTotalValid(values)) {
       showToast(
-        `A soma dos percentuais deve ser 100%. Hoje está em ${total.toFixed(1).replace('.', ',')}%.`,
+        `A soma dos percentuais deve ser 100%. Hoje está em ${strategyTotalLabel(values)}%.`,
         'error'
       );
       return;
@@ -201,7 +203,9 @@ export const StrategyPage = () => {
         || PIE_COLORS[idx % PIE_COLORS.length]
     })));
 
-  const totalPct = Object.values(editingRows).reduce((acc, row) => acc + Number(row.value), 0);
+  const totalValues = Object.values(editingRows).map(row => row.value);
+  const totalPct = strategyTotal(totalValues);
+  const totalValid = isStrategyTotalValid(totalValues);
 
   // Check if there are unsaved changes
   const hasChanges = (() => {
@@ -342,7 +346,7 @@ export const StrategyPage = () => {
                     <td className="px-4 py-3 text-center">
                       <span className={clsx(
                         "font-semibold",
-                        totalPct === 100 ? "text-success" : "text-danger"
+                        totalValid ? "text-success" : "text-danger"
                       )}>
                         {formatPercentage(totalPct)}
                       </span>

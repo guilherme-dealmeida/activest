@@ -18,6 +18,7 @@ import { apiMessage } from '@/utils/apiError';
 import { LabelWithInfo } from '@/components/ui/InfoTooltip';
 import { STRATEGY_HELP, restoredMessage } from './strategyHelp';
 import { INCOME_COLOR, RESERVATION_COLOR, RESERVATION_TYPE_LABELS } from '@/utils/reservation';
+import { incomeShare, reservationDiff, reservationIdealPercentage } from '@/utils/strategyRules';
 
 interface Draft {
   type: ReservationType;
@@ -103,10 +104,8 @@ export const ReservationStrategyTab = () => {
 
   // O que o % Diff compara. No tipo por valor é o alvo sobre a carteira de
   // hoje, limitado a 100% — a mesma conta do backend.
-  const idealPercentage = isValue
-    ? total > 0 ? Math.min(100, (draft.value / total) * 100) : 0
-    : draft.percentage;
-  const diff = reservation.currentPercentage - idealPercentage;
+  const idealPercentage = reservationIdealPercentage(isValue, draft.value, draft.percentage, total);
+  const { diff, abs: diffAbs, side: diffSide } = reservationDiff(reservation.currentPercentage, idealPercentage);
 
   const saved = draftFrom(reservation);
   const hasChanges =
@@ -131,11 +130,11 @@ export const ReservationStrategyTab = () => {
   const pieData = isValue
     ? [
         { name: 'Reserva de Emergência', value: draft.value, color: RESERVATION_COLOR },
-        { name: 'Geração de Renda', value: Math.max(0, total - draft.value), color: INCOME_COLOR },
+        { name: 'Geração de Renda', value: incomeShare(total, draft.value), color: INCOME_COLOR },
       ]
     : [
         { name: 'Reserva de Emergência', value: draft.percentage, color: RESERVATION_COLOR },
-        { name: 'Geração de Renda', value: Math.max(0, 100 - draft.percentage), color: INCOME_COLOR },
+        { name: 'Geração de Renda', value: incomeShare(100, draft.percentage), color: INCOME_COLOR },
       ];
   // Regra das roscas (donut.ts): do maior para o menor, a partir do topo.
   const visibleSlices = byValueDesc(pieData.filter((d) => d.value > 0));
@@ -231,7 +230,7 @@ export const ReservationStrategyTab = () => {
                       diff > 0 ? 'text-success' : diff < 0 ? 'text-danger' : 'text-gray-400'
                     )}
                   >
-                    {formatPercentage(Math.abs(diff))} {diff > 0 ? 'acima' : diff < 0 ? 'abaixo' : ''}
+                    {formatPercentage(diffAbs)} {diffSide}
                   </span>
                 </td>
               </tr>
