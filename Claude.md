@@ -2180,6 +2180,14 @@ de `utils/` (o `.tsx` fica só com componente, por causa do `react-refresh`); a 
 Playwright, escopo futuro). O `tsc -b` do build também checa os testes, e o **build da imagem roda `npm test`** antes do
 `npm run build` (`activest-web/Dockerfile`): imagem não sai com teste vermelho (D5 de `docs/planos/PLANO_TESTES_FRONT.md`).
 
+Dois cuidados do Docker (conferidos em 27/10/2026, depois do merge):
+- o `npm test` está no estágio **build** (o da imagem de produção, `--target runtime`). O compose do dev usa o estágio
+  **dev** (`target: dev`), que não roda os testes: `docker compose build web` não é uma conferência dos testes.
+- o `node_modules` do container `web` fica num **volume anônimo**, que o `docker compose up -d web` reaproveita. Depois
+  de mudar dependência (`package.json`), recrie com `docker compose up -d --no-deps --renew-anon-volumes web`; sem isso
+  o container fica com o `node_modules` antigo — em 27/10/2026 ele estava sem o Vitest, e o `npx vitest` baixou a
+  versão mais nova (5.x) em vez da 2.1.9 do projeto.
+
 Em 27/10/2026: **148 testes em 15 arquivos**, verdes no Windows e no build Linux da imagem (UTC):
 
 | Arquivo (`utils/`) | O que cobre | Usado por |
