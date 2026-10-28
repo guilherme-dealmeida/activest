@@ -4,7 +4,8 @@
 > carga em `carga/`), em 09/10/2026 (seção 8, banco de dados) e em 10/10/2026 (5.3: o Claude executa downloads e
 > esperas longas; a antiga 5.7 deixou de ser necessária), em 12/10/2026 (2.6: preço atual × fechamento) e em
 > 22/10/2026 (seção 9, nomes em inglês) e em 23/10/2026 (seções 1 e 2: os dois tipos de trabalho, POR ESCOPO com as
-> 7 etapas e POR DÚVIDAS; 3.2 e seção 4 ajustadas às etapas) e em 24/10/2026 (3.4, branches protegidas; 2.5, decisão pela recomendação só com aprovação explícita).
+> 7 etapas e POR DÚVIDAS; 3.2 e seção 4 ajustadas às etapas) e em 24/10/2026 (3.4, branches protegidas; 2.5, decisão pela recomendação só com aprovação explícita) e em 27/10/2026
+> (4.3, testar nos dois temas sem pedir permissão).
 >
 > **Escopo:** só a **relação de trabalho**: como pedimos, executamos, validamos e documentamos. Regras de negócio do
 > sistema não entram aqui; elas ficam no `Claude.md` e nos planos.
@@ -138,6 +139,11 @@ apontar, e o Commit (etapa 7).
 
 - conferência rápida no navegador do app, com ele logado;
 - testes E2E automatizados com Playwright (escopo futuro, o planejamento será informado por ele).
+
+**4.3** (27/10/2026) Para testar, o Claude **não pede permissão nem hesita** em trocar o modo de cores do sistema
+(tema claro/escuro), mesmo que a troca fique gravada na preferência do usuário: confere a tela nos dois temas e volta
+ao tema em que ela estava. Origem: Evolução dos Proventos, em que o tema claro deixou de ser conferido para não mexer
+na preferência gravada.
 
 ## 5. Execução na máquina do Guilherme
 
