@@ -2,7 +2,8 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 27/10/2026 — secao 39 (fundos de investimento da CVM, docs/planos/PLANO_FUNDOS_INVESTIMENTO.md);
+Ultima atualizacao: 27/10/2026 — secao 40 (testes de front para as telas com calculo, levantamento; origem:
+docs/planos/PLANO_DIVIDENDOS_POR_PERIODO.md, D9). No mesmo dia: secao 39 (fundos de investimento da CVM, docs/planos/PLANO_FUNDOS_INVESTIMENTO.md);
 29.7 resolvido na parte dos fundos. Antes: 26/10/2026 — secao 38 (cadastro de moedas, docs/planos/PLANO_CADASTRO_MOEDAS.md); 37.1 resolvido;
 3.8 em parte (Stock/REIT/ETF internacional com retencao do exterior). Antes: 21/10/2026 — secao 33 (correcao dos proventos, docs/planos/PLANO_CORRECAO_PROVENTOS.md);
 19.1 e 20.5 resolvidos; 3.4, 3.5, 14 e 18.6 reescritos (sem a conferencia por extrato, que saiu). Antes: 17/10/2026 — secao 32 (listagem de emissoras implementada). No mesmo dia: secao 31 (novos indicadores de acoes, escopo futuro saido da listagem de
@@ -1445,6 +1446,56 @@ meia-noite de Sao Paulo a data exibida pode ser a do dia seguinte.
 **39.10** Etapa "fundos" do `BOOTSTRAP`: coberta pela `FundCatalogIT.bootstrap` e, com dados reais, pela mesma
  varredura no DEV (`FUND_QUOTES` com `FROM_MONTH` = 2010-01, ~7 min, 54.741 fundos); a prova do zero na pilha de teste
  (`activest-teste`, criterio 1 do plano) fica para a proxima carga completa. `cvm/fi` ja esta no bucket (27/10/2026).
+
+## 40. TESTES DE FRONT PARA AS TELAS COM CALCULO (docs/planos/PLANO_DIVIDENDOS_POR_PERIODO.md, D9, 27/10/2026)
+
+Pedido do Guilherme (27/10/2026): o Vitest entra com a aba Evolucao dos Proventos, "o primeiro de muitos"; as demais
+telas que fazem conta no navegador ganham teste depois. Hoje o front nao tem executor de testes (`package.json` so com
+`build` e `lint`); a validacao das contas e manual. Levantamento feito no codigo em 27/10/2026 — so o que o NAVEGADOR
+calcula (o que vem pronto da API ja e testado no backend). Regra para todos: tirar a conta do componente para uma
+funcao pura em `utils/` (ou no proprio modulo, exportada) e testar a funcao; tela nao e testada aqui (E2E e o
+Playwright, escopo futuro, 25.5 e 29.10).
+
+**40.1** FEITO (27/10/2026) — Vitest 2.1 (`npm test` = `vitest run`, sem config propria: usa o `vite.config.ts`).
+**40.2** FEITO em parte (27/10/2026) — `utils/dividendPeriods.test.ts` (17): mes pelo pagamento, recebido sem data pela
+ data com, a receber sem data fora, meses vazios, FIIs na base, anos, janelas, detalhe do mes, copiar tabela, centavos.
+ Fica para depois o resto da tela
+ (`DividendsPage.tsx`): `addRow` (liquido = `netAmount ?? totalAmount`; IR = retido + retencao do exterior + IR
+ brasileiro estimado), totais por tipo e os filtros encadeados (tipo de ativo zera o ativo).
+**40.3** Rentabilidade — `ReturnHeatmap.yearReturn` (`components/performance/PerformancePanels.tsx`): a coluna "Ano" do
+ mapa de calor COMPOE os meses no navegador (produto de 1 + r); com mes nulo o ano fica "—". E a unica conta de
+ rentabilidade feita fora do motor do backend. Prioridade alta.
+**40.4** Carteira (`pages/PortfolioPage.tsx`) — rodape: somas de investido, vendido, atual, proventos e valorizacao;
+ % de valorizacao e rentabilidade classica sobre as SOMAS (`utils/returns.ts` `classicReturn`, a do Investidor10);
+ liquido estimado da aba (`estimatedNet ?? currentValue`); nos lotes da renda fixa, soma do rendimento e de IOF + IR.
+ Prioridade alta.
+**40.5** Transacoes (`components/transactions/TransactionFormModal.tsx`) — total = cotas x preco; cotas do fundo =
+ valor / cota com 8 casas (tem de bater com a API, que grava); "Liquidacao total" preenche o liquido arredondado em
+ centavos. Prioridade alta.
+**40.6** Campos numericos (`components/ui/MaskedNumberInput.tsx`, `utils/numberPaste.ts` `parsePastedNumber`) — mascara
+ pela direita, sinal, teto de 15 digitos, colar "15.563.000.000,00", "-17.040.000.000,00", "(1.234,56)", "R$ 58,68", "1234.56" e recusar
+ "R$ 52,45 bi"; o caso ambiguo "12.888" (milhar ou decimal). Usado em
+ toda a aplicacao (Transacoes, Estrategia, Preco Teto, filtros de Ativos, Informar custo). Prioridade alta.
+**40.7** Estrategia — `pages/StrategyPage.tsx`: soma dos percentuais tem de dar 100% (`Math.round(total * 10) === 1000`)
+ e a mensagem com a soma; `components/strategy/ReservationStrategyTab.tsx`: % da reserva no Por Valor
+ (min(100, valor / carteira)), Geracao de Renda = total - reserva (piso 0) e a diferenca acima/abaixo do ideal.
+**40.8** Rebalanceamento (`pages/RebalancePage.tsx`) — total a aportar e total estrategico (somas dos itens).
+**40.9** Alocacao e roscas — total da `AllocationPage`; `components/charts/donut.ts` (`byValueDesc`, giro 90 -> -270);
+ `PieOfPieChart` (angulo da fatia aberta e as linhas de ligacao, inclusive fatia maior que meia volta);
+ `CornerLegendDonut` (quando a legenda sobe para o lado da rosca).
+**40.10** Metas (`pages/GoalDetailPage.tsx`, `components/goals/GoalCard.tsx`, `GoalFormModal.tsx`) — progresso
+ = max(0, indicador) / alvo, barra limitada a 100%; inteiros truncados no `GoalFieldInput`.
+**40.11** Ativos — `utils/issuerListing.ts`: `applyFilters` (fator da unidade: percentual em pontos, PL em R$
+ milhoes; faixa preenchida tira quem nao tem o indicador; busca sem acento), `sortRows` (vazios no fim, desempate pelo
+ ticker), `parseRange`/`readTabState`/`writeTabState` (estado na URL); `components/issuer/FinancialStatements.tsx`
+ (`minus`: nao controladores = consolidado - controladora, em centavos); `utils/indicators.ts` (`pointsInWindow`,
+ `averageOf`, abreviacao `formatCompactCurrency`).
+**40.12** Utilitarios sem tela propria — `utils/format.ts` (moeda, percentual, data e `toLocalISODate` no fuso local),
+ `utils/cron.ts` (`parseCron`/`buildCron`/`describeCron` da tela Tarefas), `utils/legacyUrl.ts` (rotas e parametros
+ antigos), `utils/integrations.ts` (`isValidCpf`), `utils/phone.ts`.
+
+Ordem sugerida depois do 40.1/40.2: 40.3, 40.4, 40.5 e 40.6 (contas de dinheiro que o usuario ve ou grava), depois
+40.7 a 40.11, e o 40.12 aos poucos, junto de quem mexer em cada utilitario.
 
 ## ORDEM SUGERIDA
 

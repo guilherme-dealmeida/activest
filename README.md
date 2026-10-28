@@ -60,7 +60,9 @@ activest/
   da CVM, crescimento sustentável (ROE × (1 − payout)), 3 períodos + perpetuidade descontados pela Selic, margem de
   segurança; padrões do catálogo editáveis, alertas e comparação com o fechamento do dia e o
   preço médio — ver `docs/PRECO_TETO_METODOLOGIA.md` e `docs/planos/PLANO_PRECO_TETO.md`
-- ✅ Acompanhamento de proventos (dividendos, JCP, rendimentos), com abas de histórico (recebidos) e a receber. O
+- ✅ Acompanhamento de proventos (dividendos, JCP, rendimentos), com abas de evolução (27/10/2026: mês a mês e ano a ano,
+  líquido pela data de pagamento, gráficos por tipo de ativo, tabela para conferir com outras plataformas e
+  "Copiar tabela" — `docs/planos/PLANO_DIVIDENDOS_POR_PERIODO.md`), histórico (recebidos) e a receber. O
   catálogo de proventos vem da B3 e do FNET (21/10/2026: sem parcelas duplicadas, recibos de subscrição, avisos
   retificados nem outra classe do fundo; conferência independente em `carga/scripts/conferencia/proventos.mjs` —
   `docs/planos/PLANO_CORRECAO_PROVENTOS.md`)
@@ -166,6 +168,7 @@ cd activest-web
 npm install
 npm run dev
 npm run lint     # ESLint 9; hoje fecha em 0 erro
+npm test         # Vitest (27/10/2026): testes das contas do front
 ```
 
 > Não existe `GOOGLE_CLIENT_SECRET`: o login usa o fluxo de ID token do Google

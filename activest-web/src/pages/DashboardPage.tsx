@@ -195,7 +195,7 @@ export const DashboardPage = () => {
           icon={<HandCoins className="h-5 w-5" />}
           lines={[
             { label: 'Últimos 12 meses', value: formatCurrency(dividends?.last12Months || 0), to: '/dividends' },
-            { label: 'Totais', value: formatCurrency(dividends?.totalDividends || 0), to: '/dividends' },
+            { label: 'Totais', value: formatCurrency(dividends?.totalDividends || 0), to: '/dividends?tab=received' },
             { label: 'A receber', value: formatCurrency(dividends?.totalToReceive || 0), to: '/dividends?tab=to-receive' },
           ]}
         />

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { dividendsApi } from '@/api/dividends';
@@ -8,25 +8,15 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Pagination } from '@/components/ui/Pagination';
 import { formatCurrency, formatCurrencyPrecise, formatDate, formatFxRate, formatMoney, formatShares } from '@/utils/format';
 import { DIVIDEND_TYPE_LABELS, DividendResponse, DividendSummary, DividendType } from '@/types';
-import { CalendarClock, DollarSign, List, X } from 'lucide-react';
+import { CalendarClock, DollarSign, List } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useSortable } from '@/hooks/useSortable';
 import { TABLE_ACTION_CLASS } from '@/components/ui/tableAction';
 import { TickerLink } from '@/components/issuer/TickerLink';
-import { LocalAssetOption, LocalAssetSearch } from '@/components/ui/LocalAssetSearch';
-
-/**
- * Rótulo de cada tipo no filtro e no card "por Tipo" (plural: é um grupo).
- * A ordem das opções é a do enum; só aparecem os tipos que existem no histórico.
- */
-const TYPE_GROUP_LABELS: Record<DividendType, string> = {
-  [DividendType.DIVIDENDO]: 'Dividendos',
-  [DividendType.JCP]: 'JCP',
-  [DividendType.RENDIMENTO]: 'Rendimentos',
-  [DividendType.AMORTIZACAO]: 'Amortizações',
-  [DividendType.RESTITUICAO_CAPITAL]: 'Restituições de capital',
-};
-const TYPE_ORDER = Object.values(DividendType);
+import { TYPE_GROUP_LABELS, TYPE_ORDER } from '@/components/dividends/dividendLabels';
+import { useDividendFilters } from '@/components/dividends/useDividendFilters';
+import { DividendFilterBar, DividendFilterNotice } from '@/components/dividends/DividendFilters';
+import { DividendEvolutionTab } from '@/components/dividends/DividendEvolutionTab';
 
 // Proventos de ação vindos só do histórico longo da B3 não têm data de
 // pagamento: a fonte não traz o campo (docs/PENDENCIAS.md, 3.4).
@@ -42,8 +32,6 @@ const PAYMENT_DATE_SOURCE_HINT: Record<string, string> = {
 const NO_PAYMENT_DATE_LABEL = 'Data não informada';
 const NO_PAYMENT_DATE_HINT =
   'Nenhuma fonte informa a data de pagamento deste provento. Proventos recentes ganham a data quando a empresa a divulgar.';
-
-const ALL = 'ALL';
 
 /** Linha da tabela: o provento com o TOTAL que vale (líquido; bruto se não há regra de IR). */
 type DividendRow = DividendResponse & { total: number };
@@ -65,22 +53,33 @@ const addRow = (acc: Totals, r: DividendRow): Totals => ({
 });
 
 const NO_TAX_RULE_HINT = 'Sem regra de IR para este tipo de provento e de ativo: o total é o bruto.';
-const sortPtBr = (a: string, b: string) => a.localeCompare(b, 'pt-BR');
 
 /**
- * Aba da tela: Histórico (recebidos) ou A Receber. A situação de cada provento
- * vem do backend (`received`, no fuso da B3), e cada aba mostra só a sua parte —
- * por isso a tela não tem mais filtro nem coluna de situação.
+ * Aba da tela: Evolução dos Proventos (meses e anos, 27/10/2026 — docs/planos/PLANO_DIVIDENDOS_POR_PERIODO.md),
+ * Histórico (recebidos) ou A Receber. A situação de cada provento vem do backend (`received`, no fuso da B3), e cada
+ * aba de lista mostra só a sua parte — por isso a tela não tem filtro nem coluna de situação.
  */
-type DividendTab = 'received' | 'toReceive';
+type DividendTab = 'periods' | 'received' | 'toReceive';
+type ListTab = Exclude<DividendTab, 'periods'>;
 
 const TAB_LABELS: Record<DividendTab, string> = {
+  periods: 'Evolução dos Proventos',
   received: 'Histórico de Proventos',
   toReceive: 'Proventos a Receber',
 };
 
+/** Valor de `?tab=` de cada aba; a Evolução é a padrão, sem parâmetro (D2). */
+const TAB_PARAMS: Record<DividendTab, string | null> = {
+  periods: null,
+  received: 'received',
+  toReceive: 'to-receive',
+};
+
+/** "Ver no Histórico" do detalhe do mês: a aba de lista recebe o ticker e aplica o Listar. */
+type ListRequest = { tab: ListTab; ticker: string; nonce: number };
+
 /** Textos que mudam de uma aba para a outra; o resto da aba é igual. */
-const TAB_TEXTS: Record<DividendTab, { total: string; byType: string; emptyByType: string; emptyList: string }> = {
+const TAB_TEXTS: Record<ListTab, { total: string; byType: string; emptyByType: string; emptyList: string }> = {
   received: {
     total: 'Total Recebido',
     byType: 'Recebido por Tipo',
@@ -99,17 +98,26 @@ const TAB_TEXTS: Record<DividendTab, { total: string; byType: string; emptyByTyp
  * Proventos são somente leitura: todos vêm da sincronização automática, que
  * calcula o total com as cotas que havia na data-com.
  *
- * Duas abas sobre o mesmo resumo (`GET /dividends/`): Histórico de Proventos
- * (recebidos) e Proventos a Receber (11/10/2026). A aba fica na URL (`?aba=a-receber`, 17/10/2026): o card Proventos
- * do Dashboard leva direto a ela.
+ * Três abas sobre o mesmo resumo (`GET /dividends/`): Evolução dos Proventos (meses e anos, 27/10/2026, a padrão),
+ * Histórico de Proventos (recebidos) e Proventos a Receber (11/10/2026). A aba fica na URL (`?tab=received`,
+ * `?tab=to-receive`; sem parâmetro, a Evolução): o card Proventos do Dashboard leva direto a cada uma.
  */
 export const DividendsPage = () => {
   const [params, setParams] = useSearchParams();
-  const activeTab: DividendTab = params.get('tab') === 'to-receive' ? 'toReceive' : 'received';
+  const tabParam = params.get('tab');
+  const activeTab: DividendTab = tabParam === 'to-receive' ? 'toReceive' : tabParam === 'received' ? 'received' : 'periods';
   const setActiveTab = (tab: DividendTab) => {
     const next = new URLSearchParams(params);
-    if (tab === 'toReceive') next.set('tab', 'to-receive'); else next.delete('tab');
+    const value = TAB_PARAMS[tab];
+    if (value) next.set('tab', value); else next.delete('tab');
     setParams(next, { replace: true });
+  };
+  const [listRequest, setListRequest] = useState<ListRequest | null>(null);
+  /** Detalhe do mês → aba de lista do provento, filtrada pelo ativo. */
+  const showInList = (ticker: string, received: boolean) => {
+    const tab: ListTab = received ? 'received' : 'toReceive';
+    setListRequest({ tab, ticker, nonce: Date.now() });
+    setActiveTab(tab);
   };
 
   const { data: summary, isLoading } = useQuery<DividendSummary>({
@@ -129,7 +137,7 @@ export const DividendsPage = () => {
     return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent" /></div>;
   }
 
-  const tabs: DividendTab[] = ['received', 'toReceive'];
+  const tabs: DividendTab[] = ['periods', 'received', 'toReceive'];
 
   return (
     <div className="space-y-6">
@@ -149,12 +157,15 @@ export const DividendsPage = () => {
         ))}
       </div>
 
-      {/* As duas abas ficam montadas: cada uma guarda os seus filtros, página e ordenação ao trocar de aba. */}
+      {/* As três abas ficam montadas: cada uma guarda os seus filtros, página e ordenação ao trocar de aba. */}
+      <div hidden={activeTab !== 'periods'}>
+        <DividendEvolutionTab rows={allRows} onShowInList={showInList} />
+      </div>
       <div hidden={activeTab !== 'received'}>
-        <DividendsTabPanel tab="received" rows={receivedRows} />
+        <DividendsTabPanel tab="received" rows={receivedRows} listRequest={listRequest} />
       </div>
       <div hidden={activeTab !== 'toReceive'}>
-        <DividendsTabPanel tab="toReceive" rows={toReceiveRows} />
+        <DividendsTabPanel tab="toReceive" rows={toReceiveRows} listRequest={listRequest} />
       </div>
     </div>
   );
@@ -166,50 +177,20 @@ export const DividendsPage = () => {
  * Os filtros rodam no navegador sobre os proventos da aba, e os cards do topo
  * somam a lista filtrada.
  */
-const DividendsTabPanel = ({ tab, rows }: { tab: DividendTab; rows: DividendRow[] }) => {
+const DividendsTabPanel = ({ tab, rows, listRequest }: { tab: ListTab; rows: DividendRow[]; listRequest: ListRequest | null }) => {
   const texts = TAB_TEXTS[tab];
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [filterType, setFilterType] = useState<string>(ALL);
-  const [filterAssetType, setFilterAssetType] = useState<string>(ALL);
-  const [filterAsset, setFilterAsset] = useState<string>(ALL);
+  const f = useDividendFilters(rows, () => setCurrentPage(1));
+  const { filtered, list } = f;
 
-  // Opções de cada filtro: só o que existe nos proventos da aba.
-  const typeOptions = useMemo(() => {
-    const present = new Set(rows.map(r => r.type));
-    return TYPE_ORDER.filter(t => present.has(t));
-  }, [rows]);
-
-  const assetTypeOptions = useMemo(() => {
-    const byId = new Map<number, string>();
-    rows.forEach(r => {
-      if (r.assetTypeId != null && !byId.has(r.assetTypeId)) {
-        byId.set(r.assetTypeId, r.assetTypeDescription ?? String(r.assetTypeId));
-      }
-    });
-    return [...byId.entries()].sort((a, b) => a[0] - b[0]).map(([id, label]) => ({ id: String(id), label }));
-  }, [rows]);
-
-  // O filtro de ativo depende do tipo de ativo: sem tipo escolhido fica em "Todos".
-  const assetOptions = useMemo(() => {
-    if (filterAssetType === ALL) return [];
-    const tickers = rows
-      .filter(r => String(r.assetTypeId) === filterAssetType)
-      .map(r => r.ticker)
-      .filter(Boolean);
-    return [...new Set(tickers)].sort(sortPtBr);
-  }, [rows, filterAssetType]);
-
-  const filtered = useMemo(
-    () =>
-      rows.filter(r => {
-        if (filterType !== ALL && r.type !== filterType) return false;
-        if (filterAssetType !== ALL && String(r.assetTypeId) !== filterAssetType) return false;
-        if (filterAsset !== ALL && r.ticker !== filterAsset) return false;
-        return true;
-      }),
-    [rows, filterType, filterAssetType, filterAsset]
-  );
+  // "Ver no Histórico" do detalhe do mês (Evolução dos Proventos): o Listar do ativo nesta aba.
+  const { listTicker } = f;
+  useEffect(() => {
+    if (listRequest?.tab === tab) listTicker(listRequest.ticker);
+    // só quando chega um pedido novo (nonce); listTicker muda a cada render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listRequest?.nonce]);
 
   // Cards acompanham o filtro e mostram o líquido, com bruto e IR embaixo.
   const totals = useMemo(() => filtered.reduce(addRow, ZERO), [filtered]);
@@ -229,83 +210,9 @@ const DividendsTabPanel = ({ tab, rows }: { tab: DividendTab; rows: DividendRow[
   const totalPages = Math.ceil(sortedData.length / itemsPerPage);
   const paginated = sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const handleTypeChange = (value: string) => {
-    setFilterType(value);
-    setCurrentPage(1);
-  };
-
-  // Trocar o tipo de ativo zera o ativo: um ticker de outro tipo deixaria a
-  // tabela vazia sem motivo.
-  const handleAssetTypeChange = (value: string) => {
-    setFilterAssetType(value);
-    setFilterAsset(ALL);
-    setCurrentPage(1);
-  };
-
-  const handleAssetChange = (value: string) => {
-    setFilterAsset(value);
-    setCurrentPage(1);
-  };
-
-  /**
-   * Ícone Listar da linha: filtra pelo Tipo de Ativo e pelo Ativo do provento.
-   * O filtro Tipo (de provento) volta a "Todos", como os demais filtros no
-   * Listar das Transações: a lista mostra todos os proventos daquele ativo.
-   */
-  const list = (row: DividendRow) => {
-    if (row.assetTypeId == null) return;
-    setFilterAssetType(String(row.assetTypeId));
-    setFilterAsset(row.ticker);
-    setFilterType(ALL);
-    setCurrentPage(1);
-  };
-
-  // Ativos da aba para a busca por ticker ou nome: um por ticker.
-  const searchOptions = useMemo<LocalAssetOption[]>(() => {
-    const byTicker = new Map<string, LocalAssetOption>();
-    rows.forEach(r => {
-      if (r.ticker && r.assetTypeId != null && !byTicker.has(r.ticker)) {
-        byTicker.set(r.ticker, { ticker: r.ticker, name: r.assetName ?? '', typeLabel: r.assetTypeDescription ?? '' });
-      }
-    });
-    return [...byTicker.values()];
-  }, [rows]);
-
-  /** Escolha na busca: o mesmo efeito do Listar, a partir de um provento daquele ativo. */
-  const listTicker = (ticker: string) => {
-    const row = rows.find(r => r.ticker === ticker);
-    if (row) list(row);
-  };
-
-  /** "Limpar filtro" do aviso: volta a lista da aba inteira (os três filtros em "Todos"). */
-  const clearFilter = () => {
-    setFilterAssetType(ALL);
-    setFilterAsset(ALL);
-    setFilterType(ALL);
-    setCurrentPage(1);
-  };
-
-  const selectClass =
-    'bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2 disabled:opacity-60 disabled:cursor-not-allowed';
-
   return (
     <div className="space-y-6">
-      {/* Mesmo aviso do Listar das Transações: aparece com um ativo filtrado (pelo Listar, pela busca ou pelo seletor). */}
-      {filterAsset !== ALL && (
-        <div className="flex items-center gap-3 rounded-md border border-accent/30 bg-accent/10 px-4 py-2 text-sm">
-          <span className="text-gray-200">
-            Mostrando apenas os proventos de <span className="font-medium text-white">{filterAsset}</span>
-          </span>
-          <button
-            type="button"
-            onClick={clearFilter}
-            className="ml-auto flex items-center gap-1 text-xs text-gray-300 hover:text-white transition-colors"
-          >
-            <X className="w-3.5 h-3.5" />
-            Limpar filtro
-          </button>
-        </div>
-      )}
+      <DividendFilterNotice f={f} />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card
@@ -339,39 +246,7 @@ const DividendsTabPanel = ({ tab, rows }: { tab: DividendTab; rows: DividendRow[
       </div>
 
       {/* Filtros: abaixo dos totais (que os acompanham) e acima da tabela. */}
-      <div className="flex flex-wrap gap-3 items-end">
-        {/* Busca por ticker ou nome, como na tela Ativos: escolher = Listar. */}
-        <div className="w-full sm:w-96">
-          <label className="block text-xs text-gray-400 mb-1">Buscar</label>
-          <LocalAssetSearch options={searchOptions} onSelect={listTicker} ariaLabel="Buscar provento por ticker ou nome" />
-        </div>
-        <div>
-          <label className="block text-xs text-gray-400 mb-1">Tipo de Ativo</label>
-          <select value={filterAssetType} onChange={(e) => handleAssetTypeChange(e.target.value)} className={selectClass}>
-            <option value={ALL}>Todos</option>
-            {assetTypeOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs text-gray-400 mb-1">Ativo</label>
-          <select
-            value={filterAsset}
-            disabled={filterAssetType === ALL}
-            onChange={(e) => handleAssetChange(e.target.value)}
-            className={selectClass}
-          >
-            <option value={ALL}>Todos</option>
-            {assetOptions.map(a => <option key={a} value={a}>{a}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs text-gray-400 mb-1">Tipo</label>
-          <select value={filterType} onChange={(e) => handleTypeChange(e.target.value)} className={selectClass}>
-            <option value={ALL}>Todos</option>
-            {typeOptions.map(t => <option key={t} value={t}>{TYPE_GROUP_LABELS[t]}</option>)}
-          </select>
-        </div>
-      </div>
+      <DividendFilterBar f={f} />
 
       <Card>
         <div className="mb-6">
