@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Goal } from '@/types/goals';
 import { formatDateBR, formatGoalValue, LIFECYCLE, SITUATION } from './goalFormat';
 import { assetText } from '@/utils/assetLabel';
+import { barWidth } from '@/utils/goalProgress';
 
 /**
  * Cartão da meta na lista (docs/planos/PLANO_METAS.md, Anexo A 12): objetivo em uma frase, indicador atual × alvo,
@@ -39,7 +40,7 @@ export const GoalCard = ({ goal }: { goal: Goal }) => {
           <p className="text-xs text-gray-500">{e.indicatorLabel}</p>
           {e.progressPct !== null && (
             <div className="mt-2 h-2 w-full rounded-full bg-surface-light overflow-hidden" title={`${formatGoalValue(e.progressPct, 'PERCENT')}`}>
-              <div className={e.achieved ? 'h-full bg-success' : 'h-full bg-accent'} style={{ width: `${Math.min(100, Number(e.progressPct))}%` }} />
+              <div className={e.achieved ? 'h-full bg-success' : 'h-full bg-accent'} style={{ width: `${barWidth(e.progressPct)}%` }} />
             </div>
           )}
           {e.remaining !== null && e.remainingLabel && (

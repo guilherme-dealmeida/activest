@@ -1,4 +1,5 @@
 import { DividendResponse, DividendType } from '@/types';
+import { dividendTax } from './dividendTotals';
 
 /**
  * Proventos por período — aba "Evolução dos Proventos" da tela de Dividendos
@@ -251,8 +252,7 @@ export interface MonthDetailRow {
 }
 
 /** IR do provento: retido na fonte + retenção do exterior + IR brasileiro estimado (o mesmo do `addRow` da tela). */
-export const taxCents = (d: DividendResponse): number =>
-  toCents((d.withholdingTax ?? 0) + (d.foreign?.withholdingTax ?? 0) + (d.foreign?.incomeTax ?? 0));
+export const taxCents = (d: DividendResponse): number => toCents(dividendTax(d));
 
 /** Proventos de um mês (C2) agrupados por ativo, do maior líquido para o menor. */
 export const monthDetail = (dividends: DividendResponse[], key: string): MonthDetailRow[] => {

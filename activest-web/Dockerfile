@@ -32,6 +32,8 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
 FROM deps AS build
 WORKDIR /app
 COPY . .
+# Testes das contas do front (docs/planos/PLANO_TESTES_FRONT.md, D5): a imagem não sai com teste vermelho.
+RUN npm test
 RUN npm run build
 
 FROM nginx:alpine AS runtime

@@ -6,6 +6,7 @@ import { AllocationPieChart, AllocationTooltip, type AllocationData } from './Al
 import { legendItemsOf } from './legendItems';
 import { ChartLegend } from './ChartLegend';
 import { byValueDesc, DONUT_END_ANGLE, DONUT_START_ANGLE } from './donut';
+import { PIE_OF_PIE_HEIGHT, PIE_OF_PIE_PADDING_ANGLE, pieOfPieGeometry } from '@/utils/donutGeometry';
 
 interface PieSide {
   data: AllocationData[];
@@ -25,17 +26,10 @@ interface PieOfPieChartProps {
 
 /** Abaixo desta largura as pizzas empilham, sem as linhas de ligação (decisão 4, 12/10/2026). */
 const MIN_WIDTH = 760;
-const CHART_HEIGHT = 440;
-/** A pizza de detalhe tem 75% do tamanho da principal, como no Excel (decisão 2). */
-const DETAIL_RATIO = 0.75;
+/** Altura, centros, proporção do detalhe e espaçamento: utils/donutGeometry.ts (testado). */
+const CHART_HEIGHT = PIE_OF_PIE_HEIGHT;
 /** Rosca (decisão 1): mesma proporção do AllocationPieChart, 60% / 80%. */
 const INNER_RATIO = 0.75;
-const PADDING_ANGLE = 2;
-/** Centros: 27% e 77% da largura, o meio das colunas de 54% e 46% dos títulos e das legendas. */
-const MAIN_CX = 0.27;
-const DETAIL_CX = 0.77;
-
-const toRad = (deg: number) => (deg * Math.PI) / 180;
 
 const CenterTotal = ({ x, y, total }: { x: number; y: number; total: number }) => (
   <div
@@ -84,33 +78,20 @@ export const PieOfPieChart = ({ main, detail, expandedName }: PieOfPieChartProps
     );
   }
 
-  // Geometria, em pixels.
-  const cy = CHART_HEIGHT / 2;
-  const mainCx = width * MAIN_CX;
-  const detailCx = width * DETAIL_CX;
-  const outer = Math.max(0, Math.min(CHART_HEIGHT / 2 - 16, width * 0.2));
-  const detailOuter = outer * DETAIL_RATIO;
+  // Geometria, em pixels (utils/donutGeometry.ts, testada).
 
   // A fatia aberta vai primeiro e fica centrada em 0° (virada para a direita, de frente para a segunda pizza). O
   // Recharts desconta o espaçamento das fatias do giro: o meio-ângulo dela é (360 − espaçamento) × fração ÷ 2.
   // Regra das roscas (donut.ts): a de detalhe vai do maior para o menor a partir do topo. A principal é a exceção —
   // girada para a fatia aberta ficar de frente para a de detalhe —, mas a legenda dela segue a ordem decrescente.
   const detailData = byValueDesc(detail.data);
-  const expanded = main.data.find(d => d.name === expandedName);
-  const ordered = expanded ? [expanded, ...main.data.filter(d => d !== expanded)] : main.data;
-  const mainSum = main.data.reduce((acc, d) => acc + d.value, 0);
-  const fraction = expanded && mainSum > 0 ? expanded.value / mainSum : 0;
-  const padding = ordered.length > 1 ? PADDING_ANGLE : 0;
-  const halfAngle = ((360 - padding * ordered.length) * fraction) / 2;
-  const startAngle = halfAngle;
-  const endAngle = startAngle - 360;
+  const {
+    cy, mainCx, detailCx, outer, detailOuter, ordered, startAngle, endAngle, lineStartX, lineDy, expanded, hasExpanded, padding,
+  } = pieOfPieGeometry(width, main.data, expandedName);
 
   // Linhas: das bordas da fatia aberta ao topo e à base da segunda pizza. Fatia maior que meia pizza teria a borda
   // do lado esquerdo e a linha cruzaria a rosca: aí a linha sai do topo e da base da principal, como no Excel.
-  const edge = toRad(Math.min(halfAngle, 90));
-  const showLines = width > 0 && expanded !== undefined && detail.data.length > 0;
-  const lineStartX = mainCx + outer * Math.cos(edge);
-  const lineDy = outer * Math.sin(edge);
+  const showLines = width > 0 && hasExpanded && detail.data.length > 0;
 
   return (
     <div ref={ref} className="w-full">
@@ -154,7 +135,7 @@ export const PieOfPieChart = ({ main, detail, expandedName }: PieOfPieChartProps
                 outerRadius={detailOuter}
                 startAngle={DONUT_START_ANGLE}
                 endAngle={DONUT_END_ANGLE}
-                paddingAngle={detailData.length > 1 ? PADDING_ANGLE : 0}
+                paddingAngle={detailData.length > 1 ? PIE_OF_PIE_PADDING_ANGLE : 0}
                 stroke="none"
               >
                 {detailData.map(entry => <Cell key={entry.name} fill={entry.color} />)}

@@ -22,6 +22,7 @@ import { GoalFormModal } from '@/components/goals/GoalFormModal';
 import { formatDateBR, formatGoalValue, LIFECYCLE, NATURE, QUALITY, SITUATION } from '@/components/goals/goalFormat';
 import { GoalEvaluation, GoalFigure, GoalUnit } from '@/types/goals';
 import { assetText, useAssetLabel } from '@/utils/assetLabel';
+import { barWidth, limitBarClass, limitUsage } from '@/utils/goalProgress';
 
 const EVENT_LABEL: Record<string, string> = {
   CRIADA: 'Criada', EDITADA: 'Editada', PAUSADA: 'Pausada', RETOMADA: 'Retomada', CONCLUIDA: 'Concluída',
@@ -144,8 +145,7 @@ const ItemsTable = ({ items }: { items: Record<string, unknown>[] }) => {
 
 /** {@code limit}: meta de limite (não passar dele) — o alvo vira o nome do limite e a barra mostra o uso dele. */
 const Situation = ({ e, limit }: { e: GoalEvaluation; limit: string | null }) => {
-  const used = limit && e.target !== null && Number(e.target) > 0 && e.indicator !== null
-    ? Math.max(0, Number(e.indicator)) / Number(e.target) * 100 : null;
+  const used = limit ? limitUsage(e.indicator, e.target) : null;
   return (
   <Card title="Situação" titleInfo="Calculada agora com os dados da carteira. Observado = dado registrado; Calculado = regra fixa; Estimativa = depende de premissa.">
     <div className="flex flex-wrap items-end justify-between gap-4">
@@ -162,15 +162,14 @@ const Situation = ({ e, limit }: { e: GoalEvaluation; limit: string | null }) =>
     {used !== null ? (
       <div className="mt-4">
         <div className="h-3 w-full rounded-full bg-surface-light overflow-hidden">
-          <div className={used > 100 ? 'h-full bg-danger' : used > 80 ? 'h-full bg-yellow-500' : 'h-full bg-success'}
-            style={{ width: `${Math.min(100, used)}%` }} />
+          <div className={limitBarClass(used)} style={{ width: `${barWidth(used)}%` }} />
         </div>
         <p className="text-xs text-gray-400 mt-1">{formatGoalValue(used, 'PERCENT')} do limite</p>
       </div>
     ) : e.progressPct !== null && (
       <div className="mt-4">
         <div className="h-3 w-full rounded-full bg-surface-light overflow-hidden">
-          <div className={e.achieved ? 'h-full bg-success' : 'h-full bg-accent'} style={{ width: `${Math.min(100, Number(e.progressPct))}%` }} />
+          <div className={e.achieved ? 'h-full bg-success' : 'h-full bg-accent'} style={{ width: `${barWidth(e.progressPct)}%` }} />
         </div>
         <p className="text-xs text-gray-400 mt-1">{formatGoalValue(e.progressPct, 'PERCENT')} do alvo</p>
       </div>

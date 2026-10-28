@@ -8,7 +8,7 @@ import { Toggle } from '@/components/ui/Toggle';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { LabelWithInfo } from '@/components/ui/InfoTooltip';
 import { CompanyQuarter, CompanyYear, FiiMonth, Issuer } from '@/types';
-import { MONTHS, formatCompactCurrency, formatCompactNumber } from '@/utils/indicators';
+import { MONTHS, centsDifference, formatCompactCurrency, formatCompactNumber } from '@/utils/indicators';
 import { apiMessage } from '@/utils/apiError';
 
 type Fmt = 'money' | 'count' | 'monthPct' | 'brl';
@@ -55,9 +55,8 @@ const copyText = (v: number, fmt: Fmt): string => {
   }
 };
 
-/** Diferença em centavos, sem o ruído do ponto flutuante. */
-const minus = (a: number | null | undefined, b: number | null | undefined) =>
-  a == null || b == null ? null : Math.round((a - b) * 100) / 100;
+/** Diferença em centavos, sem o ruído do ponto flutuante (utils/indicators.ts, testada). */
+const minus = centsDifference;
 
 /** Rótulos e (i) do lucro (D8 revisada, 24/10/2026). */
 const NET_INCOME_INFO = 'Lucro do grupo inteiro (a companhia e as controladas), incluindo a parte que pertence aos sócios não controladores — os minoritários das controladas.';

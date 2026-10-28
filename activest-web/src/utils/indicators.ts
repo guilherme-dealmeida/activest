@@ -170,6 +170,13 @@ export const formatCnpj = (cnpj: string | null | undefined): string => {
   return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
 };
 
+/**
+ * Diferença em centavos, sem o ruído do ponto flutuante — a linha "Lucro líquido não controladores" dos Demonstrativos
+ * (consolidado − controladora, calculada na tela; docs/planos/PLANO_USABILIDADE_PRECO_TETO.md). Nulo se faltar um lado.
+ */
+export const centsDifference = (a: number | null | undefined, b: number | null | undefined): number | null =>
+  a == null || b == null ? null : Math.round((a - b) * 100) / 100;
+
 /** Fracionário (PETR4F) — fica fora dos chips de "outros tickers". */
 export const isFractional = (ticker: string): boolean => /\d+F$/.test(ticker);
 

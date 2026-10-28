@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } 
 import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { ChartLegend, type ChartLegendItem } from './ChartLegend';
 import { byValueDesc, DONUT_END_ANGLE, DONUT_START_ANGLE } from './donut';
+import { cornerLegendPull } from '@/utils/donutGeometry';
 
 interface DonutSlice {
   name: string;
@@ -22,8 +23,6 @@ interface CornerLegendDonutProps<T extends DonutSlice> {
   /** Conteúdo no centro da rosca (ex.: o total). */
   center?: ReactNode;
 }
-
-const LEGEND_GAP = 12;
 
 /**
  * Rosca centralizada com a legenda no canto inferior direito (12/10/2026; aba Por Categoria da Alocação e
@@ -57,23 +56,9 @@ export const CornerLegendDonut = <T extends DonutSlice>({
     if (!box || !legend) return;
     const measure = () => {
       const w = box.clientWidth;
-      const legendWidth = legend.offsetWidth;
-      const legendHeight = legend.offsetHeight;
-      const radius = (outerRatio * Math.min(w, height)) / 2;
-      const middle = height / 2;
-      // Distância horizontal da borda esquerda da legenda ao centro da rosca.
-      const dx = w - legendWidth - w / 2;
-      let minTop: number;
-      if (dx >= radius) {
-        minTop = middle; // ao lado da rosca, sem encostar: no máximo até a altura do centro
-      } else if (dx > 0) {
-        minTop = middle + Math.sqrt(radius * radius - dx * dx) + LEGEND_GAP; // abaixo da curva naquele x
-      } else {
-        minTop = height + LEGEND_GAP; // passaria por baixo do centro: vai inteira para baixo
-      }
-      // Sobe no máximo a própria altura: a base da legenda nunca fica acima da base da área da rosca.
       setWidth(w);
-      setPull(Math.min(height - minTop, legendHeight));
+      // ao lado da rosca, abaixo da curva ou inteira embaixo: utils/donutGeometry.ts (testado)
+      setPull(cornerLegendPull(w, height, outerRatio, legend.offsetWidth, legend.offsetHeight));
     };
     measure();
     const observer = new ResizeObserver(measure);
