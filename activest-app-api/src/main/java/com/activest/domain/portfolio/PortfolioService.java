@@ -129,6 +129,34 @@ public class PortfolioService {
     }
 
     /**
+     * Preço médio das posições sem título em aberto nos ativos pedidos, por id do ativo — o mesmo
+     * {@code averagePrice} de {@link #getPortfolioAssets}, sem montar o resto da Carteira (proventos, valorização,
+     * renda fixa, bonificações). Usado pela lista do Preço Teto (docs/planos/PLANO_PERFORMANCE.md, P3, D4). Fica de
+     * fora a posição liquidada, sem investimento ou com preço médio zero; sem carteira, vazio (não cria uma).
+     */
+    public Map<Long, BigDecimal> averagePrices(UUID userId, Collection<Long> assetIds) {
+        if (assetIds.isEmpty()) {
+            return Map.of();
+        }
+        Optional<Portfolio> portfolio = portfolioRepository.findFirstByUserId(userId);
+        if (portfolio.isEmpty()) {
+            return Map.of();
+        }
+        UUID portfolioId = portfolio.get().getId();
+        List<PortfolioAsset> assets = portfolioAssetRepository.findWithoutNoteByAssetIds(portfolioId, assetIds);
+        Map<UUID, Position> positions = positionCalculator.positionsOf(portfolioId, assets);
+        Map<Long, BigDecimal> out = new HashMap<>();
+        for (PortfolioAsset pa : assets) {
+            Position position = positions.get(pa.getId());
+            BigDecimal average = position.averagePrice();
+            if (!pa.isSettled() && position.hasInvestment() && average != null && average.signum() > 0) {
+                out.put(pa.getAsset().getId(), average);
+            }
+        }
+        return out;
+    }
+
+    /**
      * Gets portfolio assets with calculated values.
      */
     public List<PortfolioAssetDetailDTO> getPortfolioAssets(UUID userId) {

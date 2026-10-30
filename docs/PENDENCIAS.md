@@ -2,7 +2,8 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 29/10/2026 — secao 41: 41.2 a 41.5 (preco do exterior fora, curadoria do catalogo vivo,
+Ultima atualizacao: 29/10/2026, noite — secao 42 (performance das listagens, docs/planos/PLANO_PERFORMANCE.md: compressao,
+busca de ativos, consultas que sobraram na Carteira e no Preco Teto). Antes: 29/10/2026 — secao 41: 41.2 a 41.5 (preco do exterior fora, curadoria do catalogo vivo,
 deslistados sem ticker, releitura da SEC). Antes: 28/10/2026 — secao 41 (ativos internacionais, docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md; 41.1
 colunas de um tipo so no `assets`). Antes: 27/10/2026, mais tarde — secao 40 baixada (testes de front, docs/planos/PLANO_TESTES_FRONT.md; 40.13
 novo). Antes, no mesmo dia: secao 40 (testes de front para as telas com calculo, levantamento; origem:
@@ -1530,6 +1531,25 @@ Resultado (27/10/2026): 148 testes em 15 arquivos de `utils/`, rodando tambem no
 
 **41.5** Deslistados: um 503 ocasional da SEC deixa um Form 25 sem ler na rodada; rodar de novo a
  `FOREIGN_DELISTED` completa (o que ja foi lido esta em `carga/data/sec`).
+
+## 42. PERFORMANCE DAS LISTAGENS (docs/planos/PLANO_PERFORMANCE.md, 29/10/2026)
+
+**42.1** Compressao das respostas da app-api (`server.compression`), D6: a listagem de Ativos (aba Acoes) tem 301 KB de
+ JSON repetitivo, que comprime bem. No dev (localhost) nao muda o tempo medido; pesa quando houver rede de verdade entre
+ o front e a API (producao). Decidido deixar para depois (29/10/2026).
+
+**42.2** Busca de ativos (`AssetRepository`, `LOWER(a.ticker) LIKE '%texto%' OR LOWER(a.name) LIKE ...`), D7: le os
+ ~75 mil ativos ativos a cada tecla do autocomplete, 60–80 ms. A extensao `pg_trgm` ja esta instalada (V12, busca dos
+ fundos); um indice trigram em `lower(ticker)` e `lower(name)` resolveria. Aceitavel hoje; decidido deixar para depois.
+
+**42.3** Carteira (`/portfolio/assets`): depois da P4 ficam ~94 consultas por chamada (~5 ms no banco, ~0,19 s no
+ total): categorias (22) e tipos (11) de ativo um a um, as transacoes de cada posicao com bonificacao sem custo (20,
+ `BonusCostService.pendingFor` → `chronologicalTransactions`), custos e eventos da bonificacao por posicao (17) e o
+ cadastro das emissoras de renda fixa. Pequenas uma a uma; viram assunto se a carteira crescer muito.
+
+**42.4** Preco Teto: cada linha da lista chama `CeilingPriceDefaults.of`, que le a serie inteira de fechamentos do
+ ativo (~20 ms) e os trimestres para os padroes ("padrao mudou", preco de hoje). Com 1 calculo a lista fica em ~0,08 s;
+ cresce por linha. Se a lista passar de dezenas de calculos, ler os padroes em lote.
 
 ## ORDEM SUGERIDA
 

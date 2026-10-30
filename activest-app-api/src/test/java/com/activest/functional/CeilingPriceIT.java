@@ -289,6 +289,30 @@ class CeilingPriceIT extends FunctionalBase {
     }
 
     @Test
+    @DisplayName("Preço médio da lista: o da carteira (venda não muda o médio), só da própria carteira; vendido tudo, fica vazio")
+    @SuppressWarnings("unchecked")
+    void listAveragePrice() {
+        // docs/planos/PLANO_PERFORMANCE.md, P3: só as posições das ações da lista, pela mesma conta da Carteira
+        User other = userWithPortfolio("outro-medio@activest.test");
+        recordSuccessfully(other, buy("PETR4", today.minusDays(40).toString(), "100", "10.00"));
+        recordSuccessfully(user, buy("PETR4", today.minusDays(30).toString(), "100", "40.00"));
+        recordSuccessfully(user, buy("PETR4", today.minusDays(20).toString(), "100", "20.00"));
+        recordSuccessfully(user, sale("PETR4", today.minusDays(10).toString(), "50", "30.00"));
+        saveDefault();
+
+        Map<String, Object> row = (Map<String, Object>) get(user, BASE, List.class).getBody().get(0);
+        assertThat(number(row.get("averagePrice"))).isEqualByComparingTo("30.00");
+        Map<String, Object> position = ((List<Map<String, Object>>) get(user, "/api/v1/portfolio/assets", List.class)
+                .getBody()).stream().filter(p -> "PETR4".equals(p.get("ticker"))).findFirst().orElseThrow();
+        assertThat(number(row.get("averagePrice"))).isEqualByComparingTo(number(position.get("averagePrice")));
+
+        recordSuccessfully(user, sale("PETR4", today.minusDays(5).toString(), "150", "35.00"));
+        row = (Map<String, Object>) get(user, BASE, List.class).getBody().get(0);
+        assertThat(row.get("averagePrice")).isNull();
+        assertThat(row.get("averageCeilingMarginPct")).isNull();
+    }
+
+    @Test
     @DisplayName("Só ações; o cálculo de um usuário não aparece para outro")
     @SuppressWarnings("unchecked")
     void onlyStocksAndOwner() {

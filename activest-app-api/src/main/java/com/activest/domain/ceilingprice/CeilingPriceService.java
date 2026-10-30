@@ -21,7 +21,6 @@ import com.activest.domain.ceilingprice.dto.CeilingPriceDTOs.QuarterView;
 import com.activest.domain.ceilingprice.dto.CeilingPriceDTOs.Result;
 import com.activest.domain.ceilingprice.dto.CeilingPriceDTOs.Step;
 import com.activest.domain.portfolio.PortfolioService;
-import com.activest.domain.portfolio.dto.PortfolioAssetDetailDTO;
 import com.activest.domain.user.User;
 import com.activest.domain.user.UserRepository;
 import com.activest.exception.ResourceNotFoundException;
@@ -148,7 +147,7 @@ public class CeilingPriceService {
         if (all.isEmpty()) {
             return List.of();
         }
-        Map<String, BigDecimal> averages = averagePrices(userId);
+        Map<Long, BigDecimal> averages = averagePrices(userId, all);
         List<ListItem> out = new ArrayList<>();
         for (CeilingPrice cp : all) {
             Defaults d;
@@ -160,7 +159,7 @@ public class CeilingPriceService {
             Normalized n = fromEntity(cp);
             CeilingPriceRules.Result r = CeilingPriceRules.calculate(n.inputs(), limits);
             BigDecimal today = d == null ? null : d.price().value();
-            BigDecimal avg = averages.get(cp.getAsset().getTicker().toUpperCase());
+            BigDecimal avg = averages.get(cp.getAsset().getId());
             BigDecimal reference = today != null ? today : cp.getPrice();
             int blocking = (int) r.issues().stream().filter(i -> i.level() == Level.BLOQUEIO).count();
             int warnings = (int) r.issues().stream().filter(i -> i.level() == Level.ATENCAO).count();
@@ -691,18 +690,17 @@ public class CeilingPriceService {
         return d.quarters().stream().filter(q -> q.periodEnd().equals(periodEnd)).findFirst().orElse(null);
     }
 
-    private Map<String, BigDecimal> averagePrices(UUID userId) {
-        Map<String, BigDecimal> out = new HashMap<>();
+    /**
+     * Preço médio da carteira nas ações da lista, por id do ativo: só as posições delas, não a Carteira inteira
+     * (docs/planos/PLANO_PERFORMANCE.md, P3, D4).
+     */
+    private Map<Long, BigDecimal> averagePrices(UUID userId, List<CeilingPrice> all) {
         try {
-            for (PortfolioAssetDetailDTO p : portfolioService.getPortfolioAssets(userId)) {
-                if (p.noteId() == null && p.averagePrice() != null && p.averagePrice().signum() > 0) {
-                    out.put(p.ticker().toUpperCase(), p.averagePrice());
-                }
-            }
+            return portfolioService.averagePrices(userId, all.stream().map(cp -> cp.getAsset().getId()).toList());
         } catch (RuntimeException e) {
             // sem carteira: a coluna fica vazia
+            return Map.of();
         }
-        return out;
     }
 
     private static String label(String field) {

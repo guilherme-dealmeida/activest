@@ -115,6 +115,43 @@ class IssuerListingIT extends FunctionalBase {
     }
 
     @Test
+    @DisplayName("Fracionário sem o lote padrão no catálogo (EKTR3F): fica na lista, calculado no lote, com os valores da página do ticker")
+    @SuppressWarnings("unchecked")
+    void fractionalOnly() {
+        // docs/planos/PLANO_PERFORMANCE.md, P2: o lote padrao nao existe no catalogo
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM assets WHERE upper(ticker) = 'EKTR3'", Integer.class))
+                .isZero();
+        BigDecimal before = jdbc.queryForObject("SELECT current_price FROM assets WHERE ticker = 'EKTR3F'",
+                BigDecimal.class);
+        jdbc.update("UPDATE assets SET current_price = NULL WHERE ticker = 'EKTR3F'");
+        try {
+            price("EKTR3F", today.minusDays(3), "38.50");
+            dividend("EKTR3F", "DIVIDENDO", today.minusDays(40), "0.75");
+            statement(issuer("EKTR3F"), previousQuarterEnd(), "900000000", "4000000000", 190000000L);
+
+            Map<String, Object> row = byTicker(listing("COMPANY")).get("EKTR3F");
+            Map<String, Object> page = current("EKTR3F");
+            List<String> columns = List.of("LPA", "VPA", "PL", "PVP", "ROE", "PAYOUT", "DY");
+
+            assertThat(row).isNotNull();
+            assertThat(number(row.get("price"))).isEqualByComparingTo("38.50");
+            assertThat(row.get("priceDate")).isEqualTo(today.minusDays(3).toString());
+            assertThat(row.get("price")).isEqualTo(page.get("price"));
+            assertThat(row.get("basePeriodEnd")).isEqualTo(page.get("basePeriodEnd"));
+            assertThat(number(row.get("equity"))).isEqualByComparingTo("4000000000");
+            assertThat((List<Map<String, Object>>) row.get("indicators"))
+                    .isEqualTo(((List<Map<String, Object>>) page.get("indicators")).stream()
+                            .filter(i -> columns.contains(i.get("indicator"))).toList());
+            assertThat((List<Map<String, Object>>) row.get("indicators"))
+                    .filteredOn(i -> "DY".equals(i.get("indicator")))
+                    .allMatch(i -> i.get("value") != null);
+        } finally {
+            jdbc.update("DELETE FROM asset_price_history WHERE asset_id IN (SELECT id FROM assets WHERE ticker = 'EKTR3F')");
+            jdbc.update("UPDATE assets SET current_price = ? WHERE ticker = 'EKTR3F'", before);
+        }
+    }
+
+    @Test
     @DisplayName("Marca de dado antigo: preço há mais de 7 dias, balanço há mais de 6 meses, informe há mais de 3")
     void staleData() {
         Map<String, Map<String, Object>> shares = byTicker(listing("COMPANY"));
