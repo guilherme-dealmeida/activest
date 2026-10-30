@@ -44,15 +44,32 @@ public interface PortfolioAssetRepository extends JpaRepository<PortfolioAsset, 
     /**
      * A nota vem junto porque a carteira agora repete ticker: sem emissor e
      * vencimento na tela, duas linhas "CDB" ficam indistinguíveis. Buscá-la
-     * depois, linha a linha, seria uma consulta por posição.
+     * depois, linha a linha, seria uma consulta por posição. O {@code terms}
+     * também: o lado inverso do {@code @OneToOne} dispararia um SELECT por ativo
+     * (docs/planos/PLANO_PERFORMANCE.md, P4).
      */
     @Query("""
         SELECT pa FROM PortfolioAsset pa
-        JOIN FETCH pa.asset
+        JOIN FETCH pa.asset a
+        LEFT JOIN FETCH a.terms
         LEFT JOIN FETCH pa.note
         WHERE pa.portfolio.id = :portfolioId
         """)
     List<PortfolioAsset> findAllByPortfolioIdWithAssetEagerly(@Param("portfolioId") UUID portfolioId);
+
+    /**
+     * Posições sem título (renda variável) da carteira nos ativos pedidos — o preço médio do Preço Teto
+     * (docs/planos/PLANO_PERFORMANCE.md, P3). O {@code terms} vem junto: o lado inverso do {@code @OneToOne}
+     * dispararia um SELECT por ativo.
+     */
+    @Query("""
+        SELECT pa FROM PortfolioAsset pa
+        JOIN FETCH pa.asset a
+        LEFT JOIN FETCH a.terms
+        WHERE pa.portfolio.id = :portfolioId AND pa.note IS NULL AND a.id IN :assetIds
+        """)
+    List<PortfolioAsset> findWithoutNoteByAssetIds(@Param("portfolioId") UUID portfolioId,
+                                                   @Param("assetIds") Collection<Long> assetIds);
 
     /**
      * Posições de um conjunto de ativos, de todas as carteiras. Usado para

@@ -16,10 +16,19 @@ public interface AssetStockEventRepository extends JpaRepository<AssetStockEvent
 
     List<AssetStockEvent> findByAssetIdOrderByDataComAsc(Long assetId);
 
-    /** Bonificacoes sem custo atribuido pela B3 (docs/planos/PLANO_NOTIFICACOES.md, 5.4). */
-    @Query("SELECT e FROM AssetStockEvent e JOIN FETCH e.asset WHERE e.type = :type AND e.assignedCost IS NULL "
-            + "ORDER BY e.dataCom, e.id")
+    /**
+     * Bonificacoes sem custo atribuido pela B3 (docs/planos/PLANO_NOTIFICACOES.md, 5.4), do catalogo inteiro. O
+     * {@code terms} vem junto: o lado inverso do {@code @OneToOne} dispararia um SELECT por ativo.
+     */
+    @Query("SELECT e FROM AssetStockEvent e JOIN FETCH e.asset a LEFT JOIN FETCH a.terms "
+            + "WHERE e.type = :type AND e.assignedCost IS NULL ORDER BY e.dataCom, e.id")
     List<AssetStockEvent> findWithoutCost(@Param("type") StockEventType type);
+
+    /** O mesmo de {@link #findWithoutCost}, so dos ativos pedidos (as posicoes de uma carteira — PLANO_PERFORMANCE, P4). */
+    @Query("SELECT e FROM AssetStockEvent e JOIN FETCH e.asset a LEFT JOIN FETCH a.terms "
+            + "WHERE e.type = :type AND e.assignedCost IS NULL AND a.id IN :assetIds ORDER BY e.dataCom, e.id")
+    List<AssetStockEvent> findWithoutCostByAssetIds(@Param("type") StockEventType type,
+                                                    @Param("assetIds") Collection<Long> assetIds);
 
     /** Eventos com data-com no intervalo (a data-ex de hoje vem da data-com do pregao anterior). */
     @Query("SELECT e FROM AssetStockEvent e JOIN FETCH e.asset WHERE e.dataCom BETWEEN :from AND :to "

@@ -76,6 +76,9 @@ activest/
   nas telas (o ticker é o CNPJ); busca por nome ou CNPJ, inclusive previdência; lançamento por valor e cota (a cota da
   data vem da CVM, as cotas são calculadas); a série desde 2010 entra sozinha depois da primeira compra; IR, IOF e
   come-cotas como a lei (previdência vale bruto) e o líquido estimado na Carteira
+- ✅ Performance das listagens (29/10/2026, `docs/planos/PLANO_PERFORMANCE.md`): índice na busca por ticker (o catálogo
+  passou de ~2,6 mil para ~100 mil ativos), listagem de Ativos (aba Ações) de ~1,1 s para ~0,12 s, lista do Preço Teto
+  de ~0,34 s para ~0,08 s e a Carteira com ~430 → ~94 consultas, sem mudar nenhum número na tela
 - ✅ Ativos internacionais (29/10/2026, `docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md`): Stocks, REITs e ETFs
   internacionais listados nos EUA (~12 mil papéis vivos) no catálogo, com bolsa e categoria (setor da ação como nos BDRs,
   grupo do REIT pela Nareit, tema do ETF), atualizados toda segunda pela tarefa `FOREIGN_CATALOG` (lista do Nasdaq

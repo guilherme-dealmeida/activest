@@ -145,6 +145,10 @@ public class IndicatorService {
      * 4.1): ativos ligados a emissor do tipo, <b>sem os fracionarios</b> cujo lote padrao esta na mesma lista
      * (D9 — PETR4F e PETR4 dariam a mesma linha). Le tudo em poucas consultas por conjunto e calcula com
      * <b>o mesmo codigo</b> de {@link #current(String)}: so a origem dos dados muda. Ordem: a do ticker.
+     * <p>
+     * O fracionario que existe sozinho no catalogo (EKTR3F, CEDO3F... — o lote padrao nao existe) e calculado no
+     * lote com os proprios dados, como o caminho de um ticker faria (docs/planos/PLANO_PERFORMANCE.md, P2): ele
+     * custava duas leituras de {@code assets} e a serie inteira de fechamentos por linha.
      */
     public List<CurrentSnapshot> currentAll(IssuerKind kind) {
         record Row(long id, String ticker, long issuerId, String shareClass, String layout, BigDecimal currentPrice,
@@ -171,6 +175,15 @@ public class IndicatorService {
                 }, kind.name());
         java.util.Set<String> tickers = new java.util.HashSet<>();
         assets.forEach(a -> tickers.add(a.ticker.trim().toUpperCase()));
+        // fracionarios sem o lote padrao na lista: quais lotes padrao existem no catalogo (fora da lista)
+        List<String> missingBases = assets.stream().map(a -> baseTicker(a.ticker))
+                .filter(b -> !tickers.contains(b)).distinct().toList();
+        java.util.Set<String> basesInCatalog = new java.util.HashSet<>();
+        if (!missingBases.isEmpty()) {
+            basesInCatalog.addAll(jdbc.queryForList("SELECT DISTINCT upper(ticker) FROM assets WHERE upper(ticker) IN ("
+                    + String.join(", ", java.util.Collections.nCopies(missingBases.size(), "?")) + ")",
+                    String.class, missingBases.toArray()));
+        }
 
         Map<Long, Integer> units = new java.util.HashMap<>();
         jdbc.query("SELECT asset_id, COALESCE(SUM(quantity), 0) AS q FROM unit_compositions GROUP BY asset_id",
@@ -218,10 +231,13 @@ public class IndicatorService {
                 if (tickers.contains(base)) {
                     continue; // fracionario: a linha do lote padrao ja esta na lista
                 }
-                // fracionario sem o lote padrao na lista (raro): o caminho de um ticker, que resolve o lote
-                out.add(currentOf(context(a.ticker), quarters.getOrDefault(a.issuerId, List.of()),
-                        months.getOrDefault(a.issuerId, List.of()), true));
-                continue;
+                if (basesInCatalog.contains(base)) {
+                    // lote padrao no catalogo, fora da lista (raro): o caminho de um ticker, que usa o preco dele
+                    out.add(currentOf(context(a.ticker), quarters.getOrDefault(a.issuerId, List.of()),
+                            months.getOrDefault(a.issuerId, List.of()), true));
+                    continue;
+                }
+                // so existe o fracionario: segue no lote com os proprios dados (o lote padrao do context() e ele)
             }
             int unitShares = "UNIT".equals(a.shareClass) ? units.getOrDefault(a.id, 0) : 1;
             BigDecimal price;

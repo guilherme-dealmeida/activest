@@ -25,11 +25,14 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Flyway roda ate a V17 (V1-V6 consolidadas + contas novas da tela de Ativos + metas + moedas, proventos do exterior, euro, fundos de investimento, ticker por tipo, origem da inativacao, estrutura do exterior e tarefas do catalogo do exterior e dos deslistados) e o schema valida contra as entidades")
+    @DisplayName("Flyway roda ate a V18 (V1-V6 consolidadas + contas novas da tela de Ativos + metas + moedas, proventos do exterior, euro, fundos de investimento, ticker por tipo, origem da inativacao, estrutura do exterior, tarefas do catalogo do exterior e dos deslistados e o indice do ticker) e o schema valida contra as entidades")
     void appliedMigrations() {
         Number version = (Number) em.createNativeQuery(
             "SELECT MAX(CAST(version AS NUMERIC)) FROM flyway_schema_history WHERE success").getSingleResult();
-        assertThat(version.intValue()).isEqualTo(17);
+        assertThat(version.intValue()).isEqualTo(18);
+        // V18 (PLANO_PERFORMANCE, P1): a busca por upper(ticker) tem indice
+        assertThat(count("pg_indexes WHERE tablename = 'assets' AND indexname = 'idx_assets_ticker_upper' "
+            + "AND indexdef LIKE '%upper((ticker)::text)%'")).isEqualTo(1);
         // V17 (F5): FOREIGN_DELISTED so manual, de 2010, WRITE nasce falso
         assertThat(count("tasks t JOIN task_types y ON y.id = t.task_type_id WHERE y.type = 'FOREIGN_DELISTED' "
             + "AND t.cron IS NULL AND NOT t.run_on_startup")).isEqualTo(1);

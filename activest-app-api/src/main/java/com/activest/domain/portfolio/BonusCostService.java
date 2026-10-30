@@ -56,8 +56,18 @@ public class BonusCostService {
     /** As bonificações sem custo de cada posição (a posição tinha cotas na data-com e ninguém informou o custo). */
     @Transactional(readOnly = true)
     public Map<UUID, List<Pending>> pendingFor(Collection<PortfolioAsset> pas) {
-        Map<Long, List<AssetStockEvent>> byAsset = withoutCostByAsset();
-        if (byAsset.isEmpty() || pas.isEmpty()) {
+        // so as bonificacoes dos ativos dessas posicoes, nao as do catalogo inteiro (PLANO_PERFORMANCE, P4, D5)
+        Set<Long> assetIds = new HashSet<>();
+        pas.forEach(pa -> {
+            if (pa.getAsset() != null) {
+                assetIds.add(pa.getAsset().getId());
+            }
+        });
+        if (assetIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, List<AssetStockEvent>> byAsset = withoutCostByAsset(assetIds);
+        if (byAsset.isEmpty()) {
             return Map.of();
         }
         List<PortfolioAsset> relevant = pas.stream()
@@ -172,8 +182,16 @@ public class BonusCostService {
     }
 
     private Map<Long, List<AssetStockEvent>> withoutCostByAsset() {
+        return byAsset(stockEvents.findWithoutCost(StockEventType.BONIFICACAO));
+    }
+
+    private Map<Long, List<AssetStockEvent>> withoutCostByAsset(Collection<Long> assetIds) {
+        return byAsset(stockEvents.findWithoutCostByAssetIds(StockEventType.BONIFICACAO, assetIds));
+    }
+
+    private static Map<Long, List<AssetStockEvent>> byAsset(List<AssetStockEvent> events) {
         Map<Long, List<AssetStockEvent>> byAsset = new HashMap<>();
-        for (AssetStockEvent e : stockEvents.findWithoutCost(StockEventType.BONIFICACAO)) {
+        for (AssetStockEvent e : events) {
             byAsset.computeIfAbsent(e.getAsset().getId(), k -> new ArrayList<>()).add(e);
         }
         return byAsset;
