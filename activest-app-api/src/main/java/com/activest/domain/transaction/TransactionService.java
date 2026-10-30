@@ -8,7 +8,7 @@ import com.activest.domain.integration.pipeline.ProposedTransaction;
 import com.activest.domain.integration.source.MovementJson;
 import com.activest.domain.asset.Asset;
 import com.activest.domain.asset.AssetLogos;
-import com.activest.domain.asset.AssetRepository;
+import com.activest.domain.asset.AssetResolver;
 import com.activest.domain.asset.AssetTerms;
 import com.activest.domain.asset.AssetType;
 import com.activest.domain.asset.Indexer;
@@ -81,7 +81,8 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final PortfolioRepository portfolioRepository;
     private final PortfolioAssetRepository portfolioAssetRepository;
-    private final AssetRepository assetRepository;
+    /** Ativo pelo par (ticker, tipo) — o ticker deixou de ser único no catálogo (V13). */
+    private final AssetResolver assetResolver;
     private final FixedIncomeNoteRepository fixedIncomeNoteRepository;
     private final UserRepository userRepository;
     private final DividendRecalculator dividendRecalculator;
@@ -138,10 +139,9 @@ public class TransactionService {
      * Transacao (compra e venda). Todos, e nao so os abertos: lancamento
      * retroativo existe. Titulo sem posicao (sem nenhuma transacao) fica de fora.
      */
-    public List<NoteOptionDTO> getNotes(UUID userId, String ticker) {
-        // Tesouro tem ticker com minusculas ("Tesouro IPCA+ 2050"): exato primeiro, depois em maiusculas (CDB)
-        Asset asset = ticker == null || ticker.isBlank() ? null : assetRepository.findByTicker(ticker.trim())
-            .or(() -> assetRepository.findByTicker(ticker.trim().toUpperCase())).orElse(null);
+    public List<NoteOptionDTO> getNotes(UUID userId, String ticker, String assetType) {
+        // Tesouro tem ticker com minusculas ("Tesouro IPCA+ 2050"): o resolver tenta o exato e depois em maiusculas (CDB)
+        Asset asset = assetResolver.findTypedOrUnique(ticker, assetType).orElse(null);
         Portfolio portfolio = portfolioRepository.findFirstByUserId(userId).orElse(null);
         if (asset == null || portfolio == null) {
             return List.of();
@@ -168,8 +168,8 @@ public class TransactionService {
      */
     public com.activest.domain.transaction.dto.SalePreviewDTO previewSale(UUID userId, TransactionCreateDTO dto,
                                                                           UUID excludeId) {
-        Asset asset = assetRepository.findByTicker(dto.ticker())
-            .orElseThrow(() -> new BusinessException("Ativo não encontrado no catálogo: " + dto.ticker()));
+        Asset asset = assetResolver.require(dto.ticker(), dto.assetType(), dto.transactionDate());
+        requireListedOn(asset, dto.transactionDate());
         Portfolio portfolio = portfolioRepository.findFirstByUserId(userId)
             .orElseThrow(() -> new BusinessException("Carteira não encontrada"));
         if (dto.transactionDate() == null) {
@@ -304,17 +304,30 @@ public class TransactionService {
     @Transactional
     public TransactionResponseDTO createTransaction(UUID userId, TransactionCreateDTO dto) {
         TransactionResponseDTO r = create(userId, dto, null);
-        publishWrite(userId, dto.ticker());
+        // O mesmo ativo que o create resolveu (assetTypeName da resposta é a descrição do tipo, não o nome)
+        publishWrite(userId, assetResolver.require(dto.ticker(), dto.assetType(), dto.transactionDate()).getId());
         return r;
     }
 
+    /**
+     * Papel que saiu da bolsa (D11, C8 — docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md): a transação vale até a data de
+     * saída; depois dela é recusada (422), no nacional e no exterior. Sem data de saída, nada a conferir.
+     */
+    static void requireListedOn(Asset asset, LocalDate date) {
+        LocalDate out = asset.getDelistedOn();
+        if (out != null && date != null && date.isAfter(out)) {
+            throw new BusinessException(asset.getTicker() + " saiu da bolsa em "
+                + out.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                + ": a data da transação não pode ser depois da saída.");
+        }
+    }
+
     /** Liquidacao automatica: confere, depois do commit, se o titulo ja vencido precisa ser liquidado. */
-    private void publishWrite(UUID userId, String ticker) {
-        if (SystemWrites.active() || ticker == null) {
+    private void publishWrite(UUID userId, Long assetId) {
+        if (SystemWrites.active() || assetId == null) {
             return;
         }
-        assetRepository.findByTicker(ticker)
-            .ifPresent(a -> eventPublisher.publishEvent(new PositionWrittenEvent(userId, a.getId())));
+        eventPublisher.publishEvent(new PositionWrittenEvent(userId, assetId));
     }
 
     /**
@@ -327,7 +340,8 @@ public class TransactionService {
      */
     @Transactional
     public TransactionResponseDTO importTransaction(UUID userId, ProposedTransaction proposed, ImportOrigin importOrigin) {
-        Asset asset = assetRepository.findByTicker(proposed.ticker())
+        // A proposta ja traz o ativo que as regras da fonte acharam (pelo ticker nos tipos da fonte, V13)
+        Asset asset = assetResolver.byId(proposed.assetId())
             .orElseThrow(() -> new BusinessException("Ativo não encontrado no catálogo: " + proposed.ticker()));
         AssetType importedAssetType = asset.getAssetType();
         boolean accepted = importedAssetType != null
@@ -353,7 +367,7 @@ public class TransactionService {
         }
         TransactionCreateDTO dto = new TransactionCreateDTO(proposed.ticker(), proposed.type(), proposed.shares(),
             proposed.pricePerShare(), null, proposed.brokerageFee(), proposed.transactionDate(), false, null,
-            null, null, null, null, null, null, distributorId, null);
+            null, null, null, null, null, null, distributorId, null, null, importedAssetType.getName());
         TransactionResponseDTO r = create(userId, dto, importOrigin);
         if (unlisted) {
             notifyUnlistedDistributor(userId, r, proposed.participant());
@@ -382,10 +396,8 @@ public class TransactionService {
         // O catálogo é a única origem de ativos. Ticker que não está lá não
         // vira ativo novo: vira erro. Antes, um erro de digitação criava um
         // ativo permanente e global, indistinguível de um cadastro legítimo.
-        Asset asset = assetRepository.findByTicker(dto.ticker())
-            .orElseThrow(() -> new BusinessException(
-                "Ativo não encontrado no catálogo: " + dto.ticker()
-                + ". Selecione um ativo existente na busca."));
+        Asset asset = assetResolver.require(dto.ticker(), dto.assetType(), dto.transactionDate());
+        requireListedOn(asset, dto.transactionDate());
 
         Portfolio portfolio = portfolioRepository.findFirstByUserId(userId)
             .orElseThrow(() -> new BusinessException("Carteira não encontrada"));
@@ -474,8 +486,9 @@ public class TransactionService {
         if (tx.getOrigin() != TransactionOrigin.AUTO || tx.getSourceSnapshot() == null) {
             throw new BusinessException("Só transações importadas podem ser restauradas da corretora.");
         }
-        ImportRules.Result r = importRules.forExternalId(tx.getExternalId())
-            .apply(movementJson.read(tx.getSourceSnapshot()), assetRepository::findByTicker);
+        ImportRules sourceRules = importRules.forExternalId(tx.getExternalId());
+        ImportRules.Result r = sourceRules.apply(movementJson.read(tx.getSourceSnapshot()),
+            t -> assetResolver.findInTypes(t, sourceRules.assetTypes()));
         if (!r.mapped()) {
             throw new BusinessException("Não foi possível restaurar: " + r.reason());
         }
@@ -512,6 +525,7 @@ public class TransactionService {
         PortfolioAsset pa = tx.getPortfolioAsset();
         Asset asset = pa.getAsset();
         Portfolio portfolio = pa.getPortfolio();
+        requireListedOn(asset, dto.transactionDate());
 
         validateSettlementFlag(asset, dto);
 
@@ -519,7 +533,7 @@ public class TransactionService {
             TransactionResponseDTO r = tx.getType() == TransactionType.SELL
                 ? updateTreasurySale(portfolio, asset, tx, dto)
                 : updateTreasuryPurchase(portfolio, asset, tx, dto);
-            publishWrite(userId, asset.getTicker());
+            publishWrite(userId, asset.getId());
             return r;
         }
 
@@ -566,7 +580,7 @@ public class TransactionService {
         tx = transactionRepository.save(tx);
         transactionRepository.flush();
         afterPositionChange(pa, isSale);
-        publishWrite(userId, asset.getTicker());
+        publishWrite(userId, asset.getId());
         return toResponseDTO(tx);
     }
 
@@ -945,7 +959,7 @@ public class TransactionService {
             .findByPortfolioIdAndAssetId(portfolio.getId(), asset.getId());
         treasuryAllocator.apply(portfolio, asset, after, intents);
         refreshTreasuryPositions(portfolio, asset);
-        publishWrite(userId, asset.getTicker());
+        publishWrite(userId, asset.getId());
         return toResponseDTO(tx);
     }
 

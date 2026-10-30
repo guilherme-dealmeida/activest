@@ -167,6 +167,10 @@ services:
       REDIS_PORT: 6379
       JWT_SECRET: ${JWT_SECRET:-activest-default-secret-key-change-in-production-minimum-256-bits-long}
       BRAPI_TOKEN: ${BRAPI_TOKEN:-}
+      # Fontes do exterior (docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md, 11.3): o contato do User-Agent da SEC e a
+      # chave (opcional) do OpenFIGI
+      MAIL_FROM: ${MAIL_FROM:-Activest <contato@activest.com.br>}
+      OPENFIGI_API_KEY: ${OPENFIGI_API_KEY:-}
     ports:
       - "0.0.0.0:${ADM_API_PORT:-8081}:8081"
     volumes:

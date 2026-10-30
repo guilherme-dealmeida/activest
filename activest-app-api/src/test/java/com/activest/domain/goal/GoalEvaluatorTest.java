@@ -40,7 +40,8 @@ class GoalEvaluatorTest {
     RebalanceDTO rebalance = new RebalanceDTO(BigDecimal.ZERO, List.of(), null);
     PortfolioTimeline timeline = PortfolioTimeline.empty(TODAY);
     BenchmarkData benchmarks = mock(BenchmarkData.class);
-    Map<String, Double> prices = new HashMap<>();
+    /** Cotacao do catalogo pelo id do ativo (meta por ativo fora da carteira). */
+    Map<Long, Double> prices = new HashMap<>();
 
     UUID position(String ticker, String type, String category, String indexer, boolean reservation, double value,
                   double cost, Double shares, Double price) {
@@ -52,6 +53,11 @@ class GoalEvaluatorTest {
         holdings.add(new GoalFacts.Holding(info, bd(value), bd(cost), shares != null ? bd(shares) : null,
                 price != null ? bd(price) : null, TODAY, false, false, 0));
         return id;
+    }
+
+    /** O id do ativo da posicao: a meta por ativo guarda o id (V13 — o ticker se repete entre tipos). */
+    long assetOf(UUID position) {
+        return positions.get(position).assetId();
     }
 
     void flow(UUID id, String date, TransactionType type, double amount, Double shares) {
@@ -239,7 +245,7 @@ class GoalEvaluatorTest {
     void assetShares() {
         UUID k = position("KLBN4", "ACAO", "Papel", null, false, 3_500, 3_000, 1000.0, 3.5);
         flow(k, "2026-01-10", TransactionType.BUY, 1_200, 400.0);
-        Evaluation e = eval(GoalType.ATV_1, "1500", null, Map.of(), Map.of("ticker", "KLBN4"));
+        Evaluation e = eval(GoalType.ATV_1, "1500", null, Map.of(), Map.of("assetId", assetOf(k)));
         assertThat(e.indicator()).isEqualByComparingTo("1000.00000000");
         assertThat(e.remaining()).isEqualByComparingTo("500.00000000");
         assertThat(fig(e, "costOfRemaining").nature()).isEqualTo(Evaluation.Nature.ESTIMATIVA);
@@ -250,12 +256,12 @@ class GoalEvaluatorTest {
     @DisplayName("Cenário 12: proventos compram cotas — sem provento em 12 meses é 'sem dados', nunca zero")
     void dividendsBuyShares() {
         UUID b = position("BBAS3", "ACAO", "Bancos", null, false, 2_000, 2_000, 100.0, 20.0);
-        Evaluation none = eval(GoalType.ATV_3, null, null, Map.of(), Map.of("ticker", "BBAS3"));
+        Evaluation none = eval(GoalType.ATV_3, null, null, Map.of(), Map.of("assetId", assetOf(b)));
         assertThat(none.situation()).isEqualTo(GoalSituation.SEM_DADOS);
         for (int m = 0; m < 12; m++) {
             income(b, LocalDate.of(2025, 10, 20).plusMonths(m).toString(), 20, 0.2);
         }
-        Evaluation e = eval(GoalType.ATV_3, null, null, Map.of(), Map.of("ticker", "BBAS3"));
+        Evaluation e = eval(GoalType.ATV_3, null, null, Map.of(), Map.of("assetId", assetOf(b)));
         // 0,20/mes por cota × 100 cotas ÷ R$ 20 = 1 cota/mes
         assertThat(e.indicator()).isEqualByComparingTo("1.00000000");
         assertThat(e.situation()).isEqualTo(GoalSituation.ATINGIDA);

@@ -79,7 +79,8 @@ public class CeilingPriceDefaults {
                 SELECT a.id, a.ticker, a.name, a.issuer_id, t.name AS type, i.kind
                 FROM assets a JOIN asset_types t ON t.id = a.asset_type_id
                 LEFT JOIN issuers i ON i.id = a.issuer_id
-                WHERE upper(a.ticker) = ?""",
+                WHERE upper(a.ticker) = ?
+                ORDER BY (t.name = 'ACAO') DESC, a.delisted_on DESC NULLS FIRST""",
                 (rs, i) -> new AssetInfo(rs.getLong("id"), rs.getString("ticker"), rs.getString("name"),
                         (Long) rs.getObject("issuer_id", Long.class), rs.getString("type"), rs.getString("kind")), t);
         if (found.isEmpty()) {

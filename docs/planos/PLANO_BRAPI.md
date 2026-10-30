@@ -121,7 +121,8 @@ Universo na BRAPI (23/09/2026): 771 ações · 12 units · 329 FIIs · 257 ETFs 
 - **B22 — ETFs no FNET (A14) e ticker → CNPJ (A15):** verificados e escolhidos na execução; só volta para decisão se
   nenhuma fonte servir.
 - **B23 — Rotina de conferência do catálogo: criar.** Enquanto a central de avisos não existir (B26), cada diferença
-  vai só para o log (WARN).
+  vai só para o log (WARN). *(28/10/2026: o "só log / não grava nada" não é regra — foi revogado pelo Guilherme; a
+  inativação automática vem com `docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md`, I5.)*
 - **B24 — `.env` criado em 24/09/2026** na raiz, a partir do `.env.example`, com o `BRAPI_TOKEN` (o `.env` está no
   `.gitignore`; os demais valores são os mesmos padrões do `docker-compose.yml`).
 - **B25 — Logos atualizados uma vez por mês e na entrada de ativo novo**, e exibidos **à esquerda do ticker nas
@@ -248,7 +249,7 @@ Migrations com `INSERT`/`UPDATE` literais gerados de um retrato da BRAPI — o a
 - **V20 — proventos (B5).** Tabelas e colunas da F5.
 - **V21 — logos (B17).** Coluna `assets.logo_path` (F7).
 - **Rotina de conferência (B23)** — semanal (segunda, 07:00) e sob demanda. Compara o catálogo com
-  `/api/v2/tickers` (não gasta cota) e com `/api/v2/tickers/renames`. **Não grava nada no catálogo**: cada diferença
+  `/api/v2/tickers` (não gasta cota) e com `/api/v2/tickers/renames`. Na época, não gravava nada no catálogo (revogado em 28/10/2026 — ver B23): cada diferença
   vira uma linha no log (WARN) — a central de avisos foi adiada (B26, PENDENCIAS 13):
   - *Ticker novo na B3* — "XPTO11 (FII) apareceu na BRAPI e não está no catálogo";
   - *Ticker sumido* — só depois de conferir que a cotação dá 404 (critério 2.1); se houver posição aberta, o aviso

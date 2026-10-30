@@ -5,7 +5,12 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 27/10/2026, mais tarde (**Testes do front**, `docs/planos/PLANO_TESTES_FRONT.md`: as contas que o
+> **Última revisão**: 29/10/2026 (**Ativos internacionais**, `docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md`: V13–V17 —
+> ticker único por tipo e data de saída (`META` ação e cripto convivem, `AssetResolver`), saída da bolsa com prova
+> (`delisted_on`, `delisting_source`; a `CATALOG_AUDIT` passa a inativar), catálogo vivo dos EUA (tarefa
+> `FOREIGN_CATALOG`, 12.180 Stocks/REITs/ETFs com bolsa e categoria, `foreign_listings`) e deslistados desde 2010 pelos
+> Form 25 da SEC (tarefa `FOREIGN_DELISTED`, 5.906 inativos), curadoria por planilha, logos por subpasta do tipo — ver
+> "Ativos internacionais (29/10/2026)" em Pontos de Atenção). Antes: 27/10/2026, mais tarde (**Testes do front**, `docs/planos/PLANO_TESTES_FRONT.md`: as contas que o
 > navegador faz saíram dos componentes para funções em `utils/` com teste — 148 testes em 15 arquivos, rodando também no
 > build da imagem do front; a soma da Estratégia e as cotas do fundo passaram a ser calculadas como no backend — ver
 > "Testes do front"). Antes: 27/10/2026, noite (**Evolução dos Proventos**, `docs/planos/PLANO_DIVIDENDOS_POR_PERIODO.md`: aba
@@ -410,10 +415,12 @@ são os do seed (V62):
 | Preço oficial do Tesouro Direto (PU de venda, Tesouro Transparente), com recuperação na subida — tarefa `TREASURY_PRICES` (`docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`); desde 17/10/2026 também a taxa do último dia e os títulos à venda (`treasury_offers`, arquivo de vendas; fora do ar, a oferta fica a da última rodada); desde 22/10/2026 a fonte que recusa termina a rodada `FAILED` (`docs/planos/PLANO_FONTE_TESOURO.md`) | 08:00 | adm-api → "catálogo mudou" (FECHAMENTO) |
 | Índices de mercado, incremental com janela de revisão (30 dias nos diários, 3 meses nos mensais), com recuperação na subida — tarefa `MARKET_INDICES` (`docs/planos/PLANO_INDICES_MERCADO.md`) | 10:00 | adm-api |
 | Câmbio das moedas cadastradas (PTAX do BCB, boletim de fechamento, compra e venda; incremental com 10 dias de revisão; moeda sem série desde 2010) — tarefa `EXCHANGE_RATES` (`docs/planos/PLANO_CADASTRO_MOEDAS.md`). **No máximo uma rodada automática por dia**: a subida só roda depois do horário e se a agendada não rodou; Run manual sempre | 13:30 | adm-api → "catálogo mudou" (CAMBIO) |
-| Conferência do catálogo e dos índices atrasados (só loga) — tarefa `CATALOG_AUDIT` | seg 07:00 | adm-api |
+| Conferência do catálogo e dos índices atrasados — tarefa `CATALOG_AUDIT`: avisa ticker novo, sumido e renomeado e, desde 29/10/2026, **inativa com prova** (registro cancelado na CVM, menos migração; fora da lista da BRAPI + 30 pregões sem negócio no COTAHIST, sem ser renomeação) e dá a data de saída às inativas sem data (`docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md`, I5/C7) | seg 07:00 | adm-api |
+| Catálogo vivo dos EUA (Stock, REIT, ETF internacional): lista do Nasdaq Trader → tipo pelo OpenFIGI → categoria (BDR, SIC, Nareit, palavras do ETF) → renomeação pelo FIGI e saída com prova (Form 25 ou 30 dias fora da lista); prévia `carga/data/levantamento/internacional/catalogo-previa.json` sempre, catálogo só com `WRITE` — tarefa `FOREIGN_CATALOG` (V16; `docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md`, F4) | seg 06:30 | adm-api |
+| Deslistados dos EUA desde 2010 (Form 25 da SEC → ticker pelo XBRL/texto/séries/Nareit → inativos com a data de saída) — tarefa `FOREIGN_DELISTED` (V17, só Run e carga inicial; F5) | manual | adm-api |
 | Cotações de **todo o catálogo** (ações, FIIs e, desde 17/10/2026, ETFs e BDRs) pelo COTAHIST diário da B3, um arquivo por pregão, completando os que faltam, com recuperação na subida — tarefa `B3_DAILY_QUOTES` (`docs/planos/PLANO_PRECO_TETO.md`, 4.5; 10/10/2026) | 21:30 e 08:30 | adm-api |
 | Emissoras e distribuidoras de renda fixa (BCB IF.data + Instituições em funcionamento, CVM intermediários, companhias e securitizadoras) e, em seguida, os logos delas por raiz de CNPJ (Open Finance, logos-bancos-br — `FixedIncomeLogoService`, só quem não tem arquivo) — tarefa `FIXED_INCOME_ISSUERS` (`activest.fixed-income-issuers.cron`; `docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md`, 4.2) | dia 1, 05:30 | adm-api |
-| Logos (arquivos em `carga/data/logos/{TICKER}.{ext}` — o arquivo é o estado; só quem não tem arquivo; a subida não procura nada, o ativo novo é procurado no pedido "preciso do histórico") — tarefa `ASSET_LOGOS` | dia 1, 06:00 | adm-api (a app-api só lê a pasta, `AssetLogos`) |
+| Logos (arquivos em `carga/data/logos/{TICKER}.{ext}`; os do exterior em `carga/data/logos/{STOCK,REIT,ETF_INTERNACIONAL}/{TICKER}.{ext}`, colocados pelo Guilherme e não buscados pela rotina — o arquivo é o estado; só quem não tem arquivo; a subida não procura nada, o ativo novo é procurado no pedido "preciso do histórico") — tarefa `ASSET_LOGOS` | dia 1, 06:00 | adm-api (a app-api só lê a pasta, `AssetLogos`) |
 | Histórico de preço de cripto (CoinGecko, últimos 365 dias, somado a `carga/data/coingecko/historico`; Binance BTC/BRL desde 13/10/2020 em `carga/data/binance/klines`) de toda cripto que está ou esteve em carteira e do benchmark BTC; só preenche dia sem linha — tarefa `CRYPTO_PRICE_HISTORY` (`docs/planos/PLANO_RENTABILIDADE.md`, 3.3) | 19:30 | adm-api → "catálogo mudou" (FECHAMENTO) |
 | Recálculo de proventos e valorização de todas as posições — tarefa `POSITIONS_REFRESH` | 21:00 | app-api |
 | Metas: fotografia diária, eventos e avisos das metas ativas — tarefa `GOALS_SNAPSHOT` (V8; `docs/planos/PLANO_METAS.md`, D24) | 21:30 | app-api |
@@ -424,7 +431,7 @@ são os do seed (V62):
 
 Disparo manual para admin: pela **tela de Tarefas** (Run) ou, como antes, **na adm-api (8081)** — desde 22/10/2026 os
 endpoints passam pelo executor das tarefas, cada pedido vira uma rodada no histórico e a resposta 202 traz o
-`executionId`: `POST /api/v1/admin/{closing|proventos|proventos/fnet-status|catalog-audit|logos|issuers/import|issuers/link|fixed-income-issuers|fixed-income-issuers/logos|b3/cotahist|b3/cotahist/diario|cvm/import|cvm/quarters|cvm/fii-monthly|cvm/proventos|indices|tesouro|cripto/historico|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, datas de pagamento da CVM, balanços, informe de FII, índices de mercado e preço do Tesouro, em ordem — docs/planos/PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
+`executionId`: `POST /api/v1/admin/{closing|proventos|proventos/fnet-status|catalog-audit|foreign-catalog|foreign-delisted|logos|issuers/import|issuers/link|fixed-income-issuers|fixed-income-issuers/logos|b3/cotahist|b3/cotahist/diario|cvm/import|cvm/quarters|cvm/fii-monthly|cvm/proventos|indices|tesouro|cripto/historico|bootstrap}` (`bootstrap` = carga inicial num banco vazio: emissores, COTAHIST, proventos, datas de pagamento da CVM, balanços, informe de FII, índices de mercado e preço do Tesouro, em ordem — docs/planos/PLANO_EMPRESAS_BALANCOS.md, 6.3; passo a passo no `README.md`)
 (`b3/cotahist?from=2010&to=2026`, padrão 2010 até o ano corrente; `cvm/import?from=2010&to=2026&force=false` —
 documento na mesma versão é pulado, `force=true` reprocessa a partir de `carga/data/cvm` sem baixar; ao terminar recalcula
 a série trimestral, que `cvm/quarters` recalcula sozinha; `cvm/fii-monthly?from=2016&to=2026&force=false` — informe
@@ -433,6 +440,10 @@ mensal de FII em `fii_monthly`, mês na mesma versão é pulado; `indices?codes=
 situação de cada aviso do FNET em `carga/data/fnet/status`, 21/10/2026). Script: `node carga/scripts/admin.mjs <rotina> [--json corpo.json]`
 (ou `docker compose --profile carga run --rm tools node carga/scripts/admin.mjs <rotina>`) — login na app-api com a
 `ACTIVEST_PASSWORD` do `.env` e disparo na adm-api; portas do `.env` (`API_PORT`, `ADM_API_PORT`).
+Exterior (29/10/2026): `foreign-catalog?write=true` grava o catálogo vivo (sem `write`, só a prévia);
+`foreign-delisted?from=2010&to=2026&write=true` idem para os deslistados. Inativação errada (CVM, Form 25, sumiço) se
+desfaz por `PUT /api/v1/admin/assets/{id}/activation` (`{"active": true}` ou `{"active": false, "delistedOn": "AAAA-MM-DD"}`),
+que grava `delisting_source = MANUAL` — a decisão do administrador nunca é refeita pelas tarefas.
 Curadoria dos emissores (F3): `POST /api/v1/admin/issuers/fii-cnpjs` (lista `[{ticker, cnpj}]`, liga FII como `MANUAL`,
 síncrono) e `PUT /api/v1/admin/assets/{id}/issuer` (`{issuerId | cnpj, shareClass}`; CNPJ que não é emissor vem do
 cadastro da CVM; `shareClass` nula para o que não é ação; sem `issuerId` e sem `cnpj` desfaz) e
@@ -457,6 +468,10 @@ Todas as fontes abaixo, menos o Google, são da **adm-api** (config em `activest
 | **Banco Central — API SGS** (`BcbSgsClient`, sem token) | Índices de mercado (`docs/planos/PLANO_INDICES_MERCADO.md`): CDI (série 12), Selic (11), IPCA (433), IGP-M (189), INPC (188), TR (226), meta Selic (432), dólar PTAX venda (1). Uma consulta por ano civil com `dataInicial`/`dataFinal` (série diária recusa janela de mais de 10 anos com 406; 404 = sem valores no período); timeout de 20 s e até 4 tentativas (o SGS às vezes demora). A TR repete o início com fins diferentes: fica o período de um mês cheio. Data futura não entra (a meta Selic vem preenchida até a próxima reunião do Copom). Cache `carga/data/bcb/sgs/{código}/{ano}.json`: ano fechado com arquivo só do disco; o corrente e o anterior sempre da fonte (`IndexYearCache`) | `bcb.sgs-base-url`, `indices.*`, `activest.data.dir` |
 | **Tesouro Transparente — preços e taxas do Tesouro Direto** (`TreasuryPriceClient`, sem token) | `PrecoTaxaTesouroDireto.csv`: todo o histórico desde 2002 num arquivo (~14 MB, ~1 min), atualizado todo dia útil ~07:20 com o D-1; colunas tipo, vencimento, data base, taxas e PU de compra/venda/base. Cache `carga/data/tesouro/` (`PublicFileCache`, só baixa se mudou; desde 22/10/2026 só vira arquivo o que começa com o cabeçalho `Tipo Titulo;`). `TreasuryPriceService` casa a linha com o título do catálogo por **tipo + vencimento** (`asset_terms`; o ano do ticker nem sempre é o do vencimento: Renda+ 2065 vence em 2084), grava o **PU de venda** (resgate antecipado; sem ele, o PU base) em `asset_price_history` (`source = TESOURO`) e o último em `assets.current_price` | `treasury.prices-url`, `treasury.timeout-seconds` |
 | **B3 — índices** (`B3IndexClient`) | Fechamento diário do Ibovespa e do IFIX: `indexStatisticsProxy/IndexCall/GetPortfolioDay`, um ano por chamada, numa grade dia × mês com texto pt-BR. Cache `carga/data/b3/indices/{índice}/{ano}.json`, mesma regra | `b3.base-url`, `indices.*` |
+| **Nasdaq Trader — `nasdaqtraded.txt`** (`NasdaqTraderClient`, sem token) | O universo vivo dos EUA (C1 do `docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md`): uma fotografia por dia em `carga/data/nasdaqtrader/{data}.txt` (a série é o histórico de quem sumiu); bolsa, marca de ETF, test issue | `foreign.nasdaqtrader.url` |
+| **SEC EDGAR** (`SecClient`, sem token; `User-Agent` com o e-mail do `MAIL_FROM`; ≤ 8 pedidos/s) | Tickers e CIK (`company_tickers_exchange.json`), ficha da empresa (SIC, Form 25 recentes — `sec/profiles/{cik}.json`, o cadastro completo é apagado depois de lido), séries e classes dos fundos (2023+), índice trimestral dos Form 25 (`sec/form25/{ano}QTR{n}.idx`, só as linhas de Form 25), o formulário (`sec/filings/`) e o ticker do deslistado (`sec/delisted/{acesso}.json`, pelo XBRL `dei:TradingSymbol` ou o texto) | `foreign.sec.*`, `MAIL_FROM` |
+| **OpenFIGI** (`OpenFigiClient`) | Tipo do papel dos EUA (`securityType`: Common Stock, ADR, REIT, ETP, Closed-End Fund...) e o FIGI composto (identidade e renomeação). Com a chave, 100 tickers por pedido; cache por ticker em `carga/data/openfigi/ticker/` (6 dias com chave, 90 sem). Preferencial não é achada pelo ticker (entra pela lista) | `OPENFIGI_API_KEY` (opcional) |
+| **Nareit — FTSE Nareit constituents** (`NareitClient`, PDF lido com PDFBox) | Setor do REIT (categoria) e conferência do tipo; ticker do REIT deslistado. `carga/data/nareit/FNUSIC{ano}.pdf` | `foreign.nareit.url` |
 | **Google Identity Services** | Login social (fluxo de ID token, sem client secret) | `VITE_GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_ID` |
 
 **Integrações com corretoras e com a B3** (`docs/planos/PLANO_CRIPTO_BINANCE.md` e `docs/planos/PLANO_INTEGRACAO_B3.md`;
@@ -603,13 +618,14 @@ em desenvolvimento. **Não versione credenciais reais.**
 | `portfolios` | Carteira (1 por usuário) |
 | `portfolio_assets` | A posição. Chave lógica: `(portfolio_id, asset_id, note_id)` com `NULLS NOT DISTINCT`. **Não guarda cotas, preço médio nem custo** — saem das transações (V28) |
 | `transactions` | Compras e vendas. Fonte da verdade da posição. `note_id` nulo na renda variável |
-| `assets` | Catálogo global: `ticker`, `name`, `asset_type_id`, `asset_category_id`, `current_price`, `active` |
+| `assets` | Catálogo global: `ticker`, `name`, `asset_type_id`, `asset_category_id`, `current_price`, `active`. Desde a V13 o ticker é único **por tipo e data de saída** (`uk_assets_ticker_type UNIQUE NULLS NOT DISTINCT (ticker, asset_type_id, delisted_on)` — `META` ação e `META` cripto convivem; o deslistado guarda o ticker que tinha). `delisted_on` (data de saída, só no inativo) e `delisting_source` (V14: `CVM`, `FORM_25`, `LIST_GONE`, `MANUAL` — a prova da inativação; `MANUAL` nunca é refeito) |
+| `foreign_listings` | Papel listado nos EUA (V15, 1:1 com `assets`, PK `asset_id`, cascade): `exchange` (NYSE, NASDAQ, NYSE_AMERICAN, NYSE_ARCA, CBOE, IEX), `cik`, `sec_series_id` (ETF), `composite_figi` (único; a identidade e a renomeação), `figi_security_type`, `sic_code`, as origens `type_source`/`category_source`/`ticker_source` (`CURATION` = curadoria da planilha, nunca sobrescrita) e `first_seen_on`/`last_seen_on` (30 dias fora da lista = saída). Gravada pelas tarefas `FOREIGN_CATALOG` e `FOREIGN_DELISTED` — `docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md` |
 | `asset_terms` | Parâmetros públicos do papel, PK = `asset_id`. Só Tesouro Direto hoje |
 | `fixed_income_notes` | **O papel do usuário**: `issuer_id` e `distributor_id` (FK `fixed_income_issuers`, obrigatórias — títulos antigos com "Instituição não listada", V54), `paper_code` (opcional, só A–Z0–9, único por usuário), `maturity_date`, `rate_type`, `indexer`, `indexer_rate`. Regra H do Tesouro: único por `(user_id, asset_id, distributor_id, purchase_date)` |
 | `fixed_income_issuers` | Emissoras e distribuidoras de renda fixa (V54), **1 por raiz de CNPJ** (8 dígitos): `kind` (BANCO, FINANCEIRA, COOPERATIVA, CORRETORA_DISTRIBUIDORA, SECURITIZADORA, COMPANHIA, TESOURO, NAO_LISTADA), razão social, nome comercial, segmento, `status` (a morta nunca sai), `guarantor` (FGC/FGCOOP/NENHUM), `sale_rule` da distribuidora (PROPORCIONAL padrão; Nu Financeira UEPS), `group_id` + `group_source` (BCB/MANUAL). Duas linhas fixas: "Tesouro Nacional" e "Instituição não listada". Alimentada pela rotina `FixedIncomeIssuerImportService` (BCB + CVM); curadoria nunca sobrescrita |
 | `fixed_income_groups` | Grupos = conglomerado prudencial do BCB (`bcb_code`, inclusive os de uma empresa só), `name` + `name_source` (MANUAL não é tocado), `logo_ticker` (logo da linha de RF, D5), `extinct` (só em bases antigas) |
 | `asset_types` | 12 tipos; desde a V9 com `default_currency_code` e `region` (BRASIL/EXTERIOR/CRIPTO) |
-| `asset_categories` | 81 categorias (RDC na V54), **um nível só**; na renda fixa `issuer_kinds` (tipos de emissora que o produto aceita: CDB só BANCO) e `guaranteed` (produto coberto por FGC/FGCoop) — plano de emissoras, 4.4: unicidade `(asset_type_id, name)` (V31). Ação: setor B3; FII: tipo de fundo (TIJOLO, PAPEL, FOF, HIBRIDO, OUTROS). O segundo nível está no emissor: segmento B3 da ação em `issuers.b3_segment`, segmento de atuação do FII em `issuers.segment` |
+| `asset_categories` | 127 categorias (RDC na V54; 6 de fundos na V12; 40 do exterior na V15 — Stock com os 19 setores dos BDRs, REIT com 12 grupos dos setores da Nareit, ETF internacional com 9 temas), **um nível só**; na renda fixa `issuer_kinds` (tipos de emissora que o produto aceita: CDB só BANCO) e `guaranteed` (produto coberto por FGC/FGCoop) — plano de emissoras, 4.4: unicidade `(asset_type_id, name)` (V31). Ação: setor B3; FII: tipo de fundo (TIJOLO, PAPEL, FOF, HIBRIDO, OUTROS). O segundo nível está no emissor: segmento B3 da ação em `issuers.b3_segment`, segmento de atuação do FII em `issuers.segment` |
 | `strategies` | % ideal por tipo — `unique(user_id, asset_type_id)`. É a **geração de renda**: posição de reserva nunca entra (`include_reservation` saiu na V10) |
 | `strategy_reservations` | Estratégia da reserva de emergência — **uma por usuário** (`unique(user_id)`), nunca apagada. `type_reservation` 1 = por percentual (`target_percentage`), 2 = por valor (`target_value`); a outra coluna fica nula, e `ck_strategy_reservations_target` confere |
 | `dividends` | Proventos. **Sem `user_id`** — ver Pontos de Atenção. `total_amount` é o **bruto** (truncado nos centavos, como a B3); `net_amount` é o **líquido** depois do IR retido (V23) |
@@ -658,9 +674,9 @@ em desenvolvimento. **Não versione credenciais reais.**
 | 5 | ETF | ETFs | BRAPI | não |
 | 6 | FUNDO_INVESTIMENTO | Fundos de Investimentos | **CVM** (V12; antes MANUAL) | não |
 | 7 | BDR | BDRs | BRAPI | não |
-| 8 | STOCK | Stocks | MANUAL | não (USD, EXTERIOR desde a V9) |
-| 9 | REIT | REITs | MANUAL | não (USD, EXTERIOR) |
-| 10 | ETF_INTERNACIONAL | ETFs Internacionais | MANUAL | não (USD, EXTERIOR) |
+| 8 | STOCK | Stocks | MANUAL | não (USD, EXTERIOR desde a V9; catálogo pela `FOREIGN_CATALOG` desde 29/10/2026) |
+| 9 | REIT | REITs | MANUAL | não (USD, EXTERIOR; idem) |
+| 10 | ETF_INTERNACIONAL | ETFs Internacionais | MANUAL | não (USD, EXTERIOR; idem — inclui os fundos fechados listados, P1) |
 | 11 | CRIPTO | Criptomoedas | COINGECKO | não |
 | 12 | OUTROS | Outros | MANUAL | não |
 
@@ -706,6 +722,11 @@ existir: o banco novo não tem o dado que elas corrigiam.
 
 | `V12__investment_funds.sql` | (27/10/2026) fundos de investimento: fonte `CVM` no tipo 6 e no histórico de preço, apaga os índices em cópia `idx_price_history_asset_date` e `idx_assets_ticker` (D7), 6 categorias do tipo (1º nível ANBIMA), `investment_funds`, `investment_fund_names`, extensão `pg_trgm`, `regime` em `fixed_income_tax_rules` (+ IR e come-cotas dos fundos), `fund_tax_events`, tipo e tarefa `FUND_QUOTES` — `docs/planos/PLANO_FUNDOS_INVESTIMENTO.md` |
 | `V8__goals.sql` | (24/10/2026) metas: `goals` recriada (guarda: recusa se a antiga tiver linha — estava vazia), `goal_events`, `goal_snapshots`, tipo e tarefa `GOALS_SNAPSHOT` (21:30) — `docs/planos/PLANO_METAS.md` |
+| `V13__asset_ticker_by_type.sql` | (29/10/2026, `docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md`) metas com `params.assetId` no lugar do ticker; `assets.delisted_on`; `uk_assets_ticker` → `uk_assets_ticker_type (ticker, asset_type_id, delisted_on) NULLS NOT DISTINCT` |
+| `V14__asset_delisting_source.sql` | (29/10/2026) `assets.delisting_source` (CVM, FORM_25, LIST_GONE, MANUAL) e a descrição da `CATALOG_AUDIT`, que passa a inativar com prova |
+| `V15__foreign_listings.sql` | (29/10/2026) `foreign_listings` e as 40 categorias de Stock, REIT e ETF internacional |
+| `V16__foreign_catalog_task.sql` | (29/10/2026) tipo e tarefa `FOREIGN_CATALOG` (seg 06:30, `WRITE` falso) |
+| `V17__foreign_delisted_task.sql` | (29/10/2026) tipo e tarefa `FOREIGN_DELISTED` (só Run; `FROM_YEAR` 2010, `TO_YEAR`, `WRITE` falso) |
 
 **Como foi verificado** — o método a repetir num próximo reset. As 67 migrations
 antigas foram aplicadas num Postgres descartável (conferido idêntico, no
@@ -720,12 +741,12 @@ Os comentários do código que citam versões antigas ("V20", "V57"...) apontam 
 história no repositório `primevest`; a linha **Origem** de cada tabela no
 `V1__schema.sql` faz a ponte.
 
-Estado após uma subida limpa (seeds): `assets` 2.626, `asset_terms` 130,
-`asset_categories` 81, `asset_types` 12, `issuers` 715, `unit_compositions` 36,
+Estado após uma subida limpa (seeds, até a V17): `assets` 2.626, `asset_terms` 130,
+`asset_categories` 127, `asset_types` 12, `issuers` 715, `unit_compositions` 36,
 `asset_price_history` 1.111, `fixed_income_groups` 292, `fixed_income_issuers`
 6.922, `fixed_income_tax_rules` 48, `withholding_tax_rules` 7, `market_indices` 10,
-`benchmarks` 8, `task_types` 26, `tasks` 26, `task_type_attributes` 33,
-`task_attributes` 33, `users` 1, `portfolios` 1, `strategy_reservations` 1; todo o
+`benchmarks` 8, `task_types` 31, `tasks` 31, `task_type_attributes` 40,
+`task_attributes` 40, `users` 1, `portfolios` 1, `strategy_reservations` 1; todo o
 resto vazio — o volume vem da carga inicial (`carga/scripts/README.md`).
 
 > **Se o Flyway recusar a subida** reclamando de checksum ou de migration
@@ -882,8 +903,9 @@ passo a passo no apêndice A do plano); origens autorizadas `http://localhost` e
 ### Assets
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| GET | `/api/v1/assets/` | Busca — **`query` obrigatória** desde 27/10/2026 (sem ela, 400: o catálogo inteiro passaria de 55 mil itens com os fundos — C12). Com `typeId` do tipo fundo, a busca dos fundos (CNPJ com ou sem máscara, nome curto, social, comercial e anteriores, sem acento, índice `pg_trgm`; vivos antes, maior PL primeiro; `includeInactive=true` traz os encerrados e o cabeçalho `X-Inactive-Count` diz quantos casam; cada item com `displayName` = nome curto e `fund` = cadastro CVM). Sem `typeId`, fundo fica de fora. Demais params: `typeId`, `query` (autocomplete, teto 50), `withIssuer=true` (com `query`: só ações e FIIs ligados a emissor — busca da tela de Emissoras), `issuerKind=COMPANY|FII` (com `withIssuer`: só um tipo de emissor — o Preço Teto busca só ações, 18/10/2026) |
-| GET | `/api/v1/assets/{ticker}` | Buscar por ticker |
+| GET | `/api/v1/assets/` | Busca — **`query` obrigatória** desde 27/10/2026 (sem ela, 400: o catálogo inteiro passaria de 55 mil itens com os fundos — C12). Com `typeId` do tipo fundo, a busca dos fundos (CNPJ com ou sem máscara, nome curto, social, comercial e anteriores, sem acento, índice `pg_trgm`; vivos antes, maior PL primeiro; `includeInactive=true` traz os encerrados e o cabeçalho `X-Inactive-Count` diz quantos casam; cada item com `displayName` = nome curto e `fund` = cadastro CVM). Sem `typeId`, fundo fica de fora. Demais params: `typeId`, `query` (autocomplete, teto 50), `withIssuer=true` (com `query`: só ações e FIIs ligados a emissor — busca da tela de Emissoras), `issuerKind=COMPANY|FII` (com `withIssuer`: só um tipo de emissor — o Preço Teto busca só ações, 18/10/2026), `includeDelisted=true` (29/10/2026: traz também os inativos, depois dos vivos e com `delistedOn` — só a Nova transação usa; a data da transação fica limitada à saída, e a API recusa lançamento depois dela) |
+| GET | `/api/v1/assets/{ticker}` | Buscar por ticker — só o ticker **único** no catálogo; repetido em dois tipos (`META` ação e cripto): 400 "informe o tipo" |
+| GET | `/api/v1/assets/{type}/{ticker}`, `/{type}/{ticker}/logo`, `/{type}/{ticker}/prices` | O mesmo pelo par tipo + ticker (29/10/2026, `docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md`, I3): o vivo, ou sem vivo o de saída mais recente; o logo vem da subpasta do tipo no exterior (`carga/data/logos/STOCK/META.svg`) — a rota do logo é pública como a antiga |
 | GET | `/api/v1/funds/{ticker}/quote?date=` | Cota do fundo na data, ou a última anterior com a data dela (27/10/2026, D23): a app-api lê o ZIP do mês em `carga/data/cvm/fi/inf_diario` (montado só leitura) — pré-preenche a Cota da Nova transação |
 | GET | `/api/v1/funds/labels` | Ticker → nome curto dos fundos que o usuário lançou (o front troca o CNPJ pelo nome em todas as telas, `utils/assetLabel.ts`) |
 | GET | `/api/v1/assets/types` | Tipos de ativo |
@@ -1539,6 +1561,64 @@ publicou; o valor só existe no Comunicado ao Mercado da Petrobras — PENDENCIA
 - Testes: `DividendReconciliationIT` (5) e `PaymentDateSourceIT` (2: CVM cede à B3; FNET assume a reserva da B3).
 
 ## ⚠️ Pontos de Atenção
+
+### Ativos internacionais (29/10/2026)
+Plano: `docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md` (decisões D1–D15, I1–I7, P1–P4; regras C1–C11; etapas F1–F7). Escopo:
+**cadastro e categoria** de Stock, REIT e ETF internacional; preço fica fora (os três tipos seguem `MANUAL`, posição pelo
+custo).
+
+- **Ticker por tipo** (D3, V13). `assets` é único por `(ticker, tipo, data de saída)`: `META` ação e `META` cripto
+  convivem, e o deslistado guarda o ticker que tinha (P2). Toda busca por ticker passa pelo `AssetResolver` (core):
+  `find`/`findInTypes` pelo par ou pelos tipos da fonte (B3 → Ação/FII/ETF/BDR — `AssetTypeNames.B3_LISTED`; Binance →
+  Cripto), `require(ticker, tipo, data)` escolhe entre o deslistado e o vivo pela data da transação. Ticker repetido sem
+  tipo: 400 "informe o tipo". A transação leva `assetType` no payload; a meta guarda `params.assetId` (campo
+  `CATALOG_ASSET`); as rotas da tela são `/assets/{tipo}/{ticker}`. Mapas e SQL da adm-api ficam restritos aos tipos
+  da B3 (`IssuerLinkService`, COTAHIST, conferência).
+- **Saída da bolsa** (D11, V13/V14). `delisted_on` + `delisting_source` (`CVM`, `FORM_25`, `LIST_GONE`, `MANUAL`).
+  Inativo some da busca; **só a Nova transação** o traz (`includeDelisted`), com a marca "deslistado em dd/mm/aaaa", a
+  data limitada à saída e a recusa (422) de lançamento depois dela (`TransactionService.requireListedOn`).
+- **Inativação automática com prova** (I5/C7). Brasil, na `CATALOG_AUDIT`: registro cancelado na CVM (menos "Migração de
+  Registro") ou fora da lista da BRAPI + 30 pregões sem negócio no COTAHIST, sem ser renomeação (`CatalogDelisting`;
+  data = último negócio). EUA, na `FOREIGN_CATALOG`: Form 25 da empresa (saída = arquivamento + 10 dias) ou 30 dias
+  fora da lista do Nasdaq Trader (saída = último dia visto). Suspensão não inativa. Cada inativação abre
+  `CATALOGO_TICKER_INATIVADO` (também para quem tem posição); o administrador desfaz com
+  `PUT /api/v1/admin/assets/{id}/activation`, que grava `MANUAL` — nenhuma tarefa refaz.
+- **Catálogo vivo dos EUA** (F4, tarefa `FOREIGN_CATALOG`, seg 06:30, `WRITE` nasce falso). Lista do Nasdaq Trader
+  (bolsas da D1, sem test issue; fora warrant, right, unit de SPAC, nota, estruturado) → tipo: marca de ETF da bolsa,
+  preferencial pelo símbolo (`$`) **ou pelo nome** (na Nasdaq o símbolo da preferencial não tem `$`), senão o
+  `securityType` do OpenFIGI (Common Stock/ADR/MLP/... = STOCK; REIT; ETP e fundo fechado = ETF, P1) → categoria: BDR da
+  mesma empresa (nome normalizado, `ForeignRules.companyKey`), tabela SIC versionada
+  (`activest-adm-api/src/main/resources/foreign/sic-categories.csv`), setor da Nareit, palavras do nome do ETF
+  (`ForeignRules.etfCategory`, alavancado primeiro) → identidade pelo FIGI composto (renomeação troca o ticker do mesmo
+  ativo; aviso `CATALOGO_TICKER_RENOMEADO` com chave `EUA:`, que a conferência da B3 não fecha). Papel sem categoria não
+  é gravado. No DEV: **12.180 papéis** (5.862 Stock, 183 REIT, 6.135 ETF), todos gravados — os 16 sem categoria pela
+  regra foram curados pelo Guilherme em 29/10/2026.
+- **Curadoria** (C9, D12). A tarefa grava sempre a prévia (`carga/data/levantamento/internacional/catalogo-previa.json`);
+  `carga/scripts/levantamento/internacional_planilha.py` gera a planilha `catalogo-revisao.xlsx` (colunas amarelas
+  "CURADORIA"), `internacional_curadoria.py` a converte em `curadoria.json`, e a tarefa aplica com origem `CURATION`
+  (tipo, categoria, ticker, exclusão) — nunca sobrescrita, também sobre o já gravado. Deslistados: o mesmo com
+  `internacional_deslistados.py planilha|curadoria` e `curadoria-deslistados.json` (chave = número de acesso do Form 25).
+- **Deslistados desde 2010** (F5, tarefa `FOREIGN_DELISTED`, só Run). Form 25/25-NSE do índice da SEC → classe
+  (capital: ação, ADS, unit de MLP, cota de fundo), bolsa e saída do anexo da bolsa → ticker: `dei:TradingSymbol` do
+  XBRL dos últimos formulários antes da saída (inline desde 2019, até no 8-K; antes, a instância XBRL), o texto do
+  relatório, o próprio Form 25 (fundo, "(XYZ)"), as séries da SEC (2023+) ou a Nareit. A empresa ainda no catálogo vivo
+  (troca de bolsa) e a saída anterior da mesma empresa ficam fora. Gravados inativos com `FORM_25`. Os pedidos à SEC
+  vão em paralelo (6) com o ritmo de 8/s no cliente; um 503 ocasional fica para a próxima rodada (o que já foi lido
+  está em disco). No DEV (2010–2026): 15.340 Form 25 → 8.257 papéis de capital nas bolsas da D1 → 6.061 com ticker
+  (73%: Stock 86%, REIT 100%, ETF 37% — a SEC só publica as séries dos fundos de 2023 em diante) → **5.906 gravados**
+  inativos. O resto na planilha `deslistados-revisao.xlsx` e no PENDENCIAS 41.4. Primeira rodada ~3 h; com `sec/`
+  cheia, ~30 min (a leitura do disco montado é o gargalo).
+- **Logos** (C10, P4). Os arquivos do exterior foram colocados pelo Guilherme em
+  `carga/data/logos/{STOCK,REIT,ETF_INTERNACIONAL}/` e arrumados em 29/10/2026 (BDR prevalece, genéricos apagados,
+  gestora certa no ETF; relatório `docs/internacional/logos_relatorio.csv`). `AssetLogos` (core) lê a subpasta do tipo
+  (`hasLogo(ticker, tipo)`); a rotina `ASSET_LOGOS` não toca neles. **A pasta tem ~14 mil arquivos:** o índice é
+  relido a cada minuto **sem `stat` por arquivo** (na pasta montada do Docker no Windows cada `Files.isRegularFile`
+  custa ~1 ms — eram 10 s por releitura, e as telas com logo travavam; corrigido em 29/10/2026), e só um pedido relê
+  enquanto os outros seguem com o índice anterior. O papel novo da `FOREIGN_CATALOG` recebe o logo do
+  BDR da mesma empresa quando não tem arquivo (preferencial: o da empresa).
+- **Fontes** (`activest-adm-api/.../integration/foreign`): Nasdaq Trader, SEC (com `MAIL_FROM` no `User-Agent`),
+  OpenFIGI (`OPENFIGI_API_KEY`, opcional mas a primeira carga sem chave leva ~40 min), Nareit (PDF). A primeira rodada
+  baixa ~5.500 fichas da SEC (~35 min); as semanais levam ~4 min.
 
 ### Fundos de investimento (27/10/2026)
 Plano: `docs/planos/PLANO_FUNDOS_INVESTIMENTO.md` (decisões D1–D28, regras C1–C12).
@@ -2291,8 +2371,7 @@ libera, e `docker compose up -d app-api web` sobe os dois (o web depende do app-
 ### Egress bloqueado
 A política da organização bloqueia, entre outros: `repo.maven.apache.org`
 (então não dá para compilar fora do Docker em ambiente restrito),
-`api.bcb.gov.br`, `apisidra.ibge.gov.br`, `b3.com.br`, `statusinvest.com.br`, `brapi.dev`. Um 403/000 do
-proxy é negação de política — não é para contornar. O bloqueio é do ambiente do assistente (nuvem): na máquina do
+`api.bcb.gov.br`, `apisidra.ibge.gov.br`, `b3.com.br`, `statusinvest.com.br`, `brapi.dev`. O bloqueio é do ambiente do assistente (nuvem): na máquina do
 usuário e nos contêineres o SGS do Banco Central e o site da B3 respondem (conferido em 05/10/2026), e é dali que a
 adm-api os consulta.
 

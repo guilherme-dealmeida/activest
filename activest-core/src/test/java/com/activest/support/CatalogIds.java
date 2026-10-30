@@ -32,8 +32,12 @@ public final class CatalogIds {
             .orElseThrow(() -> new IllegalStateException("Tipo de ativo ausente no seed: " + name));
     }
 
+    /** O ativo do seed com este ticker; os tickers dos testes não se repetem entre os tipos (V13). */
     public static Asset asset(AssetRepository repository, String ticker) {
-        return repository.findByTicker(ticker)
-            .orElseThrow(() -> new IllegalStateException("Ativo ausente no seed: " + ticker));
+        java.util.List<Asset> found = repository.findAllByTicker(ticker);
+        if (found.size() != 1) {
+            throw new IllegalStateException("Ativo ausente ou repetido no seed: " + ticker + " (" + found.size() + ")");
+        }
+        return found.get(0);
     }
 }

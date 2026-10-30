@@ -1,0 +1,2427 @@
+ticker,tipo,etapa,acao,origem
+FCG,ETF_INTERNACIONAL,1,substituido,BDR BFCG39.svg
+GDX,ETF_INTERNACIONAL,1,substituido,BDR GDXB39.svg
+KWEB,ETF_INTERNACIONAL,1,substituido,BDR BKWB39.svg
+SGOL,ETF_INTERNACIONAL,1,substituido,BDR ABGD39.svg
+SIVR,ETF_INTERNACIONAL,1,substituido,BDR SIVR39.svg
+ADC,REIT,1,substituido,BDR A1DC34.svg
+AIV,REIT,1,substituido,BDR A1IV34.svg
+AMT,REIT,1,substituido,BDR T1OW34.svg
+ARE,REIT,1,substituido,BDR A1RE34.svg
+BXP,REIT,1,substituido,BDR BOXP34.svg
+CCI,REIT,1,substituido,BDR C1CI34.svg
+COLD,REIT,1,substituido,BDR COLD34.svg
+CPT,REIT,1,substituido,BDR C2PT34.svg
+DLR,REIT,1,substituido,BDR D1LR34.svg
+DOC,REIT,1,substituido,BDR P1EA34.svg
+EQIX,REIT,1,substituido,BDR EQIX34.svg
+ESS,REIT,1,substituido,BDR E1SS34.svg
+EXR,REIT,1,substituido,BDR E1XR34.svg
+GLPI,REIT,1,substituido,BDR G1AM34.svg
+HST,REIT,1,substituido,BDR H1ST34.svg
+INVH,REIT,1,substituido,BDR I2NV34.svg
+KRC,REIT,1,substituido,BDR K2RC34.svg
+LINE,REIT,1,substituido,BDR L1NE34.svg
+MAA,REIT,1,substituido,BDR M1AA34.svg
+MPT,REIT,1,substituido,BDR M2PT34.svg
+NLY,REIT,1,substituido,BDR N2LY34.svg
+O,REIT,1,substituido,BDR R1IN34.svg
+OHI,REIT,1,substituido,BDR O2HI34.svg
+PLD,REIT,1,substituido,BDR P1LD34.svg
+PSA,REIT,1,substituido,BDR P1SA34.svg
+RHP,REIT,1,substituido,BDR R1HP34.svg
+SLG,REIT,1,substituido,BDR S1LG34.svg
+SPG,REIT,1,substituido,BDR SIMN34.svg
+STAG,REIT,1,substituido,BDR S2TA34.svg
+SUI,REIT,1,substituido,BDR S2UI34.svg
+UDR,REIT,1,substituido,BDR U1DR34.svg
+VNO,REIT,1,substituido,BDR V1NO34.svg
+VTR,REIT,1,substituido,BDR V1TA34.svg
+A,STOCK,1,substituido,BDR A1GI34.svg
+AAL,STOCK,1,substituido,BDR AALL34.svg
+AAP,STOCK,1,substituido,BDR A1AP34.svg
+AAPL,STOCK,1,substituido,BDR AAPL34.svg
+ABBV,STOCK,1,substituido,BDR ABBV34.svg
+ABNB,STOCK,1,substituido,BDR AIRB34.svg
+ABT,STOCK,1,substituido,BDR ABTT34.svg
+ACN,STOCK,1,substituido,BDR ACNB34.svg
+ADBE,STOCK,1,substituido,BDR ADBE34.svg
+ADI,STOCK,1,substituido,BDR A1DI34.svg
+ADM,STOCK,1,substituido,BDR A1DM34.svg
+ADP,STOCK,1,substituido,BDR ADPR34.svg
+ADSK,STOCK,1,substituido,BDR A1UT34.svg
+AEP,STOCK,1,substituido,BDR A1EP34.svg
+AES,STOCK,1,substituido,BDR A1ES34.svg
+AFYA,STOCK,1,substituido,BDR A2FY34.svg
+AIZ,STOCK,1,substituido,BDR A1SU34.svg
+AKAM,STOCK,1,substituido,BDR A1KA34.svg
+ALB,STOCK,1,substituido,BDR A1LB34.svg
+ALGN,STOCK,1,substituido,BDR A1LG34.svg
+ALK,STOCK,1,substituido,BDR A1LK34.svg
+ALL,STOCK,1,substituido,BDR A1TT34.svg
+ALLE,STOCK,1,substituido,BDR A1GN34.svg
+ALNY,STOCK,1,substituido,BDR A1LN34.svg
+AMAT,STOCK,1,substituido,BDR A1MT34.svg
+AMBA,STOCK,1,substituido,BDR A2MB34.svg
+AMCR,STOCK,1,substituido,BDR A1CR34.svg
+AMD,STOCK,1,substituido,BDR A1MD34.svg
+AME,STOCK,1,substituido,BDR A1ME34.svg
+AMGN,STOCK,1,substituido,BDR AMGN34.svg
+AMP,STOCK,1,substituido,BDR A1MP34.svg
+AMZN,STOCK,1,substituido,BDR AMZO34.svg
+ANET,STOCK,1,substituido,BDR A1NE34.svg
+AON,STOCK,1,substituido,BDR A1ON34.svg
+APA,STOCK,1,substituido,BDR A1PA34.svg
+APD,STOCK,1,substituido,BDR A1PD34.svg
+APLD,STOCK,1,substituido,BDR A1PL34.svg
+APP,STOCK,1,substituido,BDR A1PP34.svg
+APTV,STOCK,1,substituido,BDR APTV34.svg
+ARCO,STOCK,1,substituido,BDR A1RC34.svg
+ARES,STOCK,1,substituido,BDR A2RE34.svg
+ARGX,STOCK,1,substituido,BDR A1RG34.svg
+ARWR,STOCK,1,substituido,BDR A2RR34.svg
+ASND,STOCK,1,substituido,BDR A1SN34.svg
+ASO,STOCK,1,substituido,BDR A2SO34.svg
+ATHM,STOCK,1,substituido,BDR A1TH34.svg
+ATO,STOCK,1,substituido,BDR A1TM34.svg
+AUGO,STOCK,1,substituido,BDR AURA33.svg
+AVGO,STOCK,1,substituido,BDR AVGO34.svg
+AWK,STOCK,1,substituido,BDR A1WK34.svg
+AXON,STOCK,1,substituido,BDR A2XO34.svg
+AXP,STOCK,1,substituido,BDR AXPB34.svg
+AZN,STOCK,1,substituido,BDR A1ZN34.svg
+AZO,STOCK,1,substituido,BDR AZOI34.svg
+AZTA,STOCK,1,substituido,BDR A2ZT34.svg
+BA,STOCK,1,substituido,BDR BOEI34.svg
+BABA,STOCK,1,substituido,BDR BABA34.svg
+BAC,STOCK,1,substituido,BDR BOAC34.svg
+BALL,STOCK,1,substituido,BDR B1LL34.svg
+BAP,STOCK,1,substituido,BDR B2AP34.svg
+BAX,STOCK,1,substituido,BDR B1AX34.svg
+BBVA,STOCK,1,substituido,BDR BILB34.svg
+BBWI,STOCK,1,substituido,BDR B1BW34.svg
+BBY,STOCK,1,substituido,BDR BBYY34.svg
+BCS,STOCK,1,substituido,BDR B1CS34.svg
+BDX,STOCK,1,substituido,BDR B1DX34.svg
+BEN,STOCK,1,substituido,BDR F1RA34.svg
+BF.A,STOCK,1,substituido,BDR B1FC34.svg
+BF.B,STOCK,1,criado,BDR B1FC34.svg
+BFH,STOCK,1,substituido,BDR A1LL34.svg
+BIDU,STOCK,1,substituido,BDR BIDU34.svg
+BIIB,STOCK,1,substituido,BDR BIIB34.svg
+BILI,STOCK,1,substituido,BDR B1IL34.svg
+BILL,STOCK,1,substituido,BDR B2HI34.svg
+BKNG,STOCK,1,substituido,BDR BKNG34.svg
+BKR,STOCK,1,substituido,BDR B1KR34.svg
+BL,STOCK,1,substituido,BDR B2LN34.svg
+BLK,STOCK,1,substituido,BDR BLAK34.svg
+BMBL,STOCK,1,substituido,BDR B2MB34.svg
+BMRN,STOCK,1,substituido,BDR B1MR34.svg
+BMY,STOCK,1,substituido,BDR BMYB34.svg
+BNTX,STOCK,1,substituido,BDR B1NT34.svg
+BNY,STOCK,1,substituido,BDR BONY34.svg
+BR,STOCK,1,substituido,BDR B1RF34.svg
+BSAC,STOCK,1,substituido,BDR B1SA34.svg
+BSX,STOCK,1,substituido,BDR B1SX34.svg
+BYND,STOCK,1,substituido,BDR B2YN34.svg
+C,STOCK,1,substituido,BDR CTGP34.svg
+CABO,STOCK,1,substituido,BDR C1AB34.svg
+CACI,STOCK,1,substituido,BDR C2AC34.svg
+CAH,STOCK,1,substituido,BDR C1AH34.svg
+CARR,STOCK,1,substituido,BDR C1RR34.svg
+CAT,STOCK,1,substituido,BDR CATP34.svg
+CB,STOCK,1,substituido,BDR C1BL34.svg
+CBOE,STOCK,1,substituido,BDR C1BO34.svg
+CBRE,STOCK,1,substituido,BDR C1BR34.svg
+CCJ,STOCK,1,substituido,BDR C1CJ34.svg
+CCL,STOCK,1,substituido,BDR C1CL34.svg
+CDNS,STOCK,1,substituido,BDR C1DN34.svg
+CDW,STOCK,1,substituido,BDR C1DW34.svg
+CE,STOCK,1,substituido,BDR C1NS34.svg
+CF,STOCK,1,substituido,BDR C1FI34.svg
+CFG,STOCK,1,substituido,BDR C1FG34.svg
+CGNX,STOCK,1,substituido,BDR C2GN34.svg
+CHKP,STOCK,1,substituido,BDR C1HK34.svg
+CHPT,STOCK,1,substituido,BDR C2HP34.svg
+CHRW,STOCK,1,substituido,BDR C1HR34.svg
+CHT,STOCK,1,substituido,BDR C1HT34.svg
+CHTR,STOCK,1,substituido,BDR CHCM34.svg
+CI,STOCK,1,substituido,BDR C1IC34.svg
+CINF,STOCK,1,substituido,BDR CINF34.svg
+CL,STOCK,1,substituido,BDR COLG34.svg
+CLOV,STOCK,1,substituido,BDR CLOV34.svg
+CLX,STOCK,1,substituido,BDR CLXC34.svg
+CMCSA,STOCK,1,substituido,BDR CMCS34.svg
+CME,STOCK,1,substituido,BDR CHME34.svg
+CMG,STOCK,1,substituido,BDR C1MG34.svg
+CNC,STOCK,1,substituido,BDR C1NC34.svg
+CNI,STOCK,1,substituido,BDR CNIC34.svg
+COF,STOCK,1,substituido,BDR CAON34.svg
+COIN,STOCK,1,substituido,BDR C2OI34.svg
+COO,STOCK,1,substituido,BDR C1OO34.svg
+COP,STOCK,1,substituido,BDR COPH34.svg
+COR,STOCK,1,substituido,BDR C1CO34.svg
+COST,STOCK,1,substituido,BDR COWC34.svg
+COTY,STOCK,1,substituido,BDR COTY34.svg
+CP,STOCK,1,substituido,BDR CPRL34.svg
+CPB,STOCK,1,substituido,BDR C1PB34.svg
+CPRI,STOCK,1,substituido,BDR CAPH34.svg
+CPRT,STOCK,1,substituido,BDR C1PR34.svg
+CRI,STOCK,1,substituido,BDR CRIN34.svg
+CRM,STOCK,1,substituido,BDR SSFO34.svg
+CRNC,STOCK,1,substituido,BDR C2RN34.svg
+CRSP,STOCK,1,substituido,BDR C2RS34.svg
+CRWD,STOCK,1,substituido,BDR C2RW34.svg
+CSCO,STOCK,1,substituido,BDR CSCO34.svg
+CSGP,STOCK,1,substituido,BDR C1GP34.svg
+CSX,STOCK,1,substituido,BDR CSXC34.svg
+CTSH,STOCK,1,substituido,BDR CTSH34.svg
+CTVA,STOCK,1,substituido,BDR C1TV34.svg
+CVS,STOCK,1,substituido,BDR CVSH34.svg
+CVX,STOCK,1,substituido,BDR CHVX34.svg
+CZR,STOCK,1,substituido,BDR C2ZR34.svg
+D,STOCK,1,substituido,BDR D1OM34.svg
+DAL,STOCK,1,substituido,BDR DEAI34.svg
+DAR,STOCK,1,substituido,BDR D2AR34.svg
+DASH,STOCK,1,substituido,BDR D2AS34.svg
+DD,STOCK,1,substituido,BDR DDNB34.svg
+DDOG,STOCK,1,substituido,BDR D1DG34.svg
+DE,STOCK,1,substituido,BDR DEEC34.svg
+DELL,STOCK,1,substituido,BDR D1EL34.svg
+DEO,STOCK,1,substituido,BDR DEOP34.svg
+DG,STOCK,1,substituido,BDR DGCO34.svg
+DGX,STOCK,1,substituido,BDR Q1UE34.svg
+DHR,STOCK,1,substituido,BDR DHER34.svg
+DINO,STOCK,1,substituido,BDR H1FC34.svg
+DIS,STOCK,1,substituido,BDR DISB34.svg
+DKNG,STOCK,1,substituido,BDR D2KN34.svg
+DKS,STOCK,1,substituido,BDR D2KS34.svg
+DOCS,STOCK,1,substituido,BDR D2OC34.svg
+DOCU,STOCK,1,substituido,BDR D1OC34.svg
+DOV,STOCK,1,substituido,BDR D1OV34.svg
+DOW,STOCK,1,substituido,BDR D1OW34.svg
+DOX,STOCK,1,substituido,BDR D2OX34.svg
+DPZ,STOCK,1,substituido,BDR D2PZ34.svg
+DT,STOCK,1,substituido,BDR D2TC34.svg
+DTE,STOCK,1,substituido,BDR D1TE34.svg
+DUOL,STOCK,1,substituido,BDR DUOL34.svg
+DVA,STOCK,1,substituido,BDR DVAI34.svg
+DVN,STOCK,1,substituido,BDR D1VN34.svg
+DXCM,STOCK,1,substituido,BDR D1EX34.svg
+EBAY,STOCK,1,substituido,BDR EBAY34.svg
+EC,STOCK,1,substituido,BDR E1CO34.svg
+ECL,STOCK,1,substituido,BDR E1CL34.svg
+EEFT,STOCK,1,substituido,BDR E2EF34.svg
+EIX,STOCK,1,substituido,BDR E1IX34.svg
+EL,STOCK,1,substituido,BDR ELCI34.svg
+EMN,STOCK,1,substituido,BDR E1MN34.svg
+EMR,STOCK,1,substituido,BDR E1MR34.svg
+ENOV,STOCK,1,substituido,BDR E2NO34.svg
+ENPH,STOCK,1,substituido,BDR E2NP34.svg
+ENTG,STOCK,1,substituido,BDR E2NT34.svg
+EOG,STOCK,1,substituido,BDR E1OG34.svg
+EPAM,STOCK,1,substituido,BDR E2PA34.svg
+EQNR,STOCK,1,substituido,BDR E1QN34.svg
+ESTC,STOCK,1,substituido,BDR E2ST34.svg
+ETN,STOCK,1,substituido,BDR E1TN34.svg
+ETSY,STOCK,1,substituido,BDR E2TS34.svg
+EVEX,STOCK,1,substituido,BDR EVEB31.svg
+EVTC,STOCK,1,substituido,BDR EVTC31.svg
+EW,STOCK,1,substituido,BDR E1WL34.svg
+EXC,STOCK,1,substituido,BDR E1XC34.svg
+EXPE,STOCK,1,substituido,BDR EXGR34.svg
+F,STOCK,1,substituido,BDR FDMO34.svg
+FANG,STOCK,1,substituido,BDR F1AN34.svg
+FCX,STOCK,1,substituido,BDR FCXO34.svg
+FDX,STOCK,1,substituido,BDR FDXB34.svg
+FICO,STOCK,1,substituido,BDR F2IC34.svg
+FIS,STOCK,1,substituido,BDR F1NI34.svg
+FISV,STOCK,1,substituido,BDR F1IS34.svg
+FIVN,STOCK,1,substituido,BDR F2IV34.svg
+FLS,STOCK,1,substituido,BDR F1LS34.svg
+FMC,STOCK,1,substituido,BDR F1MC34.svg
+FNV,STOCK,1,substituido,BDR F2NV34.svg
+FRSH,STOCK,1,substituido,BDR F2RS34.svg
+FSLR,STOCK,1,substituido,BDR FSLR34.svg
+FSLY,STOCK,1,substituido,BDR F1SL34.svg
+FTNT,STOCK,1,substituido,BDR F1TN34.svg
+FVRR,STOCK,1,substituido,BDR F2VR34.svg
+GAP,STOCK,1,substituido,BDR GPSI34.svg
+GD,STOCK,1,substituido,BDR GDBR34.svg
+GDDY,STOCK,1,substituido,BDR G2DD34.svg
+GDS,STOCK,1,substituido,BDR G1DS34.svg
+GE,STOCK,1,substituido,BDR GEOO34.svg
+GEHC,STOCK,1,substituido,BDR GEHC34.svg
+GEN,STOCK,1,substituido,BDR S1YM34.svg
+GEV,STOCK,1,substituido,BDR G2EV34.svg
+GFI,STOCK,1,substituido,BDR G1FI34.svg
+GILD,STOCK,1,substituido,BDR GILD34.svg
+GIS,STOCK,1,substituido,BDR G1MI34.svg
+GL,STOCK,1,substituido,BDR G1LL34.svg
+GLOB,STOCK,1,substituido,BDR G1LO34.svg
+GLW,STOCK,1,substituido,BDR G1LW34.svg
+GM,STOCK,1,substituido,BDR GMCO34.svg
+GMED,STOCK,1,substituido,BDR G2ME34.svg
+GOOGL,STOCK,1,substituido,BDR GOGL35.svg
+GPC,STOCK,1,substituido,BDR G1PC34.svg
+GPN,STOCK,1,substituido,BDR G1PI34.svg
+GPRK,STOCK,1,substituido,BDR GPRK34.svg
+GPRO,STOCK,1,substituido,BDR GPRO34.svg
+GRMN,STOCK,1,substituido,BDR G1RM34.svg
+GRO,STOCK,1,substituido,BDR GROP31.svg
+GS,STOCK,1,substituido,BDR GSGI34.svg
+GSK,STOCK,1,substituido,BDR G1SK34.svg
+GTM,STOCK,1,substituido,BDR Z2IT34.svg
+GWRE,STOCK,1,substituido,BDR G2WR34.svg
+GWW,STOCK,1,substituido,BDR G1WW34.svg
+HAL,STOCK,1,substituido,BDR HALI34.svg
+HCA,STOCK,1,substituido,BDR H1CA34.svg
+HD,STOCK,1,substituido,BDR HOME34.svg
+HDB,STOCK,1,substituido,BDR H1DB34.svg
+HEI,STOCK,1,substituido,BDR H1EI34.svg
+HEI.A,STOCK,1,substituido,BDR H1EI34.svg
+HHH,STOCK,1,substituido,BDR H1HH34.svg
+HIG,STOCK,1,substituido,BDR H1IG34.svg
+HLT,STOCK,1,substituido,BDR H1LT34.svg
+HMC,STOCK,1,substituido,BDR HOND34.svg
+HOG,STOCK,1,substituido,BDR H1OG34.svg
+HPE,STOCK,1,substituido,BDR H1PE34.svg
+HPQ,STOCK,1,substituido,BDR HPQB34.svg
+HRL,STOCK,1,substituido,BDR H1RL34.svg
+HSBC,STOCK,1,substituido,BDR H1SB34.svg
+HSY,STOCK,1,substituido,BDR HSHY34.svg
+HUBS,STOCK,1,substituido,BDR H2UB34.svg
+HUM,STOCK,1,substituido,BDR H1UM34.svg
+HWM,STOCK,1,substituido,BDR ARNC34.svg
+IBKR,STOCK,1,substituido,BDR IBKR34.svg
+IBM,STOCK,1,substituido,BDR IBMB34.svg
+ICE,STOCK,1,substituido,BDR I1CE34.svg
+ICLR,STOCK,1,substituido,BDR ICLR34.svg
+IDXX,STOCK,1,substituido,BDR I1DX34.svg
+ILMN,STOCK,1,substituido,BDR I1LM34.svg
+INDI,STOCK,1,substituido,BDR I2ND34.svg
+INFY,STOCK,1,substituido,BDR I1FO34.svg
+INGR,STOCK,1,substituido,BDR I2NG34.svg
+INTC,STOCK,1,substituido,BDR ITLC34.svg
+INTU,STOCK,1,substituido,BDR INTU34.svg
+IP,STOCK,1,substituido,BDR I1PC34.svg
+IQ,STOCK,1,substituido,BDR I1QY34.svg
+IR,STOCK,1,substituido,BDR I2RS34.svg
+ISRG,STOCK,1,substituido,BDR I1SR34.svg
+IT,STOCK,1,substituido,BDR G1AR34.svg
+ITW,STOCK,1,substituido,BDR I1TW34.svg
+IVZ,STOCK,1,substituido,BDR I1VZ34.svg
+IX,STOCK,1,substituido,BDR I1XC34.svg
+JAZZ,STOCK,1,substituido,BDR J2AZ34.svg
+JBHT,STOCK,1,substituido,BDR J1BH34.svg
+JBL,STOCK,1,substituido,BDR J2BL34.svg
+JBS,STOCK,1,substituido,BDR JBSS32.svg
+JCI,STOCK,1,substituido,BDR J1CI34.svg
+JD,STOCK,1,substituido,BDR JDCO34.svg
+JEF,STOCK,1,substituido,BDR J1EF34.svg
+JNJ,STOCK,1,substituido,BDR JNJB34.svg
+KB,STOCK,1,substituido,BDR K1BF34.svg
+KC,STOCK,1,substituido,BDR K2CG34.svg
+KEYS,STOCK,1,substituido,BDR K1SG34.svg
+KHC,STOCK,1,substituido,BDR KHCB34.svg
+KLAC,STOCK,1,substituido,BDR K1LA34.svg
+KMB,STOCK,1,substituido,BDR KMBB34.svg
+KMI,STOCK,1,substituido,BDR KMIC34.svg
+KMX,STOCK,1,substituido,BDR K1MX34.svg
+KO,STOCK,1,substituido,BDR COCA34.svg
+KR,STOCK,1,substituido,BDR K1RC34.svg
+KSS,STOCK,1,substituido,BDR K1SS34.svg
+KT,STOCK,1,substituido,BDR K1TC34.svg
+LEN,STOCK,1,substituido,BDR L1EN34.svg
+LHX,STOCK,1,substituido,BDR L1HX34.svg
+LKFT,STOCK,1,substituido,BDR LKFT34.svg
+LLY,STOCK,1,substituido,BDR LILY34.svg
+LMT,STOCK,1,substituido,BDR LMTB34.svg
+LOW,STOCK,1,substituido,BDR LOWC34.svg
+LPLA,STOCK,1,substituido,BDR L2PL34.svg
+LRCX,STOCK,1,substituido,BDR L1RC34.svg
+LRN,STOCK,1,substituido,BDR L2RN34.svg
+LULU,STOCK,1,substituido,BDR L1UL34.svg
+LUMN,STOCK,1,substituido,BDR L1MN34.svg
+LUV,STOCK,1,substituido,BDR S1OU34.svg
+LYB,STOCK,1,substituido,BDR L1YB34.svg
+LYG,STOCK,1,substituido,BDR L1YG34.svg
+LYV,STOCK,1,substituido,BDR L1YV34.svg
+M,STOCK,1,substituido,BDR MACY34.svg
+MA,STOCK,1,substituido,BDR MSCD34.svg
+MCD,STOCK,1,substituido,BDR MCDC34.svg
+MCHP,STOCK,1,substituido,BDR M1CH34.svg
+MCK,STOCK,1,substituido,BDR M1CK34.svg
+MCO,STOCK,1,substituido,BDR MCOR34.svg
+MDB,STOCK,1,substituido,BDR M1DB34.svg
+MDLZ,STOCK,1,substituido,BDR MDLZ34.svg
+MDT,STOCK,1,substituido,BDR MDTC34.svg
+MELI,STOCK,1,substituido,BDR MELI34.svg
+META,STOCK,1,substituido,BDR M1TA34.svg
+MGM,STOCK,1,substituido,BDR M1GM34.svg
+MKL,STOCK,1,substituido,BDR MKLC34.svg
+MKSI,STOCK,1,substituido,BDR M2KS34.svg
+MLCO,STOCK,1,substituido,BDR M1LC34.svg
+MLM,STOCK,1,substituido,BDR M1LM34.svg
+MMM,STOCK,1,substituido,BDR MMMC34.svg
+MNST,STOCK,1,substituido,BDR M1NS34.svg
+MO,STOCK,1,substituido,BDR MOOO34.svg
+MOS,STOCK,1,substituido,BDR MOSC34.svg
+MP,STOCK,1,substituido,BDR M2PM34.svg
+MPC,STOCK,1,substituido,BDR M1PC34.svg
+MPWR,STOCK,1,substituido,BDR M2PR34.svg
+MRK,STOCK,1,substituido,BDR MRCK34.svg
+MRNA,STOCK,1,substituido,BDR M1RN34.svg
+MRVL,STOCK,1,substituido,BDR M2RV34.svg
+MS,STOCK,1,substituido,BDR MSBR34.svg
+MSFT,STOCK,1,substituido,BDR MSFT34.svg
+MSI,STOCK,1,substituido,BDR M1SI34.svg
+MSTR,STOCK,1,substituido,BDR M2ST34.svg
+MTCH,STOCK,1,substituido,BDR M1TC34.svg
+MU,STOCK,1,substituido,BDR MUTC34.svg
+MUFG,STOCK,1,substituido,BDR M1UF34.svg
+NBIX,STOCK,1,substituido,BDR N1BI34.svg
+NCLH,STOCK,1,substituido,BDR N1CL34.svg
+NDAQ,STOCK,1,substituido,BDR N1DA34.svg
+NEE,STOCK,1,substituido,BDR NEXT34.svg
+NEM,STOCK,1,substituido,BDR N1EM34.svg
+NET,STOCK,1,substituido,BDR N2ET34.svg
+NFLX,STOCK,1,substituido,BDR NFLX34.svg
+NI,STOCK,1,substituido,BDR N1IS34.svg
+NICE,STOCK,1,substituido,BDR N1IC34.svg
+NKE,STOCK,1,substituido,BDR NIKE34.svg
+NOC,STOCK,1,substituido,BDR NOCG34.svg
+NOW,STOCK,1,substituido,BDR N1OW34.svg
+NRG,STOCK,1,substituido,BDR N1RG34.svg
+NTAP,STOCK,1,substituido,BDR N1TA34.svg
+NTES,STOCK,1,substituido,BDR NETE34.svg
+NTNX,STOCK,1,substituido,BDR N2TN34.svg
+NU,STOCK,1,substituido,BDR ROXO34.svg
+NUE,STOCK,1,substituido,BDR N1UE34.svg
+NVCR,STOCK,1,substituido,BDR N2VC34.svg
+NVDA,STOCK,1,substituido,BDR NVDC34.svg
+NVO,STOCK,1,substituido,BDR N1VO34.svg
+NVS,STOCK,1,substituido,BDR N1VS34.svg
+NWG,STOCK,1,substituido,BDR N1WG34.svg
+NXPI,STOCK,1,substituido,BDR N1XP34.svg
+OKTA,STOCK,1,substituido,BDR O1KT34.svg
+OLED,STOCK,1,substituido,BDR O2LE34.svg
+OMC,STOCK,1,substituido,BDR O1MC34.svg
+ON,STOCK,1,substituido,BDR O2NS34.svg
+ORCL,STOCK,1,substituido,BDR ORCL34.svg
+ORLY,STOCK,1,substituido,BDR ORLY34.svg
+OTIS,STOCK,1,substituido,BDR O1TI34.svg
+OXY,STOCK,1,substituido,BDR OXYP34.svg
+P,STOCK,1,substituido,BDR P2ST34.svg
+PAGS,STOCK,1,substituido,BDR PAGS34.svg
+PANW,STOCK,1,substituido,BDR P2AN34.svg
+PATH,STOCK,1,substituido,BDR P2AT34.svg
+PAX,STOCK,1,substituido,BDR P2AX34.svg
+PAYC,STOCK,1,substituido,BDR P1YC34.svg
+PAYX,STOCK,1,substituido,BDR P1AY34.svg
+PCAR,STOCK,1,substituido,BDR P1AC34.svg
+PCTY,STOCK,1,substituido,BDR P2CY34.svg
+PDD,STOCK,1,substituido,BDR P1DD34.svg
+PENN,STOCK,1,substituido,BDR P2EN34.svg
+PEP,STOCK,1,substituido,BDR PEPB34.svg
+PFE,STOCK,1,substituido,BDR PFIZ34.svg
+PG,STOCK,1,substituido,BDR PGCO34.svg
+PGR,STOCK,1,substituido,BDR P1GR34.svg
+PH,STOCK,1,substituido,BDR P1HC34.svg
+PINS,STOCK,1,substituido,BDR P2IN34.svg
+PKX,STOCK,1,substituido,BDR P1KX34.svg
+PLTR,STOCK,1,substituido,BDR P2LT34.svg
+PM,STOCK,1,substituido,BDR PHMO34.svg
+PNC,STOCK,1,substituido,BDR PNCS34.svg
+PPG,STOCK,1,substituido,BDR P1PG34.svg
+PRU,STOCK,1,substituido,BDR P1DT34.svg
+PSX,STOCK,1,substituido,BDR P1SX34.svg
+PTC,STOCK,1,substituido,BDR P2TC34.svg
+PWR,STOCK,1,substituido,BDR Q1UA34.svg
+PYPL,STOCK,1,substituido,BDR PYPL34.svg
+QCOM,STOCK,1,substituido,BDR QCOM34.svg
+QS,STOCK,1,substituido,BDR Q2SC34.svg
+QUBT,STOCK,1,substituido,BDR QUBT34.svg
+RARE,STOCK,1,substituido,BDR R2AR34.svg
+RBLX,STOCK,1,substituido,BDR R2BL34.svg
+RCL,STOCK,1,substituido,BDR R1CL34.svg
+RF,STOCK,1,substituido,BDR R1FC34.svg
+RGTI,STOCK,1,substituido,BDR RGTI34.svg
+RH,STOCK,1,substituido,BDR R2HH34.svg
+RHI,STOCK,1,substituido,BDR R1HI34.svg
+RIO,STOCK,1,substituido,BDR RIOT34.svg
+RJF,STOCK,1,substituido,BDR R1JF34.svg
+RL,STOCK,1,substituido,BDR R1LC34.svg
+RNG,STOCK,1,substituido,BDR R2NG34.svg
+ROK,STOCK,1,substituido,BDR R1OK34.svg
+ROKU,STOCK,1,substituido,BDR R1KU34.svg
+ROL,STOCK,1,substituido,BDR R1OL34.svg
+ROST,STOCK,1,substituido,BDR ROST34.svg
+RPD,STOCK,1,substituido,BDR R2PD34.svg
+RSG,STOCK,1,substituido,BDR R1SG34.svg
+RTX,STOCK,1,substituido,BDR RYTT34.svg
+RYAAY,STOCK,1,substituido,BDR R1YA34.svg
+SAP,STOCK,1,substituido,BDR SAPP34.svg
+SBUX,STOCK,1,substituido,BDR SBUB34.svg
+SCHW,STOCK,1,substituido,BDR SCHW34.svg
+SE,STOCK,1,substituido,BDR S2EA34.svg
+SEDG,STOCK,1,substituido,BDR S2ED34.svg
+SFM,STOCK,1,substituido,BDR S2FM34.svg
+SGI,STOCK,1,substituido,BDR S2GI34.svg
+SGML,STOCK,1,substituido,BDR S2GM34.svg
+SHW,STOCK,1,substituido,BDR S1HW34.svg
+SKM,STOCK,1,substituido,BDR S1KM34.svg
+SLB,STOCK,1,substituido,BDR SLBG34.svg
+SMPL,STOCK,1,substituido,BDR S2MP34.svg
+SNA,STOCK,1,substituido,BDR S1NA34.svg
+SNAP,STOCK,1,substituido,BDR S2NA34.svg
+SNOW,STOCK,1,substituido,BDR S2NW34.svg
+SNPS,STOCK,1,substituido,BDR S1NP34.svg
+SO,STOCK,1,substituido,BDR T1SO34.svg
+SONY,STOCK,1,substituido,BDR SNEC34.svg
+SPCX,STOCK,1,substituido,BDR SPCX34.svg
+SPGI,STOCK,1,substituido,BDR SPGI34.svg
+SPOT,STOCK,1,substituido,BDR S1PO34.svg
+SRPT,STOCK,1,substituido,BDR S1RP34.svg
+STM,STOCK,1,substituido,BDR STMN34.svg
+STNE,STOCK,1,substituido,BDR STOC34.svg
+STT,STOCK,1,substituido,BDR S1TT34.svg
+STX,STOCK,1,substituido,BDR S1TX34.svg
+STZ,STOCK,1,substituido,BDR STZB34.svg
+SWK,STOCK,1,substituido,BDR S1WK34.svg
+SYF,STOCK,1,substituido,BDR S1YF34.svg
+SYK,STOCK,1,substituido,BDR S1YK34.svg
+SYY,STOCK,1,substituido,BDR S1YY34.svg
+T,STOCK,1,substituido,BDR ATTB34.svg
+TAK,STOCK,1,substituido,BDR TAKP34.svg
+TAL,STOCK,1,criado,BDR T1AL34.svg
+TAP,STOCK,1,substituido,BDR M1CB34.svg
+TAP.A,STOCK,1,substituido,BDR M1CB34.svg
+TCOM,STOCK,1,substituido,BDR CRIP34.svg
+TDG,STOCK,1,substituido,BDR T1DG34.svg
+TDOC,STOCK,1,substituido,BDR T2DH34.svg
+TEAM,STOCK,1,substituido,BDR T1AM34.svg
+TECH,STOCK,1,substituido,BDR T1CH34.svg
+TEL,STOCK,1,substituido,BDR T1EL34.svg
+TER,STOCK,1,substituido,BDR T2ER34.svg
+TEVA,STOCK,1,substituido,BDR T1EV34.svg
+TFC,STOCK,1,substituido,BDR B1BT34.svg
+TGT,STOCK,1,substituido,BDR TGTB34.svg
+TM,STOCK,1,substituido,BDR TMCO34.svg
+TMO,STOCK,1,substituido,BDR TMOS34.svg
+TMUS,STOCK,1,substituido,BDR T1MU34.svg
+TNDM,STOCK,1,substituido,BDR T2ND34.svg
+TOST,STOCK,1,substituido,BDR TOST34.svg
+TPR,STOCK,1,substituido,BDR TPRY34.svg
+TRIP,STOCK,1,substituido,BDR T1RI34.svg
+TROW,STOCK,1,substituido,BDR T1RO34.svg
+TRV,STOCK,1,substituido,BDR TRVC34.svg
+TS,STOCK,1,substituido,BDR T1SS34.svg
+TSCO,STOCK,1,substituido,BDR T1SC34.svg
+TSLA,STOCK,1,substituido,BDR TSLA34.svg
+TSM,STOCK,1,substituido,BDR TSMC34.svg
+TSN,STOCK,1,substituido,BDR TSNF34.svg
+TT,STOCK,1,substituido,BDR I1RP34.svg
+TTD,STOCK,1,substituido,BDR T2TD34.svg
+TTWO,STOCK,1,substituido,BDR T1TW34.svg
+TWLO,STOCK,1,substituido,BDR T1WL34.svg
+TXN,STOCK,1,substituido,BDR TEXA34.svg
+TYL,STOCK,1,substituido,BDR T2YL34.svg
+U,STOCK,1,substituido,BDR U2ST34.svg
+UA,STOCK,1,substituido,BDR U1AI34.svg
+UAA,STOCK,1,substituido,BDR U1AI34.svg
+UAL,STOCK,1,substituido,BDR U1AL34.svg
+UBER,STOCK,1,substituido,BDR U1BE34.svg
+UHS,STOCK,1,substituido,BDR U1HS34.svg
+UL,STOCK,1,substituido,BDR ULEV34.svg
+ULTA,STOCK,1,substituido,BDR U1LT34.svg
+UNFI,STOCK,1,substituido,BDR U2NF34.svg
+UNH,STOCK,1,substituido,BDR UNHH34.svg
+UNP,STOCK,1,substituido,BDR UPAC34.svg
+UPS,STOCK,1,substituido,BDR UPSS34.svg
+UPST,STOCK,1,substituido,BDR U2PS34.svg
+UPWK,STOCK,1,substituido,BDR U2PW34.svg
+URI,STOCK,1,substituido,BDR U1RI34.svg
+USB,STOCK,1,substituido,BDR USBC34.svg
+V,STOCK,1,substituido,BDR VISA34.svg
+VEEV,STOCK,1,substituido,BDR V2EE34.svg
+VFC,STOCK,1,substituido,BDR VFCO34.svg
+VIPS,STOCK,1,substituido,BDR V1IP34.svg
+VLO,STOCK,1,substituido,BDR VLOE34.svg
+VRNS,STOCK,1,substituido,BDR V2RN34.svg
+VRSK,STOCK,1,substituido,BDR V1RS34.svg
+VRT,STOCK,1,substituido,BDR V1RT34.svg
+VRTX,STOCK,1,substituido,BDR VRTX34.svg
+VST,STOCK,1,substituido,BDR V1ST34.svg
+VTEX,STOCK,1,substituido,BDR V2TX34.svg
+VZ,STOCK,1,substituido,BDR VERZ34.svg
+W,STOCK,1,substituido,BDR W2YF34.svg
+WAB,STOCK,1,substituido,BDR W1AB34.svg
+WB,STOCK,1,substituido,BDR W1BO34.svg
+WDAY,STOCK,1,substituido,BDR W1DA34.svg
+WDC,STOCK,1,substituido,BDR W1DC34.svg
+WFC,STOCK,1,substituido,BDR WFCO34.svg
+WHR,STOCK,1,substituido,BDR W1HR34.svg
+WIX,STOCK,1,substituido,BDR W1IX34.svg
+WM,STOCK,1,substituido,BDR W1MC34.svg
+WMB,STOCK,1,substituido,BDR W1MB34.svg
+WMG,STOCK,1,substituido,BDR W1MG34.svg
+WMT,STOCK,1,substituido,BDR WALM34.svg
+WPP,STOCK,1,substituido,BDR W1PP34.svg
+WRB,STOCK,1,substituido,BDR W1RB34.svg
+WU,STOCK,1,substituido,BDR WUNI34.svg
+WYNN,STOCK,1,substituido,BDR W1YN34.svg
+XEL,STOCK,1,substituido,BDR X1EL34.svg
+XOM,STOCK,1,substituido,BDR EXXO34.svg
+XP,STOCK,1,substituido,BDR XPBR31.svg
+XRAY,STOCK,1,substituido,BDR XRAY34.svg
+XRX,STOCK,1,substituido,BDR XRXB34.svg
+XYL,STOCK,1,substituido,BDR X1YL34.svg
+XYZ,STOCK,1,substituido,BDR X1YZ34.svg
+YUM,STOCK,1,substituido,BDR YUMR34.svg
+ZBH,STOCK,1,substituido,BDR Z1BH34.svg
+ZBRA,STOCK,1,substituido,BDR Z1BR34.svg
+ZD,STOCK,1,substituido,BDR Z2DV34.svg
+ZETA,STOCK,1,substituido,BDR Z1TA34.svg
+ZG,STOCK,1,substituido,BDR Z2LL34.svg
+ZM,STOCK,1,substituido,BDR Z1OM34.svg
+ZS,STOCK,1,substituido,BDR Z2SC34.svg
+ZTO,STOCK,1,substituido,BDR Z1TO34.svg
+ZTS,STOCK,1,substituido,BDR Z1TS34.svg
+AADX,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+ABTS,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+ACHV,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+AIFU,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+AIRS,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+BPAC,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+CTAA,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+DBCA,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+DGAC,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+GAIA,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+GLE,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+GPAT,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+GWAV,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+HCAI,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+HTCO,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+IRAB,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+KTWO,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+LTGR,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+LWAC,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+MACI,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+MBVI,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+MLAA,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+MTAL,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+NSP,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+OBA,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+ONCO,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+OYSE,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+PDYN,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+PTLE,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+PUSA,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+RIBB,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+RNA,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+SCPQ,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+STFS,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+TRGS,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+VNME,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+WENN,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+XMAX,STOCK,2,apagado,imagem generica (mesmo arquivo em empresas sem relacao)
+ACSG,ETF_INTERNACIONAL,3,substituido,gestora american century (acervo)
+AESR,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo horizon funds; gestora pelo nome: anfield
+AFB,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo ab active etfs inc; gestora pelo nome: AllianceBernstein
+AFIF,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo horizon funds; gestora pelo nome: anfield
+AMHI,ETF_INTERNACIONAL,3,substituido,gestora abrdn (acervo)
+AMUB,ETF_INTERNACIONAL,3,substituido,gestora alps (acervo)
+AMZA,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo virtus; gestora pelo nome: etfis series trust i
+AWF,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo ab active etfs inc; gestora pelo nome: AllianceBernstein
+BAMA,ETF_INTERNACIONAL,3,substituido,gestora brookstone (acervo)
+BAMD,ETF_INTERNACIONAL,3,substituido,gestora brookstone (acervo)
+BAMG,ETF_INTERNACIONAL,3,substituido,gestora brookstone (acervo)
+BAMV,ETF_INTERNACIONAL,3,substituido,gestora brookstone (acervo)
+BDRY,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo amplify; gestora pelo nome: breakwave
+BNDC,ETF_INTERNACIONAL,3,substituido,gestora northern (acervo)
+BNDS,ETF_INTERNACIONAL,3,substituido,gestora infrastructure (acervo)
+BRW,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo voya; gestora pelo nome: saba
+BTGD,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo incomestkd; gestora pelo nome: stkd
+BUYW,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo inspire; gestora pelo nome: main
+BWET,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo amplify; gestora pelo nome: breakwave
+CBLS,ETF_INTERNACIONAL,3,substituido,gestora elevation series trust (acervo)
+CBSE,ETF_INTERNACIONAL,3,substituido,gestora elevation series trust (acervo)
+CCFE,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo ea; gestora pelo nome: concourse
+CDIG,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo ea; gestora pelo nome: city
+CEE,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo db; gestora pelo nome: the
+CEFZ,ETF_INTERNACIONAL,3,substituido,gestora elevation series trust (acervo)
+CIK,ETF_INTERNACIONAL,3,substituido,gestora UBS (logos_gestoras)
+COHH,ETF_INTERNACIONAL,3,substituido,gestora leverage shares (acervo)
+DDFD,ETF_INTERNACIONAL,3,substituido,gestora innovator (acervo)
+DEPW,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo harbor etf trust; gestora pelo nome: google
+DFMC,ETF_INTERNACIONAL,3,substituido,gestora u.s (acervo)
+DHDG,ETF_INTERNACIONAL,3,substituido,gestora first trust (acervo)
+DHY,ETF_INTERNACIONAL,3,substituido,gestora UBS (logos_gestoras)
+DIVZ,ETF_INTERNACIONAL,3,substituido,gestora polen (acervo)
+DLCU,ETF_INTERNACIONAL,3,substituido,gestora u.s (acervo)
+DPG,ETF_INTERNACIONAL,3,substituido,gestora virtus (acervo)
+DTF,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo dnp; gestora pelo nome: dtf
+DUSG,ETF_INTERNACIONAL,3,substituido,gestora u.s (acervo)
+EEA,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo db; gestora pelo nome: the
+FAAA,ETF_INTERNACIONAL,3,substituido,gestora fidelity (acervo)
+FDIV,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo first trust; gestora pelo nome: marketdesk
+FDRS,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo corgi; gestora pelo nome: founder-led
+FDRX,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo corgi; gestora pelo nome: founder-led
+FEOE,ETF_INTERNACIONAL,3,substituido,gestora first (acervo)
+FFIU,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo obra; gestora pelo nome: uva
+FITZ,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo nicholas; gestora pelo nome: fitz-gerald
+FIZY,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo nicholas; gestora pelo nome: fitz-gerald
+FLRT,ETF_INTERNACIONAL,3,substituido,gestora pacer (acervo)
+FMCX,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo inspire; gestora pelo nome: fm
+FMQQ,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo emqq; gestora pelo nome: fmqq
+FNG,ETF_INTERNACIONAL,3,substituido,gestora leverage shares (acervo)
+GBUG,ETF_INTERNACIONAL,3,substituido,gestora sprott (acervo)
+GDMA,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo ea; gestora pelo nome: gadsden
+GEND,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo obra; gestora pelo nome: genter
+GENW,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo obra; gestora pelo nome: genter
+GF,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo dws/xtrackers; gestora pelo nome: new
+GLCR,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo teucrium; gestora pelo nome: glaciershares
+GLDW,ETF_INTERNACIONAL,3,substituido,gestora roundhill (acervo)
+GOAU,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo u.s; gestora pelo nome: us
+GRAG,ETF_INTERNACIONAL,3,substituido,gestora leverage shares (acervo)
+HYSA,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo highland; gestora pelo nome: bondbloxx
+INTL,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo inspire; gestora pelo nome: main
+IQDF,ETF_INTERNACIONAL,3,substituido,gestora northern (acervo)
+IVEP,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo wedbush; gestora pelo nome: dan
+KOOL,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo obra; gestora pelo nome: north
+KTF,ETF_INTERNACIONAL,3,substituido,gestora dws/xtrackers (acervo)
+LBO,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo ea; gestora pelo nome: whitewolf
+LDRI,ETF_INTERNACIONAL,3,substituido,gestora ishares (acervo)
+LDRX,ETF_INTERNACIONAL,3,substituido,gestora sgi (acervo)
+LGHT,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo fidelity; gestora pelo nome: langar
+MBSD,ETF_INTERNACIONAL,3,substituido,gestora northern (acervo)
+MBSX,ETF_INTERNACIONAL,3,substituido,gestora advisor managed portfolios (acervo)
+MCN,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo madison etfs trust; gestora pelo nome: xai
+MFUL,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo mohr; gestora pelo nome: mindful
+MGF,ETF_INTERNACIONAL,3,substituido,gestora abrdn (acervo)
+MIN,ETF_INTERNACIONAL,3,substituido,gestora abrdn (acervo)
+MLPB,ETF_INTERNACIONAL,3,substituido,gestora alps (acervo)
+MLPR,ETF_INTERNACIONAL,3,substituido,gestora alps (acervo)
+MMT,ETF_INTERNACIONAL,3,substituido,gestora abrdn (acervo)
+MUNA,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo flexshares trust; gestora pelo nome: northern funds
+MUNB,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo flexshares trust; gestora pelo nome: northern funds
+MUNC,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo flexshares trust; gestora pelo nome: northern funds
+MUND,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo flexshares trust; gestora pelo nome: northern funds
+NDAA,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo core16; gestora pelo nome: ned
+NOEQ,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo flexshares trust; gestora pelo nome: northern funds
+NSI,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo inspire; gestora pelo nome: national
+NVPS,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo integrity; gestora pelo nome: pureplay
+OAIW,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo harbor etf trust; gestora pelo nome: openai
+OBIL,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo F/m; gestora pelo nome: us
+OBTC,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo rex shares; gestora pelo nome: osprey
+OEI,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo core; gestora pelo nome: optimized
+OPER,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo clearshares; gestora pelo nome: etf
+OSCV,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo aptus; gestora pelo nome: opus
+PCF,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo mexico; gestora pelo nome: high
+PDI,ETF_INTERNACIONAL,3,substituido,gestora pimco (acervo)
+PFFR,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo virtus; gestora pelo nome: etfis series trust i
+PHOX,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo u.s; gestora pelo nome: aura
+PPI,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo axs; gestora pelo nome: astoria
+PPTY,ETF_INTERNACIONAL,3,substituido,gestora u.s (acervo)
+PQUS,ETF_INTERNACIONAL,3,substituido,gestora 2023 etf series trust (acervo)
+PRAY,ETF_INTERNACIONAL,3,substituido,gestora neos (acervo)
+QDEF,ETF_INTERNACIONAL,3,substituido,gestora northern (acervo)
+QDF,ETF_INTERNACIONAL,3,substituido,gestora northern (acervo)
+RAUS,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo research; gestora pelo nome: racwi
+RAVI,ETF_INTERNACIONAL,3,substituido,gestora northern (acervo)
+REAI,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo residential; gestora pelo nome: intelligent
+REFA,ETF_INTERNACIONAL,3,substituido,gestora columbia (acervo)
+REMG,ETF_INTERNACIONAL,3,substituido,gestora Russell Investments (logos_gestoras)
+RHTX,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo adaptive; gestora pelo nome: rh
+ROE,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo ea; gestora pelo nome: astoria
+RSMV,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo teucrium; gestora pelo nome: relative
+RULE,ETF_INTERNACIONAL,3,substituido,gestora adaptive (acervo)
+RVER,ETF_INTERNACIONAL,3,substituido,gestora advisor managed portfolios (acervo)
+SDUR,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo pimco; gestora pelo nome: aristotle
+SOEZ,ETF_INTERNACIONAL,3,substituido,gestora franklin templeton (acervo)
+SOLT,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo volatility shares; gestora pelo nome: 2x
+SOLZ,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo volatility shares; gestora pelo nome: solana
+SOR,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo fpa; gestora pelo nome: source
+STEW,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo elevation series trust; gestora pelo nome: srh
+TAXI,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo flexshares trust; gestora pelo nome: northern funds
+TAXS,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo flexshares trust; gestora pelo nome: northern funds
+TAXT,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo flexshares trust; gestora pelo nome: northern funds
+TCAI,ETF_INTERNACIONAL,3,substituido,gestora Tortoise (logos_gestoras)
+TDAX,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo tappalpha; gestora pelo nome: tdaq
+TIPA,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo flexshares trust; gestora pelo nome: northern funds
+TIPB,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo flexshares trust; gestora pelo nome: northern funds
+TIPC,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo flexshares trust; gestora pelo nome: northern funds
+TIPD,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo flexshares trust; gestora pelo nome: northern funds
+TMLP,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo managed portfolio series; gestora pelo nome: tortoise
+TNUK,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo managed portfolio series; gestora pelo nome: tortoise
+TOAO,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo manager; gestora pelo nome: twin
+TOV,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo ea; gestora pelo nome: jlens
+TPZ,ETF_INTERNACIONAL,3,substituido,gestora Tortoise (logos_gestoras)
+TRUC,ETF_INTERNACIONAL,3,substituido,gestora vaneck (acervo)
+TUG,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo scm trust; gestora pelo nome: stf
+TWN,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo japan; gestora pelo nome: taiwan
+UCIB,ETF_INTERNACIONAL,3,substituido,gestora UBS (logos_gestoras)
+UFIV,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo F/m; gestora pelo nome: us
+UPAR,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo rpar; gestora pelo nome: upar
+USVN,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo F/m; gestora pelo nome: us
+UTEN,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo F/m; gestora pelo nome: us
+UTHY,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo F/m; gestora pelo nome: us
+UTRE,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo F/m; gestora pelo nome: us
+UTWO,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo F/m; gestora pelo nome: us
+UTWY,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo F/m; gestora pelo nome: us
+UVIX,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo volatility shares; gestora pelo nome: 2x
+VIXM,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo proshares; gestora pelo nome: vix
+VIXY,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo proshares; gestora pelo nome: vix
+VOOY,ETF_INTERNACIONAL,3,substituido,gestora XFUNDS (logos_gestoras)
+VOXP,ETF_INTERNACIONAL,3,substituido,gestora advisors series trust (acervo)
+VYLD,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo alps; gestora pelo nome: inverse
+WCPB,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo core16; gestora pelo nome: weitz
+WIA,ETF_INTERNACIONAL,3,substituido,gestora franklin templeton (acervo)
+WIW,ETF_INTERNACIONAL,3,substituido,gestora franklin templeton (acervo)
+XAIW,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo harbor etf trust; gestora pelo nome: spacexai
+XEMD,ETF_INTERNACIONAL,3,substituido,gestora j.p. morgan (acervo)
+XEML,ETF_INTERNACIONAL,3,substituido,gestora dws/xtrackers (acervo)
+XOVR,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo state street; gestora pelo nome: entrepreneurshares series trust
+XTR,ETF_INTERNACIONAL,3,substituido,gestora global x (acervo)
+XXV,ETF_INTERNACIONAL,3,substituido,gestora simplify (acervo)
+YFYA,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo teucrium; gestora pelo nome: yields
+YOKE,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo ea; gestora pelo nome: yoke
+YSAG,ETF_INTERNACIONAL,3,mantido - a conferir,logo do grupo teucrium; gestora pelo nome: y'all
+AAAB,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+AAOG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+AAOX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+AAOZ,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+AAPE,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+AAPR,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+AAUA,ETF_INTERNACIONAL,4,criado,gestora alpha (acervo)
+AAUS,ETF_INTERNACIONAL,4,criado,gestora alpha (acervo)
+ABND,ETF_INTERNACIONAL,4,criado,gestora american century (acervo)
+ABUF,ETF_INTERNACIONAL,4,criado,gestora aptus (acervo)
+ACBE,ETF_INTERNACIONAL,4,criado,gestora pacer (acervo)
+ACBH,ETF_INTERNACIONAL,4,criado,gestora pacer (acervo)
+ACGO,ETF_INTERNACIONAL,4,criado,gestora Hartford (logos_gestoras)
+ACHP,ETF_INTERNACIONAL,4,criado,gestora global x (acervo)
+ACHX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+ACIG,ETF_INTERNACIONAL,4,criado,gestora Hartford (logos_gestoras)
+ACIN,ETF_INTERNACIONAL,4,criado,gestora Hartford (logos_gestoras)
+ACIV,ETF_INTERNACIONAL,4,criado,gestora Hartford (logos_gestoras)
+ACMG,ETF_INTERNACIONAL,4,criado,gestora american century (acervo)
+ACSM,ETF_INTERNACIONAL,4,criado,gestora Hartford (logos_gestoras)
+ACYB,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+ADIU,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+AEHG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+AFDM,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+AFIX,ETF_INTERNACIONAL,4,criado,gestora Allspring (logos_gestoras)
+AGGB,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+AHIC,ETF_INTERNACIONAL,4,criado,gestora Allspring (logos_gestoras)
+AHYM,ETF_INTERNACIONAL,4,criado,gestora Allspring (logos_gestoras)
+AIBF,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+AIBN,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+AIED,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+AIFR,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+AINF,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+AINP,ETF_INTERNACIONAL,4,criado,gestora Allspring (logos_gestoras)
+AIOO,ETF_INTERNACIONAL,4,criado,gestora aim etf products trust (acervo)
+AJAN,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+AJUL,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+AKAF,ETF_INTERNACIONAL,4,criado,gestora the (acervo)
+AKAL,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+ALA,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+ALDB,ETF_INTERNACIONAL,4,criado,gestora aptus (acervo)
+AMAU,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+AMDC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+AMKL,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+AMKX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+AMPU,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+AMZG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+AMZO,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+ANG,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+APDB,ETF_INTERNACIONAL,4,criado,gestora aptus (acervo)
+APHG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+APHU,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+APMI,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+APPC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+APRB,ETF_INTERNACIONAL,4,criado,gestora aptus (acervo)
+APRP,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+APXM,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+AQLT,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+ARKE,ETF_INTERNACIONAL,4,criado,gestora ark (acervo)
+ARKI,ETF_INTERNACIONAL,4,criado,gestora ark (acervo)
+ARKY,ETF_INTERNACIONAL,4,criado,gestora ark (acervo)
+ARLU,ETF_INTERNACIONAL,4,criado,gestora aim etf products trust (acervo)
+ASMZ,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+ASSX,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+ASTG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+ASTM,ETF_INTERNACIONAL,4,criado,gestora Allspring (logos_gestoras)
+ASTN,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+ASTT,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+ASTY,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+ASUP,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+AT,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+AUGC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+AUGP,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+AUGU,ETF_INTERNACIONAL,4,criado,gestora aim etf products trust (acervo)
+AV,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+AVGC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+AVNC,ETF_INTERNACIONAL,4,criado,gestora avantis (acervo)
+AVSE,ETF_INTERNACIONAL,4,criado,gestora avantis (acervo)
+AVUC,ETF_INTERNACIONAL,4,criado,gestora avantis (acervo)
+AWP,ETF_INTERNACIONAL,4,criado,gestora abrdn (acervo)
+AXTC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+AXTL,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+AXTQ,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+AXTU,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+AXTX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+BABW,ETF_INTERNACIONAL,4,criado,gestora roundhill (acervo)
+BAGX,ETF_INTERNACIONAL,4,criado,gestora ea (acervo)
+BAY,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+BBBB,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+BCGD,ETF_INTERNACIONAL,4,criado,gestora baron etf trust (acervo)
+BCKT,ETF_INTERNACIONAL,4,criado,gestora LifeX (logos_gestoras)
+BCOM,ETF_INTERNACIONAL,4,criado,gestora rareview (acervo)
+BCSM,ETF_INTERNACIONAL,4,criado,gestora baron etf trust (acervo)
+BD,ETF_INTERNACIONAL,4,criado,gestora Russell Investments (logos_gestoras)
+BEC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+BEEX,ETF_INTERNACIONAL,4,criado,gestora the (acervo)
+BEZ,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+BFEW,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+BFXU,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+BGDV,ETF_INTERNACIONAL,4,criado,gestora bahl (acervo)
+BGFI,ETF_INTERNACIONAL,4,criado,gestora BNY Mellon (logos_gestoras)
+BGIA,ETF_INTERNACIONAL,4,criado,gestora baillie gifford etf trust (acervo)
+BIDG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+BLCK,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+BMNZ,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+BMSI,ETF_INTERNACIONAL,4,criado,gestora BNY Mellon (logos_gestoras)
+BNDY,ETF_INTERNACIONAL,4,criado,gestora horizon funds (acervo)
+BOXA,ETF_INTERNACIONAL,4,criado,gestora alpha (acervo)
+BRCE,ETF_INTERNACIONAL,4,criado,gestora mfs active exchange traded funds trust (acervo)
+BREW,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+BRIE,ETF_INTERNACIONAL,4,criado,gestora mfs active exchange traded funds trust (acervo)
+BRKL,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+BRKU,ETF_INTERNACIONAL,4,criado,gestora direxion (acervo)
+BRZD,ETF_INTERNACIONAL,4,criado,gestora microsectors (acervo)
+BRZX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+BSMA,ETF_INTERNACIONAL,4,criado,gestora invesco (acervo)
+BTCL,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+BTCZ,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+BTO,ETF_INTERNACIONAL,4,criado,gestora John Hancock (logos_gestoras)
+BUFE,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+BUFH,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+BUFI,ETF_INTERNACIONAL,4,criado,gestora ab active etfs inc (acervo)
+BUFM,ETF_INTERNACIONAL,4,criado,gestora ab active etfs inc (acervo)
+BUFX,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+BUFY,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+BUSM,ETF_INTERNACIONAL,4,criado,gestora ea (acervo)
+BZZ,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+CAMC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+CAPA,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+CAUG,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+CAYN,ETF_INTERNACIONAL,4,criado,gestora calamos (acervo)
+CBOA,ETF_INTERNACIONAL,4,criado,gestora calamos (acervo)
+CBOL,ETF_INTERNACIONAL,4,criado,gestora calamos (acervo)
+CBOT,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+CBRZ,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+CBTO,ETF_INTERNACIONAL,4,criado,gestora calamos (acervo)
+CBTY,ETF_INTERNACIONAL,4,criado,gestora calamos (acervo)
+CBXJ,ETF_INTERNACIONAL,4,criado,gestora calamos (acervo)
+CBXO,ETF_INTERNACIONAL,4,criado,gestora calamos (acervo)
+CBXY,ETF_INTERNACIONAL,4,criado,gestora calamos (acervo)
+CCPX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+CCUP,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+CDNG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+CEGX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+CFIT,ETF_INTERNACIONAL,4,criado,gestora cambria etf trust (acervo)
+CHIP,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+CHYG,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+CIEG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+CIEI,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+CIEX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+CIVG,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+CJUL,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+CJUN,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+CMAG,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+CMAY,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+CMCI,ETF_INTERNACIONAL,4,criado,gestora vaneck (acervo)
+COHC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+COHQ,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+COIX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+COMD,ETF_INTERNACIONAL,4,criado,gestora global x (acervo)
+COPA,ETF_INTERNACIONAL,4,criado,gestora themes etf trust (acervo)
+CORB,ETF_INTERNACIONAL,4,criado,gestora ab active etfs inc (acervo)
+CORD,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+COZX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+CPNQ,ETF_INTERNACIONAL,4,criado,gestora calamos (acervo)
+CPSD,ETF_INTERNACIONAL,4,criado,gestora calamos (acervo)
+CPU,ETF_INTERNACIONAL,4,criado,gestora amplify (acervo)
+CRAM,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+CRCA,ETF_INTERNACIONAL,4,criado,gestora proshares (acervo)
+CRCD,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+CRDU,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+CROB,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+CRUC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+CRWC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+CRWU,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+CRWX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+CSEP,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+CSEX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+CTJL,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+CTJN,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+CTMA,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+CTSE,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+CWVX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+DDFA,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+DDFG,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+DDFL,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+DDFM,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+DDFO,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+DDFS,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+DDFY,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+DDTA,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+DDTG,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+DDTL,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+DDTM,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+DDTO,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+DDTS,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+DDTY,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+DDTZ,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+DDXX,ETF_INTERNACIONAL,4,criado,gestora defined (acervo)
+DECM,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+DECU,ETF_INTERNACIONAL,4,criado,gestora aim etf products trust (acervo)
+DFGV,ETF_INTERNACIONAL,4,criado,gestora dimensional (acervo)
+DGAP,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+DGJL,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+DGLO,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+DGOC,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+DIPR,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+DJTU,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+DLAG,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+DLFE,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+DLMY,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+DMXU,ETF_INTERNACIONAL,4,criado,gestora dws/xtrackers (acervo)
+DQJN,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+DQSE,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+DRGN,ETF_INTERNACIONAL,4,criado,gestora themes etf trust (acervo)
+DRMP,ETF_INTERNACIONAL,4,criado,gestora tuttle (acervo)
+DWWN,ETF_INTERNACIONAL,4,criado,gestora principal (acervo)
+EAFH,ETF_INTERNACIONAL,4,criado,gestora dws/xtrackers (acervo)
+EFFE,ETF_INTERNACIONAL,4,criado,gestora harbor etf trust (acervo)
+EHCC,ETF_INTERNACIONAL,4,criado,gestora global x (acervo)
+EHY,ETF_INTERNACIONAL,4,criado,gestora amplify (acervo)
+EMJL,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+EMSE,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+EMXX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+ENHE,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+ENTL,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+EO,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+EOD,ETF_INTERNACIONAL,4,criado,gestora Allspring (logos_gestoras)
+EOSU,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+EPAI,ETF_INTERNACIONAL,4,criado,gestora harbor etf trust (acervo)
+ETNG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+EUIG,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+EUV,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+EVMO,ETF_INTERNACIONAL,4,criado,gestora morgan stanley (acervo)
+EXPN,ETF_INTERNACIONAL,4,criado,gestora horizon (acervo)
+FAI,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+FARX,ETF_INTERNACIONAL,4,criado,gestora Frontier (logos_gestoras)
+FBUF,ETF_INTERNACIONAL,4,criado,gestora fidelity (acervo)
+FBX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+FCBD,ETF_INTERNACIONAL,4,criado,gestora Frontier (logos_gestoras)
+FDND,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+FEAC,ETF_INTERNACIONAL,4,criado,gestora fidelity (acervo)
+FEBM,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+FEMR,ETF_INTERNACIONAL,4,criado,gestora fidelity (acervo)
+FFDI,ETF_INTERNACIONAL,4,criado,gestora fidelity (acervo)
+FFEM,ETF_INTERNACIONAL,4,criado,gestora fidelity (acervo)
+FFGX,ETF_INTERNACIONAL,4,criado,gestora fidelity (acervo)
+FGRU,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+FGSM,ETF_INTERNACIONAL,4,criado,gestora Frontier (logos_gestoras)
+FHIL,ETF_INTERNACIONAL,4,criado,gestora federated hermes etf trust (acervo)
+FINT,ETF_INTERNACIONAL,4,criado,gestora Frontier (logos_gestoras)
+FLCE,ETF_INTERNACIONAL,4,criado,gestora Frontier (logos_gestoras)
+FLEL,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+FOMG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+FOPC,ETF_INTERNACIONAL,4,criado,gestora Frontier (logos_gestoras)
+FPSX,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+FRWD,ETF_INTERNACIONAL,4,criado,gestora nomura etf trust (acervo)
+FTMA,ETF_INTERNACIONAL,4,criado,gestora franklin templeton (acervo)
+FTMN,ETF_INTERNACIONAL,4,criado,gestora franklin templeton (acervo)
+FTN,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+FTOH,ETF_INTERNACIONAL,4,criado,gestora franklin templeton (acervo)
+GANZ,ETF_INTERNACIONAL,4,criado,gestora tuttle (acervo)
+GASZ,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+GCB,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+GCPU,ETF_INTERNACIONAL,4,criado,gestora grayscale (acervo)
+GDOG,ETF_INTERNACIONAL,4,criado,gestora grayscale (acervo)
+GEVG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+GEVX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+GFSG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+GLAM,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+GLX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+GLXU,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+GMAC,ETF_INTERNACIONAL,4,criado,gestora simplify (acervo)
+GMEC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+GMEU,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+GNMX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+GOIB,ETF_INTERNACIONAL,4,criado,gestora direxion (acervo)
+GOOL,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+GOVM,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+GTOC,ETF_INTERNACIONAL,4,criado,gestora invesco (acervo)
+GXPC,ETF_INTERNACIONAL,4,criado,gestora global x (acervo)
+GXPD,ETF_INTERNACIONAL,4,criado,gestora global x (acervo)
+GXPE,ETF_INTERNACIONAL,4,criado,gestora global x (acervo)
+GXPS,ETF_INTERNACIONAL,4,criado,gestora global x (acervo)
+GXRP,ETF_INTERNACIONAL,4,criado,gestora grayscale (acervo)
+HALX,ETF_INTERNACIONAL,4,criado,gestora tuttle (acervo)
+HBIT,ETF_INTERNACIONAL,4,criado,gestora hedgeye (acervo)
+HBMX,ETF_INTERNACIONAL,4,criado,gestora tuttle (acervo)
+HH,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+HIMC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+HINC,ETF_INTERNACIONAL,4,criado,gestora Hartford (logos_gestoras)
+HJUN,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+HMAY,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+HOID,ETF_INTERNACIONAL,4,criado,gestora tuttle (acervo)
+HOOC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+HPEL,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+HSEP,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+HULL,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+HUTG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+HWMV,ETF_INTERNACIONAL,4,criado,gestora hotchkis (acervo)
+HYGD,ETF_INTERNACIONAL,4,criado,gestora microsectors (acervo)
+HYGU,ETF_INTERNACIONAL,4,criado,gestora microsectors (acervo)
+IACL,ETF_INTERNACIONAL,4,criado,gestora graniteshares (acervo)
+IBHL,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+IBHM,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+IBMT,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+IBMU,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+IBMV,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+IBMW,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+IBX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+IDJL,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+IDMY,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+IDSE,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+IDVZ,ETF_INTERNACIONAL,4,criado,gestora elevation series trust (acervo)
+IGB,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+IMTG,ETF_INTERNACIONAL,4,criado,gestora invesco (acervo)
+INT,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+INTM,ETF_INTERNACIONAL,4,criado,gestora invesco (acervo)
+IONC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+IREC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+IREX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+JABS,ETF_INTERNACIONAL,4,criado,gestora janus detroit street trust (acervo)
+JADB,ETF_INTERNACIONAL,4,criado,gestora aptus (acervo)
+JANB,ETF_INTERNACIONAL,4,criado,gestora aptus (acervo)
+JANH,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+JANJ,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+JANM,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+JANP,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+JANU,ETF_INTERNACIONAL,4,criado,gestora aim etf products trust (acervo)
+JAPN,ETF_INTERNACIONAL,4,criado,gestora horizon (acervo)
+JBLG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+JELH,ETF_INTERNACIONAL,4,criado,gestora janus detroit street trust (acervo)
+JELM,ETF_INTERNACIONAL,4,criado,gestora janus detroit street trust (acervo)
+JHCP,ETF_INTERNACIONAL,4,criado,gestora John Hancock (logos_gestoras)
+JHCR,ETF_INTERNACIONAL,4,criado,gestora John Hancock (logos_gestoras)
+JOBX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+JOUL,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+JPND,ETF_INTERNACIONAL,4,criado,gestora microsectors (acervo)
+JUDB,ETF_INTERNACIONAL,4,criado,gestora aptus (acervo)
+JUDO,ETF_INTERNACIONAL,4,criado,gestora janus detroit street trust (acervo)
+JULB,ETF_INTERNACIONAL,4,criado,gestora aptus (acervo)
+JULC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+JULI,ETF_INTERNACIONAL,4,criado,gestora aim etf products trust (acervo)
+JULM,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+JULU,ETF_INTERNACIONAL,4,criado,gestora aim etf products trust (acervo)
+JUNP,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+JXX,ETF_INTERNACIONAL,4,criado,gestora janus detroit street trust (acervo)
+KATT,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+KAUG,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+KDEC,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+KEYG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+KEYX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+KFEB,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+KIQQ,ETF_INTERNACIONAL,4,criado,gestora kraneshares (acervo)
+KJUN,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+KLAG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+KLMN,ETF_INTERNACIONAL,4,criado,gestora invesco (acervo)
+KMAR,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+KMAY,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+KMEM,ETF_INTERNACIONAL,4,criado,gestora kurv (acervo)
+KNOV,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+KRWX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+KSEP,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+KTUP,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+KYC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+KYLD,ETF_INTERNACIONAL,4,criado,gestora kurv (acervo)
+LABX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+LADM,ETF_INTERNACIONAL,4,criado,gestora pacer (acervo)
+LAPR,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+LATR,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+LBOX,ETF_INTERNACIONAL,4,criado,gestora graniteshares (acervo)
+LCOW,ETF_INTERNACIONAL,4,criado,gestora pacer (acervo)
+LCTO,ETF_INTERNACIONAL,4,criado,gestora kurv (acervo)
+LDDR,ETF_INTERNACIONAL,4,criado,gestora LifeX (logos_gestoras)
+LEUX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+LFAI,ETF_INTERNACIONAL,4,criado,gestora LifeX (logos_gestoras)
+LFAO,ETF_INTERNACIONAL,4,criado,gestora LifeX (logos_gestoras)
+LFAW,ETF_INTERNACIONAL,4,criado,gestora LifeX (logos_gestoras)
+LFBE,ETF_INTERNACIONAL,4,criado,gestora LifeX (logos_gestoras)
+LFDR,ETF_INTERNACIONAL,4,criado,gestora LifeX (logos_gestoras)
+LIAE,ETF_INTERNACIONAL,4,criado,gestora LifeX (logos_gestoras)
+LIAM,ETF_INTERNACIONAL,4,criado,gestora LifeX (logos_gestoras)
+LIAU,ETF_INTERNACIONAL,4,criado,gestora LifeX (logos_gestoras)
+LIBD,ETF_INTERNACIONAL,4,criado,gestora LifeX (logos_gestoras)
+LIFT,ETF_INTERNACIONAL,4,criado,gestora LifeX (logos_gestoras)
+LIGB,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+LITC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+LITG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+LITU,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+LITZ,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+LJAN,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+LJUL,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+LLMA,ETF_INTERNACIONAL,4,criado,gestora global x (acervo)
+LMTL,ETF_INTERNACIONAL,4,criado,gestora direxion (acervo)
+LODI,ETF_INTERNACIONAL,4,criado,gestora aam (acervo)
+LOHA,ETF_INTERNACIONAL,4,criado,gestora roundhill (acervo)
+LQDD,ETF_INTERNACIONAL,4,criado,gestora microsectors (acervo)
+LRCC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+LRNX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+LTB,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+LWLX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+LYLD,ETF_INTERNACIONAL,4,criado,gestora cambria etf trust (acervo)
+MARS,ETF_INTERNACIONAL,4,criado,gestora roundhill (acervo)
+MATE,ETF_INTERNACIONAL,4,criado,gestora man (acervo)
+MAUG,ETF_INTERNACIONAL,4,criado,gestora pacer (acervo)
+MAYC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+MAYM,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+MAYT,ETF_INTERNACIONAL,4,criado,gestora aim etf products trust (acervo)
+MCHG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+MCHU,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+MCOW,ETF_INTERNACIONAL,4,criado,gestora pacer (acervo)
+MDCR,ETF_INTERNACIONAL,4,criado,gestora pacer (acervo)
+MDPL,ETF_INTERNACIONAL,4,criado,gestora monarch (acervo)
+MEIB,ETF_INTERNACIONAL,4,criado,gestora direxion (acervo)
+MEMA,ETF_INTERNACIONAL,4,criado,gestora man (acervo)
+METG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+METQ,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+MFEB,ETF_INTERNACIONAL,4,criado,gestora pacer (acervo)
+MFSB,ETF_INTERNACIONAL,4,criado,gestora mfs active exchange traded funds trust (acervo)
+MFSG,ETF_INTERNACIONAL,4,criado,gestora mfs active exchange traded funds trust (acervo)
+MFSI,ETF_INTERNACIONAL,4,criado,gestora mfs active exchange traded funds trust (acervo)
+MFSM,ETF_INTERNACIONAL,4,criado,gestora mfs active exchange traded funds trust (acervo)
+MFSV,ETF_INTERNACIONAL,4,criado,gestora mfs active exchange traded funds trust (acervo)
+MGIN,ETF_INTERNACIONAL,4,criado,gestora man (acervo)
+MHX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+MJUN,ETF_INTERNACIONAL,4,criado,gestora pacer (acervo)
+MLCC,ETF_INTERNACIONAL,4,criado,gestora global x (acervo)
+MLRG,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+MMAR,ETF_INTERNACIONAL,4,criado,gestora pacer (acervo)
+MMAX,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+MMAY,ETF_INTERNACIONAL,4,criado,gestora pacer (acervo)
+MMF,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+MMHI,ETF_INTERNACIONAL,4,criado,gestora New York Life (IndexIQ) (logos_gestoras)
+MMID,ETF_INTERNACIONAL,4,criado,gestora mfs active exchange traded funds trust (acervo)
+MNGB,ETF_INTERNACIONAL,4,criado,gestora Yorkville (logos_gestoras)
+MNGZ,ETF_INTERNACIONAL,4,criado,gestora Yorkville (logos_gestoras)
+MNVR,ETF_INTERNACIONAL,4,criado,gestora pacer (acervo)
+MPDB,ETF_INTERNACIONAL,4,criado,gestora m+ (acervo)
+MPLY,ETF_INTERNACIONAL,4,criado,gestora strategy shares (acervo)
+MPWC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+MPWX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+MRAX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+MRVX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+MSEP,ETF_INTERNACIONAL,4,criado,gestora pacer (acervo)
+MSFC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+MSIX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+MSLC,ETF_INTERNACIONAL,4,criado,gestora morgan stanley (acervo)
+MSML,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+MSTC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+MTSG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+MUD,ETF_INTERNACIONAL,4,criado,gestora direxion (acervo)
+MUIB,ETF_INTERNACIONAL,4,criado,gestora direxion (acervo)
+MUY,ETF_INTERNACIONAL,4,criado,gestora yieldmax (acervo)
+MVFG,ETF_INTERNACIONAL,4,criado,gestora monarch (acervo)
+MXLL,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+MYCP,ETF_INTERNACIONAL,4,criado,gestora state street (acervo)
+MYHF,ETF_INTERNACIONAL,4,criado,gestora state street (acervo)
+MYML,ETF_INTERNACIONAL,4,criado,gestora state street (acervo)
+NATO,ETF_INTERNACIONAL,4,criado,gestora themes etf trust (acervo)
+NAUG,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+NBGX,ETF_INTERNACIONAL,4,criado,gestora Neuberger Berman (logos_gestoras)
+NBIC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+NBIE,ETF_INTERNACIONAL,4,criado,gestora Neuberger Berman (logos_gestoras)
+NBTR,ETF_INTERNACIONAL,4,criado,gestora Neuberger Berman (logos_gestoras)
+NCLO,ETF_INTERNACIONAL,4,criado,gestora nuveen (acervo)
+NCV,ETF_INTERNACIONAL,4,criado,gestora virtus (acervo)
+NCZ,ETF_INTERNACIONAL,4,criado,gestora virtus (acervo)
+NDEC,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+NECK,ETF_INTERNACIONAL,4,criado,gestora xetfs (acervo)
+NFEB,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+NFX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+NIE,ETF_INTERNACIONAL,4,criado,gestora virtus (acervo)
+NIOG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+NJUN,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+NMAR,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+NMAY,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+NNOV,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+NOVM,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+NOVP,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+NOWX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+NRAM,ETF_INTERNACIONAL,4,criado,gestora Yorkville (logos_gestoras)
+NVBU,ETF_INTERNACIONAL,4,criado,gestora aim etf products trust (acervo)
+NVC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+NVDG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+NVOC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+NVTX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+NXPG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+NYM,ETF_INTERNACIONAL,4,criado,gestora ab active etfs inc (acervo)
+NYNY,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+OAKL,ETF_INTERNACIONAL,4,criado,gestora harris oakmark etf trust (acervo)
+OCDB,ETF_INTERNACIONAL,4,criado,gestora aptus (acervo)
+OCNL,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+OCT,ETF_INTERNACIONAL,4,criado,gestora vaneck (acervo)
+OCTB,ETF_INTERNACIONAL,4,criado,gestora aptus (acervo)
+OCTI,ETF_INTERNACIONAL,4,criado,gestora aim etf products trust (acervo)
+OCTM,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+OCTP,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+OCTU,ETF_INTERNACIONAL,4,criado,gestora aim etf products trust (acervo)
+ODDZ,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+OKLC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+ONDG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+ONEZ,ETF_INTERNACIONAL,4,criado,gestora elevation series trust (acervo)
+ONX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+OPEX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+OPTO,ETF_INTERNACIONAL,4,criado,gestora tuttle (acervo)
+ORAC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+ORCZ,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+OSSL,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+OUSL,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+OVQ,ETF_INTERNACIONAL,4,criado,gestora overlay (acervo)
+PAYR,ETF_INTERNACIONAL,4,criado,gestora federated hermes etf trust (acervo)
+PBAP,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PBAU,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PBDE,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PBFB,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PBJA,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PBJL,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PBJN,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PBL,ETF_INTERNACIONAL,4,criado,gestora pgim etf trust (acervo)
+PBMR,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PBMY,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PBNV,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PBOC,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PBSE,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PCEB,ETF_INTERNACIONAL,4,criado,gestora polen (acervo)
+PCL,ETF_INTERNACIONAL,4,criado,gestora pgim etf trust (acervo)
+PCN,ETF_INTERNACIONAL,4,criado,gestora pimco (acervo)
+PCOV,ETF_INTERNACIONAL,4,criado,gestora principal (acervo)
+PENU,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+PEPT,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+PFL,ETF_INTERNACIONAL,4,criado,gestora pimco (acervo)
+PFN,ETF_INTERNACIONAL,4,criado,gestora pimco (acervo)
+PFRX,ETF_INTERNACIONAL,4,criado,gestora franklin templeton (acervo)
+PHK,ETF_INTERNACIONAL,4,criado,gestora pimco (acervo)
+PIEQ,ETF_INTERNACIONAL,4,criado,gestora principal (acervo)
+PJUS,ETF_INTERNACIONAL,4,criado,gestora pgim etf trust (acervo)
+PLTD,ETF_INTERNACIONAL,4,criado,gestora direxion (acervo)
+PLUL,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+PMAP,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PMAU,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PMBS,ETF_INTERNACIONAL,4,criado,gestora pimco (acervo)
+PMFB,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PMJA,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PMJL,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PMJN,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PML,ETF_INTERNACIONAL,4,criado,gestora pimco (acervo)
+PMMR,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PMMY,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PMOC,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PMSE,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+POEL,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+PQV,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PQX,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PQXV,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PQXX,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+PRAM,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+PSAI,ETF_INTERNACIONAL,4,criado,gestora pacer (acervo)
+PSDM,ETF_INTERNACIONAL,4,criado,gestora pgim etf trust (acervo)
+PTNT,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+PTY,ETF_INTERNACIONAL,4,criado,gestora pimco (acervo)
+QBER,ETF_INTERNACIONAL,4,criado,gestora elevation series trust (acervo)
+QBF,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+QBKF,ETF_INTERNACIONAL,4,criado,gestora aim etf products trust (acervo)
+QBKV,ETF_INTERNACIONAL,4,criado,gestora aim etf products trust (acervo)
+QBTX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+QBUL,ETF_INTERNACIONAL,4,criado,gestora elevation series trust (acervo)
+QCAP,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+QCJA,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+QCOC,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+QJL,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+QMAG,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+QMFE,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+QMMY,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+QMNV,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+QNTU,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+QQAU,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+QQBF,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+QQDH,ETF_INTERNACIONAL,4,criado,gestora tuttle (acervo)
+QQHG,ETF_INTERNACIONAL,4,criado,gestora invesco (acervo)
+QQI,ETF_INTERNACIONAL,4,criado,gestora invesco (acervo)
+QQJL,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+QQLV,ETF_INTERNACIONAL,4,criado,gestora invesco (acervo)
+QQQB,ETF_INTERNACIONAL,4,criado,gestora vistashares (acervo)
+QQQP,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+QQSE,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+QQWZ,ETF_INTERNACIONAL,4,criado,gestora pacer (acervo)
+QSE,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+QSIX,ETF_INTERNACIONAL,4,criado,gestora pacer (acervo)
+QSOL,ETF_INTERNACIONAL,4,criado,gestora invesco (acervo)
+QTUP,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+QUA,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+QUBX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+RACK,ETF_INTERNACIONAL,4,criado,gestora vaneck (acervo)
+RAML,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+RAMZ,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+RB,ETF_INTERNACIONAL,4,criado,gestora proshares (acervo)
+RBLU,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+RBTX,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+RBUF,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+RCS,ETF_INTERNACIONAL,4,criado,gestora pimco (acervo)
+RCTR,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+RDDC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+RGLO,ETF_INTERNACIONAL,4,criado,gestora Russell Investments (logos_gestoras)
+RGTU,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+RIFR,ETF_INTERNACIONAL,4,criado,gestora Russell Investments (logos_gestoras)
+RINK,ETF_INTERNACIONAL,4,criado,gestora Russell Investments (logos_gestoras)
+RINT,ETF_INTERNACIONAL,4,criado,gestora Russell Investments (logos_gestoras)
+RIZE,ETF_INTERNACIONAL,4,criado,gestora principal (acervo)
+RKNG,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+RKX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+RMBC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+RMBX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+RONB,ETF_INTERNACIONAL,4,criado,gestora baron etf trust (acervo)
+RSBA,ETF_INTERNACIONAL,4,criado,gestora return (acervo)
+RSDE,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+RSIT,ETF_INTERNACIONAL,4,criado,gestora return (acervo)
+RSSX,ETF_INTERNACIONAL,4,criado,gestora return (acervo)
+RSSY,ETF_INTERNACIONAL,4,criado,gestora return (acervo)
+RTHY,ETF_INTERNACIONAL,4,criado,gestora F/m (logos_gestoras)
+RTRE,ETF_INTERNACIONAL,4,criado,gestora rareview (acervo)
+RUSC,ETF_INTERNACIONAL,4,criado,gestora Russell Investments (logos_gestoras)
+SAUG,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+SBTU,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+SCDV,ETF_INTERNACIONAL,4,criado,gestora bahl (acervo)
+SCIN,ETF_INTERNACIONAL,4,criado,gestora schwab (acervo)
+SCJL,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+SCMY,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+SCOW,ETF_INTERNACIONAL,4,criado,gestora pacer (acervo)
+SCSB,ETF_INTERNACIONAL,4,criado,gestora sterling (acervo)
+SCSE,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+SCUB,ETF_INTERNACIONAL,4,criado,gestora sterling (acervo)
+SDVD,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+SECA,ETF_INTERNACIONAL,4,criado,gestora main (acervo)
+SEEM,ETF_INTERNACIONAL,4,criado,gestora sei exchange traded funds (acervo)
+SEIE,ETF_INTERNACIONAL,4,criado,gestora sei exchange traded funds (acervo)
+SEIS,ETF_INTERNACIONAL,4,criado,gestora sei exchange traded funds (acervo)
+SEPC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+SEPM,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+SEPP,ETF_INTERNACIONAL,4,criado,gestora PGIM (logos_gestoras)
+SEPU,ETF_INTERNACIONAL,4,criado,gestora aim etf products trust (acervo)
+SFEB,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+SFTY,ETF_INTERNACIONAL,4,criado,gestora horizon funds (acervo)
+SHDG,ETF_INTERNACIONAL,4,criado,gestora advisor managed portfolios (acervo)
+SHPU,ETF_INTERNACIONAL,4,criado,gestora direxion (acervo)
+SITX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+SK,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+SKHA,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+SKHX,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+SKHZ,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+SLVI,ETF_INTERNACIONAL,4,criado,gestora neos (acervo)
+SLVY,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+SMAX,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+SMBS,ETF_INTERNACIONAL,4,criado,gestora schwab (acervo)
+SMCL,ETF_INTERNACIONAL,4,criado,gestora graniteshares (acervo)
+SMHC,ETF_INTERNACIONAL,4,criado,gestora vaneck (acervo)
+SMNG,ETF_INTERNACIONAL,4,criado,gestora xetfs (acervo)
+SMRX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+SMRZ,ETF_INTERNACIONAL,4,criado,gestora global x (acervo)
+SMTG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+SMU,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+SMUP,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+SNAG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+SNDC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+SNDU,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+SNOU,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+SOFC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+SOYB,ETF_INTERNACIONAL,4,criado,gestora teucrium (acervo)
+SPAL,ETF_INTERNACIONAL,4,criado,gestora graniteshares (acervo)
+SPBU,ETF_INTERNACIONAL,4,criado,gestora aim etf products trust (acervo)
+SPCG,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+SPCQ,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+SPCU,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+SPDF,ETF_INTERNACIONAL,4,criado,gestora advisor managed portfolios (acervo)
+SPMC,ETF_INTERNACIONAL,4,criado,gestora sound (acervo)
+SPXD,ETF_INTERNACIONAL,4,criado,gestora dws/xtrackers (acervo)
+SPXP,ETF_INTERNACIONAL,4,criado,gestora direxion (acervo)
+SPYQ,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+SQBA,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+SQBR,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+SQLT,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+SRHR,ETF_INTERNACIONAL,4,criado,gestora elevation series trust (acervo)
+SSPC,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+STEN,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+STLL,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+STMX,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+STOX,ETF_INTERNACIONAL,4,criado,gestora horizon funds (acervo)
+STSM,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+STXL,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+STXU,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+STXX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+STYL,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+SVTN,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+TAJX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+TAWN,ETF_INTERNACIONAL,4,criado,gestora microsectors (acervo)
+TDEC,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+TDEM,ETF_INTERNACIONAL,4,criado,gestora t. rowe price (acervo)
+TDNA,ETF_INTERNACIONAL,4,criado,gestora t. rowe price (acervo)
+TDOG,ETF_INTERNACIONAL,4,criado,gestora 21shares (acervo)
+TDOT,ETF_INTERNACIONAL,4,criado,gestora 21shares (acervo)
+TDVI,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+TELG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+TEMC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+TEMT,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+TEMX,ETF_INTERNACIONAL,4,criado,gestora touchstone etf trust (acervo)
+TEND,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+TENJ,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+TESC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+TEST,ETF_INTERNACIONAL,4,criado,gestora yieldmax (acervo)
+TEUP,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+TIH,ETF_INTERNACIONAL,4,criado,gestora the (acervo)
+TIPG,ETF_INTERNACIONAL,4,criado,gestora northern (acervo)
+TIPH,ETF_INTERNACIONAL,4,criado,gestora northern (acervo)
+TJAN,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+TJUN,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+TLTP,ETF_INTERNACIONAL,4,criado,gestora amplify (acervo)
+TLTX,ETF_INTERNACIONAL,4,criado,gestora global x (acervo)
+TMAR,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+TMED,ETF_INTERNACIONAL,4,criado,gestora t. rowe price (acervo)
+TMGN,ETF_INTERNACIONAL,4,criado,gestora tappalpha (acervo)
+TMID,ETF_INTERNACIONAL,4,criado,gestora t. rowe price (acervo)
+TMVE,ETF_INTERNACIONAL,4,criado,gestora thrivent etf trust (acervo)
+TNGY,ETF_INTERNACIONAL,4,criado,gestora Tortoise (logos_gestoras)
+TNTW,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+TOCT,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+TORK,ETF_INTERNACIONAL,4,criado,gestora kraneshares (acervo)
+TRIL,ETF_INTERNACIONAL,4,criado,gestora vegashares (acervo)
+TRSY,ETF_INTERNACIONAL,4,criado,gestora dws/xtrackers (acervo)
+TRXS,ETF_INTERNACIONAL,4,criado,gestora canary (acervo)
+TSEE,ETF_INTERNACIONAL,4,criado,gestora t. rowe price (acervo)
+TSEG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+TSEP,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+TSLG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+TSYW,ETF_INTERNACIONAL,4,criado,gestora roundhill (acervo)
+TTDU,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+TTMX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+TTTT,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+TWOX,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+TWSC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+TXCA,ETF_INTERNACIONAL,4,criado,gestora northern (acervo)
+TXNY,ETF_INTERNACIONAL,4,criado,gestora northern (acervo)
+UBEW,ETF_INTERNACIONAL,4,criado,gestora roundhill (acervo)
+UBIQ,ETF_INTERNACIONAL,4,criado,gestora aam (acervo)
+UCBG,ETF_INTERNACIONAL,4,criado,gestora state street (acervo)
+UCTX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+UFOD,ETF_INTERNACIONAL,4,criado,gestora tuttle (acervo)
+UMAL,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+UMCU,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+UMCX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+UN,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+UNX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+UPSC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+UPSX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+URAN,ETF_INTERNACIONAL,4,criado,gestora themes etf trust (acervo)
+USAF,ETF_INTERNACIONAL,4,criado,gestora 2023 etf series trust (acervo)
+USGG,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+USGX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+USLN,ETF_INTERNACIONAL,4,criado,gestora ishares (acervo)
+USMX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+UUPP,ETF_INTERNACIONAL,4,criado,gestora principal (acervo)
+UUUC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+UXAP,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+UXJA,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+UXJL,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+UXOC,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+VAIC,ETF_INTERNACIONAL,4,criado,gestora vegashares (acervo)
+VAVX,ETF_INTERNACIONAL,4,criado,gestora vaneck (acervo)
+VCHY,ETF_INTERNACIONAL,4,criado,gestora vanguard (acervo)
+VDG,ETF_INTERNACIONAL,4,criado,gestora vanguard (acervo)
+VDIG,ETF_INTERNACIONAL,4,criado,gestora vanguard (acervo)
+VDV,ETF_INTERNACIONAL,4,criado,gestora vanguard (acervo)
+VEFA,ETF_INTERNACIONAL,4,criado,gestora vaneck (acervo)
+VELL,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+VGTX,ETF_INTERNACIONAL,4,criado,gestora XFUNDS (logos_gestoras)
+VOOB,ETF_INTERNACIONAL,4,criado,gestora vistashares (acervo)
+VRC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+VSDB,ETF_INTERNACIONAL,4,criado,gestora vanguard (acervo)
+VSTL,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+VTEC,ETF_INTERNACIONAL,4,criado,gestora vanguard (acervo)
+VTEI,ETF_INTERNACIONAL,4,criado,gestora vanguard (acervo)
+VUSG,ETF_INTERNACIONAL,4,criado,gestora vanguard (acervo)
+VUSV,ETF_INTERNACIONAL,4,criado,gestora vanguard (acervo)
+WATS,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+WBMO,ETF_INTERNACIONAL,4,criado,gestora vaneck (acervo)
+WDAI,ETF_INTERNACIONAL,4,criado,gestora pacer (acervo)
+WDCC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+WDE,ETF_INTERNACIONAL,4,criado,gestora principal (acervo)
+WDIG,ETF_INTERNACIONAL,4,criado,gestora wisdomtree (acervo)
+WDRN,ETF_INTERNACIONAL,4,criado,gestora wisdomtree (acervo)
+WEBX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+WLDU,ETF_INTERNACIONAL,4,criado,gestora leverage shares (acervo)
+WNDR,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+WR,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+WULX,ETF_INTERNACIONAL,4,criado,gestora tradr (acervo)
+WX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+WYFL,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+XA,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+XAGG,ETF_INTERNACIONAL,4,criado,gestora morgan stanley (acervo)
+XAGI,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+XAPR,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+XAUG,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+XBIX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+XBOX,ETF_INTERNACIONAL,4,criado,gestora roundhill (acervo)
+XCSH,ETF_INTERNACIONAL,4,criado,gestora XFUNDS (logos_gestoras)
+XEUR,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+XFEB,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+XFLX,ETF_INTERNACIONAL,4,criado,gestora fundx investment trust (acervo)
+XHOA,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+XIGV,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+XIJN,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+XIMR,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+XIWC,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+XJAN,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+XJUL,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+XKRE,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+XLBX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+XLCD,ETF_INTERNACIONAL,4,criado,gestora microsectors (acervo)
+XLCU,ETF_INTERNACIONAL,4,criado,gestora microsectors (acervo)
+XLEM,ETF_INTERNACIONAL,4,criado,gestora state street (acervo)
+XLEX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+XLFX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+XLIX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+XLKM,ETF_INTERNACIONAL,4,criado,gestora state street (acervo)
+XLPD,ETF_INTERNACIONAL,4,criado,gestora microsectors (acervo)
+XLPM,ETF_INTERNACIONAL,4,criado,gestora state street (acervo)
+XLPU,ETF_INTERNACIONAL,4,criado,gestora microsectors (acervo)
+XLPX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+XLUI,ETF_INTERNACIONAL,4,criado,gestora state street (acervo)
+XLUX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+XLVX,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+XLYM,ETF_INTERNACIONAL,4,criado,gestora state street (acervo)
+XMAY,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+XOVL,ETF_INTERNACIONAL,4,criado,gestora defiance (acervo)
+XRLX,ETF_INTERNACIONAL,4,criado,gestora fundx investment trust (acervo)
+XRPR,ETF_INTERNACIONAL,4,criado,gestora rex shares (acervo)
+XRPT,ETF_INTERNACIONAL,4,criado,gestora volatility shares (acervo)
+XSEM,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+XSHP,ETF_INTERNACIONAL,4,criado,gestora kurv (acervo)
+XTAI,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+XVAD,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+XVAP,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+XVAZ,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+XVGL,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+XVMS,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+XVMT,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+XVNV,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+XVPT,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+XVSP,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+XVTS,ETF_INTERNACIONAL,4,criado,gestora first trust (acervo)
+XW,ETF_INTERNACIONAL,4,criado,gestora corgi (acervo)
+XX,ETF_INTERNACIONAL,4,criado,gestora roundhill (acervo)
+XXQQ,ETF_INTERNACIONAL,4,criado,gestora subversive (acervo)
+XXSP,ETF_INTERNACIONAL,4,criado,gestora subversive (acervo)
+YLDY,ETF_INTERNACIONAL,4,criado,gestora horizon (acervo)
+YSKH,ETF_INTERNACIONAL,4,criado,gestora yieldmax (acervo)
+ZAPR,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+ZAUG,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+ZDEK,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+ZDIS,ETF_INTERNACIONAL,4,criado,gestora virtus (acervo)
+ZJAN,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+ZJUN,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+ZMAY,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+ZNOV,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+ZOCT,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+ZSEP,ETF_INTERNACIONAL,4,criado,gestora innovator (acervo)
+ABR-D,STOCK,4,criado,empresa ABR
+ABR-E,STOCK,4,criado,empresa ABR
+ABR-F,STOCK,4,criado,empresa ABR
+ACR-C,STOCK,4,criado,empresa ACR
+ACR-D,STOCK,4,criado,empresa ACR
+ADC-A,STOCK,4,criado,empresa ADC
+AGM-D,STOCK,4,criado,empresa AGM
+AGM-E,STOCK,4,criado,empresa AGM
+AGM-F,STOCK,4,criado,empresa AGM
+AGM-G,STOCK,4,criado,empresa AGM
+AGM-H,STOCK,4,criado,empresa AGM
+AGM-I,STOCK,4,criado,empresa AGM
+AHRT-A,STOCK,4,criado,empresa AHRT
+AHT-D,STOCK,4,criado,empresa AHT
+AHT-F,STOCK,4,criado,empresa AHT
+AHT-G,STOCK,4,criado,empresa AHT
+AHT-H,STOCK,4,criado,empresa AHT
+AHT-I,STOCK,4,criado,empresa AHT
+ALB-A,STOCK,4,criado,empresa ALB
+ALL-H,STOCK,4,criado,empresa ALL
+ALL-I,STOCK,4,criado,empresa ALL
+ALL-J,STOCK,4,criado,empresa ALL
+ALTG-A,STOCK,4,criado,empresa ALTG
+AMH-G,STOCK,4,criado,empresa AMH
+AMH-H,STOCK,4,criado,empresa AMH
+ARES-B,STOCK,4,criado,empresa ARES
+ARR-C,STOCK,4,criado,empresa ARR
+ASB-E,STOCK,4,criado,empresa ASB
+ASB-F,STOCK,4,criado,empresa ASB
+AUB-A,STOCK,4,criado,empresa AUB
+AXS-E,STOCK,4,criado,empresa AXS
+BA-A,STOCK,4,criado,empresa BA
+BAC-B,STOCK,4,criado,empresa BAC
+BAC-E,STOCK,4,criado,empresa BAC
+BAC-K,STOCK,4,criado,empresa BAC
+BAC-L,STOCK,4,criado,empresa BAC
+BAC-M,STOCK,4,criado,empresa BAC
+BAC-N,STOCK,4,criado,empresa BAC
+BAC-O,STOCK,4,criado,empresa BAC
+BAC-P,STOCK,4,criado,empresa BAC
+BAC-Q,STOCK,4,criado,empresa BAC
+BAC-S,STOCK,4,criado,empresa BAC
+BANC-F,STOCK,4,criado,empresa BANC
+BEP-A,STOCK,4,criado,empresa BEP
+BFH-A,STOCK,4,criado,empresa BFH
+BFH-B,STOCK,4,criado,empresa BFH
+BFS-D,STOCK,4,criado,empresa BFS
+BFS-E,STOCK,4,criado,empresa BFS
+BHR-B,STOCK,4,criado,empresa BHR
+BHR-D,STOCK,4,criado,empresa BHR
+BIP-A,STOCK,4,criado,empresa BIP
+BIP-B,STOCK,4,criado,empresa BIP
+BML-G,STOCK,4,criado,empresa BAC
+BML-H,STOCK,4,criado,empresa BAC
+BML-J,STOCK,4,criado,empresa BAC
+BML-L,STOCK,4,criado,empresa BAC
+BNY-K,STOCK,4,criado,empresa BNY
+BOH-A,STOCK,4,criado,empresa BOH
+BOH-B,STOCK,4,criado,empresa BOH
+BW-A,STOCK,4,criado,empresa BW
+C-N,STOCK,4,criado,empresa C
+C-R,STOCK,4,criado,empresa C
+CFG-E,STOCK,4,criado,empresa CFG
+CFG-H,STOCK,4,criado,empresa CFG
+CFG-I,STOCK,4,criado,empresa CFG
+CFR-B,STOCK,4,criado,empresa CFR
+CHMI-A,STOCK,4,criado,empresa CHMI
+CHMI-B,STOCK,4,criado,empresa CHMI
+CHTRP,STOCK,4,criado,empresa CHTR
+CIM-A,STOCK,4,criado,empresa CIM
+CIM-B,STOCK,4,criado,empresa CIM
+CIM-C,STOCK,4,criado,empresa CIM
+CIM-D,STOCK,4,criado,empresa CIM
+CLDT-A,STOCK,4,criado,empresa CLDT
+CMRE-B,STOCK,4,criado,empresa CMRE
+CMRE-C,STOCK,4,criado,empresa CMRE
+CMRE-D,STOCK,4,criado,empresa CMRE
+CMS-B,STOCK,4,criado,empresa CMS
+CMS-C,STOCK,4,criado,empresa CMS
+CODI-A,STOCK,4,criado,empresa CODI
+CODI-B,STOCK,4,criado,empresa CODI
+CODI-C,STOCK,4,criado,empresa CODI
+COF-I,STOCK,4,criado,empresa COF
+COF-J,STOCK,4,criado,empresa COF
+COF-K,STOCK,4,criado,empresa COF
+COF-L,STOCK,4,criado,empresa COF
+COF-N,STOCK,4,criado,empresa COF
+CTO-A,STOCK,4,criado,empresa CTO
+DCOM-,STOCK,4,criado,empresa DCOM
+DLR-J,STOCK,4,criado,empresa DLR
+DLR-K,STOCK,4,criado,empresa DLR
+DLR-L,STOCK,4,criado,empresa DLR
+DSX-B,STOCK,4,criado,empresa DSX
+DX-C,STOCK,4,criado,empresa DX
+DX-D,STOCK,4,criado,empresa DX
+EFC-B,STOCK,4,criado,empresa EFC
+EFC-C,STOCK,4,criado,empresa EFC
+EFC-D,STOCK,4,criado,empresa EFC
+EP-C,STOCK,4,criado,empresa EP
+EPR-C,STOCK,4,criado,empresa EPR
+EPR-E,STOCK,4,criado,empresa EPR
+EPR-G,STOCK,4,criado,empresa EPR
+EQH-A,STOCK,4,criado,empresa EQH
+EQH-C,STOCK,4,criado,empresa EQH
+FBRT-E,STOCK,4,criado,empresa FBRT
+FBYDP,STOCK,4,criado,empresa FBYD
+FHN-E,STOCK,4,criado,empresa FHN
+FHN-F,STOCK,4,criado,empresa FHN
+FHN-H,STOCK,4,criado,empresa FHN
+FITB-A,STOCK,4,criado,empresa FITB
+FITB-I,STOCK,4,criado,empresa FITB
+FITB-K,STOCK,4,criado,empresa FITB
+FITB-M,STOCK,4,criado,empresa FITB
+FLG-A,STOCK,4,criado,empresa FLG
+FLG-U,STOCK,4,criado,empresa FLG
+FOUR-A,STOCK,4,criado,empresa FOUR
+FRT-C,STOCK,4,criado,empresa FRT
+GNL-A,STOCK,4,criado,empresa GNL
+GNL-B,STOCK,4,criado,empresa GNL
+GNL-D,STOCK,4,criado,empresa GNL
+GNL-E,STOCK,4,criado,empresa GNL
+GPMT-A,STOCK,4,criado,empresa GPMT
+GPUS-D,STOCK,4,criado,empresa GPUS
+GRBK-A,STOCK,4,criado,empresa GRBK
+GS-A,STOCK,4,criado,empresa GS
+GS-C,STOCK,4,criado,empresa GS
+GS-D,STOCK,4,criado,empresa GS
+GSL-B,STOCK,4,criado,empresa GSL
+HIG-G,STOCK,4,criado,empresa HIG
+HL-B,STOCK,4,criado,empresa HL
+HPE-C,STOCK,4,criado,empresa HPE
+HPP-C,STOCK,4,criado,empresa HPP
+HVT.A,STOCK,4,criado,empresa HVT
+IIPR-A,STOCK,4,criado,empresa IIPR
+IIPR-B,STOCK,4,criado,empresa IIPR
+INN-E,STOCK,4,criado,empresa INN
+INN-F,STOCK,4,criado,empresa INN
+IVR-C,STOCK,4,criado,empresa IVR
+JPM-C,STOCK,4,criado,empresa JPM
+JPM-D,STOCK,4,criado,empresa JPM
+JPM-J,STOCK,4,criado,empresa JPM
+JPM-K,STOCK,4,criado,empresa JPM
+JPM-L,STOCK,4,criado,empresa JPM
+JPM-M,STOCK,4,criado,empresa JPM
+JXN-A,STOCK,4,criado,empresa JXN
+KEY-I,STOCK,4,criado,empresa KEY
+KEY-J,STOCK,4,criado,empresa KEY
+KEY-K,STOCK,4,criado,empresa KEY
+KEY-L,STOCK,4,criado,empresa KEY
+KIM-L,STOCK,4,criado,empresa KIM
+KIM-M,STOCK,4,criado,empresa KIM
+KIM-N,STOCK,4,criado,empresa KIM
+KKR-D,STOCK,4,criado,empresa KKR
+KREF-A,STOCK,4,criado,empresa KREF
+LFT-A,STOCK,4,criado,empresa LFT
+LNC-D,STOCK,4,criado,empresa LNC
+LOB-A,STOCK,4,criado,empresa LOB
+LXP-C,STOCK,4,criado,empresa LXP
+MET-A,STOCK,4,criado,empresa MET
+MET-E,STOCK,4,criado,empresa MET
+MET-F,STOCK,4,criado,empresa MET
+MFA-B,STOCK,4,criado,empresa MFA
+MFA-C,STOCK,4,criado,empresa MFA
+MITT-A,STOCK,4,criado,empresa MITT
+MITT-B,STOCK,4,criado,empresa MITT
+MITT-C,STOCK,4,criado,empresa MITT
+MOG.B,STOCK,4,criado,empresa MOG.A
+MS-A,STOCK,4,criado,empresa MS
+MS-E,STOCK,4,criado,empresa MS
+MS-F,STOCK,4,criado,empresa MS
+MS-I,STOCK,4,criado,empresa MS
+MS-K,STOCK,4,criado,empresa MS
+MS-L,STOCK,4,criado,empresa MS
+MS-O,STOCK,4,criado,empresa MS
+MS-P,STOCK,4,criado,empresa MS
+MS-Q,STOCK,4,criado,empresa MS
+MTB-H,STOCK,4,criado,empresa MTB
+MTB-J,STOCK,4,criado,empresa MTB
+MTB-K,STOCK,4,criado,empresa MTB
+MTB-L,STOCK,4,criado,empresa MTB
+NFEGP,STOCK,4,criado,empresa NFE
+NGL-B,STOCK,4,criado,empresa NGL
+NGL-C,STOCK,4,criado,empresa NGL
+NLY-F,STOCK,4,criado,empresa NLY
+NLY-G,STOCK,4,criado,empresa NLY
+NLY-J,STOCK,4,criado,empresa NLY
+NREF-A,STOCK,4,criado,empresa NREF
+NXDT-A,STOCK,4,criado,empresa NXDT
+ORCL-D,STOCK,4,criado,empresa ORCL
+PCG-A,STOCK,4,criado,empresa PCG
+PCG-B,STOCK,4,criado,empresa PCG
+PCG-C,STOCK,4,criado,empresa PCG
+PCG-D,STOCK,4,criado,empresa PCG
+PCG-E,STOCK,4,criado,empresa PCG
+PCG-G,STOCK,4,criado,empresa PCG
+PCG-H,STOCK,4,criado,empresa PCG
+PCG-I,STOCK,4,criado,empresa PCG
+PCG-X,STOCK,4,criado,empresa PCG
+PEB-E,STOCK,4,criado,empresa PEB
+PEB-F,STOCK,4,criado,empresa PEB
+PEB-G,STOCK,4,criado,empresa PEB
+PEB-H,STOCK,4,criado,empresa PEB
+PINE-A,STOCK,4,criado,empresa PINE
+PMT-A,STOCK,4,criado,empresa PMT
+PMT-B,STOCK,4,criado,empresa PMT
+PMT-C,STOCK,4,criado,empresa PMT
+PNFP-A,STOCK,4,criado,empresa PNFP
+PNFP-B,STOCK,4,criado,empresa PNFP
+PNFP-C,STOCK,4,criado,empresa PNFP
+PSA-F,STOCK,4,criado,empresa PSA
+PSA-G,STOCK,4,criado,empresa PSA
+PSA-H,STOCK,4,criado,empresa PSA
+PSA-I,STOCK,4,criado,empresa PSA
+PSA-J,STOCK,4,criado,empresa PSA
+PSA-K,STOCK,4,criado,empresa PSA
+PSA-L,STOCK,4,criado,empresa PSA
+PSA-M,STOCK,4,criado,empresa PSA
+PSA-N,STOCK,4,criado,empresa PSA
+PSA-O,STOCK,4,criado,empresa PSA
+PSA-P,STOCK,4,criado,empresa PSA
+PSA-Q,STOCK,4,criado,empresa PSA
+PSA-R,STOCK,4,criado,empresa PSA
+PSA-S,STOCK,4,criado,empresa PSA
+PSA-T,STOCK,4,criado,empresa PSA
+PSA-U,STOCK,4,criado,empresa PSA
+PSEC-A,STOCK,4,criado,empresa PSEC
+PW-A,STOCK,4,criado,empresa PW
+QXO-B,STOCK,4,criado,empresa QXO
+RC-C,STOCK,4,criado,empresa RC
+RC-E,STOCK,4,criado,empresa RC
+REXR-B,STOCK,4,criado,empresa REXR
+REXR-C,STOCK,4,criado,empresa REXR
+RF-C,STOCK,4,criado,empresa RF
+RF-E,STOCK,4,criado,empresa RF
+RF-F,STOCK,4,criado,empresa RF
+RITM-A,STOCK,4,criado,empresa RITM
+RITM-B,STOCK,4,criado,empresa RITM
+RITM-C,STOCK,4,criado,empresa RITM
+RITM-D,STOCK,4,criado,empresa RITM
+RITM-E,STOCK,4,criado,empresa RITM
+RITM-F,STOCK,4,criado,empresa RITM
+RLJ-A,STOCK,4,criado,empresa RLJ
+RNR-F,STOCK,4,criado,empresa RNR
+RNR-G,STOCK,4,criado,empresa RNR
+RPT-C,STOCK,4,criado,empresa RPT
+RWT-A,STOCK,4,criado,empresa RWT
+SACH-A,STOCK,4,criado,empresa SACH
+SB-C,STOCK,4,criado,empresa SB
+SB-D,STOCK,4,criado,empresa SB
+SCHW-D,STOCK,4,criado,empresa SCHW
+SCHW-J,STOCK,4,criado,empresa SCHW
+SF-B,STOCK,4,criado,empresa SF
+SF-C,STOCK,4,criado,empresa SF
+SF-D,STOCK,4,criado,empresa SF
+SHO-H,STOCK,4,criado,empresa SHO
+SHO-I,STOCK,4,criado,empresa SHO
+SLG-I,STOCK,4,criado,empresa SLG
+SMCIP,STOCK,4,criado,empresa SMCI
+SPG-J,STOCK,4,criado,empresa SPG
+SRG-A,STOCK,4,criado,empresa SRG
+STT-G,STOCK,4,criado,empresa STT
+SYF-A,STOCK,4,criado,empresa SYF
+SYF-B,STOCK,4,criado,empresa SYF
+T-A,STOCK,4,criado,empresa T
+T-C,STOCK,4,criado,empresa T
+TDS-U,STOCK,4,criado,empresa TDS
+TDS-V,STOCK,4,criado,empresa TDS
+TEN-E,STOCK,4,criado,empresa TEN
+TEN-F,STOCK,4,criado,empresa TEN
+TFC-I,STOCK,4,criado,empresa TFC
+TFC-O,STOCK,4,criado,empresa TFC
+TFC-R,STOCK,4,criado,empresa TFC
+TFIN-,STOCK,4,criado,empresa TFIN
+TRTX-C,STOCK,4,criado,empresa TRTX
+UHAL.B,STOCK,4,criado,empresa UHAL
+UMBFO,STOCK,4,criado,empresa UMBF
+UMH-D,STOCK,4,criado,empresa UMH
+USB-A,STOCK,4,criado,empresa USB
+USB-H,STOCK,4,criado,empresa USB
+USB-P,STOCK,4,criado,empresa USB
+USB-Q,STOCK,4,criado,empresa USB
+USB-R,STOCK,4,criado,empresa USB
+USB-S,STOCK,4,criado,empresa USB
+VNO-L,STOCK,4,criado,empresa VNO
+VNO-M,STOCK,4,criado,empresa VNO
+VNO-N,STOCK,4,criado,empresa VNO
+VNO-O,STOCK,4,criado,empresa VNO
+VOYA-B,STOCK,4,criado,empresa VOYA
+WAL-A,STOCK,4,criado,empresa WAL
+WFC-A,STOCK,4,criado,empresa WFC
+WFC-C,STOCK,4,criado,empresa WFC
+WFC-D,STOCK,4,criado,empresa WFC
+WFC-L,STOCK,4,criado,empresa WFC
+WFC-Y,STOCK,4,criado,empresa WFC
+WFC-Z,STOCK,4,criado,empresa WFC
+WHR-A,STOCK,4,criado,empresa WHR
+WSO.B,STOCK,4,criado,empresa WSO
+WTFCN,STOCK,4,criado,empresa WTFC
+XRN-A,STOCK,4,criado,empresa XRN
+XRN-B,STOCK,4,criado,empresa XRN
+AESG,ETF_INTERNACIONAL,5,sem logo,
+AICH,ETF_INTERNACIONAL,5,sem logo,
+AIMS,ETF_INTERNACIONAL,5,sem logo,
+ANGU,ETF_INTERNACIONAL,5,sem logo,
+ANTW,ETF_INTERNACIONAL,5,sem logo,
+ARIA,ETF_INTERNACIONAL,5,sem logo,
+ATTR,ETF_INTERNACIONAL,5,sem logo,
+AVAZ,ETF_INTERNACIONAL,5,sem logo,
+AVK,ETF_INTERNACIONAL,5,sem logo,
+AVRY,ETF_INTERNACIONAL,5,sem logo,
+BBHL,ETF_INTERNACIONAL,5,sem logo,
+BBHM,ETF_INTERNACIONAL,5,sem logo,
+BOUT,ETF_INTERNACIONAL,5,sem logo,
+BPRO,ETF_INTERNACIONAL,5,sem logo,
+BTA,ETF_INTERNACIONAL,5,sem logo,
+BWQG,ETF_INTERNACIONAL,5,sem logo,
+CGFS,ETF_INTERNACIONAL,5,sem logo,
+CHNL,ETF_INTERNACIONAL,5,sem logo,
+CHNU,ETF_INTERNACIONAL,5,sem logo,
+CLCG,ETF_INTERNACIONAL,5,sem logo,
+CLCV,ETF_INTERNACIONAL,5,sem logo,
+CRDD,ETF_INTERNACIONAL,5,sem logo,
+CRDX,ETF_INTERNACIONAL,5,sem logo,
+CTIF,ETF_INTERNACIONAL,5,sem logo,
+CVAR,ETF_INTERNACIONAL,5,sem logo,
+DADS,ETF_INTERNACIONAL,5,sem logo,
+DAK,ETF_INTERNACIONAL,5,sem logo,
+DBAR,ETF_INTERNACIONAL,5,sem logo,
+DBMF,ETF_INTERNACIONAL,5,sem logo,
+DCAP,ETF_INTERNACIONAL,5,sem logo,
+DVQQ,ETF_INTERNACIONAL,5,sem logo,
+DVSP,ETF_INTERNACIONAL,5,sem logo,
+EMAG,ETF_INTERNACIONAL,5,sem logo,
+EMPB,ETF_INTERNACIONAL,5,sem logo,
+ENRG,ETF_INTERNACIONAL,5,sem logo,
+FFND,ETF_INTERNACIONAL,5,sem logo,
+FPAA,ETF_INTERNACIONAL,5,sem logo,
+FPAS,ETF_INTERNACIONAL,5,sem logo,
+GMIE,ETF_INTERNACIONAL,5,sem logo,
+GQQQ,ETF_INTERNACIONAL,5,sem logo,
+HBTC,ETF_INTERNACIONAL,5,sem logo,
+HFIX,ETF_INTERNACIONAL,5,sem logo,
+HIAI,ETF_INTERNACIONAL,5,sem logo,
+HQDG,ETF_INTERNACIONAL,5,sem logo,
+HUMM,ETF_INTERNACIONAL,5,sem logo,
+ICMO,ETF_INTERNACIONAL,5,sem logo,
+IINC,ETF_INTERNACIONAL,5,sem logo,
+IQGR,ETF_INTERNACIONAL,5,sem logo,
+IVAI,ETF_INTERNACIONAL,5,sem logo,
+JINT,ETF_INTERNACIONAL,5,sem logo,
+JQTY,ETF_INTERNACIONAL,5,sem logo,
+KCHP,ETF_INTERNACIONAL,5,sem logo,
+KPO,ETF_INTERNACIONAL,5,sem logo,
+LCIV,ETF_INTERNACIONAL,5,sem logo,
+LCO,ETF_INTERNACIONAL,5,sem logo,
+LENS,ETF_INTERNACIONAL,5,sem logo,
+LPSV,ETF_INTERNACIONAL,5,sem logo,
+LUNC,ETF_INTERNACIONAL,5,sem logo,
+MARU,ETF_INTERNACIONAL,5,sem logo,
+MFUT,ETF_INTERNACIONAL,5,sem logo,
+MJSC,ETF_INTERNACIONAL,5,sem logo,
+MTAW,ETF_INTERNACIONAL,5,sem logo,
+MTGG,ETF_INTERNACIONAL,5,sem logo,
+NDOW,ETF_INTERNACIONAL,5,sem logo,
+NELS,ETF_INTERNACIONAL,5,sem logo,
+NPFE,ETF_INTERNACIONAL,5,sem logo,
+NRR,ETF_INTERNACIONAL,5,sem logo,
+NXG,ETF_INTERNACIONAL,5,sem logo,
+ORO,ETF_INTERNACIONAL,5,sem logo,
+OWN,ETF_INTERNACIONAL,5,sem logo,
+PBCS,ETF_INTERNACIONAL,5,sem logo,
+PBEU,ETF_INTERNACIONAL,5,sem logo,
+PBOG,ETF_INTERNACIONAL,5,sem logo,
+PBPH,ETF_INTERNACIONAL,5,sem logo,
+PBUB,ETF_INTERNACIONAL,5,sem logo,
+PBWN,ETF_INTERNACIONAL,5,sem logo,
+PCM,ETF_INTERNACIONAL,5,sem logo,
+PCMM,ETF_INTERNACIONAL,5,sem logo,
+PCPP,ETF_INTERNACIONAL,5,sem logo,
+POMG,ETF_INTERNACIONAL,5,sem logo,
+PRCS,ETF_INTERNACIONAL,5,sem logo,
+PRVS,ETF_INTERNACIONAL,5,sem logo,
+QTAC,ETF_INTERNACIONAL,5,sem logo,
+QTPI,ETF_INTERNACIONAL,5,sem logo,
+RADD,ETF_INTERNACIONAL,5,sem logo,
+RNIN,ETF_INTERNACIONAL,5,sem logo,
+ROPE,ETF_INTERNACIONAL,5,sem logo,
+SALI,ETF_INTERNACIONAL,5,sem logo,
+SCLZ,ETF_INTERNACIONAL,5,sem logo,
+SEMG,ETF_INTERNACIONAL,5,sem logo,
+SEPQ,ETF_INTERNACIONAL,5,sem logo,
+SEQ,ETF_INTERNACIONAL,5,sem logo,
+SMTJ,ETF_INTERNACIONAL,5,sem logo,
+SPYA,ETF_INTERNACIONAL,5,sem logo,
+SRV,ETF_INTERNACIONAL,5,sem logo,
+STBF,ETF_INTERNACIONAL,5,sem logo,
+STLR,ETF_INTERNACIONAL,5,sem logo,
+STLU,ETF_INTERNACIONAL,5,sem logo,
+SUIL,ETF_INTERNACIONAL,5,sem logo,
+SWP,ETF_INTERNACIONAL,5,sem logo,
+TAX,ETF_INTERNACIONAL,5,sem logo,
+TLCE,ETF_INTERNACIONAL,5,sem logo,
+TLIE,ETF_INTERNACIONAL,5,sem logo,
+TRIO,ETF_INTERNACIONAL,5,sem logo,
+TSIE,ETF_INTERNACIONAL,5,sem logo,
+TSPX,ETF_INTERNACIONAL,5,sem logo,
+TSYX,ETF_INTERNACIONAL,5,sem logo,
+VEGX,ETF_INTERNACIONAL,5,sem logo,
+VMHY,ETF_INTERNACIONAL,5,sem logo,
+VMSD,ETF_INTERNACIONAL,5,sem logo,
+VPX,ETF_INTERNACIONAL,5,sem logo,
+WBEM,ETF_INTERNACIONAL,5,sem logo,
+WBIE,ETF_INTERNACIONAL,5,sem logo,
+WINC,ETF_INTERNACIONAL,5,sem logo,
+WLTG,ETF_INTERNACIONAL,5,sem logo,
+WZRD,ETF_INTERNACIONAL,5,sem logo,
+XBIL,ETF_INTERNACIONAL,5,sem logo,
+BSRT,REIT,5,sem logo,
+AAC,STOCK,5,sem logo,
+AADX,STOCK,5,sem logo,
+ABTS,STOCK,5,sem logo,
+ACCV,STOCK,5,sem logo,
+ACGC,STOCK,5,sem logo,
+ACHV,STOCK,5,sem logo,
+ACP-A,STOCK,5,sem logo,
+ADRX,STOCK,5,sem logo,
+ADVB,STOCK,5,sem logo,
+AEHL,STOCK,5,sem logo,
+AETR,STOCK,5,sem logo,
+AEXA,STOCK,5,sem logo,
+AFJK,STOCK,5,sem logo,
+AHL-D,STOCK,5,sem logo,
+AHL-E,STOCK,5,sem logo,
+AHL-F,STOCK,5,sem logo,
+AIFU,STOCK,5,sem logo,
+AIIO,STOCK,5,sem logo,
+AIOK,STOCK,5,sem logo,
+AIOS,STOCK,5,sem logo,
+AIRS,STOCK,5,sem logo,
+AKO.A,STOCK,5,sem logo,
+AKO.B,STOCK,5,sem logo,
+ALPX,STOCK,5,sem logo,
+AMRO,STOCK,5,sem logo,
+ANG-D,STOCK,5,sem logo,
+APUR,STOCK,5,sem logo,
+APXC,STOCK,5,sem logo,
+ARTC,STOCK,5,sem logo,
+ASBH,STOCK,5,sem logo,
+ASPC,STOCK,5,sem logo,
+ATH-A,STOCK,5,sem logo,
+ATH-B,STOCK,5,sem logo,
+ATH-D,STOCK,5,sem logo,
+ATH-E,STOCK,5,sem logo,
+ATTT,STOCK,5,sem logo,
+BBCI,STOCK,5,sem logo,
+BCCQ,STOCK,5,sem logo,
+BCV-A,STOCK,5,sem logo,
+BDAI,STOCK,5,sem logo,
+BDCI,STOCK,5,sem logo,
+BHAV,STOCK,5,sem logo,
+BID,STOCK,5,sem logo,
+BIO.B,STOCK,5,sem logo,
+BIXI,STOCK,5,sem logo,
+BLZR,STOCK,5,sem logo,
+BMHL,STOCK,5,sem logo,
+BMMX,STOCK,5,sem logo,
+BOSC,STOCK,5,sem logo,
+BPAC,STOCK,5,sem logo,
+BREZ,STOCK,5,sem logo,
+BRTM,STOCK,5,sem logo,
+BSAA,STOCK,5,sem logo,
+BVC,STOCK,5,sem logo,
+BWIV,STOCK,5,sem logo,
+CATL,STOCK,5,sem logo,
+CCCT,STOCK,5,sem logo,
+CDR-B,STOCK,5,sem logo,
+CDR-C,STOCK,5,sem logo,
+CFTR-A,STOCK,5,sem logo,
+CHAD,STOCK,5,sem logo,
+CHEC,STOCK,5,sem logo,
+CHNR,STOCK,5,sem logo,
+CHPG,STOCK,5,sem logo,
+CHSN,STOCK,5,sem logo,
+CHWM,STOCK,5,sem logo,
+CIG.C,STOCK,5,sem logo,
+CLWT,STOCK,5,sem logo,
+CRAC,STOCK,5,sem logo,
+CRD.A,STOCK,5,sem logo,
+CRD.B,STOCK,5,sem logo,
+CTA-A,STOCK,5,sem logo,
+CTA-B,STOCK,5,sem logo,
+CTAA,STOCK,5,sem logo,
+CTY,STOCK,5,sem logo,
+DAVI,STOCK,5,sem logo,
+DBCA,STOCK,5,sem logo,
+DCM,STOCK,5,sem logo,
+DGAC,STOCK,5,sem logo,
+DLNG,STOCK,5,sem logo,
+DLNG-A,STOCK,5,sem logo,
+DPU,STOCK,5,sem logo,
+DRK,STOCK,5,sem logo,
+DSY,STOCK,5,sem logo,
+DTSQ,STOCK,5,sem logo,
+DUK,STOCK,5,sem logo,
+DUK-A,STOCK,5,sem logo,
+DXST,STOCK,5,sem logo,
+EAF,STOCK,5,sem logo,
+ECC-D,STOCK,5,sem logo,
+ECF-A,STOCK,5,sem logo,
+EOCN,STOCK,5,sem logo,
+ESYN,STOCK,5,sem logo,
+ETI-,STOCK,5,sem logo,
+ETRA,STOCK,5,sem logo,
+ETSS,STOCK,5,sem logo,
+EURK,STOCK,5,sem logo,
+FAMI,STOCK,5,sem logo,
+FCDH,STOCK,5,sem logo,
+FCRS,STOCK,5,sem logo,
+FFTT,STOCK,5,sem logo,
+FGC,STOCK,5,sem logo,
+FGCPP,STOCK,5,sem logo,
+FIEE,STOCK,5,sem logo,
+FJDI,STOCK,5,sem logo,
+FLSC,STOCK,5,sem logo,
+FSHP,STOCK,5,sem logo,
+FSUN,STOCK,5,sem logo,
+FTRA,STOCK,5,sem logo,
+FVN,STOCK,5,sem logo,
+FXAC,STOCK,5,sem logo,
+FXHO,STOCK,5,sem logo,
+GAB-G,STOCK,5,sem logo,
+GAB-H,STOCK,5,sem logo,
+GAB-K,STOCK,5,sem logo,
+GAIA,STOCK,5,sem logo,
+GAM-B,STOCK,5,sem logo,
+GDV-H,STOCK,5,sem logo,
+GDV-K,STOCK,5,sem logo,
+GGN-B,STOCK,5,sem logo,
+GGT-E,STOCK,5,sem logo,
+GGT-G,STOCK,5,sem logo,
+GHXI,STOCK,5,sem logo,
+GIGM,STOCK,5,sem logo,
+GJH,STOCK,5,sem logo,
+GJP,STOCK,5,sem logo,
+GJT,STOCK,5,sem logo,
+GLE,STOCK,5,sem logo,
+GLOP-A,STOCK,5,sem logo,
+GLOP-B,STOCK,5,sem logo,
+GLOP-C,STOCK,5,sem logo,
+GLU-A,STOCK,5,sem logo,
+GLU-B,STOCK,5,sem logo,
+GNT-A,STOCK,5,sem logo,
+GOW,STOCK,5,sem logo,
+GPAC,STOCK,5,sem logo,
+GPAT,STOCK,5,sem logo,
+GSRF,STOCK,5,sem logo,
+GSRV,STOCK,5,sem logo,
+GSUN,STOCK,5,sem logo,
+GUAC,STOCK,5,sem logo,
+GUNN,STOCK,5,sem logo,
+GUT-C,STOCK,5,sem logo,
+GWAV,STOCK,5,sem logo,
+HAVA,STOCK,5,sem logo,
+HBT,STOCK,5,sem logo,
+HCAI,STOCK,5,sem logo,
+HFRO-A,STOCK,5,sem logo,
+HFRO-B,STOCK,5,sem logo,
+HLSQ,STOCK,5,sem logo,
+HOLO,STOCK,5,sem logo,
+HOST,STOCK,5,sem logo,
+HTCO,STOCK,5,sem logo,
+HUCK,STOCK,5,sem logo,
+HUDI,STOCK,5,sem logo,
+IACO,STOCK,5,sem logo,
+IAM,STOCK,5,sem logo,
+IBAC,STOCK,5,sem logo,
+ICR-A,STOCK,5,sem logo,
+IEAG,STOCK,5,sem logo,
+IMPP,STOCK,5,sem logo,
+IMPPP,STOCK,5,sem logo,
+IPHX,STOCK,5,sem logo,
+IRAB,STOCK,5,sem logo,
+IRLA,STOCK,5,sem logo,
+ITOC,STOCK,5,sem logo,
+JBK,STOCK,5,sem logo,
+JFIN,STOCK,5,sem logo,
+JONE,STOCK,5,sem logo,
+JTTT,STOCK,5,sem logo,
+JXG,STOCK,5,sem logo,
+KAZR,STOCK,5,sem logo,
+KBON,STOCK,5,sem logo,
+KCHV,STOCK,5,sem logo,
+KFII,STOCK,5,sem logo,
+KG,STOCK,5,sem logo,
+KOYN,STOCK,5,sem logo,
+KPET,STOCK,5,sem logo,
+KTH,STOCK,5,sem logo,
+KTWO,STOCK,5,sem logo,
+KXIN,STOCK,5,sem logo,
+LATA,STOCK,5,sem logo,
+LBGJ,STOCK,5,sem logo,
+LCU,STOCK,5,sem logo,
+LIMN,STOCK,5,sem logo,
+LKSP,STOCK,5,sem logo,
+LPCV,STOCK,5,sem logo,
+LSE,STOCK,5,sem logo,
+LTGR,STOCK,5,sem logo,
+LWAC,STOCK,5,sem logo,
+LYCA,STOCK,5,sem logo,
+MACI,STOCK,5,sem logo,
+MARPS,STOCK,5,sem logo,
+MAYS,STOCK,5,sem logo,
+MBVI,STOCK,5,sem logo,
+MCAH,STOCK,5,sem logo,
+MER-K,STOCK,5,sem logo,
+MEVO,STOCK,5,sem logo,
+MKDW,STOCK,5,sem logo,
+MLAA,STOCK,5,sem logo,
+MLGO,STOCK,5,sem logo,
+MMTX,STOCK,5,sem logo,
+MRCO,STOCK,5,sem logo,
+MSDL,STOCK,5,sem logo,
+MSGK,STOCK,5,sem logo,
+MSGR,STOCK,5,sem logo,
+MTAK,STOCK,5,sem logo,
+MTAL,STOCK,5,sem logo,
+MTR,STOCK,5,sem logo,
+MUZE,STOCK,5,sem logo,
+MYX,STOCK,5,sem logo,
+NANO,STOCK,5,sem logo,
+NBRG,STOCK,5,sem logo,
+NCO,STOCK,5,sem logo,
+NCT,STOCK,5,sem logo,
+NCV-A,STOCK,5,sem logo,
+NCZ-A,STOCK,5,sem logo,
+NMP,STOCK,5,sem logo,
+NODK,STOCK,5,sem logo,
+NSAI,STOCK,5,sem logo,
+NSP,STOCK,5,sem logo,
+NSTR,STOCK,5,sem logo,
+NTCL,STOCK,5,sem logo,
+NTWO,STOCK,5,sem logo,
+NWCL,STOCK,5,sem logo,
+NXAT,STOCK,5,sem logo,
+NXTT,STOCK,5,sem logo,
+OAK-A,STOCK,5,sem logo,
+OAK-B,STOCK,5,sem logo,
+OBA,STOCK,5,sem logo,
+OCAC,STOCK,5,sem logo,
+OCG,STOCK,5,sem logo,
+OCLT,STOCK,5,sem logo,
+OHAC,STOCK,5,sem logo,
+ONCH,STOCK,5,sem logo,
+ONCO,STOCK,5,sem logo,
+ONEN,STOCK,5,sem logo,
+OPNW,STOCK,5,sem logo,
+OPP-A,STOCK,5,sem logo,
+OPP-B,STOCK,5,sem logo,
+OPP-C,STOCK,5,sem logo,
+OTGA,STOCK,5,sem logo,
+OYSE,STOCK,5,sem logo,
+PAAC,STOCK,5,sem logo,
+PACH,STOCK,5,sem logo,
+PAXG,STOCK,5,sem logo,
+PDYN,STOCK,5,sem logo,
+PECE,STOCK,5,sem logo,
+PETZ,STOCK,5,sem logo,
+PFX,STOCK,5,sem logo,
+PGAC,STOCK,5,sem logo,
+PHOE,STOCK,5,sem logo,
+PHXE-,STOCK,5,sem logo,
+PLAG,STOCK,5,sem logo,
+PLUN,STOCK,5,sem logo,
+PLUT,STOCK,5,sem logo,
+PMA,STOCK,5,sem logo,
+PNAQ,STOCK,5,sem logo,
+PONO,STOCK,5,sem logo,
+PRFX,STOCK,5,sem logo,
+PRHI,STOCK,5,sem logo,
+PRIF-D,STOCK,5,sem logo,
+PRIF-K,STOCK,5,sem logo,
+PSQL,STOCK,5,sem logo,
+PTAC,STOCK,5,sem logo,
+PTIV,STOCK,5,sem logo,
+PTLE,STOCK,5,sem logo,
+PUSA,STOCK,5,sem logo,
+QNME,STOCK,5,sem logo,
+QUMS,STOCK,5,sem logo,
+RACD,STOCK,5,sem logo,
+RDAC,STOCK,5,sem logo,
+RDGT,STOCK,5,sem logo,
+RDWR,STOCK,5,sem logo,
+RECT,STOCK,5,sem logo,
+RETO,STOCK,5,sem logo,
+RFAI,STOCK,5,sem logo,
+RFAM,STOCK,5,sem logo,
+RIBB,STOCK,5,sem logo,
+RIV-A,STOCK,5,sem logo,
+RNA,STOCK,5,sem logo,
+RNAQ,STOCK,5,sem logo,
+RNTZ,STOCK,5,sem logo,
+RTSN,STOCK,5,sem logo,
+RZAI,STOCK,5,sem logo,
+SAAQ,STOCK,5,sem logo,
+SAGU,STOCK,5,sem logo,
+SAIQ,STOCK,5,sem logo,
+SBR,STOCK,5,sem logo,
+SBXE,STOCK,5,sem logo,
+SCAT,STOCK,5,sem logo,
+SCE-G,STOCK,5,sem logo,
+SCE-L,STOCK,5,sem logo,
+SCE-M,STOCK,5,sem logo,
+SCE-N,STOCK,5,sem logo,
+SCPQ,STOCK,5,sem logo,
+SEAL-A,STOCK,5,sem logo,
+SEAL-B,STOCK,5,sem logo,
+SEGG,STOCK,5,sem logo,
+SKYD,STOCK,5,sem logo,
+SNTG,STOCK,5,sem logo,
+SNUS-H,STOCK,5,sem logo,
+SONM,STOCK,5,sem logo,
+SORN,STOCK,5,sem logo,
+SPE-C,STOCK,5,sem logo,
+SPEG,STOCK,5,sem logo,
+SPMA,STOCK,5,sem logo,
+SRTM,STOCK,5,sem logo,
+SSEA,STOCK,5,sem logo,
+STFS,STOCK,5,sem logo,
+SUGP,STOCK,5,sem logo,
+SVIA,STOCK,5,sem logo,
+SXTC,STOCK,5,sem logo,
+TBCV,STOCK,5,sem logo,
+TCXB,STOCK,5,sem logo,
+TDWD,STOCK,5,sem logo,
+TLAC,STOCK,5,sem logo,
+TRGS,STOCK,5,sem logo,
+TRTN-A,STOCK,5,sem logo,
+TRTN-B,STOCK,5,sem logo,
+TRTN-C,STOCK,5,sem logo,
+TRTN-D,STOCK,5,sem logo,
+TRTN-E,STOCK,5,sem logo,
+TRTN-F,STOCK,5,sem logo,
+TRTN-G,STOCK,5,sem logo,
+TRXB,STOCK,5,sem logo,
+TY-,STOCK,5,sem logo,
+UPC,STOCK,5,sem logo,
+USDE,STOCK,5,sem logo,
+UYSC,STOCK,5,sem logo,
+VECA,STOCK,5,sem logo,
+VMET,STOCK,5,sem logo,
+VNME,STOCK,5,sem logo,
+VSA,STOCK,5,sem logo,
+VYLR,STOCK,5,sem logo,
+WENN,STOCK,5,sem logo,
+WETH,STOCK,5,sem logo,
+WIMI,STOCK,5,sem logo,
+WLII,STOCK,5,sem logo,
+WNW,STOCK,5,sem logo,
+WQEY,STOCK,5,sem logo,
+WTG,STOCK,5,sem logo,
+XCBE,STOCK,5,sem logo,
+XFLH,STOCK,5,sem logo,
+XHG,STOCK,5,sem logo,
+XIII,STOCK,5,sem logo,
+XMAX,STOCK,5,sem logo,
+XTER,STOCK,5,sem logo,
+YDKG,STOCK,5,sem logo,
+YICC,STOCK,5,sem logo,
+YOUL,STOCK,5,sem logo,
+YSXT,STOCK,5,sem logo,
+YYAI,STOCK,5,sem logo,
+ZKP,STOCK,5,sem logo,
+ZNB,STOCK,5,sem logo,

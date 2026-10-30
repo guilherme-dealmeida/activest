@@ -1,7 +1,8 @@
 package com.activest.domain.fund;
 
 import com.activest.domain.asset.Asset;
-import com.activest.domain.asset.AssetRepository;
+import com.activest.domain.asset.AssetResolver;
+import com.activest.domain.asset.AssetTypeNames;
 import com.activest.domain.asset.PriceSource;
 import com.activest.exception.ResourceNotFoundException;
 import lombok.extern.slf4j.Slf4j;
@@ -36,11 +37,11 @@ public class FundQuoteService {
 
     private static final YearMonth FIRST_MONTHLY = YearMonth.of(2021, 1);
 
-    private final AssetRepository assets;
+    private final AssetResolver assets;
     private final JdbcTemplate jdbc;
     private final Path dir;
 
-    public FundQuoteService(AssetRepository assets, JdbcTemplate jdbc,
+    public FundQuoteService(AssetResolver assets, JdbcTemplate jdbc,
                             @Value("${activest.funds.dir:../carga/data/cvm/fi}") String dir) {
         this.assets = assets;
         this.jdbc = jdbc;
@@ -48,7 +49,7 @@ public class FundQuoteService {
     }
 
     public Quote quote(String ticker, LocalDate date) {
-        Asset asset = assets.findByTicker(ticker)
+        Asset asset = assets.find(ticker, AssetTypeNames.FUNDO_INVESTIMENTO)
             .filter(a -> a.getAssetType() != null && a.getAssetType().getPriceSource() == PriceSource.CVM)
             .orElseThrow(() -> new ResourceNotFoundException("Fundo não encontrado"));
         Quote stored = jdbc.query("""

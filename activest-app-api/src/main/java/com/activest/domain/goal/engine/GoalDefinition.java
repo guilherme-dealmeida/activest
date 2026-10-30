@@ -25,6 +25,12 @@ public record GoalDefinition(GoalType type, String name, BigDecimal targetValue,
         return v == null ? null : (int) Math.round(Double.parseDouble(v.toString()));
     }
 
+    /** O ativo da meta por ativo (ATV-1/2/3), pelo id ({@code assetId}). */
+    public Long assetId() {
+        Object v = params.get("assetId");
+        return v == null ? null : new BigDecimal(v.toString()).longValue();
+    }
+
     public LocalDate date(String key) {
         Object v = params.get(key);
         return v == null ? null : LocalDate.parse(v.toString());

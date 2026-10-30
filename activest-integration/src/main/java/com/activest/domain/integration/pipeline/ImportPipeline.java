@@ -1,7 +1,7 @@
 package com.activest.domain.integration.pipeline;
 
 import com.activest.domain.asset.Asset;
-import com.activest.domain.asset.AssetRepository;
+import com.activest.domain.asset.AssetResolver;
 import com.activest.domain.integration.IntegrationCryptoExclusionRepository;
 import com.activest.domain.integration.source.ImportedMovement;
 import com.activest.domain.integration.source.MovementKind;
@@ -45,14 +45,14 @@ import java.util.stream.Collectors;
 @Service
 public class ImportPipeline {
 
-    private final AssetRepository assetRepository;
+    private final AssetResolver assetResolver;
     private final TransactionRepository transactionRepository;
     private final IntegrationCryptoExclusionRepository exclusionRepository;
 
-    public ImportPipeline(AssetRepository assetRepository,
+    public ImportPipeline(AssetResolver assetResolver,
                           TransactionRepository transactionRepository,
                           IntegrationCryptoExclusionRepository exclusionRepository) {
-        this.assetRepository = assetRepository;
+        this.assetResolver = assetResolver;
         this.transactionRepository = transactionRepository;
         this.exclusionRepository = exclusionRepository;
     }
@@ -94,7 +94,8 @@ public class ImportPipeline {
                 runItemList.add(new PreviewItem(m, PreviewOutcome.EXCLUDED, null, null));
             } else {
                 ImportRules.Result r = rules.apply(m,
-                    ticker -> catalog.computeIfAbsent(ticker, assetRepository::findByTicker));
+                    // O ticker e procurado so nos tipos da fonte (V13: META e cripto e acao do exterior)
+                    ticker -> catalog.computeIfAbsent(ticker, t -> assetResolver.findInTypes(t, rules.assetTypes())));
                 runItemList.add(r.mapped()
                     ? new PreviewItem(m, PreviewOutcome.NEW, r.transaction(), null)
                     : new PreviewItem(m, PreviewOutcome.UNMAPPED, null, r.reason()));

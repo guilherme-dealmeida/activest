@@ -621,7 +621,7 @@ export const TransactionsPage = () => {
                             label={logoOfType.label} size={38} shape="square" />;
                         }
                         return row.hasLogo !== null && row.hasLogo !== undefined
-                          ? <AssetLogo ticker={row.ticker} hasLogo={row.hasLogo} size={38} shape="square" />
+                          ? <AssetLogo ticker={row.ticker} hasLogo={row.hasLogo} assetType={nameOfType(row)} size={38} shape="square" />
                           : null;
                       })()}
                       <div className="flex flex-wrap items-center gap-y-1">

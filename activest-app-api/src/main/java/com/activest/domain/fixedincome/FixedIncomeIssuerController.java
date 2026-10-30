@@ -1,7 +1,8 @@
 package com.activest.domain.fixedincome;
 
 import com.activest.domain.asset.Asset;
-import com.activest.domain.asset.AssetRepository;
+import com.activest.domain.asset.AssetResolver;
+import com.activest.domain.asset.AssetTypeNames;
 import com.activest.exception.BusinessException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,10 +27,10 @@ import java.util.List;
 public class FixedIncomeIssuerController {
 
     private final FixedIncomeIssuers issuers;
-    private final AssetRepository assets;
+    private final AssetResolver assets;
     private final FixedIncomeLogos logos;
 
-    public FixedIncomeIssuerController(FixedIncomeIssuers issuers, AssetRepository assets, FixedIncomeLogos logos) {
+    public FixedIncomeIssuerController(FixedIncomeIssuers issuers, AssetResolver assets, FixedIncomeLogos logos) {
         this.issuers = issuers;
         this.assets = assets;
         this.logos = logos;
@@ -66,8 +67,8 @@ public class FixedIncomeIssuerController {
             if (ticker == null || ticker.isBlank()) {
                 throw new BusinessException("Informe o produto (ticker) para buscar a emissora.");
             }
-            String t = ticker.trim();
-            asset = assets.findByTicker(t).or(() -> assets.findByTicker(t.toUpperCase()))
+            // Produto de renda fixa ou Tesouro: o ticker é procurado só nesses tipos (V13)
+            asset = assets.findInTypes(ticker, java.util.Set.of(AssetTypeNames.RENDA_FIXA, AssetTypeNames.TESOURO_DIRETO))
                     .orElseThrow(() -> new BusinessException("Ativo não encontrado no catálogo: " + ticker));
         }
         return ResponseEntity.ok(issuers.search(role, asset, q, limit));

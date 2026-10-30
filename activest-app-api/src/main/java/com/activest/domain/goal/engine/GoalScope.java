@@ -3,6 +3,7 @@ package com.activest.domain.goal.engine;
 import com.activest.domain.goal.type.ScopeKind;
 
 import java.util.List;
+import java.util.function.UnaryOperator;
 
 /**
  * As posicoes que a meta enxerga (docs/planos/PLANO_METAS.md, Anexo A 3): uma forma ({@link ScopeKind}) com os
@@ -10,7 +11,7 @@ import java.util.List;
  *
  * <p>Valores por forma: TYPE = nome do tipo ({@code ACAO}); CATEGORY = nome de exibicao da categoria; INDEXER =
  * CDI, SELIC, IPCA, IGPM, INPC, PREFIXADO ou RENDA_VARIAVEL; ISSUER = nome do emissor (o grupo, na renda fixa);
- * ASSET = ticker; POSITIONS = id da posicao.</p>
+ * ASSET = id do ativo (o ticker deixou de ser unico na V13: META e cripto e acao); POSITIONS = id da posicao.</p>
  */
 public record GoalScope(ScopeKind kind, List<String> values, Reservation reservation, List<String> excludeTypes,
                         List<String> excludeCategories) {
@@ -55,8 +56,14 @@ public record GoalScope(ScopeKind kind, List<String> values, Reservation reserva
 
     /** Frase curta para a tela ("Carteira total, sem a reserva"). */
     public String describe() {
+        return describe(UnaryOperator.identity());
+    }
+
+    /** A frase com cada valor pelo seu rotulo (no escopo por ativo, o id vira o ticker). */
+    public String describe(UnaryOperator<String> valueLabel) {
         StringBuilder sb = new StringBuilder(kind == ScopeKind.ALL ? "Carteira total" : kind.label() + ": "
-                + String.join(", ", kind == ScopeKind.POSITIONS ? List.of(values.size() + " posição(ões)") : values));
+                + String.join(", ", kind == ScopeKind.POSITIONS ? List.of(values.size() + " posição(ões)")
+                : values.stream().map(valueLabel).toList()));
         if (reservation == Reservation.WITHOUT) {
             sb.append(", sem a reserva de emergência");
         } else if (reservation == Reservation.ONLY) {

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { clsx } from 'clsx';
+import { logoUrl } from '@/utils/logoUrl';
 
 interface AssetLogoProps {
   ticker: string;
@@ -14,20 +15,25 @@ interface AssetLogoProps {
   src?: string;
   /** Texto do quadro sem logo em vez das iniciais do ticker ("RF" na Renda Fixa). */
   label?: string;
+  /**
+   * Nome técnico do tipo (STOCK, CRIPTO...). Com ele o logo vem pelo par (tipo, ticker): o ticker se repete entre
+   * tipos (META é cripto e ação do exterior) e os do exterior ficam na pasta do tipo.
+   */
+  assetType?: string | null;
 }
 
 /**
  * Logo do ativo, redondo, à esquerda do ticker nas listagens da carteira
  * (docs/planos/PLANO_BRAPI.md, F7 e B25).
  *
- * A imagem vem da própria API (GET /api/v1/assets/{ticker}/logo), que serve o
+ * A imagem vem da própria API (GET /api/v1/assets/{tipo}/{ticker}/logo, ou só {ticker} sem o tipo), que serve o
  * arquivo guardado pela rotina de logos — nunca do site de terceiros, onde
  * metade dos ícones não existe e o endereço muda.
  *
  * Sem logo, as iniciais do ticker nas cores do Activest (dourado sobre
  * #111111). O mesmo vale se a imagem falhar ao carregar.
  */
-export const AssetLogo = ({ ticker, hasLogo, size = 24, shape = 'circle', className, src, label }: AssetLogoProps) => {
+export const AssetLogo = ({ ticker, hasLogo, size = 24, shape = 'circle', className, src, label, assetType }: AssetLogoProps) => {
   const [failed, setFailed] = useState(false);
   const style = { width: size, height: size };
   const rounded = shape === 'square' ? 'rounded-none' : 'rounded-full';
@@ -35,7 +41,7 @@ export const AssetLogo = ({ ticker, hasLogo, size = 24, shape = 'circle', classN
   if ((hasLogo || src) && !failed) {
     return (
       <img
-        src={src ?? `/api/v1/assets/${encodeURIComponent(ticker)}/logo`}
+        src={src ?? logoUrl(ticker, assetType)}
         alt=""
         aria-hidden="true"
         loading="lazy"

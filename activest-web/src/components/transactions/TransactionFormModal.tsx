@@ -496,8 +496,8 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
   const standaloneFiSale = choosesNote && isSale;
   const currentTicker = (matchedAsset?.ticker ?? tickerInput).trim().toUpperCase();
   const { data: noteOptions } = useQuery({
-    queryKey: ['transactions', 'notes', currentTicker],
-    queryFn: () => transactionsApi.notes(currentTicker),
+    queryKey: ['transactions', 'notes', currentTicker, selectedType?.name],
+    queryFn: () => transactionsApi.notes(currentTicker, selectedType?.name),
     enabled: isOpen && choosesNote && !!matchedAsset,
   });
   /** Só para o saldo do "Resgatar tudo": a carteira traz o valor na curva das posições abertas. */
@@ -520,8 +520,8 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
    */
   const treasuryTicker = isTreasury ? (matchedAsset?.ticker ?? editing?.ticker ?? preset?.ticker ?? '') : '';
   const { data: treasuryNotes } = useQuery({
-    queryKey: ['transactions', 'notes', treasuryTicker],
-    queryFn: () => transactionsApi.notes(treasuryTicker),
+    queryKey: ['transactions', 'notes', treasuryTicker, TESOURO_DIRETO],
+    queryFn: () => transactionsApi.notes(treasuryTicker, TESOURO_DIRETO),
     enabled: isOpen && isTreasury && isSale && !!treasuryTicker,
   });
   const treasuryDistributors: IssuerPick[] | undefined = isTreasury && isSale
@@ -563,7 +563,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     : isTotalValue
       ? (previewNoteId && (formData.totalAmount || 0) > 0
           ? {
-              ticker: formData.ticker, type: TransactionType.SELL, shares: null, pricePerShare: null,
+              ticker: formData.ticker, assetType: selectedType?.name ?? null, type: TransactionType.SELL, shares: null, pricePerShare: null,
               totalAmount: formData.totalAmount, brokerageFee: formData.brokerageFee ?? 0,
               transactionDate: formData.transactionDate, noteId: previewNoteId, isFullSettlement: fullSettlement
             }
@@ -572,14 +572,14 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
         // Fundo (D24): bruto e cota; a prévia devolve IR, IOF e líquido pelo PEPS (PLANO_FUNDOS_INVESTIMENTO.md, C7)
         ? ((formData.totalAmount || 0) > 0 && (formData.pricePerShare || 0) > 0
             ? {
-                ticker: formData.ticker, type: TransactionType.SELL, shares: null,
+                ticker: formData.ticker, assetType: selectedType?.name ?? null, type: TransactionType.SELL, shares: null,
                 pricePerShare: formData.pricePerShare, totalAmount: formData.totalAmount,
                 brokerageFee: formData.brokerageFee ?? 0, transactionDate: formData.transactionDate
               }
             : null)
       : isTreasury && (formData.shares || 0) > 0 && (formData.pricePerShare || 0) > 0
         ? {
-            ticker: formData.ticker, type: TransactionType.SELL, shares: formData.shares,
+            ticker: formData.ticker, assetType: selectedType?.name ?? null, type: TransactionType.SELL, shares: formData.shares,
             pricePerShare: formData.pricePerShare, totalAmount: null, brokerageFee: formData.brokerageFee ?? 0,
             transactionDate: formData.transactionDate, distributorId: fixedIncome.distributor?.id ?? null
           }
@@ -741,6 +741,10 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
     const noteMaturity = !isSale && !isTreasury && !editing
       ? (picked?.maturityDate ?? preset?.note?.maturityDate ?? null)
       : null;
+    if (matchedAsset?.delistedOn && formData.transactionDate > matchedAsset.delistedOn) {
+      showToast(`${matchedAsset.ticker} saiu da bolsa em ${formatDate(matchedAsset.delistedOn)}: a data não pode ser depois da saída.`, 'error');
+      return;
+    }
     if (noteMaturity && formData.transactionDate >= noteMaturity) {
       showToast('Título vencido para a data de transação escolhida', 'error');
       return;
@@ -779,6 +783,8 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
       isFullSettlement: isTotalValue && isSale ? settleInFull : null,
       // Ativo em outra moeda: o câmbio da tela (PTAX da data ou o informado); em reais nunca vai
       fxRate: isForeign ? fxRate : null,
+      // O tipo vai junto: desde a V13 o ticker é único só por tipo (META é cripto e ação do exterior)
+      assetType: selectedType?.name ?? null,
       // A venda do Tesouro informa a distribuidora: o FIFO consome só os títulos dela (R13)
       ...(isTreasury && isSale ? { distributorId: fixedIncome.distributor?.id ?? null } : {})
     };
@@ -938,6 +944,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
                 value={tickerInput}
                 typeId={selectedType?.id ?? null}
                 onChange={handleTickerChange}
+                includeDelisted
               />
             )}
             {isFund && matchedAsset?.fund?.pension && (
@@ -1057,13 +1064,22 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
             </>
           )}
 
-          <Input
-            label="Data da Transação"
-            type="date"
-            value={formData.transactionDate}
-            onChange={(e) => setFormData({ ...formData, transactionDate: e.target.value })}
-            required
-          />
+          <div>
+            <Input
+              label="Data da Transação"
+              type="date"
+              value={formData.transactionDate}
+              max={matchedAsset?.delistedOn ?? undefined}
+              onChange={(e) => setFormData({ ...formData, transactionDate: e.target.value })}
+              required
+            />
+            {/* D11: papel que saiu da bolsa só recebe lançamento até a saída */}
+            {matchedAsset?.delistedOn && (
+              <p className="text-xs text-gray-400 mt-1">
+                {matchedAsset.ticker} saiu da bolsa em {formatDate(matchedAsset.delistedOn)}: a data vai até a saída.
+              </p>
+            )}
+          </div>
           <CurrencyInput
             label="Taxas"
             symbol={isForeign ? currencySymbol : undefined}

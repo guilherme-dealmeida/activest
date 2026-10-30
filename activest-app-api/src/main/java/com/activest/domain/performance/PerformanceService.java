@@ -46,7 +46,8 @@ import java.util.function.Function;
 public class PerformanceService {
 
     private static final ZoneId ZONE = ZoneId.of("America/Sao_Paulo");
-    private static final Set<String> TYPES_WITH_LOGO = Set.of("ACAO", "FII", "ETF", "BDR", "CRIPTO");
+    private static final Set<String> TYPES_WITH_LOGO = Set.of("ACAO", "FII", "ETF", "BDR", "CRIPTO", "STOCK", "REIT",
+            "ETF_INTERNACIONAL");
     /** R6 e R14: XIRR e risco so com ao menos um ano de historia no periodo. */
     static final int MIN_DAYS_YEAR = 365;
 
@@ -560,7 +561,7 @@ public class PerformanceService {
             rows.add(new BreakdownRowDTO(e.getKey(), label, detail, p0.typeName(), p0.typeDescription(),
                     "TYPE".equals(lv) ? null : p0.categoryId(), "TYPE".equals(lv) ? null : p0.categoryName(),
                     posLevel ? p0.id() : null, posLevel ? p0.ticker() : null,
-                    posLevel && TYPES_WITH_LOGO.contains(p0.typeName()) ? assetLogos.hasLogo(p0.ticker()) : null,
+                    posLevel && TYPES_WITH_LOGO.contains(p0.typeName()) ? assetLogos.hasLogo(p0.ticker(), p0.typeName()) : null,
                     pct(individual), unavailable ? null : money(gain),
                     unavailable || total == null ? null : pct(contrib),
                     weightDays > 0 ? round(weight / weightDays * 100, 4) : null,

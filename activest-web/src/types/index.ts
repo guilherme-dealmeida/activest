@@ -187,6 +187,11 @@ export interface Asset {
   displayName?: string;
   /** Cadastro CVM do fundo de investimento; ausente nos demais tipos. */
   fund?: FundInfo | null;
+  /**
+   * Data de saída da bolsa (D11): só no papel inativo, que só a busca da Nova transação traz. A transação vale até
+   * ela; depois, a API recusa.
+   */
+  delistedOn?: string | null;
 }
 
 /** O que a busca e o formulário mostram do fundo (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md, D11/D18). */
@@ -549,6 +554,11 @@ export interface NoteOption {
 
 export interface TransactionCreate {
   ticker: string;
+  /**
+   * Nome técnico do tipo (asset_types.name: ACAO, STOCK, CRIPTO...). Desde a V13 o ticker é único só por tipo — META
+   * é cripto e ação do exterior; sem o tipo, a API só aceita ticker que não se repete.
+   */
+  assetType?: string | null;
   type: string;
   // Renda Fixa manda só totalAmount, com shares e pricePerShare nulos. Os
   // demais tipos mandam shares e pricePerShare e a API calcula o total.

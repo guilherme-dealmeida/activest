@@ -1,7 +1,8 @@
 package com.activest.adm.task;
 
 import com.activest.adm.domain.issuer.IssuerLinkService;
-import com.activest.domain.asset.AssetRepository;
+import com.activest.domain.asset.AssetResolver;
+import com.activest.domain.asset.AssetTypeNames;
 import com.activest.domain.issuer.ShareClass;
 import com.activest.domain.task.TaskHandler;
 import com.activest.domain.task.TaskInputException;
@@ -18,7 +19,7 @@ import org.springframework.stereotype.Component;
 public class AssetIssuerLinkTask implements TaskHandler {
 
     private final IssuerLinkService service;
-    private final AssetRepository assets;
+    private final AssetResolver assets;
 
     @Override
     public String type() {
@@ -28,7 +29,8 @@ public class AssetIssuerLinkTask implements TaskHandler {
     @Override
     public void run(TaskRunContext ctx) {
         String ticker = ctx.requireText("TICKER").toUpperCase();
-        Long assetId = assets.findByTicker(ticker)
+        // Emissor é empresa ou fundo listado na B3: o ticker é procurado nesses tipos (V13)
+        Long assetId = assets.findInTypes(ticker, AssetTypeNames.B3_LISTED)
             .orElseThrow(() -> new IllegalArgumentException("Ativo nao encontrado: " + ticker)).getId();
         String cnpj = ctx.text("ISSUER_CNPJ");
         ShareClass shareClass = shareClass(ctx.text("SHARE_CLASS"));

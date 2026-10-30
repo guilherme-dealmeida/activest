@@ -8,6 +8,7 @@ import com.activest.domain.fund.FundKeys;
 import com.activest.domain.fund.InvestmentFund;
 import com.activest.domain.fund.InvestmentFundRepository;
 import com.activest.domain.portfolio.AppreciationUpdater;
+import com.activest.exception.BusinessException;
 import com.activest.exception.ResourceNotFoundException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -29,11 +30,14 @@ public class AssetService {
     private final AppreciationUpdater appreciationUpdater;
     private final InvestmentFundRepository fundRepository;
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+    private final AssetResolver assetResolver;
 
     public AssetService(AssetRepository assetRepository, AssetTypeRepository assetTypeRepository,
                         AssetCategoryRepository assetCategoryRepository, AppreciationUpdater appreciationUpdater,
-                        InvestmentFundRepository fundRepository, org.springframework.jdbc.core.JdbcTemplate jdbc) {
+                        InvestmentFundRepository fundRepository, org.springframework.jdbc.core.JdbcTemplate jdbc,
+                        AssetResolver assetResolver) {
         this.assetRepository = assetRepository;
+        this.assetResolver = assetResolver;
         this.assetTypeRepository = assetTypeRepository;
         this.assetCategoryRepository = assetCategoryRepository;
         this.appreciationUpdater = appreciationUpdater;
@@ -82,12 +86,21 @@ public class AssetService {
             .map(t -> t.getPriceSource() == PriceSource.CVM).orElse(false);
     }
 
-    /**
-     * Gets asset by ticker.
-     */
+    /** Ativo pelo ticker, sem o tipo: só o ticker que não se repete entre os tipos (rota antiga, I3). */
     public AssetResponseDTO getAssetByTicker(String ticker) {
-        Asset asset = assetRepository.findByTickerWithTerms(ticker)
-            .orElseThrow(() -> new ResourceNotFoundException("Ativo não encontrado"));
+        return getAsset(ticker, null);
+    }
+
+    /**
+     * Ativo pelo par (ticker, tipo) — desde a V13 o ticker é único só por tipo (META é cripto e ação). Sem o tipo e com
+     * o ticker em mais de um tipo, a resposta pede o tipo em vez de dizer que o ativo não existe.
+     */
+    public AssetResponseDTO getAsset(String ticker, String typeName) {
+        boolean typed = typeName != null && !typeName.isBlank();
+        Asset asset = assetResolver.findTypedOrUnique(ticker, typeName)
+            .orElseThrow(() -> !typed && assetResolver.isAmbiguous(ticker)
+                ? new BusinessException("O ticker " + ticker + " existe em mais de um tipo de ativo: informe o tipo.")
+                : new ResourceNotFoundException("Ativo não encontrado"));
         return toDTO(asset);
     }
 
@@ -136,11 +149,19 @@ public class AssetService {
      * escolhido determina a lista, e não o contrário.
      */
     public List<AssetResponseDTO> searchAssets(String query, Long typeId) {
+        return searchAssets(query, typeId, false);
+    }
+
+    /**
+     * {@code includeDelisted}: o autocomplete da Nova transação traz também o papel que saiu da bolsa, com a data de
+     * saída (D11, C8) — lançamento retroativo. Vale só com o tipo.
+     */
+    public List<AssetResponseDTO> searchAssets(String query, Long typeId, boolean includeDelisted) {
         // Pageable sem Sort: a ordenação vem do próprio @Query. Passar um Sort
         // aqui faria o Spring Data concatenar um segundo ORDER BY e quebrar.
         Pageable limit = PageRequest.of(0, SEARCH_LIMIT);
         List<Asset> found = typeId != null
-            ? assetRepository.searchByTypeAndTickerOrName(typeId, query, limit)
+            ? assetRepository.searchByTypeAndTickerOrName(typeId, query, includeDelisted, limit)
             : assetRepository.searchByTickerOrName(query, limit);
         // Sem tipo, fundo de investimento fica de fora: ele tem busca própria (searchFunds) e não tem página (D20).
         return found.stream()
@@ -203,7 +224,8 @@ public class AssetService {
             fund == null ? null : new AssetResponseDTO.FundInfo(FundKeys.format(fund.getCnpj()), fund.getSubclassId(),
                 fund.getAnbimaClassification(), fund.getTargetAudience(), fund.getExclusive(),
                 asset.getAssetCategory() != null && FundCategory.PREVIDENCIA.equals(asset.getAssetCategory().getName()),
-                fund.getCvmStatus(), fund.getLastQuoteOn())
+                fund.getCvmStatus(), fund.getLastQuoteOn()),
+            asset.getDelistedOn()
         );
     }
 }

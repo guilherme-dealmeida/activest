@@ -99,9 +99,19 @@ public class PublicFileCache {
 
     private final HttpClient http;
     private final Duration timeout;
+    private final String userAgent;
 
     public PublicFileCache(Duration timeout) {
+        this(timeout, USER_AGENT);
+    }
+
+    /**
+     * Com outra identificação: a SEC exige "empresa contato" no {@code User-Agent} e recusa (403) quem não se
+     * identifica (docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md, 11.3).
+     */
+    public PublicFileCache(Duration timeout, String userAgent) {
         this.timeout = timeout;
+        this.userAgent = userAgent;
         this.http = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(30))
                 .followRedirects(HttpClient.Redirect.NORMAL)
@@ -149,7 +159,7 @@ public class PublicFileCache {
         Path temp = target.resolveSibling(target.getFileName() + ".part");
         try {
             Files.createDirectories(target.getParent());
-            HttpRequest.Builder req = HttpRequest.newBuilder(url).timeout(timeout).header("User-Agent", USER_AGENT)
+            HttpRequest.Builder req = HttpRequest.newBuilder(url).timeout(timeout).header("User-Agent", userAgent)
                     .GET();
             if (exists) {
                 Instant modified = Files.getLastModifiedTime(target).toInstant();
@@ -242,6 +252,11 @@ public class PublicFileCache {
                 }
                 return looksHtml(b) ? "pagina HTML" : null;
             };
+        }
+
+        /** Qualquer conteudo nao vazio (documento de formulario da SEC, que pode ser HTML). */
+        static ContentCheck nonEmpty() {
+            return file -> start(file).length == 0 ? "resposta vazia" : null;
         }
 
         /** CSV cuja primeira linha comeca com {@code headerPrefix} (ASCII; BOM ignorado). */

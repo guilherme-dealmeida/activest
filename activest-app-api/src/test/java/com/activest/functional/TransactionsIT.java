@@ -91,6 +91,63 @@ class TransactionsIT extends FunctionalBase {
                 .isZero();
         }
 
+        /** O ativo de teste ZZHOM no tipo (homônimo: o mesmo ticker em dois tipos — V13). */
+        private long homonym(String type) {
+            jdbc.update("""
+                INSERT INTO assets (ticker, name, asset_type_id, currency_code, current_price, active)
+                SELECT 'ZZHOM', 'Homônimo ' || t.name, t.id, 'BRL', 10, true FROM asset_types t WHERE t.name = ?
+                ON CONFLICT ON CONSTRAINT uk_assets_ticker_type DO NOTHING""", type);
+            return jdbc.queryForObject("""
+                SELECT a.id FROM assets a JOIN asset_types t ON t.id = a.asset_type_id
+                 WHERE a.ticker = 'ZZHOM' AND t.name = ?""", Long.class, type);
+        }
+
+        @Test
+        @DisplayName("D11: deslistado so na busca da Nova transacao, com a data; lancamento ate a saida, depois 422")
+        @SuppressWarnings("unchecked")
+        void delistedRetroactive() {
+            jdbc.update("""
+                INSERT INTO assets (ticker, name, asset_type_id, currency_code, current_price, active, delisted_on,
+                                    delisting_source)
+                SELECT 'ZZDEL3', 'Deslistada', t.id, 'BRL', 10, false, '2026-08-31', 'LIST_GONE'
+                  FROM asset_types t WHERE t.name = 'ACAO'
+                ON CONFLICT ON CONSTRAINT uk_assets_ticker_type DO NOTHING""");
+            Long acao = jdbc.queryForObject("SELECT id FROM asset_types WHERE name = 'ACAO'", Long.class);
+
+            List<Map<String, Object>> plain = get(owner, "/api/v1/assets/?typeId=" + acao + "&query=ZZDEL3", List.class)
+                .getBody();
+            List<Map<String, Object>> withDelisted = get(owner,
+                "/api/v1/assets/?typeId=" + acao + "&query=ZZDEL3&includeDelisted=true", List.class).getBody();
+            assertThat(plain).isEmpty();
+            assertThat(withDelisted).singleElement().satisfies(a -> {
+                assertThat(a.get("ticker")).isEqualTo("ZZDEL3");
+                assertThat(a.get("delistedOn")).isEqualTo("2026-08-31");
+            });
+
+            recordSuccessfully(owner, buy("ZZDEL3", "2026-08-31", "10", "10.00"));
+            ResponseEntity<String> after = recordExpectingError(owner, buy("ZZDEL3", "2026-09-01", "10", "10.00"));
+            assertThat(after.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+            assertThat(after.getBody()).contains("ZZDEL3 saiu da bolsa em 31/08/2026");
+        }
+
+        @Test
+        @DisplayName("V13: ticker em dois tipos (ZZHOM cripto e acao do exterior) pede o tipo; com o tipo, lanca no ativo certo")
+        void homonymNeedsType() {
+            long crypto = homonym("CRIPTO");
+            long stock = homonym("STOCK");
+
+            ResponseEntity<String> ambiguous = recordExpectingError(owner, buy("ZZHOM", "2026-09-01", "1", "10.00"));
+            assertThat(ambiguous.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+            assertThat(ambiguous.getBody()).contains("existe em mais de um tipo de ativo: informe o tipo");
+
+            Map<String, Object> body = buy("ZZHOM", "2026-09-01", "1", "10.00");
+            body.put("assetType", "CRIPTO");
+            TransactionResponseDTO r = recordSuccessfully(owner, body);
+            assertThat(jdbc.queryForObject("""
+                SELECT pa.asset_id FROM transactions t JOIN portfolio_assets pa ON pa.id = t.portfolio_asset_id
+                 WHERE t.id = ?""", Long.class, r.id())).isEqualTo(crypto).isNotEqualTo(stock);
+        }
+
         @Test
         @DisplayName("Regra A — venda de ativo fora da carteira responde 422 e nao grava nada")
         void saleWithoutPosition() {

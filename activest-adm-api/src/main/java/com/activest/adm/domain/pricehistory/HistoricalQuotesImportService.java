@@ -222,7 +222,10 @@ public class HistoricalQuotesImportService {
         Map<String, Long> byIsin = new HashMap<>();
         for (Asset a : assetRepository.findAllWithType()) {
             if (TYPES.contains(a.getAssetType().getName())) {
-                byTicker.put(a.getTicker().toUpperCase(), a.getId());
+                // O ticker reaproveitado (V13): vale o listado; o que saiu da bolsa só se não houver listado
+                if (a.getDelistedOn() == null || !byTicker.containsKey(a.getTicker().toUpperCase())) {
+                    byTicker.put(a.getTicker().toUpperCase(), a.getId());
+                }
                 if (a.getIsin() != null && !a.getIsin().isBlank() && !isOddLot(a.getTicker())) {
                     byIsin.putIfAbsent(a.getIsin().trim().toUpperCase(), a.getId());
                 }

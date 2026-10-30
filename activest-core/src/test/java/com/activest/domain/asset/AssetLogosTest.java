@@ -52,4 +52,26 @@ class AssetLogosTest {
         logos.stored("HGLG11", null);
         assertThat(logos.hasLogo("HGLG11")).isFalse();
     }
+
+    @Test
+    @DisplayName("Exterior (P4): o logo do par (tipo, ticker) vem da subpasta do tipo; META cripto fica na raiz")
+    void foreignByType() throws Exception {
+        Files.writeString(dir.resolve("META.png"), "cripto");
+        Files.createDirectories(dir.resolve("STOCK"));
+        Files.writeString(dir.resolve("STOCK").resolve("META.svg"), "<svg/>");
+        Files.createDirectories(dir.resolve("ETF_INTERNACIONAL").resolve("logos_gestoras"));
+        Files.writeString(dir.resolve("ETF_INTERNACIONAL").resolve("logos_gestoras").resolve("VANGUARD.png"), "x");
+        AssetLogos logos = new AssetLogos(dir.toString());
+
+        assertThat(logos.reindex()).isEqualTo(2);
+        assertThat(logos.find("META", "STOCK")).get()
+            .satisfies(f -> assertThat(f.path()).isEqualTo(dir.resolve("STOCK").resolve("META.svg")));
+        assertThat(logos.find("META", "CRIPTO")).get()
+            .satisfies(f -> assertThat(f.path()).isEqualTo(dir.resolve("META.png")));
+        assertThat(logos.find("META")).get().satisfies(f -> assertThat(f.path()).isEqualTo(dir.resolve("META.png")));
+        assertThat(logos.find("META", "REIT")).isEmpty();
+        assertThat(logos.find("VANGUARD", "ETF_INTERNACIONAL")).isEmpty();
+        assertThat(logos.logoFlag(assetEntity("META", "STOCK"))).isTrue();
+        assertThat(logos.logoFlag(assetEntity("O", "REIT"))).isFalse();
+    }
 }

@@ -34,7 +34,17 @@ public final class B3EquityImportRules implements ImportRules {
     private static final int MONEY_SCALE = 2;
     private static final BigDecimal TOLERANCE = new BigDecimal("0.01");
 
+    /** Renda variável da B3 e Tesouro Direto (B3, F7): o ticker é procurado só nesses tipos (D3 dos internacionais). */
+    private static final Set<String> TYPES = Set.of(com.activest.domain.asset.AssetTypeNames.ACAO,
+        com.activest.domain.asset.AssetTypeNames.FII, com.activest.domain.asset.AssetTypeNames.ETF,
+        com.activest.domain.asset.AssetTypeNames.BDR, com.activest.domain.asset.AssetTypeNames.TESOURO_DIRETO);
+
     private B3EquityImportRules() {
+    }
+
+    @Override
+    public Set<String> assetTypes() {
+        return TYPES;
     }
 
     @Override

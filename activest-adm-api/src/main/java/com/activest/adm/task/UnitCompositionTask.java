@@ -1,7 +1,8 @@
 package com.activest.adm.task;
 
 import com.activest.adm.domain.issuer.IssuerLinkService;
-import com.activest.domain.asset.AssetRepository;
+import com.activest.domain.asset.AssetResolver;
+import com.activest.domain.asset.AssetTypeNames;
 import com.activest.domain.issuer.ShareClass;
 import com.activest.domain.task.TaskHandler;
 import com.activest.domain.task.TaskInputException;
@@ -19,7 +20,7 @@ import java.util.stream.Collectors;
 public class UnitCompositionTask implements TaskHandler {
 
     private final IssuerLinkService service;
-    private final AssetRepository assets;
+    private final AssetResolver assets;
 
     @Override
     public String type() {
@@ -29,7 +30,7 @@ public class UnitCompositionTask implements TaskHandler {
     @Override
     public void run(TaskRunContext ctx) {
         String ticker = ctx.requireText("TICKER").toUpperCase();
-        Long assetId = assets.findByTicker(ticker)
+        Long assetId = assets.findInTypes(ticker, AssetTypeNames.B3_LISTED)
             .orElseThrow(() -> new IllegalArgumentException("Ativo nao encontrado: " + ticker)).getId();
         Map<ShareClass, Integer> composition = parse(ctx.requireText("COMPOSITION"));
         service.setUnitComposition(assetId, composition);

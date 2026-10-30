@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { dividendsApi } from '@/api/dividends';
+import { assetsApi } from '@/api/assets';
 import { Card } from '@/components/ui/Card';
 import { AssetLogo } from '@/components/ui/AssetLogo';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Pagination } from '@/components/ui/Pagination';
 import { formatCurrency, formatCurrencyPrecise, formatDate, formatFxRate, formatMoney, formatShares } from '@/utils/format';
-import { DIVIDEND_TYPE_LABELS, DividendResponse, DividendSummary } from '@/types';
+import { AssetType, DIVIDEND_TYPE_LABELS, DividendResponse, DividendSummary } from '@/types';
 import { CalendarClock, DollarSign, List } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useSortable } from '@/hooks/useSortable';
@@ -172,6 +173,9 @@ export const DividendsPage = () => {
  */
 const DividendsTabPanel = ({ tab, rows, listRequest }: { tab: ListTab; rows: DividendRow[]; listRequest: ListRequest | null }) => {
   const texts = TAB_TEXTS[tab];
+  // Nome técnico do tipo, para o logo pelo par (tipo, ticker): o ticker se repete entre tipos (V13)
+  const { data: assetTypes = [] } = useQuery<AssetType[]>({ queryKey: ['assetTypes'], queryFn: assetsApi.getTypes });
+  const typeNameOf = (assetTypeId: number | null | undefined) => assetTypes.find(t => t.id === assetTypeId)?.name ?? null;
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const f = useDividendFilters(rows, () => setCurrentPage(1));
@@ -284,7 +288,7 @@ const DividendsTabPanel = ({ tab, rows, listRequest }: { tab: ListTab; rows: Div
                     {/* Igual à carteira: logo à esquerda, nome no hover. null = tipo sem logo. */}
                     <div className="flex items-center gap-3" title={row.assetName || undefined}>
                       {row.hasLogo !== null && row.hasLogo !== undefined && (
-                        <AssetLogo ticker={row.ticker} hasLogo={row.hasLogo} size={38} shape="square" />
+                        <AssetLogo ticker={row.ticker} hasLogo={row.hasLogo} assetType={typeNameOf(row.assetTypeId)} size={38} shape="square" />
                       )}
                       <TickerLink ticker={row.ticker} issuerId={row.issuerId} />
                     </div>

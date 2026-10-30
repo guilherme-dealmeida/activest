@@ -1,7 +1,8 @@
 package com.activest.domain.integration;
 
 import com.activest.domain.asset.Asset;
-import com.activest.domain.asset.AssetRepository;
+import com.activest.domain.asset.AssetResolver;
+import com.activest.domain.asset.AssetTypeNames;
 import com.activest.domain.dividend.Dividend;
 import com.activest.domain.dividend.DividendRepository;
 import com.activest.domain.dividend.DividendType;
@@ -54,13 +55,13 @@ public class DividendReconciliation {
     }
 
     private final DividendRepository dividendRepository;
-    private final AssetRepository assetRepository;
+    private final AssetResolver assetResolver;
     private final PortfolioRepository portfolioRepository;
 
-    public DividendReconciliation(DividendRepository dividendRepository, AssetRepository assetRepository,
+    public DividendReconciliation(DividendRepository dividendRepository, AssetResolver assetResolver,
                                 PortfolioRepository portfolioRepository) {
         this.dividendRepository = dividendRepository;
-        this.assetRepository = assetRepository;
+        this.assetResolver = assetResolver;
         this.portfolioRepository = portfolioRepository;
     }
 
@@ -115,7 +116,8 @@ public class DividendReconciliation {
         if (p.ticker() == null || p.type() == null || p.paymentDate() == null || p.shares() == null || p.net() == null) {
             return new Result(p.ref(), Outcome.RECUSADO, "dados incompletos (ativo, tipo, pagamento, cotas e liquido).");
         }
-        Asset asset = assetRepository.findByTicker(p.ticker()).orElse(null);
+        // Provento informado pela B3: o ticker é procurado nos tipos listados na B3 (V13)
+        Asset asset = assetResolver.findInTypes(p.ticker(), AssetTypeNames.B3_LISTED).orElse(null);
         if (asset == null) {
             return new Result(p.ref(), Outcome.RECUSADO, "ativo fora do catalogo.");
         }

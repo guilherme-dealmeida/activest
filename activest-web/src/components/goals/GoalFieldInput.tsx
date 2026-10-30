@@ -8,6 +8,7 @@ import { MaskedNumberInput } from '@/components/ui/MaskedNumberInput';
 import { GoalField, Option } from '@/types/goals';
 import { FieldLabel } from './FieldLabel';
 import { assetText } from '@/utils/assetLabel';
+import { GoalAssetPicker } from './GoalAssetPicker';
 
 interface Props {
   field: GoalField;
@@ -15,8 +16,10 @@ interface Props {
   onChange: (value: unknown) => void;
   /** Obrigatório agora (o campo pode ser obrigatório só com outra escolha — requiredIf). */
   required: boolean;
-  /** Opções vindas da carteira (ticker, item da dimensão). */
+  /** Opções vindas da carteira (item da dimensão). */
   options?: Option[];
+  /** Ativo da meta (CATALOG_ASSET): o ticker e o tipo gravados com ela, para mostrar o já escolhido. */
+  assetLabel?: { ticker?: string | null; assetType?: string | null };
 }
 
 const num = (v: unknown): number | null => (v === null || v === undefined || v === '' ? null : Number(v));
@@ -26,7 +29,7 @@ const num = (v: unknown): number | null => (v === null || v === undefined || v =
  * GET /goals/types — tipo novo não pede tela nova. Obrigatório com asterisco vermelho; opcional vazio é vazio (nunca
  * zero).
  */
-export const GoalFieldInput = ({ field, value, onChange, required, options }: Props) => {
+export const GoalFieldInput = ({ field, value, onChange, required, options, assetLabel }: Props) => {
   const id = useId();
   const info = field.help ?? undefined;
   const clear = () => onChange(null);
@@ -70,6 +73,10 @@ export const GoalFieldInput = ({ field, value, onChange, required, options }: Pr
         </Select>
       );
       break;
+    case 'CATALOG_ASSET':
+      input = <GoalAssetPicker value={value} ticker={assetLabel?.ticker} assetTypeLabel={assetLabel?.assetType}
+        onChange={onChange} />;
+      break;
     case 'MULTI_CHOICE': {
       const list = Array.isArray(value) ? (value as string[]) : [];
       input = (
@@ -98,7 +105,7 @@ export const GoalFieldInput = ({ field, value, onChange, required, options }: Pr
         input = (
           <>
             <Input id={id} list={options ? listId : undefined} value={(value as string) ?? ''}
-              onChange={e => onChange(field.kind === 'TICKER' ? e.target.value.toUpperCase() : e.target.value)} />
+              onChange={e => onChange(e.target.value)} />
             {options && <datalist id={listId}>{options.map(o => <option key={o.value} value={o.value}>{assetText(o.label)}</option>)}</datalist>}
           </>
         );

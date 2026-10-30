@@ -88,6 +88,16 @@ public class AssetLogoService {
     }
 
     /**
+     * O logo deste ativo vem da rotina (B3 e cripto, na raiz). Os listados no exterior ficam fora: os logos deles
+     * estão nas subpastas do tipo e são mantidos à mão (docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md, P4) — o ticker se
+     * repete entre tipos e a rotina gravaria na raiz o logo de outro ativo.
+     */
+    static boolean fetchable(Asset a) {
+        return AssetLogos.typeHasLogo(a.getAssetType())
+                && !com.activest.domain.asset.AssetTypeNames.FOREIGN_LISTED.contains(a.getAssetType().getName());
+    }
+
+    /**
      * Procura e guarda os logos.
      *
      * @param onlyMissing so os ativos sem arquivo em {@code carga/data/logos} (rotina mensal)
@@ -95,7 +105,7 @@ public class AssetLogoService {
     public synchronized SyncResult sync(boolean onlyMissing, String reason) {
         logos.reindex();
         List<Asset> assets = assetRepository.findAllWithType().stream()
-                .filter(a -> a.isActive() && AssetLogos.typeHasLogo(a.getAssetType()))
+                .filter(a -> a.isActive() && fetchable(a))
                 .filter(a -> !onlyMissing || !logos.hasLogo(a.getTicker()))
                 .toList();
         return fetch(assets, reason);
@@ -110,7 +120,7 @@ public class AssetLogoService {
             a.getAssetType().getName();
             return a;
         }).orElse(null));
-        if (asset == null || !AssetLogos.typeHasLogo(asset.getAssetType()) || logos.hasLogo(asset.getTicker())) {
+        if (asset == null || !fetchable(asset) || logos.hasLogo(asset.getTicker())) {
             return;
         }
         Thread.ofVirtual().name("logo-" + asset.getTicker()).start(() -> {

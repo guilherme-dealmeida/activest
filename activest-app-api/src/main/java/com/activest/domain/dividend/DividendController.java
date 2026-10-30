@@ -29,7 +29,9 @@ public class DividendController {
     }
 
     @GetMapping("/asset/{ticker}")
-    public ResponseEntity<List<DividendResponseDTO>> dividendsByAsset(@PathVariable String ticker) {
-        return ResponseEntity.ok(dividendService.getDividendsByAsset(SecurityUtils.getCurrentUserId(), ticker));
+    public ResponseEntity<List<DividendResponseDTO>> dividendsByAsset(@PathVariable String ticker,
+            @RequestParam(required = false) String assetType) {
+        return ResponseEntity.ok(dividendService.getDividendsByAsset(SecurityUtils.getCurrentUserId(), ticker,
+            assetType));
     }
 }

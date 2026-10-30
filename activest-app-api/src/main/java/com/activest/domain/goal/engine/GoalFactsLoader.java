@@ -177,9 +177,9 @@ public class GoalFactsLoader {
         });
     }
 
-    /** Cotacao atual de um ticker do catalogo (meta por ativo que ainda nao esta na carteira). */
-    private BigDecimal catalogPrice(String ticker) {
-        return assetRepository.findByTicker(ticker).map(Asset::getCurrentPrice).orElse(null);
+    /** Cotacao atual de um ativo do catalogo, pelo id (meta por ativo que ainda nao esta na carteira). */
+    private BigDecimal catalogPrice(Long assetId) {
+        return assetId == null ? null : assetRepository.findById(assetId).map(Asset::getCurrentPrice).orElse(null);
     }
 
     private static PositionInfo info(PortfolioAsset pa) {

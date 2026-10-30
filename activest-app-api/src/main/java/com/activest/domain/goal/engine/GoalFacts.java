@@ -22,7 +22,7 @@ public record GoalFacts(LocalDate today, Map<UUID, PositionInfo> positions, List
                         List<Flow> flows, List<Income> incomes, Supplier<RebalanceDTO> rebalance,
                         Supplier<PortfolioTimeline> timeline, BenchmarkData benchmarks, IndexReader indices,
                         int pendingImports, Map<String, LocalDate> sourceDates,
-                        java.util.function.Function<String, BigDecimal> catalogPrice) {
+                        java.util.function.Function<Long, BigDecimal> catalogPrice) {
 
     /** Acumulado de um indice entre datas (CDI e IPCA das premissas, correcao da despesa); vazio sem dado. */
     @FunctionalInterface

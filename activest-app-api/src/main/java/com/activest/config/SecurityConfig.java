@@ -37,8 +37,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/**", "/api-docs/**", "/api-docs", "/v3/api-docs/**", "/v3/api-docs", "/swagger-ui/**", "/swagger-ui.html", "/actuator/**").permitAll()
                 // Logo do ativo: a tela carrega por <img src>, que nao manda o
-                // token. E a marca da empresa, dado publico do catalogo.
-                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/assets/*/logo").permitAll()
+                // token. E a marca da empresa, dado publico do catalogo. Pelo ticker e pelo par (tipo, ticker) — V13.
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/assets/*/logo",
+                    "/api/v1/assets/*/*/logo").permitAll()
                 // Logo de emissora de renda fixa por raiz de CNPJ (plano de emissoras, Adendo A): mesmo motivo
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/fixed-income-issuers/logos/*")
                 .permitAll()

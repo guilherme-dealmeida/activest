@@ -2,7 +2,9 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 27/10/2026, mais tarde — secao 40 baixada (testes de front, docs/planos/PLANO_TESTES_FRONT.md; 40.13
+Ultima atualizacao: 29/10/2026 — secao 41: 41.2 a 41.5 (preco do exterior fora, curadoria do catalogo vivo,
+deslistados sem ticker, releitura da SEC). Antes: 28/10/2026 — secao 41 (ativos internacionais, docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md; 41.1
+colunas de um tipo so no `assets`). Antes: 27/10/2026, mais tarde — secao 40 baixada (testes de front, docs/planos/PLANO_TESTES_FRONT.md; 40.13
 novo). Antes, no mesmo dia: secao 40 (testes de front para as telas com calculo, levantamento; origem:
 docs/planos/PLANO_DIVIDENDOS_POR_PERIODO.md, D9). No mesmo dia: secao 39 (fundos de investimento da CVM, docs/planos/PLANO_FUNDOS_INVESTIMENTO.md);
 29.7 resolvido na parte dos fundos. Antes: 26/10/2026 — secao 38 (cadastro de moedas, docs/planos/PLANO_CADASTRO_MOEDAS.md); 37.1 resolvido;
@@ -1500,6 +1502,34 @@ Resultado (27/10/2026): 148 testes em 15 arquivos de `utils/`, rodando tambem no
 **40.13** RESOLVIDO (27/10/2026, D8 = alinhar) — Cotas do fundo no formulario: a previa arredondava meio para cima
  (ponto flutuante) e a API grava com HALF_EVEN (`TransactionService`); diferiam no empate da 9a casa (1 / 512 =
  0,001953125: tela 0,00195313, API 0,00195312). `fundShares` passou a calcular em inteiros exatos (BigInt) com HALF_EVEN.
+
+## 41. ATIVOS INTERNACIONAIS (docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md, 28/10/2026)
+
+**41.1** Colunas de um tipo so no `assets` (levantado no Impact, I6, 28/10/2026): `share_class` (so Acao),
+ `price_source_ref` e `reference_currency_code` (so Cripto), `issuer_id` e `issuer_link_source` (so Acao e FII) e `isin`
+ (so os tipos da B3) moram no `assets`, enquanto Tesouro (`asset_terms`) e fundos (`investment_funds`) ja usam tabela
+ 1:1 propria — e os papeis do exterior vao usar tabela 1:1 (I6). Arrumacao: levar essas colunas para tabelas proprias
+ por tipo. Fora do escopo dos ativos internacionais; registrado a pedido do Guilherme.
+
+**41.2** Preço dos tres tipos do exterior (Stock, REIT, ETF internacional): fora do escopo por decisao do Guilherme
+ (28/10/2026). Seguem `MANUAL`, avaliados pelo custo; o levantamento das fontes de preco esta no Anexo A do plano.
+ Liga com o 29.7.
+
+**41.3** Curadoria da planilha do catalogo vivo (D12): o catalogo foi gravado no DEV em 29/10/2026 com as regras
+ (12.164 papeis); a revisao de `catalogo-revisao.xlsx` pelo Guilherme continua pendente — 16 papeis sem categoria
+ (bancos sem registro na SEC, 2 REITs fora da Nareit), 14 divergencias de REIT, a tabela SIC → setor (87% de acordo com
+ o BDR onde ha os dois), as categorias por palavras dos ETFs ("Outros e estrategia" e o maior grupo, quase todo
+ buffer/defined outcome) e os 98 logos "a conferir" (aba Logos a conferir). A curadoria aplicada depois troca tipo,
+ categoria e ticker dos ja gravados (origem `CURATION`).
+
+**41.4** Deslistados sem ticker (D2): os papeis de capital cujo ticker nenhuma fonte trouxe (XBRL, texto do relatorio,
+ Form 25, series da SEC, Nareit) ficam na aba "Sem ticker" de `deslistados-revisao.xlsx`; a cobertura por ano e tipo
+ esta na aba Cobertura e na secao 11.15 do plano. Lacunas conhecidas: ETFs deslistados antes de 2023 sem o ticker no
+ proprio Form 25 (a SEC so publica as series e classes de 2023 em diante); empresas pequenas sem XBRL antes de 2011.
+ Fechar pela curadoria (ticker e tipo por numero de acesso) ou por uma fonte nova.
+
+**41.5** Deslistados: um 503 ocasional da SEC deixa um Form 25 sem ler na rodada; rodar de novo a
+ `FOREIGN_DELISTED` completa (o que ja foi lido esta em `carga/data/sec`).
 
 ## ORDEM SUGERIDA
 

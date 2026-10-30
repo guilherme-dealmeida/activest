@@ -62,10 +62,39 @@ public class AdminController {
     private final IssuerRepository issuerRepository;
     private final MarketIndexImportService marketIndexImportService;
     private final TaskExecutor executor;
+    private final com.activest.adm.domain.asset.AssetActivationService activation;
 
     @PostMapping("/catalog-audit")
     public ResponseEntity<Map<String, Object>> catalogAudit() {
         return start("conferencia do catalogo", "CATALOG_AUDIT", Map.of());
+    }
+
+    /**
+     * Catálogo vivo dos EUA (docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md, F4): a tarefa {@code FOREIGN_CATALOG}. Sem
+     * {@code write}, só a prévia da planilha de revisão (D12); {@code write=true} grava o catálogo.
+     */
+    @PostMapping("/foreign-catalog")
+    public ResponseEntity<Map<String, Object>> foreignCatalog(@RequestParam(defaultValue = "false") boolean write) {
+        return start("catalogo do exterior", "FOREIGN_CATALOG", Map.of("WRITE", String.valueOf(write)));
+    }
+
+    /**
+     * Deslistados dos EUA (docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md, F5): a tarefa {@code FOREIGN_DELISTED}, de
+     * {@code from} (2010) a {@code to} (o ano corrente); sem {@code write}, só a prévia da planilha.
+     */
+    @PostMapping("/foreign-delisted")
+    public ResponseEntity<Map<String, Object>> foreignDelisted(@RequestParam(required = false) Integer from,
+                                                               @RequestParam(required = false) Integer to,
+                                                               @RequestParam(defaultValue = "false") boolean write) {
+        Map<String, String> values = new java.util.HashMap<>();
+        values.put("WRITE", String.valueOf(write));
+        if (from != null) {
+            values.put("FROM_YEAR", String.valueOf(from));
+        }
+        if (to != null) {
+            values.put("TO_YEAR", String.valueOf(to));
+        }
+        return start("deslistados do exterior", "FOREIGN_DELISTED", values);
     }
 
     @PostMapping("/logos")
@@ -164,6 +193,34 @@ public class AdminController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
         }
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Curadoria da inativacao (docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md, C7): {@code {"active": true}} desfaz a
+     * inativacao da conferencia; {@code {"active": false, "delistedOn": "2024-05-10"}} inativa com a data de saida.
+     * Grava MANUAL — a conferencia nunca refaz. 409 quando reativar repetiria o ticker de um papel listado do mesmo tipo.
+     */
+    @PutMapping("/assets/{assetId}/activation")
+    public ResponseEntity<Map<String, Object>> activation(@PathVariable Long assetId,
+            @RequestBody com.activest.adm.domain.asset.AssetActivationService.Activation body) {
+        requireAdmin();
+        try {
+            var a = activation.apply(assetId, body);
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("id", a.getId());
+            out.put("ticker", a.getTicker());
+            out.put("active", a.isActive());
+            out.put("delistedOn", a.getDelistedOn());
+            out.put("delistingSource", a.getDelistingSource());
+            return ResponseEntity.ok(out);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+        } catch (IllegalStateException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                "Já existe um papel listado com este ticker no mesmo tipo: reativar repetiria o ticker.");
+        }
     }
 
     /** Composicao manual de uma unit, ex.: {@code {"ON": 1, "PNA": 2}}. Marca a ligacao como MANUAL. */

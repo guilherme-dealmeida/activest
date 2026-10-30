@@ -34,7 +34,7 @@ class PaymentDateSurveyIT extends IntegrationTestBase {
     @Value("${activest.data.dir}") String dataDir;
 
     private void event(String ticker, String com, String value, String payment) {
-        writer.save(assets.findByTicker(ticker).orElseThrow(), new CashEventWriter.CashEventData(DividendType.JCP,
+        writer.save(assets.findAllByTicker(ticker).get(0), new CashEventWriter.CashEventData(DividendType.JCP,
                 "JRS CAP PROPRIO", LocalDate.parse(com), payment == null ? null : LocalDate.parse(payment),
                 new BigDecimal(value), null, null, null, null, CashEventSource.B3_HISTORICO, null, (short) 1));
     }

@@ -18,12 +18,15 @@ import static com.activest.domain.goal.type.ScopeKind.*;
 
 /**
  * O catalogo de tipos de meta (docs/planos/PLANO_METAS.md, Anexo A 4 e 5): o que cada tipo pede ao usuario e a
- * validacao do cadastro. Regra pura — o ticker e conferido no catalogo de ativos pelo servico.
+ * validacao do cadastro. Regra pura — o ativo e conferido no catalogo de ativos pelo servico.
  *
  * <p><b>G1</b>: nenhum tipo declara campo de valor atual, progresso, falta, data estimada, renda atual, alocacao ou
  * concentracao; campo que o tipo nao declara e recusado com 400 (cenario 17).</p>
  */
 public final class GoalTypeCatalog {
+
+    /** Rotulos do ativo que o servidor grava ao lado do id ({@link FieldKind#CATALOG_ASSET}): aceitos e ignorados na entrada. */
+    static final Set<String> ASSET_LABELS = Set.of("ticker", "assetType");
 
     /** Nomes que sao sempre calculados: aparecem na mensagem de recusa (cenario 17). */
     public static final Set<String> CALCULATED = Set.of("currentValue", "currentAmount", "progress", "progressPct",
@@ -184,7 +187,7 @@ public final class GoalTypeCatalog {
                 List.of("Quais ativos têm pendência, desde quando e quanto pesam na carteira"),
                 List.of("Posições", "Cotações", "Proventos", "Integrações"), List.of(), false);
         add(GoalType.ATV_1, "Chegar a uma quantidade de cotas de um ativo.",
-                List.of(field("ticker", "Ativo", TICKER, true, null, null, null, null, null, null),
+                List.of(field("assetId", "Ativo", CATALOG_ASSET, true, null, null, null, null, null, null),
                         field(TARGET_VALUE, "Quantidade-alvo", NUMBER, true, null, null, null, 0.00000001, null, null),
                         date(TARGET_DATE, "Prazo", false)),
                 List.of(), ReservationRule.NONE,
@@ -192,7 +195,7 @@ public final class GoalTypeCatalog {
                         "Quando chega lá no seu ritmo de compra"),
                 List.of("Transações", "Eventos do ativo", "Cotação"), List.of("Não vale para renda fixa (CDB, LCI...), que não tem cotas"), true);
         add(GoalType.ATV_2, "Chegar a um valor investido num ativo.",
-                List.of(field("ticker", "Ativo", TICKER, true, null, null, null, null, null, null),
+                List.of(field("assetId", "Ativo", CATALOG_ASSET, true, null, null, null, null, null, null),
                         money(TARGET_VALUE, "Valor-alvo", true),
                         choice("basis", "Base", true, "MARKET", VALUE_BASIS),
                         date(TARGET_DATE, "Prazo", false)),
@@ -200,7 +203,7 @@ public final class GoalTypeCatalog {
                 List.of("Quanto você tem nele", "Quanto falta", "Quando deve chegar lá"),
                 List.of("Posições e valorização"), List.of(), true);
         add(GoalType.ATV_3, "Fazer os proventos de um ativo comprarem novas cotas dele todo mês (o \"número mágico\").",
-                List.of(field("ticker", "Ativo", TICKER, true, null, null, null, null, null, null),
+                List.of(field("assetId", "Ativo", CATALOG_ASSET, true, null, null, null, null, null, null),
                         field(TARGET_VALUE, "Cotas por mês", NUMBER, false, 1, null, null, 0.00000001, null, null)),
                 List.of(), ReservationRule.NONE,
                 List.of("O provento médio por cota", "Quantas cotas os proventos compram hoje", "Quantas cotas você precisa ter"),
@@ -250,6 +253,9 @@ public final class GoalTypeCatalog {
             if (CALCULATED.contains(k)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "O campo \"" + k + "\" é calculado pelo Activest e não pode ser informado");
+            }
+            if (ASSET_LABELS.contains(k) && spec.fields().stream().anyMatch(x -> x.kind() == CATALOG_ASSET)) {
+                continue;
             }
             FieldSpec f = spec.field(k);
             if (f == null || f.isColumn()) {
@@ -331,10 +337,6 @@ public final class GoalTypeCatalog {
         if (type == GoalType.APO_2 && p.get("endDate") != null && p.get("startDate") != null
                 && LocalDate.parse((String) p.get("endDate")).isBefore(LocalDate.parse((String) p.get("startDate")))) {
             throw new BusinessException("O fim não pode ser antes do início.");
-        }
-        Object ticker = p.get("ticker");
-        if (ticker instanceof String s) {
-            p.put("ticker", s.trim().toUpperCase());
         }
     }
 
@@ -447,7 +449,14 @@ public final class GoalTypeCatalog {
                     }
                     return list;
                 }
-                case TICKER, TEXT -> {
+                case CATALOG_ASSET -> {
+                    long id = new BigDecimal(v.toString()).longValueExact();
+                    if (id <= 0) {
+                        throw new BusinessException(f.label() + ": selecione um ativo existente na busca.");
+                    }
+                    return id;
+                }
+                case TEXT -> {
                     String s = v.toString().trim();
                     if (s.length() > 120) {
                         throw new BusinessException(f.label() + ": texto longo demais.");

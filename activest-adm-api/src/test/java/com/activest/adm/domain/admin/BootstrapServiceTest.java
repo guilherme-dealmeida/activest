@@ -65,6 +65,23 @@ class BootstrapServiceTest {
     }
 
     @Test
+    @DisplayName("Exterior por último (PLANO_ATIVOS_INTERNACIONAIS, F7): o catálogo vivo e os deslistados, gravando")
+    void foreign() {
+        when(dividends.syncAll(anyString())).thenReturn(new DividendCatalogService.SyncResult(654, 0, 0, 0));
+        service.foreignCatalog = mock(com.activest.adm.domain.foreign.ForeignCatalogService.class);
+        service.foreignDelisted = mock(com.activest.adm.domain.foreign.ForeignDelistedService.class);
+
+        BootstrapService.Result r = service.run("teste");
+
+        InOrder o = inOrder(treasury, service.foreignCatalog, service.foreignDelisted);
+        o.verify(treasury).importFrom(eq(2010), anyString());
+        o.verify(service.foreignCatalog).run(eq(true), anyString(), org.mockito.ArgumentMatchers.any());
+        o.verify(service.foreignDelisted).run(org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.isNull(), eq(true), anyString(), org.mockito.ArgumentMatchers.any());
+        assertThat(r.steps()).hasSize(12);
+    }
+
+    @Test
     @DisplayName("Etapa que falha fica registrada e as seguintes rodam; o resultado sai com falha")
     void failureDoesNotStop() {
         when(quotes.importYears(eq(2010), eq(2026), anyString())).thenThrow(new IllegalStateException("B3 fora"));

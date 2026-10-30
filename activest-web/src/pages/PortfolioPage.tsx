@@ -216,7 +216,7 @@ const COLUMNS: Column[] = [
           ? <AssetLogo ticker={a.ticker} hasLogo src={a.noteInfo.issuerLogoUrl} label="RF" size={38} shape="square" />
           : logoOfType
           ? <AssetLogo ticker={a.ticker} hasLogo={!!logoOfType.src} src={logoOfType.src} label={logoOfType.label} size={38} shape="square" />
-          : a.hasLogo !== null && a.hasLogo !== undefined && <AssetLogo ticker={a.ticker} hasLogo={a.hasLogo} size={38} shape="square" />}
+          : a.hasLogo !== null && a.hasLogo !== undefined && <AssetLogo ticker={a.ticker} hasLogo={a.hasLogo} assetType={type.name} size={38} shape="square" />}
         <TickerLink ticker={a.ticker} issuerId={a.issuerId} />
       </div>
       );

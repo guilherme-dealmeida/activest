@@ -1,7 +1,7 @@
 package com.activest.domain.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.activest.domain.asset.AssetRepository;
+import com.activest.domain.asset.AssetResolver;
 import com.activest.domain.integration.dto.ConfirmImportDTO;
 import com.activest.domain.integration.dto.ExclusionDTO;
 import com.activest.domain.integration.pipeline.ImportRules;
@@ -73,7 +73,7 @@ public class IntegrationService {
     private final IntegrationCryptoExclusionRepository exclusions;
     private final TransactionRepository transactions;
     private final TransactionService transactionService;
-    private final AssetRepository assets;
+    private final AssetResolver assets;
     private final MovementJson movementJson;
     private final ObjectMapper objectMapper;
     private final UserRepository users;
@@ -108,7 +108,7 @@ public class IntegrationService {
                               IntegrationCryptoExclusionRepository exclusions,
                               TransactionRepository transactions,
                               TransactionService transactionService,
-                              AssetRepository assets,
+                              AssetResolver assets,
                               MovementJson movementJson,
                               ObjectMapper objectMapper,
                               UserRepository users,
@@ -563,7 +563,8 @@ public class IntegrationService {
                 continue;
             }
             ImportedMovement m = movementJson.read(item.getRaw());
-            ImportRules.Result r = connector(connection.getProvider()).rules().apply(m, assets::findByTicker);
+            ImportRules rules = connector(connection.getProvider()).rules();
+            ImportRules.Result r = rules.apply(m, catalog(rules));
             if (!r.mapped()) {
                 throw new BusinessException(lineContext(m, null) + r.reason());
             }
@@ -666,7 +667,8 @@ public class IntegrationService {
                 .filter(x -> x.getConnection().getId().equals(connectionId))
                 .orElseThrow(() -> new ResourceNotFoundException("Exclusão não encontrada"));
             ImportedMovement m = movementJson.read(e.getSourceSnapshot());
-            ImportRules.Result r = connector(connection.getProvider()).rules().apply(m, assets::findByTicker);
+            ImportRules rules = connector(connection.getProvider()).rules();
+            ImportRules.Result r = rules.apply(m, catalog(rules));
             if (!r.mapped()) {
                 throw new BusinessException(lineContext(m, null) + r.reason());
             }
@@ -837,6 +839,11 @@ public class IntegrationService {
         return out;
     }
 
+    /** O catalogo das regras: o ticker so nos tipos que a fonte traz (V13 — META e cripto e acao do exterior). */
+    private java.util.function.Function<String, java.util.Optional<com.activest.domain.asset.Asset>> catalog(ImportRules rules) {
+        return t -> assets.findInTypes(t, rules.assetTypes());
+    }
+
     private Map<String, BigDecimal> readBalances(String json) {
         try {
             return objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<Map<String, BigDecimal>>() { });
@@ -854,7 +861,7 @@ public class IntegrationService {
         ImportPreviewDTO.Proposed proposed = null;
         if (sourceRules != null
                 && (i.getOutcome() == RunItemOutcome.NEW || i.getOutcome() == RunItemOutcome.POSSIBLE_DUPLICATE)) {
-            ImportRules.Result r = sourceRules.apply(m, assets::findByTicker);
+            ImportRules.Result r = sourceRules.apply(m, catalog(sourceRules));
             if (r.mapped()) {
                 ProposedTransaction t = r.transaction();
                 proposed = new ImportPreviewDTO.Proposed(t.ticker(), t.type(), t.shares(), t.pricePerShare(),

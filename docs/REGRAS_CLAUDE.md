@@ -5,7 +5,8 @@
 > esperas longas; a antiga 5.7 deixou de ser necessária), em 12/10/2026 (2.6: preço atual × fechamento) e em
 > 22/10/2026 (seção 9, nomes em inglês) e em 23/10/2026 (seções 1 e 2: os dois tipos de trabalho, POR ESCOPO com as
 > 7 etapas e POR DÚVIDAS; 3.2 e seção 4 ajustadas às etapas) e em 24/10/2026 (3.4, branches protegidas; 2.5, decisão pela recomendação só com aprovação explícita) e em 27/10/2026
-> (4.3, testar nos dois temas sem pedir permissão).
+> (4.3, testar nos dois temas sem pedir permissão) e, no mesmo dia, 5.6 removida pelo Guilherme (não
+> tinha sido criada por ele).
 >
 > **Escopo:** só a **relação de trabalho**: como pedimos, executamos, validamos e documentamos. Regras de negócio do
 > sistema não entram aqui; elas ficam no `Claude.md` e nos planos.
@@ -164,7 +165,6 @@ específica), o Claude prepara e depois confere; não roda por conta própria.
 **5.5** A senha de administrador do Activest fica em `ACTIVEST_PASSWORD` no `.env` da raiz: as rotinas de
 administrador são disparadas por script (`carga/scripts/admin.mjs`) sem pedir a senha a cada vez.
 
-**5.6** Bloqueio de rede da política da organização (403/000 do proxy) é negação de política: não se contorna.
 
 
 ## 6. Arquivos, pastas e dados

@@ -391,7 +391,7 @@ public class FundCatalogService {
             // ativos novos
             jdbc.batchUpdate("""
                     INSERT INTO assets (ticker, name, asset_type_id, asset_category_id, active, currency_code)
-                    VALUES (?, ?, ?, ?, false, 'BRL') ON CONFLICT (ticker) DO NOTHING""",
+                    VALUES (?, ?, ?, ?, false, 'BRL') ON CONFLICT ON CONSTRAINT uk_assets_ticker_type DO NOTHING""",
                     fresh, 1000, (ps, r) -> {
                         ps.setString(1, r.key());
                         ps.setString(2, truncate(r.legalName(), 255));

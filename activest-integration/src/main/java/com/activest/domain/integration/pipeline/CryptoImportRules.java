@@ -53,6 +53,11 @@ public final class CryptoImportRules implements ImportRules {
     }
 
     @Override
+    public Set<String> assetTypes() {
+        return Set.of(com.activest.domain.asset.AssetTypeNames.CRIPTO);
+    }
+
+    @Override
     public boolean tracksPosition(Asset asset) {
         return asset.getAssetType() != null && asset.getAssetType().isCrypto();
     }

@@ -9,7 +9,7 @@ export type GoalUnit = 'BRL' | 'PERCENT' | 'PP' | 'SHARES' | 'COUNT' | 'RATIO';
 export type GoalQuality = 'COMPLETA' | 'PARCIAL' | 'INDISPONIVEL';
 export type GoalNumberNature = 'OBSERVADO' | 'CALCULADO' | 'ESTIMATIVA';
 export type GoalFieldKind =
-  | 'MONEY' | 'PERCENT' | 'NUMBER' | 'INTEGER' | 'DATE' | 'BOOLEAN' | 'CHOICE' | 'MULTI_CHOICE' | 'TICKER' | 'TEXT';
+  | 'MONEY' | 'PERCENT' | 'NUMBER' | 'INTEGER' | 'DATE' | 'BOOLEAN' | 'CHOICE' | 'MULTI_CHOICE' | 'CATALOG_ASSET' | 'TEXT';
 
 export interface Option {
   value: string;
