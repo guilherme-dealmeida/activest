@@ -8,7 +8,7 @@ export const transactionsApi = {
   getById: async (id: string) => { const { data } = await apiClient.get<TransactionResponse>(`/transactions/${id}`); return data; },
   delete: async (id: string) => { await apiClient.delete(`/transactions/${id}`); },
   /** Títulos de renda fixa do usuário no ativo — todos, inclusive liquidados (seletor da Nova Transação). */
-  notes: async (ticker: string) => { const { data } = await apiClient.get<NoteOption[]>('/transactions/notes', { params: { ticker } }); return data; },
+  notes: async (ticker: string, assetType?: string | null) => { const { data } = await apiClient.get<NoteOption[]>('/transactions/notes', { params: { ticker, assetType: assetType ?? undefined } }); return data; },
   /** Regra E4: volta a transação importada aos valores da corretora. */
   restore: async (id: string) => { const { data } = await apiClient.post<TransactionResponse>(`/transactions/${id}/restore`); return data; },
   /**

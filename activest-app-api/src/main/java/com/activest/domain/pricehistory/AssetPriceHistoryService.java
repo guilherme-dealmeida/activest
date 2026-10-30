@@ -46,8 +46,21 @@ public class AssetPriceHistoryService {
      * {@code from}/{@code to}; sem nenhum dos dois, 1A.
      */
     public PriceHistoryDTO history(String ticker, String range, LocalDate from, LocalDate to) {
+        return history(ticker, null, range, from, to);
+    }
+
+    /**
+     * Serie do par (ticker, tipo) — desde a V13 o ticker e unico so por tipo. Sem o tipo, vale o papel da B3 (a tela de
+     * emissoras) e, no mesmo tipo, o listado.
+     */
+    public PriceHistoryDTO history(String ticker, String typeName, String range, LocalDate from, LocalDate to) {
         String t = ticker == null ? "" : ticker.trim().toUpperCase();
-        List<Long> ids = jdbc.queryForList("SELECT id FROM assets WHERE upper(ticker) = ?", Long.class, t);
+        String type = typeName == null || typeName.isBlank() ? null : typeName.trim().toUpperCase();
+        List<Long> ids = jdbc.queryForList("""
+                SELECT a.id FROM assets a JOIN asset_types ty ON ty.id = a.asset_type_id
+                 WHERE upper(a.ticker) = ? AND (CAST(? AS text) IS NULL OR ty.name = CAST(? AS text))
+                 ORDER BY (ty.name IN ('ACAO', 'FII', 'ETF', 'BDR')) DESC, a.delisted_on DESC NULLS FIRST""",
+                Long.class, t, type, type);
         if (ids.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Ativo nao encontrado: " + t);
         }
@@ -55,7 +68,10 @@ public class AssetPriceHistoryService {
         long assetId = ids.get(0);
         String base = baseTicker(t);
         if (!base.equals(t)) {
-            List<Long> baseIds = jdbc.queryForList("SELECT id FROM assets WHERE upper(ticker) = ?", Long.class, base);
+            List<Long> baseIds = jdbc.queryForList("""
+                    SELECT a.id FROM assets a JOIN asset_types ty ON ty.id = a.asset_type_id
+                     WHERE upper(a.ticker) = ? AND ty.name IN ('ACAO', 'FII', 'ETF', 'BDR')
+                     ORDER BY a.delisted_on DESC NULLS FIRST""", Long.class, base);
             if (!baseIds.isEmpty()) {
                 assetId = baseIds.get(0);
                 priceTicker = base;

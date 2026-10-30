@@ -15,7 +15,10 @@ public enum FieldKind {
     CHOICE,
     /** Varias opcoes da lista {@code options}. */
     MULTI_CHOICE,
-    /** Ticker do catalogo. */
-    TICKER,
+    /**
+     * Ativo do catalogo, pelo id: desde a V13 o ticker e unico so por tipo (META e cripto e acao). O servidor grava
+     * junto o ticker e o tipo, como rotulo ({@code ticker}, {@code assetType}).
+     */
+    CATALOG_ASSET,
     TEXT
 }

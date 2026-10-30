@@ -27,9 +27,10 @@ import java.util.stream.Collectors;
 /**
  * Conferencia do catalogo contra a lista oficial da BRAPI (docs/planos/PLANO_BRAPI.md, B23).
  *
- * <p><b>Nao grava nada no catalogo.</b> Cada diferenca vira uma linha de log
- * (WARN) e uma mensagem de administrador (docs/planos/PLANO_NOTIFICACOES.md, 5.7); a rodada seguinte que nao acha
- * mais a diferenca resolve a mensagem. Tres conferencias:</p>
+ * <p>Cada diferenca vira uma linha de log (WARN) e uma mensagem de administrador (docs/planos/PLANO_NOTIFICACOES.md,
+ * 5.7); a rodada seguinte que nao acha mais a diferenca resolve a mensagem. Desde a F2 do
+ * docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md (I5, C7) a conferencia tambem <b>inativa</b> o papel com prova formal —
+ * {@link CatalogDelisting}; o resto continua so em mensagem. Tres conferencias:</p>
  * <ul>
  *   <li><b>ticker novo na B3</b> — esta na lista da BRAPI e nao no catalogo;</li>
  *   <li><b>ticker sumido</b> — ativo do catalogo que nao esta na lista E cuja
@@ -60,18 +61,22 @@ public class CatalogAuditService {
     private final BrApiClient brApiClient;
     private final Set<String> ignored;
     private final AdminNotices notices;
+    private final CatalogDelisting delisting;
 
     public CatalogAuditService(AssetRepository assetRepository, OpenPositions openPositions, BrApiClient brApiClient,
                                @Value("${activest.catalog-audit.ignored:}") List<String> ignored,
-                               AdminNotices notices) {
+                               AdminNotices notices, CatalogDelisting delisting) {
         this.assetRepository = assetRepository;
+        this.delisting = delisting;
         this.openPositions = openPositions;
         this.brApiClient = brApiClient;
         this.notices = notices;
         this.ignored = ignored.stream().map(String::trim).map(String::toUpperCase).collect(Collectors.toSet());
     }
 
-    public record AuditResult(int newTickers, int missingTickers, int renamed, boolean failed) {
+    /** {@code inactivated}: papéis inativados com prova (C7); {@code datesFilled}: inativos que ganharam a data de saída. */
+    public record AuditResult(int newTickers, int missingTickers, int renamed, int inactivated, int datesFilled,
+                              boolean failed) {
     }
 
     public synchronized AuditResult run(String reason) {
@@ -87,11 +92,17 @@ public class CatalogAuditService {
         } catch (BrApiException e) {
             log.error("Conferencia do catalogo ({}) falhou ao buscar a lista da BRAPI: {}", reason, e.getMessage());
             notices.sourceUnavailable("Conferência do catálogo", "BRAPI", e.getMessage());
-            return new AuditResult(0, 0, 0, true);
+            // Sem a lista oficial, so a prova da CVM e as datas de saida (a regra do sumico precisa da lista)
+            CatalogDelisting.Result d = delisting.run(assetRepository.findActiveWithType(), Map.of(), null, ignored,
+                    Set.of());
+            return new AuditResult(0, 0, 0, d.byCvm(), d.datesFilled(), true);
         }
 
         List<Asset> catalog = assetRepository.findActiveWithType();
-        Set<String> allTickers = assetRepository.findAll().stream().map(a -> a.getTicker().toUpperCase())
+        // Só os tipos da B3: o mesmo ticker pode existir no exterior ou em cripto (V13)
+        Set<String> allTickers = assetRepository.findAllWithType().stream()
+                .filter(a -> com.activest.domain.asset.AssetTypeNames.B3_LISTED.contains(a.getAssetType().getName()))
+                .map(a -> a.getTicker().toUpperCase())
                 .collect(Collectors.toSet());
         Set<Long> held = new HashSet<>();
         openPositions.assetsWithShares(PriceSource.BRAPI).forEach(a -> held.add(a.getId()));
@@ -165,11 +176,18 @@ public class CatalogAuditService {
 
         // 3. Renomeados
         int renamed = 0;
+        Set<String> renamedOld = null;
         try {
             Map<String, Asset> active = new HashMap<>();
-            catalog.forEach(a -> active.put(a.getTicker().toUpperCase(), a));
+            catalog.stream()
+                    .filter(a -> com.activest.domain.asset.AssetTypeNames.B3_LISTED.contains(a.getAssetType().getName()))
+                    .forEach(a -> active.put(a.getTicker().toUpperCase(), a));
             Set<String> renames = new HashSet<>();
+            Set<String> olds = new HashSet<>();
             for (BrApiRename r : brApiClient.fetchRenames()) {
+                if (r.oldSymbol() != null) {
+                    olds.add(r.oldSymbol().toUpperCase());
+                }
                 if (r.oldSymbol() != null && active.containsKey(r.oldSymbol().toUpperCase())) {
                     renamed++;
                     log.warn("Catalogo: ticker renomeado — {} agora e {}{} (o ticker do catalogo nao e trocado sozinho)",
@@ -183,14 +201,22 @@ public class CatalogAuditService {
                                     + "sozinho: decida a troca manualmente.");
                 }
             }
+            // Os renomes do exterior (FOREIGN_CATALOG, chave EUA:) não são desta conferência
+            renames.addAll(notices.openKeys(NotificationKind.CATALOGO_TICKER_RENOMEADO,
+                    com.activest.adm.domain.foreign.ForeignCatalogService.RENAME_KEY_PREFIX));
             notices.resolveAllExcept(NotificationKind.CATALOGO_TICKER_RENOMEADO, renames);
+            renamedOld = olds;
         } catch (BrApiException e) {
             log.warn("Conferencia do catalogo: renomes indisponiveis: {}", e.getMessage());
         }
 
-        log.info("Conferencia do catalogo ({}) concluida: {} novos, {} sumidos, {} renomeados, RateLimit-Remaining={}",
-                reason, news, missing, renamed, brApiClient.lastRateLimitRemaining());
-        return new AuditResult(news, missing, renamed, false);
+        // 4. Inativacao com prova (C7) e data de saida dos inativos sem data (I5)
+        CatalogDelisting.Result d = delisting.run(catalog, official, renamedOld, ignored, held);
+
+        log.info("Conferencia do catalogo ({}) concluida: {} novos, {} sumidos, {} renomeados, {} inativados, "
+                + "RateLimit-Remaining={}", reason, news, missing, renamed, d.byCvm() + d.byListGone(),
+                brApiClient.lastRateLimitRemaining());
+        return new AuditResult(news, missing, renamed, d.byCvm() + d.byListGone(), d.datesFilled(), false);
     }
 
     /** Chave do renome (a mesma do fechamento [A1], para as duas rotinas não repetirem a mensagem). */

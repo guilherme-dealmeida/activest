@@ -76,6 +76,13 @@ activest/
   nas telas (o ticker é o CNPJ); busca por nome ou CNPJ, inclusive previdência; lançamento por valor e cota (a cota da
   data vem da CVM, as cotas são calculadas); a série desde 2010 entra sozinha depois da primeira compra; IR, IOF e
   come-cotas como a lei (previdência vale bruto) e o líquido estimado na Carteira
+- ✅ Ativos internacionais (29/10/2026, `docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md`): Stocks, REITs e ETFs
+  internacionais listados nos EUA (~12 mil papéis vivos) no catálogo, com bolsa e categoria (setor da ação como nos BDRs,
+  grupo do REIT pela Nareit, tema do ETF), atualizados toda segunda pela tarefa `FOREIGN_CATALOG` (lista do Nasdaq
+  Trader, tipo pelo OpenFIGI, renomeação pelo FIGI, saída com prova); deslistados desde 2010 pelos Form 25 da SEC
+  (tarefa `FOREIGN_DELISTED`), lançáveis até a data de saída; curadoria por planilha. O ticker passa a ser único por
+  tipo (`META` ação e `META` cripto convivem) e a conferência da B3 inativa com prova (CVM ou fora da lista + 30
+  pregões). Preço desses três tipos fica fora (posição pelo custo)
 - ✅ Índices de mercado desde 2010 — CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, dólar PTAX, Ibovespa e IFIX —,
   atualizados todo dia às 10:00 (Banco Central e B3), com consulta da série e do acumulado no período
   (tela **Índices**: um card por índice com período e gráfico; `/api/v1/indices`). Base da futura valorização da
@@ -217,7 +224,9 @@ trimestral, informe mensal de FII, o preço oficial do Tesouro Direto desde 2010
 TR, meta Selic, dólar PTAX, Ibovespa e IFIX — `docs/planos/PLANO_INDICES_MERCADO.md`; ~2 min sem os
 arquivos de `bcb/` e `b3/indices/`, segundos com eles) e, por último, os fundos de investimento da CVM (cadastro e a
 última cota de cada fundo, varrendo o informe diário desde 2010 em `cvm/fi`, ~7 min; sem série — ela entra quando o
-fundo vai para uma carteira).
+fundo vai para uma carteira), o catálogo vivo dos EUA (`FOREIGN_CATALOG` gravando: lista do Nasdaq Trader, OpenFIGI e
+as fichas da SEC — ~35 min na primeira vez sem `sec/profiles/`) e os deslistados dos EUA desde 2010 (`FOREIGN_DELISTED`
+gravando — horas sem `sec/form25/` e `sec/delisted/`, minutos com eles).
 Com `carga/data/` cheia leva **~1 h**. É retomável: se uma etapa falhar (a B3 às vezes cai), rode de
 novo — o que já entrou é pulado. Conferência: `carga/scripts/sql/contagens.sql` e
 `carga/scripts/sql/datas_pagamento.sql` (ver `carga/scripts/README.md`).

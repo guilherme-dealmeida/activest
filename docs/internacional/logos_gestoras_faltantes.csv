@@ -1,0 +1,152 @@
+gestora,qtd_etfs,qtd_logo_errado,qtd_sem_logo,tickers
+PGIM,46,13,33,APRP AUGP BUFP FEBP JANP JULP JUNP MAYP MRCP NOVP OCTP PBAP PBAU PBDE PBFB PBFR PBJA PBJL PBJN PBMR PBMY PBNV PBOC PBQQ PBSE PMAP PMAU PMDE PMFB PMJA PMJL PMJN PMMR PMMY PMNV PMOC PMSE PQAP PQJA PQJL PQOC PQV PQX PQXV PQXX SEPP
+BNY Mellon,12,10,2,BCPL BEMD BGFI BKFI BKLG BKMI BKMS BMOP BMSI DHF DMB LEO
+LifeX,12,0,12,BCKT LDDR LFAI LFAO LFAW LFBE LFDR LIAE LIAM LIAU LIBD LIFT
+New York Life (IndexIQ),12,11,1,HFXI IQSI IQSM IQSU LRND MEGI MMHI MMSD MNA QAI REIX WRND
+Hartford,12,7,5,ACIG ACIN ACIV ACSM HDUS HINC HQGO ROAM RODM ROSC ROUS VMAX
+John Hancock,9,8,1,BTO HEQ HPF HPI HPS HTD JHI JHS PDT
+Allspring,7,3,4,AHIC AHYM ASTM EAD EOD ERC ERH
+Russell Investments,7,1,6,BD REMG RGLO RIFR RINK RINT RUSC
+(sem gestora no nome — ETFs 2x),7,2,5,AVAZ CHNU CRDX SOLT STLU SUIL UVIX
+Neuberger Berman,6,5,1,NBH NBIE NBXG NHS NML NRO
+Frontier,6,0,6,FARX FCBD FGSM FINT FLCE FOPC
+(sem gestora no nome),6,0,6,PBCS PBEU PBOG PBPH PBUB PBWN
+Cohen & Steers,5,5,0,CSIO CSNR CSPF CSRE CSSD
+UBS,3,3,0,CIK DHY UCIB
+F/m Investments,3,3,0,CPAG CPHY SGVA
+Tortoise,3,2,1,TCAI TNGY TPZ
+Timothy Plan,3,3,0,TPFC TPFG TPFI
+XFUNDS,3,1,2,VGTX VOOY XCSH
+Yorkville,3,0,3,MNGB MNGZ NRAM
+anfield,2,2,0,AESR AFIF
+AllianceBernstein,2,2,0,AFB AWF
+Infrastructure Capital (InfraCap),2,2,0,AMZA PFFR
+breakwave,2,2,0,BDRY BWET
+USCF,2,2,0,BNO CPER
+founder-led,2,2,0,FDRS FDRX
+First Eagle,2,2,0,FEMD USFE
+fitz-gerald,2,2,0,FITZ FIZY
+genter,2,2,0,GEND GENW
+mfs,2,2,0,MFSD MFSX
+astoria,2,1,1,IQGR PPI
+ab,2,1,1,RADD SDFI
+sei,2,1,1,ANGU SEUS
+thornburg investment,2,2,0,TAOZ TFGZ
+tortoise,2,2,0,TMLP TNUK
+stf,2,1,1,SEPQ TUG
+vix,2,2,0,VIXM VIXY
+bbh,2,0,2,BBHL BBHM
+bitwise,2,0,2,BPRO NRR
+crossmark,2,0,2,CLCG CLCV
+webs,2,0,2,DVQQ DVSP
+fpa,2,0,2,FPAA FPAS
+nxg,2,0,2,NXG SRV
+parnassus,2,0,2,PRCS PRVS
+victoryshares,2,0,2,VMHY VMSD
+william,2,0,2,WBEM WBIE
+saba,1,1,0,BRW
+stkd,1,1,0,BTGD
+rayliant-chinaamc,1,1,0,CNQQ
+google,1,1,0,DEPW
+dtf,1,1,0,DTF
+uva,1,1,0,FFIU
+angel,1,1,0,FINS
+procure,1,1,0,FIXT
+fm,1,1,0,FMCX
+federated,1,1,0,FMN
+new,1,1,0,GF
+glaciershares,1,1,0,GLCR
+us,1,1,0,GOAU
+arrow,1,1,0,GYLD
+hotchkis & wiley  /de/,1,1,0,HWSM
+dan,1,1,0,IVEP
+langar,1,1,0,LGHT
+xai,1,1,0,MCN
+mindful,1,1,0,MFUL
+ned,1,1,0,NDAA
+national,1,1,0,NSI
+pureplay,1,1,0,NVPS
+openai,1,1,0,OAIW
+osprey,1,1,0,OBTC
+optimized,1,1,0,OEI
+etf,1,1,0,OPER
+rivernorth/doubleline,1,1,0,OPP
+opus,1,1,0,OSCV
+high,1,1,0,PCF
+aura,1,1,0,PHOX
+intelligent,1,1,0,REAI
+rh,1,1,0,RHTX
+relative,1,1,0,RSMV
+aristotle,1,1,0,SDUR
+solana,1,1,0,SOLZ
+source,1,1,0,SOR
+srh,1,1,0,STEW
+strive,1,1,0,STXF
+tdaq,1,1,0,TDAX
+taiwan,1,1,0,TWN
+upar,1,1,0,UPAR
+inverse,1,1,0,VYLD
+spacexai,1,1,0,XAIW
+entrepreneurshares,1,1,0,XOVR
+marketdesk,1,1,0,XUSM
+yields,1,1,0,YFYA
+y'all,1,1,0,YSAG
+china,1,0,1,AICH
+acuitas,1,0,1,AIMS
+anthropic,1,0,1,ANTW
+aria,1,0,1,ARIA
+advent,1,0,1,AVK
+capforce,1,0,1,BOUT
+beacon,1,0,1,BTA
+cg,1,0,1,CGFS
+chainlink,1,0,1,CHNL
+cardano,1,0,1,CRDD
+cultivar,1,0,1,CVAR
+digital,1,0,1,DADS
+imgp,1,0,1,DBAR
+litman gregory,1,0,1,DBMF
+t-strive,1,0,1,DCAP
+emerging,1,0,1,EMAG
+ninepoint,1,0,1,ENRG
+one,1,0,1,FFND
+fortuna,1,0,1,HBTC
+ai,1,0,1,HIAI
+raub,1,0,1,HQDG
+800vdc,1,0,1,HUMM
+symmetry,1,0,1,ICMO
+alki,1,0,1,IINC
+ives,1,0,1,IVAI
+janus,1,0,1,JINT
+jensen,1,0,1,JQTY
+kick,1,0,1,KCHP
+kensington,1,0,1,KPO
+logan,1,0,1,LCIV
+logiq,1,0,1,LCO
+lone,1,0,1,LPSV
+longnook,1,0,1,LUNC
+allianzim,1,0,1,MARU
+meta,1,0,1,MTAW
+maytech,1,0,1,MTGG
+anydrus,1,0,1,NDOW
+nelson,1,0,1,NELS
+npf,1,0,1,NPFE
+arrow investments,1,0,1,ORO
+inside,1,0,1,OWN
+pcm,1,0,1,PCM
+porter,1,0,1,PCPP
+primecap,1,0,1,POMG
+q3,1,0,1,QTAC
+exchange place advisors,1,0,1,QTPI
+schroders,1,0,1,SALI
+swan,1,0,1,SCLZ
+sequoia,1,0,1,SEQ
+synera,1,0,1,SMTJ
+performance,1,0,1,STBF
+stellar,1,0,1,STLR
+swp,1,0,1,SWP
+american,1,0,1,TLIE
+twin,1,0,1,TSPX
+tspy,1,0,1,TSYX
+international,1,0,1,VEGX
+wealthtrust,1,0,1,WLTG
+opportunistic,1,0,1,WZRD

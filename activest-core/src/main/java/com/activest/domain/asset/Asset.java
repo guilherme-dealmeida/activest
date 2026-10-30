@@ -32,7 +32,12 @@ public class Asset {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    /**
+     * Único por tipo entre os papéis listados (V13, {@code uk_assets_ticker_type}): o mesmo ticker pode existir em
+     * tipos diferentes (META cripto e META ação) e, no mesmo tipo, num papel deslistado e num vivo (P2). Busca por
+     * ticker sem o tipo não é segura — use {@link AssetResolver}.
+     */
+    @Column(nullable = false)
     private String ticker;
 
     @Column(nullable = false)
@@ -91,6 +96,18 @@ public class Asset {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    /** Data de saída da bolsa (V13, D11): só no papel inativo; parte da unicidade do ticker (P2). */
+    @Column(name = "delisted_on")
+    private java.time.LocalDate delistedOn;
+
+    /**
+     * Prova da inativação (V14, I5): {@link DelistingSource}. MANUAL é a decisão do administrador — a conferência nunca a
+     * refaz. Nula no papel inativado antes da F2.
+     */
+    @Column(name = "delisting_source", length = 12)
+    @Enumerated(EnumType.STRING)
+    private DelistingSource delistingSource;
 
     /**
      * Id do ativo no provedor de cotacao, quando difere do ticker. Hoje so

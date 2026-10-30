@@ -9,7 +9,8 @@
 > uma tarefa no banco, com horário editável na tela `/tasks` — `docs/planos/PLANO_TAREFAS.md`; [A13] histórico de
 > cripto, [A14] emissoras de RF e [A15] limpeza do histórico das tarefas entraram aqui; [B7] corrigida: só avisa o
 > título vencido desde 15/10/2026) · 27/10/2026 ([A17] fundos de investimento da CVM e a série dos fundos no [A8] —
-> `docs/planos/PLANO_FUNDOS_INVESTIMENTO.md`).
+> `docs/planos/PLANO_FUNDOS_INVESTIMENTO.md`) · 29/10/2026 ([A6] passa a inativar com prova; [A18] catálogo vivo dos EUA e
+> [A19] deslistados dos EUA — `docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md`).
 
 - **Fuso** de todas as rotinas: `America/Sao_Paulo`.
 - **Cron do Spring:** `segundo minuto hora dia-do-mês mês dia-da-semana`. Desde 22/10/2026 os horários ficam **no
@@ -47,6 +48,7 @@ rodada seguinte não achar mais a diferença. As mensagens do usuário são da a
 | 03:00, domingo | adm | [A12] Situação dos avisos do FNET + proventos relendo todos os avisos (semanal) |
 | a cada 5 s | app | [B5] Worker da fila de integrações |
 | 06:00, dia 1 | adm | [A7] Logos (mensal) |
+| 06:30, segunda | adm | [A18] Catálogo vivo dos EUA (semanal; `WRITE` decide se grava) |
 | 07:00, segunda | adm | [A6] Conferência do catálogo (semanal) |
 | 07:30 | adm | [A5] Balanços CVM + informe mensal de FII |
 | 08:00 | adm | [A10] Preço oficial do Tesouro Direto |
@@ -177,14 +179,48 @@ ROE, payout, DY...).
 | **Classe** | tarefa `CATALOG_AUDIT` → `CatalogAuditTask` → `CatalogAuditService.run` e `MarketIndexImportService.audit` |
 | **Tarefa** | `CATALOG_AUDIT` (`activest.catalog-audit.ignored` = tickers fora de propósito) — horário e liga/desliga no banco, editados na tela de Tarefas; padrão do seed: `0 0 7 * * MON` |
 | **Fonte** | lista oficial e renomes da BRAPI |
-| **Grava** | nada no catálogo: cada diferença vira linha WARN no log **e** mensagem de administrador (`notifications`, 13/10/2026) — ticker novo (uma por rodada, com a lista), sumido e renomeado (uma por ticker), índice atrasado (uma por índice); a rodada seguinte que não acha mais a diferença resolve a mensagem |
+| **Grava** | desde 29/10/2026, a **inativação com prova** (`assets.active = false`, `delisted_on`, `delisting_source` `CVM` ou `LIST_GONE`; `MANUAL` nunca é tocado) e a data de saída das inativas sem data; o resto, como antes: (`notifications`, 13/10/2026) — ticker novo (uma por rodada, com a lista), sumido e renomeado (uma por ticker), índice atrasado (uma por índice); a rodada seguinte que não acha mais a diferença resolve a mensagem |
 
 **Função.** Aponta (1) ticker novo na B3 que não está no catálogo, (2) ticker sumido (fora da lista **e** cotação
 404), (3) ticker renomeado ainda ativo no catálogo, (4) índice de mercado atrasado — diário sem valor há mais de 7
 dias, mensal sem o mês seguinte 45 dias depois do fim do mês de referência, ou sem série nenhuma (05/10/2026).
 
-**Propósito.** Avisar o administrador de mudanças na bolsa sem alterar o catálogo sozinho. Ticker sumido ou renomeado
-com posição aberta também chega a quem tem a posição ([B7] e [B3], fan-out — `docs/planos/PLANO_NOTIFICACOES.md`, 5.7).
+**Propósito.** Avisar o administrador de mudanças na bolsa. Ticker sumido ou renomeado com posição aberta também chega
+a quem tem a posição ([B7] e [B3], fan-out — `docs/planos/PLANO_NOTIFICACOES.md`, 5.7).
+
+**Inativação (29/10/2026, `docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md`, I5/C7 — `CatalogDelisting`).** (5) Registro
+da companhia cancelado na CVM (`cad_cia_aberta`, menos "Migração de Registro") inativa os tickers dela; (6) ticker fora
+da lista da BRAPI **e** sem negócio no COTAHIST há 30 pregões, sem ser renomeação, inativa (com COTAHIST velho, a regra
+não roda). Data de saída: último negócio. Aviso `CATALOGO_TICKER_INATIVADO` com a prova; desfazer pela curadoria
+(`PUT /api/v1/admin/assets/{id}/activation`, grava `MANUAL`). Os avisos de renomeação do exterior (chave `EUA:`) não são
+fechados por esta conferência.
+
+### [A18] Catálogo vivo dos EUA (29/10/2026)
+
+| | |
+|---|---|
+| **Quando** | 06:30, toda segunda-feira (antes da conferência da B3) e Run |
+| **Classe** | tarefa `FOREIGN_CATALOG` → `ForeignCatalogTask` → `ForeignCatalogService.run` |
+| **Tarefa** | `FOREIGN_CATALOG` (atributo `WRITE`, nasce `false`: só a prévia — o portão da D12) — padrão do seed: `0 30 6 * * MON` |
+| **Fonte** | Nasdaq Trader (`nasdaqtraded.txt`, fotografia do dia), OpenFIGI, SEC (tickers, fichas, séries dos fundos), Nareit, os BDRs do catálogo |
+| **Grava** | sempre `carga/data/levantamento/internacional/catalogo-previa.json`; com `WRITE`, `assets` + `foreign_listings` (novos, atualizados, renomeados — aviso `CATALOGO_TICKER_RENOMEADO` —, inativados com `FORM_25`/`LIST_GONE` — aviso `CATALOGO_TICKER_INATIVADO`) e o logo do papel novo (o do BDR da mesma empresa) |
+
+**Função.** C1–C5, C7 dos EUA e C9 do plano: universo, tipo, categoria, identidade pelo FIGI, saída com prova e a
+curadoria da planilha (`curadoria.json`). Primeira rodada ~35 min (fichas da SEC); as semanais ~4 min.
+
+**Propósito.** Manter o catálogo de Stock, REIT e ETF internacional sem cadastro manual.
+
+### [A19] Deslistados dos EUA (29/10/2026, só Run e carga inicial)
+
+| | |
+|---|---|
+| **Classe** | tarefa `FOREIGN_DELISTED` → `ForeignDelistedTask` → `ForeignDelistedService.run` |
+| **Tarefa** | `FOREIGN_DELISTED` (atributos `FROM_YEAR` 2010, `TO_YEAR` vazio = ano corrente, `WRITE` falso) — sem horário |
+| **Fonte** | SEC: índice trimestral (só as linhas de Form 25 ficam, `sec/form25`), o Form 25, o cadastro e os relatórios da empresa (ticker pelo XBRL ou texto, `sec/delisted`), séries dos fundos; Nareit |
+| **Grava** | sempre `deslistados-previa.json`; com `WRITE`, os papéis de capital com ticker, inativos (`FORM_25`) |
+
+**Função.** C6 do plano (ver Pontos de Atenção do `Claude.md`). Os Form 25 novos de quem está no catálogo vivo entram
+pela [A18]. Primeira rodada de 2010 em diante: horas (SEC a 8 pedidos/s); com `sec/` cheia, minutos.
 
 ### [A7] Logos
 

@@ -825,7 +825,8 @@ public class IndicatorService {
         List<AssetRow> found = jdbc.query("""
                 SELECT a.id, a.ticker, a.issuer_id, i.kind, a.share_class, i.statement_layout
                 FROM assets a LEFT JOIN issuers i ON i.id = a.issuer_id
-                WHERE upper(a.ticker) = ?""",
+                WHERE upper(a.ticker) = ?
+                ORDER BY (a.issuer_id IS NULL), a.delisted_on DESC NULLS FIRST""",
                 (rs, i) -> new AssetRow(rs.getLong("id"), rs.getString("ticker"),
                         (Long) rs.getObject("issuer_id", Long.class),
                         rs.getString("kind") == null ? null : IssuerKind.valueOf(rs.getString("kind")),

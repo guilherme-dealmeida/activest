@@ -22,7 +22,8 @@ import java.util.*;
 public class CatalogNoticeFanout {
 
     static final List<NotificationKind> SOURCES = List.of(NotificationKind.CATALOGO_TICKER_SUMIDO,
-        NotificationKind.CATALOGO_TICKER_RENOMEADO, NotificationKind.CATALOGO_SEM_COTACAO);
+        NotificationKind.CATALOGO_TICKER_RENOMEADO, NotificationKind.CATALOGO_SEM_COTACAO,
+        NotificationKind.CATALOGO_TICKER_INATIVADO);
 
     private final NotificationService notifications;
     private final OpenPositions openPositions;
@@ -83,6 +84,9 @@ public class CatalogNoticeFanout {
                 + "ainda não foi trocado; até lá o preço da sua posição pode ficar parado.";
             case CATALOGO_SEM_COTACAO -> "A cotação de " + ticker + " não respondeu no fechamento: o preço da sua "
                 + "posição fica parado até ela voltar.";
+            case CATALOGO_TICKER_INATIVADO -> ticker + " saiu da bolsa e foi inativado no catálogo. A posição continua "
+                + "na carteira, com o último preço; se houve incorporação, fechamento de capital ou resgate, lance a "
+                + "saída pela Nova transação (com data até a saída do papel).";
             default -> "Há um aviso de catálogo sobre " + ticker + ", um ativo da sua carteira.";
         };
     }

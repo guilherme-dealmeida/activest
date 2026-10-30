@@ -87,6 +87,21 @@ public class AdminNotices {
         notifications.resolveAllExcept(kind, null, stillOpen);
     }
 
+    /**
+     * Chaves abertas do tipo que começam com o prefixo: duas rotinas dividem o tipo de aviso (a renomeação da B3 e a
+     * do exterior, {@code EUA:}), e a conferência de uma não fecha os avisos da outra.
+     */
+    public java.util.Set<String> openKeys(NotificationKind kind, String prefix) {
+        java.util.Set<String> out = new java.util.HashSet<>();
+        for (com.activest.domain.notification.Notification n : notifications.openOf(kind)) {
+            String k = com.activest.domain.notification.NotificationService.keyOf(n);
+            if (k != null && k.startsWith(prefix)) {
+                out.add(k);
+            }
+        }
+        return out;
+    }
+
     public void resolve(NotificationKind kind, String key) {
         notifications.resolve(kind, null, key);
     }

@@ -150,7 +150,6 @@ export const GoalFormModal = ({ isOpen, onClose, catalog, goal, onSaved }: Props
     else setParams(p => ({ ...p, [f.key]: v }));
   };
   const optionsFor = (f: GoalField) => {
-    if (f.kind === 'TICKER') return scopeOptions?.options.ASSET;
     if (DIMENSION_FIELDS.has(f.key) && dimension) return scopeOptions?.options[dimension];
     return undefined;
   };
@@ -160,7 +159,7 @@ export const GoalFormModal = ({ isOpen, onClose, catalog, goal, onSaved }: Props
   // Valores automáticos das premissas: vêm já no campo, antes mesmo de o cadastro estar completo (o preview exige
   // alvo e prazo válidos). Dependem só do tipo, do escopo e da base (custo ou mercado).
   const autoKey = debounced ? [debounced.type, JSON.stringify(debounced.scope), debounced.params?.returnSource,
-    debounced.params?.basis, debounced.params?.ticker] : null;
+    debounced.params?.basis, debounced.params?.assetId] : null;
   const autoQuery = useQuery({
     queryKey: ['goals', 'assumptions', JSON.stringify(autoKey)],
     queryFn: () => goalsApi.assumptions(debounced as GoalRequest),
@@ -242,7 +241,8 @@ export const GoalFormModal = ({ isOpen, onClose, catalog, goal, onSaved }: Props
             </div>
             {main.map(f => (
               <GoalFieldInput key={f.key} field={f} value={fieldValue(f)} onChange={v => setField(f, v)}
-                options={optionsFor(f)} required={isRequired(f)} />
+                options={optionsFor(f)} required={isRequired(f)}
+                assetLabel={{ ticker: params.ticker as string | undefined, assetType: params.assetType as string | undefined }} />
             ))}
           </div>
 

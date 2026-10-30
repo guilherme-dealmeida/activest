@@ -40,7 +40,20 @@ public class AssetController {
      */
     @GetMapping("/{ticker}/logo")
     public ResponseEntity<Resource> logo(@PathVariable String ticker) {
-        return assetLogos.find(ticker)
+        return logoResponse(assetLogos.find(ticker));
+    }
+
+    /**
+     * Logo pelo par (tipo, ticker) — desde a V13 o ticker e unico so por tipo (docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md,
+     * I3): os listados no exterior ficam na subpasta do tipo. Mesmas regras de acesso e cache da rota pelo ticker.
+     */
+    @GetMapping("/{type}/{ticker}/logo")
+    public ResponseEntity<Resource> logo(@PathVariable String type, @PathVariable String ticker) {
+        return logoResponse(assetLogos.find(ticker, type));
+    }
+
+    private static ResponseEntity<Resource> logoResponse(java.util.Optional<AssetLogos.LogoFile> logo) {
+        return logo
             .map(file -> ResponseEntity.ok()
                 .contentType(file.mediaType())
                 .cacheControl(CacheControl.maxAge(Duration.ofDays(7)).cachePublic())
@@ -61,7 +74,8 @@ public class AssetController {
             @RequestParam(required = false) String query,
             @RequestParam(defaultValue = "false") boolean withIssuer,
             @RequestParam(required = false) com.activest.domain.issuer.IssuerKind issuerKind,
-            @RequestParam(defaultValue = "false") boolean includeInactive) {
+            @RequestParam(defaultValue = "false") boolean includeInactive,
+            @RequestParam(defaultValue = "false") boolean includeDelisted) {
         if (query == null || query.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
@@ -75,12 +89,20 @@ public class AssetController {
             return ResponseEntity.ok(assetService.searchAssetsWithIssuer(query, issuerKind));
         }
         // typeId junto com query restringe o autocomplete ao tipo escolhido
-        return ResponseEntity.ok(assetService.searchAssets(query, typeId));
+        // includeDelisted: só a Nova transação traz o papel que saiu da bolsa (D11)
+        return ResponseEntity.ok(assetService.searchAssets(query, typeId, includeDelisted));
     }
 
+    /** Ativo pelo ticker, quando ele nao se repete entre os tipos; repetido (META), a resposta pede o tipo (I3). */
     @GetMapping("/{ticker}")
     public ResponseEntity<AssetResponseDTO> getByTicker(@PathVariable String ticker) {
         return ResponseEntity.ok(assetService.getAssetByTicker(ticker));
+    }
+
+    /** Ativo pelo par (tipo, ticker): o nome do tipo de asset_types (ACAO, STOCK, CRIPTO...). */
+    @GetMapping("/{type}/{ticker}")
+    public ResponseEntity<AssetResponseDTO> getByTypeAndTicker(@PathVariable String type, @PathVariable String ticker) {
+        return ResponseEntity.ok(assetService.getAsset(ticker, type));
     }
 
     @GetMapping("/types")
@@ -108,5 +130,16 @@ public class AssetController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return ResponseEntity.ok(priceHistory.history(ticker, range, from, to));
+    }
+
+    /** Cotacao historica pelo par (tipo, ticker); mesmos parametros da rota pelo ticker. */
+    @GetMapping("/{type}/{ticker}/prices")
+    public ResponseEntity<PriceHistoryDTO> prices(
+            @PathVariable String type,
+            @PathVariable String ticker,
+            @RequestParam(required = false) String range,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(priceHistory.history(ticker, type, range, from, to));
     }
 }

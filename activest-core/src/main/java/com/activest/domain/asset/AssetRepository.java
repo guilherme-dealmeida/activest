@@ -11,7 +11,22 @@ import java.util.Optional;
 
 @Repository
 public interface AssetRepository extends JpaRepository<Asset, Long> {
-    Optional<Asset> findByTicker(String ticker);
+    // findByTicker saiu na V13: o ticker deixou de ser único no catálogo (é único por tipo entre os listados). A busca
+    // por ticker passa pelo AssetResolver, que exige o tipo (ou os tipos da fonte) — docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md, D3.
+
+    /** Todos os ativos com este ticker: homônimos de tipos diferentes e deslistados do mesmo tipo (V13). */
+    @Query("SELECT a FROM Asset a JOIN FETCH a.assetType LEFT JOIN FETCH a.terms WHERE a.ticker = :ticker")
+    List<Asset> findAllByTicker(@Param("ticker") String ticker);
+
+    /** Os ativos com este ticker nos tipos dados (nomes de {@code asset_types}). */
+    @Query("SELECT a FROM Asset a JOIN FETCH a.assetType t LEFT JOIN FETCH a.terms WHERE a.ticker = :ticker AND t.name IN :types")
+    List<Asset> findAllByTickerInTypes(@Param("ticker") String ticker,
+                                       @Param("types") java.util.Collection<String> types);
+
+    /** Ativos dos tipos dados, com o tipo carregado — base dos mapas ticker → ativo de uma fonte (COTAHIST, B3). */
+    @Query("SELECT a FROM Asset a JOIN FETCH a.assetType t WHERE t.name IN :types")
+    List<Asset> findAllInTypes(@Param("types") java.util.Collection<String> types);
+
     List<Asset> findByAssetCategoryId(Long categoryId);
     List<Asset> findByActiveTrue();
 
@@ -28,9 +43,6 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
 
     @Query("SELECT a FROM Asset a LEFT JOIN FETCH a.terms WHERE a.assetType.id = :typeId")
     List<Asset> findByAssetTypeId(@Param("typeId") Long typeId);
-
-    @Query("SELECT a FROM Asset a LEFT JOIN FETCH a.terms WHERE a.ticker = :ticker")
-    Optional<Asset> findByTickerWithTerms(@Param("ticker") String ticker);
 
     /**
      * Busca por ticker ou nome, ordenada por relevância e paginada.
@@ -70,12 +82,15 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
         """)
     List<Asset> searchByTickerOrName(@Param("query") String query, Pageable pageable);
 
-    /** Autocomplete do cadastro de transação: o tipo escolhido restringe a lista. */
+    /**
+     * Autocomplete do cadastro de transação: o tipo escolhido restringe a lista. {@code includeInactive}: só a Nova
+     * transação traz o papel que saiu da bolsa (D11 — lançamento retroativo), depois dos listados.
+     */
     @Query("""
         SELECT a FROM Asset a
         LEFT JOIN FETCH a.terms t
         WHERE a.assetType.id = :typeId
-          AND a.active = true
+          AND (a.active = true OR :includeInactive = true)
           AND (LOWER(a.ticker) LIKE LOWER(CONCAT('%', :query, '%'))
             OR LOWER(a.name)   LIKE LOWER(CONCAT('%', :query, '%')))
         ORDER BY
@@ -84,9 +99,12 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
                WHEN LOWER(a.name)   LIKE LOWER(CONCAT(:query, '%'))  THEN 2
                ELSE 3 END,
           CASE WHEN t.maturityDate IS NOT NULL AND t.maturityDate < CURRENT_DATE THEN 1 ELSE 0 END,
-          a.ticker
+          CASE WHEN a.active = true THEN 0 ELSE 1 END,
+          a.ticker,
+          a.delistedOn DESC NULLS FIRST
         """)
-    List<Asset> searchByTypeAndTickerOrName(@Param("typeId") Long typeId, @Param("query") String query, Pageable pageable);
+    List<Asset> searchByTypeAndTickerOrName(@Param("typeId") Long typeId, @Param("query") String query,
+                                            @Param("includeInactive") boolean includeInactive, Pageable pageable);
 
     /** Autocomplete da tela de emissoras: so ativos ligados a um emissor (acoes e FIIs). */
     @Query("""

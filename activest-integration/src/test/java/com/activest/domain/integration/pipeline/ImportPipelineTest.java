@@ -2,6 +2,7 @@ package com.activest.domain.integration.pipeline;
 
 import com.activest.domain.asset.Asset;
 import com.activest.domain.asset.AssetRepository;
+import com.activest.domain.asset.AssetResolver;
 import com.activest.domain.asset.AssetType;
 import com.activest.domain.integration.IntegrationCryptoExclusionRepository;
 import com.activest.domain.integration.source.ImportedMovement;
@@ -58,12 +59,13 @@ class ImportPipelineTest {
 
     @BeforeEach
     void scenario() {
-        pipeline = new ImportPipeline(assets, transactions, exclusions);
+        pipeline = new ImportPipeline(new AssetResolver(assets), transactions, exclusions);
+        // O catalogo e consultado pelo ticker nos tipos da fonte (V13: o ticker e unico so por tipo)
         for (String t : List.of("BTC", "ETH", "USDT")) {
-            when(assets.findByTicker(t))
-                .thenReturn(Optional.of(Asset.builder().id((long) t.hashCode()).ticker(t).assetType(CRYPTO).build()));
+            when(assets.findAllByTickerInTypes(eq(t), anyCollection()))
+                .thenReturn(List.of(Asset.builder().id((long) t.hashCode()).ticker(t).assetType(CRYPTO).build()));
         }
-        when(assets.findByTicker("NAOEXISTE")).thenReturn(Optional.empty());
+        when(assets.findAllByTickerInTypes(eq("NAOEXISTE"), anyCollection())).thenReturn(List.of());
         when(transactions.findImportedIds(eq(connection), anyCollection())).thenReturn(Set.of());
         when(exclusions.findExcludedIds(eq(connection), anyCollection())).thenReturn(Set.of());
     }
@@ -141,14 +143,14 @@ class ImportPipelineTest {
         ImportPreview p = pipeline.preview(connection, user, batch, CryptoImportRules.INSTANCE);
 
         assertThat(p.count(PreviewOutcome.NEW)).isEqualTo(4);
-        verify(assets, times(1)).findByTicker("BTC");
-        verify(assets, times(1)).findByTicker("ETH");
+        verify(assets, times(1)).findAllByTickerInTypes(eq("BTC"), anyCollection());
+        verify(assets, times(1)).findAllByTickerInTypes(eq("ETH"), anyCollection());
     }
 
     @Test
     @DisplayName("6.6: lancamento manual parecido (mesmo ativo e tipo, um dia de diferenca, quantidade bruta) vira POSSIBLE_DUPLICATE")
     void duplicateOfManual() {
-        Asset btc = assets.findByTicker("BTC").orElseThrow();
+        Asset btc = assets.findAllByTickerInTypes("BTC", Set.of("CRIPTO")).get(0);
         PortfolioAsset pa = PortfolioAsset.builder().asset(btc).build();
         Transaction manual = Transaction.builder().id(UUID.randomUUID()).portfolioAsset(pa)
             .type(TransactionType.BUY).shares(new BigDecimal("0.00200000")).pricePerShare(new BigDecimal("400000"))
@@ -172,7 +174,7 @@ class ImportPipelineTest {
     @Test
     @DisplayName("6.6: tipo diferente ou quantidade fora da taxa nao e duplicata")
     void notDuplicate() {
-        Asset btc = assets.findByTicker("BTC").orElseThrow();
+        Asset btc = assets.findAllByTickerInTypes("BTC", Set.of("CRIPTO")).get(0);
         PortfolioAsset pa = PortfolioAsset.builder().asset(btc).build();
         Transaction sale = Transaction.builder().id(UUID.randomUUID()).portfolioAsset(pa)
             .type(TransactionType.SELL).shares(new BigDecimal("0.00199800")).transactionDate(java.time.LocalDate.of(2024, 1, 5))

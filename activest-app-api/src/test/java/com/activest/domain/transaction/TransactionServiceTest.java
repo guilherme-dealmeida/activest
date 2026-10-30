@@ -111,7 +111,7 @@ class TransactionServiceTest {
     @BeforeEach
     void scenario() {
         service = new TransactionService(transactionRepository, portfolioRepository, portfolioAssetRepository,
-            assetRepository, fixedIncomeNoteRepository, userRepository, dividendRecalculator, positionCalculator,
+            new com.activest.domain.asset.AssetResolver(assetRepository), fixedIncomeNoteRepository, userRepository, dividendRecalculator, positionCalculator,
             appreciationUpdater, positionGuard, fixedIncomeSettlement, fixedIncomeValuation, treasuryAllocator, eventPublisher,
             cryptoExclusionRepository, movementJson,
             new com.activest.domain.integration.pipeline.ImportRulesRegistry(java.util.List.of()), assetLogos,
@@ -134,8 +134,9 @@ class TransactionServiceTest {
         cdb = asset("CDB", typeValue("RENDA_FIXA", "Renda Fixa", PriceSource.MANUAL, true));
 
         when(portfolioRepository.findFirstByUserId(userId)).thenReturn(Optional.of(portfolioEntity));
-        when(assetRepository.findByTicker("PETR4")).thenReturn(Optional.of(stock));
-        when(assetRepository.findByTicker("CDB")).thenReturn(Optional.of(cdb));
+        // O resolver real sobre o repositorio simulado: sem o tipo, vale o ticker que nao se repete (V13)
+        when(assetRepository.findAllByTicker("PETR4")).thenReturn(List.of(stock));
+        when(assetRepository.findAllByTicker("CDB")).thenReturn(List.of(cdb));
         when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> {
             Transaction tx = i.getArgument(0);
             if (tx.getId() == null) {
@@ -200,7 +201,7 @@ class TransactionServiceTest {
         @Test
         @DisplayName("Ticker fora do catalogo e erro: a transacao nao cria ativo")
         void missingTicker() {
-            when(assetRepository.findByTicker("XXXX9")).thenReturn(Optional.empty());
+            when(assetRepository.findAllByTicker("XXXX9")).thenReturn(List.of());
 
             assertThatThrownBy(() -> service.createTransaction(userId,
                 new TransactionCreateDTO("XXXX9", TransactionType.BUY, BigDecimal.ONE, BigDecimal.TEN, null,
@@ -210,6 +211,18 @@ class TransactionServiceTest {
                 .hasMessageContaining("Selecione um ativo existente na busca");
 
             verify(assetRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("D11: papel que saiu da bolsa recusa transacao depois da saida; ate a saida, aceita")
+        void afterDelisting() {
+            stock.setActive(false);
+            stock.setDelistedOn(LocalDate.of(2026, 8, 31));
+
+            assertThatThrownBy(() -> service.createTransaction(userId, stockBuy("10", "30.00")))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("PETR4 saiu da bolsa em 31/08/2026");
+            TransactionService.requireListedOn(stock, LocalDate.of(2026, 8, 31));
         }
 
         @Test

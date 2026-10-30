@@ -88,15 +88,20 @@ class GoalTypeCatalogTest {
     }
 
     @Test
-    @DisplayName("Escopo: forma não aceita pelo tipo e lista vazia são recusadas; ticker em maiúsculas")
+    @DisplayName("Escopo: forma não aceita pelo tipo e lista vazia são recusadas; o ativo é o id e o rótulo é ignorado")
     void scope() {
         assertThatThrownBy(() -> validate(GoalType.PAT_1, "1000", Map.of("kind", "TYPE", "reservation", "WITH"), Map.of()))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("ao menos um");
         assertThatThrownBy(() -> validate(GoalType.ALO_1, null, Map.of("kind", "TYPE", "values", java.util.List.of("FII")),
                 Map.of("dimension", "TYPE", "item", "FII", "rule", "MIN", "min", 5)))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("não aceita o escopo");
-        assertThat(validate(GoalType.ATV_1, "10", Map.of(), Map.of("ticker", " petr4 ")).params().get("ticker"))
-                .isEqualTo("PETR4");
+        // V13: o ativo da meta é o id; ticker e tipo são rótulos que o servidor grava (aceitos e ignorados na entrada)
+        assertThat(validate(GoalType.ATV_1, "10", Map.of(), Map.of("assetId", "42", "ticker", "PETR4")).params())
+                .containsEntry("assetId", 42L).doesNotContainKey("ticker");
+        assertThatThrownBy(() -> validate(GoalType.ATV_1, "10", Map.of(), Map.of("ticker", "PETR4")))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("Informe ativo");
+        assertThatThrownBy(() -> validate(GoalType.ATV_1, "10", Map.of(), Map.of("assetId", "PETR4")))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("valor inválido");
     }
 
     private static GoalTypeCatalog.Validated validate(GoalType type, String target, Map<String, Object> scope,

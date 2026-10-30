@@ -7,7 +7,7 @@ import com.activest.domain.portfolio.PortfolioAsset;
 import com.activest.domain.portfolio.PortfolioRepository;
 import com.activest.domain.asset.Asset;
 import com.activest.domain.asset.AssetLogos;
-import com.activest.domain.asset.AssetRepository;
+import com.activest.domain.asset.AssetResolver;
 import com.activest.domain.asset.AssetType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,7 +25,7 @@ public class DividendService {
 
     private final DividendRepository dividendRepository;
     private final PortfolioRepository portfolioRepository;
-    private final AssetRepository assetRepository;
+    private final AssetResolver assetResolver;
     private final DividendCalendar dividendCalendar;
     private final AssetLogos assetLogos;
 
@@ -92,10 +92,10 @@ public class DividendService {
     }
 
     /**
-     * Gets dividends by asset ticker.
+     * Proventos do usuário num ativo: pelo par (ticker, tipo); sem o tipo, só o ticker que não se repete (V13).
      */
-    public List<DividendResponseDTO> getDividendsByAsset(UUID userId, String ticker) {
-        Asset asset = assetRepository.findByTicker(ticker).orElse(null);
+    public List<DividendResponseDTO> getDividendsByAsset(UUID userId, String ticker, String assetType) {
+        Asset asset = assetResolver.findTypedOrUnique(ticker, assetType).orElse(null);
         if (asset == null) return List.of();
 
         LocalDate today = dividendCalendar.today();

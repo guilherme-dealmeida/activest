@@ -1,6 +1,7 @@
 package com.activest.domain.goal;
 
-import com.activest.domain.asset.AssetRepository;
+import com.activest.domain.asset.Asset;
+import com.activest.domain.asset.AssetResolver;
 import com.activest.domain.goal.dto.GoalDTOs.*;
 import com.activest.domain.goal.engine.*;
 import com.activest.domain.goal.type.GoalTypeCatalog;
@@ -36,13 +37,13 @@ public class GoalService {
     private final GoalEventRepository events;
     private final GoalSnapshotRepository snapshots;
     private final UserRepository users;
-    private final AssetRepository assets;
+    private final AssetResolver assets;
     private final GoalFactsLoader factsLoader;
     private final GoalTracker tracker;
     private final GoalCodec codec;
 
     public GoalService(GoalRepository goals, GoalEventRepository events, GoalSnapshotRepository snapshots,
-                       UserRepository users, AssetRepository assets, GoalFactsLoader factsLoader, GoalTracker tracker,
+                       UserRepository users, AssetResolver assets, GoalFactsLoader factsLoader, GoalTracker tracker,
                        GoalCodec codec) {
         this.goals = goals;
         this.events = events;
@@ -79,6 +80,10 @@ public class GoalService {
                 continue;
             }
             Map<String, String> seen = new TreeMap<>();
+            // Ticker em mais de um ativo da carteira (META cripto e META acao): o rotulo leva o tipo
+            Map<String, Set<Long>> idsByTicker = new HashMap<>();
+            facts.positions().values().forEach(p -> idsByTicker
+                    .computeIfAbsent(p.ticker().toUpperCase(), x -> new HashSet<>()).add(p.assetId()));
             for (PositionInfo p : facts.positions().values()) {
                 String key = p.key(k);
                 if (key == null) {
@@ -87,6 +92,8 @@ public class GoalService {
                 String label = k == ScopeKind.POSITIONS
                         ? p.ticker() + (p.issuer() != null && p.fixedIncome() ? " · " + p.issuer() : "")
                             + (p.settled() ? " (encerrada)" : "")
+                        : k == ScopeKind.ASSET && idsByTicker.get(p.ticker().toUpperCase()).size() > 1
+                        ? p.ticker() + " · " + p.label(ScopeKind.TYPE)
                         : p.label(k);
                 seen.putIfAbsent(key, label);
             }
@@ -366,7 +373,7 @@ public class GoalService {
                     if (info == null) {
                         return false;
                     }
-                    return d.type() == GoalType.ATV_2 ? info.ticker().equalsIgnoreCase(d.text("ticker")) : d.scope().includes(info);
+                    return d.type() == GoalType.ATV_2 ? Objects.equals(info.assetId(), d.assetId()) : d.scope().includes(info);
                 }, PerformanceBasis.GROSS);
                 List<PointDTO> pts = new ArrayList<>();
                 int step = Math.max(1, t.dates().size() / 260);
@@ -411,7 +418,7 @@ public class GoalService {
             case REN_1, REN_2, REN_3, ATV_3 -> {
                 Set<UUID> ids = new HashSet<>();
                 f.positions().values().stream()
-                        .filter(p -> d.type() == GoalType.ATV_3 ? p.ticker().equalsIgnoreCase(d.text("ticker")) : d.scope().includes(p))
+                        .filter(p -> d.type() == GoalType.ATV_3 ? Objects.equals(p.assetId(), d.assetId()) : d.scope().includes(p))
                         .forEach(p -> ids.add(p.id()));
                 TreeMap<LocalDate, Double> byMonth = new TreeMap<>();
                 for (GoalFacts.Income i : f.incomes()) {
@@ -530,18 +537,31 @@ public class GoalService {
     private GoalTypeCatalog.Validated validate(GoalType type, GoalRequest req, LocalDate currentTargetDate) {
         GoalTypeCatalog.Validated v = GoalTypeCatalog.validate(type, req.targetValue(), req.targetDate(), req.scope(),
                 req.params(), factsLoaderToday(), currentTargetDate);
-        Object ticker = v.params().get("ticker");
-        if (ticker != null && assets.findByTicker(ticker.toString()).isEmpty()) {
-            throw new BusinessException("Ativo não encontrado no catálogo: " + ticker);
+        // Meta por ativo: o ativo e o id; ticker e tipo vao junto como rotulo (V13 — o ticker se repete entre tipos)
+        Object assetId = v.params().get("assetId");
+        if (assetId != null) {
+            Asset a = assets.byId(Long.valueOf(assetId.toString())).orElseThrow(() -> new BusinessException(
+                    "Ativo não encontrado no catálogo. Selecione um ativo existente na busca."));
+            v.params().put("ticker", a.getTicker());
+            v.params().put("assetType", a.getAssetType().getName());
         }
         if (v.scope().kind() == ScopeKind.ASSET) {
             for (String t : v.scope().values()) {
-                if (assets.findByTicker(t.toUpperCase()).isEmpty()) {
+                if (assetOf(t).isEmpty()) {
                     throw new BusinessException("Ativo não encontrado no catálogo: " + t);
                 }
             }
         }
         return v;
+    }
+
+    /** O ativo de um valor do escopo por ativo (o id em texto). */
+    private Optional<Asset> assetOf(String value) {
+        try {
+            return assets.byId(Long.valueOf(value.trim()));
+        } catch (NumberFormatException e) {
+            return Optional.empty();
+        }
     }
 
     private LocalDate factsLoaderToday() {
@@ -574,12 +594,12 @@ public class GoalService {
         }
     }
 
-    private static String scopeLabel(GoalType type, GoalScope s) {
+    private String scopeLabel(GoalType type, GoalScope s) {
         GoalTypeSpec spec = GoalTypeCatalog.of(type);
         if (spec == null || spec.reservation() == com.activest.domain.goal.type.ReservationRule.NONE) {
             return null;
         }
-        return s.describe();
+        return s.kind() == ScopeKind.ASSET ? s.describe(v -> assetOf(v).map(Asset::getTicker).orElse(v)) : s.describe();
     }
 
     String write(Object o) {

@@ -2,10 +2,12 @@ import { apiClient } from './client';
 import { Asset, AssetCategory, AssetType, IssuerKind, PriceRange, PriceSeries } from '../types';
 
 export const assetsApi = {
-  getAll: async (typeId?: number, query?: string) => {
+  /** `includeDelisted`: só a Nova transação traz o papel que saiu da bolsa, com `delistedOn` (D11). */
+  getAll: async (typeId?: number, query?: string, includeDelisted?: boolean) => {
     const params: Record<string, string> = {};
     if (typeId) params.typeId = String(typeId);
     if (query) params.query = query;
+    if (includeDelisted) params.includeDelisted = 'true';
     const { data } = await apiClient.get<Asset[]>('/assets/', { params });
     return data;
   },

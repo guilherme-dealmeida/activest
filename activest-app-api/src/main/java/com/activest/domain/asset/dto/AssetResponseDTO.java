@@ -40,7 +40,12 @@ public record AssetResponseDTO(
      */
     String displayName,
     /** Cadastro CVM do fundo; nulo fora de FUNDO_INVESTIMENTO. */
-    FundInfo fund
+    FundInfo fund,
+    /**
+     * Data de saída da bolsa (D11): só no papel inativo, e só a Nova transação o traz na busca. Transação depois dela é
+     * recusada (docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md, C8).
+     */
+    LocalDate delistedOn
 ) {
 
     /** O que a busca e o formulário mostram do fundo (D11, D18). */

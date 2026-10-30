@@ -1,7 +1,7 @@
 # USE_CASES — Casos de uso do Activest
 
 > Gerado em 02/10/2026 a partir do código (controllers da app-api e da adm-api, rotinas agendadas, telas do
-> `activest-web`) e do `carga/scripts/README.md` · 27/10/2026: UC46–UC47 (fundos de investimento da CVM) · 05/10/2026: UC36–UC38 (índices de mercado) · 10/10/2026: UC07 refeito
+> `activest-web`) e do `carga/scripts/README.md` · 29/10/2026: UC48–UC50 (ativos internacionais) · 27/10/2026: UC46–UC47 (fundos de investimento da CVM) · 05/10/2026: UC36–UC38 (índices de mercado) · 10/10/2026: UC07 refeito
 > (Preço Teto pelo modelo PREÇO TETO V2) e UC41 (cotações diárias do catálogo pelo COTAHIST). Diagramas em Mermaid (o GitHub e o IntelliJ renderizam).
 > Mermaid não tem diagrama UML de caso de uso nativo: os atores aparecem como círculos, os casos de uso como
 > elipses dentro da fronteira do sistema, e `«include»`/`«extend»` como setas tracejadas.
@@ -75,7 +75,7 @@ flowchart LR
     inv --- uc01 & uc02 & uc03 & uc04 & uc05 & uc06 & uc07 & uc08 & uc09 & uc10 & uc11
     adm --- uc20 & uc21 & uc22 & uc23
     mnt --- uc24
-    sch --- uc30 & uc31 & uc32 & uc35 & uc33 & uc46 & uc34
+    sch --- uc30 & uc31 & uc32 & uc35 & uc33 & uc46 & uc48 & uc34
     uc10 & uc34 --- ext
     uc20 & uc21 & uc30 & uc31 & uc32 & uc35 --- ext
 ```
@@ -300,6 +300,8 @@ flowchart LR
         uc29(["UC29 Completar datas de pagamento<br/>CVM · levantamento"])
         uc23(["UC23 Situação dos avisos do FNET"])
         uc46(["UC46 Cadastro e cota dos fundos<br/>07:40 (CVM)"])
+        uc48(["UC48 Catálogo vivo dos EUA<br/>seg 06:30 (Nasdaq Trader, OpenFIGI, SEC)"])
+        uc49(["UC49 Deslistados dos EUA 2010+<br/>Form 25 da SEC"])
     end
 
     subgraph APP["app-api (carteira)"]
@@ -309,7 +311,7 @@ flowchart LR
     adm --- uc21 & uc22 & uc23
     sch --- uc30 & uc31 & uc32 & uc35 & uc33
     uc22 -.->|«include» qualquer uma| uc28 & uc29 & uc30 & uc31 & uc32 & uc35
-    uc21 & uc28 & uc29 & uc30 & uc31 & uc32 & uc35 & uc46 --- ext
+    uc21 & uc28 & uc29 & uc30 & uc31 & uc32 & uc35 & uc46 & uc48 & uc49 --- ext
 ```
 
 Detalhe de cada rotina e endpoint: `docs/SCHEDULE_TASKS.md` e `docs/ADM_TASKS.md`.
@@ -397,4 +399,7 @@ Prefixo das rotas: `/api/v1`. Investidor = qualquer usuário logado; Admin = `is
 | UC45 | Lançar ativo em outra moeda | Investidor | Transação na moeda do ativo com o câmbio da data (PTAX venda, editável); venda com IR estimado do exterior; provento com retenção do país de origem | `/transactions`; `POST /transactions`, `GET /currencies/{code}/rate` |
 | UC46 | Cadastro e cota dos fundos | Agendador / Admin | Fundos de investimento da CVM no catálogo (~55 mil, ticker = CNPJ, nome curto nas telas), última cota de todos os vivos e a série dos fundos em carteira; no máximo uma rodada automática por dia; avisos de fonte (27/10/2026, docs/planos/PLANO_FUNDOS_INVESTIMENTO.md) | 07:40 diário (tarefa `FUND_QUOTES`, Run com `FROM_MONTH`); etapa "fundos" do `POST /admin/bootstrap` |
 | UC47 | Lançar fundo de investimento | Investidor | Busca por nome ou CNPJ (encerrados no "Mostrar N"); Valor e Cota (pré-preenchida da CVM) → cotas calculadas; resgate pelo bruto com IR/IOF pelo PEPS e come-cotas; Previdência vale bruto; a série desde 2010 entra sozinha depois da primeira compra | `GET /assets/?typeId=&query=&includeInactive=`, `GET /funds/{ticker}/quote`, `POST /transactions/`, `POST /transactions/sale-preview` |
+| UC48 | Catálogo vivo dos EUA | Agendador / Admin | Stock, REIT e ETF internacional da lista da bolsa (~12 mil), com tipo pelo OpenFIGI, categoria (BDR, SIC, Nareit, tema do ETF), renomeação pelo FIGI e saída com prova (Form 25 ou 30 dias fora da lista); prévia + planilha de revisão; curadoria aplicada e nunca sobrescrita (29/10/2026, docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md) | seg 06:30 (tarefa `FOREIGN_CATALOG`, `WRITE`); `POST /admin/foreign-catalog[?write=true]`; etapa do `bootstrap` |
+| UC49 | Deslistados dos EUA desde 2010 | Admin | Form 25 da SEC → papéis de capital com ticker (XBRL, texto, séries, Nareit) cadastrados inativos com a data de saída; cobertura por ano e tipo; o resto na planilha e na pendência | tarefa `FOREIGN_DELISTED` (Run); `POST /admin/foreign-delisted?from&to[&write=true]`; etapa do `bootstrap` |
+| UC50 | Lançar ativo internacional ou deslistado | Investidor | Nova transação escolhe o tipo e o ticker (`META` ação ≠ `META` cripto); o deslistado aparece com "deslistado em dd/mm/aaaa", a data fica limitada à saída e a API recusa depois dela; inativação errada o administrador desfaz (`PUT /admin/assets/{id}/activation`) | `GET /assets/?typeId=&query=&includeDelisted=true`, `POST /transactions/` (com `assetType`) |
 | UC38 | Consultar índices | Investidor | Tela Índices: um card por índice com período (1D…MAX, de/até) e gráfico; lista, série e acumulado no período (% do índice, spread; nível para Ibovespa/IFIX/dólar) | `/indices`; `GET /indices`, `/indices/{code}/chart`, `/history`, `/accumulated` |

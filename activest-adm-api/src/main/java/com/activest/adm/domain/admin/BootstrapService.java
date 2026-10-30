@@ -53,6 +53,10 @@ import java.util.function.Supplier;
  *   e {@code carga/data/binance/klines} — o benchmark BTC e o que estiver em carteira.</li>
  *   <li><b>fundos de investimento</b> (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md, F2): cadastros e informe diario da CVM
  *   de {@code carga/data/cvm/fi} — os fundos que ja reportaram desde 2010, com a ultima cota, sem serie (D5).</li>
+ *   <li><b>catalogo do exterior</b> (docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md, F7): a tarefa FOREIGN_CATALOG gravando
+ *   (lista do Nasdaq Trader, OpenFIGI, fichas da SEC em {@code carga/data/sec/profiles}).</li>
+ *   <li><b>deslistados do exterior</b> 2010+ (F5): os Form 25 da SEC ({@code carga/data/sec/form25},
+ *   {@code carga/data/sec/delisted}) gravando os papeis inativos com a data de saida.</li>
  * </ol>
  *
  * <p><b>Retomavel:</b> toda etapa e idempotente e o que ja esta em {@code carga/data/} nao e baixado de novo
@@ -85,6 +89,13 @@ public class BootstrapService {
     /** Fundos de investimento da CVM (PLANO_FUNDOS_INVESTIMENTO.md, F2): cadastro + ultima cota, sem serie (D5). */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     com.activest.adm.domain.fund.FundCatalogService funds;
+
+    /** Catalogo e deslistados do exterior (PLANO_ATIVOS_INTERNACIONAIS.md, F7); opcionais para os testes da carga. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.activest.adm.domain.foreign.ForeignCatalogService foreignCatalog;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.activest.adm.domain.foreign.ForeignDelistedService foreignDelisted;
 
     /** Historico de cripto (docs/planos/PLANO_RENTABILIDADE.md, 3.3); opcional para os testes que montam a carga. */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -171,6 +182,13 @@ public class BootstrapService {
             }
             if (funds != null) {
                 steps.add(step("fundos de investimento", () -> funds.bootstrap(reason)));
+            }
+            if (foreignCatalog != null) {
+                steps.add(step("catalogo do exterior", () -> foreignCatalog.run(true, reason, TaskRun::checkStop)));
+            }
+            if (foreignDelisted != null) {
+                steps.add(step("deslistados do exterior 2010-" + year,
+                        () -> foreignDelisted.run(null, null, true, reason, TaskRun::checkStop)));
             }
             Result r = new Result(steps, (System.currentTimeMillis() - started) / 1000);
             log.info("Carga inicial ({}) concluida em {}s{}", trigger, r.seconds(),

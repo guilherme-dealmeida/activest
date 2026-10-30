@@ -23,7 +23,11 @@
 > `investment_funds`, `investment_fund_names` e `fund_tax_events` (seção 5d); `asset_types.price_source` e
 > `asset_price_history.source` aceitam `CVM` (o tipo `FUNDO_INVESTIMENTO` passa a `CVM`); `fixed_income_tax_rules.regime`
 > (`GENERAL`, `FUND_LONG_TERM`, `FUND_SHORT_TERM`, `FUND_EQUITY`) e `tax` aceita `CC` (come-cotas); extensão `pg_trgm`;
-> saem os índices em cópia `idx_price_history_asset_date` e `idx_assets_ticker`.
+> saem os índices em cópia `idx_price_history_asset_date` e `idx_assets_ticker`. Acréscimo de 29/10/2026
+> (`docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md`): V13 `assets.delisted_on` e a unicidade `(ticker, asset_type_id,
+> delisted_on) NULLS NOT DISTINCT` no lugar de `(ticker)`; metas por `params.assetId`; V14 `assets.delisting_source`;
+> V15 `foreign_listings` (seção 5e) e as categorias de Stock, REIT e ETF internacional; V16/V17 tarefas
+> `FOREIGN_CATALOG` e `FOREIGN_DELISTED`.
 > Diagramas em Mermaid: o GitHub e o IntelliJ (plugin Mermaid) renderizam.
 
 **A ideia que organiza o schema:** o *catálogo* é global (o que o instrumento É — `assets`, preços, proventos, emissores; gravado pela **adm-api**), e o *papel* é do usuário (posição, transações, título de renda fixa, proventos recebidos; gravado só pela **app-api**).
@@ -40,6 +44,7 @@ Legenda das relações: `||--o{` um para muitos (FK obrigatória) · `|o--o{` um
 5a. [Índices de mercado](#5a-índices-de-mercado)
 5c. [Moedas e câmbio](#5c-moedas-e-câmbio)
 5d. [Fundos de investimento](#5d-fundos-de-investimento)
+5e. [Ativos listados no exterior](#5e-ativos-listados-no-exterior)
 6. [Descrição das tabelas](#6-descrição-das-tabelas)
 5b. [Notificações](#5b-notificações)
 7. [Regras de exclusão (ON DELETE)](#7-regras-de-exclusão-on-delete)
@@ -787,6 +792,31 @@ erDiagram
     users ||--o{ fund_tax_events : "user_id"
 ```
 
+## 5e. Ativos listados no exterior
+
+Stock, REIT e ETF internacional dos EUA (V15, `docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md`): o ativo continua em
+`assets` (USD, país US; o deslistado inativo com `delisted_on` e `delisting_source`); o que é só desse grupo fica em
+`foreign_listings`, 1:1. Gravadas pelas tarefas `FOREIGN_CATALOG` (vivos) e `FOREIGN_DELISTED` (deslistados 2010+).
+
+```mermaid
+erDiagram
+    foreign_listings {
+        bigint asset_id PK,FK "assets (cascade)"
+        varchar exchange "NYSE|NASDAQ|NYSE_AMERICAN|NYSE_ARCA|CBOE|IEX"
+        varchar cik "empresa ou trust na SEC"
+        varchar sec_series_id UK "S000... (ETF)"
+        varchar composite_figi UK "identidade e renomeação"
+        varchar figi_security_type
+        varchar sic_code
+        varchar type_source "OPENFIGI|LIST|SEC_NAREIT|CURATION"
+        varchar category_source "BDR|SIC|NAREIT|ETF_RULE|CURATION"
+        varchar ticker_source "LIST|XBRL|NAREIT|FILING_TEXT|FUND_SERIES|CURATION"
+        date first_seen_on
+        date last_seen_on "30 dias fora da lista = saída"
+    }
+    assets ||--o| foreign_listings : "asset_id"
+```
+
 ## 5b. Notificações
 
 Tabelas: `notifications`, `notification_states` (V48, 13/10/2026 — `docs/planos/PLANO_NOTIFICACOES.md`). Dois eixos
@@ -861,7 +891,8 @@ erDiagram
 | Catálogo | `asset_stock_events` | adm-api | Eventos societários do catálogo: desdobramento, grupamento e bonificação, com fator e custo atribuído. Ajustam cotas e preço médio da posição. | (asset_id, type, data_com, factor) |
 | Catálogo | `asset_terms` | seed V8 | Parâmetros públicos do papel, 1:1 com assets — hoje só Tesouro Direto (vencimento, forma de remuneração, indexador). | — |
 | Catálogo | `asset_types` | seed V2 | Os 12 tipos de ativo (Ações, FIIs, Renda Fixa, Tesouro, ETF, BDR, Cripto...), com a fonte de preço (price_source) e se é renda fixa (fixed_income). | (name) |
-| Catálogo | `assets` | seeds / adm-api | Catálogo global de instrumentos (sem dono): ticker, nome, tipo, categoria, preço atual, ISIN e a ligação com o emissor (issuer_id, share_class, issuer_link_source). | (ticker) |
+| Catálogo | `assets` | seeds / adm-api | Catálogo global de instrumentos (sem dono): ticker, nome, tipo, categoria, preço atual, ISIN, a ligação com o emissor (issuer_id, share_class, issuer_link_source) e a saída da bolsa (delisted_on, delisting_source — V13/V14). | (ticker, asset_type_id, delisted_on) NULLS NOT DISTINCT |
+| Catálogo | `foreign_listings` | adm-api (tarefas FOREIGN_CATALOG e FOREIGN_DELISTED) | Papel listado nos EUA, 1:1 com o ativo: bolsa, CIK, série da SEC, FIGI composto, tipo do OpenFIGI, SIC, origens da classificação (CURATION nunca sobrescrita), primeiro e último dia na lista da bolsa. | (asset_id); composite_figi e sec_series_id únicos |
 | Catálogo | `withholding_tax_rules` | seed V23 | Alíquotas de IR retido na fonte por tipo de provento, tipo de ativo e vigência, com a base legal. Lei nova = migration. | — |
 | Emissores | `company_quarters` | adm-api (derivada) | Série trimestral derivada por (issuer_id, period_end): trimestre isolado (_q), 12 meses (_ttm), posição do balanço e ações. Recalculada inteira ao fim de cada carga de balanços. Base dos indicadores. dividends_paid_q/_ttm (V45): dividendos + JCP pagos aos acionistas da controladora (DFC), base do payout desde 10/10/2026. V7 (24/10/2026): lucro bruto, D&A (DVA menos a exaustão biológica), LAIR e IR/CSLL (_q/_ttm) e ativo/passivo circulante — base dos indicadores novos da tela de Ativos. | — |
 | Emissores | `cvm_documents` | adm-api | Cada DFP ou ITR entregue à CVM por emissor e data de referência; version (reapresentação substitui) e se é consolidado. | (issuer_id, doc_type, reference_date) |

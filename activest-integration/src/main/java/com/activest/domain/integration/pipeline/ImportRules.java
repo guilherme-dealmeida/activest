@@ -36,6 +36,14 @@ public interface ImportRules {
     Result apply(ImportedMovement movement, Function<String, Optional<Asset>> catalog);
 
     /**
+     * Tipos de ativo (nomes de {@code asset_types}) que esta fonte pode trazer. O catálogo que entra em
+     * {@link #apply} procura o ticker só neles: desde a V13 o ticker é único por tipo, e a mesma sigla pode ser cripto
+     * e ação do exterior (META) — a Binance tem de achar a cripto, a B3 o papel da B3
+     * (docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md, D3).
+     */
+    Set<String> assetTypes();
+
+    /**
      * O ativo cuja posicao no Activest e comparada com o saldo que a fonte informa
      * (aviso de divergencia, E3; G6).
      */

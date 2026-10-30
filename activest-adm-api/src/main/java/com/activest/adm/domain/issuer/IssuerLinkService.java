@@ -368,7 +368,9 @@ public class IssuerLinkService {
         Map<String, CvmFiiGeneral> reports = importer.latestFundReports();
         Map<String, Asset> byTicker = assetRepository.findAllWithType().stream()
                 .filter(a -> "FII".equals(a.getAssetType().getName()))
-                .collect(Collectors.toMap(a -> a.getTicker().toUpperCase(), Function.identity()));
+                // Ticker reaproveitado (V13): vale o listado
+                .collect(Collectors.toMap(a -> a.getTicker().toUpperCase(), Function.identity(),
+                        (x, y) -> x.getDelistedOn() == null ? x : y));
         List<CuratedLine> out = new ArrayList<>();
         Map<String, Integer> totals = new LinkedHashMap<>();
         for (FundCnpj line : lines) {

@@ -39,7 +39,7 @@ class PaymentDateSourceIT extends com.activest.functional.FunctionalBase {
     @Test
     @DisplayName("Data da CVM e substituida pela data da B3, e a origem volta a nula")
     void officialReplacesCvm() {
-        Asset cmig = assetRepository.findByTicker("CMIG4").orElseThrow();
+        Asset cmig = assetRepository.findAllByTicker("CMIG4").get(0);
         cashEventWriter.save(cmig, data(CashEventSource.B3_HISTORICO, null));
         jdbc.update("UPDATE asset_cash_events SET payment_date = DATE '2026-12-30', payment_date_source = 'CVM'");
 
@@ -52,7 +52,7 @@ class PaymentDateSourceIT extends com.activest.functional.FunctionalBase {
     @Test
     @DisplayName("Data do levantamento (V39) tambem cede a data da B3")
     void officialReplacesSurvey() {
-        Asset cmig = assetRepository.findByTicker("CMIG4").orElseThrow();
+        Asset cmig = assetRepository.findAllByTicker("CMIG4").get(0);
         cashEventWriter.save(cmig, data(CashEventSource.B3_HISTORICO, null));
         jdbc.update("UPDATE asset_cash_events SET payment_date = DATE '2026-12-30', payment_date_source = 'LEVANTAMENTO'");
 
@@ -65,7 +65,7 @@ class PaymentDateSourceIT extends com.activest.functional.FunctionalBase {
     @Test
     @DisplayName("A B3 muda a data do proprio provento: a data nova vale; 'a definir' (sem data) nao apaga a que existe")
     void b3ChangesItsOwnDate() {
-        Asset cmig = assetRepository.findByTicker("CMIG4").orElseThrow();
+        Asset cmig = assetRepository.findAllByTicker("CMIG4").get(0);
         cashEventWriter.save(cmig, data(CashEventSource.B3, "2026-10-05"));
 
         cashEventWriter.save(cmig, data(CashEventSource.B3, "2026-10-02"));
@@ -79,7 +79,7 @@ class PaymentDateSourceIT extends com.activest.functional.FunctionalBase {
     @Test
     @DisplayName("O historico longo da B3 (sem data) nao mexe na data que a B3 recente gravou")
     void historyDoesNotTouchDate() {
-        Asset cmig = assetRepository.findByTicker("CMIG4").orElseThrow();
+        Asset cmig = assetRepository.findAllByTicker("CMIG4").get(0);
         cashEventWriter.save(cmig, data(CashEventSource.B3, "2026-10-05"));
 
         cashEventWriter.save(cmig, data(CashEventSource.B3_HISTORICO, null));
@@ -91,7 +91,7 @@ class PaymentDateSourceIT extends com.activest.functional.FunctionalBase {
     @Test
     @DisplayName("FII: o aviso do FNET assume o provento gravado pela B3 como reserva (fonte, aviso e data)")
     void fnetTakesOverB3Reserve() {
-        Asset hglg = assetRepository.findByTicker("HGLG11").orElseThrow();
+        Asset hglg = assetRepository.findAllByTicker("HGLG11").get(0);
         LocalDate dataCom = LocalDate.of(2025, 8, 29);
         cashEventWriter.save(hglg, new CashEventWriter.CashEventData(DividendType.RENDIMENTO, "RENDIMENTO", dataCom,
             LocalDate.of(2025, 9, 12), new BigDecimal("1.10"), null, null, null, null, CashEventSource.B3, null, (short) 1));

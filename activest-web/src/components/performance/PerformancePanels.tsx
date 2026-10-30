@@ -231,7 +231,7 @@ export const BreakdownSection = ({ b, level, onLevel, showIssuer, onDrill }: {
                   <td className="py-2 px-3">
                     <div className="flex items-center gap-2">
                       {level === 'POSITION' && r.ticker && (
-                        <AssetLogo ticker={r.ticker} hasLogo={!!r.hasLogo} src={logo?.src} label={logo?.label} />
+                        <AssetLogo ticker={r.ticker} hasLogo={!!r.hasLogo} src={logo?.src} label={logo?.label} assetType={r.typeName} />
                       )}
                       <div>
                         <div className="text-white font-medium">

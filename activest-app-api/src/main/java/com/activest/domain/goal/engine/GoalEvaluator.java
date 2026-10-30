@@ -784,15 +784,16 @@ public final class GoalEvaluator {
 
     // =================================================================== por ativo
 
-    private static List<GoalFacts.Holding> ofTicker(GoalDefinition d, GoalFacts f) {
-        String t = d.text("ticker");
-        return f.holdings().stream().filter(h -> h.info().ticker().equalsIgnoreCase(t)).toList();
+    // O ativo da meta e o id (V13: o ticker se repete entre tipos); d.text("ticker") fica so como rotulo
+    private static List<GoalFacts.Holding> ofAsset(GoalDefinition d, GoalFacts f) {
+        Long id = d.assetId();
+        return f.holdings().stream().filter(h -> id != null && id.equals(h.info().assetId())).toList();
     }
 
-    private static Set<UUID> idsOfTicker(GoalDefinition d, GoalFacts f) {
-        String t = d.text("ticker");
+    private static Set<UUID> idsOfAsset(GoalDefinition d, GoalFacts f) {
+        Long id = d.assetId();
         Set<UUID> ids = new HashSet<>();
-        f.positions().values().stream().filter(p -> p.ticker().equalsIgnoreCase(t)).forEach(p -> ids.add(p.id()));
+        f.positions().values().stream().filter(p -> id != null && id.equals(p.assetId())).forEach(p -> ids.add(p.id()));
         return ids;
     }
 
@@ -802,13 +803,13 @@ public final class GoalEvaluator {
                 return h.currentPrice().doubleValue();
             }
         }
-        BigDecimal p = f.catalogPrice().apply(d.text("ticker"));
+        BigDecimal p = f.catalogPrice().apply(d.assetId());
         return p != null && p.signum() > 0 ? p.doubleValue() : null;
     }
 
     private static void assetShares(GoalDefinition d, GoalFacts f, EvaluationBuilder b) {
         b.unit = Unit.SHARES;
-        List<GoalFacts.Holding> hs = ofTicker(d, f);
+        List<GoalFacts.Holding> hs = ofAsset(d, f);
         if (hs.stream().anyMatch(h -> "RENDA_FIXA".equals(h.info().typeName()))) {
             b.unavailable("Renda fixa privada não tem cotas");
             return;
@@ -824,7 +825,7 @@ public final class GoalEvaluator {
             b.fig("costOfRemaining", "Custo estimado da falta ao preço atual", (target - shares) * price, Unit.BRL,
                     Nature.ESTIMATIVA);
         }
-        Set<UUID> ids = idsOfTicker(d, f);
+        Set<UUID> ids = idsOfAsset(d, f);
         LocalDate to = f.today().withDayOfMonth(1).minusDays(1);
         LocalDate from = f.today().withDayOfMonth(1).minusMonths(12);
         double bought = 0;
@@ -840,7 +841,7 @@ public final class GoalEvaluator {
     }
 
     private static void assetValue(GoalDefinition d, GoalFacts f, EvaluationBuilder b) {
-        List<GoalFacts.Holding> hs = ofTicker(d, f);
+        List<GoalFacts.Holding> hs = ofAsset(d, f);
         quality(hs, f, b);
         boolean cost = "COST".equals(d.text("basis"));
         double v = hs.stream().mapToDouble(h -> (cost ? h.cost() : h.currentValue()).doubleValue()).sum();
@@ -855,9 +856,9 @@ public final class GoalEvaluator {
 
     private static void dividendsBuyShares(GoalDefinition d, GoalFacts f, EvaluationBuilder b) {
         b.unit = Unit.SHARES;
-        List<GoalFacts.Holding> hs = ofTicker(d, f);
+        List<GoalFacts.Holding> hs = ofAsset(d, f);
         quality(hs, f, b);
-        Set<UUID> ids = idsOfTicker(d, f);
+        Set<UUID> ids = idsOfAsset(d, f);
         LocalDate to = f.today().withDayOfMonth(1).minusDays(1);
         LocalDate from = f.today().withDayOfMonth(1).minusMonths(12);
         Set<String> seen = new HashSet<>();
@@ -988,7 +989,7 @@ public final class GoalEvaluator {
 
     private static Projector resolve(GoalDefinition d, GoalFacts f, boolean withReturn) {
         Projector p = new Projector();
-        Set<UUID> ids = d.type() == GoalType.ATV_2 || d.type() == GoalType.ATV_1 ? idsOfTicker(d, f) : scopeIds(d.scope(), f);
+        Set<UUID> ids = d.type() == GoalType.ATV_2 || d.type() == GoalType.ATV_1 ? idsOfAsset(d, f) : scopeIds(d.scope(), f);
         // retorno
         Double informed = d.number("returnRate");
         if (!withReturn) {

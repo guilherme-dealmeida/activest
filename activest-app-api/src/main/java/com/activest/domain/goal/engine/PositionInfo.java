@@ -26,7 +26,7 @@ public record PositionInfo(UUID id, Long assetId, String ticker, String typeName
             case CATEGORY -> categoryName;
             case INDEXER -> indexer;
             case ISSUER -> issuer;
-            case ASSET -> ticker;
+            case ASSET -> assetId != null ? assetId.toString() : null;
             case POSITIONS -> id.toString();
         };
     }
@@ -35,6 +35,9 @@ public record PositionInfo(UUID id, Long assetId, String ticker, String typeName
     public String label(ScopeKind kind) {
         if (kind == ScopeKind.TYPE) {
             return typeDescription != null ? typeDescription : typeName;
+        }
+        if (kind == ScopeKind.ASSET) {
+            return ticker;
         }
         if (kind == ScopeKind.INDEXER) {
             return switch (indexer == null ? "" : indexer) {

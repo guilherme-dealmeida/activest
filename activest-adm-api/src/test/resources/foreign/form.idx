@@ -1,0 +1,20 @@
+Description:           Master Index of EDGAR Dissemination Feed by Form Type
+Last Data Received:    March 31, 2024
+Comments:              webmaster@sec.gov
+Anonymous FTP:         ftp://ftp.sec.gov/edgar/
+
+
+
+
+Form Type   Company Name                                                  CIK         Date Filed  File Name
+---------------------------------------------------------------------------------------------------------------------------------------------
+1                24X National Exchange LLC                                     1931336     2024-02-06  edgar/data/1931336/9999999997-24-000391.txt         
+25-NSE           ABBEY NATIONAL TREASURY SERVICES PLC/ENG                      931061      2024-03-13  edgar/data/931061/0000876661-24-000153.txt          
+25-NSE           ADDVANTAGE TECHNOLOGIES GROUP INC                             874292      2024-03-21  edgar/data/874292/0001354457-24-000197.txt          
+25-NSE           AES CORP                                                      874761      2024-02-15  edgar/data/874761/0000876661-24-000102.txt          
+25-NSE           ALKALINE WATER Co INC                                         1532390     2024-03-21  edgar/data/1532390/0001354457-24-000193.txt         
+25               ALMADEN MINERALS LTD                                          1015647     2024-03-25  edgar/data/1015647/0001171843-24-001563.txt         
+25               Alithya Group inc                                             1734520     2024-02-09  edgar/data/1734520/0001734520-24-000009.txt         
+25               Aravive, Inc.                                                 1513818     2024-01-29  edgar/data/1513818/0001437749-24-002443.txt         
+10-K             10x Genomics, Inc.                                            1770787     2024-02-15  edgar/data/1770787/0001770787-24-000017.txt         
+10-K             180 Life Sciences Corp.                                       1690080     2024-03-25  edgar/data/1690080/0001213900-24-025262.txt         

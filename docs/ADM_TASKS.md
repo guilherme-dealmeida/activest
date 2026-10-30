@@ -4,7 +4,9 @@
 > 05/10/2026 ([18] índices de mercado, [19] preço do Tesouro) · 21/10/2026 ([17] situação dos avisos do FNET, no lugar
 > da antiga conferência por extrato, removida — `docs/planos/PLANO_CORRECAO_PROVENTOS.md`) · 22/10/2026 (Tarefas: os
 > endpoints passam pelo executor das tarefas e cada pedido vira uma rodada na tela `/tasks` — `docs/planos/PLANO_TAREFAS.md`,
-> D16 e D22) · 27/10/2026 (Fundos de investimento: sem endpoint próprio — tarefa `FUND_QUOTES` e etapa do `BOOTSTRAP`).
+> D16 e D22) · 27/10/2026 (Fundos de investimento: sem endpoint próprio — tarefa `FUND_QUOTES` e etapa do `BOOTSTRAP`) ·
+> 29/10/2026 (Ativos internacionais: [16] passa a inativar com prova, [21] desfazer inativação, [22] catálogo vivo dos EUA,
+> [23] deslistados dos EUA, duas etapas novas no `BOOTSTRAP` — `docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md`).
 
 | Tema | Como funciona |
 |---|---|
@@ -51,6 +53,9 @@ Prefixo das rotas: `/api/v1/admin`.
 | 18 | POST | `/indices?codes&from&to&recent` | adm | 202 (400 com código desconhecido) | Índices de mercado |
 | 19 | POST | `/tesouro?from&recent` | adm | 202 | Preço do Tesouro |
 | 20 | GET/POST/PUT | `/currencies[/{code}]` | adm | 200 (403 sem `is_admin`) | Moedas (cadastro; câmbio pela tarefa `EXCHANGE_RATES`) |
+| 21 | PUT | `/assets/{assetId}/activation` | adm | 200 (404/400/409) | Catálogo (curadoria da inativação) |
+| 22 | POST | `/foreign-catalog[?write=true]` | adm | 202 | Exterior (catálogo vivo) |
+| 23 | POST | `/foreign-delisted?from&to[&write=true]` | adm | 202 | Exterior (deslistados 2010+) |
 
 ---
 
@@ -73,6 +78,9 @@ Prefixo das rotas: `/api/v1/admin`.
 | 7 | informe mensal de FII 2016+ | [14] |
 | 8 | índices de mercado 2010+ (anos fechados de `carga/data/bcb` e `carga/data/b3/indices`) | [18] |
 | 9 | preço do Tesouro Direto 2010+ (`carga/data/tesouro`, ou o Tesouro Transparente se mudou) | [19] |
+| … | (depois: câmbio, histórico de cripto, fundos de investimento — ver `BootstrapService`) | |
+| 10 | catálogo vivo dos EUA, gravando (29/10/2026) | [22] |
+| 11 | deslistados dos EUA 2010+, gravando (29/10/2026) | [23] |
 
 Etapa que falha é registrada e a seguinte roda assim mesmo. Uma carga por vez. Termina no log com
 `Carga inicial (...) concluida` e o resumo de cada etapa.
@@ -273,10 +281,13 @@ apaga o arquivo existente.
 
 ### [16] `POST /api/v1/admin/catalog-audit`
 
-**Serviço:** `CatalogAuditService.run` e `MarketIndexImportService.audit` · **Grava:** nada (linhas WARN no log)
+**Serviço:** `CatalogAuditService.run` (+ `CatalogDelisting`) e `MarketIndexImportService.audit` · **Grava:** desde
+29/10/2026, a inativação com prova (`assets.active`, `delisted_on`, `delisting_source`) e a data de saída das inativas sem
+data; o resto são avisos de administrador
 
-**Função.** Mesma conferência das segundas 07:00: tickers novos, sumidos e renomeados contra a lista da BRAPI, e os
-índices de mercado atrasados.
+**Função.** Mesma conferência das segundas 07:00: tickers novos, sumidos e renomeados contra a lista da BRAPI, os
+índices de mercado atrasados e a inativação automática do nacional (registro cancelado na CVM, menos migração; fora da
+lista da BRAPI + 30 pregões sem negócio no COTAHIST, sem ser renomeação — `PLANO_ATIVOS_INTERNACIONAIS`, I5/C7).
 
 **Propósito.** Ver as diferenças do catálogo sem esperar a semana.
 
@@ -342,6 +353,43 @@ node carga/scripts/admin.mjs currencies --method GET
 ```
 
 **Propósito.** Moeda nova = uma linha aqui + a série de câmbio (`docs/planos/PLANO_CADASTRO_MOEDAS.md`).
+
+## Exterior e inativação (29/10/2026, `docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md`)
+
+### [21] `PUT /api/v1/admin/assets/{assetId}/activation` — síncrono
+
+**Serviço:** `AssetActivationService.apply` · **Grava:** `assets.active`, `delisted_on`, `delisting_source = MANUAL`
+
+**Corpo.** `{"active": true}` (reativa e resolve o aviso `CATALOGO_TICKER_INATIVADO`) ou
+`{"active": false, "delistedOn": "AAAA-MM-DD"}`. Ativo inexistente: 404; data inválida: 400; reativar um ticker que já
+tem um vivo do mesmo tipo: 409.
+
+**Propósito.** Desfazer (ou fazer) a inativação das tarefas: a decisão do administrador nunca é refeita.
+
+### [22] `POST /api/v1/admin/foreign-catalog[?write=true]`
+
+**Serviço:** `ForeignCatalogService.run` (tarefa `FOREIGN_CATALOG`, segundas 06:30) · **Grava:** sempre
+`carga/data/levantamento/internacional/catalogo-previa.json`; com `write=true`, `assets` (USD, país US) e
+`foreign_listings`, renomeações e inativações dos EUA
+
+**Função.** Lista do Nasdaq Trader → tipo pelo OpenFIGI → categoria (BDR, SIC, Nareit, palavras do ETF) → identidade
+pelo FIGI → saída com prova (Form 25 ou 30 dias fora da lista), aplicando a curadoria `curadoria.json`.
+
+**Propósito.** Primeira carga e conferência da planilha de revisão (`carga/scripts/levantamento/internacional_planilha.py`).
+
+### [23] `POST /api/v1/admin/foreign-delisted?from=2010&to=<ano corrente>[&write=true]`
+
+**Serviço:** `ForeignDelistedService.run` (tarefa `FOREIGN_DELISTED`, só Run) · **Grava:** sempre
+`carga/data/levantamento/internacional/deslistados-previa.json`; com `write=true`, os papéis de capital com ticker como
+inativos (`delisting_source = FORM_25`, `delisted_on` = saída do Form 25)
+
+**Função.** Form 25/25-NSE do índice da SEC → classe, bolsa e saída → ticker (XBRL, texto, séries da SEC, Nareit) → tipo
+e categoria, com a curadoria `curadoria-deslistados.json` (chave = número de acesso).
+
+**Propósito.** O histórico de quem saiu da bolsa desde 2010, para o lançamento retroativo; a cobertura por ano e tipo
+sai na planilha `internacional_deslistados.py planilha`.
+
+---
 
 ## Fundos de investimento
 

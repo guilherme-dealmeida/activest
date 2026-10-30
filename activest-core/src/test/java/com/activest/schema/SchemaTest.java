@@ -25,11 +25,34 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Flyway roda ate a V12 (V1-V6 consolidadas + contas novas da tela de Ativos + metas + moedas, proventos do exterior, euro e fundos de investimento) e o schema valida contra as entidades")
+    @DisplayName("Flyway roda ate a V17 (V1-V6 consolidadas + contas novas da tela de Ativos + metas + moedas, proventos do exterior, euro, fundos de investimento, ticker por tipo, origem da inativacao, estrutura do exterior e tarefas do catalogo do exterior e dos deslistados) e o schema valida contra as entidades")
     void appliedMigrations() {
         Number version = (Number) em.createNativeQuery(
             "SELECT MAX(CAST(version AS NUMERIC)) FROM flyway_schema_history WHERE success").getSingleResult();
-        assertThat(version.intValue()).isEqualTo(12);
+        assertThat(version.intValue()).isEqualTo(17);
+        // V17 (F5): FOREIGN_DELISTED so manual, de 2010, WRITE nasce falso
+        assertThat(count("tasks t JOIN task_types y ON y.id = t.task_type_id WHERE y.type = 'FOREIGN_DELISTED' "
+            + "AND t.cron IS NULL AND NOT t.run_on_startup")).isEqualTo(1);
+        // V16 (PLANO_ATIVOS_INTERNACIONAIS, F4): FOREIGN_CATALOG as segundas 06:30, WRITE nasce falso (portao da D12)
+        assertThat(count("tasks t JOIN task_attributes ta ON ta.task_id = t.id JOIN task_type_attributes a "
+            + "ON a.id = ta.task_type_attribute_id WHERE t.name = 'FOREIGN_CATALOG' AND t.cron = '0 30 6 * * MON' "
+            + "AND a.att_name = 'WRITE' AND ta.att_value = 'false'")).isEqualTo(1);
+        // V15 (PLANO_ATIVOS_INTERNACIONAIS, F3): foreign_listings 1:1 e as categorias dos tres tipos (D6-D8)
+        assertThat(count("information_schema.tables WHERE table_name = 'foreign_listings'")).isEqualTo(1);
+        assertThat(count("asset_categories c JOIN asset_types t ON t.id = c.asset_type_id WHERE t.name = 'STOCK'")).isEqualTo(19);
+        assertThat(count("asset_categories c JOIN asset_types t ON t.id = c.asset_type_id WHERE t.name = 'REIT'")).isEqualTo(12);
+        assertThat(count("asset_categories c JOIN asset_types t ON t.id = c.asset_type_id WHERE t.name = 'ETF_INTERNACIONAL'")).isEqualTo(9);
+        // V14 (PLANO_ATIVOS_INTERNACIONAIS, I5/C7): a prova da inativacao, e a conferencia descrita como quem inativa
+        assertThat(em.createNativeQuery("SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+                + "WHERE conname = 'ck_assets_delisting_source'").getSingleResult().toString()).contains("LIST_GONE");
+        assertThat(count("task_types WHERE type = 'CATALOG_AUDIT' AND description LIKE '%Inativa o papel%'")).isEqualTo(1);
+        // V13 (docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md, D3 e P2): ticker unico por (ticker, tipo, data de saida)
+        assertThat(count("pg_constraint WHERE conname = 'uk_assets_ticker'")).isZero();
+        assertThat(em.createNativeQuery("SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+                + "WHERE conname = 'uk_assets_ticker_type'").getSingleResult().toString())
+            .contains("NULLS NOT DISTINCT").contains("ticker, asset_type_id, delisted_on");
+        assertThat(count("pg_constraint WHERE conname = 'ck_assets_delisted_inactive'")).isEqualTo(1);
+        assertThat(count("goals WHERE params ->> 'ticker' IS NOT NULL AND params ->> 'assetId' IS NULL")).isZero();
         // V12 (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md, F1): fonte CVM, tabelas do fundo, indices em copia apagados
         assertThat(count("asset_types WHERE name = 'FUNDO_INVESTIMENTO' AND price_source = 'CVM'")).isEqualTo(1);
         Number fundTables = (Number) em.createNativeQuery("""
@@ -84,15 +107,15 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Tarefas (V61, V62; V8 do Activest: GOALS_SNAPSHOT; V9: EXCHANGE_RATES; V12: FUND_QUOTES): 29 tipos (25 da adm-api, 4 da app-api), uma tarefa por tipo, atributos espelhados")
+    @DisplayName("Tarefas (V61, V62; V8 do Activest: GOALS_SNAPSHOT; V9: EXCHANGE_RATES; V12: FUND_QUOTES; V16: FOREIGN_CATALOG; V17: FOREIGN_DELISTED): 31 tipos (27 da adm-api, 4 da app-api), uma tarefa por tipo, atributos espelhados")
     void seededTasks() {
-        assertThat(count("task_types")).isEqualTo(29);
+        assertThat(count("task_types")).isEqualTo(31);
         assertThat(count("task_types WHERE service = 'APP_API'")).isEqualTo(4);
-        assertThat(count("tasks")).isEqualTo(29);
+        assertThat(count("tasks")).isEqualTo(31);
         assertThat(count("tasks t JOIN task_types y ON y.id = t.task_type_id WHERE t.name <> y.type")).isZero();
-        assertThat(count("tasks WHERE cron IS NOT NULL")).isEqualTo(19);
-        assertThat(count("task_type_attributes")).isEqualTo(36);
-        assertThat(count("task_attributes")).isEqualTo(36);
+        assertThat(count("tasks WHERE cron IS NOT NULL")).isEqualTo(20);
+        assertThat(count("task_type_attributes")).isEqualTo(40);
+        assertThat(count("task_attributes")).isEqualTo(40);
         assertThat(count("task_type_attributes WHERE position = 0")).isZero();
         assertThat(count("tasks WHERE run_on_startup")).isEqualTo(8);
         assertThat(count("task_attributes ta JOIN task_type_attributes a ON a.id = ta.task_type_attribute_id "
@@ -153,7 +176,8 @@ class SchemaTest extends JpaTestBase {
         assertThat(count("asset_types")).isEqualTo(12);
         // 165 linhas (name, segment) consolidadas em uma por (tipo, name) na V31:
         // ACAO 11, BDR 20, CRIPTO 14, ETF 9, FII 5, RENDA_FIXA 15 (+ RDC na V54), TESOURO_DIRETO 6
-        assertThat(count("asset_categories")).isEqualTo(87);
+        // + 40 dos tipos internacionais (V15): STOCK 19, REIT 12, ETF_INTERNACIONAL 9
+        assertThat(count("asset_categories")).isEqualTo(127);
         // V12: as 6 categorias dos fundos de investimento (1o nivel ANBIMA, D18)
         assertThat(count("asset_categories c JOIN asset_types t ON t.id = c.asset_type_id "
             + "WHERE t.name = 'FUNDO_INVESTIMENTO'")).isEqualTo(6);

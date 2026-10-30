@@ -9,6 +9,7 @@ import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -16,6 +17,12 @@ class AssetRepositoryTest extends JpaTestBase {
 
     @Autowired private AssetRepository repository;
     @Autowired private AssetTypeRepository assetTypeRepository;
+
+    /** O ativo com este ticker, quando ele não se repete entre os tipos (V13: o ticker é único só por tipo). */
+    private Optional<Asset> one(String ticker) {
+        List<Asset> found = repository.findAllByTicker(ticker);
+        return found.size() == 1 ? Optional.of(found.get(0)) : Optional.empty();
+    }
 
     /** O teto do autocomplete e do servidor: 50, sem Sort (o @Query ja ordena). */
     private static final PageRequest CEILING = PageRequest.of(0, 50);
@@ -66,17 +73,17 @@ class AssetRepositoryTest extends JpaTestBase {
     void searchRestrictedToType() {
         AssetType fii = CatalogIds.type(assetTypeRepository, "FII");
 
-        List<Asset> result = repository.searchByTypeAndTickerOrName(fii.getId(), "HG", CEILING);
+        List<Asset> result = repository.searchByTypeAndTickerOrName(fii.getId(), "HG", false, CEILING);
 
         assertThat(result).isNotEmpty();
         assertThat(result).allSatisfy(a -> assertThat(a.getAssetType().getId()).isEqualTo(fii.getId()));
     }
 
     @Test
-    @DisplayName("findByTickerWithTerms traz os parametros do papel no Tesouro e nulo na acao")
+    @DisplayName("findAllByTicker traz os parametros do papel no Tesouro e nulo na acao")
     void termsInSameSelect() {
-        Asset treasury = repository.findByTickerWithTerms(CatalogIds.TREASURY_IPCA_2050).orElseThrow();
-        Asset stock = repository.findByTickerWithTerms(CatalogIds.STOCK).orElseThrow();
+        Asset treasury = one(CatalogIds.TREASURY_IPCA_2050).orElseThrow();
+        Asset stock = one(CatalogIds.STOCK).orElseThrow();
 
         assertThat(treasury.getTerms()).isNotNull();
         assertThat(treasury.getTerms().getMaturityDate()).isEqualTo(LocalDate.of(2050, 8, 15));
@@ -95,24 +102,29 @@ class AssetRepositoryTest extends JpaTestBase {
     @DisplayName("Ativo inativo (deslistado, V14) nao aparece na busca; o novo da V15 aparece com nome da BRAPI")
     void inactiveOutOfSearch() {
         assertThat(repository.searchByTickerOrName("AHEB3F", CEILING)).isEmpty();
-        assertThat(repository.findByTicker("AHEB3F")).get().extracting(Asset::isActive).isEqualTo(false);
+        assertThat(one("AHEB3F")).get().extracting(Asset::isActive).isEqualTo(false);
+        // D11: só a Nova transação (includeInactive) traz o papel que saiu da bolsa
+        AssetType stock = CatalogIds.type(assetTypeRepository, "ACAO");
+        assertThat(repository.searchByTypeAndTickerOrName(stock.getId(), "AHEB3F", false, CEILING)).isEmpty();
+        assertThat(repository.searchByTypeAndTickerOrName(stock.getId(), "AHEB3", true, CEILING))
+            .extracting(Asset::getTicker).containsExactly("AHEB3", "AHEB3F");
         assertThat(repository.searchByTickerOrName("CEEB5", CEILING)).extracting(Asset::getTicker).contains("CEEB5");
     }
 
     @Test
     @DisplayName("V13: nome das acoes com acento, vindo da BRAPI (AALR3)")
     void nameWithAccent() {
-        assertThat(repository.findByTicker("AALR3")).get().extracting(Asset::getName)
+        assertThat(one("AALR3")).get().extracting(Asset::getName)
             .isEqualTo("ALLIANÇA SAÚDE E PARTICIPAÇÕES S.A.");
     }
 
     @Test
     @DisplayName("V15: INHF11 e FII hibrido; V17/V18/V19: ETF, BDR e cripto no catalogo")
     void newCatalog() {
-        assertThat(repository.findByTicker("INHF11")).get().extracting(a -> a.getAssetType().getName()).isEqualTo("FII");
-        assertThat(repository.findByTicker("BOVA11")).get().extracting(a -> a.getAssetType().getName()).isEqualTo("ETF");
-        assertThat(repository.findByTicker("BOVA11").orElseThrow().getCurrentPrice()).isPositive();
-        assertThat(repository.findByTicker("AAPL34")).get().extracting(a -> a.getAssetType().getName()).isEqualTo("BDR");
-        assertThat(repository.findByTicker("BTC")).get().extracting(Asset::getPriceSourceRef).isEqualTo("bitcoin");
+        assertThat(one("INHF11")).get().extracting(a -> a.getAssetType().getName()).isEqualTo("FII");
+        assertThat(one("BOVA11")).get().extracting(a -> a.getAssetType().getName()).isEqualTo("ETF");
+        assertThat(one("BOVA11").orElseThrow().getCurrentPrice()).isPositive();
+        assertThat(one("AAPL34")).get().extracting(a -> a.getAssetType().getName()).isEqualTo("BDR");
+        assertThat(one("BTC")).get().extracting(Asset::getPriceSourceRef).isEqualTo("bitcoin");
     }
 }

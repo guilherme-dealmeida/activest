@@ -75,8 +75,25 @@ public record TransactionCreateDTO(
      * Câmbio para reais (docs/planos/PLANO_CADASTRO_MOEDAS.md, D5/D16): só em ativo cotado em outra moeda — nele,
      * preço, total e taxa vêm na moeda do ativo. Nulo = PTAX de venda da data. Em ativo em reais é recusado se ≠ 1.
      */
-    BigDecimal fxRate
+    BigDecimal fxRate,
+    /**
+     * Tipo do ativo (nome de asset_types, ex.: ACAO, STOCK, CRIPTO): desde a V13 o ticker é único só por tipo — META é
+     * cripto e ação do exterior (docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md, D3, I2). Nulo é aceito só quando o ticker
+     * não se repete entre os tipos.
+     */
+    String assetType
 ) {
+    /** A forma de antes do tipo no payload (V13): com câmbio, sem o tipo. */
+    public TransactionCreateDTO(String ticker, TransactionType type, BigDecimal shares, BigDecimal pricePerShare,
+                                BigDecimal totalAmount, BigDecimal brokerageFee, LocalDate transactionDate,
+                                Boolean isReservation, Boolean isFullSettlement, UUID noteId, Long issuerId,
+                                LocalDate maturityDate, RateType rateType, Indexer indexer, BigDecimal indexerRate,
+                                Long distributorId, String paperCode, BigDecimal fxRate) {
+        this(ticker, type, shares, pricePerShare, totalAmount, brokerageFee, transactionDate, isReservation,
+            isFullSettlement, noteId, issuerId, maturityDate, rateType, indexer, indexerRate, distributorId, paperCode,
+            fxRate, null);
+    }
+
     /** A forma de antes da moeda: sem câmbio (ativo em reais, ou PTAX da data). */
     public TransactionCreateDTO(String ticker, TransactionType type, BigDecimal shares, BigDecimal pricePerShare,
                                 BigDecimal totalAmount, BigDecimal brokerageFee, LocalDate transactionDate,
@@ -85,6 +102,6 @@ public record TransactionCreateDTO(
                                 Long distributorId, String paperCode) {
         this(ticker, type, shares, pricePerShare, totalAmount, brokerageFee, transactionDate, isReservation,
             isFullSettlement, noteId, issuerId, maturityDate, rateType, indexer, indexerRate, distributorId, paperCode,
-            null);
+            null, null);
     }
 }

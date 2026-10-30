@@ -204,7 +204,9 @@ public class PaymentDateSurveyService {
             var ps = con.prepareStatement("""
                     SELECT e.id, e.asset_id, a.ticker, e.type, e.data_com, e.seq, e.value_per_share, e.payment_date
                     FROM asset_cash_events e JOIN assets a ON a.id = e.asset_id
-                    WHERE a.ticker = ANY (?) AND e.type IS NOT NULL""");
+                    JOIN asset_types t ON t.id = a.asset_type_id
+                    WHERE a.ticker = ANY (?) AND e.type IS NOT NULL
+                      AND t.name IN ('ACAO', 'FII', 'ETF', 'BDR')""");
             ps.setArray(1, con.createArrayOf("text", tickers.toArray()));
             return ps;
         }, (rs, i) -> new Event(rs.getLong(1), rs.getLong(2), rs.getString(3), rs.getString(4),

@@ -3,6 +3,7 @@ import { Search } from 'lucide-react';
 import { assetsApi } from '@/api/assets';
 import { Asset } from '@/types';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { formatDate } from '@/utils/format';
 
 interface Props {
   value: string;
@@ -10,6 +11,11 @@ interface Props {
   disabled?: boolean;
   /** Chamado a cada tecla. asset vem preenchido quando o ticker casa com um existente. */
   onChange: (ticker: string, asset: Asset | null) => void;
+  /**
+   * Traz também o papel que saiu da bolsa, marcado com a data de saída (D11 — só a Nova transação, para o lançamento
+   * retroativo; docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md).
+   */
+  includeDelisted?: boolean;
 }
 
 /**
@@ -27,7 +33,7 @@ const SEARCH_LIMIT = 50;
  * ativo inteiro sobe para o formulário — é assim que o pai sabe se deve tratar
  * o cadastro como ativo existente ou novo.
  */
-export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props) => {
+export const TickerAutocomplete = ({ value, typeId, disabled, onChange, includeDelisted }: Props) => {
   const [options, setOptions] = useState<Asset[]>([]);
   const [open, setOpen] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -63,7 +69,7 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
         // Nada de slice aqui: a lista já vem limitada e ordenada do servidor.
         // Cortar no cliente descartava linhas arbitrárias — era o que sumia com
         // o Tesouro Selic 2031 numa busca por "SELIC".
-        const results = (await assetsApi.getAll(typeId, value.trim())) as Asset[];
+        const results = (await assetsApi.getAll(typeId, value.trim(), includeDelisted)) as Asset[];
         setOptions(results);
         setTruncated(results.length >= SEARCH_LIMIT);
         setOpen(results.length > 0);
@@ -75,7 +81,7 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
       }
     }, 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [value, typeId, disabled, chosen]);
+  }, [value, typeId, disabled, chosen, includeDelisted]);
 
   // Outro tipo, outra lista: a escolha anterior não vale mais.
   useEffect(() => {
@@ -136,7 +142,7 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
         <div className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto rounded-md border border-white/10 bg-surface shadow-xl">
           {options.map((opt, idx) => (
             <button
-              key={opt.ticker}
+              key={opt.id}
               type="button"
               onClick={() => pick(opt)}
               className={`w-full text-left px-3 py-2.5 flex items-center gap-3 text-sm transition-colors border-b border-white/5 last:border-0 ${
@@ -145,6 +151,11 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange }: Props)
             >
               <span className="font-semibold text-white min-w-[80px]">{opt.ticker}</span>
               <span className="truncate flex-1 text-gray-400">{opt.name}</span>
+              {!opt.active && (
+                <span className="shrink-0 text-xs text-amber-400">
+                  {opt.delistedOn ? `deslistado em ${formatDate(opt.delistedOn)}` : 'inativo'}
+                </span>
+              )}
             </button>
           ))}
 
