@@ -25,6 +25,13 @@ import static org.mockito.Mockito.when;
  * Deposito de cripto D1     50 USDT (transferencia: nao importa, D6)
  * </pre>
  * Esperado na pre-visualizacao: 3 novas, 2 nao importadas, 1.000,00 depositados.
+ *
+ * <p>Binance Stocks vazia em {@link #account}; com {@link #stocks} (docs/planos/PLANO_INTEGRACOES.md, 10.3):</p>
+ * <pre>
+ * Ordem E1 ZZETF compra a mercado  2,5 por 250,00 USDC, taxa 0,35 USDC  (FILLED)
+ * Ordem E2 ZZETF compra limitada   nada executado                     (CANCELED: nao entra)
+ * Saldo na Funding: EQ_ZZETF 2,500000001 (9 casas, como a Binance)
+ * </pre>
  */
 public final class BinanceFake {
 
@@ -37,6 +44,7 @@ public final class BinanceFake {
     public static final long T_CONVERT = 1_708_000_000_000L;    // 2024-02-15 12:26 UTC
     public static final long T_CRYPTO = 1_708_500_000_000L;     // 2024-02-21 07:20 UTC
     public static final long T_ORDER_2 = 1_709_305_200_000L;    // 2024-03-01 15:00 UTC
+    public static final long T_EQUITY = 1_781_103_600_000L;     // 2026-06-10 15:00 UTC
 
     public static final String READ_ONLY = """
         {"ipRestrict":false,"createTime":1706000000000,"enableReading":true,"enableSpotAndMarginTrading":false,
@@ -102,6 +110,13 @@ public final class BinanceFake {
                           "toAsset":"BTC","toAmount":"0.00002","createTime":%d}],"moreData":false}"""
                 .formatted(T_CONVERT, T_CONVERT + 1));
         });
+        // Binance Stocks vazia (a conta nao tem acoes); stocks() troca por uma ordem.
+        when(client.signedGet(any(), eq("/sapi/v1/equity/order/history"), anyMap()))
+            .thenAnswer(i -> json("{\"page\":1,\"size\":100,\"total\":0,\"rows\":[]}"));
+        when(client.signedGet(any(), eq("/sapi/v1/equity/tokenized/history"), anyMap()))
+            .thenAnswer(i -> json("{\"rows\":[],\"hasMore\":false}"));
+        when(client.signedPostRead(any(), eq("/sapi/v1/asset/get-funding-asset"), anyMap()))
+            .thenAnswer(i -> json("[]"));
         when(client.signedGet(any(), eq("/sapi/v1/capital/deposit/hisrec"), anyMap())).thenAnswer(i -> {
             Map<?, ?> p = i.getArgument(2);
             long ini = Long.parseLong(p.get("startTime").toString());
@@ -113,6 +128,28 @@ public final class BinanceFake {
                 [{"id":"D1","amount":"50","coin":"USDT","network":"TRX","status":1,"txId":"tx-ficticio",
                   "insertTime":%d}]""".formatted(T_CRYPTO));
         });
+    }
+
+    /** A Binance Stocks com a ordem ficticia do ETF ZZETF (cabecalho da classe). */
+    public static void stocks(BinanceClient client) {
+        when(client.signedGet(any(), eq("/sapi/v1/equity/order/history"), anyMap())).thenAnswer(i -> {
+            Map<?, ?> p = i.getArgument(2);
+            if (!"1".equals(p.get("current").toString()) || Long.parseLong(p.get("startTime").toString()) > T_EQUITY) {
+                return json("{\"page\":2,\"size\":100,\"total\":2,\"rows\":[]}");
+            }
+            return json("""
+                {"page":1,"size":100,"total":2,"rows":[
+                 {"orderId":"E1","clientOrderId":"c1","symbol":"ZZETF","quote":"USDC","side":"BUY","orderType":"MARKET",
+                  "avgFilledPrice":"100","qty":"2.5","notional":"250.00","filledQty":"2.50000000","filledTotal":"250.00",
+                  "fee":"0.35","status":"FILLED","createdAt":%d,"updatedAt":%d},
+                 {"orderId":"E2","clientOrderId":"c2","symbol":"ZZETF","quote":"USDC","side":"BUY","orderType":"LIMIT",
+                  "limitPrice":"90","qty":"1","filledQty":"0","filledTotal":"0","fee":"0","session":"RTH",
+                  "status":"CANCELED","createdAt":%d,"updatedAt":%d}]}"""
+                .formatted(T_EQUITY, T_EQUITY + 20, T_EQUITY - 3_600_000, T_EQUITY - 60_000));
+        });
+        when(client.signedPostRead(any(), eq("/sapi/v1/asset/get-funding-asset"), anyMap())).thenAnswer(i -> json("""
+            [{"asset":"EQ_ZZETF","stockTicker":"ZZETF","free":"2.500000001","locked":"0","freeze":"0",
+              "withdrawing":"0","btcValuation":"0"}]"""));
     }
 
     /** A Binance recusando a chave (-2015). */

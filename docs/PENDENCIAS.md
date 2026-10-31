@@ -2,7 +2,8 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 29/10/2026, noite — secao 42 (performance das listagens, docs/planos/PLANO_PERFORMANCE.md: compressao,
+Ultima atualizacao: 31/10/2026 — secao 43 (integracoes genericas e Binance Stocks, docs/planos/PLANO_INTEGRACOES.md);
+35.7 e 37.5 resolvidos; 17.1 resolvido; 38.1 em parte (importacao de operacoes em USD da Binance). Antes: 29/10/2026, noite — secao 42 (performance das listagens, docs/planos/PLANO_PERFORMANCE.md: compressao,
 busca de ativos, consultas que sobraram na Carteira e no Preco Teto). Antes: 29/10/2026 — secao 41: 41.2 a 41.5 (preco do exterior fora, curadoria do catalogo vivo,
 deslistados sem ticker, releitura da SEC). Antes: 28/10/2026 — secao 41 (ativos internacionais, docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md; 41.1
 colunas de um tipo so no `assets`). Antes: 27/10/2026, mais tarde — secao 40 baixada (testes de front, docs/planos/PLANO_TESTES_FRONT.md; 40.13
@@ -747,7 +748,9 @@ Vira escopo proprio, a planejar:
   F1 a F6 concluidas. A integracao fica parada ate o usuario ter conta em
   outra corretora de cripto para testar.
 
-**17.1** Conferir na pratica as partes da F6 que mudam dados. Sincronizar,
+**17.1** ~~Conferir na pratica as partes da F6 que mudam dados~~ — 31/10/2026: sincronizar e confirmar rodaram na conta
+ real (docs/planos/PLANO_INTEGRACOES.md, E6: 10 importadas, sem divergencia). Restaurar e excluir uma importada seguem
+ so nos testes automatizados. Texto original: Conferir na pratica as partes da F6 que mudam dados. Sincronizar,
  decidir duplicatas, restaurar e excluir uma importada (o aviso) so
  foram testadas nos testes automatizados; na conta real nao rodaram.
  O mais seguro para comecar: clicar em Sincronizar na tela de
@@ -1357,7 +1360,8 @@ junto com o `bootstrap`, e a etapa de proventos do `bootstrap` falhou com "nao r
 rodar o `bootstrap` de novo depois completou. Comportamento que ja existia (nao veio da renomeacao). Avaliar: o
 `bootstrap` esperar a outra rodada, ou o `carga/scripts/README.md` avisar para conferir a tela de Tarefas antes.
 
-**35.7** Integracao Binance no Activest: a conexao do PrimeVest nao veio para o banco novo. Recadastrar a chave e
+**35.7** ~~Integracao Binance no Activest~~ — resolvido em 31/10/2026 (docs/planos/PLANO_INTEGRACOES.md, E6): chave
+recadastrada pela tela nova e as operacoes importadas, com o ETF IAU. Texto original: Integracao Binance no Activest: a conexao do PrimeVest nao veio para o banco novo. Recadastrar a chave e
 provar a integracao fica para um escopo proprio, junto com o teste dos ETFs americanos comprados pela Binance
 (escopo "ETFs americanos", aberto em 13/10/2026).
 
@@ -1399,7 +1403,9 @@ Anexo A, M11): os testes de formula (`GoalProjectionTest`, `GoalEvaluatorTest`) 
 (`carga/scripts/conferencia/metas.mjs`) cobrem hoje; a planilha fica para a conferencia do Guilherme.
 **37.4** Cripto alem do BTC tem historico so dos ultimos 365 dias (CoinGecko): rentabilidade e queda do pico de um
 escopo com outra cripto mais antiga ficam indisponiveis antes disso.
-**37.5** Transacoes da Binance do PrimeVest (8, BTC e USDC) nao vieram na carga (I2): entram com o recadastro da
+**37.5** ~~Transacoes da Binance do PrimeVest~~ — resolvido em 31/10/2026: as 8 (7 compras de BTC e o Convert para USDC)
+vieram pela sincronizacao (PLANO_INTEGRACOES, E6), mais o residuo de 0,05814558 USDC lancado a mao em 12/10/2026 (origem
+nao informada pela API; item 43.3). Texto original: Transacoes da Binance do PrimeVest (8, BTC e USDC) nao vieram na carga (I2): entram com o recadastro da
 Binance (escopo dos ETFs americanos).
 **37.7** Observações das metas: o campo existe (`goals.notes`, API), mas saiu do formulário e do detalhe na revisão de
 25/10/2026 — falta um lugar e um uso para ele na tela (como no Preço Teto). Na edição, a observação gravada é mantida.
@@ -1408,7 +1414,8 @@ meia-noite de Sao Paulo a data exibida pode ser a do dia seguinte.
 
 ## 38. MOEDAS (docs/planos/PLANO_CADASTRO_MOEDAS.md, 26/10/2026)
 
-**38.1** Consumo pelos ativos internacionais (escopos "ETFs americanos" e "Internacionais"): fonte de preco de Stock,
+**38.1** (31/10/2026: a importacao de operacoes em USD da Binance e o recadastro sairam — docs/planos/PLANO_INTEGRACOES.md;
+ o resto continua) Consumo pelos ativos internacionais (escopos "ETFs americanos" e "Internacionais"): fonte de preco de Stock,
  REIT e ETF internacional (hoje `MANUAL`), cadastro desses ativos com `currency_code = USD`, eventos de provento na
  moeda do ativo (`asset_cash_events.value_per_share`), importacao de operacoes em USD da Binance (ETF americano) e o
  recadastro da Binance (37.5).
@@ -1439,7 +1446,8 @@ meia-noite de Sao Paulo a data exibida pode ser a do dia seguinte.
 **39.4** Proventos e amortizacao de fundo (D15): o informe diario nao traz distribuicao; fundo que distribui fica sem
  o provento.
 **39.5** FIDC, FIP, FIAGRO e Funcine fora (D1): nao tem cota diaria na CVM.
-**39.6** Integracoes (B3, Binance) nao trazem fundo: o lancamento e manual.
+**39.6** Integracoes (B3, Binance) nao trazem fundo: o lancamento e manual. (31/10/2026: a Binance traz acoes e ETFs dos
+ EUA da Binance Stocks; fundo continua manual.)
 **39.7** "Vivo" pela situacao do cadastro (C2) inclui fundo "Em Liquidacao" ha anos sem cota nova (ex.: ultima cota em
  2024); ele aparece na busca entre os vivos. Ajustar a regra (ex.: exigir cota no ano) e decisao do Guilherme.
 **39.8** Rotulo no front por mapa (`utils/assetLabel.ts`, de `GET /funds/labels` e da busca) em vez de `displayName` em
@@ -1550,6 +1558,24 @@ Resultado (27/10/2026): 148 testes em 15 arquivos de `utils/`, rodando tambem no
 **42.4** Preco Teto: cada linha da lista chama `CeilingPriceDefaults.of`, que le a serie inteira de fechamentos do
  ativo (~20 ms) e os trimestres para os padroes ("padrao mudou", preco de hoje). Com 1 calculo a lista fica em ~0,08 s;
  cresce por linha. Se a lista passar de dezenas de calculos, ler os padroes em lote.
+
+## 43. INTEGRACOES GENERICAS E BINANCE STOCKS (docs/planos/PLANO_INTEGRACOES.md, 31/10/2026)
+
+**43.1** bStocks (mint/redeem da acao em token) e Stock Transfer da Binance (D11): fora desta versao. A conversao em token
+ aparece na pre-visualizacao como nao importada (`TOKENIZED_CONVERT`); a Stock Transfer nao tem endpoint na API — o
+ lancamento e manual, como a transferencia de custodia da B3. Implementar quando alguem usar.
+**43.2** Proventos de acoes/ETFs dos EUA comprados na Binance (D12): vem do catalogo, como os nacionais (cotas na data com),
+ quando houver fonte de proventos do exterior (38.1). A API da Binance Stocks nao tem endpoint de proventos.
+**43.3** Valor realmente debitado da stablecoin na ordem da Binance Stocks: a API devolve `filledTotal` e `fee`, mas nao
+ o valor liquidado (issue #282 do binance-api-postman). A perna em USDC usa total + taxa. Na conta real (13/10/2026) o
+ saldo fechou com um residuo de 0,05814558 USDC anterior a ordem, sem origem nas APIs consultadas (Convert, depositos,
+ compras, rendimentos, transferencias); o Guilherme lancou como compra manual em 12/10/2026. Reavaliar se a Binance
+ publicar o valor liquidado.
+**43.4** Ordem parcialmente executada e ainda aberta segura o cursor do fluxo `equity` (volta na proxima busca). Se ela
+ ficar aberta por muito tempo (GTC), cada sincronizacao relê as ordens desde ela — barato (100 por pagina), mas cresce.
+**43.5** Saldo das acoes so da carteira Funding (`get-funding-asset`, ativos `EQ_*`): se a Binance passar a guardar as
+ acoes em outra carteira, a divergencia acusa a posicao inteira. Conferir se aparecer.
+**43.6** O `walletType` da ordem da Binance Stocks (CARD ou MAIN) nao e usado: a perna em stablecoin nao diz de qual carteira saiu.
 
 ## ORDEM SUGERIDA
 

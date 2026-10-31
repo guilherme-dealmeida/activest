@@ -7,22 +7,17 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { ConnectBinanceModal } from '@/components/integrations/ConnectBinanceModal';
-import { ConnectB3Modal } from '@/components/integrations/ConnectB3Modal';
+import { ConnectSourceModal } from '@/components/integrations/ConnectSourceModal';
+import { SourceLogo } from '@/components/integrations/SourceLogo';
 import { ExclusionsModal } from '@/components/integrations/ExclusionsModal';
 import { integrationsApi } from '@/api/integrations';
 import { useToast } from '@/context/ToastContext';
+import { useIntegrationSources } from '@/hooks/useIntegrationSources';
 import { apiMessage } from '@/utils/apiError';
 import {
-  CONNECTION_STATUS, RUN_STATUS, formatDateTime, isRunInProgress, providerName
+  CONNECTION_STATUS, RUN_STATUS, formatDateTime, isRunInProgress, providerName, sourceOf
 } from '@/utils/integrations';
-import { IntegrationConnection, IntegrationProvider } from '@/types';
-
-/** O que cada fonte importa, para a escolha e o estado vazio. */
-const SOURCE_TEXT: Record<IntegrationProvider, string> = {
-  BINANCE: 'Cripto: compras, vendas e conversões, com uma chave só de leitura.',
-  B3: 'Ações, FIIs, ETFs e BDRs: as negociações da Área do Investidor, pelo CPF.',
-};
+import { IntegrationConnection, IntegrationSource } from '@/types';
 
 /**
  * Integrações com corretoras e com a B3 (docs/planos/PLANO_CRIPTO_BINANCE.md e PLANO_INTEGRACAO_B3.md, F6):
@@ -30,7 +25,8 @@ const SOURCE_TEXT: Record<IntegrationProvider, string> = {
  */
 export const IntegrationsPage = () => {
   const navigate = useNavigate();
-  const [connectOpen, setConnectOpen] = useState<IntegrationProvider | 'choose' | null>(null);
+  const [choosing, setChoosing] = useState(false);
+  const [connecting, setConnecting] = useState<IntegrationSource | null>(null);
   const [exclusionsOf, setExclusionsOf] = useState<IntegrationConnection | null>(null);
   const [disconnecting, setDisconnecting] = useState<IntegrationConnection | null>(null);
 
@@ -40,10 +36,10 @@ export const IntegrationsPage = () => {
     // Enquanto alguma busca roda, a lista se atualiza sozinha.
     refetchInterval: (q) => (q.state.data?.some(c => isRunInProgress(c.lastRunStatus)) ? 3000 : false),
   });
-  // A B3 só aparece quando o servidor a liga (B3I_ENABLED).
-  const { data: sources } = useQuery({ queryKey: ['integrations', 'sources'], queryFn: integrationsApi.sources });
-  const sourceList = sources?.map(s => s.provider) ?? ['BINANCE'];
-  const connect = () => setConnectOpen(sourceList.length === 1 ? sourceList[0] : 'choose');
+  // Catálogo de fontes do servidor: "Conectar" sempre abre a escolha (docs/planos/PLANO_INTEGRACOES.md, 10.1).
+  const sources = useIntegrationSources();
+  const connect = () => setChoosing(true);
+  const choose = (s: IntegrationSource) => { setChoosing(false); setConnecting(s); };
 
   if (isLoading) {
     return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent" /></div>;
@@ -68,46 +64,54 @@ export const IntegrationsPage = () => {
         <Card className="flex flex-col items-center gap-3 py-12 text-center">
           <Plug className="h-10 w-10 text-accent" />
           <p className="text-white font-medium">Nenhuma fonte conectada</p>
-          <div className="max-w-md space-y-1 text-sm text-gray-400">
-            {sourceList.map(f => <p key={f}><span className="text-white">{providerName(f)}</span> — {SOURCE_TEXT[f]}</p>)}
-            <p>A credencial fica cifrada e só permite leitura: o Activest não negocia, não saca e não transfere nada.</p>
-          </div>
+          <p className="max-w-md text-sm text-gray-400">
+            Conecte uma corretora ou a bolsa e as suas operações chegam sozinhas. A credencial fica cifrada e só permite
+            leitura: o Activest não negocia, não saca e não transfere nada.
+          </p>
           <Button onClick={connect}><Plus className="mr-2 h-4 w-4" /> Conectar</Button>
         </Card>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {options.map(c => (
-            <ConnectionCard key={c.id} connection={c}
+            <ConnectionCard key={c.id} connection={c} source={sourceOf(c.provider, sources)}
               onExclusions={() => setExclusionsOf(c)}
               onDisconnect={() => setDisconnecting(c)}
-              onReconnect={() => setConnectOpen(c.provider)} />
+              onReconnect={() => { const s = sourceOf(c.provider, sources); if (s?.available) setConnecting(s); }} />
           ))}
         </div>
       )}
 
-      <Modal isOpen={connectOpen === 'choose'} onClose={() => setConnectOpen(null)} title="Conectar">
-        <div className="space-y-3">
-          {sourceList.map(f => (
-            <button key={f} type="button" onClick={() => setConnectOpen(f)}
-              className="w-full rounded-md border border-surface-light px-4 py-3 text-left hover:border-accent">
-              <p className="text-white font-medium">{providerName(f)}</p>
-              <p className="text-xs text-gray-400">{SOURCE_TEXT[f]}</p>
-            </button>
-          ))}
-        </div>
+      <Modal isOpen={choosing} onClose={() => setChoosing(false)} title="Escolha a integração" size="lg">
+        {!sources ? (
+          <div className="flex justify-center py-6"><LoadingSpinner className="h-6 w-6 text-accent" /></div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {sources.map(s => (
+              <button key={s.provider} type="button" disabled={!s.available} onClick={() => choose(s)}
+                className={`flex items-start gap-3 rounded-md border border-surface-light px-4 py-3 text-left transition-colors ${
+                  s.available ? 'hover:border-accent' : 'cursor-not-allowed opacity-60'}`}>
+                <SourceLogo source={s} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-white font-medium">{s.name}</p>
+                    {!s.available && <Badge variant="default">Indisponível no momento</Badge>}
+                  </div>
+                  <p className="text-xs text-accent">{s.category}</p>
+                  <p className="mt-1 text-xs text-gray-400">{s.description}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </Modal>
-      <ConnectBinanceModal
-        isOpen={connectOpen === 'BINANCE'}
-        onClose={() => setConnectOpen(null)}
-        onConnected={() => setConnectOpen(null)}
-      />
-      <ConnectB3Modal
-        isOpen={connectOpen === 'B3'}
-        onClose={() => setConnectOpen(null)}
-        onConnected={() => setConnectOpen(null)}
+      <ConnectSourceModal
+        source={connecting}
+        onClose={() => setConnecting(null)}
+        onConnected={() => setConnecting(null)}
       />
       <ExclusionsModal connection={exclusionsOf} onClose={() => setExclusionsOf(null)} />
-      <DisconnectModal connection={disconnecting} onClose={() => setDisconnecting(null)}
+      <DisconnectModal connection={disconnecting} source={sourceOf(disconnecting?.provider, sources)}
+        onClose={() => setDisconnecting(null)}
         onDone={() => { setDisconnecting(null); navigate('/integrations'); }} />
     </div>
   );
@@ -117,12 +121,14 @@ export const IntegrationsPage = () => {
 
 interface CardProps {
   connection: IntegrationConnection;
+  source?: IntegrationSource;
   onExclusions: () => void;
   onDisconnect: () => void;
   onReconnect: () => void;
 }
 
-const ConnectionCard = ({ connection: c, onExclusions, onDisconnect, onReconnect }: CardProps) => {
+const ConnectionCard = ({ connection: c, source, onExclusions, onDisconnect, onReconnect }: CardProps) => {
+  const name = source?.name ?? providerName(c.provider);
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [showHistory, setShowHistory] = useState(false);
@@ -164,17 +170,15 @@ const ConnectionCard = ({ connection: c, onExclusions, onDisconnect, onReconnect
   return (
     <Card className={revoked ? 'opacity-70' : undefined}>
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent font-bold">
-          {providerName(c.provider).charAt(0)}
-        </div>
+        <SourceLogo source={source} fallback={name} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-white font-semibold truncate">{c.label}</p>
             <Badge variant={status.variant}>{status.label}</Badge>
           </div>
           <p className="mt-1 flex items-center gap-2 text-xs text-gray-400">
-            {providerName(c.provider)}
-            {c.fingerprint && (c.provider === 'B3'
+            {name}
+            {c.fingerprint && (source?.credential === 'DOCUMENT'
               ? <span>CPF ***.***.***-{c.fingerprint}</span>
               : <><KeyRound className="h-3 w-3" /> ****{c.fingerprint}</>)}
             <span>· Última sincronização: {formatDateTime(c.lastSyncAt)}</span>
@@ -205,19 +209,19 @@ const ConnectionCard = ({ connection: c, onExclusions, onDisconnect, onReconnect
           )}
           {searching && (
             <p className="text-xs text-gray-400">
-              Buscando na {providerName(c.provider)}… a primeira busca pode levar cerca de 2 minutos. Pode sair desta tela.
+              Buscando na {name}… a primeira busca pode levar cerca de 2 minutos. Pode sair desta tela.
             </p>
           )}
           {awaiting && !searching && (
             <div className="space-y-2 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-200">
               <p>
-                Falta autorizar o Activest na {providerName(c.provider)}. Entre com o seu login, autorize e volte aqui
+                Falta autorizar o Activest na {name}. Entre com o seu login, autorize e volte aqui
                 para sincronizar.
               </p>
               {c.authorizationUrl && (
                 <a href={c.authorizationUrl} target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 font-medium text-accent hover:underline">
-                  Autorizar na {providerName(c.provider)} <ExternalLink className="h-3 w-3" />
+                  Autorizar na {name} <ExternalLink className="h-3 w-3" />
                 </a>
               )}
             </div>
@@ -228,7 +232,7 @@ const ConnectionCard = ({ connection: c, onExclusions, onDisconnect, onReconnect
           {c.divergenceCount > 0 && (
             <p className="flex items-center gap-2 text-sm text-yellow-500">
               <AlertTriangle className="h-4 w-4" />
-              {c.divergenceCount === 1 ? '1 ativo diverge' : `${c.divergenceCount} ativos divergem`} da {providerName(c.provider)}
+              {c.divergenceCount === 1 ? '1 ativo diverge' : `${c.divergenceCount} ativos divergem`} da {name}
               {/* A divergência é da última execução confirmada: se é a última
                   busca, o "ver" abre ela; senão, o histórico mostra qual. */}
               {c.lastRunStatus === 'SUCCEEDED' && c.lastRunId ? (
@@ -297,7 +301,8 @@ const ConnectionCard = ({ connection: c, onExclusions, onDisconnect, onReconnect
         <div className="mt-4 flex items-center gap-3 text-sm text-gray-400">
           {c.lastError ? `${c.lastError} ` : 'Desconectada: a credencial foi apagada. '}
           As operações importadas continuam na carteira.
-          <Button size="sm" variant="outline" className="ml-auto" onClick={onReconnect}>Conectar de novo</Button>
+          <Button size="sm" variant="outline" className="ml-auto" onClick={onReconnect}
+            disabled={!source?.available}>Conectar de novo</Button>
         </div>
       )}
     </Card>
@@ -306,8 +311,8 @@ const ConnectionCard = ({ connection: c, onExclusions, onDisconnect, onReconnect
 
 // ---------------------------------------------------------------------------
 
-const DisconnectModal = ({ connection, onClose, onDone }: {
-  connection: IntegrationConnection | null; onClose: () => void; onDone: () => void;
+const DisconnectModal = ({ connection, source, onClose, onDone }: {
+  connection: IntegrationConnection | null; source?: IntegrationSource; onClose: () => void; onDone: () => void;
 }) => {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
@@ -330,7 +335,7 @@ const DisconnectModal = ({ connection, onClose, onDone }: {
       }>
       <p className="text-sm text-gray-300">
         A credencial de <span className="text-white font-medium">{connection?.label}</span>
-        {connection?.provider === 'B3' ? ' (o CPF)' : ' (a chave)'} será apagada na hora e as sincronizações param. As operações já importadas <span className="text-white">continuam na carteira</span>;
+        {source?.credential === 'DOCUMENT' ? ' (o CPF)' : ' (a chave)'} será apagada na hora e as sincronizações param. As operações já importadas <span className="text-white">continuam na carteira</span>;
         se quiser tirá-las, exclua pela tela de Transações.
       </p>
     </Modal>

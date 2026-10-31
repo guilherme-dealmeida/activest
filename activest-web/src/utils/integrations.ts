@@ -1,4 +1,7 @@
-import { ConnectionStatus, IntegrationConnection, MovementKind, RunItemResolution, RunStatus } from '@/types';
+import {
+  ConnectionStatus, IntegrationConnection, IntegrationSource, MovementKind, RunItemResolution, RunStatus
+} from '@/types';
+import { formatCurrency, formatMoney, formatUnitPrice } from '@/utils/format';
 
 /**
  * Rótulos e regras de tela das integrações (docs/planos/PLANO_CRIPTO_BINANCE.md, F6).
@@ -8,9 +11,26 @@ import { ConnectionStatus, IntegrationConnection, MovementKind, RunItemResolutio
 
 export type BadgeVariant = 'success' | 'danger' | 'warning' | 'info' | 'default';
 
-export const PROVIDER_NAME: Record<string, string> = { BINANCE: 'Binance', B3: 'B3' };
+/**
+ * Nome de exibição da fonte, pelo catálogo que o servidor devolve (docs/planos/PLANO_INTEGRACOES.md, 10.1). Sem o
+ * catálogo carregado, o código da fonte.
+ */
+export const providerName = (p: string | null | undefined, sources?: IntegrationSource[]) =>
+  (p ? sources?.find(s => s.provider === p)?.name ?? p : '');
 
-export const providerName = (p: string | null | undefined) => (p ? PROVIDER_NAME[p] ?? p : '');
+/**
+ * Valor da proposta de importação na moeda dela: em reais como sempre; no ativo do exterior, na moeda dele (US$) — o
+ * câmbio (PTAX venda da data) é aplicado ao gravar (docs/planos/PLANO_INTEGRACOES.md, D10). {@code maxDigits} > 2 para
+ * preço unitário.
+ */
+export const formatProposalMoney = (value: number, currency: string | undefined, maxDigits = 2) =>
+  !currency || currency === 'BRL'
+    ? (maxDigits > 2 ? formatUnitPrice(value, true) : formatCurrency(value))
+    : formatMoney(value, currency === 'USD' ? 'US$' : currency, 2, maxDigits);
+
+/** O descritor da fonte, se o catálogo já veio. */
+export const sourceOf = (p: string | null | undefined, sources?: IntegrationSource[]) =>
+  sources?.find(s => s.provider === p);
 
 export const CONNECTION_STATUS: Record<ConnectionStatus, { label: string; variant: BadgeVariant }> = {
   ACTIVE: { label: 'Ativa', variant: 'success' },
@@ -51,6 +71,9 @@ export const KIND: Record<MovementKind, string> = {
   CUSTODY_TRANSFER: 'Transferência de custódia',
   LENDING: 'Empréstimo de ativos',
   FIXED_INCOME: 'Tesouro / renda fixa',
+  FOREIGN_TRADE: 'Ação / ETF dos EUA',
+  STABLECOIN_SETTLEMENT: 'Pagamento em stablecoin',
+  TOKENIZED_CONVERT: 'Conversão em token',
   OTHER: 'Outro lançamento',
 };
 

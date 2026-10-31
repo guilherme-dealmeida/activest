@@ -31,10 +31,7 @@ class IntegrationNotifier {
     }
 
     static String sourceName(IntegrationProvider p) {
-        return switch (p) {
-            case BINANCE -> "Binance";
-            case B3 -> "B3";
-        };
+        return com.activest.domain.integration.source.SourceDescriptors.of(p).name();
     }
 
     private static String linkRun(Connection c, UUID runId) {
@@ -61,8 +58,8 @@ class IntegrationNotifier {
             default -> c.label() + " — a conexão pede atenção";
         };
         String whatToDo = switch (status) {
-            case PENDING_AUTHORIZATION -> "Autorize o Activest na Área do Investidor da B3; a sincronização seguinte "
-                + "confere de novo.";
+            case PENDING_AUTHORIZATION -> "Autorize o Activest na " + sourceName(c.provider())
+                + "; a sincronização seguinte confere de novo.";
             case PERMISSION_TOO_BROAD -> "Gere uma chave só de leitura e conecte de novo.";
             default -> "Confira a chave na " + sourceName(c.provider()) + " e conecte de novo.";
         };

@@ -52,6 +52,60 @@ public final class CryptoImportRules implements ImportRules {
         return map(movement, catalog);
     }
 
+    /**
+     * Com o contexto: a perna em stablecoin da ordem de acao dos EUA (D6; docs/planos/PLANO_INTEGRACOES.md, 10.3)
+     * precisa do cambio da data; o resto segue as regras R2–R8.
+     */
+    @Override
+    public Result apply(ImportedMovement movement, ImportContext context) {
+        if (movement.kind() == MovementKind.STABLECOIN_SETTLEMENT) {
+            return settlement(movement, context);
+        }
+        return map(movement, ticker -> context.asset(ticker, assetTypes()));
+    }
+
+    /**
+     * Compra de ETF paga em USDC = venda de USDC (e a venda do ETF, compra de USDC). A quantidade e o que a corretora
+     * debitou ou creditou; o preco em reais e o cambio da moeda que a stablecoin acompanha (USDC -> USD), PTAX venda
+     * da data (D10). Sem taxa: ela fica no ativo do exterior (P1).
+     */
+    static Result settlement(ImportedMovement m, ImportContext context) {
+        if (m.side() == null || m.asset() == null || m.asset().isBlank() || !positive(m.grossQuantity())) {
+            return Result.no("Liquidação em stablecoin sem moeda, lado ou quantidade.");
+        }
+        String ticker = m.asset().strip().toUpperCase();
+        Optional<Asset> asset = context.asset(ticker, Set.of(com.activest.domain.asset.AssetTypeNames.CRIPTO));
+        if (asset.isEmpty()) {
+            return Result.no("Ativo " + ticker + " não está no catálogo do Activest.");
+        }
+        String reference = asset.get().getReferenceCurrencyCode();
+        if (reference == null || !reference.equals(m.quoteAsset())) {
+            return Result.no(ticker + " não acompanha a moeda " + m.quoteAsset() + " no cadastro.");
+        }
+        java.time.LocalDate date = m.executedAt().atZone(BUSINESS_ZONE).toLocalDate();
+        Optional<BigDecimal> fx = context.fxRate(reference, date);
+        if (fx.isEmpty()) {
+            return Result.no("Sem câmbio de " + reference + " para " + date + ": a liquidação em " + ticker
+                + " entra quando o câmbio do dia for carregado.");
+        }
+        BigDecimal shares = m.grossQuantity().setScale(PRICE_SCALE, RoundingMode.DOWN);
+        BigDecimal price = fx.get().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
+        BigDecimal valueInBase = shares.multiply(price).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+        return Result.ok(new ProposedTransaction(
+            asset.get().getId(),
+            ticker,
+            m.side() == MovementSide.BUY ? TransactionType.BUY : TransactionType.SELL,
+            shares,
+            price,
+            BigDecimal.ZERO.setScale(MONEY_SCALE),
+            date,
+            LocalDateTime.ofInstant(m.executedAt(), ZoneOffset.UTC),
+            m.externalId(),
+            m.grossQuantity(),
+            valueInBase,
+            BigDecimal.ZERO.setScale(MONEY_SCALE)));
+    }
+
     @Override
     public Set<String> assetTypes() {
         return Set.of(com.activest.domain.asset.AssetTypeNames.CRIPTO);
@@ -78,6 +132,9 @@ public final class CryptoImportRules implements ImportRules {
             }
             case FIAT_DEPOSIT -> {
                 return Result.no("Depósito em reais não é transação: serve à conferência (4.6).");
+            }
+            case STABLECOIN_SETTLEMENT -> {
+                return Result.no("Liquidação em stablecoin precisa do câmbio da data.");
             }
             case TRADE, CONVERT -> { /* segue */ }
             default -> {

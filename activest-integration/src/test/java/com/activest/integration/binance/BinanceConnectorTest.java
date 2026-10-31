@@ -175,4 +175,70 @@ class BinanceConnectorTest {
         assertThat(m.feeAsset()).isEqualTo("BNB+BTC");
         verify(client, never()).signedGet(any(), any(), anyMap());
     }
+
+    @Test
+    @DisplayName("Binance Stocks: a ordem executada vira o ETF e a perna em USDC; a cancelada sem execucao nao entra")
+    void stocksOrders() {
+        BinanceFake.account(client, BinanceFake.READ_ONLY);
+        BinanceFake.stocks(client);
+        connector.clock = () -> Instant.parse("2026-07-01T00:00:00Z").toEpochMilli();
+
+        FetchResult r = connector.fetch(KEY, java.util.Map.of());
+
+        ImportedMovement etf = per(r, "binance:equity:E1");
+        assertThat(etf.kind()).isEqualTo(com.activest.domain.integration.source.MovementKind.FOREIGN_TRADE);
+        assertThat(etf.asset()).isEqualTo("ZZETF");
+        assertThat(etf.grossQuantity()).isEqualByComparingTo("2.5");
+        assertThat(etf.quoteAsset()).isEqualTo("USDC");
+        assertThat(etf.quoteAmount()).isEqualByComparingTo("250.00");
+        assertThat(etf.feeAmount()).isEqualByComparingTo("0.35");
+        ImportedMovement leg = per(r, "binance:equity:E1:quote");
+        assertThat(leg.kind()).isEqualTo(com.activest.domain.integration.source.MovementKind.STABLECOIN_SETTLEMENT);
+        assertThat(leg.asset()).isEqualTo("USDC");
+        assertThat(leg.side()).isEqualTo(com.activest.domain.integration.source.MovementSide.SELL);
+        assertThat(leg.grossQuantity()).isEqualByComparingTo("250.35");
+        assertThat(r.movements()).noneMatch(m -> m.externalId().startsWith("binance:equity:E2"));
+        assertThat(r.cursors()).containsEntry("equity", Long.toString(BinanceFake.T_EQUITY));
+        assertThat(r.balances()).containsEntry("equity:ZZETF", new java.math.BigDecimal("2.500000001"));
+        assertThat(connector.rulesFor(etf)).isSameAs(com.activest.domain.integration.pipeline.ForeignImportRules.INSTANCE);
+        assertThat(connector.rulesFor(leg)).isSameAs(com.activest.domain.integration.pipeline.CryptoImportRules.INSTANCE);
+    }
+
+    @Test
+    @DisplayName("Ordem ainda aberta e parcialmente executada nao entra e segura o cursor para a proxima busca")
+    void openOrderHoldsCursor() {
+        BinanceFake.account(client, BinanceFake.READ_ONLY);
+        long created = Instant.parse("2026-06-20T15:00:00Z").toEpochMilli();
+        org.mockito.Mockito.when(client.signedGet(org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq("/sapi/v1/equity/order/history"), org.mockito.ArgumentMatchers.anyMap()))
+            .thenAnswer(i -> BinanceFake.json("""
+                {"page":1,"size":100,"total":2,"rows":[
+                 {"orderId":"E3","symbol":"ZZETF","quote":"USDC","side":"BUY","filledQty":"1","filledTotal":"100",
+                  "fee":"0.1","status":"PARTIALLY_FILLED","createdAt":%d,"updatedAt":%d},
+                 {"orderId":"E4","symbol":"ZZETF","quote":"USDC","side":"BUY","filledQty":"1","filledTotal":"100",
+                  "fee":"0.1","status":"FILLED","createdAt":%d,"updatedAt":%d}]}"""
+                .formatted(created, created + 10, created + 3_600_000, created + 3_600_010)));
+        connector.clock = () -> Instant.parse("2026-07-01T00:00:00Z").toEpochMilli();
+
+        FetchResult r = connector.fetch(KEY, java.util.Map.of());
+
+        assertThat(r.movements()).anyMatch(m -> m.externalId().equals("binance:equity:E4"));
+        assertThat(r.movements()).noneMatch(m -> m.externalId().startsWith("binance:equity:E3"));
+        assertThat(r.cursors()).containsEntry("equity", Long.toString(created - 1));
+    }
+
+    @Test
+    @DisplayName("Conta sem Binance Stocks (a corretora responde 400): a busca de cripto segue sem as acoes")
+    void stocksUnavailable() {
+        BinanceFake.account(client, BinanceFake.READ_ONLY);
+        org.mockito.Mockito.when(client.signedGet(org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq("/sapi/v1/equity/order/history"), org.mockito.ArgumentMatchers.anyMap()))
+            .thenThrow(new BinanceException(400, -1002, "Binance 400 (-1002) em /sapi/v1/equity/order/history: x"));
+        connector.clock = () -> Instant.parse("2026-07-01T00:00:00Z").toEpochMilli();
+
+        FetchResult r = connector.fetch(KEY, java.util.Map.of());
+
+        assertThat(r.movements()).anyMatch(m -> m.externalId().startsWith("binance:spot:"));
+        assertThat(r.movements()).noneMatch(m -> m.externalId().startsWith("binance:equity:"));
+    }
 }

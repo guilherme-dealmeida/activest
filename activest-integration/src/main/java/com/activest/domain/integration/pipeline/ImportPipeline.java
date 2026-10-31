@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -60,9 +61,27 @@ public class ImportPipeline {
     /** Tolerancia relativa da quantidade ao comparar com lancamento manual: 0,1%. */
     private static final BigDecimal SHARES_TOLERANCE = new BigDecimal("0.001");
 
+    /** Fonte de um dominio so: as mesmas regras para todo movimento, contexto so com o catalogo. */
     @Transactional(readOnly = true)
     public ImportPreview preview(UUID connectionId, UUID userId, List<ImportedMovement> movements,
                                  ImportRules rules) {
+        return preview(connectionId, userId, movements, m -> rules,
+            ImportContext.of(ticker -> java.util.Optional.empty(), (c, d) -> java.util.Optional.empty()), true);
+    }
+
+    /**
+     * As regras de cada movimento ({@code rulesFor}) e o contexto delas: catalogo nos tipos da regra e cambio
+     * (docs/planos/PLANO_INTEGRACOES.md, 10.2).
+     */
+    @Transactional(readOnly = true)
+    public ImportPreview preview(UUID connectionId, UUID userId, List<ImportedMovement> movements,
+                                 Function<ImportedMovement, ImportRules> rulesFor, ImportContext context) {
+        return preview(connectionId, userId, movements, rulesFor, context, false);
+    }
+
+    private ImportPreview preview(UUID connectionId, UUID userId, List<ImportedMovement> movements,
+                                  Function<ImportedMovement, ImportRules> rulesFor, ImportContext context,
+                                  boolean legacyCatalog) {
         // Um externalId repetido no mesmo lote e o mesmo movimento: fica o primeiro.
         Map<String, ImportedMovement> unique = new LinkedHashMap<>();
         movements.stream()
@@ -93,9 +112,12 @@ public class ImportPipeline {
             } else if (excluded.contains(m.externalId())) {
                 runItemList.add(new PreviewItem(m, PreviewOutcome.EXCLUDED, null, null));
             } else {
-                ImportRules.Result r = rules.apply(m,
-                    // O ticker e procurado so nos tipos da fonte (V13: META e cripto e acao do exterior)
-                    ticker -> catalog.computeIfAbsent(ticker, t -> assetResolver.findInTypes(t, rules.assetTypes())));
+                ImportRules rules = rulesFor.apply(m);
+                // O ticker e procurado so nos tipos da regra (V13: META e cripto e acao do exterior)
+                ImportRules.Result r = legacyCatalog
+                    ? rules.apply(m, ticker -> catalog.computeIfAbsent(ticker + "|" + rules.getClass().getName(),
+                        t -> assetResolver.findInTypes(ticker, rules.assetTypes())))
+                    : rules.apply(m, context);
                 runItemList.add(r.mapped()
                     ? new PreviewItem(m, PreviewOutcome.NEW, r.transaction(), null)
                     : new PreviewItem(m, PreviewOutcome.UNMAPPED, null, r.reason()));

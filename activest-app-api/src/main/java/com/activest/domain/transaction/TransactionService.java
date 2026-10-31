@@ -117,6 +117,10 @@ public class TransactionService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     ForeignSaleTax foreignSaleTax;
 
+    /** Catalogo + cambio das regras de importacao no "restaurar" (docs/planos/PLANO_INTEGRACOES.md, 10.2). */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    com.activest.domain.integration.pipeline.ImportContextFactory importContexts;
+
     /** Come-cotas e imposto do resgate de fundo (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md, F7). */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     com.activest.domain.fund.FundTaxService fundTax;
@@ -344,11 +348,19 @@ public class TransactionService {
         Asset asset = assetResolver.byId(proposed.assetId())
             .orElseThrow(() -> new BusinessException("Ativo não encontrado no catálogo: " + proposed.ticker()));
         AssetType importedAssetType = asset.getAssetType();
-        boolean accepted = importedAssetType != null
-            && (importedAssetType.isTreasury() || importedAssetType.getPriceSource() != com.activest.domain.asset.PriceSource.MANUAL);
+        // Acao, REIT e ETF do exterior ainda tem preco MANUAL (sem fonte de preco), mas sao lancados por quantidade x
+        // preco na moeda do ativo, como a renda variavel: a importacao os aceita (docs/planos/PLANO_INTEGRACOES.md, I1).
+        boolean foreign = importedAssetType != null
+            && com.activest.domain.asset.AssetTypeNames.FOREIGN_LISTED.contains(importedAssetType.getName());
+        boolean accepted = importedAssetType != null && (foreign || importedAssetType.isTreasury()
+            || importedAssetType.getPriceSource() != com.activest.domain.asset.PriceSource.MANUAL);
         if (!accepted) {
-            throw new BusinessException("Importação aceita cripto, renda variável listada e Tesouro Direto: "
-                + proposed.ticker());
+            throw new BusinessException("Importação aceita cripto, renda variável listada (no Brasil e no exterior) "
+                + "e Tesouro Direto: " + proposed.ticker());
+        }
+        if (proposed.currencyCode() != null && !proposed.currencyCode().equals(asset.getCurrencyCode())) {
+            throw new BusinessException("A ordem de " + proposed.ticker() + " veio em " + proposed.currencyCode()
+                + ", mas o ativo é cotado em " + asset.getCurrencyCode() + ".");
         }
         if (importedAssetType.isTreasury() && proposed.type() == TransactionType.SELL) {
             // A venda de Tesouro e repartida entre os titulos (FIFO) e as linhas sao refeitas a cada
@@ -486,9 +498,8 @@ public class TransactionService {
         if (tx.getOrigin() != TransactionOrigin.AUTO || tx.getSourceSnapshot() == null) {
             throw new BusinessException("Só transações importadas podem ser restauradas da corretora.");
         }
-        ImportRules sourceRules = importRules.forExternalId(tx.getExternalId());
-        ImportRules.Result r = sourceRules.apply(movementJson.read(tx.getSourceSnapshot()),
-            t -> assetResolver.findInTypes(t, sourceRules.assetTypes()));
+        var movement = movementJson.read(tx.getSourceSnapshot());
+        ImportRules.Result r = importRules.forMovement(movement).apply(movement, importContexts.create());
         if (!r.mapped()) {
             throw new BusinessException("Não foi possível restaurar: " + r.reason());
         }

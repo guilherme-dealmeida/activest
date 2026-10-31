@@ -3,8 +3,8 @@ import { Divergence } from '@/types';
 import { formatQuantity } from '@/utils/format';
 
 /**
- * Regra E3: ativos em que a posição no Activest difere do saldo Spot da
- * corretora no momento da busca.
+ * Regra E3: ativos em que a posição no Activest difere do saldo que a fonte informou no momento da busca
+ * (na Binance, a carteira Spot e as ações da Binance Stocks; docs/planos/PLANO_INTEGRACOES.md, D8).
  */
 export const DivergenceList = ({ divergences, provider }: { divergences: Divergence[]; provider: string }) => {
   if (divergences.length === 0) return null;
@@ -15,9 +15,8 @@ export const DivergenceList = ({ divergences, provider }: { divergences: Diverge
         {divergences.length === 1 ? '1 ativo diverge' : `${divergences.length} ativos divergem`} da {provider}
       </p>
       <p className="mt-1 text-gray-400">
-        Comparação da carteira com o saldo Spot da {provider} no momento da busca. Operações que não são importadas
-        (troca entre criptos, rendimentos, transferências) e o mesmo ativo em outra carteira ou corretora também
-        aparecem aqui.
+        Comparação da carteira com o saldo informado pela {provider} no momento da busca. Operações que não são
+        importadas e o mesmo ativo guardado em outra carteira ou corretora também aparecem aqui.
       </p>
       <table className="mt-3 w-full">
         <thead className="text-xs uppercase text-gray-400">

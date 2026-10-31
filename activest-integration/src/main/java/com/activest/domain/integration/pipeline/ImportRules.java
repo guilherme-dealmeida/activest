@@ -36,6 +36,14 @@ public interface ImportRules {
     Result apply(ImportedMovement movement, Function<String, Optional<Asset>> catalog);
 
     /**
+     * Com o contexto (catalogo nos tipos desta regra + cambio; docs/planos/PLANO_INTEGRACOES.md, 10.2). Padrao: so o
+     * catalogo. A regra que precisa de cambio sobrescreve.
+     */
+    default Result apply(ImportedMovement movement, ImportContext context) {
+        return apply(movement, ticker -> context.asset(ticker, assetTypes()));
+    }
+
+    /**
      * Tipos de ativo (nomes de {@code asset_types}) que esta fonte pode trazer. O catálogo que entra em
      * {@link #apply} procura o ticker só neles: desde a V13 o ticker é único por tipo, e a mesma sigla pode ser cripto
      * e ação do exterior (META) — a Binance tem de achar a cripto, a B3 o papel da B3
@@ -61,5 +69,14 @@ public interface ImportRules {
      */
     default boolean emptyBalanceMeansNoPosition() {
         return true;
+    }
+
+    /**
+     * A chave do ativo no saldo que a fonte informa ({@link com.activest.domain.integration.source.FetchResult#balances}).
+     * Padrao: o ticker. Fonte com dois dominios (Binance: cripto e acoes dos EUA) prefixa um deles, para o mesmo ticker
+     * nao se confundir (docs/planos/PLANO_INTEGRACOES.md, I6).
+     */
+    default String balanceKey(Asset asset) {
+        return asset.getTicker();
     }
 }

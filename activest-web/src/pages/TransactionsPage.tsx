@@ -22,6 +22,7 @@ import { LocalAssetOption, LocalAssetSearch } from '@/components/ui/LocalAssetSe
 import { apiMessage } from '@/utils/apiError';
 import { useToast } from '@/context/ToastContext';
 import { providerName } from '@/utils/integrations';
+import { useIntegrationSources } from '@/hooks/useIntegrationSources';
 import { assetText, useAssetLabel } from '@/utils/assetLabel';
 
 /** Rótulo do tipo como a listagem o mostra — a mesma convenção dos DTOs. */
@@ -71,6 +72,7 @@ function getDateFromDaysAgo(days: number): string {
 }
 
 export const TransactionsPage = () => {
+  const integrationSources = useIntegrationSources();
   // nomes curtos dos fundos: redesenha quando chegam (o ticker do fundo é o CNPJ — PLANO_FUNDOS_INVESTIMENTO.md, D3)
   useAssetLabel();
   const queryClient = useQueryClient();
@@ -363,7 +365,7 @@ export const TransactionsPage = () => {
   };
 
   const handleRestore = (row: TransactionResponse) => {
-    const broker = providerName(row.connectionProvider) || 'da corretora';
+    const broker = providerName(row.connectionProvider, integrationSources) || 'da corretora';
     if (window.confirm(`Desfazer suas alterações em ${assetText(row.ticker)} e voltar aos dados de ${broker}?`)) {
       restoreMutation.mutate(row);
     }
@@ -414,7 +416,7 @@ export const TransactionsPage = () => {
    */
   const handleDelete = (row: TransactionResponse & { assetType: string }) => {
     const parts = row.groupParts ?? 1;
-    const broker = providerName(row.connectionProvider) || 'a corretora';
+    const broker = providerName(row.connectionProvider, integrationSources) || 'a corretora';
     const question = parts > 1
       ? `Esta venda de ${assetText(row.ticker)} está dividida em ${parts} títulos. Excluir a venda inteira?`
       : row.origin === 'AUTO'
@@ -632,10 +634,10 @@ export const TransactionsPage = () => {
                           <span
                             className="ml-2 rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-normal text-accent"
                             title={row.editedAt
-                              ? `Importada de ${row.connectionLabel ?? providerName(row.connectionProvider)} e editada por você`
-                              : `Importada de ${row.connectionLabel ?? providerName(row.connectionProvider)}`}
+                              ? `Importada de ${row.connectionLabel ?? providerName(row.connectionProvider, integrationSources)} e editada por você`
+                              : `Importada de ${row.connectionLabel ?? providerName(row.connectionProvider, integrationSources)}`}
                           >
-                            {providerName(row.connectionProvider) || 'Importada'}{row.editedAt ? ' · editada' : ''}
+                            {providerName(row.connectionProvider, integrationSources) || 'Importada'}{row.editedAt ? ' · editada' : ''}
                           </span>
                         )}
                         {/* Liquidação automática do título vencido (seção 6 do plano de notificações). */}

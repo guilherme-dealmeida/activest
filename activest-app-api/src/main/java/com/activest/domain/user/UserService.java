@@ -15,7 +15,6 @@ import com.activest.domain.auth.verification.VerificationCodeService;
 import com.activest.domain.auth.verification.VerificationPurpose;
 import com.activest.domain.integration.ConnectionStatus;
 import com.activest.domain.integration.IntegrationConnectionRepository;
-import com.activest.domain.integration.IntegrationProvider;
 import com.activest.domain.user.dto.EmailChangeDTO;
 import com.activest.domain.user.dto.PasswordChangeDTO;
 import com.activest.domain.user.dto.PreferencesDTO;
@@ -101,10 +100,14 @@ public class UserService {
         if (Objects.equals(created, current)) {
             return;
         }
-        if (connections.existsByUserIdAndProviderAndStatusNot(user.getId(), IntegrationProvider.B3,
-                ConnectionStatus.REVOKED)) {
-            throw new BusinessException("O CPF não pode ser alterado enquanto houver conexão com a B3. "
-                + "Desconecte a B3 em Integrações e tente de novo.");
+        // Fontes que conectam pelo CPF do perfil (hoje a B3; docs/planos/PLANO_INTEGRACOES.md, 10.1)
+        for (var source : com.activest.domain.integration.source.SourceDescriptors.all()) {
+            if (source.credential() == com.activest.domain.integration.source.SourceDescriptor.CredentialKind.DOCUMENT
+                    && connections.existsByUserIdAndProviderAndStatusNot(user.getId(), source.provider(),
+                        ConnectionStatus.REVOKED)) {
+                throw new BusinessException("O CPF não pode ser alterado enquanto houver conexão com a "
+                    + source.name() + ". Desconecte a " + source.name() + " em Integrações e tente de novo.");
+            }
         }
         if (created == null) {
             cpfService.clear(user);

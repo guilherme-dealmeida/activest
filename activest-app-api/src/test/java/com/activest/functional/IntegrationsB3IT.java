@@ -83,7 +83,8 @@ class IntegrationsB3IT extends FunctionalBase {
         List<Map<String, Object>> sources = get(ana, "/api/v1/integrations/sources", List.class).getBody();
 
         assertThat(sources).extracting(f -> f.get("provider")).containsExactly("BINANCE", "B3");
-        assertThat(sources.get(1)).containsEntry("credential", "DOCUMENT").containsEntry("oncePerDay", false);
+        assertThat(sources.get(1)).containsEntry("credential", "DOCUMENT").containsEntry("oncePerDay", false)
+            .containsEntry("available", true).containsEntry("name", "B3");
     }
 
     @Test

@@ -8,6 +8,7 @@ import com.activest.domain.integration.IntegrationProvider;
 import com.activest.domain.integration.credential.ApiKeyCredentials;
 import com.activest.domain.integration.credential.SourceCredentials;
 import com.activest.domain.integration.pipeline.CryptoImportRules;
+import com.activest.domain.integration.pipeline.ForeignImportRules;
 import com.activest.domain.integration.pipeline.ImportRules;
 import com.activest.domain.integration.source.CredentialCheck;
 import com.activest.domain.integration.source.FetchResult;
@@ -61,6 +62,13 @@ import java.util.function.LongSupplier;
  * na corretora. Moeda comprada e vendida por inteiro, fora dessas listas, nao e
  * encontrada — limite registrado no plano.</p>
  *
+ * <p><b>Binance Stocks</b> (acoes e ETFs dos EUA; docs/planos/PLANO_INTEGRACOES.md, 10.3): fluxo {@code equity}
+ * em {@code /sapi/v1/equity/order/history} — cada ordem executada vira dois movimentos, o do ativo
+ * ({@code FOREIGN_TRADE}, id {@code binance:equity:<orderId>}) e o da stablecoin que pagou
+ * ({@code STABLECOIN_SETTLEMENT}, id {@code binance:equity:<orderId>:quote}); fluxo {@code tokenized} em
+ * {@code /sapi/v1/equity/tokenized/history} (nao importado, D11); saldo das acoes na carteira Funding
+ * ({@code POST /sapi/v1/asset/get-funding-asset}, ativos {@code EQ_*}), com chave {@code equity:<ticker>}.</p>
+ *
  * <p>Fora desta versao: saques de cripto, rendimentos (Earn) e venda com
  * "Vender Cripto" ({@code fiat/payments} tipo 1, formato ainda nao observado).</p>
  */
@@ -73,6 +81,12 @@ public class BinanceConnector implements SourceConnector {
     static final String FIAT_PAYMENTS = "fiat_payments";
     static final String FIAT_DEPOSITS = "fiat_deposits";
     static final String CRYPTO_DEPOSITS = "crypto_deposits";
+    static final String EQUITY = "equity";
+    static final String TOKENIZED = "tokenized";
+
+    private static final int EQUITY_PAGE = 100;
+    /** Ordem que nao muda mais: so ela entra (a parcial ainda aberta espera a proxima busca). */
+    private static final Set<String> EQUITY_FINAL = Set.of("FILLED", "CANCELED", "EXPIRED", "REJECTED");
 
     private static final long DAY = 86_400_000L;
     private static final int TRADES_PAGE = 1000;
@@ -105,6 +119,14 @@ public class BinanceConnector implements SourceConnector {
     /** Relogio. Troca nos testes. */
     LongSupplier clock = System::currentTimeMillis;
 
+    /** Inicio do historico da Binance Stocks: o produto comecou em 05/2026 (P3; PLANO_INTEGRACOES, 10.10). */
+    long equityHistoryStart = epoch("2026-05-01");
+
+    @Value("${binance.equity-history-start:2026-05-01}")
+    void setEquityHistoryStart(String date) {
+        this.equityHistoryStart = epoch(date);
+    }
+
     public BinanceConnector(BinanceClient client,
                             @Value("${binance.history-start:2017-07-01}") String historyStart,
                             @Value("${binance.convert-history-start:2020-01-01}") String convertHistoryStart,
@@ -127,6 +149,20 @@ public class BinanceConnector implements SourceConnector {
     @Override
     public ImportRules rules() {
         return CryptoImportRules.INSTANCE;
+    }
+
+    /** Acao/ETF dos EUA pelas regras do exterior; o resto (inclusive a perna em stablecoin) pelas de cripto. */
+    @Override
+    public ImportRules rulesFor(ImportedMovement movement) {
+        return switch (movement.kind()) {
+            case FOREIGN_TRADE, TOKENIZED_CONVERT -> ForeignImportRules.INSTANCE;
+            default -> CryptoImportRules.INSTANCE;
+        };
+    }
+
+    @Override
+    public List<ImportRules> allRules() {
+        return List.of(CryptoImportRules.INSTANCE, ForeignImportRules.INSTANCE);
     }
 
     // ------------------------------------------------------------------ chave
@@ -187,6 +223,19 @@ public class BinanceConnector implements SourceConnector {
             }
         });
         movements.addAll(spotTrades(credentials, cursors, nextCursors, movements, balances.keySet()));
+
+        // Binance Stocks (acoes e ETFs dos EUA). Conta sem o produto (regiao, termo nao aceito) nao derruba a busca.
+        try {
+            movements.addAll(equityOrders(credentials, cursors, nextCursors, now));
+            movements.addAll(tokenizedConverts(credentials, cursors, nextCursors, now));
+            balances.putAll(equityBalances(credentials));
+        } catch (BinanceException e) {
+            if (e.status() < 400 || e.status() >= 500 || e.status() == 429 || e.isCredentialRejected()) {
+                throw e;
+            }
+            log.warn("Binance Stocks indisponivel para esta conta ({}): acoes dos EUA ficam de fora desta busca",
+                e.getMessage());
+        }
 
         return new FetchResult(movements, nextCursors, balances);
     }
@@ -423,6 +472,129 @@ public class BinanceConnector implements SourceConnector {
         return new ImportedMovement("binance:spot:" + symbol + ":" + orderId, MovementKind.TRADE,
             base, chunks.get(0).path("isBuyer").asBoolean() ? MovementSide.BUY : MovementSide.SELL,
             qtd, quote, value, fee, feeCurrency, Instant.ofEpochMilli(start), raw.toString());
+    }
+
+    // ------------------------------------------------------------------ Binance Stocks
+
+    /**
+     * Ordens da Binance Stocks desde o cursor (data de criacao da ordem). So a ordem que nao muda mais entra; o cursor
+     * nao passa da ordem mais antiga ainda aberta, para ela voltar na proxima busca — o externalId repetido vira
+     * EXISTING. Uma janela so, paginada: a fonte nao limita o periodo (E1).
+     */
+    List<ImportedMovement> equityOrders(ApiKeyCredentials c, Map<String, String> cursors,
+                                        Map<String, String> nextCursors, long now) {
+        long start = start(cursors, EQUITY, equityHistoryStart);
+        List<ImportedMovement> out = new ArrayList<>();
+        if (start > now) {
+            return out;
+        }
+        Long oldestOpen = null;
+        for (int page = 1; ; page++) {
+            Map<String, Object> params = new LinkedHashMap<>();
+            params.put("startTime", start);
+            params.put("endTime", now);
+            params.put("current", page);
+            params.put("size", EQUITY_PAGE);
+            JsonNode rows = client.signedGet(c, "/sapi/v1/equity/order/history", params).path("rows");
+            for (JsonNode o : rows) {
+                long created = o.path("createdAt").asLong();
+                if (!EQUITY_FINAL.contains(o.path("status").asText().toUpperCase())) {
+                    oldestOpen = oldestOpen == null ? created : Math.min(oldestOpen, created);
+                    continue;
+                }
+                BigDecimal filled = dec(o.path("filledQty"));
+                if (filled != null && filled.signum() > 0) {
+                    out.addAll(equityMovements(o));
+                }
+                advance(nextCursors, EQUITY, created);
+            }
+            if (rows.size() < EQUITY_PAGE) {
+                break;
+            }
+        }
+        if (oldestOpen != null) {
+            long limit = Math.max(oldestOpen - 1, start - 1);
+            String current = nextCursors.get(EQUITY);
+            if (current != null && Long.parseLong(current) > limit) {
+                nextCursors.put(EQUITY, Long.toString(limit));
+            }
+        }
+        return out;
+    }
+
+    /** A ordem executada: o ativo e a stablecoin que pagou (compra) ou recebeu (venda), com a taxa no ativo (P1). */
+    List<ImportedMovement> equityMovements(JsonNode o) {
+        String id = "binance:equity:" + o.path("orderId").asText();
+        String symbol = o.path("symbol").asText().toUpperCase();
+        String quote = o.path("quote").asText("USDC").toUpperCase();
+        MovementSide side = "SELL".equalsIgnoreCase(o.path("side").asText()) ? MovementSide.SELL : MovementSide.BUY;
+        BigDecimal qty = dec(o.path("filledQty"));
+        BigDecimal total = zero(dec(o.path("filledTotal")));
+        BigDecimal fee = zero(dec(o.path("fee")));
+        long t = o.path("updatedAt").asLong(o.path("createdAt").asLong());
+        Instant at = Instant.ofEpochMilli(t);
+        ImportedMovement trade = new ImportedMovement(id, MovementKind.FOREIGN_TRADE, symbol, side, qty, quote, total,
+            fee, quote, at, o.toString());
+        boolean buy = side == MovementSide.BUY;
+        BigDecimal settled = buy ? total.add(fee) : total.subtract(fee);
+        // A stablecoin anda ao contrario do ativo; valor em USD (a moeda que a Binance Stocks informa).
+        ImportedMovement settlement = new ImportedMovement(id + ":quote", MovementKind.STABLECOIN_SETTLEMENT, quote,
+            buy ? MovementSide.SELL : MovementSide.BUY, settled, "USD", settled, null, null, at, o.toString());
+        return List.of(trade, settlement);
+    }
+
+    /** Conversoes em bStocks (D11): entram como nao importadas, com o motivo. */
+    List<ImportedMovement> tokenizedConverts(ApiKeyCredentials c, Map<String, String> cursors,
+                                             Map<String, String> nextCursors, long now) {
+        long start = start(cursors, TOKENIZED, equityHistoryStart);
+        List<ImportedMovement> out = new ArrayList<>();
+        if (start > now) {
+            return out;
+        }
+        String lastId = null;
+        while (true) {
+            Map<String, Object> params = new LinkedHashMap<>();
+            params.put("startTime", start);
+            params.put("endTime", now);
+            params.put("size", EQUITY_PAGE);
+            params.put("lastId", lastId);
+            JsonNode r = client.signedGet(c, "/sapi/v1/equity/tokenized/history", params);
+            for (JsonNode row : r.path("rows")) {
+                if (!"S".equalsIgnoreCase(row.path("status").asText())) {
+                    continue;
+                }
+                long t = row.path("updatedAt").asLong(row.path("createdAt").asLong());
+                boolean mint = "MINT".equalsIgnoreCase(row.path("convertType").asText());
+                out.add(new ImportedMovement("binance:tokenized:" + row.path("issuerRequestId").asText(),
+                    MovementKind.TOKENIZED_CONVERT, row.path("underlyingAsset").asText().toUpperCase(),
+                    mint ? MovementSide.SELL : MovementSide.BUY, dec(row.path("underlyingAssetAmount")), null, null,
+                    null, null, Instant.ofEpochMilli(t), row.toString()));
+                advance(nextCursors, TOKENIZED, row.path("createdAt").asLong(t));
+            }
+            if (!r.path("hasMore").asBoolean(false) || !r.hasNonNull("nextLastId")) {
+                return out;
+            }
+            lastId = r.path("nextLastId").asText();
+        }
+    }
+
+    /** Saldo das acoes da Binance Stocks (carteira Funding, ativos EQ_*), na chave do exterior (I6, D8). */
+    Map<String, BigDecimal> equityBalances(ApiKeyCredentials c) {
+        Map<String, BigDecimal> out = new TreeMap<>();
+        for (JsonNode a : client.signedPostRead(c, "/sapi/v1/asset/get-funding-asset", Map.of())) {
+            String ticker = a.path("stockTicker").asText("");
+            if (ticker.isBlank() && a.path("asset").asText("").startsWith("EQ_")) {
+                ticker = a.path("asset").asText().substring(3);
+            }
+            if (ticker.isBlank()) {
+                continue;
+            }
+            BigDecimal total = zero(dec(a.path("free"))).add(zero(dec(a.path("locked")))).add(zero(dec(a.path("freeze"))));
+            if (total.signum() != 0) {
+                out.merge(ForeignImportRules.BALANCE_PREFIX + ticker.toUpperCase(), total, BigDecimal::add);
+            }
+        }
+        return out;
     }
 
     // ------------------------------------------------------------------ apoio
