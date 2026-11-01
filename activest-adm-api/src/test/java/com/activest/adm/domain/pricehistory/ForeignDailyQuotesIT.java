@@ -148,4 +148,34 @@ class ForeignDailyQuotesIT extends IntegrationTestBase {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM notifications WHERE kind = 'FONTE_INDISPONIVEL'",
                 Integer.class)).isEqualTo(1);
     }
+
+    @Test
+    @DisplayName("Carga retroativa: ticker reaproveitado casa com o papel listado no dia (deslistado até a saída, depois o vivo); dia fora do plano é pulado")
+    void historyByListingDate() {
+        insert("ZZREU", "STOCK", LocalDate.of(2026, 10, 28));
+        insert("ZZREU", "STOCK", null);
+        LocalDate d27 = LocalDate.of(2026, 10, 27);
+        LocalDate d28 = LocalDate.of(2026, 10, 28);
+        LocalDate d29 = LocalDate.of(2026, 10, 29);
+        when(provider.day(d27)).thenThrow(new ForeignQuotesProvider.OutOfRangeException("fora do plano"));
+        when(provider.day(d28)).thenReturn(ok(d28, quote("ZZREU", "10", 1)));
+        when(provider.day(d29)).thenReturn(ok(d29, quote("ZZREU", "20", 1)));
+
+        ForeignDailyQuotesService.Result r = service.importHistory(d27, d29, "teste");
+
+        assertThat(r.daysOutOfPlan()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("""
+                SELECT h.close_price FROM asset_price_history h JOIN assets a ON a.id = h.asset_id
+                WHERE a.ticker = 'ZZREU' AND a.delisted_on IS NOT NULL AND h.reference_date = ?""",
+                BigDecimal.class, d28)).isEqualByComparingTo("10");
+        assertThat(jdbc.queryForObject("""
+                SELECT h.close_price FROM asset_price_history h JOIN assets a ON a.id = h.asset_id
+                WHERE a.ticker = 'ZZREU' AND a.delisted_on IS NULL AND h.reference_date = ?""",
+                BigDecimal.class, d29)).isEqualByComparingTo("20");
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM asset_price_history h JOIN assets a ON a.id = h.asset_id
+                WHERE a.ticker = 'ZZREU' AND h.source = 'MASSIVE'""", Integer.class)).isEqualTo(2);
+        assertThatThrownBy(() -> service.importDays(d27, d27, "teste"))
+                .isInstanceOf(ForeignQuotesProvider.OutOfRangeException.class);
+    }
 }

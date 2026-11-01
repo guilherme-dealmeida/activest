@@ -34,7 +34,7 @@ class ForeignDailyQuotesTaskTest {
 
     private static ForeignDailyQuotesService.Result result() {
         return new ForeignDailyQuotesService.Result(DAY, DAY, List.of(), 12_008, 12_008, 12_180, DAY, 12_008, 170, 1,
-                1, "98.6%", null);
+                1, "98.6%", null, 0);
     }
 
     @Test

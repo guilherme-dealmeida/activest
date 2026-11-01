@@ -1588,9 +1588,12 @@ Resultado (27/10/2026): 148 testes em 15 arquivos de `utils/`, rodando tambem no
  todos sem negocio no dia (cascas de SPAC, bancos pequenos), mais 13 preferenciais/classes (`AGM.A`, `AHT-D`, `BIO.B`,
  `PCG-C`...) que o Massive nao trouxe. Ficam com o ultimo preco (sem preco ate o primeiro negocio). A lista sai no log da
  rodada; reavaliar se algum deles entrar numa carteira.
-**44.3** Historico de preco dos internacionais (antes do primeiro pregao carregado) e deslistados: fora deste escopo (A2,
- A4). O plano gratuito do Massive entrega 2 anos corridos pelo mesmo grouped daily (~500 pedidos a 5 por minuto); antes
- disso, fonte paga. Proventos e desdobramentos do exterior idem (43.2).
+**44.3** Historico de preco dos internacionais **de 2010 ate nov/2024** (decisao do Guilherme em 01/11/2026,
+ docs/planos/PLANO_PRECOS_HISTORICOS_INTERNACIONAIS.md, D1): os 2 anos do Massive gratuito foram carregados (tarefa
+ `FOREIGN_HISTORY_QUOTES`); antes disso so com fonte paga. Recomendada: EODHD Historian (US$ 19,99/mes, uso pessoal,
+ 30+ anos, deslistados ate a saida, 100 mil pedidos/dia — um mes basta para a carga unica de ~18 mil tickers); outras:
+ Massive pago (US$ 29-199/mes, profundidade a confirmar). Os arquivos da carga vao para `carga/data` e o bucket. Proventos
+ e desdobramentos do exterior ficam para a parte 3 (43.2).
 **44.4** Licenca: o plano gratuito do Massive e de uso pessoal. Antes de abrir o Activest a outros usuarios, trocar por
  um plano com redistribuicao (a interface `ForeignQuotesProvider` troca a fonte sem mexer na rotina).
 

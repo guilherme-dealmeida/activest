@@ -293,6 +293,21 @@ vazia) não é falha. 401 ou fonte fora do ar: `FONTE_INDISPONIVEL`; mais de 2 d
 **Propósito.** Preço dos ativos internacionais na Carteira, na Rentabilidade, nas Metas e na tela de Ativos
 (`docs/planos/PLANO_PRECOS_INTERNACIONAIS.md`). Deslistados ficam de fora.
 
+### [A21] Carga retroativa do preço dos internacionais (01/11/2026, só Run)
+
+| | |
+|---|---|
+| **Classe** | tarefa `FOREIGN_HISTORY_QUOTES` → `ForeignHistoryQuotesTask` → `ForeignDailyQuotesService.importHistory` |
+| **Tarefa** | `FOREIGN_HISTORY_QUOTES` (atributos `FROM_DATE` — vazio = 2 anos atrás, o limite do plano gratuito — e `TO_DATE` — vazio = ontem) — sem horário |
+| **Fonte** | Massive grouped daily (a mesma da [A20]), um pedido por pregão a 5 por minuto |
+| **Grava** | `asset_price_history` (`MASSIVE`) dos vivos e dos deslistados até a data de saída; o arquivo de cada pregão em `carga/data/massive/grouped/` |
+
+**Função.** A [A20] para um período longo: dia fora do plano da fonte é contado (`daysOutOfPlan`) e pulado; dia já
+baixado é relido do disco. Os 2 anos (nov/2024 → out/2026) levaram 1h45 (500 pregões, 5,2 milhões de fechamentos).
+
+**Propósito.** A série histórica dos internacionais (`docs/planos/PLANO_PRECOS_HISTORICOS_INTERNACIONAIS.md`); antes de
+nov/2024 só com fonte paga (PENDENCIAS 44.3).
+
 ### [A10] Preço oficial do Tesouro Direto (05/10/2026)
 
 | | |

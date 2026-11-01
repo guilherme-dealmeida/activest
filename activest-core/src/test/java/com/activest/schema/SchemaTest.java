@@ -25,11 +25,11 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Flyway roda ate a V19 (V1-V6 consolidadas + contas novas da tela de Ativos + metas + moedas, proventos do exterior, euro, fundos de investimento, ticker por tipo, origem da inativacao, estrutura do exterior, tarefas do catalogo do exterior e dos deslistados, o indice do ticker e o preco diario do exterior) e o schema valida contra as entidades")
+    @DisplayName("Flyway roda ate a V20 (V1-V6 consolidadas + contas novas da tela de Ativos + metas + moedas, proventos do exterior, euro, fundos de investimento, ticker por tipo, origem da inativacao, estrutura do exterior, tarefas do catalogo do exterior e dos deslistados, o indice do ticker o preco diario do exterior e a carga retroativa) e o schema valida contra as entidades")
     void appliedMigrations() {
         Number version = (Number) em.createNativeQuery(
             "SELECT MAX(CAST(version AS NUMERIC)) FROM flyway_schema_history WHERE success").getSingleResult();
-        assertThat(version.intValue()).isEqualTo(19);
+        assertThat(version.intValue()).isEqualTo(20);
         // V19 (PLANO_PRECOS_INTERNACIONAIS): os tres tipos do exterior com a fonte MASSIVE
         assertThat(count("asset_types WHERE price_source = 'MASSIVE'")).isEqualTo(3);
         // V18 (PLANO_PERFORMANCE, P1): a busca por upper(ticker) tem indice
@@ -112,15 +112,15 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Tarefas (V61, V62; V8 do Activest: GOALS_SNAPSHOT; V9: EXCHANGE_RATES; V12: FUND_QUOTES; V16: FOREIGN_CATALOG; V17: FOREIGN_DELISTED; V19: FOREIGN_DAILY_QUOTES): 32 tipos (28 da adm-api, 4 da app-api), uma tarefa por tipo, atributos espelhados")
+    @DisplayName("Tarefas (V61, V62; V8 do Activest: GOALS_SNAPSHOT; V9: EXCHANGE_RATES; V12: FUND_QUOTES; V16: FOREIGN_CATALOG; V17: FOREIGN_DELISTED; V19: FOREIGN_DAILY_QUOTES; V20: FOREIGN_HISTORY_QUOTES): 33 tipos (29 da adm-api, 4 da app-api), uma tarefa por tipo, atributos espelhados")
     void seededTasks() {
-        assertThat(count("task_types")).isEqualTo(32);
+        assertThat(count("task_types")).isEqualTo(33);
         assertThat(count("task_types WHERE service = 'APP_API'")).isEqualTo(4);
-        assertThat(count("tasks")).isEqualTo(32);
+        assertThat(count("tasks")).isEqualTo(33);
         assertThat(count("tasks t JOIN task_types y ON y.id = t.task_type_id WHERE t.name <> y.type")).isZero();
         assertThat(count("tasks WHERE cron IS NOT NULL")).isEqualTo(21);
-        assertThat(count("task_type_attributes")).isEqualTo(42);
-        assertThat(count("task_attributes")).isEqualTo(42);
+        assertThat(count("task_type_attributes")).isEqualTo(44);
+        assertThat(count("task_attributes")).isEqualTo(44);
         assertThat(count("task_type_attributes WHERE position = 0")).isZero();
         assertThat(count("tasks WHERE run_on_startup")).isEqualTo(9);
         assertThat(count("task_attributes ta JOIN task_type_attributes a ON a.id = ta.task_type_attribute_id "

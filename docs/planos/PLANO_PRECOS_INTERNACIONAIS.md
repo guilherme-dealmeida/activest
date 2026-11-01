@@ -1,6 +1,7 @@
 # Plano — Rotina de atualização de preços diários dos ativos internacionais Activest
 
-> Aberto em 31/10/2026 (POR ESCOPO, a partir das dúvidas 1–3 do mesmo dia). Etapa atual: **7 — Commit** (implementação concluída em 01/11/2026).
+> Aberto em 31/10/2026 (POR ESCOPO, a partir das dúvidas 1–3 do mesmo dia). **Escopo encerrado em 01/11/2026** (commit e push feitos pelo Guilherme). Parte 1 de 3 da branch; a parte 2 é o
+> `PLANO_PRECOS_HISTORICOS_INTERNACIONAIS.md`.
 > O `PLANO_ATIVOS_INTERNACIONAIS.md` foi **desconsiderado por completo** pelo Guilherme para este escopo
 > (o levantamento de preço do Anexo A dele não é base aqui).
 
@@ -229,3 +230,4 @@ ABR-E 9,21.
 | 01/11/2026 | Review | Guilherme conferiu a Carteira (OK) e rodou o fechamento de cripto à mão: BTC com casas decimais (R3 OK) |
 | 01/11/2026 | Testing | Bateria completa de novo com os ajustes: a 1ª tentativa perdeu o Docker no meio dos IT da adm-api ("Could not find a valid Docker environment", sem asserção falhando); refeita a adm-api e a app-api: verde |
 | 01/11/2026 | Commit | Alterações conferidas (`git status`/`git diff`, só leitura); mensagem sugerida ao Guilherme |
+| 01/11/2026 | Commit | Guilherme criou a branch, comitou e deu push; escopo encerrado |

@@ -34,8 +34,9 @@ import java.util.concurrent.locks.ReentrantLock;
  * pedido à fonte ({@link ForeignQuotesProvider}, hoje o Massive grouped daily).
  *
  * <ul>
- *   <li>Só os ativos <b>vivos</b> dos tipos com {@code price_source = MASSIVE} (Stock, REIT, ETF internacional); os
- *   deslistados ficam de fora (A2).</li>
+ *   <li>Os tipos com {@code price_source = MASSIVE} (Stock, REIT, ETF internacional): cada pregão casa com o papel
+ *   <b>listado naquele dia</b> — o vivo ou, até a data de saída, o deslistado (desde a carga retroativa,
+ *   docs/planos/PLANO_PRECOS_HISTORICOS_INTERNACIONAIS.md); depois da saída, o deslistado não recebe mais nada.</li>
  *   <li>Upsert em {@code asset_price_history} com {@code source = MASSIVE} (D2), em lote; dia regravado com o mesmo
  *   fechamento não muda.</li>
  *   <li>{@code assets.current_price} e {@code price_updated_at} só mudam com pregão mais novo que o do preço gravado
@@ -61,10 +62,15 @@ public class ForeignDailyQuotesService {
     private static final LocalTime CLOSE_TIME = LocalTime.of(18, 0);
     private static final int BATCH = 5_000;
 
-    private static final String LIVE_ASSETS = """
-            SELECT a.id, a.ticker, t.name AS type_name FROM assets a
+    /**
+     * Os vivos e os deslistados que ainda estavam na bolsa em algum dia do período (saída a partir do primeiro dia):
+     * o pregão de cada dia casa com o papel listado nele (docs/planos/PLANO_PRECOS_HISTORICOS_INTERNACIONAIS.md).
+     */
+    private static final String CATALOG_ASSETS = """
+            SELECT a.id, a.ticker, t.name AS type_name, a.delisted_on FROM assets a
             JOIN asset_types t ON t.id = a.asset_type_id
-            WHERE t.price_source = 'MASSIVE' AND a.active AND a.delisted_on IS NULL
+            WHERE t.price_source = 'MASSIVE'
+              AND ((a.active AND a.delisted_on IS NULL) OR a.delisted_on >= ?)
             """;
     private static final String UPSERT = """
             INSERT INTO asset_price_history
@@ -121,7 +127,7 @@ public class ForeignDailyQuotesService {
      */
     public record Result(LocalDate from, LocalDate to, List<DayResult> days, long quotesWritten, int pricesUpdated,
                          int liveAssets, LocalDate coverageDate, int matched, int missingStock, int missingReit,
-                         int missingEtf, String coverage, LocalDate staleSince) {
+                         int missingEtf, String coverage, LocalDate staleSince, int daysOutOfPlan) {
     }
 
     /** Rodada sem período: do pregão seguinte ao último gravado até ontem em Nova York (D7). */
@@ -134,9 +140,17 @@ public class ForeignDailyQuotesService {
         }
         if (from.isAfter(yesterday)) {
             log.info("Preço dos internacionais ({}): em dia (último pregão {})", reason, last);
-            return finish(from, yesterday, List.of(), 0, 0, new Coverage(liveAssets().size()), reason);
+            return finish(from, yesterday, List.of(), 0, 0, new Coverage(0), 0, reason);
         }
         return importDays(from, yesterday, reason);
+    }
+
+    /**
+     * Carga retroativa (tarefa {@code FOREIGN_HISTORY_QUOTES}): como {@link #importDays}, mas o dia que a fonte não
+     * entrega no plano (fora dos 2 anos do gratuito) é contado e pulado, sem interromper a rodada.
+     */
+    public Result importHistory(LocalDate from, LocalDate to, String reason) {
+        return importDays(from, to, reason, true);
     }
 
     /**
@@ -146,19 +160,22 @@ public class ForeignDailyQuotesService {
      * @throws ForeignQuotesProvider.OutOfRangeException dia fora do plano da fonte
      */
     public Result importDays(LocalDate from, LocalDate to, String reason) {
+        return importDays(from, to, reason, false);
+    }
+
+    private Result importDays(LocalDate from, LocalDate to, String reason, boolean history) {
         if (!running.tryLock()) {
             log.warn("Preço dos internacionais ({}): já existe uma rodada em andamento; nada feito", reason);
             return null;
         }
         try {
-            List<LiveAsset> live = liveAssets();
-            Map<String, LiveAsset> byTicker = new HashMap<>();
-            live.forEach(a -> byTicker.put(a.ticker().toUpperCase(), a));
+            Map<String, List<LiveAsset>> catalog = catalog(from);
             List<DayResult> days = new ArrayList<>();
             long written = 0;
             int updated = 0;
+            int outOfPlan = 0;
             Set<Long> changed = new HashSet<>();
-            Coverage coverage = new Coverage(live.size());
+            Coverage coverage = new Coverage(0);
             // o que já foi gravado avisa a carteira mesmo se a rodada parar no meio (Stop, fonte fora do ar)
             try {
                 for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
@@ -169,6 +186,13 @@ public class ForeignDailyQuotesService {
                     DayQuotes q;
                     try {
                         q = provider.day(d);
+                    } catch (ForeignQuotesProvider.OutOfRangeException e) {
+                        if (!history) {
+                            throw e;
+                        }
+                        outOfPlan++;
+                        log.info("Preço dos internacionais ({}): {} — fora do plano da fonte", reason, d);
+                        continue;
                     } catch (ForeignQuotesProvider.AuthException | ForeignQuotesProvider.UnavailableException e) {
                         if (notices != null) {
                             notices.sourceUnavailable(ROUTINE, provider.sourceName(), e.getMessage());
@@ -181,24 +205,26 @@ public class ForeignDailyQuotesService {
                         days.add(new DayResult(d, q.status(), false, 0, 0));
                         continue;
                     }
+                    Map<String, LiveAsset> byTicker = listedOn(catalog, d);
                     DayWrite w = write(d, q.quotes(), byTicker, changed);
                     written += w.written();
                     updated += w.updated();
                     coverage = w.coverage();
                     days.add(new DayResult(d, Status.OK, q.fromDisk(), w.coverage().matched, w.written()));
-                    log.info("Preço dos internacionais ({}): {} — {} papéis na fonte{}, {} de {} vivos casados, {} "
+                    log.info("Preço dos internacionais ({}): {} — {} papéis na fonte{}, {} de {} listados casados, {} "
                                     + "fechamentos gravados, {} preços atuais", reason, d, q.quotes().size(),
-                            q.fromDisk() ? " (arquivo em disco)" : "", w.coverage().matched, live.size(), w.written(),
-                            w.updated());
-                    if (!w.coverage().missing.isEmpty()) {
-                        log.info("Preço dos internacionais: {} sem cotação em {}: {}", w.coverage().missing.size(), d,
-                                String.join(" ", w.coverage().missing));
-                    }
+                            q.fromDisk() ? " (arquivo em disco)" : "", w.coverage().matched, byTicker.size(),
+                            w.written(), w.updated());
                 }
             } finally {
                 publish(changed);
             }
-            return finish(from, to, days, written, updated, coverage, reason);
+            // a lista dos sem cotação só do pregão mais recente (na carga retroativa seriam centenas de listas)
+            if (!coverage.missing.isEmpty()) {
+                log.info("Preço dos internacionais: {} sem cotação em {}: {}", coverage.missing.size(), coverage.date,
+                        String.join(" ", coverage.missing));
+            }
+            return finish(from, to, days, written, updated, coverage, outOfPlan, reason);
         } finally {
             running.unlock();
         }
@@ -218,7 +244,7 @@ public class ForeignDailyQuotesService {
 
     // ------------------------------------------------------------------ gravação
 
-    private record LiveAsset(long id, String ticker, String type) {
+    private record LiveAsset(long id, String ticker, String type, LocalDate delistedOn) {
     }
 
     private record DayWrite(int written, int updated, Coverage coverage) {
@@ -237,9 +263,41 @@ public class ForeignDailyQuotesService {
         }
     }
 
-    private List<LiveAsset> liveAssets() {
-        return jdbc.query(LIVE_ASSETS, (rs, i) ->
-                new LiveAsset(rs.getLong("id"), rs.getString("ticker"), rs.getString("type_name")));
+    /** Candidatos por ticker: o vivo e os deslistados com saída a partir de {@code from}. */
+    private Map<String, List<LiveAsset>> catalog(LocalDate from) {
+        Map<String, List<LiveAsset>> out = new HashMap<>();
+        jdbc.query(CATALOG_ASSETS, rs -> {
+            Date delisted = rs.getDate("delisted_on");
+            LiveAsset a = new LiveAsset(rs.getLong("id"), rs.getString("ticker"), rs.getString("type_name"),
+                    delisted == null ? null : delisted.toLocalDate());
+            out.computeIfAbsent(a.ticker().toUpperCase(), k -> new ArrayList<>()).add(a);
+        }, Date.valueOf(from));
+        return out;
+    }
+
+    /**
+     * O papel listado em {@code d} para cada ticker (ticker reaproveitado, V13): o deslistado de saída mais próxima
+     * ainda não passada ({@code delisted_on >= d}); sem ele, o vivo.
+     */
+    static Map<String, LiveAsset> listedOn(Map<String, List<LiveAsset>> catalog, LocalDate d) {
+        Map<String, LiveAsset> out = new HashMap<>(catalog.size() * 2);
+        catalog.forEach((ticker, candidates) -> {
+            LiveAsset pick = null;
+            for (LiveAsset a : candidates) {
+                if (a.delistedOn() == null) {
+                    if (pick == null) {
+                        pick = a;
+                    }
+                } else if (!a.delistedOn().isBefore(d)
+                        && (pick == null || pick.delistedOn() == null || a.delistedOn().isBefore(pick.delistedOn()))) {
+                    pick = a;
+                }
+            }
+            if (pick != null) {
+                out.put(ticker, pick);
+            }
+        });
+        return out;
     }
 
     private DayWrite write(LocalDate d, List<Quote> quotes, Map<String, LiveAsset> byTicker, Set<Long> changed) {
@@ -308,13 +366,13 @@ public class ForeignDailyQuotesService {
     // ------------------------------------------------------------------ conclusão
 
     private Result finish(LocalDate from, LocalDate to, List<DayResult> days, long written, int updated,
-                          Coverage cov, String reason) {
+                          Coverage cov, int outOfPlan, String reason) {
         LocalDate staleSince = staleness();
         String coverage = cov.date == null || cov.live == 0 ? "-"
                 : String.format(java.util.Locale.ROOT, "%.1f%%", 100.0 * cov.matched / cov.live);
         Result r = new Result(from, to, days, written, updated, cov.live, cov.date, cov.matched,
                 cov.missingByType.getOrDefault("STOCK", 0), cov.missingByType.getOrDefault("REIT", 0),
-                cov.missingByType.getOrDefault("ETF_INTERNACIONAL", 0), coverage, staleSince);
+                cov.missingByType.getOrDefault("ETF_INTERNACIONAL", 0), coverage, staleSince, outOfPlan);
         log.info("Preço dos internacionais ({}) concluído: {} a {}, {} fechamentos, {} preços atuais, cobertura {}",
                 reason, from, to, written, updated, coverage);
         return r;

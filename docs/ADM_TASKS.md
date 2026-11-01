@@ -401,6 +401,17 @@ arquivo do pregão em `carga/data/massive/grouped/`
 
 **Propósito.** Carregar ou refazer pregões dos ativos internacionais (`docs/planos/PLANO_PRECOS_INTERNACIONAIS.md`).
 
+### [25] `POST /api/v1/admin/foreign-history-quotes[?from=AAAA-MM-DD[&to=AAAA-MM-DD]]` (01/11/2026)
+
+**Serviço:** `ForeignDailyQuotesService.importHistory` (tarefa `FOREIGN_HISTORY_QUOTES`, só Run) · **Grava:**
+`asset_price_history` (`MASSIVE`) e os arquivos dos pregões em `carga/data/massive/grouped/`
+
+**Função.** Carga retroativa pelo Massive grouped daily: sem datas, os 2 anos do plano gratuito até ontem (~500
+pedidos, ~1h45). Atalho: `node carga/scripts/admin.mjs foreign-history-quotes`.
+
+**Propósito.** Série histórica dos internacionais, com os deslistados até a data de saída
+(`docs/planos/PLANO_PRECOS_HISTORICOS_INTERNACIONAIS.md`).
+
 ---
 
 ## Fundos de investimento

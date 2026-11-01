@@ -115,6 +115,23 @@ public class AdminController {
         return start("preco dos ativos internacionais", "FOREIGN_DAILY_QUOTES", values);
     }
 
+    /**
+     * Carga retroativa do preço dos internacionais (docs/planos/PLANO_PRECOS_HISTORICOS_INTERNACIONAIS.md): a tarefa
+     * {@code FOREIGN_HISTORY_QUOTES}. Sem datas, os 2 anos do plano gratuito até ontem.
+     */
+    @PostMapping("/foreign-history-quotes")
+    public ResponseEntity<Map<String, Object>> foreignHistoryQuotes(@RequestParam(required = false) String from,
+                                                                    @RequestParam(required = false) String to) {
+        Map<String, String> values = new java.util.HashMap<>();
+        if (from != null && !from.isBlank()) {
+            values.put("FROM_DATE", from.trim());
+        }
+        if (to != null && !to.isBlank()) {
+            values.put("TO_DATE", to.trim());
+        }
+        return start("preco historico dos ativos internacionais", "FOREIGN_HISTORY_QUOTES", values);
+    }
+
     @PostMapping("/logos")
     public ResponseEntity<Map<String, Object>> logos() {
         return start("logos", "ASSET_LOGOS", Map.of("ONLY_MISSING", "false"));
