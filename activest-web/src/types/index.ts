@@ -987,7 +987,7 @@ export type PreviewOutcome = 'NEW' | 'EXISTING' | 'EXCLUDED' | 'UNMAPPED' | 'POS
 export type RunItemResolution = 'IMPORTED' | 'REPLACED' | 'KEPT_BOTH' | 'SKIPPED';
 export type MovementKind = 'TRADE' | 'CONVERT' | 'FIAT_DEPOSIT' | 'CRYPTO_DEPOSIT' | 'CRYPTO_WITHDRAW' | 'REWARD'
   | 'EQUITY_TRADE' | 'SETTLEMENT' | 'STOCK_EVENT' | 'CASH_EVENT' | 'RIGHTS' | 'CUSTODY_TRANSFER' | 'LENDING'
-  | 'FIXED_INCOME' | 'OTHER';
+  | 'FIXED_INCOME' | 'FOREIGN_TRADE' | 'STABLECOIN_SETTLEMENT' | 'TOKENIZED_CONVERT' | 'OTHER';
 export type DuplicateDecision = 'REPLACE' | 'KEEP_BOTH' | 'SKIP';
 
 export interface IntegrationConnection {
@@ -1009,13 +1009,27 @@ export interface IntegrationConnection {
   authorizationUrl: string | null;
 }
 
-/** Uma fonte ligada no servidor e o que ela pede para conectar. */
+/**
+ * Uma fonte que o Activest conhece, ligada ou não no servidor (docs/planos/PLANO_INTEGRACOES.md, 10.1). O catálogo
+ * de integrações e o formulário de conexão saem daqui.
+ */
 export interface IntegrationSource {
   provider: IntegrationProvider;
-  /** API_KEY (chave e segredo, Binance) ou DOCUMENT (CPF, B3). */
+  name: string;
+  category: string;
+  description: string;
+  /** API_KEY (chave e segredo) ou DOCUMENT (o CPF do perfil). */
   credential: 'API_KEY' | 'DOCUMENT';
-  /** A fonte aceita uma consulta por dia (B3). */
+  /** Caminho da imagem em public/ ('/images/BINANCE.png'). */
+  logo: string;
+  /** A fonte informa depósitos em dinheiro (total na pré-visualização). */
+  fiatDeposits: boolean;
+  /** A fonte entrega só a data do negócio, sem a hora. */
+  dateOnly: boolean;
+  /** A fonte aceita uma consulta por dia. */
   oncePerDay: boolean;
+  /** Ligada no servidor; desligada aparece no catálogo como indisponível. */
+  available: boolean;
 }
 
 export interface ConnectionCreate {
@@ -1036,6 +1050,8 @@ export interface ProposedImport {
   brokerageFee: number;
   transactionDate: string;
   roundingDifference: number;
+  /** Moeda do preço, do total e da taxa: 'BRL' ou a do ativo do exterior ('USD'). */
+  currency: string;
 }
 
 export interface DuplicateCandidate {

@@ -112,7 +112,10 @@ activest/
   título vencido (aviso com o líquido estimado e a venda preenchida — desde 15/10/2026 o Activest não liquida
   sozinho), bonificação sem custo ("Informar custo"), alerta de preço abaixo do ideal,
   "padrão mudou" do Preço Teto, integrações e, para o administrador, rotinas e catálogo (`docs/planos/PLANO_NOTIFICACOES.md`)
-- ✅ Integrações: Binance (chave só de leitura) e B3 — Área do Investidor (CPF + autorização na B3): as negociações
+- ✅ Integrações: tela genérica — "Conectar" abre o catálogo de fontes (logo, categoria, o que importa; fonte desligada
+  aparece como indisponível) e o formulário segue o tipo de credencial (`docs/planos/PLANO_INTEGRACOES.md`). Binance
+  (chave só de leitura): cripto e, desde 31/10/2026, ações e ETFs dos EUA da Binance Stocks, em dólar pela PTAX venda
+  do dia, com a venda da stablecoin que pagou. B3 — Área do Investidor (CPF + autorização na B3): as negociações
   entram depois de você conferir; proventos e eventos da B3 são conferidos com a carteira. A B3 real depende de contrato
   (Pacote de Acesso); até lá, um simulador com os seus extratos (`docs/planos/PLANO_INTEGRACAO_B3.md`)
 

@@ -52,17 +52,22 @@ class IntegrationsIT extends FunctionalBase {
     }
 
     @Test
-    @DisplayName("Sem b3i.enabled a B3 nao aparece entre as fontes nem conecta")
+    @DisplayName("Sem b3i.enabled a B3 aparece entre as fontes como indisponivel e nao conecta (D2)")
     @SuppressWarnings("unchecked")
     void b3Disabled() {
         List<Map<String, Object>> sources = get(ana, "/api/v1/integrations/sources", List.class).getBody();
-        assertThat(sources).extracting(f -> f.get("provider")).containsExactly("BINANCE");
+        assertThat(sources).extracting(f -> f.get("provider")).containsExactly("BINANCE", "B3");
+        assertThat(sources.get(0)).containsEntry("available", true).containsEntry("credential", "API_KEY")
+            .containsEntry("name", "Binance").containsEntry("logo", "/images/BINANCE.png")
+            .containsEntry("fiatDeposits", true);
+        assertThat(sources.get(1)).containsEntry("available", false).containsEntry("credential", "DOCUMENT")
+            .containsEntry("logo", "/images/B3.png").containsEntry("dateOnly", true);
         Map<String, Object> body = new HashMap<>();
         body.put("provider", "B3");
         body.put("label", "B3");
         body.put("documentNumber", "52998224725");
         body.put("consentAccepted", true);
-        assertThat(post(ana, BASE, body, String.class).getBody()).contains("não suportada");
+        assertThat(post(ana, BASE, body, String.class).getBody()).contains("B3 está indisponível no momento");
     }
 
     private Map<String, Object> preview(User user, Object id) {

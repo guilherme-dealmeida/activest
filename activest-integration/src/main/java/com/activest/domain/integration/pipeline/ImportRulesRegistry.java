@@ -1,6 +1,7 @@
 package com.activest.domain.integration.pipeline;
 
 import com.activest.domain.integration.IntegrationProvider;
+import com.activest.domain.integration.source.ImportedMovement;
 import com.activest.domain.integration.source.SourceConnector;
 import org.springframework.stereotype.Component;
 
@@ -18,20 +19,27 @@ import java.util.Optional;
 @Component
 public class ImportRulesRegistry {
 
-    private final Map<IntegrationProvider, ImportRules> rules = new EnumMap<>(IntegrationProvider.class);
+    private final Map<IntegrationProvider, SourceConnector> connectors = new EnumMap<>(IntegrationProvider.class);
 
     public ImportRulesRegistry(List<SourceConnector> connectors) {
-        connectors.forEach(c -> rules.put(c.provider(), c.rules()));
+        connectors.forEach(c -> this.connectors.put(c.provider(), c));
     }
 
+    /** As regras principais da fonte. */
     public Optional<ImportRules> forProvider(IntegrationProvider provider) {
-        return Optional.ofNullable(rules.get(provider));
+        return Optional.ofNullable(connectors.get(provider)).map(SourceConnector::rules);
     }
 
-    /** As regras da fonte de um movimento importado, pelo prefixo do externalId. */
-    public ImportRules forExternalId(String externalId) {
-        IntegrationProvider provider = IntegrationProvider.fromExternalId(externalId);
-        return forProvider(provider).orElseThrow(() ->
-            new IllegalStateException("Fonte sem conector registrado: " + provider));
+    /**
+     * As regras que valem para um movimento gravado (confirmar, restaurar — E4): a fonte pelo prefixo do
+     * externalId, e dentro dela a regra do tipo do movimento (docs/planos/PLANO_INTEGRACOES.md, 10.2).
+     */
+    public ImportRules forMovement(ImportedMovement movement) {
+        IntegrationProvider provider = IntegrationProvider.fromExternalId(movement.externalId());
+        SourceConnector c = connectors.get(provider);
+        if (c == null) {
+            throw new IllegalStateException("Fonte sem conector registrado: " + provider);
+        }
+        return c.rulesFor(movement);
     }
 }

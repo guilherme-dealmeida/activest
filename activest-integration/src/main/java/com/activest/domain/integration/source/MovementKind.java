@@ -40,6 +40,15 @@ public enum MovementKind {
     LENDING,
     /** Movimento de Tesouro Direto ou renda fixa (F7). */
     FIXED_INCOME,
+    // --- Binance Stocks — acoes e ETFs dos EUA (docs/planos/PLANO_INTEGRACOES.md, 10.3) ------
+
+    /** Ordem executada de acao/ETF dos EUA, cotada em USD ou stablecoin. Vira transacao do ativo do exterior. */
+    FOREIGN_TRADE,
+    /** A perna em stablecoin da ordem de acao (compra do ETF = venda de USDC; D6). Vira transacao da cripto. */
+    STABLECOIN_SETTLEMENT,
+    /** Conversao da acao em token (bStocks) e de volta. Fora desta versao (D11): aparece como nao importada. */
+    TOKENIZED_CONVERT,
+
     /** Lancamento da fonte sem regra no Activest: aparece como nao importado, com o tipo que a fonte deu. */
     OTHER
 }

@@ -32,8 +32,21 @@ public interface SourceConnector {
      */
     FetchResult fetch(SourceCredentials credentials, Map<String, String> cursors);
 
-    /** As regras de importacao desta fonte (G3). */
+    /** As regras de importacao desta fonte (G3): as principais, e as unicas na fonte de um dominio so. */
     ImportRules rules();
+
+    /**
+     * As regras que valem para este movimento (docs/planos/PLANO_INTEGRACOES.md, 10.2). Padrao: {@link #rules()}. A
+     * fonte com mais de um dominio (Binance: cripto e acoes dos EUA) escolhe pelo tipo do movimento.
+     */
+    default ImportRules rulesFor(ImportedMovement movement) {
+        return rules();
+    }
+
+    /** Todas as regras da fonte, a principal primeiro (conferencia de saldo, G6). */
+    default java.util.List<ImportRules> allRules() {
+        return java.util.List.of(rules());
+    }
 
     /**
      * A fonte so aceita uma consulta por dia para o mesmo investidor (B3: "consultar

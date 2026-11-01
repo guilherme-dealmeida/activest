@@ -12,6 +12,7 @@ import com.activest.domain.transaction.TransactionRepository;
 import com.activest.domain.transaction.TransactionService;
 import com.activest.domain.integration.credential.ApiKeyCredentials;
 import com.activest.domain.integration.credential.InvestorDocument;
+import com.activest.domain.integration.source.SourceDescriptors;
 import com.activest.domain.integration.credential.SourceCredentials;
 import com.activest.domain.integration.credential.CredentialCipher;
 import com.activest.domain.integration.credential.CredentialVault;
@@ -23,6 +24,8 @@ import com.activest.domain.integration.pipeline.ImportPreview;
 import com.activest.domain.integration.pipeline.PreviewItem;
 import com.activest.domain.integration.pipeline.PreviewOutcome;
 import com.activest.domain.integration.pipeline.ProposedTransaction;
+import com.activest.domain.integration.pipeline.ImportContext;
+import com.activest.domain.integration.pipeline.ImportContextFactory;
 import com.activest.domain.integration.source.CredentialCheck;
 import com.activest.domain.integration.source.FetchResult;
 import com.activest.domain.integration.source.ImportedMovement;
@@ -94,6 +97,10 @@ public class IntegrationService {
     @org.springframework.beans.factory.annotation.Autowired
     IntegrationNotifier notifier;
 
+    /** Catalogo + cambio das regras de importacao (docs/planos/PLANO_INTEGRACOES.md, 10.2). */
+    @org.springframework.beans.factory.annotation.Autowired
+    ImportContextFactory contexts;
+
     @org.springframework.beans.factory.annotation.Value("${activest.integrations.stale-minutes:30}")
     long staleMinutes = 30;
 
@@ -142,13 +149,16 @@ public class IntegrationService {
         this.readOnly.setReadOnly(true);
     }
 
-    /** As fontes ligadas no servidor, na ordem do enum (F6 da B3). */
+    /**
+     * Todas as fontes que o Activest conhece, na ordem do enum, com {@code available} = ligada no servidor
+     * (docs/planos/PLANO_INTEGRACOES.md, 10.1 e D2).
+     */
     public List<com.activest.domain.integration.dto.SourceDTO> sources() {
-        return connectors.values().stream()
-            .map(c -> new com.activest.domain.integration.dto.SourceDTO(c.provider(), switch (c.provider()) {
-                case BINANCE -> "API_KEY";
-                case B3 -> "DOCUMENT";
-            }, c.oncePerDay()))
+        return SourceDescriptors.all().stream()
+            .map(d -> {
+                SourceConnector c = connectors.get(d.provider());
+                return com.activest.domain.integration.dto.SourceDTO.of(d, c != null && c.oncePerDay(), c != null);
+            })
             .toList();
     }
 
@@ -170,9 +180,7 @@ public class IntegrationService {
             throw new BusinessException("Você já tem uma conexão chamada \"" + label + "\".");
         }
         SourceConnector connector = connector(dto.provider());
-        SourceCredentials credential = dto.provider() == IntegrationProvider.B3
-            ? profileDocument(userId, dto.documentNumber())
-            : credentialsOf(dto);
+        SourceCredentials credential = credentialsOf(userId, dto);
         ensureDocumentFree(dto.provider(), credential);
 
         CredentialCheck check = connector.check(credential);
@@ -405,7 +413,7 @@ public class IntegrationService {
                 .collect(Collectors.toMap(c -> c.getId().getStream(), IntegrationCursor::getCursorValue)));
             FetchResult result = connector.fetch(credential, cursorPositions);
             ImportPreview preview = pipeline.preview(connectionId, ctx.userId(), result.movements(),
-                connector.rules());
+                connector::rulesFor, contexts.create());
             noDuplicates = preview.count(PreviewOutcome.POSSIBLE_DUPLICATE) == 0;
             // C3: provento informado pela fonte x proventos da carteira; o resultado vai no motivo.
             Map<String, String> reconciled = dividendReconciliation.reconcile(ctx.userId(), preview.items().stream()
@@ -550,6 +558,7 @@ public class IntegrationService {
             : exclusions.findExcludedIds(connectionId, candidates);
 
         int imported = 0;
+        ImportContext importContext = contexts.create();
         for (IntegrationRunItem item : runItemList) {
             boolean isDuplicate = item.getOutcome() == RunItemOutcome.POSSIBLE_DUPLICATE;
             if (item.getOutcome() != RunItemOutcome.NEW && !isDuplicate) {
@@ -563,8 +572,7 @@ public class IntegrationService {
                 continue;
             }
             ImportedMovement m = movementJson.read(item.getRaw());
-            ImportRules rules = connector(connection.getProvider()).rules();
-            ImportRules.Result r = rules.apply(m, catalog(rules));
+            ImportRules.Result r = connector(connection.getProvider()).rulesFor(m).apply(m, importContext);
             if (!r.mapped()) {
                 throw new BusinessException(lineContext(m, null) + r.reason());
             }
@@ -667,8 +675,7 @@ public class IntegrationService {
                 .filter(x -> x.getConnection().getId().equals(connectionId))
                 .orElseThrow(() -> new ResourceNotFoundException("Exclusão não encontrada"));
             ImportedMovement m = movementJson.read(e.getSourceSnapshot());
-            ImportRules rules = connector(connection.getProvider()).rules();
-            ImportRules.Result r = rules.apply(m, catalog(rules));
+            ImportRules.Result r = connector(connection.getProvider()).rulesFor(m).apply(m, contexts.create());
             if (!r.mapped()) {
                 throw new BusinessException(lineContext(m, null) + r.reason());
             }
@@ -686,10 +693,9 @@ public class IntegrationService {
             .orElseThrow(() -> new ResourceNotFoundException("Conexão não encontrada"));
     }
 
-    /** As regras da fonte; nulo se o conector dela nao estiver registrado (tela sem proposta). */
-    private ImportRules rulesOf(IntegrationProvider provider) {
-        SourceConnector c = connectors.get(provider);
-        return c == null ? null : c.rules();
+    /** O conector da fonte; nulo se ele nao estiver registrado (tela sem proposta). */
+    private SourceConnector connectorOrNull(IntegrationProvider provider) {
+        return connectors.get(provider);
     }
 
     /**
@@ -711,12 +717,15 @@ public class IntegrationService {
         return new InvestorDocument(fromProfile);
     }
 
-    /** Credencial de cada fonte, a partir do pedido de conexao (G9). */
-    private static SourceCredentials credentialsOf(ConnectionCreateDTO dto) {
+    /**
+     * Credencial da fonte, pelo tipo que o descritor dela pede (G9; docs/planos/PLANO_INTEGRACOES.md, 10.1): chave de
+     * API, ou o documento do perfil do usuario (D20).
+     */
+    private SourceCredentials credentialsOf(UUID userId, ConnectionCreateDTO dto) {
         try {
-            return switch (dto.provider()) {
-                case BINANCE -> new ApiKeyCredentials(dto.apiKey(), dto.apiSecret());
-                case B3 -> new InvestorDocument(dto.documentNumber());
+            return switch (SourceDescriptors.of(dto.provider()).credential()) {
+                case API_KEY -> new ApiKeyCredentials(dto.apiKey(), dto.apiSecret());
+                case DOCUMENT -> profileDocument(userId, dto.documentNumber());
             };
         } catch (IllegalArgumentException e) {
             throw new BusinessException(e.getMessage());
@@ -740,7 +749,7 @@ public class IntegrationService {
     private SourceConnector connector(IntegrationProvider provider) {
         SourceConnector c = connectors.get(provider);
         if (c == null) {
-            throw new BusinessException("Fonte ainda não suportada: " + provider);
+            throw new BusinessException(SourceDescriptors.of(provider).name() + " está indisponível no momento.");
         }
         return c;
     }
@@ -782,8 +791,9 @@ public class IntegrationService {
 
     private ImportPreviewDTO toDto(IntegrationRun run) {
         List<IntegrationRunItem> runItemList = runItems.findByRunIdOrderByCreatedAt(run.getId());
-        ImportRules sourceRules = rulesOf(run.getConnection().getProvider());
-        List<ImportPreviewDTO.Item> dtos = runItemList.stream().map(i -> toItem(i, sourceRules)).toList();
+        SourceConnector source = connectorOrNull(run.getConnection().getProvider());
+        ImportContext context = contexts.create();
+        List<ImportPreviewDTO.Item> dtos = runItemList.stream().map(i -> toItem(i, source, context)).toList();
         return new ImportPreviewDTO(run.getConnection().getId(), run.getConnection().getLabel(), run.getId(),
             run.getCreatedAt(), run.getFinishedAt(), run.getStatus(), run.getTriggerType(),
             countOutcome(runItemList, RunItemOutcome.NEW), countOutcome(runItemList, RunItemOutcome.EXISTING),
@@ -798,51 +808,61 @@ public class IntegrationService {
      * que e dinheiro (nao posicao) sao das regras da fonte (G6).
      */
     private List<ImportPreviewDTO.Divergence> divergences(IntegrationRun run) {
-        ImportRules sourceRules = rulesOf(run.getConnection().getProvider());
-        if (run.getStatus() != RunStatus.SUCCEEDED || run.getBalances() == null || sourceRules == null) {
+        SourceConnector source = connectorOrNull(run.getConnection().getProvider());
+        if (run.getStatus() != RunStatus.SUCCEEDED || run.getBalances() == null || source == null) {
             return List.of();
         }
+        List<ImportRules> sourceRules = source.allRules();
         Map<String, BigDecimal> atSource = new java.util.TreeMap<>(readBalances(run.getBalances()));
-        sourceRules.cashBalances().forEach(atSource::remove);
-        if (atSource.isEmpty() && !sourceRules.emptyBalanceMeansNoPosition()) {
+        sourceRules.forEach(r -> r.cashBalances().forEach(atSource::remove));
+        if (atSource.isEmpty() && !source.rules().emptyBalanceMeansNoPosition()) {
             return List.of();
         }
         // Cotas na data da busca, com os eventos do papel que o catalogo aplica (desdobramento,
         // bonificacao) — como na carteira (B3, 6.7). Cripto nao tem evento: e a soma das operacoes.
+        // A chave e a do saldo da fonte (balanceKey): na Binance, 'BTC' (cripto) e 'equity:IAU' (acao dos EUA, I6).
         LocalDate data = (run.getFinishedAt() != null ? run.getFinishedAt() : run.getCreatedAt()).toLocalDate();
         Map<String, List<Transaction>> byAsset = new java.util.HashMap<>();
-        Map<String, com.activest.domain.asset.Asset> assetByTicker = new java.util.HashMap<>();
+        Map<String, com.activest.domain.asset.Asset> assetByKey = new java.util.HashMap<>();
         for (Transaction t : transactions.findAllTransactionsByUserId(run.getConnection().getUser().getId())) {
             var asset = t.getPortfolioAsset().getAsset();
-            if (t.getShares() == null || !sourceRules.tracksPosition(asset)) {
+            if (t.getShares() == null) {
                 continue;
             }
-            byAsset.computeIfAbsent(asset.getTicker(), k -> new java.util.ArrayList<>()).add(t);
-            assetByTicker.putIfAbsent(asset.getTicker(), asset);
+            ImportRules tracking = sourceRules.stream().filter(r -> r.tracksPosition(asset)).findFirst().orElse(null);
+            if (tracking == null) {
+                continue;
+            }
+            String key = tracking.balanceKey(asset);
+            byAsset.computeIfAbsent(key, k -> new java.util.ArrayList<>()).add(t);
+            assetByKey.putIfAbsent(key, asset);
         }
         Map<String, BigDecimal> activest = new java.util.HashMap<>();
-        byAsset.forEach((ticker, trades) -> activest.put(ticker, positionCalculator.sharesOn(
-            PositionCalculator.chronological(trades), positionCalculator.stockEventsOf(assetByTicker.get(ticker)),
+        byAsset.forEach((key, trades) -> activest.put(key, positionCalculator.sharesOn(
+            PositionCalculator.chronological(trades), positionCalculator.stockEventsOf(assetByKey.get(key)),
             data)));
-        java.util.TreeSet<String> assetTickers = new java.util.TreeSet<>(atSource.keySet());
-        assetTickers.addAll(activest.keySet());
+        java.util.TreeSet<String> keys = new java.util.TreeSet<>(atSource.keySet());
+        keys.addAll(activest.keySet());
         List<ImportPreviewDTO.Divergence> out = new java.util.ArrayList<>();
-        for (String assetTicker : assetTickers) {
-            BigDecimal atBroker = atSource.getOrDefault(assetTicker, BigDecimal.ZERO);
-            BigDecimal inActivest = activest.getOrDefault(assetTicker, BigDecimal.ZERO);
+        for (String key : keys) {
+            // O saldo da fonte pode ter mais casas que a coluna (acoes da Binance: 9 x 8): compara na escala gravada.
+            BigDecimal atBroker = atSource.getOrDefault(key, BigDecimal.ZERO)
+                .setScale(SHARES_SCALE, java.math.RoundingMode.HALF_UP);
+            BigDecimal inActivest = activest.getOrDefault(key, BigDecimal.ZERO);
             BigDecimal difference = atBroker.subtract(inActivest);
             if (difference.signum() != 0) {
-                out.add(new ImportPreviewDTO.Divergence(assetTicker, inActivest.stripTrailingZeros(),
+                String ticker = assetByKey.containsKey(key) ? assetByKey.get(key).getTicker()
+                    : key.substring(key.indexOf(':') + 1);
+                out.add(new ImportPreviewDTO.Divergence(ticker, inActivest.stripTrailingZeros(),
                     atBroker.stripTrailingZeros(), difference.stripTrailingZeros()));
             }
         }
         return out;
     }
 
-    /** O catalogo das regras: o ticker so nos tipos que a fonte traz (V13 — META e cripto e acao do exterior). */
-    private java.util.function.Function<String, java.util.Optional<com.activest.domain.asset.Asset>> catalog(ImportRules rules) {
-        return t -> assets.findInTypes(t, rules.assetTypes());
-    }
+    /** Escala da quantidade gravada ({@code numeric(18,8)}). */
+    private static final int SHARES_SCALE = 8;
+
 
     private Map<String, BigDecimal> readBalances(String json) {
         try {
@@ -856,16 +876,17 @@ public class IntegrationService {
         return runItemList.stream().filter(i -> i.getOutcome() == o).count();
     }
 
-    private ImportPreviewDTO.Item toItem(IntegrationRunItem i, ImportRules sourceRules) {
+    private ImportPreviewDTO.Item toItem(IntegrationRunItem i, SourceConnector source, ImportContext context) {
         ImportedMovement m = movementJson.read(i.getRaw());
         ImportPreviewDTO.Proposed proposed = null;
-        if (sourceRules != null
+        if (source != null
                 && (i.getOutcome() == RunItemOutcome.NEW || i.getOutcome() == RunItemOutcome.POSSIBLE_DUPLICATE)) {
-            ImportRules.Result r = sourceRules.apply(m, catalog(sourceRules));
+            ImportRules.Result r = source.rulesFor(m).apply(m, context);
             if (r.mapped()) {
                 ProposedTransaction t = r.transaction();
                 proposed = new ImportPreviewDTO.Proposed(t.ticker(), t.type(), t.shares(), t.pricePerShare(),
-                    t.totalAmount(), t.brokerageFee(), t.transactionDate(), t.roundingDifference());
+                    t.totalAmount(), t.brokerageFee(), t.transactionDate(), t.roundingDifference(),
+                    t.currencyCode() == null ? com.activest.domain.currency.Currency.BRL : t.currencyCode());
             }
         }
         ImportPreviewDTO.Duplicate duplicate = i.getDuplicateOf() == null ? null

@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -120,6 +121,28 @@ public class BinanceClient {
         }
     }
 
+    /**
+     * Consultas que a Binance so atende por POST (saldo da carteira Funding, onde ficam as acoes da Binance Stocks;
+     * docs/planos/PLANO_INTEGRACOES.md, 10.10). Lista fechada: nada que negocie, saque ou transfira.
+     */
+    static final java.util.Set<String> READ_ONLY_POST = java.util.Set.of("/sapi/v1/asset/get-funding-asset");
+
+    /** POST assinado, so para as consultas de {@link #READ_ONLY_POST}. */
+    public JsonNode signedPostRead(ApiKeyCredentials credentials, String path, Map<String, ?> params) {
+        if (!READ_ONLY_POST.contains(path)) {
+            throw new IllegalArgumentException("POST não permitido: " + path + " não é consulta.");
+        }
+        try {
+            return signedOnce(credentials, path, params, HttpMethod.POST);
+        } catch (BinanceException e) {
+            if (!e.isClockSkew()) {
+                throw e;
+            }
+            timeOffset = null;
+            return signedOnce(credentials, path, params, HttpMethod.POST);
+        }
+    }
+
     /** Espera entre janelas de endpoints de peso alto (Convert). */
     public void pause(long millis) {
         if (millis <= 0) {
@@ -134,12 +157,16 @@ public class BinanceClient {
     }
 
     private JsonNode signedOnce(ApiKeyCredentials credentials, String path, Map<String, ?> params) {
+        return signedOnce(credentials, path, params, HttpMethod.GET);
+    }
+
+    private JsonNode signedOnce(ApiKeyCredentials credentials, String path, Map<String, ?> params, HttpMethod method) {
         Map<String, Object> all = new LinkedHashMap<>(params);
         all.put("recvWindow", RECV_WINDOW);
         all.put("timestamp", serverTime());
         String query = query(all);
         String signed = query + (query.isEmpty() ? "" : "&") + "signature=" + sign(query, credentials.apiSecret());
-        return send(path, signed, credentials.apiKey());
+        return send(path, signed, credentials.apiKey(), method);
     }
 
     private long serverTime() {
@@ -180,9 +207,13 @@ public class BinanceClient {
     }
 
     private JsonNode send(String path, String query, String apiKey) {
+        return send(path, query, apiKey, HttpMethod.GET);
+    }
+
+    private JsonNode send(String path, String query, String apiKey, HttpMethod method) {
         awaitBudget();
         try {
-            return sendOnce(path, query, apiKey);
+            return sendOnce(path, query, apiKey, method);
         } catch (BinanceException e) {
             if (e.status() != 429) {
                 throw e;
@@ -190,7 +221,7 @@ public class BinanceClient {
             long wait = Math.min(e.retryAfterSeconds() != null ? e.retryAfterSeconds() : 10, MAX_RETRY_AFTER_SECONDS);
             log.warn("Binance 429 em {}: nova tentativa em {} s", path, wait);
             pause(wait * 1000);
-            return sendOnce(path, query, apiKey);
+            return sendOnce(path, query, apiKey, method);
         }
     }
 
@@ -204,10 +235,10 @@ public class BinanceClient {
         }
     }
 
-    private JsonNode sendOnce(String path, String query, String apiKey) {
+    private JsonNode sendOnce(String path, String query, String apiKey, HttpMethod method) {
         URI uri = URI.create(baseUrl + path + (query.isEmpty() ? "" : "?" + query));
         try {
-            String body = webClient.get()
+            String body = webClient.method(method)
                     .uri(uri)
                     .headers(h -> {
                         if (apiKey != null) {

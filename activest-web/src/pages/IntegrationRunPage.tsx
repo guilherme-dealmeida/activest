@@ -11,7 +11,10 @@ import { integrationsApi } from '@/api/integrations';
 import { useToast } from '@/context/ToastContext';
 import { apiMessage } from '@/utils/apiError';
 import { formatCurrency, formatDate, formatQuantity, formatUnitPrice } from '@/utils/format';
-import { KIND, RESOLUTION, RUN_STATUS, formatDateTime, isRunInProgress, providerName } from '@/utils/integrations';
+import {
+  KIND, RESOLUTION, RUN_STATUS, formatDateTime, formatProposalMoney, isRunInProgress, providerName, sourceOf
+} from '@/utils/integrations';
+import { useIntegrationSources } from '@/hooks/useIntegrationSources';
 import { DuplicateDecision, ImportRunItem, MovementKind, PreviewOutcome } from '@/types';
 
 /** Ordem dos grupos na tela: o que entra primeiro, o que precisa de decisão logo depois. */
@@ -49,10 +52,11 @@ export const IntegrationRunPage = () => {
   });
 
   const { data: connections } = useQuery({ queryKey: ['integrations'], queryFn: integrationsApi.list });
-  const providerCode = connections?.find(c => c.id === id)?.provider ?? 'BINANCE';
-  const provider = providerName(providerCode);
-  // A B3 entrega a data do negócio, sem hora (B2).
-  const soData = providerCode === 'B3';
+  const sources = useIntegrationSources();
+  const source = sourceOf(connections?.find(c => c.id === id)?.provider, sources);
+  const provider = source?.name ?? providerName(connections?.find(c => c.id === id)?.provider);
+  // Fonte que entrega só a data do negócio, sem hora (B3, B2).
+  const soData = !!source?.dateOnly;
 
   // Quando a busca termina com a tela aberta, a lista de conexões também muda.
   useEffect(() => {
@@ -113,7 +117,7 @@ export const IntegrationRunPage = () => {
     { label: 'Não importadas', amount: run.unmappedCount },
     { label: 'Já importadas', amount: run.existingCount },
     { label: 'Excluídas por você', amount: run.excludedCount },
-    ...(providerCode === 'BINANCE' ? [{ label: 'Depósitos em reais', amount: formatCurrency(run.fiatDeposited ?? 0) }] : []),
+    ...(source?.fiatDeposits ? [{ label: 'Depósitos em reais', amount: formatCurrency(run.fiatDeposited ?? 0) }] : []),
   ];
 
   return (
@@ -255,10 +259,10 @@ const ItemsTable = ({ itemList, duplicate, decisions, canDecide, onDecide, soDat
               <td className="px-3 py-2 text-right">
                 {t ? formatQuantity(t.shares, true) : i.grossQuantity != null ? formatQuantity(i.grossQuantity, true) : '—'}
               </td>
-              <td className="px-3 py-2 text-right">{t ? formatUnitPrice(t.pricePerShare, true) : '—'}</td>
-              <td className="px-3 py-2 text-right">{t ? formatCurrency(t.brokerageFee) : '—'}</td>
+              <td className="px-3 py-2 text-right">{t ? formatProposalMoney(t.pricePerShare, t.currency, 8) : '—'}</td>
+              <td className="px-3 py-2 text-right">{t ? formatProposalMoney(t.brokerageFee, t.currency) : '—'}</td>
               <td className="px-3 py-2 text-right text-white">
-                {t ? formatCurrency(t.totalAmount)
+                {t ? formatProposalMoney(t.totalAmount, t.currency)
                   : i.quoteAmount == null ? '—'
                     : i.quoteAsset === 'BRL' ? formatCurrency(i.quoteAmount)
                       : `${formatQuantity(i.quoteAmount, true)} ${i.quoteAsset ?? ''}`}
@@ -294,7 +298,7 @@ const ItemsTable = ({ itemList, duplicate, decisions, canDecide, onDecide, soDat
                 ) : i.reason ? (
                   <span className="text-xs text-gray-400">{i.reason}</span>
                 ) : t && t.roundingDifference !== 0 ? (
-                  <span className="text-xs text-gray-400">Arredondamento de {formatCurrency(t.roundingDifference)}</span>
+                  <span className="text-xs text-gray-400">Arredondamento de {formatProposalMoney(t.roundingDifference, t.currency)}</span>
                 ) : null}
               </td>
             </tr>

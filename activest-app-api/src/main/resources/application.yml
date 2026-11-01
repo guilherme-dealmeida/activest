@@ -134,6 +134,8 @@ binance:
   history-start: "2017-07-01"
   convert-history-start: "2020-01-01"
   convert-pause-millis: 1100
+  # Binance Stocks (acoes e ETFs dos EUA; docs/planos/PLANO_INTEGRACOES.md, P3): o produto comecou em 05/2026.
+  equity-history-start: "2026-05-01"
   # Pares consultados no myTrades: moedas candidatas x moedas de cotacao.
   quote-assets: BRL,USDT,USDC,FDUSD,BTC,ETH,BNB
   probe-assets: BTC,ETH,BNB,SOL,XRP,USDT,USDC,ADA,DOGE

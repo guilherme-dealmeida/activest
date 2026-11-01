@@ -13,7 +13,7 @@ const BASE = '/integrations/connections';
  * resposta os devolve — da chave volta só o fingerprint (4 últimos caracteres).
  */
 export const integrationsApi = {
-  /** As fontes ligadas no servidor (a B3 só aparece com B3I_ENABLED). */
+  /** Todas as fontes que o Activest conhece; `available` diz se estão ligadas no servidor. */
   sources: async () => (await apiClient.get<IntegrationSource[]>('/integrations/sources')).data,
   list: async () => (await apiClient.get<IntegrationConnection[]>(BASE)).data,
   connect: async (body: ConnectionCreate) => (await apiClient.post<IntegrationConnection>(BASE, body)).data,

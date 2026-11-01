@@ -76,7 +76,9 @@ public record ImportPreviewDTO(
         BigDecimal totalAmount,
         BigDecimal brokerageFee,
         LocalDate transactionDate,
-        BigDecimal roundingDifference
+        BigDecimal roundingDifference,
+        /** Moeda do preco, do total e da taxa (docs/planos/PLANO_INTEGRACOES.md, 10.3): 'BRL' ou a do ativo do exterior. */
+        String currency
     ) {}
 
     public record Duplicate(
