@@ -57,6 +57,8 @@ export interface Coverage {
   unavailable: string[];
   gaps: Gap[];
   realUntil: string | null;
+  /** Desde quando o IPCA do período é estimado (último publicado repetido): real e IPCA saem estimados. */
+  realEstimatedFrom: string | null;
   basisApplies: boolean;
   basis: PerformanceBasis;
   reservation: ReservationFilter;
@@ -70,6 +72,8 @@ export interface BenchmarkResult {
   until: string | null;
   diff: number | null;
   partial: boolean;
+  /** Desde quando o índice é estimado (IPCA e IPCA + x% com o último mês publicado repetido). */
+  estimatedFrom: string | null;
 }
 
 export interface PerformanceSummary {
@@ -136,6 +140,8 @@ export interface TableRow {
   diffPeriod: number | null;
   /** O indicador para antes do fim (IPCA: último mês publicado); ano, 12 meses, período e diferença vão até aqui. */
   until: string | null;
+  /** Desde quando o indicador é estimado (último IPCA publicado repetido). */
+  estimatedFrom: string | null;
 }
 
 export interface PerformanceTable {

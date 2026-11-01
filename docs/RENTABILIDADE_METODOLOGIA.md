@@ -33,7 +33,7 @@
 | TWR do período | `Π(1 + r_t) − 1` sobre os dias do período |
 | Diferença | `R_carteira − R_benchmark`, em p.p., no mesmo período efetivo (benchmark que para antes — IPCA — compara até onde vai) |
 | % do CDI | `R_carteira / R_CDI × 100`, só com CDI acumulado > 0 (D5: carteira negativa dá % negativo) |
-| Real | `(1 + R_nominal) / (1 + IPCA) − 1`, os dois até o último mês de IPCA publicado |
+| Real | `(1 + R_nominal) / (1 + IPCA) − 1`, no mesmo intervalo; mês sem IPCA publicado usa o último publicado (estimado, `*`) |
 | XIRR | taxa anual que zera os fluxos: aportes (−), retiradas (+), proventos na data de **pagamento** (+), saldo final + proventos a receber (+). Só com ≥ 12 meses |
 | Contribuição | R$: `V_t + W_t + D_t − V_{t−1} − A_t` somado (fecha exatamente com o resultado). p.p.: `Σ k_t/K × ganho_g,t / (V_{t−1} + A_t)` com `k_t = ln(1+r_t)/r_t` e `K = ln(1+R)/R` (Cariño — fecha exatamente com o TWR) |
 | Peso médio | média de `(V_g,t−1 + A_g,t) / (V_{t−1} + A_t)` nos dias com capital |
@@ -47,13 +47,13 @@
 | Código | Série | Fator do dia |
 |---|---|---|
 | CDI, SELIC | SGS 12 / 11, % ao dia | `Π(1 + v/100)` dos dias úteis desde o dia anterior do eixo; depois da última publicada, 1 |
-| IPCA | SGS 433, % no mês | `(1 + I/100)^(1/DU_mês)` por dia útil; mês não publicado: sem fator (a série para) |
+| IPCA | SGS 433, % no mês | `(1 + I/100)^(1/DU_mês)` por dia útil; mês não publicado: o último publicado repetido, marcado como estimado (desde 01/11/2026; nas Metas a série ainda para) |
 | IPCA + x% | IPCA | o fator do IPCA × `(1 + x/100)^(1/252)` por dia útil |
 | IBOV, IFIX | pontos (B3) — índices de retorno total | razão entre fechamentos |
 | SP500_IVVB11 | fechamento do IVVB11 (COTAHIST) | razão entre fechamentos — **proxy** do S&P 500 em reais, não a série oficial |
 | BTC | fechamento BTC/BRL (CoinGecko nos últimos 365 dias, Binance desde 13/10/2020) | razão entre fechamentos |
 
-Padrão ao filtrar uma classe (D4): Ações → IBOV; FII → IFIX; Renda fixa → CDI; Cripto → BTC; BDR → IVVB11; demais e
+Padrão ao filtrar uma classe (D4): Ações → IBOV; FII → IFIX; Renda fixa → CDI; Cripto → BTC; BDR, Stocks, REITs e ETFs Internacionais → IVVB11 (01/11/2026); demais e
 carteira total → CDI. **Tesouro → IPCA e IPCA + x%**, com x = taxa de compra do Tesouro IPCA+ (sem juros semestrais)
 à venda que vence primeiro, no último dia do arquivo de preços do Tesouro Transparente, aplicada ao período inteiro
 (não é a taxa de cada época). "À venda" = vendido nos 3 últimos dias do arquivo de vendas do Tesouro (`treasury_offers`).

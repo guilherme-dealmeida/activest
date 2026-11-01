@@ -137,6 +137,10 @@ class PerformanceIT extends FunctionalBase {
                 .containsExactly("CDI");
         Map<String, Object> isDefault = (Map<String, Object>) c.get("defaultsByType");
         assertThat(isDefault.get("ACAO")).isEqualTo(List.of("IBOV"));
+        // internacionais: IVVB11 (S&P 500 em reais) ate haver outro indice (01/11/2026)
+        assertThat(isDefault.get("STOCK")).isEqualTo(List.of("SP500_IVVB11"));
+        assertThat(isDefault.get("REIT")).isEqualTo(List.of("SP500_IVVB11"));
+        assertThat(isDefault.get("ETF_INTERNACIONAL")).isEqualTo(List.of("SP500_IVVB11"));
         // Tesouro sem taxa gravada: so o IPCA
         assertThat(isDefault.get("TESOURO_DIRETO")).isEqualTo(List.of("IPCA"));
         assertThat(c.get("treasuryIpca")).isNull();

@@ -77,6 +77,10 @@ export const CoverageNotice = ({ coverage }: { coverage: Coverage }) => {
             <div>Renda fixa indexada à inflação com o mês corrente estimado pelo último índice publicado.</div>
           )}
           {coverage.realUntil && <div>Rentabilidade real e IPCA até {monthYear(coverage.realUntil)} (último IPCA publicado).</div>}
+          {coverage.realEstimatedFrom && (
+            <div>IPCA ainda não publicado a partir de {monthYear(coverage.realEstimatedFrom)}: estimado pelo último IPCA
+              publicado, junto com a rentabilidade real (*). Os números mudam quando o índice oficial sair.</div>
+          )}
           <div>Os índices são medidos de fechamento a fechamento; a carteira conta cada compra a partir do preço pago.
             Por isso um ativo pode render diferente do índice que replica: a diferença vem do preço de compra em relação
             ao fechamento do dia.</div>
@@ -109,13 +113,16 @@ export const SummaryCards = ({ s }: { s: PerformanceSummary }) => {
         sub={s.result != null ? <span className={getReturnColor(s.result)}>{formatCurrency(s.result)}</span> : undefined} />
       <Stat title={primary ? primary.name : 'Benchmark'} value={pct(primary?.value)}
         info="O benchmark principal (o primeiro da lista) no mesmo período efetivo da carteira."
-        sub={primary?.partial ? `até ${date(primary.until)}` : undefined} />
+        sub={primary?.estimatedFrom ? `* estimado desde ${monthYear(primary.estimatedFrom)}`
+          : primary?.partial ? `até ${date(primary.until)}` : undefined} />
       <Stat title="Diferença" tone={s.diff} value={pp(s.diff)}
         info={`Rentabilidade da carteira menos a do benchmark principal, em pontos percentuais.${s.coverage.basisApplies && s.coverage.basis === 'NET' ? ' Atenção: carteira líquida contra índice bruto — para uma comparação equivalente, use a base bruta.' : ''}`}
         sub={s.coverage.basisApplies ? `carteira ${basis} × índice bruto` : undefined} />
-      <Stat title="Rentabilidade real" tone={s.real} value={pct(s.real)}
-        info="(1 + rentabilidade) ÷ (1 + IPCA) − 1, com o IPCA do mesmo intervalo. Só até o último IPCA publicado."
-        sub={s.realUntil ? `IPCA ${pct(s.inflation)} até ${monthYear(s.realUntil)}` : undefined} />
+      <Stat title="Rentabilidade real" tone={s.real} value={pct(s.real) + (s.real != null && s.coverage.realEstimatedFrom ? '*' : '')}
+        info="(1 + rentabilidade) ÷ (1 + IPCA) − 1, com o IPCA do mesmo intervalo. Mês ainda sem IPCA publicado usa o último publicado (estimado, com *) até sair o oficial."
+        sub={s.coverage.realEstimatedFrom && s.inflation != null
+          ? `IPCA ${pct(s.inflation)}* (estimado desde ${monthYear(s.coverage.realEstimatedFrom)})`
+          : s.realUntil ? `IPCA ${pct(s.inflation)} até ${monthYear(s.realUntil)}` : undefined} />
       <Stat title="% do CDI" value={s.percentOfCdi != null ? `${s.percentOfCdi.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%` : '—'}
         info="Rentabilidade da carteira ÷ CDI acumulado no mesmo período × 100. Só com CDI acumulado positivo; carteira negativa dá percentual negativo."
         sub={`CDI ${pct(s.cdi)}`} />
@@ -148,7 +155,7 @@ export const ComparisonTable = ({ t }: { t: PerformanceTable }) => (
       <tbody>
         {t.rows.map(r => (
           <tr key={r.code} className={`border-b border-white/5 ${r.portfolio ? 'font-semibold' : ''}`}>
-            <td className="py-2 px-3 text-white">{r.name}{r.until && <span className="text-gray-500 font-normal"> *</span>}</td>
+            <td className="py-2 px-3 text-white">{r.name}{(r.until || r.estimatedFrom) && <span className="text-gray-500 font-normal"> *</span>}</td>
             {[r.month, r.year, r.months12, r.period].map((v, i) => (
               <td key={i} className={`py-2 px-3 text-right ${v != null ? getReturnColor(v) : 'text-gray-500'}`}>{pct(v)}</td>
             ))}
@@ -162,6 +169,11 @@ export const ComparisonTable = ({ t }: { t: PerformanceTable }) => (
     {t.rows.filter(r => r.until).map(r => (
       <p key={r.code} className="mt-2 text-xs text-gray-500">
         * {r.name}: até {date(r.until)} (último dado publicado); a diferença compara a carteira no mesmo intervalo.
+      </p>
+    ))}
+    {t.rows.filter(r => r.estimatedFrom).map(r => (
+      <p key={`${r.code}-est`} className="mt-2 text-xs text-gray-500">
+        * {r.name}: estimado desde {monthYear(r.estimatedFrom)} pelo último IPCA publicado; muda quando o oficial sair.
       </p>
     ))}
     <p className="mt-2 text-xs text-gray-500">

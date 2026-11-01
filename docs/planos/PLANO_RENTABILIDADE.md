@@ -307,7 +307,7 @@ Liberação incremental (passo 12 do escopo): P1–P5 já entregam a comparaçã
 | C7 | FII sem negócio por 2 pregões | último fechamento, marcado; acima de N pregões → C6 |
 | C8 | Comparação com período maior que a carteira | benchmark recortado ao período efetivo |
 | C9 | Retorno negativo; acumulado próximo de zero | sinais e % CDI corretos; sem divisão por quase zero |
-| C10 | IPCA do mês corrente não publicado | real "até mês anterior" |
+| C10 | IPCA do mês corrente não publicado | ~~real "até mês anterior"~~ desde 01/11/2026: IPCA e real estimados pelo último publicado, com `*` e aviso "estimado desde mm/aaaa" |
 | C11 | Posição encerrada | aparece nos dias em que existiu; contribui |
 | C12 | RF bruto × líquido | líquido ≤ bruto; base indicada |
 | C13 | IVVB11 (proxy) e BTC | razão de fechamentos; rótulo de proxy |
@@ -336,7 +336,7 @@ Respondidas no mesmo dia, todas pela recomendação, com os acréscimos abaixo (
 | L8 | Com/Sem reserva, padrão com; sem reserva tira do patrimônio, dos fluxos e da rentabilidade |
 | L9 | Tipo → Categoria → Ativo; emissor como agrupamento extra na RF |
 | L10 | Líquido padrão; bruto quando dá para calcular; a base de comparação sempre explícita ("carteira líquida × CDI bruto"); o seletor só onde a distinção existe |
-| L11 | Real só até o último IPCA publicado, com aviso |
+| L11 | Real só até o último IPCA publicado, com aviso. **Revista em 01/11/2026:** mês ainda sem IPCA publicado repete o último publicado, marcado como estimado (`*`), no IPCA, no IPCA + x% e na rentabilidade real — como a D5 da valorização da RF; trocado pelo oficial quando sai. As Metas seguem sem estimativa |
 | L12 | Encerradas entram no histórico e na contribuição |
 | L13 | Mesmo motor no Dashboard (TWR); Carteira "Resultado s/ investido"; `/portfolio/performance` sai depois de conferidos os consumidores (seção 6.3) |
 | L14 | Os quatro indicadores, por último, com ≥ 12 meses; limitação da curva na tela |
@@ -354,7 +354,7 @@ Respondidas no mesmo dia, todas pela recomendação, com os acréscimos abaixo (
 | **D1** | Onde fica o catálogo de benchmarks | (a) tabela `benchmarks` fina, apontando índice ou ativo (3.1); (b) pôr IVVB11 e BTC em `market_indices`, copiando a série do ativo para `market_index_values`; (c) lista no código | **(a)**: não duplica série, aceita ativo como referência e é seed como os demais cadastros de referência |
 | **D2** | Fonte do BTC antes da janela de 365 dias da CoinGecko | (a) Binance pública, BTCBRL diário desde 13/10/2020 (benchmark começa aí); (b) só CoinGecko 365 dias (o benchmark BTC teria só 1 ano móvel; a posição do Guilherme fica coberta se a recarga rodar antes de ~13/11/2026); (c) BTC fora | **(a)**, sem emendar BTCUSDT × PTAX antes de 2020 (seria série reconstruída) |
 | **D3** | Quantos pregões sem negócio aceitar com o último fechamento | 1 / **5** / 10 | **5 pregões**, marcado "último negócio em dd/mm"; acima disso, indisponível |
-| **D4** | Benchmark padrão ao filtrar uma classe | Ações → IBOV; FII → IFIX; RF e TD → CDI; Cripto → BTC; BDR → IVVB11; ETF, Fundos e demais → CDI | **a lista ao lado**, no código; o usuário troca na tela |
+| **D4** | Benchmark padrão ao filtrar uma classe | Ações → IBOV; FII → IFIX; RF e TD → CDI; Cripto → BTC; BDR → IVVB11; ETF, Fundos e demais → CDI | **a lista ao lado**, no código; o usuário troca na tela. **01/11/2026:** Stocks, REITs e ETFs Internacionais → IVVB11 (S&P 500 em reais) até haver outro índice; trocar a classe **reseta** a lista para os padrões dela (antes os padrões iam para o começo e os escolhidos ficavam) |
 | **D5** | % do CDI com carteira negativa | (a) mostrar o valor negativo; (b) "—" | **(a)**: é válido com CDI > 0 e informa; "—" só com CDI acumulado ≤ 0 |
 | **D6** | Contribuição | (a) R$ + p.p. ligada por Cariño (soma o TWR); (b) só R$; (c) p.p. aritmético simples (não fecha com o TWR) | **(a)** |
 | **D7** | Períodos e padrão | atalhos 1M, 6M, YTD, 1A, 5A, MAX + de/até (os da cotação, sem 1D e 7D); padrão MAX ("desde o início") ou 1A | **atalhos ao lado, padrão MAX** |
@@ -398,6 +398,8 @@ Respondidas no mesmo dia, todas pela recomendação, com os acréscimos abaixo (
 | 17/10/2026 | ajustes | escopo "Mudanças de tela": Dashboard e tela em base **bruta**, tela abre em **12M**; Carteira revista (decidido pelo Guilherme): VALORIZAÇÃO em R$ + % (a "Variação" do Investidor10) e **RENTABILIDADE** = clássica com proventos (a do Investidor10) + "TWR: x%" embaixo, também no Top 5 do Dashboard — substitui o "Resultado s/ investido" da L13; totais com as mesmas contas e o TWR do tipo; D10 revista: a tela abre só com o CDI (sem `localStorage`) |
 | 17/10/2026 | decisão | Carteira cripto × BTC/BRL: a diferença vem da convenção R5 (no dia da compra a carteira mede do preço pago ao fechamento; o índice, de fechamento a fechamento). Mantida; aviso fixo no quadro de informações da tela |
 
+| 01/11/2026 | revisão | decidido pelo Guilherme (dúvidas sobre internacionais na Rentabilidade): (1) D4 — Stocks, REITs e ETFs Internacionais com o IVVB11 como padrão até haver outro índice (a rentabilidade deles é em reais, pela PTAX); (2) L11/C10 revistas — IPCA ainda não publicado repete o último publicado na Rentabilidade (`BenchmarkSeries.monthlyRate(..., estimate)`, `BenchmarkData.resolve/byCode(..., true)`), marcado em `estimatedFrom` (`BenchmarkResultDTO`, `TableRowDTO`) e `CoverageDTO.realEstimatedFrom`; tela com `*` e aviso. Metas continuam sem estimativa (overloads antigos) |
+| 01/11/2026 | revisão | decidido pelo Guilherme: ao trocar a classe na tela, a lista de benchmarks é **resetada** para só os padrões da classe (CDI na carteira total e nas classes sem padrão) — antes os padrões eram concatenados à frente dos já escolhidos (`PerformancePage.tsx`) |
 | 25/10/2026 | revisão | R10/D3 revistas no escopo Metas (`PLANO_METAS.md` 5.9, opção a, decidida pelo Guilherme): depois de 5 pregões o último fechamento segue **carregado** (`PriceStatus.CARRIED`, lacuna `PRECO_CARREGADO` com a data do preço); sem série, o preço da compra; renda fixa sem curva, o valor aplicado. O dia não fica mais indisponível por preço velho; a tela avisa em amarelo. Caso C6 passa a ser "carregado, disponível" |
 
 ### Desvios do texto do plano (17/10/2026, na implementação)

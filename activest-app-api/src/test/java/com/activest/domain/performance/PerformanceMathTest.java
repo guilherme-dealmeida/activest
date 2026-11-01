@@ -164,6 +164,32 @@ class PerformanceMathTest {
     }
 
     @Test
+    @DisplayName("L11 revista — IPCA estimado: mes nao publicado repete o ultimo publicado e fica marcado")
+    void ipcaEstimated() {
+        List<LocalDate> axis = new ArrayList<>();
+        for (LocalDate d = LocalDate.of(2026, 9, 1); d.isBefore(LocalDate.of(2026, 11, 1)); d = d.plusDays(1)) {
+            if (com.activest.domain.calendar.BusinessCalendar.isBusinessDay(d)) {
+                axis.add(d);
+            }
+        }
+        NavigableMap<LocalDate, BigDecimal> months = new TreeMap<>();
+        months.put(LocalDate.of(2026, 9, 1), new BigDecimal("0.50"));
+        BenchmarkSeries.Daily b = BenchmarkSeries.monthlyRate(axis, months, 0, true);
+        int oct1 = axis.indexOf(LocalDate.of(2026, 10, 1));
+        int last = axis.size() - 1;
+        assertThat(ReturnMath.chain(b.r(), oct1, last)).isCloseTo(0.005, within(1e-12));
+        assertThat(b.estimatedFrom()).isEqualTo(LocalDate.of(2026, 10, 1));
+        assertThat(b.until()).isEqualTo(axis.get(last));
+        // sem estimativa (Metas): para no ultimo publicado
+        BenchmarkSeries.Daily plain = BenchmarkSeries.monthlyRate(axis, months, 0);
+        assertThat(Double.isNaN(plain.r()[oct1])).isTrue();
+        assertThat(plain.estimatedFrom()).isNull();
+        // tudo publicado: nada estimado
+        months.put(LocalDate.of(2026, 10, 1), new BigDecimal("0.40"));
+        assertThat(BenchmarkSeries.monthlyRate(axis, months, 0, true).estimatedFrom()).isNull();
+    }
+
+    @Test
     @DisplayName("R9 — nivel: razao entre fechamentos; preco de hoje = o atual")
     void level() {
         NavigableMap<LocalDate, Double> lv = new TreeMap<>();

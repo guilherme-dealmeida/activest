@@ -30,7 +30,7 @@ public class BenchmarkData {
 
     /**
      * D4 (17/10/2026): benchmarks padrao ao filtrar uma classe, o primeiro e o principal; o que nao esta aqui usa o
-     * CDI. O Tesouro (ajuste de 17/10/2026) e IPCA + IPCA + a taxa do Tesouro IPCA+ a venda mais curto
+     * CDI. Stocks, REITs e ETFs internacionais com o IVVB11 desde 01/11/2026. O Tesouro (ajuste de 17/10/2026) e IPCA + IPCA + a taxa do Tesouro IPCA+ a venda mais curto
      * ({@link #treasuryIpca()}); sem essa taxa, so o IPCA.
      */
     public static final Map<String, List<String>> DEFAULTS_BY_TYPE = Map.of(
@@ -39,7 +39,12 @@ public class BenchmarkData {
             "RENDA_FIXA", List.of("CDI"),
             "TESOURO_DIRETO", List.of("IPCA"),
             "CRIPTO", List.of("BTC"),
-            "BDR", List.of("SP500_IVVB11"));
+            "BDR", List.of("SP500_IVVB11"),
+            // internacionais (01/11/2026): IVVB11, o S&P 500 em reais, ate haver outro indice — a rentabilidade deles
+            // e medida em reais (PTAX), como a do IVVB11
+            "STOCK", List.of("SP500_IVVB11"),
+            "REIT", List.of("SP500_IVVB11"),
+            "ETF_INTERNACIONAL", List.of("SP500_IVVB11"));
     public static final String DEFAULT_CODE = "CDI";
     static final String TREASURY_TYPE = "TESOURO_DIRETO";
 
@@ -139,9 +144,19 @@ public class BenchmarkData {
         }, id);
     }
 
-    /** Os benchmarks pedidos no eixo; codigo desconhecido ou spread onde nao cabe: 422. */
+    /** Os benchmarks pedidos no eixo; codigo desconhecido ou spread onde nao cabe: 422. Indice mensal sem estimativa. */
     @Transactional(readOnly = true)
     public Map<String, Resolved> resolve(List<Ref> refs, List<LocalDate> axis, LocalDate today) {
+        return resolve(refs, axis, today, false);
+    }
+
+    /**
+     * Os benchmarks pedidos no eixo. Com {@code estimate} (a Rentabilidade, L11 revista em 01/11/2026), o indice mensal
+     * ainda nao publicado (IPCA, IPCA + x%) repete o ultimo publicado, marcado em
+     * {@link BenchmarkSeries.Daily#estimatedFrom()}; as Metas seguem sem estimativa.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Resolved> resolve(List<Ref> refs, List<LocalDate> axis, LocalDate today, boolean estimate) {
         Map<String, Resolved> out = new LinkedHashMap<>();
         if (axis.isEmpty()) {
             return out;
@@ -164,7 +179,7 @@ public class BenchmarkData {
             }
             String name = b.isAcceptsSpread()
                     ? b.getName().replace("x%", format(ref.spread()) + "%") : b.getName();
-            out.put(ref.key(), new Resolved(ref, name, daily(b, ref.spread(), axis, today)));
+            out.put(ref.key(), new Resolved(ref, name, daily(b, ref.spread(), axis, today, estimate)));
         }
         return out;
     }
@@ -172,16 +187,23 @@ public class BenchmarkData {
     /** Serie de um indice pelo codigo (CDI e IPCA, sempre usados por % do CDI, real e risco). */
     @Transactional(readOnly = true)
     public BenchmarkSeries.Daily byCode(String code, List<LocalDate> axis, LocalDate today) {
+        return byCode(code, axis, today, false);
+    }
+
+    /** Serie de um indice pelo codigo, com ou sem estimativa do mes nao publicado (ver {@link #resolve}). */
+    @Transactional(readOnly = true)
+    public BenchmarkSeries.Daily byCode(String code, List<LocalDate> axis, LocalDate today, boolean estimate) {
         Benchmark b = repository.findByCode(code).orElse(null);
         if (b == null || axis.isEmpty()) {
             double[] r = new double[axis.size()];
             java.util.Arrays.fill(r, Double.NaN);
             return new BenchmarkSeries.Daily(r, null);
         }
-        return daily(b, null, axis, today);
+        return daily(b, null, axis, today, estimate);
     }
 
-    private BenchmarkSeries.Daily daily(Benchmark b, Double spread, List<LocalDate> axis, LocalDate today) {
+    private BenchmarkSeries.Daily daily(Benchmark b, Double spread, List<LocalDate> axis, LocalDate today,
+                                        boolean estimate) {
         LocalDate from = axis.get(0).minusDays(45);
         LocalDate to = axis.get(axis.size() - 1);
         if (b.getKind() == BenchmarkKind.INDICE) {
@@ -196,7 +218,7 @@ public class BenchmarkData {
                 return BenchmarkSeries.dailyRate(axis, values);
             }
             if (unit == IndexUnit.PCT_MES) {
-                return BenchmarkSeries.monthlyRate(axis, values, spread != null ? spread : 0);
+                return BenchmarkSeries.monthlyRate(axis, values, spread != null ? spread : 0, estimate);
             }
             NavigableMap<LocalDate, Double> levels = new TreeMap<>();
             values.forEach((d, v) -> levels.put(d, v.doubleValue()));
