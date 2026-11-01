@@ -720,7 +720,7 @@ export const TransactionsPage = () => {
                       )}
                       {row.netAmount != null && (
                         <span className="text-xs font-normal text-gray-400 tabular-nums">
-                          líq. {formatCurrency(row.netAmount)}
+                          {formatCurrency(row.netAmount)}
                         </span>
                       )}
                     </span>

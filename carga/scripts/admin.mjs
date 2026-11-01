@@ -13,6 +13,9 @@
 //                                                    (docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md, F4)
 //   node carga/scripts/admin.mjs "foreign-delisted?from=2010&to=2026"   deslistados dos EUA, so a previa
 //   node carga/scripts/admin.mjs "foreign-delisted?write=true"           cadastra os deslistados (inativos; F5)
+//   node carga/scripts/admin.mjs foreign-daily-quotes   preco diario dos internacionais vivos (Massive), do pregao
+//                                                    seguinte ao ultimo gravado ate ontem; "foreign-daily-quotes?from=2026-10-30"
+//                                                    (e &to=...) para um periodo (docs/planos/PLANO_PRECOS_INTERNACIONAIS.md)
 //   node carga/scripts/admin.mjs indices            indices de mercado 2010+ (docs/planos/PLANO_INDICES_MERCADO.md)
 //   node carga/scripts/admin.mjs "indices?codes=CDI,IPCA&from=2024"   so alguns indices / anos
 //   node carga/scripts/admin.mjs "indices?recent=true"                rodada incremental (a da rotina das 10:00)

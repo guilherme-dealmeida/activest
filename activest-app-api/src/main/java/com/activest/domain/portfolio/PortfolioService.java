@@ -45,6 +45,9 @@ public class PortfolioService {
     com.activest.domain.currency.ExchangeRateService exchangeRates;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     com.activest.domain.currency.CurrencyRepository currencies;
+    /** Segunda linha em outra moeda (PLANO_PRECOS_INTERNACIONAIS, R2 e R4). Por campo pelo mesmo motivo. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    ForeignValuesService foreignValues;
 
     public PortfolioService(PortfolioRepository portfolioRepository, PortfolioAssetRepository portfolioAssetRepository,
                             UserRepository userRepository, DividendRepository dividendRepository,
@@ -171,6 +174,7 @@ public class PortfolioService {
             .toList();
         Map<UUID, PositionValuationInfo.Info> infos = valuationInfo != null ? valuationInfo.of(open) : null;
         Map<UUID, List<BonusCostService.Pending>> bonus = bonusCosts != null ? bonusCosts.pendingFor(open) : Map.of();
+        Map<UUID, BigDecimal> costFx = foreignValues != null ? foreignValues.costFx(open) : Map.of();
         return open.stream()
             .map(pa -> {
                 Position position = positions.get(pa.getId());
@@ -241,7 +245,10 @@ public class PortfolioService {
                             l.balance(), l.income(), l.iofRate(), l.irRate(), l.iof(), l.ir(), l.net()))
                         .toList(),
                     fixedIncomeIssuers != null ? fixedIncomeIssuers.info(note) : null,
-                    foreignQuote
+                    foreignQuote,
+                    foreignValues == null ? null : foreignValues.of(pa, costFx.get(pa.getId()),
+                        dividendCalendar.today(), safe(position.totalShares()), safe(position.averagePrice()),
+                        invested, currentPrice, dividends.getOrDefault(pa.getId(), BigDecimal.ZERO))
                 );
             }).collect(Collectors.toList());
     }

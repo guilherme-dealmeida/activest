@@ -23,7 +23,7 @@ import { apiMessage } from '@/utils/apiError';
 import { TickerLink } from '@/components/issuer/TickerLink';
 import { performanceApi } from '@/api/performance';
 import { POSITIONS_TWR_KEY, classicReturn } from '@/utils/returns';
-import { lotTotals, portfolioTotals } from '@/utils/portfolioTotals';
+import { foreignTotals, lotTotals, portfolioTotals } from '@/utils/portfolioTotals';
 import { assetText, useAssetLabel } from '@/utils/assetLabel';
 
 /** "17,5%" — alíquota (0,175) em percentual. */
@@ -42,7 +42,7 @@ const EstimatedNet = ({ asset }: { asset: PortfolioAssetDetail }) => {
     return (
       <span className="text-xs text-gray-400 tabular-nums"
         title={asset.valuationNote ?? 'Líquido estimado de um resgate total hoje: bruto − IOF − IR, aporte a aporte (PEPS), já descontado o come-cotas.'}>
-        líq. {formatCurrency(asset.estimatedNet ?? 0)}
+        {formatCurrency(asset.estimatedNet ?? 0)}
       </span>
     );
   }
@@ -54,7 +54,7 @@ const EstimatedNet = ({ asset }: { asset: PortfolioAssetDetail }) => {
         className="text-xs text-gray-400 hover:text-accent hover:underline tabular-nums"
         title="Líquido estimado de um resgate hoje (sem IR e IOF). Clique para ver os aportes."
       >
-        líq. {formatCurrency(asset.estimatedNet ?? 0)}
+        {formatCurrency(asset.estimatedNet ?? 0)}
       </button>
       <Modal
         isOpen={open}
@@ -199,6 +199,51 @@ const TwrLine = ({ value, title }: { value: number | null | undefined; title?: s
     : <span className={clsx('text-xs font-normal tabular-nums', getReturnColor(value))} title={title}>TWR: {formatPercentage(value)}</span>
 );
 
+/**
+ * Linha de baixo em outra moeda (docs/planos/PLANO_PRECOS_INTERNACIONAIS.md, R2 e R4): exterior na moeda do ativo,
+ * cripto em dólar. O valor de cima continua em reais.
+ */
+const ForeignLine = ({ asset, value, maxDigits = 2, cost = false }: {
+  asset: PortfolioAssetDetail; value: number | null | undefined; maxDigits?: number; cost?: boolean;
+}) => {
+  const fv = asset.foreignValues;
+  if (!fv || value == null) return null;
+  const title = cost
+    ? (fv.costFxRate != null ? `Câmbio médio das compras ${formatFxRate(fv.costFxRate)}` : undefined)
+    : `Câmbio ${formatFxRate(fv.fxRate)} (PTAX venda de ${formatDate(fv.rateDate ?? '')})`;
+  return (
+    <span className="text-xs tabular-nums text-gray-400" title={title}>
+      {formatMoney(value, fv.symbol, 2, maxDigits)}
+    </span>
+  );
+};
+
+/**
+ * Valor com sinal (VALORIZAÇÃO em dinheiro, VARIAÇÃO em %) e, embaixo, o mesmo na outra moeda quando houver
+ * (docs/planos/PLANO_PRECOS_INTERNACIONAIS.md, R2/R4; coluna VARIAÇÃO separada em 01/11/2026). Cada linha na cor do seu
+ * sinal.
+ */
+const SignedLines = ({ main, below, title, footer = false }: {
+  main: { value: number; text: string } | null;
+  below?: { value: number; text: string } | null;
+  title?: string;
+  footer?: boolean;
+}) => (
+  <span className="inline-flex flex-col items-end">
+    {main ? <span className={clsx('tabular-nums', getReturnColor(main.value))}>{main.text}</span> : <span className="text-gray-400">—</span>}
+    {below && (
+      <span className={clsx('text-xs tabular-nums', footer && 'font-normal', getReturnColor(below.value))} title={title}>
+        {below.text}
+      </span>
+    )}
+  </span>
+);
+
+/** Dica da linha na moeda: como a valorização na moeda é medida. */
+const foreignTitle = (a: PortfolioAssetDetail) => a.foreignValues
+  ? `Na moeda: valor atual − valor inicial (câmbio médio das compras ${a.foreignValues.costFxRate != null ? formatFxRate(a.foreignValues.costFxRate) : '—'}, hoje ${formatFxRate(a.foreignValues.fxRate)})`
+  : undefined;
+
 const COLUMNS: Column[] = [
   {
     key: 'ticker',
@@ -311,9 +356,12 @@ const COLUMNS: Column[] = [
     align: 'right',
     visible: showAveragePrice,
     render: (a) => (
-      <span className="inline-flex items-center justify-end gap-1">
-        {formatUnitPrice(a.averagePrice, a.isCrypto)}
-        <BonusCostBadge asset={a} />
+      <span className="inline-flex flex-col items-end">
+        <span className="inline-flex items-center justify-end gap-1">
+          {formatUnitPrice(a.averagePrice, a.isCrypto)}
+          <BonusCostBadge asset={a} />
+        </span>
+        <ForeignLine asset={a} value={a.foreignValues?.averagePrice} maxDigits={a.isCrypto ? 8 : 2} cost />
       </span>
     ),
   },
@@ -333,6 +381,12 @@ const COLUMNS: Column[] = [
           {formatMoney(a.foreignQuote.price, a.foreignQuote.symbol, 2, 8)}
         </span>
       </span>
+    ) : a.foreignValues ? (
+      // Cripto (R4): o preço em reais e, embaixo, em dólar pela PTAX de hoje
+      <span className="inline-flex flex-col items-end">
+        <span>{formatUnitPrice(a.currentPrice, a.isCrypto)}</span>
+        <ForeignLine asset={a} value={a.foreignValues.price} maxDigits={a.isCrypto ? 8 : 2} />
+      </span>
     ) : formatUnitPrice(a.currentPrice, a.isCrypto),
   },
   {
@@ -345,7 +399,12 @@ const COLUMNS: Column[] = [
       ? 'Quanto foi investido na posição: a soma das compras.'
       : 'Custo que continua na posição: o que foi investido, já descontadas as vendas pelo preço médio.'),
     align: 'right',
-    render: (a) => formatCurrency(a.totalInvested),
+    render: (a) => (
+      <span className="inline-flex flex-col items-end">
+        <span>{formatCurrency(a.totalInvested)}</span>
+        <ForeignLine asset={a} value={a.foreignValues?.totalInvested} cost />
+      </span>
+    ),
   },
   {
     key: 'totalSold',
@@ -366,6 +425,7 @@ const COLUMNS: Column[] = [
       <span className="inline-flex flex-col items-end">
         <span>{formatCurrency(a.currentValue)}</span>
         {a.estimatedNet != null && <EstimatedNet asset={a} />}
+        <ForeignLine asset={a} value={a.foreignValues?.currentValue} />
       </span>
     ),
   },
@@ -375,23 +435,44 @@ const COLUMNS: Column[] = [
     info: 'Total de proventos recebidos desde o início da posição, incluindo dividendos, JCP e outras distribuições.',
     align: 'right',
     visible: showDividends,
-    render: (a) => formatCurrency(a.totalDividends),
-  },
-  {
-    // 17/10/2026: em reais e, embaixo, em % (a "Variação" do Investidor10). Ordena pelo valor em reais.
-    key: 'valorization',
-    label: 'VALORIZAÇÃO',
-    info: 'Quanto a posição ganhou ou perdeu em relação ao valor aplicado, sem os proventos. Embaixo, em percentual: '
-      + 'valorização ÷ valor aplicado (em ações, preço atual ÷ preço médio − 1).',
-    align: 'right',
     render: (a) => (
       <span className="inline-flex flex-col items-end">
-        <span className={getReturnColor(a.valorization)}>{formatCurrency(a.valorization)}</span>
-        {a.valuationBasis === 'SEM_CURVA'
-          ? <span className="text-xs text-gray-400" title={a.valuationNote ?? undefined}>—</span>
-          : <span className={clsx('text-xs tabular-nums', getReturnColor(a.returnPercentage))}>{formatPercentage(a.returnPercentage)}</span>}
+        <span>{formatCurrency(a.totalDividends)}</span>
+        <ForeignLine asset={a} value={a.foreignValues?.totalDividends} />
       </span>
     ),
+  },
+  {
+    // 17/10/2026: em reais; desde 01/11/2026 a % foi para a coluna VARIAÇÃO. Embaixo, na moeda (exterior e cripto).
+    key: 'valorization',
+    label: 'VALORIZAÇÃO',
+    info: 'Quanto a posição ganhou ou perdeu em relação ao valor aplicado, sem os proventos. No exterior e na cripto, '
+      + 'embaixo, o mesmo na moeda (dólar).',
+    align: 'right',
+    render: (a) => (
+      <SignedLines main={{ value: a.valorization, text: formatCurrency(a.valorization) }}
+        below={a.foreignValues?.valorization != null
+          ? { value: a.foreignValues.valorization, text: formatMoney(a.foreignValues.valorization, a.foreignValues.symbol) }
+          : null}
+        title={foreignTitle(a)} />
+    ),
+  },
+  {
+    // 01/11/2026: a % que ficava embaixo da VALORIZAÇÃO (a "Variação" do Investidor10). Ordena pela % em reais.
+    key: 'returnPercentage',
+    label: 'VARIAÇÃO',
+    info: 'Valorização em percentual, sem os proventos: valorização ÷ valor aplicado (em ações, preço atual ÷ preço '
+      + 'médio − 1). No exterior e na cripto, embaixo, a variação na moeda (dólar) — a diferença para a de cima é o câmbio.',
+    align: 'right',
+    render: (a) => a.valuationBasis === 'SEM_CURVA'
+      ? <span className="text-gray-400" title={a.valuationNote ?? undefined}>—</span>
+      : (
+        <SignedLines main={{ value: a.returnPercentage, text: formatPercentage(a.returnPercentage) }}
+          below={a.foreignValues?.returnPercentage != null
+            ? { value: a.foreignValues.returnPercentage, text: formatPercentage(a.foreignValues.returnPercentage) }
+            : null}
+          title={foreignTitle(a)} />
+      ),
   },
   {
     // 17/10/2026, antes "RESULTADO S/ INVESTIDO": a rentabilidade clássica e, embaixo, o TWR. Ordena pela clássica.
@@ -514,24 +595,34 @@ const PortfolioTypeTable = ({ type, assets, reservation, twrByPosition, typeTwr,
     invested: totalInvested, sold: totalSold, current: totalCurrent, dividends: totalDividends, valorization: totalValorization,
     valorizationPct: totalValorizationPct, classic: totalClassic, hasNet, net: totalNet,
   } = portfolioTotals(assets);
+  // R2/R4 (01/11/2026): exterior e cripto ganham a segunda linha na moeda também nos Totais
+  const foreign = foreignTotals(assets);
+  const foreignLine = (value: number) => foreign && (
+    <span className="text-xs font-normal text-gray-400 tabular-nums">{formatMoney(value, foreign.symbol)}</span>
+  );
+  const withForeign = (brl: ReactNode, value: number | undefined) => foreign && value != null
+    ? <span className="inline-flex flex-col items-end"><span>{brl}</span>{foreignLine(value)}</span>
+    : brl;
 
   const footer: Partial<Record<keyof PortfolioAssetDetail, ReactNode>> = {
-    totalInvested: formatCurrency(totalInvested),
+    totalInvested: withForeign(formatCurrency(totalInvested), foreign?.invested),
     totalSold: formatCurrency(totalSold),
     currentValue: hasNet
       ? (
         <span className="inline-flex flex-col items-end">
           <span>{formatCurrency(totalCurrent)}</span>
-          <span className="text-xs font-normal text-gray-400 tabular-nums">líq. {formatCurrency(totalNet)}</span>
+          <span className="text-xs font-normal text-gray-400 tabular-nums">{formatCurrency(totalNet)}</span>
         </span>
       )
-      : formatCurrency(totalCurrent),
-    totalDividends: formatCurrency(totalDividends),
+      : withForeign(formatCurrency(totalCurrent), foreign?.current),
+    totalDividends: withForeign(formatCurrency(totalDividends), foreign?.dividends),
     valorization: (
-      <span className="inline-flex flex-col items-end">
-        <span className={getReturnColor(totalValorization)}>{formatCurrency(totalValorization)}</span>
-        <span className={clsx('text-xs font-normal tabular-nums', getReturnColor(totalValorizationPct))}>{formatPercentage(totalValorizationPct)}</span>
-      </span>
+      <SignedLines footer main={{ value: totalValorization, text: formatCurrency(totalValorization) }}
+        below={foreign ? { value: foreign.valorization, text: formatMoney(foreign.valorization, foreign.symbol) } : null} />
+    ),
+    returnPercentage: (
+      <SignedLines footer main={{ value: totalValorizationPct, text: formatPercentage(totalValorizationPct) }}
+        below={foreign ? { value: foreign.valorizationPct, text: formatPercentage(foreign.valorizationPct) } : null} />
     ),
     classicReturn: (
       <span className="inline-flex flex-col items-end">

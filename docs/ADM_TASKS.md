@@ -389,6 +389,18 @@ e categoria, com a curadoria `curadoria-deslistados.json` (chave = número de ac
 **Propósito.** O histórico de quem saiu da bolsa desde 2010, para o lançamento retroativo; a cobertura por ano e tipo
 sai na planilha `internacional_deslistados.py planilha`.
 
+### [24] `POST /api/v1/admin/foreign-daily-quotes[?from=AAAA-MM-DD[&to=AAAA-MM-DD]]` (01/11/2026)
+
+**Serviço:** `ForeignDailyQuotesService` (tarefa `FOREIGN_DAILY_QUOTES`, terça a sábado 03:00) · **Grava:**
+`asset_price_history` (`source = MASSIVE`), `assets.current_price`/`price_updated_at` dos internacionais vivos e o
+arquivo do pregão em `carga/data/massive/grouped/`
+
+**Função.** Massive grouped daily: um pedido por pregão. Sem datas, do pregão seguinte ao último gravado até ontem; com
+`from` (e `to`), o período (até 31 dias, dentro dos 2 anos do plano gratuito). Atalho:
+`node carga/scripts/admin.mjs "foreign-daily-quotes?from=2026-10-30"`.
+
+**Propósito.** Carregar ou refazer pregões dos ativos internacionais (`docs/planos/PLANO_PRECOS_INTERNACIONAIS.md`).
+
 ---
 
 ## Fundos de investimento

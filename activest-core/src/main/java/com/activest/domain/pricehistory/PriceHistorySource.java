@@ -18,5 +18,10 @@ public enum PriceHistorySource {
      * Historico de cripto da Binance (klines diario publico, V58 — docs/planos/PLANO_RENTABILIDADE.md, D2). So
      * preenche datas sem linha: nunca sobrescreve a CoinGecko.
      */
-    BINANCE
+    BINANCE,
+    /**
+     * Fechamento dos ativos internacionais vivos pelo Massive grouped daily (V19 — docs/planos/
+     * PLANO_PRECOS_INTERNACIONAIS.md).
+     */
+    MASSIVE
 }

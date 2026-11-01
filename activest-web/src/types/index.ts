@@ -222,6 +222,22 @@ export interface PortfolioSummary {
   currentNetValue: number;
 }
 
+/** Valores da posição na outra moeda (R2/R4 do PLANO_PRECOS_INTERNACIONAIS). Campo null quando falta o dado. */
+export interface ForeignValues {
+  currencyCode: string;
+  symbol: string;
+  fxRate: number;
+  rateDate: string | null;
+  costFxRate: number | null;
+  price: number | null;
+  averagePrice: number | null;
+  totalInvested: number | null;
+  currentValue: number | null;
+  totalDividends: number | null;
+  valorization: number | null;
+  returnPercentage: number | null;
+}
+
 export interface PortfolioAssetDetail {
   id: string;
   ticker: string;
@@ -298,6 +314,11 @@ export interface PortfolioAssetDetail {
   noteInfo?: NoteInfo | null;
   /** Ativo cotado em outra moeda: cotação na moeda e câmbio usado. currentPrice e valores estão em reais. */
   foreignQuote?: { currencyCode: string; symbol: string; price: number; fxRate: number | null; rateDate: string | null } | null;
+  /**
+   * Segunda linha em outra moeda (docs/planos/PLANO_PRECOS_INTERNACIONAIS.md, R2 e R4): a posição do exterior na moeda
+   * do ativo e a cripto em dólar. fxRate = PTAX venda de hoje; costFxRate = câmbio médio das compras. null no resto.
+   */
+  foreignValues?: ForeignValues | null;
   /** Só na tela: noteInfo.distributorName, para a coluna DISTRIBUIDORA ordenar pelo cabeçalho. */
   distributorName?: string | null;
   /**

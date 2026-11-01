@@ -1577,6 +1577,23 @@ Resultado (27/10/2026): 148 testes em 15 arquivos de `utils/`, rodando tambem no
  acoes em outra carteira, a divergencia acusa a posicao inteira. Conferir se aparecer.
 **43.6** O `walletType` da ordem da Binance Stocks (CARD ou MAIN) nao e usado: a perna em stablecoin nao diz de qual carteira saiu.
 
+## 44. PRECOS DIARIOS DOS ATIVOS INTERNACIONAIS (docs/planos/PLANO_PRECOS_INTERNACIONAIS.md, 31/10/2026)
+
+**44.1** Volume fracionario dos EUA: o Massive manda o volume do dia com casas decimais (fracoes de acao negociadas
+ pelas corretoras; 10.273 dos 12.624 papeis no pregao de 30/10/2026). `asset_price_history.volume` e `bigint` e o valor
+ e arredondado para o inteiro mais proximo (HALF_UP) — diferenca sempre menor que 1 acao (ex.: IAU 6.971.671,650126 →
+ 6.971.672). Decidido pelo Guilherme em 31/10/2026, com registro como pendencia: reavaliar se alguma tela ou calculo
+ passar a depender da fracao (alternativa: coluna decimal).
+**44.2** Vivos sem cotacao no pregao de 30/10/2026: 172 de 12.180 (170 Stocks, 1 ETF — BTCK —, 1 REIT — IOR). Quase
+ todos sem negocio no dia (cascas de SPAC, bancos pequenos), mais 13 preferenciais/classes (`AGM.A`, `AHT-D`, `BIO.B`,
+ `PCG-C`...) que o Massive nao trouxe. Ficam com o ultimo preco (sem preco ate o primeiro negocio). A lista sai no log da
+ rodada; reavaliar se algum deles entrar numa carteira.
+**44.3** Historico de preco dos internacionais (antes do primeiro pregao carregado) e deslistados: fora deste escopo (A2,
+ A4). O plano gratuito do Massive entrega 2 anos corridos pelo mesmo grouped daily (~500 pedidos a 5 por minuto); antes
+ disso, fonte paga. Proventos e desdobramentos do exterior idem (43.2).
+**44.4** Licenca: o plano gratuito do Massive e de uso pessoal. Antes de abrir o Activest a outros usuarios, trocar por
+ um plano com redistribuicao (a interface `ForeignQuotesProvider` troca a fonte sem mexer na rotina).
+
 ## ORDEM SUGERIDA
 
 O item 1 saiu. O 5.1 (indices) saiu em 05/10/2026; o proximo passo e o 2.1 — a razao de

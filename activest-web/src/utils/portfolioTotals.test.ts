@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { classicReturn } from './returns';
-import { lotTotals, portfolioTotals } from './portfolioTotals';
+import { foreignTotals, lotTotals, portfolioTotals } from './portfolioTotals';
 
 const pos = (over: Partial<Parameters<typeof portfolioTotals>[0][number]>) => ({
   totalInvested: 0, totalSold: 0, currentValue: 0, totalDividends: 0, valorization: 0, estimatedNet: null, ...over,
@@ -59,5 +59,30 @@ describe('aportes da renda fixa', () => {
     ]);
     expect(t.income).toBe(130.5);
     expect(t.taxes).toBeCloseTo(26.53, 10);
+  });
+});
+
+describe('foreignTotals (segunda linha na moeda, PLANO_PRECOS_INTERNACIONAIS R2/R4)', () => {
+  const fv = (invested: number, current: number, currencyCode = 'USD') => ({
+    foreignValues: {
+      currencyCode, symbol: 'US$', fxRate: 5.42, rateDate: '2026-10-30', costFxRate: 5.01, price: null,
+      averagePrice: null, totalInvested: invested, currentValue: current, totalDividends: 0,
+      valorization: current - invested, returnPercentage: null,
+    },
+  });
+
+  it('soma na moeda e calcula a % sobre as somas', () => {
+    const t = foreignTotals([fv(122.03, 113.69), fv(100, 110)]);
+    expect(t?.invested).toBeCloseTo(222.03, 10);
+    expect(t?.current).toBeCloseTo(223.69, 10);
+    expect(t?.valorization).toBeCloseTo(1.66, 10);
+    expect(t?.valorizationPct).toBeCloseTo((1.66 / 222.03) * 100, 8);
+    expect(t?.symbol).toBe('US$');
+  });
+
+  it('sem valores na moeda, ou moedas diferentes: null (rodapé só em reais)', () => {
+    expect(foreignTotals([])).toBeNull();
+    expect(foreignTotals([{ foreignValues: null }])).toBeNull();
+    expect(foreignTotals([fv(1, 1), fv(1, 1, 'EUR')])).toBeNull();
   });
 });

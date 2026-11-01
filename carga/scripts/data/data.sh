@@ -18,8 +18,9 @@ DATA=/data
 # o minimo para uma carga completa sem rebaixar o que a origem nao devolve mais ou devolve devagar:
 # avisos do FNET, historico e 12 meses de proventos da B3, relatorios de proventos da CVM; do exterior
 # (docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md): as fotografias da lista da bolsa (o historico de quem sumiu), os logos
-# colocados a mao, e o que a SEC devolve devagar (indice dos Form 25, tickers dos deslistados, fichas das empresas)
-MINIMO="fnet b3/proventos b3/proventos-12m cvm/ipe cvm/proventos levantamento nasdaqtrader logos/STOCK logos/REIT logos/ETF_INTERNACIONAL sec/form25 sec/delisted sec/profiles"
+# colocados a mao, e o que a SEC devolve devagar (indice dos Form 25, tickers dos deslistados, fichas das empresas);
+# os pregoes do Massive (o plano gratuito so devolve 2 anos — docs/planos/PLANO_PRECOS_INTERNACIONAIS.md)
+MINIMO="fnet b3/proventos b3/proventos-12m cvm/ipe cvm/proventos levantamento nasdaqtrader logos/STOCK logos/REIT logos/ETF_INTERNACIONAL sec/form25 sec/delisted sec/profiles massive"
 # --checksum: compara pelo hash (ETag do R2 x md5 local), sem um HEAD por objeto para ler a data
 OPCOES="--checksum --transfers 32 --checkers 64 --fast-list --exclude *.part --exclude *.tmp --stats 30s --stats-one-line"
 

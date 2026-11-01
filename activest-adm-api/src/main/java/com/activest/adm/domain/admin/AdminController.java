@@ -97,6 +97,24 @@ public class AdminController {
         return start("deslistados do exterior", "FOREIGN_DELISTED", values);
     }
 
+    /**
+     * Preço diário dos ativos internacionais (docs/planos/PLANO_PRECOS_INTERNACIONAIS.md, I6): a tarefa
+     * {@code FOREIGN_DAILY_QUOTES}. Sem datas, do pregão seguinte ao último gravado até ontem; com {@code from} (e
+     * {@code to}, AAAA-MM-DD), o período.
+     */
+    @PostMapping("/foreign-daily-quotes")
+    public ResponseEntity<Map<String, Object>> foreignDailyQuotes(@RequestParam(required = false) String from,
+                                                                  @RequestParam(required = false) String to) {
+        Map<String, String> values = new java.util.HashMap<>();
+        if (from != null && !from.isBlank()) {
+            values.put("FROM_DATE", from.trim());
+        }
+        if (to != null && !to.isBlank()) {
+            values.put("TO_DATE", to.trim());
+        }
+        return start("preco dos ativos internacionais", "FOREIGN_DAILY_QUOTES", values);
+    }
+
     @PostMapping("/logos")
     public ResponseEntity<Map<String, Object>> logos() {
         return start("logos", "ASSET_LOGOS", Map.of("ONLY_MISSING", "false"));

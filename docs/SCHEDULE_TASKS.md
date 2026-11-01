@@ -274,6 +274,25 @@ refaz a curva da renda fixa privada ([B3]).
 
 ---
 
+### [A20] Preço diário dos ativos internacionais (01/11/2026)
+
+| | |
+|---|---|
+| **Quando** | 03:00, terça a sábado (o plano gratuito do Massive libera o pregão logo depois da meia-noite de Nova York), recuperação na subida e Run. **No máximo uma rodada automática por dia** (`oncePerDay`) |
+| **Classe** | tarefa `FOREIGN_DAILY_QUOTES` → `ForeignDailyQuotesTask` → `ForeignDailyQuotesService.importRecent` / `importDays` |
+| **Tarefa** | `FOREIGN_DAILY_QUOTES` (atributos `FROM_DATE` e `TO_DATE`, opcionais, até 31 dias) — padrão do seed: `0 0 3 * * TUE-SAT`, `run_on_startup` |
+| **Fonte** | Massive (ex-Polygon) grouped daily, plano gratuito Basic (`MASSIVE_API_KEY`; 5 pedidos/min, 2 anos de histórico, uso pessoal) — `ForeignQuotesProvider` → `MassiveClient` |
+| **Grava** | `asset_price_history` (`source = MASSIVE`, volume arredondado — PENDENCIAS 44.1), `assets.current_price`/`price_updated_at` (só com pregão mais novo), o arquivo do pregão em `carga/data/massive/grouped/AAAA/AAAA-MM-DD.json.gz` |
+
+**Função.** Um pedido por pregão traz o fechamento não ajustado de todos os papéis dos EUA; casa pelo ticker com os
+ativos **vivos** de Stock, REIT e ETF internacional (a preferencial do Massive, `ABRpE`, vira `ABR-E`). Sem período: do
+pregão seguinte ao último gravado até ontem em Nova York. Dia não liberado (403 no dia corrente) ou sem pregão (resposta
+vazia) não é falha. 401 ou fonte fora do ar: `FONTE_INDISPONIVEL`; mais de 2 dias úteis sem pregão gravado:
+`FONTE_DESATUALIZADA`. Preço novo avisa a carteira (FECHAMENTO).
+
+**Propósito.** Preço dos ativos internacionais na Carteira, na Rentabilidade, nas Metas e na tela de Ativos
+(`docs/planos/PLANO_PRECOS_INTERNACIONAIS.md`). Deslistados ficam de fora.
+
 ### [A10] Preço oficial do Tesouro Direto (05/10/2026)
 
 | | |
