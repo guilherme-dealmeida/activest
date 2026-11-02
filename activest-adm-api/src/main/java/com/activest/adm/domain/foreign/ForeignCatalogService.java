@@ -475,7 +475,7 @@ public class ForeignCatalogService {
 
         // 8. Saída (C7): ativos do catálogo que sumiram da lista
         Set<Long> held = new HashSet<>();
-        positions.assetsWithShares(PriceSource.MANUAL).forEach(a -> held.add(a.getId()));
+        positions.assetsWithShares(PriceSource.MASSIVE).forEach(a -> held.add(a.getId()));
         List<Gone> gone = new ArrayList<>();
         for (Existing e : existing.values()) {
             if (!e.active() || matched.contains(e.id())) {

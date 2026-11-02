@@ -45,6 +45,43 @@ export const portfolioTotals = (assets: PositionAmounts[]): PortfolioTotals => {
   };
 };
 
+export interface ForeignTotals {
+  symbol: string;
+  invested: number;
+  current: number;
+  dividends: number;
+  valorization: number;
+  /** Valorização ÷ investido na moeda, em %. 0 sem investido. */
+  valorizationPct: number;
+}
+
+/**
+ * Totais da aba na outra moeda (docs/planos/PLANO_PRECOS_INTERNACIONAIS.md, R2/R4): só quando todas as posições
+ * mostradas têm os valores na mesma moeda (exterior e cripto); senão null e o rodapé fica só em reais.
+ */
+export const foreignTotals = (assets: Pick<PortfolioAssetDetail, 'foreignValues'>[]): ForeignTotals | null => {
+  if (assets.length === 0) return null;
+  const first = assets[0].foreignValues;
+  if (!first) return null;
+  const all = assets.map(a => a.foreignValues);
+  if (all.some(v => !v || v.currencyCode !== first.currencyCode || v.totalInvested == null || v.currentValue == null)) {
+    return null;
+  }
+  const sum = (f: (v: NonNullable<PortfolioAssetDetail['foreignValues']>) => number | null) =>
+    all.reduce((s, v) => s + (f(v!) ?? 0), 0);
+  const invested = sum(v => v.totalInvested);
+  const current = sum(v => v.currentValue);
+  const valorization = current - invested;
+  return {
+    symbol: first.symbol,
+    invested,
+    current,
+    dividends: sum(v => v.totalDividends),
+    valorization,
+    valorizationPct: invested > 0 ? (valorization / invested) * 100 : 0,
+  };
+};
+
 /** Rodapé do modal dos aportes da renda fixa: rendimento somado e IOF + IR somados. */
 export const lotTotals = (lots: Pick<FixedIncomeLot, 'income' | 'iof' | 'ir'>[]): { income: number; taxes: number } => ({
   income: lots.reduce((s, l) => s + l.income, 0),

@@ -162,9 +162,10 @@ public class PerformanceService {
         double[] r = ReturnMath.daily(s);
         List<BenchmarkData.Ref> refs = req.benchmarks() == null || req.benchmarks().isEmpty()
                 ? List.of(new BenchmarkData.Ref(BenchmarkData.DEFAULT_CODE, null)) : req.benchmarks();
-        Map<String, BenchmarkData.Resolved> bench = benchmarkData.resolve(refs, t.dates(), t.today());
+        // L11 revista (01/11/2026): o IPCA ainda nao publicado repete o ultimo publicado, marcado como estimado
+        Map<String, BenchmarkData.Resolved> bench = benchmarkData.resolve(refs, t.dates(), t.today(), true);
         BenchmarkSeries.Daily cdi = benchmarkData.byCode("CDI", t.dates(), t.today());
-        BenchmarkSeries.Daily ipca = benchmarkData.byCode("IPCA", t.dates(), t.today());
+        BenchmarkSeries.Daily ipca = benchmarkData.byCode("IPCA", t.dates(), t.today(), true);
 
         List<String> missing = new ArrayList<>(s.missingTickers(from, to));
         List<GapDTO> gaps = s.gaps(from, to).stream().map(g -> new GapDTO(g.ticker(), g.from(), g.to(),
@@ -183,16 +184,17 @@ public class PerformanceService {
             }
         }
         LocalDate realUntil = ipca.until() != null && ipca.until().isBefore(t.dates().get(to)) ? ipca.until() : null;
+        LocalDate realEstimatedFrom = estimatedUntil(ipca, t.dates().get(to));
         boolean basisApplies = s.members.stream().anyMatch(PortfolioTimeline.PositionSeries::basisSensitive);
         LocalDate baseDate = from > 0 ? t.dates().get(from - 1) : t.dates().get(0).minusDays(1);
         CoverageDTO cov = new CoverageDTO(t.dates().get(span[0]), t.dates().get(from), baseDate, t.dates().get(to),
-                available, missing, gaps, realUntil, basisApplies, scope.basis().name(), scope.reservation().name(),
+                available, missing, gaps, realUntil, realEstimatedFrom, basisApplies, scope.basis().name(), scope.reservation().name(),
                 false);
         return new Ctx(t, s, r, from, to, span[0], bench, cdi, ipca, cov);
     }
 
     private Ctx emptyCtx(PortfolioTimeline t, PerformanceScope scope) {
-        CoverageDTO cov = new CoverageDTO(null, null, null, null, false, List.of(), List.of(), null, false,
+        CoverageDTO cov = new CoverageDTO(null, null, null, null, false, List.of(), List.of(), null, null, false,
                 scope.basis().name(), scope.reservation().name(), true);
         return new Ctx(t, null, new double[0], 0, -1, -1, Map.of(), null, null, cov);
     }
@@ -293,9 +295,15 @@ public class PerformanceService {
             Double portfolio = value == null ? null : ReturnMath.chain(c.r(), from, until);
             out.add(new BenchmarkResultDTO(e.getKey(), e.getValue().name(), pct(value),
                     value == null ? null : c.date(until), pct(ReturnMath.diff(portfolio, value)),
-                    value != null && until < to));
+                    value != null && until < to,
+                    value == null ? null : estimatedUntil(e.getValue().daily(), c.date(until))));
         }
         return out;
+    }
+
+    /** Inicio da estimativa do indice, se ela cai ate {@code end} (o periodo pega o mes estimado); senao nulo. */
+    private static LocalDate estimatedUntil(BenchmarkSeries.Daily d, LocalDate end) {
+        return d.estimatedFrom() != null && !d.estimatedFrom().isAfter(end) ? d.estimatedFrom() : null;
     }
 
     /** Benchmark composto no intervalo inteiro (taxa diaria: depois da ultima publicada o fator e 1). */
@@ -446,7 +454,7 @@ public class PerformanceService {
         Double period = ReturnMath.chain(c.r(), c.from(), c.to());
         rows.add(new TableRowDTO("CARTEIRA", "Carteira", true, pct(ReturnMath.chain(c.r(), month, c.to())),
                 pct(ReturnMath.chain(c.r(), year, c.to())), pct(ReturnMath.chain(c.r(), m12, c.to())), pct(period),
-                null, null));
+                null, null, null));
         for (Map.Entry<String, BenchmarkData.Resolved> e : c.bench().entrySet()) {
             // IPCA para no ultimo mes publicado: cada coluna vai ate onde ha dado (marcado com "ate"), e a diferenca
             // compara a carteira no mesmo intervalo
@@ -458,7 +466,8 @@ public class PerformanceService {
             rows.add(new TableRowDTO(e.getKey(), e.getValue().name(), false, pct(partial(r, month, c.to())),
                     pct(partial(r, year, c.to())), pct(partial(r, m12, c.to())), pct(pv),
                     pct(ReturnMath.diff(portfolioUntil, pv)),
-                    pv != null && until < c.to() ? c.date(until) : null));
+                    pv != null && until < c.to() ? c.date(until) : null,
+                    pv == null ? null : estimatedUntil(e.getValue().daily(), c.date(until))));
         }
         return new TableDTO(c.coverage(), c.date(month), c.date(year), c.date(m12), rows);
     }

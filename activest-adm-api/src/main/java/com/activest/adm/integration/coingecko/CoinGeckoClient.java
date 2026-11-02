@@ -64,6 +64,9 @@ public class CoinGeckoClient {
                     .uri(uri -> uri.path("/simple/price")
                             .queryParam("ids", String.join(",", batch))
                             .queryParam("vs_currencies", "brl")
+                            // sem precision a CoinGecko arredonda preco alto para inteiro (BTC R$ 421.583,00 em
+                            // 31/10/2026 — docs/planos/PLANO_PRECOS_INTERNACIONAIS.md, R3)
+                            .queryParam("precision", "full")
                             .build())
                     .retrieve()
                     .bodyToMono(new ParameterizedTypeReference<Map<String, Map<String, Object>>>() {})

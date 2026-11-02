@@ -171,6 +171,8 @@ services:
       # chave (opcional) do OpenFIGI
       MAIL_FROM: ${MAIL_FROM:-Activest <contato@activest.com.br>}
       OPENFIGI_API_KEY: ${OPENFIGI_API_KEY:-}
+      # Preco diario dos ativos internacionais: Massive grouped daily (docs/planos/PLANO_PRECOS_INTERNACIONAIS.md)
+      MASSIVE_API_KEY: ${MASSIVE_API_KEY:-}
     ports:
       - "0.0.0.0:${ADM_API_PORT:-8081}:8081"
     volumes:

@@ -100,11 +100,27 @@ public record PortfolioAssetDetailDTO(
      * Ativo cotado em outra moeda (docs/planos/PLANO_CADASTRO_MOEDAS.md, C4): a cotação na moeda e o câmbio que a
      * converteu. Nulo em reais. {@code currentPrice}, valores e preço médio acima estão sempre em reais.
      */
-    ForeignQuote foreignQuote
+    ForeignQuote foreignQuote,
+    /**
+     * Segunda linha em outra moeda (docs/planos/PLANO_PRECOS_INTERNACIONAIS.md, R2 e R4): a posição do exterior na
+     * moeda do ativo e a cripto em dólar. Nulo para o resto.
+     */
+    ForeignValues foreignValues
 ) {
     /** Cotação na moeda do ativo, câmbio de venda usado e a data do boletim (diferente de hoje = carregado, D27). */
     public record ForeignQuote(String currencyCode, String symbol, BigDecimal price, BigDecimal fxRate,
                                LocalDate rateDate) {
+    }
+
+    /**
+     * Valores da posição na outra moeda: câmbio de hoje (PTAX venda, {@code rateDate}) e câmbio do custo
+     * ({@code costFxRate}, reais ÷ moeda das compras); preço atual, preço médio, valor inicial, valor atual, proventos
+     * e valorização (valor e %) na moeda. Campo nulo quando falta o dado.
+     */
+    public record ForeignValues(String currencyCode, String symbol, BigDecimal fxRate, LocalDate rateDate,
+                                BigDecimal costFxRate, BigDecimal price, BigDecimal averagePrice,
+                                BigDecimal totalInvested, BigDecimal currentValue, BigDecimal totalDividends,
+                                BigDecimal valorization, BigDecimal returnPercentage) {
     }
 
     /**

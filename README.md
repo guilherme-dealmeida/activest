@@ -86,6 +86,16 @@ activest/
   (tarefa `FOREIGN_DELISTED`), lançáveis até a data de saída; curadoria por planilha. O ticker passa a ser único por
   tipo (`META` ação e `META` cripto convivem) e a conferência da B3 inativa com prova (CVM ou fora da lista + 30
   pregões). Preço desses três tipos fica fora (posição pelo custo)
+- ✅ Preço diário dos ativos internacionais (01/11/2026, `docs/planos/PLANO_PRECOS_INTERNACIONAIS.md`): fechamento de
+  Stocks, REITs e ETFs internacionais vivos pelo Massive grouped daily (uma chamada por pregão com todos os papéis dos
+  EUA; plano gratuito, uso pessoal, `MASSIVE_API_KEY` no `.env`), gravado no histórico e no preço atual pela tarefa
+  `FOREIGN_DAILY_QUOTES` (terça a sábado, 03:00). No pregão de 30/10/2026: 12.008 dos 12.180 vivos (98,6%)
+- ✅ Preço histórico dos ativos internacionais (01/11/2026, `docs/planos/PLANO_PRECOS_HISTORICOS_INTERNACIONAIS.md`):
+  série desde nov/2024 (os 2 anos do plano gratuito do Massive; 500 pregões, inclusive os deslistados até a saída),
+  pela tarefa `FOREIGN_HISTORY_QUOTES`. De 2010 a nov/2024 depende de fonte paga (pendência)
+- ✅ Proventos dos ativos internacionais (02/11/2026, `docs/planos/PLANO_PROVENTOS_INTERNACIONAIS.md`): proventos e
+  desdobramentos de Stocks, REITs e ETFs desde 2010 pelo Massive gratuito (337 mil eventos), atualizados de terça a
+  sábado; na carteira, o provento em dólar com PTAX, retenção de 30% dos EUA e líquido
 - ✅ Índices de mercado desde 2010 — CDI, Selic, IPCA, IGP-M, INPC, TR, meta Selic, dólar PTAX, Ibovespa e IFIX —,
   atualizados todo dia às 10:00 (Banco Central e B3), com consulta da série e do acumulado no período
   (tela **Índices**: um card por índice com período e gráfico; `/api/v1/indices`). Base da futura valorização da

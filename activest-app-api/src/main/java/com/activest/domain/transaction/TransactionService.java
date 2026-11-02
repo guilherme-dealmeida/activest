@@ -348,8 +348,8 @@ public class TransactionService {
         Asset asset = assetResolver.byId(proposed.assetId())
             .orElseThrow(() -> new BusinessException("Ativo não encontrado no catálogo: " + proposed.ticker()));
         AssetType importedAssetType = asset.getAssetType();
-        // Acao, REIT e ETF do exterior ainda tem preco MANUAL (sem fonte de preco), mas sao lancados por quantidade x
-        // preco na moeda do ativo, como a renda variavel: a importacao os aceita (docs/planos/PLANO_INTEGRACOES.md, I1).
+        // Acao, REIT e ETF do exterior (preco pelo Massive desde a V19) sao lancados por quantidade x preco na moeda do
+        // ativo, como a renda variavel: a importacao os aceita (docs/planos/PLANO_INTEGRACOES.md, I1).
         boolean foreign = importedAssetType != null
             && com.activest.domain.asset.AssetTypeNames.FOREIGN_LISTED.contains(importedAssetType.getName());
         boolean accepted = importedAssetType != null && (foreign || importedAssetType.isTreasury()

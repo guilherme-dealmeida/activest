@@ -43,7 +43,7 @@ class PerformanceControllerTest extends MvcTestBase {
     @DisplayName("Parametros: recorte, base, reserva e benchmarks (IPCA + x com a taxa)")
     void parameters() throws Exception {
         PerformanceDTOs.CoverageDTO cov = new PerformanceDTOs.CoverageDTO(null, null, null, null, true, List.of(),
-                List.of(), null, true, "GROSS", "WITHOUT", false);
+                List.of(), null, null, true, "GROSS", "WITHOUT", false);
         when(service.summary(eq(USER), any())).thenReturn(new PerformanceDTOs.SummaryDTO(cov, 12.5, null, null,
                 null, null, null, null, null, null, null, null, BigDecimal.TEN, null, null, null, null, List.of()));
 

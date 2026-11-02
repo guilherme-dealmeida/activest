@@ -57,21 +57,25 @@ public final class PerformanceDTOs {
      * @param to            ultimo dia
      * @param available     nenhum dia sem preco no periodo
      * @param unavailable   tickers sem preco no periodo (o motivo de {@code available = false})
-     * @param realUntil     o retorno real vai ate aqui (ultimo IPCA publicado)
+     * @param realUntil     o retorno real vai ate aqui (ultimo IPCA publicado); nulo quando vai ate o fim
+     * @param realEstimatedFrom desde quando o IPCA do periodo e estimado (ultimo publicado repetido — L11 revista em
+     *                      01/11/2026): o retorno real e o IPCA saem estimados; nulo = nada estimado
      * @param basisApplies  o recorte tem renda fixa, Tesouro ou provento com IR (o seletor bruto/liquido muda algo)
      */
     public record CoverageDTO(LocalDate firstDate, LocalDate from, LocalDate baseDate, LocalDate to,
                               boolean available, List<String> unavailable, List<GapDTO> gaps, LocalDate realUntil,
-                              boolean basisApplies, String basis, String reservation, boolean empty) {
+                              LocalDate realEstimatedFrom, boolean basisApplies, String basis, String reservation, boolean empty) {
     }
 
     /**
      * Um benchmark no periodo.
      *
-     * @param until ultimo dia com dado (IPCA: ultimo mes publicado); a diferenca compara a carteira ate ele
+     * @param until         ultimo dia com dado (IPCA: ultimo mes publicado); a diferenca compara a carteira ate ele
+     * @param estimatedFrom desde quando o indice e estimado (IPCA e IPCA + x% com o ultimo mes publicado repetido);
+     *                      nulo = nada estimado no periodo
      */
     public record BenchmarkResultDTO(String code, String name, Double value, LocalDate until, Double diff,
-                                     boolean partial) {
+                                     boolean partial, LocalDate estimatedFrom) {
     }
 
     // ------------------------------------------------------------------ resumo (cards)
@@ -108,9 +112,11 @@ public final class PerformanceDTOs {
      *
      * @param until o indicador para antes do fim (IPCA: ultimo mes publicado) — ano, 12 meses, periodo e diferenca vao
      *              ate esta data; nulo = completo
+     * @param estimatedFrom desde quando o indicador e estimado (ultimo IPCA publicado repetido); nulo = nada estimado
      */
     public record TableRowDTO(String code, String name, boolean portfolio, Double month, Double year,
-                              Double months12, Double period, Double diffPeriod, LocalDate until) {
+                              Double months12, Double period, Double diffPeriod, LocalDate until,
+                              LocalDate estimatedFrom) {
     }
 
     public record TableDTO(CoverageDTO coverage, LocalDate monthFrom, LocalDate yearFrom, LocalDate months12From,

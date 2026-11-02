@@ -82,7 +82,8 @@ export const CumulativeChart = ({ data }: { data: PerformanceSeries }) => {
   const legend = [
     { key: CARTEIRA, name: 'Carteira', value: pct(last?.portfolio), color: seriesColor(CARTEIRA, t.isDark) },
     ...benches.map((b: BenchmarkResult) => ({
-      key: b.code, name: b.name, value: pct(b.value) + (b.partial ? ` (até ${date(b.until)})` : ''),
+      key: b.code, name: b.name,
+      value: pct(b.value) + (b.estimatedFrom ? '*' : b.partial ? ` (até ${date(b.until)})` : ''),
       color: seriesColor(b.code, t.isDark),
     })),
   ];
@@ -133,13 +134,19 @@ export const PeriodicChart = ({ data, granularity, onGranularity }: {
 }) => {
   const t = useChartTheme();
   const series = [{ key: CARTEIRA, name: 'Carteira' }, ...data.benchmarks.map(b => ({ key: b.code, name: b.name }))];
-  const rows = data.rows.map(r => ({ key: r.key, partial: r.partial, [CARTEIRA]: r.portfolio, ...r.benchmarks }));
+  // período que pega mês com IPCA estimado (último publicado repetido): marcado no tooltip
+  const estFrom = data.benchmarks.map(b => b.estimatedFrom).filter((d): d is string => !!d).sort()[0];
+  const rows = data.rows.map(r => ({
+    key: r.key, partial: r.partial, estimated: !!estFrom && r.to >= estFrom, [CARTEIRA]: r.portfolio, ...r.benchmarks,
+  }));
 
-  const Tip = ({ active, payload }: { active?: boolean; payload?: { dataKey: string; value: number | null; payload: { key: string; partial: boolean } }[] }) => {
+  const Tip = ({ active, payload }: { active?: boolean; payload?: { dataKey: string; value: number | null; payload: { key: string; partial: boolean; estimated: boolean } }[] }) => {
     if (!active || !payload?.length) return null;
     const row = payload[0].payload;
+    const notes = [row.partial ? 'Período incompleto' : '', row.estimated ? 'IPCA estimado pelo último publicado' : '']
+      .filter(Boolean).join(' · ');
     return (
-      <TipBox title={periodLabel(row.key)} note={row.partial ? 'Período incompleto' : undefined}
+      <TipBox title={periodLabel(row.key)} note={notes || undefined}
         rows={series.map(s => ({ name: s.name, color: seriesColor(s.key, t.isDark),
           value: pct(payload.find(x => x.dataKey === s.key)?.value ?? null) }))} />
     );

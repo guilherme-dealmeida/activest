@@ -17,7 +17,8 @@ import java.util.NavigableMap;
  *   (como a curva da renda fixa); {@code until} diz ate onde ha dado.</li>
  *   <li><b>Taxa mensal</b> (IPCA): {@code (1 + I/100)^(1/DU_mes)} por dia util (D6 da valorizacao), vezes
  *   {@code (1 + x)^(1/252)} no IPCA + x%. Mes nao publicado: sem fator (NaN) — o benchmark para no ultimo mes
- *   publicado (L11).</li>
+ *   publicado (L11) —, ou, com {@code estimate}, o ultimo mes publicado repetido nos meses seguintes e marcado em
+ *   {@link Daily#estimatedFrom()} (L11 revista em 01/11/2026, como a D5 da valorizacao da renda fixa).</li>
  *   <li><b>Nivel</b> (Ibovespa, IFIX, IVVB11, BTC): razao entre fechamentos; sem negocio, o ultimo ate
  *   {@link PortfolioTimeline#MAX_STALE_DAYS} pregoes; alem disso, NaN.</li>
  * </ul>
@@ -28,10 +29,16 @@ public final class BenchmarkSeries {
     }
 
     /**
-     * @param r     retorno de cada dia do eixo (NaN = sem dado)
-     * @param until ultimo dia com dado efetivo (nulo se nenhum)
+     * @param r             retorno de cada dia do eixo (NaN = sem dado)
+     * @param until         ultimo dia com dado efetivo (nulo se nenhum)
+     * @param estimatedFrom primeiro dia do primeiro mes estimado (indice mensal ainda nao publicado, com o ultimo
+     *                      publicado repetido); nulo = nada estimado no eixo
      */
-    public record Daily(double[] r, LocalDate until) {
+    public record Daily(double[] r, LocalDate until, LocalDate estimatedFrom) {
+
+        public Daily(double[] r, LocalDate until) {
+            this(r, until, null);
+        }
     }
 
     /** Taxa diaria em % ao dia (unidade PCT_DIA). */
@@ -68,11 +75,23 @@ public final class BenchmarkSeries {
      */
     public static Daily monthlyRate(List<LocalDate> axis, NavigableMap<LocalDate, BigDecimal> months,
                                     double spreadPctYear) {
+        return monthlyRate(axis, months, spreadPctYear, false);
+    }
+
+    /**
+     * Taxa mensal com opcao de estimar: com {@code estimate}, os meses depois do ultimo publicado repetem o ultimo
+     * publicado ({@link Daily#estimatedFrom()} diz desde quando); sem, param nele (NaN).
+     */
+    public static Daily monthlyRate(List<LocalDate> axis, NavigableMap<LocalDate, BigDecimal> months,
+                                    double spreadPctYear, boolean estimate) {
         double[] r = new double[axis.size()];
         if (months == null || months.isEmpty()) {
             java.util.Arrays.fill(r, Double.NaN);
             return new Daily(r, null);
         }
+        LocalDate lastPublished = months.lastKey();
+        BigDecimal lastValue = months.lastEntry().getValue();
+        LocalDate estimatedFrom = null;
         double spreadDay = Math.pow(1 + spreadPctYear / 100, 1.0 / 252);
         Map<LocalDate, Double> monthDay = new java.util.HashMap<>();
         for (int i = 0; i < axis.size(); i++) {
@@ -83,20 +102,30 @@ public final class BenchmarkSeries {
                     continue;
                 }
                 LocalDate m = x.withDayOfMonth(1);
-                BigDecimal v = months.get(m);
+                BigDecimal published = months.get(m);
+                BigDecimal v = published;
+                if (published == null && estimate && m.isAfter(lastPublished)) {
+                    v = lastValue;
+                    if (estimatedFrom == null || m.isBefore(estimatedFrom)) {
+                        estimatedFrom = m;
+                    }
+                }
                 if (v == null) {
                     f = Double.NaN;
                     break;
                 }
+                double monthly = v.doubleValue();
                 Double day = monthDay.computeIfAbsent(m, k ->
-                        Math.pow(1 + v.doubleValue() / 100, 1.0 / BusinessCalendar.businessDaysInMonth(k)));
+                        Math.pow(1 + monthly / 100, 1.0 / BusinessCalendar.businessDaysInMonth(k)));
                 f *= day * spreadDay;
             }
             r[i] = f - 1;
         }
-        LocalDate lastMonth = months.lastKey();
-        LocalDate until = lastMonth.withDayOfMonth(lastMonth.lengthOfMonth());
         LocalDate end = axis.get(axis.size() - 1);
+        if (estimatedFrom != null) {
+            return new Daily(r, end, estimatedFrom);
+        }
+        LocalDate until = lastPublished.withDayOfMonth(lastPublished.lengthOfMonth());
         return new Daily(r, until.isBefore(end) ? until : end);
     }
 

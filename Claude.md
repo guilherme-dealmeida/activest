@@ -5,7 +5,22 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 31/10/2026 (**Integrações genéricas e Binance Stocks**, `docs/planos/PLANO_INTEGRACOES.md`: a tela
+> **Última revisão**: 02/11/2026 (**Proventos dos ativos internacionais**, `docs/planos/PLANO_PROVENTOS_INTERNACIONAIS.md`:
+> V21 — fonte `MASSIVE` no catálogo de proventos; tarefas `FOREIGN_DIVIDENDS` (diária) e `FOREIGN_DIVIDENDS_HISTORY`
+> (carga) pelo Massive gratuito, com desdobramentos em `asset_stock_events`; `ForeignListings` (papel listado na data,
+> comum a preço e eventos). Carga desde 2010: 337.630 proventos de 9.143 ativos e 5.527 desdobramentos, meses em
+> `carga/data/massive/dividends|splits/` e no bucket. O provento da carteira em dólar já existia (V10)). Antes:
+> 01/11/2026, tarde (**Preço histórico dos ativos internacionais**,
+> `docs/planos/PLANO_PRECOS_HISTORICOS_INTERNACIONAIS.md`: V20 — tarefa `FOREIGN_HISTORY_QUOTES` (só Run) pelo Massive
+> grouped daily; o pregão de cada dia casa com o papel listado nele (deslistado até a saída, senão o vivo). Carga de
+> 01/11/2024 a 31/10/2026: 500 pregões, 5,2 milhões de fechamentos, 1.027 deslistados, arquivos em
+> `carga/data/massive/grouped/` e no bucket; antes de nov/2024 é pendência — fonte paga). Antes: 01/11/2026
+> (**Preço diário dos ativos internacionais**, `docs/planos/PLANO_PRECOS_INTERNACIONAIS.md`:
+> V19 — fonte `MASSIVE` para Stock, REIT e ETF internacional; tarefa `FOREIGN_DAILY_QUOTES` (ter–sáb 03:00, subida,
+> no máximo uma rodada automática por dia) com o Massive grouped daily: um pedido por pregão, casamento pelo ticker dos
+> vivos (preferencial `ABRpE` → `ABR-E`), fechamento em `asset_price_history` e preço atual só com pregão mais novo;
+> arquivo em `carga/data/massive/grouped/`; interface `ForeignQuotesProvider` para trocar de fonte. Pregão de 30/10/2026:
+> 12.008 de 12.180 vivos (98,6%); deslistados fora). Antes: 31/10/2026 (**Integrações genéricas e Binance Stocks**, `docs/planos/PLANO_INTEGRACOES.md`: a tela
 > de Integrações deixou de ser a da Binance — catálogo de fontes vindo do servidor (`SourceDescriptors`, logo, credencial,
 > capacidades, fonte desligada como indisponível) e um formulário por tipo de credencial; regra de importação por
 > movimento com contexto (catálogo + PTAX venda); a Binance importa as ações e ETFs dos EUA da Binance Stocks
@@ -428,6 +443,9 @@ são os do seed (V62):
 | Conferência do catálogo e dos índices atrasados — tarefa `CATALOG_AUDIT`: avisa ticker novo, sumido e renomeado e, desde 29/10/2026, **inativa com prova** (registro cancelado na CVM, menos migração; fora da lista da BRAPI + 30 pregões sem negócio no COTAHIST, sem ser renomeação) e dá a data de saída às inativas sem data (`docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md`, I5/C7) | seg 07:00 | adm-api |
 | Catálogo vivo dos EUA (Stock, REIT, ETF internacional): lista do Nasdaq Trader → tipo pelo OpenFIGI → categoria (BDR, SIC, Nareit, palavras do ETF) → renomeação pelo FIGI e saída com prova (Form 25 ou 30 dias fora da lista); prévia `carga/data/levantamento/internacional/catalogo-previa.json` sempre, catálogo só com `WRITE` — tarefa `FOREIGN_CATALOG` (V16; `docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md`, F4) | seg 06:30 | adm-api |
 | Deslistados dos EUA desde 2010 (Form 25 da SEC → ticker pelo XBRL/texto/séries/Nareit → inativos com a data de saída) — tarefa `FOREIGN_DELISTED` (V17, só Run e carga inicial; F5) | manual | adm-api |
+| Proventos e desdobramentos dos internacionais pelo Massive gratuito (`/v3/reference/dividends` e `/splits`), um mês do mercado por vez: janela de ex-date de −30 a +90 dias, só tickers do catálogo em dólar, data-com = último pregão antes da ex-date, correção pelo `source_ref` sem duplicar; carga desde 2010 pela `FOREIGN_DIVIDENDS_HISTORY` (só Run) — tarefa `FOREIGN_DIVIDENDS` (V21; `docs/planos/PLANO_PROVENTOS_INTERNACIONAIS.md`) | ter–sáb 03:30 | adm-api → "catálogo mudou" (PROVENTOS) |
+| Carga retroativa do preço dos internacionais (vivos e deslistados até a saída) pelo Massive grouped daily — sem datas, os 2 anos do plano gratuito; antes de nov/2024 só com fonte paga (PENDENCIAS 44.3) — tarefa `FOREIGN_HISTORY_QUOTES` (V20; `docs/planos/PLANO_PRECOS_HISTORICOS_INTERNACIONAIS.md`) | manual | adm-api |
+| Preço diário dos ativos internacionais **vivos** (Stock, REIT, ETF internacional) pelo Massive grouped daily — um pedido por pregão com todos os papéis dos EUA; fechamento em `asset_price_history` (`MASSIVE`) e preço atual; arquivo em `carga/data/massive/grouped/`; recuperação na subida, **no máximo uma rodada automática por dia** — tarefa `FOREIGN_DAILY_QUOTES` (V19; `docs/planos/PLANO_PRECOS_INTERNACIONAIS.md`) | ter–sáb 03:00 | adm-api → "catálogo mudou" (FECHAMENTO) |
 | Cotações de **todo o catálogo** (ações, FIIs e, desde 17/10/2026, ETFs e BDRs) pelo COTAHIST diário da B3, um arquivo por pregão, completando os que faltam, com recuperação na subida — tarefa `B3_DAILY_QUOTES` (`docs/planos/PLANO_PRECO_TETO.md`, 4.5; 10/10/2026) | 21:30 e 08:30 | adm-api |
 | Emissoras e distribuidoras de renda fixa (BCB IF.data + Instituições em funcionamento, CVM intermediários, companhias e securitizadoras) e, em seguida, os logos delas por raiz de CNPJ (Open Finance, logos-bancos-br — `FixedIncomeLogoService`, só quem não tem arquivo) — tarefa `FIXED_INCOME_ISSUERS` (`activest.fixed-income-issuers.cron`; `docs/planos/PLANO_EMISSORAS_RENDA_FIXA.md`, 4.2) | dia 1, 05:30 | adm-api |
 | Logos (arquivos em `carga/data/logos/{TICKER}.{ext}`; os do exterior em `carga/data/logos/{STOCK,REIT,ETF_INTERNACIONAL}/{TICKER}.{ext}`, colocados pelo Guilherme e não buscados pela rotina — o arquivo é o estado; só quem não tem arquivo; a subida não procura nada, o ativo novo é procurado no pedido "preciso do histórico") — tarefa `ASSET_LOGOS` | dia 1, 06:00 | adm-api (a app-api só lê a pasta, `AssetLogos`) |
@@ -688,9 +706,9 @@ em desenvolvimento. **Não versione credenciais reais.**
 | 5 | ETF | ETFs | BRAPI | não |
 | 6 | FUNDO_INVESTIMENTO | Fundos de Investimentos | **CVM** (V12; antes MANUAL) | não |
 | 7 | BDR | BDRs | BRAPI | não |
-| 8 | STOCK | Stocks | MANUAL | não (USD, EXTERIOR desde a V9; catálogo pela `FOREIGN_CATALOG` desde 29/10/2026) |
-| 9 | REIT | REITs | MANUAL | não (USD, EXTERIOR; idem) |
-| 10 | ETF_INTERNACIONAL | ETFs Internacionais | MANUAL | não (USD, EXTERIOR; idem — inclui os fundos fechados listados, P1) |
+| 8 | STOCK | Stocks | **MASSIVE** (V19; antes MANUAL) | não (USD, EXTERIOR desde a V9; catálogo pela `FOREIGN_CATALOG` desde 29/10/2026) |
+| 9 | REIT | REITs | **MASSIVE** (V19) | não (USD, EXTERIOR; idem) |
+| 10 | ETF_INTERNACIONAL | ETFs Internacionais | **MASSIVE** (V19) | não (USD, EXTERIOR; idem — inclui os fundos fechados listados, P1) |
 | 11 | CRIPTO | Criptomoedas | COINGECKO | não |
 | 12 | OUTROS | Outros | MANUAL | não |
 
@@ -742,6 +760,9 @@ existir: o banco novo não tem o dado que elas corrigiam.
 | `V16__foreign_catalog_task.sql` | (29/10/2026) tipo e tarefa `FOREIGN_CATALOG` (seg 06:30, `WRITE` falso) |
 | `V17__foreign_delisted_task.sql` | (29/10/2026) tipo e tarefa `FOREIGN_DELISTED` (só Run; `FROM_YEAR` 2010, `TO_YEAR`, `WRITE` falso) |
 | `V18__assets_ticker_upper_index.sql` | (29/10/2026, `docs/planos/PLANO_PERFORMANCE.md`, P1) `idx_assets_ticker_upper` em `assets (upper(ticker))` — a busca por ticker deixou de ler as ~100 mil linhas (18–22 ms → ~0,3 ms) |
+| `V19__foreign_daily_quotes.sql` | (01/11/2026, `docs/planos/PLANO_PRECOS_INTERNACIONAIS.md`) fonte `MASSIVE` em `ck_asset_types_price_source` e `ck_price_history_source`; Stock, REIT e ETF internacional com `price_source = MASSIVE`; tipo e tarefa `FOREIGN_DAILY_QUOTES` (ter–sáb 03:00, subida, `FROM_DATE`/`TO_DATE`) |
+| `V20__foreign_history_quotes_task.sql` | (01/11/2026, `docs/planos/PLANO_PRECOS_HISTORICOS_INTERNACIONAIS.md`) tipo e tarefa `FOREIGN_HISTORY_QUOTES` (só Run; `FROM_DATE` vazio = 2 anos atrás, `TO_DATE` vazio = ontem) |
+| `V21__foreign_dividends.sql` | (02/11/2026, `docs/planos/PLANO_PROVENTOS_INTERNACIONAIS.md`) fonte `MASSIVE` em `ck_asset_cash_events_source`; tipos e tarefas `FOREIGN_DIVIDENDS` (ter–sáb 03:30, subida) e `FOREIGN_DIVIDENDS_HISTORY` (só Run; `FROM_DATE` 2010-01-01, `TO_DATE`) |
 
 **Como foi verificado** — o método a repetir num próximo reset. As 67 migrations
 antigas foram aplicadas num Postgres descartável (conferido idêntico, no

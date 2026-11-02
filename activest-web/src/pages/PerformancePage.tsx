@@ -11,7 +11,7 @@ import {
   BreakdownLevel, BreakdownRow, Granularity, PerformanceBasis, PerformanceQuery, PerformanceRange, ReservationFilter,
 } from '@/types/performance';
 import { PerformanceFilters } from '@/components/performance/PerformanceFilters';
-import { BenchmarkPick, MAX_BENCHMARKS, RANGES, benchKey, benchParam } from '@/components/performance/performanceFormat';
+import { BenchmarkPick, MAX_BENCHMARKS, RANGES, benchParam } from '@/components/performance/performanceFormat';
 import { PeriodicChart, WealthChart } from '@/components/performance/PerformanceCharts';
 import { CumulativeCard } from '@/components/performance/CumulativeCard';
 import {
@@ -113,17 +113,15 @@ export const PerformancePage = () => {
   const wealth = useQuery({ queryKey: [...key, 'wealth'], queryFn: () => performanceApi.wealth(q), placeholderData: p => p });
   const risk = useQuery({ queryKey: [...key, 'risk'], queryFn: () => performanceApi.risk(q), placeholderData: p => p });
 
-  // D4: ao escolher uma classe, os benchmarks dela vão para o começo da lista (o primeiro é o principal). No Tesouro,
-  // IPCA e IPCA + a taxa do Tesouro IPCA+ à venda mais curto; um IPCA + x% com outra taxa sai da lista.
+  // D4: ao escolher uma classe, a lista de benchmarks volta a ser só a dela (o primeiro é o principal); sem padrão
+  // próprio (e na carteira total), só o CDI. No Tesouro, IPCA e IPCA + a taxa do Tesouro IPCA+ à venda mais curto.
+  // Desde 01/11/2026 a troca reseta a lista; antes os padrões iam para o começo e os escolhidos ficavam depois.
   const [lastType, setLastType] = useState(type);
   useEffect(() => {
     if (type === lastType || !catalog) return;
     setLastType(type);
     const defs = parseBench((type && catalog.defaultsByType[type]?.join(',')) || 'CDI') ?? DEFAULT_BENCH;
-    const keys = new Set(defs.map(benchKey));
-    const replaced = new Set(defs.filter(d => d.spread != null).map(d => d.code));
-    const rest = benchmarks.filter(b => !keys.has(benchKey(b)) && !(b.spread != null && replaced.has(b.code)));
-    const next = [...defs, ...rest].slice(0, MAX_BENCHMARKS);
+    const next = defs.slice(0, MAX_BENCHMARKS);
     if (benchParam(next) !== benchParam(benchmarks)) setBenchmarks(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type, catalog]);

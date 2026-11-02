@@ -72,10 +72,10 @@ class TaskControllerIT extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("Configuração: as 31 tarefas (com a GOALS_SNAPSHOT das metas, a EXCHANGE_RATES do câmbio, a FUND_QUOTES dos fundos, a FOREIGN_CATALOG e a FOREIGN_DELISTED do exterior) com tipo, horário, próxima execução e atributos; os tipos com os atributos aceitos")
+    @DisplayName("Configuração: as 35 tarefas (com a GOALS_SNAPSHOT das metas, a EXCHANGE_RATES do câmbio, a FUND_QUOTES dos fundos, a FOREIGN_CATALOG, a FOREIGN_DELISTED , a FOREIGN_DAILY_QUOTES , a FOREIGN_HISTORY_QUOTES, a FOREIGN_DIVIDENDS e a FOREIGN_DIVIDENDS_HISTORY do exterior) com tipo, horário, próxima execução e atributos; os tipos com os atributos aceitos")
     void configuration() throws Exception {
         JsonNode list = body(get(admin, "/api/v1/tasks", String.class));
-        assertThat(list.size()).isEqualTo(31);
+        assertThat(list.size()).isEqualTo(35);
         JsonNode yearly = null;
         JsonNode closing = null;
         for (JsonNode t : list) {
@@ -97,7 +97,7 @@ class TaskControllerIT extends IntegrationTestBase {
         assertThat(yearly.get("runOnStartup").asBoolean()).isFalse();
 
         JsonNode types = body(get(admin, "/api/v1/tasks/types", String.class));
-        assertThat(types.size()).isEqualTo(31);
+        assertThat(types.size()).isEqualTo(35);
     }
 
     @Test

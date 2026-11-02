@@ -389,6 +389,40 @@ e categoria, com a curadoria `curadoria-deslistados.json` (chave = número de ac
 **Propósito.** O histórico de quem saiu da bolsa desde 2010, para o lançamento retroativo; a cobertura por ano e tipo
 sai na planilha `internacional_deslistados.py planilha`.
 
+### [24] `POST /api/v1/admin/foreign-daily-quotes[?from=AAAA-MM-DD[&to=AAAA-MM-DD]]` (01/11/2026)
+
+**Serviço:** `ForeignDailyQuotesService` (tarefa `FOREIGN_DAILY_QUOTES`, terça a sábado 03:00) · **Grava:**
+`asset_price_history` (`source = MASSIVE`), `assets.current_price`/`price_updated_at` dos internacionais vivos e o
+arquivo do pregão em `carga/data/massive/grouped/`
+
+**Função.** Massive grouped daily: um pedido por pregão. Sem datas, do pregão seguinte ao último gravado até ontem; com
+`from` (e `to`), o período (até 31 dias, dentro dos 2 anos do plano gratuito). Atalho:
+`node carga/scripts/admin.mjs "foreign-daily-quotes?from=2026-10-30"`.
+
+**Propósito.** Carregar ou refazer pregões dos ativos internacionais (`docs/planos/PLANO_PRECOS_INTERNACIONAIS.md`).
+
+### [25] `POST /api/v1/admin/foreign-history-quotes[?from=AAAA-MM-DD[&to=AAAA-MM-DD]]` (01/11/2026)
+
+**Serviço:** `ForeignDailyQuotesService.importHistory` (tarefa `FOREIGN_HISTORY_QUOTES`, só Run) · **Grava:**
+`asset_price_history` (`MASSIVE`) e os arquivos dos pregões em `carga/data/massive/grouped/`
+
+**Função.** Carga retroativa pelo Massive grouped daily: sem datas, os 2 anos do plano gratuito até ontem (~500
+pedidos, ~1h45). Atalho: `node carga/scripts/admin.mjs foreign-history-quotes`.
+
+**Propósito.** Série histórica dos internacionais, com os deslistados até a data de saída
+(`docs/planos/PLANO_PRECOS_HISTORICOS_INTERNACIONAIS.md`).
+
+### [26] `POST /api/v1/admin/foreign-dividends[?from=AAAA-MM-DD[&to=AAAA-MM-DD]]` (02/11/2026)
+
+**Serviço:** `ForeignCorporateEventsService` · sem datas, a tarefa `FOREIGN_DIVIDENDS` (janela de −30 a +90 dias); com
+`from` (e `to`), a `FOREIGN_DIVIDENDS_HISTORY` mês a mês · **Grava:** `asset_cash_events` e `asset_stock_events`
+(`MASSIVE`) e os meses em `carga/data/massive/dividends/` e `…/splits/`
+
+**Função.** Proventos e desdobramentos dos internacionais pelo Massive gratuito. Atalho:
+`node carga/scripts/admin.mjs "foreign-dividends?from=2010-01-01"`.
+
+**Propósito.** Catálogo de eventos do exterior para os proventos da carteira (`docs/planos/PLANO_PROVENTOS_INTERNACIONAIS.md`).
+
 ---
 
 ## Fundos de investimento

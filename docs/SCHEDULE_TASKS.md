@@ -274,6 +274,58 @@ refaz a curva da renda fixa privada ([B3]).
 
 ---
 
+### [A20] Preço diário dos ativos internacionais (01/11/2026)
+
+| | |
+|---|---|
+| **Quando** | 03:00, terça a sábado (o plano gratuito do Massive libera o pregão logo depois da meia-noite de Nova York), recuperação na subida e Run. **No máximo uma rodada automática por dia** (`oncePerDay`) |
+| **Classe** | tarefa `FOREIGN_DAILY_QUOTES` → `ForeignDailyQuotesTask` → `ForeignDailyQuotesService.importRecent` / `importDays` |
+| **Tarefa** | `FOREIGN_DAILY_QUOTES` (atributos `FROM_DATE` e `TO_DATE`, opcionais, até 31 dias) — padrão do seed: `0 0 3 * * TUE-SAT`, `run_on_startup` |
+| **Fonte** | Massive (ex-Polygon) grouped daily, plano gratuito Basic (`MASSIVE_API_KEY`; 5 pedidos/min, 2 anos de histórico, uso pessoal) — `ForeignQuotesProvider` → `MassiveClient` |
+| **Grava** | `asset_price_history` (`source = MASSIVE`, volume arredondado — PENDENCIAS 44.1), `assets.current_price`/`price_updated_at` (só com pregão mais novo), o arquivo do pregão em `carga/data/massive/grouped/AAAA/AAAA-MM-DD.json.gz` |
+
+**Função.** Um pedido por pregão traz o fechamento não ajustado de todos os papéis dos EUA; casa pelo ticker com os
+ativos **vivos** de Stock, REIT e ETF internacional (a preferencial do Massive, `ABRpE`, vira `ABR-E`). Sem período: do
+pregão seguinte ao último gravado até ontem em Nova York. Dia não liberado (403 no dia corrente) ou sem pregão (resposta
+vazia) não é falha. 401 ou fonte fora do ar: `FONTE_INDISPONIVEL`; mais de 2 dias úteis sem pregão gravado:
+`FONTE_DESATUALIZADA`. Preço novo avisa a carteira (FECHAMENTO).
+
+**Propósito.** Preço dos ativos internacionais na Carteira, na Rentabilidade, nas Metas e na tela de Ativos
+(`docs/planos/PLANO_PRECOS_INTERNACIONAIS.md`). Deslistados ficam de fora.
+
+### [A21] Carga retroativa do preço dos internacionais (01/11/2026, só Run)
+
+| | |
+|---|---|
+| **Classe** | tarefa `FOREIGN_HISTORY_QUOTES` → `ForeignHistoryQuotesTask` → `ForeignDailyQuotesService.importHistory` |
+| **Tarefa** | `FOREIGN_HISTORY_QUOTES` (atributos `FROM_DATE` — vazio = 2 anos atrás, o limite do plano gratuito — e `TO_DATE` — vazio = ontem) — sem horário |
+| **Fonte** | Massive grouped daily (a mesma da [A20]), um pedido por pregão a 5 por minuto |
+| **Grava** | `asset_price_history` (`MASSIVE`) dos vivos e dos deslistados até a data de saída; o arquivo de cada pregão em `carga/data/massive/grouped/` |
+
+**Função.** A [A20] para um período longo: dia fora do plano da fonte é contado (`daysOutOfPlan`) e pulado; dia já
+baixado é relido do disco. Os 2 anos (nov/2024 → out/2026) levaram 1h45 (500 pregões, 5,2 milhões de fechamentos).
+
+**Propósito.** A série histórica dos internacionais (`docs/planos/PLANO_PRECOS_HISTORICOS_INTERNACIONAIS.md`); antes de
+nov/2024 só com fonte paga (PENDENCIAS 44.3).
+
+### [A22] Proventos e desdobramentos dos internacionais (02/11/2026)
+
+| | |
+|---|---|
+| **Quando** | 03:30, terça a sábado (depois do preço), recuperação na subida e Run; **no máximo uma rodada automática por dia**. A carga desde 2010 é a tarefa `FOREIGN_DIVIDENDS_HISTORY` (só Run) |
+| **Classe** | `FOREIGN_DIVIDENDS` → `ForeignDividendsTask` → `ForeignCorporateEventsService.importRecent`; `FOREIGN_DIVIDENDS_HISTORY` → `ForeignDividendsHistoryTask` → `importMonths` |
+| **Tarefa** | `FOREIGN_DIVIDENDS` — padrão do seed: `0 30 3 * * TUE-SAT`, `run_on_startup`; `FOREIGN_DIVIDENDS_HISTORY` (atributos `FROM_DATE` 2010-01-01 e `TO_DATE` vazio = +90 dias) |
+| **Fonte** | Massive gratuito: `/v3/reference/dividends` e `/v3/reference/splits`, um mês do mercado inteiro por vez (paginado) |
+| **Grava** | `asset_cash_events` (`source = MASSIVE`, tipo DIVIDENDO, tipo da fonte no `label`, id da fonte em `source_ref`), `asset_stock_events` (`MASSIVE`), os meses em `carga/data/massive/dividends/` e `…/splits/`; avisa a carteira (PROVENTOS) |
+
+**Função.** Diária: os meses da janela de ex-date de −30 a +90 dias, perguntando de novo (anúncios e correções). Só
+tickers do catálogo, casados com o papel listado na data-com, e só em dólar. Data-com = último pregão antes da ex-date.
+Correção da fonte atualiza o mesmo evento (pelo `source_ref`), sem duplicar. Desdobramento 1→2 = DESDOBRAMENTO 100;
+grupamento 10→1 = GRUPAMENTO 0,1. Carga desde 2010: 7h42, 337.630 proventos e 5.527 desdobramentos.
+
+**Propósito.** Proventos em dólar na carteira (PTAX compra, retenção de 30% dos EUA, IR estimado — `ForeignDividendCalculator`)
+e cotas certas depois de desdobramento (`docs/planos/PLANO_PROVENTOS_INTERNACIONAIS.md`).
+
 ### [A10] Preço oficial do Tesouro Direto (05/10/2026)
 
 | | |

@@ -15,8 +15,13 @@ public enum PriceSource {
     COINGECKO,
     /** Tesouro Direto: PU de venda publicado pelo Tesouro (Tesouro Transparente), V44. */
     TESOURO,
-    /** Sem provedor automático: renda fixa e ativos dos EUA enquanto não houver um cliente para eles. */
+    /** Sem provedor automático: renda fixa e outros. */
     MANUAL,
     /** Fundos de investimento: cota do informe diário da CVM (V12, docs/planos/PLANO_FUNDOS_INVESTIMENTO.md). */
-    CVM
+    CVM,
+    /**
+     * Ativos dos EUA (Stock, REIT e ETF internacional): fechamento do Massive grouped daily (V19,
+     * docs/planos/PLANO_PRECOS_INTERNACIONAIS.md).
+     */
+    MASSIVE
 }
