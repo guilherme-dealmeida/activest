@@ -5,7 +5,11 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 02/11/2026 (**Proventos dos ativos internacionais**, `docs/planos/PLANO_PROVENTOS_INTERNACIONAIS.md`:
+> **Última revisão**: 02/11/2026, tarde (**Performance das telas — ambiente de dev**, `docs/planos/PLANO_PERFORMANCE_TELAS.md`:
+> a lentidão geral vinha da varredura de arquivos pelo bind mount do Windows (~2–3 ms por arquivo): `DEV_WATCH=false`
+> por padrão (sem varredura do backend; `dev-watch.sh reload` sob demanda), polling do Vite a cada 10 s, páginas internas
+> sob demanda (`React.lazy`, `utils/lazyPage.ts`) e memória do PostgreSQL no compose — chamada pelo proxy do Vite de
+> 75–240 ms para ~14 ms, CPU do Vite parado de ~25% para ~3% — ver "Hot reload" em Desenvolvimento). Antes: 02/11/2026 (**Proventos dos ativos internacionais**, `docs/planos/PLANO_PROVENTOS_INTERNACIONAIS.md`:
 > V21 — fonte `MASSIVE` no catálogo de proventos; tarefas `FOREIGN_DIVIDENDS` (diária) e `FOREIGN_DIVIDENDS_HISTORY`
 > (carga) pelo Massive gratuito, com desdobramentos em `asset_stock_events`; `ForeignListings` (papel listado na data,
 > comum a preço e eventos). Carga desde 2010: 337.630 proventos de 9.143 ativos e 5.527 desdobramentos, meses em
@@ -310,14 +314,28 @@ Docker publica em dual-stack enquanto o Vite escuta em uma pilha só, e
 `localhost:5173` fica pendurado sem erro. Se alguém "limpar" esse prefixo, o
 front para de abrir — já aconteceu.
 
-**Hot reload**: os poms e os `src` dos módulos e `activest-web/` entram por bind mount (os `target/` ficam
-dentro de cada contêiner). Alterar um `.tsx` recarrega o Vite. No backend, cada contêiner roda o `dev-watch.sh`
-(raiz; CMD do estágio `dev`, com `MODULE` do compose): verifica `activest-core/src` e o `src` do próprio módulo
-a cada 2 s, roda `mvn -pl <módulo> -am compile` quando algo mudou (classe do core recompila e reinicia **os
-dois** contêineres, ~30–50 s; o `-am` da app-api inclui a adm-api, dependência só de teste) e, se
-compilar, toca o gatilho do DevTools, que reinicia o Spring — migration nova
-entra junto. Compilação com erro aparece no log do container e mantém a versão
-anterior no ar. Arquivo apagado não dispara sozinho: salve outro ou reinicie.
+**Hot reload** (revisto em 02/11/2026, `docs/planos/PLANO_PERFORMANCE_TELAS.md`): os poms e os `src` dos módulos e
+`activest-web/` entram por bind mount (os `target/` ficam dentro de cada contêiner). Nesse caminho cada consulta a
+arquivo custa ~2–3 ms; vigiar o disco sem parar deixava **todas as telas** lentas (o Vite, uma thread só, atrasava
+cada módulo e cada chamada da API pelo proxy). Por isso:
+
+- **Front**: o Vite faz polling (`CHOKIDAR_USEPOLLING`) a cada **10 s** (`vite.config.ts`, `interval`), ignorando
+  `dist/`. Mudança num `.tsx` aparece em até ~10 s, sem reiniciar nada.
+- **Backend**: o `dev-watch.sh` (raiz; CMD do estágio `dev`, com `MODULE` do compose) compila na subida e, com
+  **`DEV_WATCH=false` (padrão)**, não varre `src/`. Depois de alterar Java:
+  `docker exec activest-app-api dev-watch.sh reload` (idem `activest-adm-api`; classe do core: nos dois) — roda
+  `mvn -pl <módulo> -am compile` (~30–60 s) e, se compilar, toca o gatilho do DevTools, que reinicia o Spring em
+  ~5 s (migration nova entra junto). Compilação com erro sai com código 1 e mantém a versão anterior no ar. Sem
+  `.class` alterado o DevTools não reinicia (o gatilho sozinho não basta). Arquivo apagado ou renomeado não sai de
+  `target/classes` pelo reload: reinicie o container. **`DEV_WATCH=true`** no `.env` volta à varredura automática
+  a cada 2 s. Quem altera o backend é o Claude, que roda o reload (REGRAS_CLAUDE.md 5.8).
+- **Telas sob demanda**: as 20 páginas internas são carregadas por `lazyPage` (`utils/lazyPage.ts`, `React.lazy`);
+  login, cadastro, senha e termos ficam no pacote inicial. O `Suspense` fica no `Layout` (menu e cabeçalho
+  continuam enquanto a tela chega). Se o pedaço de uma página não carregar (aba antiga depois de um deploy), a
+  página recarrega sozinha uma vez (marca em `sessionStorage`).
+- **PostgreSQL do compose**: `shared_buffers=512MB`, `effective_cache_size=2GB`, `work_mem=16MB` (`command` do
+  serviço `db`; os padrões eram 128 MB/4 MB para uma base de ~2 GB).
+- Medir tempo no Windows com `127.0.0.1`, não `localhost`: o `curl localhost` tenta `::1` antes e soma ~210 ms.
 
 > Mexeu no `Dockerfile` ou no `dev-watch.sh`? Precisa rebuild:
 > `docker compose up -d --build app-api adm-api`.

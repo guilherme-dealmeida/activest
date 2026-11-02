@@ -1604,6 +1604,29 @@ Resultado (27/10/2026): 148 testes em 15 arquivos de `utils/`, rodando tambem no
  de fundo, `label` LT/ST) e tratados de bitributacao ficam para outro escopo; (d) data-com antes de nov/2024 (sem pregao
  carregado) e o dia util anterior a ex-date, sem o calendario de feriados dos EUA.
 
+## 45. PERFORMANCE DAS TELAS — AMBIENTE DE DEV (docs/planos/PLANO_PERFORMANCE_TELAS.md, 02/11/2026)
+
+**45.1** Primeira chamada com o cache frio (D6): Ativos/Acoes ~2,9 s, Ativos/FIIs ~1,3 s, Preco Teto ~1,2 s e
+ `/portfolio/` ~1,1 s na primeira vez depois de o cache esfriar (aquecidas: 0,03-0,35 s). Reavaliar com o PostgreSQL
+ ajustado (D5); se continuar, investigar o que a primeira chamada carrega (catalogo, series de preco).
+
+**45.2** Chamadas "repetidas" na abertura (D4, achado do Impact): `/users/me` e `/funds/labels` saem 2 vezes so em
+ desenvolvimento, pelo `React.StrictMode` (de proposito); `/auth/refresh` aparece quando o token de acesso venceu (o
+ interceptor renova uma vez e repete). Logos tem cache de 7 dias. Nada a corrigir em producao; registrado para nao ser
+ investigado de novo.
+
+**45.3** O `mvn compile` do `dev-watch.sh reload` leva ~30-60 s, porque le os fontes pelo bind mount lento. Se
+ incomodar, avaliar mover o projeto para o disco do WSL (D7, decidido fora do escopo em 02/11/2026).
+
+**45.4** Sessao perdida quando a API reinicia (achado na validacao, 02/11/2026; comportamento anterior ao escopo):
+ `AuthProvider.fetchUser` apaga os tokens em **qualquer** falha de `/users/me` — inclusive 500/sem resposta do proxy
+ enquanto a API esta subindo (reload, rebuild). O usuario vai para o login sem o token ter vencido. Tratar: so limpar a
+ sessao em 401/403 depois da tentativa de renovacao; em erro de rede/5xx, manter e tentar de novo.
+
+**45.5** Navegacao entre telas ja visitadas no dev: 0,06-0,79 s (meta A2 < 0,5 s atingida em 8 de 12 telas). O servidor
+ responde em 35-134 ms (`responseStart - requestStart`); o resto e o navegador renderizando em modo de desenvolvimento
+ (React sem minificar, `StrictMode` renderizando duas vezes, graficos). Conferir no build de producao antes de mexer.
+
 ## ORDEM SUGERIDA
 
 O item 1 saiu. O 5.1 (indices) saiu em 05/10/2026; o proximo passo e o 2.1 — a razao de

@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
@@ -22,7 +23,14 @@ export const Layout = () => {
           "flex-1 overflow-x-hidden overflow-y-auto p-6 transition-colors duration-300",
           isDark ? "bg-black" : "bg-[#f5f5f0]"
         )}>
-          <Outlet />
+          {/* Página sob demanda (PLANO_PERFORMANCE_TELAS.md, D3): menu e cabeçalho ficam enquanto o pedaço da tela chega. */}
+          <Suspense fallback={
+            <div className={clsx("flex items-center justify-center py-20", isDark ? "text-white" : "text-gray-700")}>
+              Carregando...
+            </div>
+          }>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>

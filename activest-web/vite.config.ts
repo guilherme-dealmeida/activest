@@ -25,6 +25,12 @@ export default defineConfig({
     port: 5173,
     watch: {
       usePolling,
+      // Polling a cada 10 s, e nao a cada 100 ms (padrao do chokidar): cada consulta a arquivo pelo bind mount do
+      // Windows custa ~2-3 ms e o Vite (Node, uma thread so) ficava ocupado varrendo, atrasando cada modulo e cada
+      // chamada da API pelo proxy (docs/planos/PLANO_PERFORMANCE_TELAS.md, D1). Mudanca no front aparece em ate ~10 s.
+      interval: 10000,
+      binaryInterval: 10000,
+      ignored: ['**/dist/**'],
     },
     proxy: {
       // antes do '/api': o Vite usa a primeira regra que casa

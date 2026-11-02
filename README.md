@@ -169,6 +169,15 @@ docker compose up -d --build
 > A porta do banco é 5433 de propósito, para não colidir com um PostgreSQL local
 > na 5432.
 
+**Hot reload** (`docs/planos/PLANO_PERFORMANCE_TELAS.md`): o front se atualiza sozinho em até ~10 s após salvar um
+arquivo. O backend, com `DEV_WATCH=false` (padrão), não recompila sozinho; depois de alterar Java:
+
+```bash
+docker exec activest-app-api dev-watch.sh reload   # idem activest-adm-api
+```
+
+`DEV_WATCH=true` no `.env` liga a recompilação automática (varredura a cada 2 s — deixa o sistema mais lento no Windows).
+
 ### Opção 2 — Local, sem Docker
 
 Pré-requisitos: **Java 21**, **Maven 3.9+**, **Node 24**, **PostgreSQL 17** (o
