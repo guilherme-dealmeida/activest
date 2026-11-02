@@ -412,6 +412,17 @@ pedidos, ~1h45). Atalho: `node carga/scripts/admin.mjs foreign-history-quotes`.
 **Propósito.** Série histórica dos internacionais, com os deslistados até a data de saída
 (`docs/planos/PLANO_PRECOS_HISTORICOS_INTERNACIONAIS.md`).
 
+### [26] `POST /api/v1/admin/foreign-dividends[?from=AAAA-MM-DD[&to=AAAA-MM-DD]]` (02/11/2026)
+
+**Serviço:** `ForeignCorporateEventsService` · sem datas, a tarefa `FOREIGN_DIVIDENDS` (janela de −30 a +90 dias); com
+`from` (e `to`), a `FOREIGN_DIVIDENDS_HISTORY` mês a mês · **Grava:** `asset_cash_events` e `asset_stock_events`
+(`MASSIVE`) e os meses em `carga/data/massive/dividends/` e `…/splits/`
+
+**Função.** Proventos e desdobramentos dos internacionais pelo Massive gratuito. Atalho:
+`node carga/scripts/admin.mjs "foreign-dividends?from=2010-01-01"`.
+
+**Propósito.** Catálogo de eventos do exterior para os proventos da carteira (`docs/planos/PLANO_PROVENTOS_INTERNACIONAIS.md`).
+
 ---
 
 ## Fundos de investimento

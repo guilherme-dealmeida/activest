@@ -132,6 +132,27 @@ public class AdminController {
         return start("preco historico dos ativos internacionais", "FOREIGN_HISTORY_QUOTES", values);
     }
 
+    /**
+     * Proventos e desdobramentos dos internacionais (docs/planos/PLANO_PROVENTOS_INTERNACIONAIS.md): sem datas, a
+     * rodada diária ({@code FOREIGN_DIVIDENDS}, janela de −30 a +90 dias); com {@code from} (e {@code to}), a carga
+     * mês a mês ({@code FOREIGN_DIVIDENDS_HISTORY}).
+     */
+    @PostMapping("/foreign-dividends")
+    public ResponseEntity<Map<String, Object>> foreignDividends(@RequestParam(required = false) String from,
+                                                                @RequestParam(required = false) String to) {
+        if ((from == null || from.isBlank()) && (to == null || to.isBlank())) {
+            return start("proventos dos ativos internacionais", "FOREIGN_DIVIDENDS", Map.of());
+        }
+        Map<String, String> values = new java.util.HashMap<>();
+        if (from != null && !from.isBlank()) {
+            values.put("FROM_DATE", from.trim());
+        }
+        if (to != null && !to.isBlank()) {
+            values.put("TO_DATE", to.trim());
+        }
+        return start("carga dos proventos dos ativos internacionais", "FOREIGN_DIVIDENDS_HISTORY", values);
+    }
+
     @PostMapping("/logos")
     public ResponseEntity<Map<String, Object>> logos() {
         return start("logos", "ASSET_LOGOS", Map.of("ONLY_MISSING", "false"));

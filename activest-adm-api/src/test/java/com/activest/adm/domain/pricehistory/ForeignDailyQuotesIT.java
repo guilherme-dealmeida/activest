@@ -34,6 +34,10 @@ class ForeignDailyQuotesIT extends IntegrationTestBase {
     @MockBean
     ForeignQuotesProvider provider;
 
+    /** O MassiveClient é as duas fontes: o mock de uma tira a outra do contexto. */
+    @MockBean
+    com.activest.adm.integration.foreign.ForeignEventsProvider events;
+
     @Autowired
     ForeignDailyQuotesService service;
 

@@ -172,4 +172,50 @@ class MassiveClientTest {
         assertThat(MassiveClient.catalogTicker("SPY")).isEqualTo("SPY");
         assertThat(MassiveClient.catalogTicker("PSApO")).isEqualTo("PSA-O");
     }
+
+    @Test
+    @DisplayName("Proventos do mês: todas as páginas (next_url), ticker na grafia do catálogo, mês guardado e relido sem rede")
+    void dividendsMonth() {
+        String base = "http://127.0.0.1:" + server.getAddress().getPort();
+        responses.add(new Response(200, "{\"results\":[{\"id\":\"E1\",\"ticker\":\"O\",\"cash_amount\":0.2715,"
+                + "\"currency\":\"USD\",\"declaration_date\":\"2026-10-13\",\"ex_dividend_date\":\"2026-10-30\","
+                + "\"pay_date\":\"2026-11-13\",\"record_date\":\"2026-10-30\",\"dividend_type\":\"CD\"}],"
+                + "\"status\":\"OK\",\"next_url\":\"" + base + "/v3/reference/dividends?cursor=abc\"}"));
+        responses.add(new Response(200, "{\"results\":[{\"id\":\"E2\",\"ticker\":\"ABRpE\",\"cash_amount\":0.40625,"
+                + "\"currency\":\"USD\",\"ex_dividend_date\":\"2026-10-15\",\"dividend_type\":\"CD\"},"
+                + "{\"id\":\"E3\",\"ticker\":\"XNGSF\",\"cash_amount\":0.65,\"currency\":\"HKD\","
+                + "\"ex_dividend_date\":\"2026-10-05\",\"dividend_type\":\"CD\"}],\"status\":\"OK\"}"));
+        MassiveClient client = client("chave");
+
+        var month = client.dividends(java.time.YearMonth.of(2026, 10), false);
+
+        assertThat(month.pages()).isEqualTo(2);
+        assertThat(month.events()).extracting(e -> e.ticker())
+                .containsExactly("O", "ABR-E", "XNGSF");
+        assertThat(month.events().get(0).payDate()).hasToString("2026-11-13");
+        assertThat(month.events().get(0).amount()).isEqualByComparingTo("0.2715");
+        assertThat(query.get()).isEqualTo("/v3/reference/dividends?cursor=abc");
+        assertThat(Files.isRegularFile(client.eventsFile("dividends", java.time.YearMonth.of(2026, 10)))).isTrue();
+
+        var again = client.dividends(java.time.YearMonth.of(2026, 10), false);
+        assertThat(again.fromDisk()).isTrue();
+        assertThat(again.events()).hasSize(3);
+        assertThat(requests.get()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("Desdobramentos do mês: de/para e a data de execução")
+    void splitsMonth() {
+        responses.add(new Response(200, "{\"results\":[{\"id\":\"S1\",\"ticker\":\"DPU\",\"execution_date\":"
+                + "\"2026-12-17\",\"split_from\":50,\"split_to\":1}],\"status\":\"OK\"}"));
+
+        var month = client("chave").splits(java.time.YearMonth.of(2026, 12), false);
+
+        assertThat(month.events()).singleElement().satisfies(s -> {
+            assertThat(s.ticker()).isEqualTo("DPU");
+            assertThat(s.from()).isEqualByComparingTo("50");
+            assertThat(s.to()).isEqualByComparingTo("1");
+            assertThat(s.exDate()).hasToString("2026-12-17");
+        });
+    }
 }

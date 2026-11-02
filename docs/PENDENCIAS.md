@@ -1564,8 +1564,8 @@ Resultado (27/10/2026): 148 testes em 15 arquivos de `utils/`, rodando tambem no
 **43.1** bStocks (mint/redeem da acao em token) e Stock Transfer da Binance (D11): fora desta versao. A conversao em token
  aparece na pre-visualizacao como nao importada (`TOKENIZED_CONVERT`); a Stock Transfer nao tem endpoint na API — o
  lancamento e manual, como a transferencia de custodia da B3. Implementar quando alguem usar.
-**43.2** Proventos de acoes/ETFs dos EUA comprados na Binance (D12): vem do catalogo, como os nacionais (cotas na data com),
- quando houver fonte de proventos do exterior (38.1). A API da Binance Stocks nao tem endpoint de proventos.
+**43.2** ~~Proventos de acoes/ETFs dos EUA comprados na Binance (D12)~~ — resolvido em 02/11/2026: o catalogo recebe os
+ proventos do exterior pelo Massive (docs/planos/PLANO_PROVENTOS_INTERNACIONAIS.md, tarefa `FOREIGN_DIVIDENDS`).
 **43.3** Valor realmente debitado da stablecoin na ordem da Binance Stocks: a API devolve `filledTotal` e `fee`, mas nao
  o valor liquidado (issue #282 do binance-api-postman). A perna em USDC usa total + taxa. Na conta real (13/10/2026) o
  saldo fechou com um residuo de 0,05814558 USDC anterior a ordem, sem origem nas APIs consultadas (Convert, depositos,
@@ -1596,6 +1596,13 @@ Resultado (27/10/2026): 148 testes em 15 arquivos de `utils/`, rodando tambem no
  e desdobramentos do exterior ficam para a parte 3 (43.2).
 **44.4** Licenca: o plano gratuito do Massive e de uso pessoal. Antes de abrir o Activest a outros usuarios, trocar por
  um plano com redistribuicao (a interface `ForeignQuotesProvider` troca a fonte sem mexer na rotina).
+
+**44.5** Proventos do exterior (docs/planos/PLANO_PROVENTOS_INTERNACIONAIS.md): (a) desdobramento corrigido pela fonte
+ (data ou razao) grava um evento novo e o antigo fica — `asset_stock_events` nao tem o id da fonte; tratar se aparecer;
+ (b) proventos de papel do catalogo em outra moeda (1.620 na carga, ex.: ADR que paga em CAD) sao ignorados; (c) a
+ retencao e 30% para todo provento dos EUA (regra da V9) — fundos/REITs com tratamento diferente (ex.: ganho de capital
+ de fundo, `label` LT/ST) e tratados de bitributacao ficam para outro escopo; (d) data-com antes de nov/2024 (sem pregao
+ carregado) e o dia util anterior a ex-date, sem o calendario de feriados dos EUA.
 
 ## ORDEM SUGERIDA
 

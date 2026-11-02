@@ -308,6 +308,24 @@ baixado é relido do disco. Os 2 anos (nov/2024 → out/2026) levaram 1h45 (500 
 **Propósito.** A série histórica dos internacionais (`docs/planos/PLANO_PRECOS_HISTORICOS_INTERNACIONAIS.md`); antes de
 nov/2024 só com fonte paga (PENDENCIAS 44.3).
 
+### [A22] Proventos e desdobramentos dos internacionais (02/11/2026)
+
+| | |
+|---|---|
+| **Quando** | 03:30, terça a sábado (depois do preço), recuperação na subida e Run; **no máximo uma rodada automática por dia**. A carga desde 2010 é a tarefa `FOREIGN_DIVIDENDS_HISTORY` (só Run) |
+| **Classe** | `FOREIGN_DIVIDENDS` → `ForeignDividendsTask` → `ForeignCorporateEventsService.importRecent`; `FOREIGN_DIVIDENDS_HISTORY` → `ForeignDividendsHistoryTask` → `importMonths` |
+| **Tarefa** | `FOREIGN_DIVIDENDS` — padrão do seed: `0 30 3 * * TUE-SAT`, `run_on_startup`; `FOREIGN_DIVIDENDS_HISTORY` (atributos `FROM_DATE` 2010-01-01 e `TO_DATE` vazio = +90 dias) |
+| **Fonte** | Massive gratuito: `/v3/reference/dividends` e `/v3/reference/splits`, um mês do mercado inteiro por vez (paginado) |
+| **Grava** | `asset_cash_events` (`source = MASSIVE`, tipo DIVIDENDO, tipo da fonte no `label`, id da fonte em `source_ref`), `asset_stock_events` (`MASSIVE`), os meses em `carga/data/massive/dividends/` e `…/splits/`; avisa a carteira (PROVENTOS) |
+
+**Função.** Diária: os meses da janela de ex-date de −30 a +90 dias, perguntando de novo (anúncios e correções). Só
+tickers do catálogo, casados com o papel listado na data-com, e só em dólar. Data-com = último pregão antes da ex-date.
+Correção da fonte atualiza o mesmo evento (pelo `source_ref`), sem duplicar. Desdobramento 1→2 = DESDOBRAMENTO 100;
+grupamento 10→1 = GRUPAMENTO 0,1. Carga desde 2010: 7h42, 337.630 proventos e 5.527 desdobramentos.
+
+**Propósito.** Proventos em dólar na carteira (PTAX compra, retenção de 30% dos EUA, IR estimado — `ForeignDividendCalculator`)
+e cotas certas depois de desdobramento (`docs/planos/PLANO_PROVENTOS_INTERNACIONAIS.md`).
+
 ### [A10] Preço oficial do Tesouro Direto (05/10/2026)
 
 | | |

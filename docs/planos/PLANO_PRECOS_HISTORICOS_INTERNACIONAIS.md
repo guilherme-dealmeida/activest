@@ -1,6 +1,6 @@
 # Plano — Preço histórico para ativos internacionais Activest
 
-> Aberto em 01/11/2026 (POR ESCOPO). Etapa atual: **7 — Commit** (implementação concluída em 01/11/2026). Parte 2 de 3 da branch (a parte 1 foi o
+> Aberto em 01/11/2026 (POR ESCOPO). **Escopo encerrado em 01/11/2026** (commit feito pelo Guilherme). A parte 3 é o `PLANO_PROVENTOS_INTERNACIONAIS.md`. Parte 2 de 3 da branch (a parte 1 foi o
 > `PLANO_PRECOS_INTERNACIONAIS.md`, preço diário pelo Massive).
 
 ## 1. Objetivo
@@ -101,3 +101,4 @@ bucket; a cobertura de cada dia sai no log.
 | 01/11/2026 | Testing | `mvn clean verify` verde (com os testes novos: ticker reaproveitado pela data, dia fora do plano, 33 tarefas) |
 | 01/11/2026 | Review | Documentação: `Claude.md`, `README.md`, `SCHEDULE_TASKS` [A21], `ADM_TASKS` [25], PENDENCIAS 44.3; `data push` da pasta `massive/` concluído |
 | 01/11/2026 | Commit | Alterações conferidas (só leitura); mensagem sugerida ao Guilherme |
+| 01/11/2026 | Commit | Guilherme comitou; escopo encerrado |

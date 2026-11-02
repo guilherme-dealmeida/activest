@@ -10,5 +10,10 @@ public enum CashEventSource {
     /** Historico longo de empresa da B3, desde os anos 90, sem data de pagamento. */
     B3_HISTORICO,
     /** Aviso aos cotistas estruturado do Fundos.NET: fonte principal de FII (D15). */
-    FNET
+    FNET,
+    /**
+     * Proventos dos ativos internacionais pelo Massive (V21, docs/planos/PLANO_PROVENTOS_INTERNACIONAIS.md): casados
+     * pelo id do evento na fonte ({@code source_ref}).
+     */
+    MASSIVE
 }

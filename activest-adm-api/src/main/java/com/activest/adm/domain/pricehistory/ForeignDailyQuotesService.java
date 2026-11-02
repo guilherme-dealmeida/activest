@@ -1,5 +1,6 @@
 package com.activest.adm.domain.pricehistory;
 
+import com.activest.adm.domain.foreign.ForeignListings;
 import com.activest.adm.domain.notice.AdminNotices;
 import com.activest.adm.integration.foreign.ForeignQuotesProvider;
 import com.activest.adm.integration.foreign.ForeignQuotesProvider.DayQuotes;
@@ -62,16 +63,6 @@ public class ForeignDailyQuotesService {
     private static final LocalTime CLOSE_TIME = LocalTime.of(18, 0);
     private static final int BATCH = 5_000;
 
-    /**
-     * Os vivos e os deslistados que ainda estavam na bolsa em algum dia do período (saída a partir do primeiro dia):
-     * o pregão de cada dia casa com o papel listado nele (docs/planos/PLANO_PRECOS_HISTORICOS_INTERNACIONAIS.md).
-     */
-    private static final String CATALOG_ASSETS = """
-            SELECT a.id, a.ticker, t.name AS type_name, a.delisted_on FROM assets a
-            JOIN asset_types t ON t.id = a.asset_type_id
-            WHERE t.price_source = 'MASSIVE'
-              AND ((a.active AND a.delisted_on IS NULL) OR a.delisted_on >= ?)
-            """;
     private static final String UPSERT = """
             INSERT INTO asset_price_history
                 (asset_id, reference_date, open_price, high_price, low_price, close_price, volume, source,
@@ -169,7 +160,7 @@ public class ForeignDailyQuotesService {
             return null;
         }
         try {
-            Map<String, List<LiveAsset>> catalog = catalog(from);
+            Map<String, List<ForeignListings.Listed>> catalog = ForeignListings.load(jdbc, from);
             List<DayResult> days = new ArrayList<>();
             long written = 0;
             int updated = 0;
@@ -205,7 +196,7 @@ public class ForeignDailyQuotesService {
                         days.add(new DayResult(d, q.status(), false, 0, 0));
                         continue;
                     }
-                    Map<String, LiveAsset> byTicker = listedOn(catalog, d);
+                    Map<String, ForeignListings.Listed> byTicker = ForeignListings.listedOn(catalog, d);
                     DayWrite w = write(d, q.quotes(), byTicker, changed);
                     written += w.written();
                     updated += w.updated();
@@ -244,9 +235,6 @@ public class ForeignDailyQuotesService {
 
     // ------------------------------------------------------------------ gravação
 
-    private record LiveAsset(long id, String ticker, String type, LocalDate delistedOn) {
-    }
-
     private record DayWrite(int written, int updated, Coverage coverage) {
     }
 
@@ -263,44 +251,8 @@ public class ForeignDailyQuotesService {
         }
     }
 
-    /** Candidatos por ticker: o vivo e os deslistados com saída a partir de {@code from}. */
-    private Map<String, List<LiveAsset>> catalog(LocalDate from) {
-        Map<String, List<LiveAsset>> out = new HashMap<>();
-        jdbc.query(CATALOG_ASSETS, rs -> {
-            Date delisted = rs.getDate("delisted_on");
-            LiveAsset a = new LiveAsset(rs.getLong("id"), rs.getString("ticker"), rs.getString("type_name"),
-                    delisted == null ? null : delisted.toLocalDate());
-            out.computeIfAbsent(a.ticker().toUpperCase(), k -> new ArrayList<>()).add(a);
-        }, Date.valueOf(from));
-        return out;
-    }
-
-    /**
-     * O papel listado em {@code d} para cada ticker (ticker reaproveitado, V13): o deslistado de saída mais próxima
-     * ainda não passada ({@code delisted_on >= d}); sem ele, o vivo.
-     */
-    static Map<String, LiveAsset> listedOn(Map<String, List<LiveAsset>> catalog, LocalDate d) {
-        Map<String, LiveAsset> out = new HashMap<>(catalog.size() * 2);
-        catalog.forEach((ticker, candidates) -> {
-            LiveAsset pick = null;
-            for (LiveAsset a : candidates) {
-                if (a.delistedOn() == null) {
-                    if (pick == null) {
-                        pick = a;
-                    }
-                } else if (!a.delistedOn().isBefore(d)
-                        && (pick == null || pick.delistedOn() == null || a.delistedOn().isBefore(pick.delistedOn()))) {
-                    pick = a;
-                }
-            }
-            if (pick != null) {
-                out.put(ticker, pick);
-            }
-        });
-        return out;
-    }
-
-    private DayWrite write(LocalDate d, List<Quote> quotes, Map<String, LiveAsset> byTicker, Set<Long> changed) {
+    private DayWrite write(LocalDate d, List<Quote> quotes, Map<String, ForeignListings.Listed> byTicker,
+                           Set<Long> changed) {
         Coverage cov = new Coverage(byTicker.size());
         cov.date = d;
         Set<Long> seen = new HashSet<>();
@@ -311,7 +263,7 @@ public class ForeignDailyQuotesService {
         Date day = Date.valueOf(d);
         Timestamp at = Timestamp.valueOf(d.atTime(CLOSE_TIME));
         for (Quote q : quotes) {
-            LiveAsset a = byTicker.get(q.ticker().toUpperCase());
+            ForeignListings.Listed a = byTicker.get(q.ticker().toUpperCase());
             if (a == null || q.close().signum() <= 0 || !seen.add(a.id())) {
                 continue;
             }
@@ -333,7 +285,7 @@ public class ForeignDailyQuotesService {
             }
         }
         cov.matched = seen.size();
-        for (LiveAsset a : byTicker.values()) {
+        for (ForeignListings.Listed a : byTicker.values()) {
             if (!seen.contains(a.id())) {
                 cov.missingByType.merge(a.type(), 1, Integer::sum);
                 cov.missing.add(a.ticker());

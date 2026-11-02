@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   TrendingUp,
@@ -105,13 +105,14 @@ export const Sidebar = () => {
         'h-[92px] flex flex-col items-center justify-center px-4 border-b overflow-hidden transition-colors duration-300',
         isDark ? 'border-white/10' : 'border-gray-200'
       )}>
-        {collapsed ? (
-          <img src={isDark ? '/images/gv2.png' : '/images/v1.png'} alt="Activest — Disciplina leva à liberdade" className="mx-auto w-full max-w-[320px] h-auto object-contain" />
-        ) : (
-          <>
-             <img src={isDark ? '/images/activest2.png' : '/images/activest1.png'} alt="Activest — Disciplina leva à liberdade" className="mx-auto w-full max-w-[320px] h-auto object-contain" />
-          </>
-        )}
+        {/* Clicar no logo leva ao Dashboard (página inicial). */}
+        <Link to="/dashboard" title="Ir para o Dashboard" className="block w-full">
+          {collapsed ? (
+            <img src={isDark ? '/images/gv2.png' : '/images/v1.png'} alt="Activest — Disciplina leva à liberdade" className="mx-auto w-full max-w-[320px] h-auto object-contain" />
+          ) : (
+            <img src={isDark ? '/images/activest2.png' : '/images/activest1.png'} alt="Activest — Disciplina leva à liberdade" className="mx-auto w-full max-w-[320px] h-auto object-contain" />
+          )}
+        </Link>
       </div>
 
       <nav className={clsx('flex-1 py-6 space-y-1 overflow-y-auto overflow-x-hidden', collapsed ? 'px-3' : 'px-4')}>
