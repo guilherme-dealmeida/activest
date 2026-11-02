@@ -22,6 +22,9 @@ services:
   db:
     image: postgres:17-alpine
     container_name: activest-db
+    # Memoria do PostgreSQL (docs/planos/PLANO_PERFORMANCE_TELAS.md, D5): os padroes (shared_buffers 128 MB,
+    # work_mem 4 MB) sao pequenos para uma base de ~2 GB (asset_price_history com ~8,5 milhoes de linhas).
+    command: ["postgres", "-c", "shared_buffers=512MB", "-c", "effective_cache_size=2GB", "-c", "work_mem=16MB"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-db_activest}
       POSTGRES_USER: ${DB_USERNAME:-postgres}
@@ -62,6 +65,9 @@ services:
     container_name: activest-app-api
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      # Hot reload do backend (docs/planos/PLANO_PERFORMANCE_TELAS.md, D2): false = sem varredura de src/ pelo
+      # bind mount; depois de alterar Java, `docker exec <container> dev-watch.sh reload`. true = automatico.
+      DEV_WATCH: ${DEV_WATCH:-false}
       DB_HOST: db
       DB_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-db_activest}
@@ -158,6 +164,9 @@ services:
     container_name: activest-adm-api
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      # Hot reload do backend (docs/planos/PLANO_PERFORMANCE_TELAS.md, D2): false = sem varredura de src/ pelo
+      # bind mount; depois de alterar Java, `docker exec <container> dev-watch.sh reload`. true = automatico.
+      DEV_WATCH: ${DEV_WATCH:-false}
       DB_HOST: db
       DB_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-db_activest}
@@ -207,6 +216,7 @@ services:
       # Tela de Tarefas: /api/v1/tasks vai para a adm-api (docs/planos/PLANO_TAREFAS.md, D9)
       VITE_ADM_API_TARGET: http://adm-api:8081
       # Bind mount no Windows não propaga eventos de arquivo: polling é necessário para o hot reload.
+      # Intervalo de 10 s no vite.config.ts (docs/planos/PLANO_PERFORMANCE_TELAS.md, D1).
       CHOKIDAR_USEPOLLING: "true"
       # Mesma variável do .env que vai para a app-api, para não haver dois valores
       # para a mesma coisa. O Vite embute isso no bundle: é público por natureza.

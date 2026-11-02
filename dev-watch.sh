@@ -32,6 +32,11 @@
 # core no classloader de reinício e uma classe do core alterada também recarrega.
 
 POLL_SECONDS="${POLL_SECONDS:-2}"
+# DEV_WATCH (docs/planos/PLANO_PERFORMANCE_TELAS.md, D2): a varredura de src/ pelo bind mount do Windows custa
+# ~2-3 ms por arquivo e, a cada 2 s, deixava o disco montado sempre ocupado (lentidao em todas as telas). Padrao
+# false: sem varredura; depois de alterar Java, rode `dev-watch.sh reload` no container (I2). true: volta o
+# automatico.
+DEV_WATCH="${DEV_WATCH:-false}"
 MODULE="${MODULE:-activest-app-api}"
 WATCH="activest-core/src $MODULE/src"
 TARGETS="activest-core/target $MODULE/target"
@@ -43,6 +48,28 @@ fi
 MARKER=/tmp/.last-compile
 TRIGGER="$MODULE/target/classes/.reloadtrigger"
 
+# Compila o modulo (e o core) e, so se der certo, toca o gatilho do DevTools, que reinicia a aplicacao.
+# Compilacao com erro mantem a versao anterior no ar e devolve codigo diferente de zero.
+recompile() {
+  echo "[dev-watch] recompilando $MODULE..."
+  if mvn -B -q -pl "$MODULE" -am compile; then
+    touch "$TRIGGER"
+    echo "[dev-watch] compilado; o DevTools reinicia a aplicação."
+    return 0
+  fi
+  echo "[dev-watch] compilação FALHOU — a aplicação segue com a versão anterior."
+  return 1
+}
+
+# Modo reload (PLANO_PERFORMANCE_TELAS.md, I2): `docker exec activest-app-api dev-watch.sh reload`.
+# Arquivo apagado ou renomeado nao sai de target/classes por aqui: nesse caso, reinicie o container.
+if [ "${1:-}" = "reload" ]; then
+  cd /app || exit 1
+  touch "$MARKER"
+  recompile
+  exit $?
+fi
+
 # Recompila do zero a cada subida. O target/ vive dentro do container (não é
 # montado) e o Maven só copia/atualiza resources, nunca apaga: uma migration
 # removida ou renomeada no src/ continuava em target/classes/db/migration e o
@@ -52,23 +79,22 @@ rm -rf $TARGETS
 
 touch "$MARKER"
 
-(
-  while true; do
-    sleep "$POLL_SECONDS"
-    if [ -n "$(find $WATCH -type f -newer "$MARKER" -print -quit 2>/dev/null)" ]; then
-      # Marca ANTES de compilar: o que for salvo durante a compilação entra na
-      # próxima volta em vez de se perder.
-      touch "$MARKER"
-      echo "[dev-watch] alteração em $WATCH — recompilando..."
-      if mvn -B -q -pl "$MODULE" -am compile; then
-        touch "$TRIGGER"
-        echo "[dev-watch] compilado; o DevTools reinicia a aplicação."
-      else
-        echo "[dev-watch] compilação FALHOU — a aplicação segue com a versão anterior."
+if [ "$DEV_WATCH" = "true" ]; then
+  echo "[dev-watch] DEV_WATCH=true: varrendo $WATCH a cada ${POLL_SECONDS}s."
+  (
+    while true; do
+      sleep "$POLL_SECONDS"
+      if [ -n "$(find $WATCH -type f -newer "$MARKER" -print -quit 2>/dev/null)" ]; then
+        # Marca ANTES de compilar: o que for salvo durante a compilação entra na
+        # próxima volta em vez de se perder.
+        touch "$MARKER"
+        recompile || true
       fi
-    fi
-  done
-) &
+    done
+  ) &
+else
+  echo "[dev-watch] DEV_WATCH=false: sem varredura de src/. Depois de alterar Java: dev-watch.sh reload."
+fi
 
 # exec: o Maven vira o processo principal e recebe o SIGTERM do docker stop.
 exec mvn -B -pl "$MODULE" -am "-Drun.module=$MODULE" spring-boot:run \

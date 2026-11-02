@@ -3,31 +3,35 @@ import { Layout } from '@/components/layout/Layout';
 import { useAuth } from '@/context/AuthContext';
 
 // Pages
-import { DashboardPage } from '@/pages/DashboardPage';
-import { PerformancePage } from '@/pages/PerformancePage';
-import { PortfolioPage } from '@/pages/PortfolioPage';
-import { AllocationPage } from '@/pages/AllocationPage';
-import { StrategyPage } from '@/pages/StrategyPage';
-import { RebalancePage } from '@/pages/RebalancePage';
-import { TransactionsPage } from '@/pages/TransactionsPage';
-import { CeilingPricesPage } from '@/pages/CeilingPricesPage';
-import { CeilingPriceDetailPage } from '@/pages/CeilingPriceDetailPage';
-import { DividendsPage } from '@/pages/DividendsPage';
-import { GoalsPage } from '@/pages/GoalsPage';
-import { GoalDetailPage } from '@/pages/GoalDetailPage';
-import { IntegrationsPage } from '@/pages/IntegrationsPage';
-import { IntegrationRunPage } from '@/pages/IntegrationRunPage';
-import { SettingsPage } from '@/pages/SettingsPage';
-import { NotificationsPage } from '@/pages/NotificationsPage';
-import { IssuerPage } from '@/pages/IssuerPage';
-import { IndicesPage } from '@/pages/IndicesPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { SignupPage } from '@/pages/SignupPage';
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
 import { LegalPage } from '@/pages/LegalPage';
-import { TasksPage } from '@/pages/TasksPage';
-import { CurrenciesPage } from '@/pages/CurrenciesPage';
 import { isLegacyUrl, translateLegacyUrl } from '@/utils/legacyUrl';
+import { lazyPage } from '@/utils/lazyPage';
+
+// Telas internas sob demanda (docs/planos/PLANO_PERFORMANCE_TELAS.md, D3); login, cadastro, senha e termos
+// continuam no pacote inicial (porta de entrada). O Suspense fica no Layout, em volta do Outlet.
+const DashboardPage = lazyPage(() => import('@/pages/DashboardPage'), 'DashboardPage');
+const PerformancePage = lazyPage(() => import('@/pages/PerformancePage'), 'PerformancePage');
+const PortfolioPage = lazyPage(() => import('@/pages/PortfolioPage'), 'PortfolioPage');
+const AllocationPage = lazyPage(() => import('@/pages/AllocationPage'), 'AllocationPage');
+const StrategyPage = lazyPage(() => import('@/pages/StrategyPage'), 'StrategyPage');
+const RebalancePage = lazyPage(() => import('@/pages/RebalancePage'), 'RebalancePage');
+const TransactionsPage = lazyPage(() => import('@/pages/TransactionsPage'), 'TransactionsPage');
+const CeilingPricesPage = lazyPage(() => import('@/pages/CeilingPricesPage'), 'CeilingPricesPage');
+const CeilingPriceDetailPage = lazyPage(() => import('@/pages/CeilingPriceDetailPage'), 'CeilingPriceDetailPage');
+const DividendsPage = lazyPage(() => import('@/pages/DividendsPage'), 'DividendsPage');
+const GoalsPage = lazyPage(() => import('@/pages/GoalsPage'), 'GoalsPage');
+const GoalDetailPage = lazyPage(() => import('@/pages/GoalDetailPage'), 'GoalDetailPage');
+const IntegrationsPage = lazyPage(() => import('@/pages/IntegrationsPage'), 'IntegrationsPage');
+const IntegrationRunPage = lazyPage(() => import('@/pages/IntegrationRunPage'), 'IntegrationRunPage');
+const SettingsPage = lazyPage(() => import('@/pages/SettingsPage'), 'SettingsPage');
+const NotificationsPage = lazyPage(() => import('@/pages/NotificationsPage'), 'NotificationsPage');
+const IssuerPage = lazyPage(() => import('@/pages/IssuerPage'), 'IssuerPage');
+const IndicesPage = lazyPage(() => import('@/pages/IndicesPage'), 'IndicesPage');
+const TasksPage = lazyPage(() => import('@/pages/TasksPage'), 'TasksPage');
+const CurrenciesPage = lazyPage(() => import('@/pages/CurrenciesPage'), 'CurrenciesPage');
 
 /** Tela só de administrador (Tarefas, D14): quem não é volta ao Dashboard. */
 const AdminOnly = ({ children }: { children: JSX.Element }) => {
