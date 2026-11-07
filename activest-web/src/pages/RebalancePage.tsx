@@ -34,13 +34,6 @@ export const RebalancePage = () => {
 
   return (
     <div className="space-y-6">
-      {/* Desde 17/10/2026 cada card leva à aba da Estratégia que o alimenta (antes um link só, para a tela) */}
-      {rebalance?.reservation && (
-        <ReservationRebalanceCard
-          reservation={rebalance.reservation}
-          action={<PageLink to="/strategy?tab=reservation" label="Ir para Estratégia Reserva" />}
-        />
-      )}
       <Card title="Sugestão de Aporte (Rebalanceamento)" titleInfo={STRATEGY_HELP.typeRebalance}
         action={<PageLink to="/strategy" label="Ir para Ideal Estratégico" />}>
         <div className="overflow-x-auto mt-4">
@@ -109,6 +102,13 @@ export const RebalancePage = () => {
           </table>
         </div>
       </Card>
+      {/* Desde 17/10/2026 cada card leva à aba da Estratégia que o alimenta (antes um link só, para a tela) */}
+      {rebalance?.reservation && (
+        <ReservationRebalanceCard
+          reservation={rebalance.reservation}
+          action={<PageLink to="/strategy?tab=reservation" label="Ir para Estratégia Reserva" />}
+        />
+      )}
     </div>
   );
 };

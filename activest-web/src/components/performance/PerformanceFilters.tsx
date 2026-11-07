@@ -1,6 +1,6 @@
 import { assetText } from '@/utils/assetLabel';
 import { useState } from 'react';
-import { X, Plus } from 'lucide-react';
+import clsx from 'clsx';
 import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import { useTheme } from '@/context/ThemeContext';
 import { AssetCategory, AssetType } from '@/types';
@@ -8,7 +8,7 @@ import {
   BenchmarkCatalog, BreakdownRow, PerformanceBasis, PerformanceRange, ReservationFilter,
 } from '@/types/performance';
 import {
-  BenchmarkPick, MAX_BENCHMARKS, RANGES, RANGE_LABEL, benchKey, seriesColor,
+  BenchmarkPick, MAX_BENCHMARKS, RANGES, RANGE_LABEL, seriesColor,
 } from './performanceFormat';
 
 interface Props {
@@ -47,11 +47,10 @@ const segmentClass = (on: boolean) => `rounded-md px-2.5 py-1 text-xs font-mediu
 /**
  * Filtros da Rentabilidade numa faixa só (docs/planos/PLANO_RENTABILIDADE.md, 6.1): 1ª linha o recorte (tipo →
  * categoria → ativo, L9); 2ª o período (D7, padrão 12M), a reserva (L8) e a base bruto/líquido (L10, só quando muda
- * algo; padrão bruto desde 17/10/2026); 3ª os benchmarks (até 5; IPCA + x% pede a taxa).
+ * algo; padrão bruto desde 17/10/2026); 3ª os benchmarks sempre expostos, ligados/desligados no clique (até 5; IPCA + x% com a taxa ao lado).
  */
 export const PerformanceFilters = (p: Props) => {
   const { isDark } = useTheme();
-  const [adding, setAdding] = useState('');
   // IPCA + x%: enquanto o usuário não digita, o campo mostra a taxa do Tesouro IPCA+ à venda que vence primeiro (a
   // mesma do padrão do Tesouro Direto, 17/10/2026); sem taxa gravada, 6%. Depois de digitado, fica o que ele digitou.
   const [typedSpread, setTypedSpread] = useState<string | null>(null);
@@ -59,21 +58,38 @@ export const PerformanceFilters = (p: Props) => {
   const spread = typedSpread
     ?? (p.catalog?.treasuryIpca && Number.isFinite(treasuryRate) ? String(treasuryRate).replace('.', ',') : '6');
   const catalog = p.catalog?.benchmarks ?? [];
-  const chosen = new Set(p.benchmarks.map(b => b.code));
-  const available = catalog.filter(b => b.acceptsSpread || !chosen.has(b.code));
-  const addingInfo = catalog.find(b => b.code === adding);
+  const pickOf = (code: string) => p.benchmarks.find(b => b.code === code);
+  const full = p.benchmarks.length >= MAX_BENCHMARKS;
+  const parsedSpread = () => {
+    const v = Number(spread.replace(',', '.'));
+    return Number.isFinite(v) ? v : null;
+  };
 
-  const add = () => {
-    if (!addingInfo || p.benchmarks.length >= MAX_BENCHMARKS) return;
-    const pick: BenchmarkPick = { code: adding };
-    if (addingInfo.acceptsSpread) {
-      const v = Number(spread.replace(',', '.'));
-      if (!Number.isFinite(v)) return;
+  // Índices sempre expostos (02/11/2026, como as flags da Carteira): clique liga/desliga. Ligar acrescenta no fim
+  // (o primeiro continua o principal); o último ligado não desliga; com o limite cheio, os desligados ficam inativos.
+  const toggle = (code: string) => {
+    const current = pickOf(code);
+    if (current) {
+      if (p.benchmarks.length === 1) return;
+      p.onBenchmarks(p.benchmarks.filter(b => b.code !== code));
+      return;
+    }
+    if (full) return;
+    const info = catalog.find(c => c.code === code);
+    const pick: BenchmarkPick = { code };
+    if (info?.acceptsSpread) {
+      const v = parsedSpread();
+      if (v == null) return;
       pick.spread = v;
     }
-    if (p.benchmarks.some(b => benchKey(b) === benchKey(pick))) return;
     p.onBenchmarks([...p.benchmarks, pick]);
-    setAdding('');
+  };
+
+  // IPCA + x% ligado: a taxa digitada vale ao sair do campo (ou Enter), sem mudar a posição do índice na lista
+  const applySpread = (code: string) => {
+    const v = parsedSpread();
+    if (v == null) return;
+    p.onBenchmarks(p.benchmarks.map(b => (b.code === code ? { ...b, spread: v } : b)));
   };
 
   const nameOf = (b: BenchmarkPick) => {
@@ -151,35 +167,39 @@ export const PerformanceFilters = (p: Props) => {
           Comparar com
           <InfoTooltip content={`Até ${MAX_BENCHMARKS} indicadores. O primeiro é o principal (cards e diferença). IPCA + x% usa a taxa real informada (% a.a.). O IVVB11 é um ETF que replica o S&P 500 em reais — uma aproximação, não a série oficial do índice.`} />
         </span>
-        {p.benchmarks.map(b => (
-          <span key={benchKey(b)} title={treasuryNote(b)}
-            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white">
-            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: seriesColor(b.code, isDark) }} aria-hidden="true" />
-            {nameOf(b)}
-            <button type="button" aria-label={`Remover ${nameOf(b)}`} className="text-gray-400 hover:text-white"
-              disabled={p.benchmarks.length === 1}
-              onClick={() => p.onBenchmarks(p.benchmarks.filter(x => benchKey(x) !== benchKey(b)))}>
-              <X className="h-3 w-3" />
-            </button>
-          </span>
-        ))}
-        {p.benchmarks.length < MAX_BENCHMARKS && (
-          <span className="inline-flex items-center gap-1">
-            <select aria-label="Adicionar benchmark" value={adding} onChange={e => setAdding(e.target.value)}
-              className="rounded-md border border-surface-light bg-surface px-2 py-1 text-xs text-white">
-              <option value="">Adicionar…</option>
-              {available.map(b => <option key={b.code} value={b.code}>{b.name}</option>)}
-            </select>
-            {addingInfo?.acceptsSpread && (
-              <input aria-label="Taxa real (% a.a.)" value={spread} onChange={e => setTypedSpread(e.target.value)}
-                className="w-16 rounded-md border border-surface-light bg-surface px-2 py-1 text-xs text-white" />
-            )}
-            <button type="button" onClick={add} disabled={!adding} aria-label="Adicionar"
-              className="rounded-md bg-white/5 p-1 text-gray-300 hover:bg-white/10 disabled:opacity-40">
-              <Plus className="h-3.5 w-3.5" />
-            </button>
-          </span>
-        )}
+        {catalog.map(info => {
+          const pick = pickOf(info.code);
+          const on = !!pick;
+          const label = pick ? nameOf(pick) : info.name;
+          const locked = on ? p.benchmarks.length === 1 : full;
+          return (
+            <span key={info.code} className="inline-flex items-center gap-1">
+              <button type="button" aria-pressed={on} disabled={locked} onClick={() => toggle(info.code)}
+                title={(pick && treasuryNote(pick)) || (locked
+                  ? (on ? 'Ao menos um índice precisa ficar selecionado' : `Até ${MAX_BENCHMARKS} índices`)
+                  : (on ? `Remover ${label}` : `Comparar com ${label}`))}
+                className={clsx(
+                  'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed',
+                  on
+                    ? 'border-accent/40 bg-accent/15 text-accent hover:bg-accent/25'
+                    : 'border-white/10 bg-surface-light/40 text-gray-500 hover:text-gray-300 disabled:hover:text-gray-500',
+                )}>
+                <span className={clsx('inline-block h-2 w-2 rounded-full', !on && 'opacity-40')}
+                  style={{ background: seriesColor(info.code, isDark) }} aria-hidden="true" />
+                {label}
+              </button>
+              {info.acceptsSpread && (
+                <input aria-label="Taxa real (% a.a.)" value={pick?.spread != null && typedSpread == null
+                  ? String(pick.spread).replace('.', ',') : spread}
+                  disabled={!on} title={on ? undefined : `Ligue o ${info.name} para informar a taxa`}
+                  onChange={e => setTypedSpread(e.target.value)}
+                  onBlur={() => on && typedSpread != null && applySpread(info.code)}
+                  onKeyDown={e => { if (e.key === 'Enter' && on) applySpread(info.code); }}
+                  className="w-14 rounded-md border border-surface-light bg-surface px-2 py-1 text-xs text-white disabled:cursor-not-allowed disabled:opacity-40" />
+              )}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
