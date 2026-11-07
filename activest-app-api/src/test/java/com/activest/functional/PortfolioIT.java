@@ -188,6 +188,63 @@ class PortfolioIT extends FunctionalBase {
             .isAfterOrEqualTo((java.sql.Timestamp) before.get("updated_at"));
     }
 
+    /** Compra de Tesouro (cada compra e um titulo novo); a taxa e informada como na tela. */
+    private Map<String, Object> treasuryBuy(String data) {
+        Map<String, Object> body = buy(CatalogIds.TREASURY_IPCA_2050, data, "1", "830.07");
+        body.put("indexerRate", new BigDecimal("7.09"));
+        return body;
+    }
+
+    private List<Object> treasuryReservations() {
+        return portfolioOf(owner).stream()
+            .filter(row -> CatalogIds.TREASURY_IPCA_2050.equals(row.get("ticker")))
+            .map(row -> row.get("isReservation"))
+            .toList();
+    }
+
+    @Test
+    @DisplayName("Tesouro: a reserva e do ativo — o switch de um titulo vale para todos do mesmo papel (G7)")
+    void treasuryReservationIsByAsset() {
+        recordSuccessfully(owner, treasuryBuy("2026-09-01"));
+        recordSuccessfully(owner, treasuryBuy("2026-09-02"));
+        Object first = portfolioOf(owner).stream()
+            .filter(row -> CatalogIds.TREASURY_IPCA_2050.equals(row.get("ticker")))
+            .findFirst().orElseThrow().get("id");
+
+        assertThat(markAsReserve(owner, first, true).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(treasuryReservations()).hasSize(2).containsOnly(true);
+
+        markAsReserve(owner, first, false);
+        assertThat(treasuryReservations()).hasSize(2).containsOnly(false);
+    }
+
+    @Test
+    @DisplayName("Tesouro: compra nova de um papel na reserva ja nasce na reserva (G7)")
+    void treasuryPurchaseInheritsReservation() {
+        recordSuccessfully(owner, treasuryBuy("2026-09-01"));
+        markAsReserve(owner, positionOf(owner, CatalogIds.TREASURY_IPCA_2050).get("id"), true);
+
+        recordSuccessfully(owner, treasuryBuy("2026-09-02"));
+
+        assertThat(treasuryReservations()).hasSize(2).containsOnly(true);
+    }
+
+    @Test
+    @DisplayName("Renda Fixa continua por titulo: reservar um CDB nao leva o outro junto (G8)")
+    void fixedIncomeReservationStaysByNote() {
+        recordSuccessfully(owner, cdbInvestment(CatalogIds.CDB, "2026-09-01", "1000.00", "BTG"));
+        recordSuccessfully(owner, cdbInvestment(CatalogIds.CDB, "2026-09-02", "500.00", "Inter"));
+        List<Map<String, Object>> cdbs = portfolioOf(owner).stream()
+            .filter(row -> CatalogIds.CDB.equals(row.get("ticker"))).toList();
+        assertThat(cdbs).hasSize(2);
+
+        markAsReserve(owner, cdbs.get(0).get("id"), true);
+
+        assertThat(portfolioOf(owner).stream()
+            .filter(row -> CatalogIds.CDB.equals(row.get("ticker")))
+            .map(row -> row.get("isReservation")).toList()).containsExactlyInAnyOrder(true, false);
+    }
+
     @Test
     @DisplayName("Sem token, a carteira responde 401")
     void withoutToken() {

@@ -487,8 +487,8 @@ public class PerformanceService {
 
     public BreakdownDTO breakdown(UUID userId, Request req, String level) {
         String lv = level == null ? "POSITION" : level.trim().toUpperCase(Locale.ROOT);
-        if (!Set.of("TYPE", "CATEGORY", "POSITION", "ISSUER").contains(lv)) {
-            throw new BusinessException("Nível inválido: " + level + " (use TYPE, CATEGORY, POSITION ou ISSUER)");
+        if (!Set.of("TYPE", "CATEGORY", "POSITION", "ISSUER", "ASSET").contains(lv)) {
+            throw new BusinessException("Nível inválido: " + level + " (use TYPE, CATEGORY, POSITION, ASSET ou ISSUER)");
         }
         Ctx c = context(userId, req);
         if (c.empty()) {
@@ -501,6 +501,9 @@ public class PerformanceService {
                 case "TYPE" -> p.typeName();
                 case "CATEGORY" -> String.valueOf(p.categoryId());
                 case "ISSUER" -> p.issuerGroup() != null ? "I:" + p.issuerGroup() : null;
+                // Por ativo (PLANO_AGRUPAMENTO_TITULOS.md, G6): os titulos do Tesouro de um mesmo papel numa serie so.
+                // O tipo entra na chave porque o ticker sozinho nao e unico entre tipos.
+                case "ASSET" -> "A:" + p.typeName() + ":" + p.assetId();
                 default -> p.id().toString();
             };
             if (k != null) {
@@ -561,16 +564,21 @@ public class PerformanceService {
                     label = p0.issuerGroup();
                     detail = members.size() + (members.size() == 1 ? " título" : " títulos");
                 }
+                case "ASSET" -> {
+                    label = p0.ticker();
+                    detail = members.size() > 1 ? members.size() + " títulos" : p0.name();
+                }
                 default -> {
                     label = p0.ticker();
                     detail = p0.noteLabel() != null ? p0.noteLabel() : p0.name();
                 }
             }
             boolean posLevel = "POSITION".equals(lv);
+            boolean tickerLevel = posLevel || "ASSET".equals(lv);
             rows.add(new BreakdownRowDTO(e.getKey(), label, detail, p0.typeName(), p0.typeDescription(),
                     "TYPE".equals(lv) ? null : p0.categoryId(), "TYPE".equals(lv) ? null : p0.categoryName(),
-                    posLevel ? p0.id() : null, posLevel ? p0.ticker() : null,
-                    posLevel && TYPES_WITH_LOGO.contains(p0.typeName()) ? assetLogos.hasLogo(p0.ticker(), p0.typeName()) : null,
+                    posLevel ? p0.id() : null, tickerLevel ? p0.ticker() : null,
+                    tickerLevel && TYPES_WITH_LOGO.contains(p0.typeName()) ? assetLogos.hasLogo(p0.ticker(), p0.typeName()) : null,
                     pct(individual), unavailable ? null : money(gain),
                     unavailable || total == null ? null : pct(contrib),
                     weightDays > 0 ? round(weight / weightDays * 100, 4) : null,

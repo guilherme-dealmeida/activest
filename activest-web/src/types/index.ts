@@ -328,6 +328,8 @@ export interface PortfolioAssetDetail {
   classicReturn?: number | null;
   /** Só na tela: TWR bruto desde o início da posição (`/performance/breakdown`), em %. null = indisponível. */
   twr?: number | null;
+  /** Só na tela: linha-mãe dos títulos do Tesouro (PLANO_AGRUPAMENTO_TITULOS) — quantos títulos ela soma. */
+  groupSize?: number;
 }
 
 /**

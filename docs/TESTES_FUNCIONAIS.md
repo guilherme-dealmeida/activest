@@ -243,7 +243,7 @@ Cadastro, entrada e conta de ponta a ponta na API (docs/planos/PLANO_CADASTRO_US
 | 13 | C23: excluir a conta com o codigo apaga o usuario e os dados; o token deixa de valer | `excluirConta` |
 | 14 | Foto de perfil: envio vira JPEG quadrado, sai com a versao no perfil, recusa invalida e remove | `fotoDePerfil` |
 
-### PortfolioIT (13)
+### PortfolioIT (16)
 
 `activest-app-api/src/test/java/com/activest/functional/PortfolioIT.java`
 
@@ -264,6 +264,9 @@ A tela Carteira: posicao apurada das transacoes, valorizacao e o switch da reser
 | 11 | A quantidade de cripto mantem as 8 casas | `fracaoDeCripto` |
 | 12 | transactions.updated_at muda na edicao; created_at nao | `auditoriaDeDatas` |
 | 13 | Sem token, a carteira responde 401 | `semToken` |
+| 14 | Tesouro: a reserva e do ativo — o switch de um titulo vale para todos do mesmo papel (G7) | `treasuryReservationIsByAsset` |
+| 15 | Tesouro: compra nova de um papel na reserva ja nasce na reserva (G7) | `treasuryPurchaseInheritsReservation` |
+| 16 | Renda Fixa continua por titulo: reservar um CDB nao leva o outro junto (G8) | `fixedIncomeReservationStaysByNote` |
 
 ### StrategyIT (13)
 

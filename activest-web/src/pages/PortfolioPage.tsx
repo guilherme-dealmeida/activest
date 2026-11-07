@@ -3,10 +3,10 @@ import { BonusCostBadge } from '@/components/notifications/BonusCostBadge';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { clsx } from 'clsx';
-import { ArrowDownLeft, ArrowUpRight, List } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronRight, List } from 'lucide-react';
 import { portfolioApi } from '@/api/portfolio';
 import { assetsApi } from '@/api/assets';
-import { AssetLogo } from '@/components/ui/AssetLogo';
+import { PositionLogo } from '@/components/ui/PositionLogo';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Switch } from '@/components/ui/Switch';
 import { LabelWithInfo } from '@/components/ui/InfoTooltip';
@@ -15,14 +15,15 @@ import { useToast } from '@/context/ToastContext';
 import { TransactionFormModal, TransactionPreset } from '@/components/transactions/TransactionFormModal';
 import { presetFromPosition } from '@/components/transactions/transactionPreset';
 import { TABLE_ACTION_CLASS } from '@/components/ui/tableAction';
-import { useSortable } from '@/hooks/useSortable';
+import { sortRows, useSortable } from '@/hooks/useSortable';
 import { AssetType, PortfolioAssetDetail, RateType, TransactionType } from '@/types';
 import { formatCurrency, formatDate, formatFxRate, formatMoney, formatPercentage, formatQuantity, formatUnitPrice, getReturnColor } from '@/utils/format';
-import { RENDA_FIXA, TESOURO_DIRETO, isFixedIncomeNote, typeLogo } from '@/utils/assetTypeRules';
+import { RENDA_FIXA, TESOURO_DIRETO, isFixedIncomeNote } from '@/utils/assetTypeRules';
 import { apiMessage } from '@/utils/apiError';
 import { TickerLink } from '@/components/issuer/TickerLink';
 import { performanceApi } from '@/api/performance';
-import { POSITIONS_TWR_KEY, classicReturn } from '@/utils/returns';
+import { ASSETS_TWR_KEY, POSITIONS_TWR_KEY, classicReturn } from '@/utils/returns';
+import { PortfolioRow, assetKey, commonNoteInfo, groupTreasuryTitles } from '@/utils/portfolioGroups';
 import { foreignTotals, lotTotals, portfolioTotals } from '@/utils/portfolioTotals';
 import { assetText, useAssetLabel } from '@/utils/assetLabel';
 
@@ -249,23 +250,22 @@ const COLUMNS: Column[] = [
     key: 'ticker',
     label: 'ATIVO',
     align: 'left',
-    render: (a, type) => {
-      const logoOfType = typeLogo(type.name);
-      return (
+    render: (a, type) => (
       // Nome do ativo só no hover (tooltip nativo), não mais abaixo do ticker.
       <div className="flex items-center gap-3" title={a.assetName || undefined}>
-        {/* Logo à esquerda do ticker (B25). Tesouro e Renda Fixa usam o do tipo;
-            nos demais, null = tipo sem logo. */}
-        {/* Renda fixa: o logo do grupo da emissora, quando há (D5); senão o "RF" do tipo */}
-        {type.name === RENDA_FIXA && a.noteInfo?.issuerLogoUrl
-          ? <AssetLogo ticker={a.ticker} hasLogo src={a.noteInfo.issuerLogoUrl} label="RF" size={38} shape="square" />
-          : logoOfType
-          ? <AssetLogo ticker={a.ticker} hasLogo={!!logoOfType.src} src={logoOfType.src} label={logoOfType.label} size={38} shape="square" />
-          : a.hasLogo !== null && a.hasLogo !== undefined && <AssetLogo ticker={a.ticker} hasLogo={a.hasLogo} assetType={type.name} size={38} shape="square" />}
-        <TickerLink ticker={a.ticker} issuerId={a.issuerId} />
+        {/* Logo à esquerda do ticker (B25): regras em PositionLogo (tipo, emissora da RF ou o do ativo). */}
+        <PositionLogo typeName={type.name} asset={a} />
+        {/* Linha-mãe do Tesouro: "N títulos" embaixo do nome, alinhado com o texto (review R2) */}
+        {a.groupSize
+          ? (
+            <div className="flex flex-col">
+              <TickerLink ticker={a.ticker} issuerId={a.issuerId} />
+              <span className="text-xs font-normal text-gray-400">{a.groupSize} títulos</span>
+            </div>
+          )
+          : <TickerLink ticker={a.ticker} issuerId={a.issuerId} />}
       </div>
-      );
-    },
+    ),
   },
   {
     key: 'categoryName',
@@ -340,7 +340,10 @@ const COLUMNS: Column[] = [
     label: 'TAXA',
     align: 'right',
     visible: showRate,
-    render: (a) => formatRate(a),
+    // linha-mãe do Tesouro: a média dos títulos ponderada pelo valor inicial (review R1)
+    render: (a) => a.groupSize
+      ? <span title="Média das taxas dos títulos, ponderada pelo valor inicial de cada um.">{formatRate(a)}</span>
+      : formatRate(a),
   },
   {
     key: 'totalShares',
@@ -556,16 +559,23 @@ interface TableProps {
   reservation: ReservationControl;
   /** TWR bruto desde o início por posição (id → %); ausente = ainda carregando ou sem número. */
   twrByPosition: Map<string, number | null>;
+  /** TWR bruto desde o início por ativo (assetKey → %), para a linha-mãe do Tesouro (PLANO_AGRUPAMENTO_TITULOS, G6). */
+  twrByAsset: Map<string, number | null>;
   /** TWR bruto desde o início do tipo inteiro (a aba), para a linha de Totais. */
   typeTwr: number | null | undefined;
   /** Alguma flag desligada: o TWR do tipo não vale para o subconjunto (TWR não se soma). */
   partial?: boolean;
   onList: (asset: PortfolioAssetDetail) => void;
+  /** Listar da linha-mãe: as transações do ativo inteiro (todos os títulos). */
+  onListAsset: (ticker: string) => void;
   onBuy: (asset: PortfolioAssetDetail) => void;
   onSell: (asset: PortfolioAssetDetail) => void;
 }
 
-const PortfolioTypeTable = ({ type, assets, reservation, twrByPosition, typeTwr, partial, onList, onBuy, onSell }: TableProps) => {
+/** Linha da tabela já com o registro exibido (a posição, ou a soma do grupo) e a referência ao agrupamento. */
+type DisplayRow = PortfolioAssetDetail & { __row: PortfolioRow<PortfolioAssetDetail> };
+
+const PortfolioTypeTable = ({ type, assets, reservation, twrByPosition, twrByAsset, typeTwr, partial, onList, onListAsset, onBuy, onSell }: TableProps) => {
   // Regra (A): só renda fixa compõe reserva de emergência. A condição é a
   // coluna fixed_income do tipo, e não uma lista de nomes — Renda Fixa e
   // Tesouro Direto hoje, e qualquer tipo novo marcado assim amanhã.
@@ -582,10 +592,28 @@ const PortfolioTypeTable = ({ type, assets, reservation, twrByPosition, typeTwr,
     })),
     [assets, twrByPosition]
   );
-  const { sortedData, requestSort, getSortIndicator, getSortClass } = useSortable(rowList, {
+  // Tesouro: títulos do mesmo ativo numa linha-mãe (docs/planos/PLANO_AGRUPAMENTO_TITULOS.md); a mãe ordena pelos
+  // valores somados junto com as linhas simples, e os títulos dentro dela pela mesma coluna (D2).
+  const displayRows = useMemo<DisplayRow[]>(
+    () => groupTreasuryTitles(type.name === TESOURO_DIRETO, rowList).map((row) => row.kind === 'group'
+      ? { ...row.group, twr: twrByAsset.get(assetKey(type.description, row.group.ticker)) ?? null, __row: row }
+      : { ...row.position, __row: row }),
+    [type, rowList, twrByAsset]
+  );
+  const { sortedData, requestSort, getSortIndicator, getSortClass, sortConfig } = useSortable(displayRows, {
     key: 'ticker',
     direction: 'asc',
   });
+  // Coluna do chevron só quando a aba tem linha-mãe: o logo e o nome da mãe ficam alinhados com as demais (review R2).
+  const hasGroups = displayRows.some((d) => d.__row.kind === 'group');
+  // D1: as mães começam recolhidas e o estado não é lembrado (a aba remonta na troca de tipo).
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleGroup = (key: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
 
   const columns = COLUMNS.filter((c) => !c.visible || c.visible(type));
 
@@ -636,6 +664,92 @@ const PortfolioTypeTable = ({ type, assets, reservation, twrByPosition, typeTwr,
   // "Totais" ocupa as colunas até a primeira que tem total.
   const labelSpan = columns.findIndex((c) => c.key in footer);
 
+  /** Ícones Listar, Comprar e Vender (G3: na linha-mãe e nos títulos). */
+  const actions = (list: () => void, buy: () => void, sell: () => void, listTitle: string) => (
+    <td className="py-3 px-3">
+      <div className="flex items-center justify-center gap-1">
+        <button onClick={list} title={listTitle} className={TABLE_ACTION_CLASS}>
+          <List className="w-4 h-4" />
+        </button>
+        <button onClick={buy} title="Comprar" className={TABLE_ACTION_CLASS}>
+          <ArrowDownLeft className="w-4 h-4" />
+        </button>
+        <button onClick={sell} title="Vender" className={TABLE_ACTION_CLASS}>
+          <ArrowUpRight className="w-4 h-4" />
+        </button>
+      </div>
+    </td>
+  );
+
+  const reservationSwitch = (asset: PortfolioAssetDetail, target: PortfolioAssetDetail, pending: boolean, label: string) => (
+    <td className="py-3 px-3">
+      <div className="flex items-center justify-center">
+        <Switch
+          checked={asset.isReservation}
+          disabled={pending}
+          onChange={(next) => reservation.onToggle(target, next)}
+          label={`Reserva de emergência — ${label}`}
+          title={asset.isReservation ? 'Retirar da reserva de emergência' : 'Incluir na reserva de emergência'}
+        />
+      </div>
+    </td>
+  );
+
+  /**
+   * Linha de uma posição: simples, ou título dentro de uma linha-mãe do Tesouro. O título agrupado não tem interruptor
+   * de reserva — a reserva do Tesouro é do ativo e fica na mãe (G7).
+   */
+  const renderPosition = (asset: PortfolioAssetDetail, kind: 'single' | 'child') => (
+    // key pelo id da posição: o ticker não é único na carteira.
+    <tr key={asset.id} className={clsx('border-b border-white/5 hover:bg-white/5 transition-colors', kind === 'child' && 'bg-white/[0.02]')}>
+      {showReservation && (kind === 'single'
+        ? reservationSwitch(asset, asset, reservation.pendingId === asset.id, assetText(asset.ticker))
+        : <td className="py-3 px-3" />)}
+      {hasGroups && <td className="py-3 px-1" />}
+      {/* título agrupado sem recuo: alinhado com as outras linhas, só o fundo o distingue (review R2) */}
+      {columns.map((col) => (
+        <td key={col.key} className={clsx('py-3 px-3', col.align === 'right' && 'text-right')}>
+          {col.render(asset, type)}
+        </td>
+      ))}
+      {actions(() => onList(asset), () => onBuy(asset), () => onSell(asset), 'Ver as transações desta posição')}
+    </tr>
+  );
+
+  /**
+   * Linha-mãe (G1–G6, review R1/R2): chevron na coluna própria, "N títulos" embaixo do nome; valores somados; dados
+   * comuns aos títulos e a taxa média vêm de aggregatePositions; reserva do ativo inteiro; Listar pelo ticker e
+   * Comprar/Vender com a distribuidora só quando todos os títulos têm a mesma (D4).
+   */
+  const renderGroup = (group: PortfolioAssetDetail, key: string, children: PortfolioAssetDetail[], open: boolean) => {
+    const presetBase = { ...group, noteInfo: commonNoteInfo(children) };
+    const Chevron = open ? ChevronDown : ChevronRight;
+    return (
+      <tr key={key} className="border-b border-white/5 hover:bg-white/5 transition-colors font-medium">
+        {showReservation && reservationSwitch(group, children[0],
+          children.some((c) => c.id === reservation.pendingId), `${assetText(group.ticker)} (todos os títulos)`)}
+        <td className="py-3 px-1">
+          <button
+            type="button"
+            onClick={() => toggleGroup(key)}
+            aria-expanded={open}
+            title={open ? 'Recolher os títulos' : 'Mostrar os títulos'}
+            className="rounded p-1 text-gray-400 hover:bg-white/10 hover:text-white"
+          >
+            <Chevron className="w-4 h-4" />
+          </button>
+        </td>
+        {columns.map((col) => (
+          <td key={col.key} className={clsx('py-3 px-3', col.align === 'right' && 'text-right')}>
+            {col.render(group, type)}
+          </td>
+        ))}
+        {actions(() => onListAsset(group.ticker), () => onBuy(presetBase), () => onSell(presetBase),
+          'Ver as transações de todos os títulos deste ativo')}
+      </tr>
+    );
+  };
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -645,11 +759,14 @@ const PortfolioTypeTable = ({ type, assets, reservation, twrByPosition, typeTwr,
                 estado muda com um clique ali mesmo. */}
             {showReservation && (
               <th className="py-3 px-3 font-medium text-xs text-center">
-                <LabelWithInfo info="Marque os títulos que fazem parte da sua reserva de emergência. Eles saem do rebalanceamento por tipo e passam a contar no bloco da reserva.">
+                <LabelWithInfo info={type.name === TESOURO_DIRETO
+                  ? 'Marque os ativos que fazem parte da sua reserva de emergência. No Tesouro a reserva é do ativo: vale para todos os títulos dele, inclusive as próximas compras. Eles saem do rebalanceamento por tipo e passam a contar no bloco da reserva.'
+                  : 'Marque os títulos que fazem parte da sua reserva de emergência. Eles saem do rebalanceamento por tipo e passam a contar no bloco da reserva.'}>
                   RESERVA
                 </LabelWithInfo>
               </th>
             )}
+            {hasGroups && <th className="w-8 py-3 px-1" aria-label="Agrupamento" />}
             {columns.map((col) => (
               <th
                 key={col.key}
@@ -675,62 +792,19 @@ const PortfolioTypeTable = ({ type, assets, reservation, twrByPosition, typeTwr,
           </tr>
         </thead>
         <tbody>
-          {sortedData.map((asset) => (
-            // key pelo id da posição: o ticker não é único na carteira.
-            <tr key={asset.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-              {showReservation && (
-                <td className="py-3 px-3">
-                  <div className="flex items-center justify-center">
-                    <Switch
-                      checked={asset.isReservation}
-                      disabled={reservation.pendingId === asset.id}
-                      onChange={(next) => reservation.onToggle(asset, next)}
-                      label={`Reserva de emergência — ${assetText(asset.ticker)}`}
-                      title={
-                        asset.isReservation
-                          ? 'Retirar da reserva de emergência'
-                          : 'Incluir na reserva de emergência'
-                      }
-                    />
-                  </div>
-                </td>
-              )}
-              {columns.map((col) => (
-                <td key={col.key} className={clsx('py-3 px-3', col.align === 'right' && 'text-right')}>
-                  {col.render(asset, type)}
-                </td>
-              ))}
-              <td className="py-3 px-3">
-                <div className="flex items-center justify-center gap-1">
-                  <button
-                    onClick={() => onList(asset)}
-                    title="Ver as transações desta posição"
-                    className={TABLE_ACTION_CLASS}
-                  >
-                    <List className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => onBuy(asset)}
-                    title="Comprar"
-                    className={TABLE_ACTION_CLASS}
-                  >
-                    <ArrowDownLeft className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => onSell(asset)}
-                    title="Vender"
-                    className={TABLE_ACTION_CLASS}
-                  >
-                    <ArrowUpRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
+          {sortedData.flatMap((display) => {
+            const row = display.__row;
+            if (row.kind === 'position') {
+              return [renderPosition(display, 'single')];
+            }
+            const open = expanded.has(row.key);
+            const children = sortRows(row.children, sortConfig);
+            return [renderGroup(display, row.key, row.children, open), ...(open ? children.map((c) => renderPosition(c, 'child')) : [])];
+          })}
         </tbody>
         <tfoot>
           <tr className="border-t border-white/10 font-semibold">
-            <td className="py-3 px-3" colSpan={labelSpan + (showReservation ? 1 : 0)}>
+            <td className="py-3 px-3" colSpan={labelSpan + (showReservation ? 1 : 0) + (hasGroups ? 1 : 0)}>
               Totais
             </td>
             {columns.slice(labelSpan).map((col) => (
@@ -753,7 +827,7 @@ const PortfolioTypeTable = ({ type, assets, reservation, twrByPosition, typeTwr,
  * cada troca de tipo (key pelo type.id) — é o mesmo mecanismo que devolve a
  * ordenação ao padrão, e faz com que toda aba comece com tudo ligado.
  */
-const PortfolioTypeSection = ({ type, assets, reservation, twrByPosition, typeTwr, onList, onBuy, onSell }: TableProps) => {
+const PortfolioTypeSection = ({ type, assets, reservation, twrByPosition, twrByAsset, typeTwr, onList, onListAsset, onBuy, onSell }: TableProps) => {
   const [offKeys, setOffKeys] = useState<Set<string>>(new Set());
 
   // Só entram na fila as chaves que têm posição nesta aba.
@@ -782,9 +856,11 @@ const PortfolioTypeSection = ({ type, assets, reservation, twrByPosition, typeTw
           assets={visible}
           reservation={reservation}
           twrByPosition={twrByPosition}
+          twrByAsset={twrByAsset}
           typeTwr={typeTwr}
           partial={visible.length < assets.length}
           onList={onList}
+          onListAsset={onListAsset}
           onBuy={onBuy}
           onSell={onSell}
         />
@@ -832,6 +908,15 @@ export const PortfolioPage = () => {
   const twrByPosition = useMemo(
     () => new Map((positionsTwr?.rows ?? []).filter(r => r.positionId).map(r => [r.positionId as string, r.individual])),
     [positionsTwr]
+  );
+  // TWR por ativo: a linha-mãe dos títulos do Tesouro (PLANO_AGRUPAMENTO_TITULOS, G6) — mesma consulta do Top 5.
+  const { data: assetsTwr } = useQuery({
+    queryKey: ASSETS_TWR_KEY,
+    queryFn: () => performanceApi.breakdown({ range: 'MAX', basis: 'GROSS' }, 'ASSET'),
+  });
+  const twrByAsset = useMemo(
+    () => new Map((assetsTwr?.rows ?? []).filter(r => r.ticker).map(r => [assetKey(r.typeDescription, r.ticker), r.individual])),
+    [assetsTwr]
   );
 
   /**
@@ -929,8 +1014,10 @@ export const PortfolioPage = () => {
             assets={activeTab.assets}
             reservation={reservation}
             twrByPosition={twrByPosition}
+            twrByAsset={twrByAsset}
             typeTwr={typesTwr?.rows.find(r => r.typeName === activeTab.type.name)?.individual}
             onList={(asset) => navigate(`/transactions?position=${asset.id}`)}
+            onListAsset={(ticker) => navigate(`/transactions?ticker=${encodeURIComponent(ticker)}`)}
             onBuy={(asset) => setPreset(presetFromPosition(TransactionType.BUY, activeTab.type, asset))}
             onSell={(asset) => setPreset(presetFromPosition(TransactionType.SELL, activeTab.type, asset))}
           />

@@ -110,6 +110,29 @@ class PerformanceIT extends FunctionalBase {
     }
 
     @Test
+    @DisplayName("Breakdown ASSET: uma linha por ativo com o ticker e sem posicao; nivel invalido 422")
+    @SuppressWarnings("unchecked")
+    void breakdownByAsset() {
+        quotes(CatalogIds.STOCK);
+        recordSuccessfully(owner, buy(CatalogIds.STOCK, START.toString(), "10", "30.00"));
+
+        ResponseEntity<Map> r = get(owner, "/api/v1/performance/breakdown?level=ASSET&basis=GROSS", Map.class);
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);
+        List<Map<String, Object>> rows = (List<Map<String, Object>>) r.getBody().get("rows");
+        assertThat(rows).hasSize(1);
+        Map<String, Object> row = rows.get(0);
+        assertThat(row.get("ticker")).isEqualTo(CatalogIds.STOCK);
+        assertThat(row.get("positionId")).isNull();
+        // mesmo TWR da posicao (um titulo so)
+        List<Map<String, Object>> byPosition = (List<Map<String, Object>>) get(owner,
+                "/api/v1/performance/breakdown?level=POSITION&basis=GROSS", Map.class).getBody().get("rows");
+        assertThat(number(row.get("individual"))).isEqualByComparingTo(number(byPosition.get(0).get("individual")));
+
+        assertThat(get(owner, "/api/v1/performance/breakdown?level=XYZ", String.class).getStatusCode())
+                .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+    }
+
+    @Test
     @DisplayName("Escopo por dono: posicao de outro usuario responde 404; parametro invalido 422")
     @SuppressWarnings("unchecked")
     void scope() {
