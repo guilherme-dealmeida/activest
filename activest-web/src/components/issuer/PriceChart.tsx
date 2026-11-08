@@ -1,3 +1,4 @@
+import { useCalendarAxis } from '@/hooks/useCalendarAxis';
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
@@ -16,10 +17,6 @@ const DEFAULT_RANGE: PriceRange = '1A';
 const GOLD = '#c9a84c';
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
-const shortDate = (iso: string, long: boolean) => {
-  const [y, m, d] = iso.slice(0, 10).split('-');
-  return long ? `${m}/${y}` : `${d}/${m}`;
-};
 
 interface TooltipPayload {
   active?: boolean;
@@ -83,14 +80,12 @@ export const PriceChart = ({ ticker }: { ticker: string }) => {
     setParams(next, { replace: true });
   };
 
-  const longAxis = useMemo(() => {
-    if (!data?.from || !data?.to) return false;
-    return (new Date(data.to).getTime() - new Date(data.from).getTime()) / 86_400_000 > 400;
-  }, [data]);
-
   const grid = isDark ? '#2a2a2a' : '#e8e8e0';
   const axis = isDark ? '#777777' : '#777777';
-  const points = data?.points ?? [];
+  const points = useMemo(() => data?.points ?? [], [data]);
+  // eixo X de calendário (docs/planos/PLANO_CALENDARIO_GRAFICOS.md)
+  const times = useMemo(() => points.map(p => p.time), [points]);
+  const { ref: axisRef, axisProps } = useCalendarAxis(times);
 
   return (
     <Card>
@@ -156,7 +151,7 @@ export const PriceChart = ({ ticker }: { ticker: string }) => {
         </div>
       )}
 
-      <div className="h-72">
+      <div ref={axisRef} className="h-72">
         {isLoading && !data ? (
           <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-6 w-6 text-accent" /></div>
         ) : isError ? (
@@ -179,11 +174,10 @@ export const PriceChart = ({ ticker }: { ticker: string }) => {
               <CartesianGrid stroke={grid} strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="time"
-                tickFormatter={(v: string) => shortDate(v, longAxis)}
+                {...axisProps}
                 tick={{ fill: axis, fontSize: 11 }}
                 tickLine={false}
                 axisLine={{ stroke: grid }}
-                minTickGap={32}
               />
               <YAxis
                 domain={['auto', 'auto']}

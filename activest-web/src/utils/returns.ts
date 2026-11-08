@@ -15,3 +15,9 @@ export const classicReturn = (valorization: number, dividends: number, invested:
  * do Dashboard, para as duas telas mostrarem o mesmo número e dividirem o cache.
  */
 export const POSITIONS_TWR_KEY = ['performance', 'positions', 'MAX', 'bruto'] as const;
+
+/**
+ * Chave do TWR bruto desde o início por ATIVO (nível ASSET): a linha-mãe dos títulos do Tesouro na Carteira e o Top 5
+ * do Dashboard (docs/planos/PLANO_AGRUPAMENTO_TITULOS.md, G6). TWR não se soma entre títulos: vem do motor.
+ */
+export const ASSETS_TWR_KEY = ['performance', 'assets', 'MAX', 'bruto'] as const;

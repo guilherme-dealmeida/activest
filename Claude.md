@@ -932,7 +932,7 @@ passo a passo no apêndice A do plano); origens autorizadas `http://localhost` e
 | GET | `/api/v1/portfolio/allocation/detailed` | Alocação por tipo e categoria — **sempre sem** a reserva de emergência |
 | GET | `/api/v1/portfolio/allocation/reservation` | Reserva de emergência × geração de renda, pelo valor atual |
 | GET | `/api/v1/portfolio/dividends` | Dividendos da carteira |
-| PATCH | `/api/v1/portfolio/assets/{id}/reservation` | Liga/desliga a reserva de emergência da posição (só renda fixa) |
+| PATCH | `/api/v1/portfolio/assets/{id}/reservation` | Liga/desliga a reserva de emergência da posição (só renda fixa). No Tesouro Direto vale para todas as posições do mesmo ativo, e compra nova herda a reserva das abertas (07/11/2026, `docs/planos/PLANO_AGRUPAMENTO_TITULOS.md`, G7) |
 
 ### Transactions
 | Método | Endpoint | Descrição |
@@ -1030,7 +1030,7 @@ Parâmetros comuns: `range=1M|6M|YTD|1A|5A|MAX` (padrão MAX) ou `from`/`to`; `t
 | GET | `/api/v1/performance/series` | Acumulado da carteira e dos benchmarks por ponto (densidade diária/semanal/mensal), com marcas de indisponível, último negócio e estimado |
 | GET | `/api/v1/performance/periodic?granularity=MONTH|QUARTER|YEAR` | Retorno por período (o MONTH com `range=MAX` é o mapa de calor) |
 | GET | `/api/v1/performance/table` | Mês, ano, 12 meses e período por indicador, com a diferença para a carteira |
-| GET | `/api/v1/performance/breakdown?level=TYPE|CATEGORY|POSITION|ISSUER` | Rentabilidade individual, resultado em R$, contribuição em p.p. (Cariño, soma o TWR), peso médio, encerrada |
+| GET | `/api/v1/performance/breakdown?level=TYPE|CATEGORY|POSITION|ASSET|ISSUER` | Rentabilidade individual, resultado em R$, contribuição em p.p. (Cariño, soma o TWR), peso médio, encerrada. `ASSET` (07/11/2026): uma linha por tipo + ativo (os títulos do Tesouro de um papel juntos), com `ticker` e sem `positionId` — linha-mãe da Carteira e Top 5 |
 | GET | `/api/v1/performance/wealth` | Patrimônio nominal e corrigido pelo IPCA, investido nominal e corrigido, proventos e resultado acumulados |
 | GET | `/api/v1/performance/risk` | Volatilidade, máximo drawdown (pico e vale), Sharpe, Sortino (≥ 12 meses, sem lacuna) |
 

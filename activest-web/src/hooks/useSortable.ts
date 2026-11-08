@@ -7,6 +7,33 @@ export interface SortConfig {
   direction: SortDirection;
 }
 
+/**
+ * A ordenação do hook como função pura: a Carteira ordena também os títulos dentro de cada linha-mãe do Tesouro pela
+ * mesma coluna (docs/planos/PLANO_AGRUPAMENTO_TITULOS.md, D2).
+ */
+export function sortRows<T>(data: T[], sortConfig: SortConfig): T[] {
+  if (!sortConfig.direction || !sortConfig.key) return data;
+
+  return [...data].sort((a, b) => {
+    // A chave vem do cabeçalho clicado (string), então o acesso é dinâmico.
+    const aVal = (a as Record<string, unknown>)[sortConfig.key];
+    const bVal = (b as Record<string, unknown>)[sortConfig.key];
+
+    if (aVal == null && bVal == null) return 0;
+    if (aVal == null) return 1;
+    if (bVal == null) return -1;
+
+    let comparison = 0;
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      comparison = aVal - bVal;
+    } else {
+      comparison = String(aVal).localeCompare(String(bVal), 'pt-BR', { numeric: true });
+    }
+
+    return sortConfig.direction === 'asc' ? comparison : -comparison;
+  });
+}
+
 export function useSortable<T>(data: T[], initialSort: SortConfig = { key: '', direction: null }) {
   const [sortConfig, setSortConfig] = useState<SortConfig>(initialSort);
 
@@ -19,28 +46,7 @@ export function useSortable<T>(data: T[], initialSort: SortConfig = { key: '', d
     setSortConfig({ key, direction });
   };
 
-  const sortedData = useMemo(() => {
-    if (!sortConfig.direction || !sortConfig.key) return data;
-
-    return [...data].sort((a, b) => {
-      // A chave vem do cabeçalho clicado (string), então o acesso é dinâmico.
-      const aVal = (a as Record<string, unknown>)[sortConfig.key];
-      const bVal = (b as Record<string, unknown>)[sortConfig.key];
-
-      if (aVal == null && bVal == null) return 0;
-      if (aVal == null) return 1;
-      if (bVal == null) return -1;
-
-      let comparison = 0;
-      if (typeof aVal === 'number' && typeof bVal === 'number') {
-        comparison = aVal - bVal;
-      } else {
-        comparison = String(aVal).localeCompare(String(bVal), 'pt-BR', { numeric: true });
-      }
-
-      return sortConfig.direction === 'asc' ? comparison : -comparison;
-    });
-  }, [data, sortConfig]);
+  const sortedData = useMemo(() => sortRows(data, sortConfig), [data, sortConfig]);
 
   const getSortIndicator = (key: string) => {
     if (sortConfig.key !== key || !sortConfig.direction) return ' ↕';

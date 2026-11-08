@@ -692,6 +692,20 @@ public class TransactionService {
      * dia, porem, nao e um titulo novo — e a mesma aplicacao com mais dinheiro
      * (regra H).</p>
      */
+    /**
+     * Reserva do titulo novo do Tesouro: a reserva e do ativo
+     * (docs/planos/PLANO_AGRUPAMENTO_TITULOS.md, G7), entao a compra herda o
+     * estado das posicoes abertas do mesmo papel. Sem posicao aberta, vale o
+     * que veio no pedido (padrao: fora da reserva).
+     */
+    private boolean treasuryReservation(Portfolio portfolio, Asset asset, TransactionCreateDTO dto) {
+        return portfolioAssetRepository.findAllByPortfolioIdAndAssetId(portfolio.getId(), asset.getId()).stream()
+            .filter(other -> !other.isSettled())
+            .findFirst()
+            .map(PortfolioAsset::isReservation)
+            .orElse(dto.isReservation() != null && dto.isReservation());
+    }
+
     private TransactionResponseDTO createTreasuryPurchase(UUID userId, Portfolio portfolio,
                                                           Asset asset, TransactionCreateDTO dto, ImportOrigin importOrigin) {
         if (dto.noteId() != null) {
@@ -720,7 +734,7 @@ public class TransactionService {
             .asset(asset)
             .note(note)
             .appreciation(BigDecimal.ZERO)
-            .isReservation(dto.isReservation() != null && dto.isReservation())
+            .isReservation(treasuryReservation(portfolio, asset, dto))
             .build());
 
         Amounts amounts = resolveAmounts(asset, dto);

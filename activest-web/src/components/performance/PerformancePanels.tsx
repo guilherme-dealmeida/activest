@@ -192,7 +192,7 @@ const LEVELS: { key: BreakdownLevel; label: string }[] = [
   { key: 'ISSUER', label: 'Por emissora (RF)' },
 ];
 
-const HEADER: Record<BreakdownLevel, string> = { TYPE: 'Classe', CATEGORY: 'Categoria', POSITION: 'Ativo', ISSUER: 'Emissora' };
+const HEADER: Record<BreakdownLevel, string> = { TYPE: 'Classe', CATEGORY: 'Categoria', POSITION: 'Ativo', ISSUER: 'Emissora', ASSET: 'Ativo' };
 
 /**
  * Análise por classe, categoria, ativo e emissora (E05): rentabilidade individual e contribuição lado a lado, nunca

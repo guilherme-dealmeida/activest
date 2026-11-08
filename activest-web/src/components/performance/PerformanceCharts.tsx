@@ -1,3 +1,4 @@
+import { useCalendarAxis } from '@/hooks/useCalendarAxis';
 import { useMemo, useState } from 'react';
 import {
   Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -21,10 +22,6 @@ const useChartTheme = () => {
   };
 };
 
-const axisDate = (iso: string, long: boolean) => {
-  const [y, m, d] = iso.slice(0, 10).split('-');
-  return long ? `${m}/${y.slice(2)}` : `${d}/${m}`;
-};
 
 /** Legenda acima do gráfico: cor, nome e o valor do período (rótulo direto — a cor nunca é a única pista). */
 const SeriesLegend = ({ items, hidden, onToggle }: {
@@ -77,7 +74,9 @@ export const CumulativeChart = ({ data }: { data: PerformanceSeries }) => {
     date: p.date, [CARTEIRA]: p.portfolio, ...p.benchmarks,
     _flag: p.unavailable ? 'sem preço' : p.estimated ? 'IPCA do mês estimado na renda fixa' : p.stale ? 'algum ativo com o último preço conhecido' : '',
   })), [data]);
-  const long = data.density !== 'DIARIA';
+  // eixo X de calendário (docs/planos/PLANO_CALENDARIO_GRAFICOS.md)
+  const dates = useMemo(() => data.points.map(p => p.date), [data]);
+  const { ref: axisRef, axisProps } = useCalendarAxis(dates);
   const last = data.points.length ? data.points[data.points.length - 1] : null;
   const legend = [
     { key: CARTEIRA, name: 'Carteira', value: pct(last?.portfolio), color: seriesColor(CARTEIRA, t.isDark) },
@@ -102,12 +101,12 @@ export const CumulativeChart = ({ data }: { data: PerformanceSeries }) => {
   return (
     <div>
       <SeriesLegend items={legend} hidden={hidden} onToggle={toggle} />
-      <div className="h-80">
+      <div className="h-80" ref={axisRef}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
             <CartesianGrid stroke={t.grid} strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="date" tickFormatter={(v: string) => axisDate(v, long)} tick={{ fill: t.axis, fontSize: 11 }}
-              tickLine={false} axisLine={{ stroke: t.grid }} minTickGap={32} />
+            <XAxis dataKey="date" {...axisProps} tick={{ fill: t.axis, fontSize: 11 }}
+              tickLine={false} axisLine={{ stroke: t.grid }} />
             <YAxis tickFormatter={(v: number) => `${v.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`}
               tick={{ fill: t.axis, fontSize: 11 }} tickLine={false} axisLine={false} width={56} />
             <ReferenceLine y={0} stroke={t.axis} strokeOpacity={0.5} />
@@ -215,7 +214,8 @@ export const WealthChart = ({ data }: { data: PerformanceWealth }) => {
     if (n.has(k)) n.delete(k); else n.add(k);
     return n;
   });
-  const long = data.density !== 'DIARIA';
+  const dates = useMemo(() => data.points.map(p => p.date), [data]);
+  const { ref: axisRef, axisProps } = useCalendarAxis(dates);
   const last = data.points.length ? data.points[data.points.length - 1] : null;
   const base = data.realBase ? ` (reais de ${data.realBase.slice(5, 7)}/${data.realBase.slice(0, 4)})` : '';
   const items = WEALTH.map(w => ({
@@ -237,12 +237,12 @@ export const WealthChart = ({ data }: { data: PerformanceWealth }) => {
   return (
     <div>
       <SeriesLegend items={items} hidden={hidden} onToggle={toggle} />
-      <div className="h-72">
+      <div className="h-72" ref={axisRef}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data.points} margin={{ top: 8, right: 12, bottom: 0, left: 8 }}>
             <CartesianGrid stroke={t.grid} strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="date" tickFormatter={(v: string) => axisDate(v, long)} tick={{ fill: t.axis, fontSize: 11 }}
-              tickLine={false} axisLine={{ stroke: t.grid }} minTickGap={32} />
+            <XAxis dataKey="date" {...axisProps} tick={{ fill: t.axis, fontSize: 11 }}
+              tickLine={false} axisLine={{ stroke: t.grid }} />
             <YAxis tickFormatter={(v: number) => v.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 })}
               tick={{ fill: t.axis, fontSize: 11 }} tickLine={false} axisLine={false} width={56} />
             <Tooltip content={<Tip />} cursor={{ stroke: t.axis, strokeDasharray: '3 3' }} />

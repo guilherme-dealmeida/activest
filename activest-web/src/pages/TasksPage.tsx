@@ -306,8 +306,6 @@ const ExecutionsTab = ({ scheduled, onOpenExecution }: {
                   {!scheduled && th('startedAt', 'INÍCIO')}
                   {!scheduled && th('finishedAt', 'FIM')}
                   {!scheduled && th('durationSeconds', 'DURAÇÃO', 'text-right')}
-                  {th('triggerType', 'ORIGEM')}
-                  {!scheduled && th('requestedBy', 'PEDIDO POR')}
                   {!scheduled && th('resume', 'RESUMO')}
                   {!scheduled && th('status', 'STATUS')}
                   <th className="px-4 py-3 text-center">AÇÕES</th>
@@ -329,15 +327,11 @@ const ExecutionsTab = ({ scheduled, onOpenExecution }: {
                     {!scheduled && (<td className="px-4 py-3 whitespace-nowrap">{formatDateTime(e.startedAt, true)}</td>)}
                     {!scheduled && (<td className="px-4 py-3 whitespace-nowrap">{formatDateTime(e.finishedAt, true)}</td>)}
                     {!scheduled && (<td className="px-4 py-3 text-right whitespace-nowrap">{formatDuration(e.durationSeconds)}</td>)}
-                    <td className="px-4 py-3">
-                      <span className="cursor-help text-gray-300" title={TRIGGER_HINT[e.triggerType]}>{e.triggerType}</span>
-                    </td>
-                    {!scheduled && (<td className="px-4 py-3 text-gray-300">{e.id ? (e.requestedBy ?? 'Sistema') : ''}</td>)}
                     {!scheduled && (<td className="px-4 py-3 max-w-xs">
                       <span className="block truncate text-gray-300" title={e.resume}>{e.resume}</span>
                     </td>)}
                     {!scheduled && (
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3">    
                         <StatusBadge status={e.status} />
                         {e.stopRequestedAt && e.status === 'RUNNING' && (
                           <div className="text-xs text-orange-300 mt-1">Stop pedido</div>

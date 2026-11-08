@@ -12,7 +12,12 @@ import { Briefcase, TrendingUp, PiggyBank, HandCoins } from 'lucide-react';
 import { AllocationPieChart } from '@/components/charts/AllocationPieChart';
 import { CumulativeCard } from '@/components/performance/CumulativeCard';
 import { PerformanceSummary } from '@/types/performance';
-import { POSITIONS_TWR_KEY, classicReturn } from '@/utils/returns';
+import { ASSETS_TWR_KEY, POSITIONS_TWR_KEY, classicReturn } from '@/utils/returns';
+import { assetsApi } from '@/api/assets';
+import { AssetType } from '@/types';
+import { TESOURO_DIRETO } from '@/utils/assetTypeRules';
+import { assetKey, groupTreasuryTitles } from '@/utils/portfolioGroups';
+import { PositionLogo } from '@/components/ui/PositionLogo';
 import { assetText, useAssetLabel } from '@/utils/assetLabel';
 
 /** Uma linha de card do Dashboard: rótulo e valor (link quando leva a outra tela). */
@@ -130,6 +135,17 @@ export const DashboardPage = () => {
     queryFn: () => performanceApi.breakdown({ range: 'MAX', basis: 'GROSS' }, 'POSITION'),
   });
   const twrByPosition = new Map((byAsset?.rows ?? []).map(r => [r.positionId, r.individual]));
+  // Top 5 por ativo (docs/planos/PLANO_AGRUPAMENTO_TITULOS.md, G4/G8): os títulos do Tesouro somados por papel, com o
+  // TWR do ativo (nível ASSET); a Renda Fixa continua por título. Mesmas chaves de cache da Carteira.
+  const { data: twrAssets } = useQuery({
+    queryKey: ASSETS_TWR_KEY,
+    queryFn: () => performanceApi.breakdown({ range: 'MAX', basis: 'GROSS' }, 'ASSET'),
+  });
+  const twrByAsset = new Map((twrAssets?.rows ?? []).filter(r => r.ticker).map(r => [assetKey(r.typeDescription, r.ticker), r.individual]));
+  const { data: assetTypes } = useQuery<AssetType[]>({
+    queryKey: ['assets', 'types'],
+    queryFn: assetsApi.getTypes,
+  });
 
   // Proventos: o mesmo resumo da tela Dividendos (líquido recebido, últimos 12 meses e a receber)
   const { data: dividends } = useQuery({
@@ -148,7 +164,17 @@ export const DashboardPage = () => {
     return <div className="flex h-full items-center justify-center"><LoadingSpinner /></div>;
   }
 
-  const topAssets = assets ? [...assets].sort((a, b) => b.currentValue - a.currentValue).slice(0, 5) : [];
+  const treasuryLabel = assetTypes?.find(t => t.name === TESOURO_DIRETO)?.description;
+  const topAssets = [
+    ...groupTreasuryTitles(true, (assets ?? []).filter(a => treasuryLabel && a.typeName === treasuryLabel)),
+    ...groupTreasuryTitles(false, (assets ?? []).filter(a => !treasuryLabel || a.typeName !== treasuryLabel)),
+  ]
+    .map(row => row.kind === 'group'
+      ? { key: row.key, asset: row.group, titles: row.children.length,
+          twr: twrByAsset.get(assetKey(row.group.typeName, row.group.ticker)) }
+      : { key: row.key, asset: row.position, titles: 1, twr: twrByPosition.get(row.position.id) })
+    .sort((a, b) => b.asset.currentValue - a.asset.currentValue)
+    .slice(0, 5);
 
   const chartData = (allocation || []).map(item => ({
     name: item.typeName,
@@ -216,7 +242,7 @@ export const DashboardPage = () => {
         </div>
         
         <div className="xl:col-span-3 bg-surface rounded-lg border border-white/10 p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Top 5 Ativos</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">Top 5 Ativos em Valor</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -232,12 +258,17 @@ export const DashboardPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {topAssets.map((asset) => (
-                  <tr key={asset.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                {topAssets.map(({ key, asset, titles, twr }) => (
+                  <tr key={key} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                     <td className="py-3 px-4">
+                      {/* Logo com as regras da Carteira (review R3); o tipo vem pela descrição no DTO */}
+                      <div className="flex items-center gap-3">
+                        <PositionLogo typeName={assetTypes?.find(t => t.description === asset.typeName)?.name} asset={asset} size={32} />
                       <div>
                         <span className="text-white font-medium">{assetText(asset.ticker)}</span>
-                        <p className="text-gray-500 text-xs">{asset.assetName}</p>
+                        {/* D6: ativo agrupado mostra quantos títulos somou */}
+                        <p className="text-gray-500 text-xs">{titles > 1 ? `${titles} títulos` : asset.assetName}</p>
+                      </div>
                       </div>
                     </td>
                     <td className="py-3 px-4 text-gray-400">{asset.typeName}</td>
@@ -246,7 +277,6 @@ export const DashboardPage = () => {
                     <td className="py-3 px-4 text-right">
                       {(() => {
                         const classic = classicReturn(asset.valorization, asset.totalDividends, asset.totalInvested);
-                        const twr = twrByPosition.get(asset.id);
                         return (
                           <span className="inline-flex flex-col items-end">
                             <span className={`font-medium ${classic != null ? getReturnColor(classic) : 'text-gray-500'}`}>

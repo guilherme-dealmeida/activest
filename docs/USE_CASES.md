@@ -122,6 +122,10 @@ Pontos do fluxo que valem lembrar:
 - Depois de cada transação, a app-api publica "preciso do histórico" (Redis) e a adm-api traz os proventos e o logo do
   ativo — ver a [seção 8](#8-catálogo--carteira-como-as-duas-apis-conversam).
 - A carteira e o Dashboard somam só o provento **líquido já recebido**; o a receber aparece na tela de proventos.
+- **Tesouro Direto agrupado por ativo** (07/11/2026, `docs/planos/PLANO_AGRUPAMENTO_TITULOS.md`): cada compra é um
+  título, e o ativo com 2+ títulos vira uma linha-mãe recolhível com os valores somados e o TWR do ativo; a reserva de
+  emergência do Tesouro é do ativo (vale para todos os títulos e para as próximas compras). O Top 5 do Dashboard soma os
+  títulos do Tesouro por papel. Renda Fixa continua por título.
 
 ---
 

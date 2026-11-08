@@ -1627,6 +1627,14 @@ Resultado (27/10/2026): 148 testes em 15 arquivos de `utils/`, rodando tambem no
  responde em 35-134 ms (`responseStart - requestStart`); o resto e o navegador renderizando em modo de desenvolvimento
  (React sem minificar, `StrictMode` renderizando duas vezes, graficos). Conferir no build de producao antes de mexer.
 
+## 46. AGRUPAMENTO DE TITULOS (docs/planos/PLANO_AGRUPAMENTO_TITULOS.md, 07/11/2026)
+
+**46.1** Renda Fixa com titulo duplicado: na RF o aporte novo entra no mesmo titulo (lote), mas nada impede o usuario
+ de lancar um titulo novo com os mesmos dados de um existente (mesma emissora, distribuidora, taxa, vencimento e
+ codigo) em vez de aportar nele — `TransactionService.resolveNote` cria o titulo sem conferir duplicidade. Ai o mesmo
+ papel aparece em duas linhas na Carteira, como no Tesouro. Falta decidir o comportamento (recusar, avisar, sugerir o
+ aporte ou agrupar) antes de levar o agrupamento a RF; o escopo agrupou so o Tesouro (G8).
+
 ## ORDEM SUGERIDA
 
 O item 1 saiu. O 5.1 (indices) saiu em 05/10/2026; o proximo passo e o 2.1 — a razao de

@@ -8,7 +8,7 @@ export type PerformanceRange = '1M' | '6M' | 'YTD' | '1A' | '5A' | 'MAX';
 export type PerformanceBasis = 'NET' | 'GROSS';
 export type ReservationFilter = 'WITH' | 'WITHOUT';
 export type Granularity = 'MONTH' | 'QUARTER' | 'YEAR';
-export type BreakdownLevel = 'TYPE' | 'CATEGORY' | 'POSITION' | 'ISSUER';
+export type BreakdownLevel = 'TYPE' | 'CATEGORY' | 'POSITION' | 'ISSUER' | 'ASSET';
 
 export interface BenchmarkInfo {
   code: string;

@@ -267,6 +267,12 @@ public class PortfolioService {
      *
      * <p>Posicao de outro dono responde "nao encontrada", nunca "sem
      * permissao" — id que existe e exatamente o que confirmaria o alvo.</p>
+     *
+     * <p>Tesouro Direto: a reserva e do ATIVO, nao do titulo
+     * (docs/planos/PLANO_AGRUPAMENTO_TITULOS.md, G7). O valor vai para todas as
+     * posicoes do mesmo papel na carteira (abertas e liquidadas), na mesma
+     * transacao, e nao existe um titulo na reserva com outro fora. Na Renda
+     * Fixa continua por titulo (G8): o ativo e generico ("CDB").</p>
      */
     @Transactional
     public PortfolioAssetReservationDTO setReservation(UUID userId, UUID positionId, boolean isReservation) {
@@ -278,8 +284,12 @@ public class PortfolioService {
                 "Somente ativos de renda fixa podem compor a reserva de emergência");
         }
 
-        position.setReservation(isReservation);
-        portfolioAssetRepository.save(position);
+        List<PortfolioAsset> targets = position.getAsset().getAssetType().isTreasury()
+            ? portfolioAssetRepository.findAllByPortfolioIdAndAssetId(position.getPortfolio().getId(),
+                position.getAsset().getId())
+            : List.of(position);
+        targets.forEach(pa -> pa.setReservation(isReservation));
+        portfolioAssetRepository.saveAll(targets);
 
         return new PortfolioAssetReservationDTO(
             position.getId(),
