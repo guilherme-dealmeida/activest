@@ -242,7 +242,7 @@ export const DashboardPage = () => {
         </div>
         
         <div className="xl:col-span-3 bg-surface rounded-lg border border-white/10 p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Top 5 Ativos</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">Top 5 Ativos em Valor</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
