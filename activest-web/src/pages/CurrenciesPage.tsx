@@ -5,6 +5,7 @@ import { LineChart as LineChartIcon, Pencil, Plus } from 'lucide-react';
 import { clsx } from 'clsx';
 import { currenciesApi, currencyAdminApi, CurrencyAdminInput } from '@/api/currencies';
 import { Card } from '@/components/ui/Card';
+import { useCalendarAxis } from '@/hooks/useCalendarAxis';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
@@ -78,6 +79,9 @@ export const CurrenciesPage = () => {
     queryFn: () => currenciesApi.rates(selected!, from, toLocalISODate()),
     enabled: !!selected,
   });
+  // eixo X de calendário (docs/planos/PLANO_CALENDARIO_GRAFICOS.md)
+  const rateDates = useMemo(() => (points ?? []).map(p => p.date), [points]);
+  const { ref: axisRef, axisProps } = useCalendarAxis(rateDates);
 
   const save = useMutation({
     mutationFn: (input: CurrencyAdminInput) => editing
@@ -192,12 +196,11 @@ export const CurrenciesPage = () => {
           {loadingPoints && !points ? <LoadingSpinner /> : !points?.length ? (
             <p className="text-sm text-gray-500">Sem câmbio carregado no período. Rode a tarefa de câmbio em Tarefas.</p>
           ) : (
-            <div className="h-72">
+            <div className="h-72" ref={axisRef}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={points} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                   <CartesianGrid stroke={gridColor} vertical={false} />
-                  <XAxis dataKey="date" tick={{ fill: axisColor, fontSize: 11 }} minTickGap={40}
-                    tickFormatter={(d: string) => { const [y, m, dd] = d.split('-'); return range === '1A' ? `${dd}/${m}` : `${m}/${y}`; }} />
+                  <XAxis dataKey="date" tick={{ fill: axisColor, fontSize: 11 }} {...axisProps} />
                   <YAxis domain={['auto', 'auto']} tick={{ fill: axisColor, fontSize: 11 }} width={56}
                     tickFormatter={(v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
                   <Tooltip

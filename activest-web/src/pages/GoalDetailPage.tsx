@@ -22,6 +22,8 @@ import { GoalFormModal } from '@/components/goals/GoalFormModal';
 import { formatDateBR, formatGoalValue, LIFECYCLE, NATURE, QUALITY, SITUATION } from '@/components/goals/goalFormat';
 import { GoalEvaluation, GoalFigure, GoalUnit } from '@/types/goals';
 import { assetText, useAssetLabel } from '@/utils/assetLabel';
+import { useElementWidth } from '@/hooks/useElementWidth';
+import { calendarTimeTicks, maxTicksFor } from '@/utils/calendarTicks';
 import { barWidth, limitBarClass, limitUsage } from '@/utils/goalProgress';
 
 const EVENT_LABEL: Record<string, string> = {
@@ -264,6 +266,18 @@ export const GoalDetailPage = () => {
     return sorted;
   }, [history, goal]);
 
+  // Eixo X de calendário (docs/planos/PLANO_CALENDARIO_GRAFICOS.md, G-6): no eixo de tempo os marcos caem no dia 1º.
+  const { ref: axisRef, width: axisWidth } = useElementWidth();
+  const timeAxis = useMemo(() => {
+    if (chart.length < 2) return null;
+    const localIso = (t: number) => {
+      const d = new Date(t);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+    return calendarTimeTicks(localIso(Number(chart[0].t)), localIso(Number(chart[chart.length - 1].t)),
+      maxTicksFor(axisWidth), iso => new Date(`${iso}T12:00:00`).getTime());
+  }, [chart, axisWidth]);
+
   if (isLoading) return <div className="flex justify-center py-12"><LoadingSpinner className="h-8 w-8 text-accent" /></div>;
   if (isError || !goal) return <Card><p className="text-gray-400">Meta não encontrada. <Link to="/goals" className="text-accent">Voltar</Link></p></Card>;
 
@@ -356,12 +370,17 @@ export const GoalDetailPage = () => {
       {!periodic && <Card title={history?.seriesLabel ?? 'Evolução'} titleInfo="Linha cheia: evolução recalculada com os dados de hoje (inclusive antes da meta existir). Pontos: a fotografia de cada dia, como a meta estava. Linha dourada tracejada: a projeção com as premissas (estimativa). Linha verde tracejada: o alvo.">
         {history?.note && <p className="text-xs text-gray-500 mb-2">{history.note}</p>}
         {chart.length > 1 ? (
-          <div className="h-72">
+          <div className="h-72" ref={axisRef}>
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={chart}>
                 <CartesianGrid stroke={grid} vertical={false} />
                 <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']}
-                  tickFormatter={t => formatDateBR(new Date(t).toISOString()).slice(3)} stroke="#777" fontSize={11} minTickGap={40} />
+                  ticks={timeAxis?.ticks} interval={0}
+                  tickFormatter={t => {
+                    const d = new Date(Number(t));
+                    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    return timeAxis ? timeAxis.format(iso) : formatDateBR(iso).slice(3);
+                  }} stroke="#777" fontSize={11} />
                 <YAxis stroke="#777" fontSize={11} width={80} reversed={drawdown}
                   tickFormatter={v => `${drawdown && Number(v) > 0 ? '−' : ''}${formatGoalValue(v, unit as GoalUnit, 0)}`} />
                 <Tooltip formatter={(v: number) => formatGoalValue(v, unit as GoalUnit)} labelFormatter={t => formatDateBR(new Date(t as number).toISOString())}

@@ -1,3 +1,4 @@
+import { useCalendarAxis } from '@/hooks/useCalendarAxis';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -48,10 +49,6 @@ const formatValue = (c: Pick<IndexChart, 'unit' | 'displayUnit'>, v: number) => 
 
 const signed = (v: number, text: string) => `${v > 0 ? '+' : ''}${text}`;
 
-const axisDate = (iso: string, monthly: boolean, long: boolean) => {
-  const [y, m, d] = iso.slice(0, 10).split('-');
-  return monthly || long ? `${m}/${y}` : `${d}/${m}`;
-};
 
 const tooltipDate = (iso: string, monthly: boolean) => {
   if (!monthly) return formatDate(iso.slice(0, 10));
@@ -100,14 +97,12 @@ export const IndexChartCard = ({ code }: { code: IndexCode }) => {
   const ranges = monthly ? MONTHLY_RANGES : RANGES;
   // visão anual: o acumulado em 12 meses é uma curva contínua (área); a mensal fica em barras
   const bars = monthly && view === 'MENSAL';
-  const longAxis = useMemo(() => {
-    if (!data?.from || !data?.to) return false;
-    return (new Date(data.to).getTime() - new Date(data.from).getTime()) / 86_400_000 > 400;
-  }, [data]);
-
   const grid = isDark ? '#2a2a2a' : '#e8e8e0';
   const axis = '#777777';
-  const points = data?.points ?? [];
+  const points = useMemo(() => data?.points ?? [], [data]);
+  // eixo X de calendário (docs/planos/PLANO_CALENDARIO_GRAFICOS.md); índice mensal nunca mostra dia (C3)
+  const dates = useMemo(() => points.map(p => p.date), [points]);
+  const { ref: axisRef, axisProps } = useCalendarAxis(dates, monthly ? 'MONTH' : 'DAY');
   // o nome do cadastro já diz o índice ("CDI — Taxa DI", "Meta Selic (Copom)"); o código só enquanto carrega
   const title = data?.name ?? code;
   const fillId = `indice-${code}`;
@@ -126,11 +121,10 @@ export const IndexChartCard = ({ code }: { code: IndexCode }) => {
   const xAxis = (
     <XAxis
       dataKey="date"
-      tickFormatter={(v: string) => axisDate(v, monthly, longAxis)}
+      {...axisProps}
       tick={{ fill: axis, fontSize: 11 }}
       tickLine={false}
       axisLine={{ stroke: grid }}
-      minTickGap={32}
     />
   );
   const yAxis = (
@@ -231,7 +225,7 @@ export const IndexChartCard = ({ code }: { code: IndexCode }) => {
         </div>
       )}
 
-      <div className="h-72">
+      <div className="h-72" ref={axisRef}>
         {isLoading && !data ? (
           <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-6 w-6 text-accent" /></div>
         ) : isError ? (

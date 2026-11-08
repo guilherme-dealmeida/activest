@@ -1,6 +1,6 @@
 # Activest — Plano de agrupamento de títulos na Carteira
 
-> Fase: **Implementado e validado em 07/11/2026** (etapas 4 a 6 feitas; falta o commit, que é do Guilherme).
+> Fase: **Encerrado em 07/11/2026** — as 7 etapas feitas; commit feito pelo Guilherme, que declarou o escopo finalizado.
 > Origem: ESCOPO "Agrupamento de titulo Activest" (07/11/2026). A descrição é a conversa POR DÚVIDAS do mesmo dia
 > (dúvidas 1 a 3 e o desdobramento sobre o tamanho da mudança), que virou POR ESCOPO (REGRAS_CLAUDE.md 2.9).
 > Dor: o mesmo ativo aparece em várias linhas na Carteira (ex.: Tesouro IPCA+ 2040, um por compra; vários CDBs), sem
@@ -201,3 +201,4 @@ D1, D2, D4, D5 e D6: **aprovadas pela recomendação** (Guilherme, 07/11/2026). 
   `weightedRate`; coluna do chevron; `components/ui/PositionLogo.tsx` (logo da Carteira, reaproveitado no Top 5).
   Vitest 165/165 (+2); conferido no navegador: IPCA+ 2040 com Nubank, vencimento 15/08/2040, aplicação "—" e
   IPCA + 7,28% a.a.; logos alinhados; Top 5 com logos.
+- 07/11/2026 — Commit feito pelo Guilherme; escopo encerrado.
