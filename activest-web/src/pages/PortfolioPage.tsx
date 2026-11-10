@@ -1,6 +1,6 @@
-import { ReactNode, useEffect, useMemo, useState } from 'react';
+import { ReactNode, useMemo, useState } from 'react';
 import { BonusCostBadge } from '@/components/notifications/BonusCostBadge';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { clsx } from 'clsx';
 import { ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronRight, List } from 'lucide-react';
@@ -881,7 +881,10 @@ export const PortfolioPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
-  const [activeTypeId, setActiveTypeId] = useState<number | null>(null);
+  // A aba fica na URL (`?tab=<nome do tipo em minúsculas>`, ex.: `?tab=etf`; 09/11/2026): a linha do tipo no
+  // Rebalanceamento abre direto a aba dele. Sem parâmetro, ou tipo sem posição, abre a primeira aba.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab')?.toLowerCase() ?? null;
   const [preset, setPreset] = useState<TransactionPreset | null>(null);
   const [pendingReservationId, setPendingReservationId] = useState<string | null>(null);
 
@@ -971,17 +974,11 @@ export const PortfolioPage = () => {
     [assetTypes, allAssets]
   );
 
-  useEffect(() => {
-    if (tabs.length > 0 && !tabs.some((t) => t.type.id === activeTypeId)) {
-      setActiveTypeId(tabs[0].type.id);
-    }
-  }, [tabs, activeTypeId]);
-
   if (loadingAssets || loadingTypes) {
     return <LoadingSpinner />;
   }
 
-  const activeTab = tabs.find((t) => t.type.id === activeTypeId) ?? tabs[0];
+  const activeTab = tabs.find((t) => t.type.name.toLowerCase() === tabParam) ?? tabs[0];
 
 
   return (
@@ -991,7 +988,7 @@ export const PortfolioPage = () => {
           {tabs.map(({ type }) => (
             <button
               key={type.id}
-              onClick={() => setActiveTypeId(type.id)}
+              onClick={() => setSearchParams({ tab: type.name.toLowerCase() }, { replace: true })}
               className={clsx(
                 'px-4 py-2 text-sm font-medium rounded-md transition-colors',
                 activeTab?.type.id === type.id

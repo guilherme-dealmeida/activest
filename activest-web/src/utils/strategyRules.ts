@@ -48,3 +48,34 @@ export const rebalanceTotals = (items: { amountToRebalance: number; idealValue: 
   toInvest: items.reduce((s, i) => s + i.amountToRebalance, 0),
   strategic: items.reduce((s, i) => s + i.idealValue, 0),
 });
+
+/**
+ * Coluna "Desvio Relativo" do Rebalanceamento: o % Diff medido contra o próprio % Ideal, em %
+ * ((% Atual − % Ideal) ÷ % Ideal × 100). Responde "quanto o tipo está fora do SEU alvo": −0,02 p.p. num ideal de 1% é
+ * −2%, enquanto +0,22 p.p. num ideal de 4% é +5,5%. O tipo com o maior desvio relativo é a referência do
+ * rebalanceamento (a maior razão aportado ÷ ideal de StrategyService) e fica em AGUARDAR. Ideal zero ou ausente: null
+ * (a tela mostra "—").
+ */
+export const relativeDeviation = (diffPercentage: number, idealPercentage: number | null | undefined): number | null =>
+  idealPercentage != null && idealPercentage > 0 ? (diffPercentage / idealPercentage) * 100 : null;
+
+/** Desvio relativo da reserva Por Valor: (reserva − alvo) ÷ alvo × 100. Alvo zero ou ausente: null. */
+export const relativeDeviationByValue = (currentValue: number, targetValue: number | null | undefined): number | null =>
+  targetValue != null && targetValue > 0 ? ((currentValue - targetValue) / targetValue) * 100 : null;
+
+export type RebalanceSuggestion = 'APORTAR' | 'COMPLEMENTAR' | 'AGUARDAR';
+
+/**
+ * Sugestão por tipo no Rebalanceamento (09/11/2026):
+ * - AGUARDAR: não há o que aportar (Aportar ≤ 0) — é a referência, o tipo com o maior desvio relativo;
+ * - COMPLEMENTAR: já está no ideal ou acima (desvio relativo ≥ 0), mas recebe aporte para manter a proporção com a
+ *   referência enquanto os tipos abaixo do ideal são completados;
+ * - APORTAR: está abaixo do ideal (desvio relativo < 0).
+ */
+export const rebalanceSuggestion = (amountToRebalance: number, relDeviation: number | null): RebalanceSuggestion => {
+  if (amountToRebalance <= 0) return 'AGUARDAR';
+  return relDeviation != null && relDeviation >= 0 ? 'COMPLEMENTAR' : 'APORTAR';
+};
+
+/** Ordem da coluna Sugestão por prioridade (crescente): APORTAR → COMPLEMENTAR → AGUARDAR. */
+export const REBALANCE_SUGGESTION_RANK: Record<RebalanceSuggestion, number> = { APORTAR: 0, COMPLEMENTAR: 1, AGUARDAR: 2 };

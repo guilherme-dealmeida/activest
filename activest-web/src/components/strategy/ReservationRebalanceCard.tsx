@@ -7,8 +7,15 @@ import { RESERVATION_TYPE_LABELS } from '@/utils/reservation';
 import { LabelWithInfo } from '@/components/ui/InfoTooltip';
 import { STRATEGY_HELP } from './strategyHelp';
 import { REBALANCE_TABLE_CLASS, RebalanceColGroup } from './rebalanceColumns';
+import { relativeDeviation, relativeDeviationByValue } from '@/utils/strategyRules';
 
 const signColor = (n: number) => (n > 0 ? 'text-success' : n < 0 ? 'text-danger' : 'text-gray-400');
+
+/** Desvio relativo: Por Porcentagem, % Diff ÷ % Ideal; Por Valor, (reserva − alvo) ÷ alvo. */
+const reservationRelativeDeviation = (r: ReservationRebalance): number | null =>
+  r.idealPercentage != null
+    ? relativeDeviation(r.diffPercentage, r.idealPercentage)
+    : relativeDeviationByValue(r.currentValue, r.targetValue);
 
 /**
  * "Rebalanceamento Reserva de Emergência": uma linha, a reserva inteira.
@@ -19,7 +26,9 @@ const signColor = (n: number) => (n > 0 ? 'text-success' : n < 0 ? 'text-danger'
  * alvo, em vermelho: a tela mostra o excesso, não manda vender — e a
  * Sugestão fica AGUARDAR, como na tabela por tipo.
  */
-export const ReservationRebalanceCard = ({ reservation, action }: { reservation: ReservationRebalance; action?: React.ReactNode }) => (
+export const ReservationRebalanceCard = ({ reservation, action }: { reservation: ReservationRebalance; action?: React.ReactNode }) => {
+  const relDev = reservationRelativeDeviation(reservation);
+  return (
   <Card title="Rebalanceamento Reserva de Emergência" titleInfo={STRATEGY_HELP.reservationRebalance} action={action}>
     <div className="overflow-x-auto mt-4">
       <table className={REBALANCE_TABLE_CLASS}>
@@ -33,6 +42,7 @@ export const ReservationRebalanceCard = ({ reservation, action }: { reservation:
             <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.strategic}>Estratégico</LabelWithInfo></th>
             <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.portfolioPercentage}>% Carteira</LabelWithInfo></th>
             <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.diffPercentage}>% Diff</LabelWithInfo></th>
+            <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.relativeDeviation}>Desvio Relativo</LabelWithInfo></th>
             <th className="px-4 py-3 text-center"><LabelWithInfo info={STRATEGY_HELP.suggestion}>Sugestão</LabelWithInfo></th>
           </tr>
         </thead>
@@ -56,6 +66,9 @@ export const ReservationRebalanceCard = ({ reservation, action }: { reservation:
             <td className="px-4 py-3 text-right">
               <span className={signColor(reservation.diffPercentage)}>{formatPercentage(reservation.diffPercentage)}</span>
             </td>
+            <td className="px-4 py-3 text-right">
+              {relDev != null ? <span className={signColor(relDev)}>{formatPercentage(relDev)}</span> : '—'}
+            </td>
             <td className="px-4 py-3 text-center">
               <span
                 className={clsx(
@@ -73,4 +86,5 @@ export const ReservationRebalanceCard = ({ reservation, action }: { reservation:
       </table>
     </div>
   </Card>
-);
+  );
+};
