@@ -20,6 +20,7 @@ import { useToast } from '@/context/ToastContext';
 import { apiMessage } from '@/utils/apiError';
 import { TABLE_ACTION_CLASS } from '@/components/ui/tableAction';
 import { PageLink } from '@/components/ui/PageLink';
+import { AssetTypeName } from '@/components/ui/AssetTypeName';
 import { isStrategyTotalValid, strategyTotal, strategyTotalLabel } from '@/utils/strategyRules';
 
 const PIE_COLORS = ['#c9a84c', '#38a169', '#e53e3e', '#3182ce', '#805ad5', '#d69e2e', '#ed8936', '#dd6b20'];
@@ -296,7 +297,9 @@ export const StrategyPage = () => {
                 <tbody className="divide-y divide-surface-light">
                   {strategyRows.map((row) => (
                     <tr key={row.assetTypeId} className="hover:bg-surface-light/30">
-                      <td className="px-4 py-3 font-medium text-white">{row.typeName}</td>
+                      <td className="px-4 py-3 font-medium text-white">
+                        <AssetTypeName name={(assetTypes || []).find(t => t.id === row.assetTypeId)?.name} label={row.typeName} />
+                      </td>
                       <td className="px-4 py-3 text-center">{formatPercentage(row.currentPercentage)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-2">

@@ -120,29 +120,6 @@ export const GoalsPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-gray-400">Você define o objetivo; o Activest calcula a situação, o progresso e a projeção a partir da carteira.</p>
-        <Button onClick={() => setCreating(true)} disabled={!catalog}><Plus className="w-4 h-4 mr-2" />Nova meta</Button>
-      </div>
-
-      {s && (
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-          {CARDS.map(card => {
-            const n = card.count(s);
-            return (
-              <Card key={card.title} title={card.title}
-                className={clsx(cardActive(card) && n > 0 && 'border-accent/60')}
-                value={
-                  <button type="button" onClick={() => pick(card)} disabled={n === 0}
-                    title={n > 0 ? `Ver: ${card.title.toLowerCase()}` : undefined}
-                    className={clsx(card.className, n > 0 ? 'hover:underline cursor-pointer' : 'cursor-default')}>
-                    {n}
-                  </button>
-                } />
-            );
-          })}
-        </div>
-      )}
 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex gap-1 border-b border-surface-light">

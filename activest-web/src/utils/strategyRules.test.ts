@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  incomeShare, isStrategyTotalValid, rebalanceTotals, reservationDiff, reservationIdealPercentage, strategyTotal,
+  incomeShare, isStrategyTotalValid, rebalanceSuggestion, rebalanceTotals, relativeDeviation, relativeDeviationByValue, reservationDiff, reservationIdealPercentage, strategyTotal,
   strategyTotalLabel,
 } from './strategyRules';
 
@@ -71,5 +71,45 @@ describe('Rebalanceamento', () => {
 
   it('sem itens', () => {
     expect(rebalanceTotals([])).toEqual({ toInvest: 0, strategic: 0 });
+  });
+});
+
+describe('Desvio relativo do Rebalanceamento (% Diff ÷ % Ideal)', () => {
+  it('mede o desvio contra o próprio ideal', () => {
+    expect(relativeDeviation(0.22, 4)).toBeCloseTo(5.5);
+    expect(relativeDeviation(-0.02, 1)).toBeCloseTo(-2);
+    expect(relativeDeviation(0, 30)).toBe(0);
+  });
+
+  it('ideal zero ou ausente não tem desvio relativo', () => {
+    expect(relativeDeviation(5, 0)).toBeNull();
+    expect(relativeDeviation(5, null)).toBeNull();
+  });
+
+  it('reserva Por Valor: (reserva − alvo) ÷ alvo', () => {
+    expect(relativeDeviationByValue(11000, 10000)).toBeCloseTo(10);
+    expect(relativeDeviationByValue(9000, 10000)).toBeCloseTo(-10);
+    expect(relativeDeviationByValue(9000, 0)).toBeNull();
+    expect(relativeDeviationByValue(9000, null)).toBeNull();
+  });
+});
+
+describe('Sugestão por tipo do Rebalanceamento', () => {
+  it('abaixo do ideal: APORTAR', () => {
+    expect(rebalanceSuggestion(1359.45, -1.27)).toBe('APORTAR');
+  });
+
+  it('no ideal ou acima, recebendo aporte: COMPLEMENTAR', () => {
+    expect(rebalanceSuggestion(386.68, 3.6)).toBe('COMPLEMENTAR');
+    expect(rebalanceSuggestion(100, 0)).toBe('COMPLEMENTAR');
+  });
+
+  it('sem aporte (a referência): AGUARDAR', () => {
+    expect(rebalanceSuggestion(0, 5.5)).toBe('AGUARDAR');
+    expect(rebalanceSuggestion(-10, null)).toBe('AGUARDAR');
+  });
+
+  it('sem desvio relativo (ideal zero) e com aporte: APORTAR', () => {
+    expect(rebalanceSuggestion(50, null)).toBe('APORTAR');
   });
 });
