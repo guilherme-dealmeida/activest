@@ -109,7 +109,7 @@ export const IssuerPicker = ({ label, info, role, ticker, value, onChange, disab
             !open && isDead ? 'text-gray-400' : 'text-white'}`}
         />
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 text-gray-500">
-          {!open && isDead && <span className="text-[10px] uppercase">{isDead}</span>}
+          {!open && isDead && <span className="text-[0.625rem] uppercase">{isDead}</span>}
           {value && !disabled && !options && (
             <button type="button" aria-label={`Limpar ${label}`} onClick={() => onChange(null)} className="hover:text-gray-300">
               <X className="w-3.5 h-3.5" />
@@ -138,7 +138,7 @@ export const IssuerPicker = ({ label, info, role, ticker, value, onChange, disab
                   idx === highlight ? 'bg-accent/15' : 'hover:bg-white/5'} ${s ? 'text-gray-500' : 'text-gray-200'}`}
               >
                 <span className="truncate flex-1">{o.label}</span>
-                {s && <span className="text-[10px] uppercase text-gray-500">{s}</span>}
+                {s && <span className="text-[0.625rem] uppercase text-gray-500">{s}</span>}
               </button>
             );
           })}

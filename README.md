@@ -142,7 +142,7 @@ activest/
 - ✅ Login via email/senha com JWT (token de acesso + renovação)
 - ✅ Criar conta com código de verificação por e-mail e aceite dos termos (`/signup`)
 - ✅ Esqueci a senha com código por e-mail
-- ✅ Configurações: perfil (celular, CPF cifrado), troca de e-mail com código, senha, vínculo Google, tema, excluir conta
+- ✅ Configurações: perfil (celular, CPF cifrado), troca de e-mail com código, senha, vínculo Google, tema, tamanho da tela (Grande | Pequena, também no cabeçalho), excluir conta
 - No DEV, todo e-mail cai no **Mailpit** (http://localhost:8025); nada sai da máquina
 
 ## ⚙️ Setup

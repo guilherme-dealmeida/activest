@@ -7,7 +7,7 @@ import { RENDA_FIXA, typeLogo } from '@/utils/assetTypeRules';
  * senão o "RF" do tipo; Tesouro e fundos pelo logo do tipo; os demais pelo logo do ativo (null = tipo sem logo).
  * Usado na Carteira e no Top 5 do Dashboard (docs/planos/PLANO_AGRUPAMENTO_TITULOS.md, review R3).
  */
-export const PositionLogo = ({ typeName, asset, size = 38 }: {
+export const PositionLogo = ({ typeName, asset, size = 32 }: {
   /** Nome interno do tipo (TESOURO_DIRETO, RENDA_FIXA...), não a descrição. */
   typeName: string | null | undefined;
   asset: Pick<PortfolioAssetDetail, 'ticker' | 'hasLogo' | 'noteInfo'>;

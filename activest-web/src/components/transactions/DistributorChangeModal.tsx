@@ -95,7 +95,7 @@ export const DistributorChangeModal = ({ transactionId, preview, purchase, onCan
               {shareCount(item.shares)} cotas × {item.pricePerShare == null ? '—' : formatCurrency(item.pricePerShare)}
             </span>
             <span className="tabular-nums text-gray-200">{item.totalAmount == null ? '—' : formatCurrency(item.totalAmount)}</span>
-            {item.locked && <span className="text-[10px] uppercase text-gray-500">esta compra</span>}
+            {item.locked && <span className="text-[0.625rem] uppercase text-gray-500">esta compra</span>}
           </label>
         ))}
       </div>

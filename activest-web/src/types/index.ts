@@ -16,6 +16,8 @@ export interface User {
   googleLinked: boolean;
   admin: boolean;
   theme: 'DARK' | 'LIGHT';
+  /** Tamanho da tela (PLANO_CUSTOMIZAR_TAMANHOS). */
+  fontSize: 'LARGE' | 'SMALL';
   termsVersion?: string;
   termsAcceptedAt?: string;
   currentTermsVersion: string;

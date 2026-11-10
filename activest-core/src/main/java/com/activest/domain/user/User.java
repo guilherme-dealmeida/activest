@@ -81,6 +81,12 @@ public class User {
     @Builder.Default
     private UserTheme theme = UserTheme.DARK;
 
+    /** Tamanho da tela (docs/planos/PLANO_CUSTOMIZAR_TAMANHOS.md). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "font_size", nullable = false, length = 10)
+    @Builder.Default
+    private UserFontSize fontSize = UserFontSize.LARGE;
+
     /** Acesso administrativo: rotinas da adm-api, conferência do extrato e as notificações de administrador. */
     @Column(name = "is_admin", nullable = false)
     @Builder.Default

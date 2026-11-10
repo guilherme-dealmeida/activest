@@ -22,7 +22,7 @@ export const ChartLegend = ({ items, className }: { items: ChartLegendItem[]; cl
     <div className={clsx('flex justify-center', className)}>
       <ul
         className={clsx(
-          'grid items-center gap-x-2.5 gap-y-1 text-[13px] leading-5',
+          'grid items-center gap-x-2.5 gap-y-1 text-[0.8125rem] leading-5',
           hasIdeal ? 'grid-cols-[auto_auto_auto_auto]' : 'grid-cols-[auto_auto_auto]'
         )}
       >

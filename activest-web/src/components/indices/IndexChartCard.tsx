@@ -12,6 +12,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { IndexChart, IndexCode, IndexView, PriceRange } from '@/types';
 import { formatDate, getReturnColor } from '@/utils/format';
 import { apiMessage } from '@/utils/apiError';
+import { rem } from '@/utils/fontScale';
 
 const RANGES: PriceRange[] = ['1D', '7D', '1M', '6M', 'YTD', '1A', '5A', 'MAX'];
 /** Índices mensais: sem 1D e 7D (um mês é o menor período que eles têm). */
@@ -122,7 +123,7 @@ export const IndexChartCard = ({ code }: { code: IndexCode }) => {
     <XAxis
       dataKey="date"
       {...axisProps}
-      tick={{ fill: axis, fontSize: 11 }}
+      tick={{ fill: axis, fontSize: rem(11) }}
       tickLine={false}
       axisLine={{ stroke: grid }}
     />
@@ -131,7 +132,7 @@ export const IndexChartCard = ({ code }: { code: IndexCode }) => {
     <YAxis
       domain={monthly ? [(min: number) => Math.min(0, min), 'auto'] : ['auto', 'auto']}
       tickFormatter={(v: number) => v.toLocaleString('pt-BR', { maximumFractionDigits: data?.unit === 'PCT_PERIODO' ? 4 : 2 })}
-      tick={{ fill: axis, fontSize: 11 }}
+      tick={{ fill: axis, fontSize: rem(11) }}
       tickLine={false}
       axisLine={false}
       width={64}

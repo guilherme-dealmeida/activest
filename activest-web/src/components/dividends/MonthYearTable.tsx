@@ -39,7 +39,7 @@ export const MonthYearTable = ({ periods, selected, onSelect }: {
           {years.map(y => (
             <tr key={y.year}>
               <td className="px-2 py-1.5 font-medium text-gray-300 whitespace-nowrap">
-                {y.year}{y.partial && <span className="ml-1 text-[10px] font-normal text-gray-500">parcial</span>}
+                {y.year}{y.partial && <span className="ml-1 text-[0.625rem] font-normal text-gray-500">parcial</span>}
               </td>
               {MONTH_SHORT.map((_, i) => {
                 const key = monthKey(y.year, i);

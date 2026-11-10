@@ -100,7 +100,8 @@ class SignupIT extends FunctionalBase {
             .containsEntry("phone", "+5541998765432")
             .containsEntry("cpfMasked", "***.982.247-**")
             .containsEntry("termsPending", false)
-            .containsEntry("theme", "DARK");
+            .containsEntry("theme", "DARK")
+            .containsEntry("fontSize", "LARGE");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM portfolios p JOIN users u ON u.id = p.user_id "
             + "WHERE u.email = 'maria@activest.test'", Integer.class)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM strategy_reservations r JOIN users u ON u.id = r.user_id "
@@ -302,7 +303,17 @@ class SignupIT extends FunctionalBase {
         assertThat(me).doesNotContainKey("cpfMasked");
 
         me = comToken(token, HttpMethod.PUT, "/api/v1/users/me/preferences", Map.of("theme", "LIGHT")).getBody();
-        assertThat(me).containsEntry("theme", "LIGHT");
+        assertThat(me).containsEntry("theme", "LIGHT").containsEntry("fontSize", "LARGE");
+
+        // Tamanho da tela (PLANO_CUSTOMIZAR_TAMANHOS, D4): gravacao parcial, o tema nao muda
+        me = comToken(token, HttpMethod.PUT, "/api/v1/users/me/preferences", Map.of("fontSize", "SMALL")).getBody();
+        assertThat(me).containsEntry("theme", "LIGHT").containsEntry("fontSize", "SMALL");
+        me = comToken(token, HttpMethod.GET, "/api/v1/users/me", null).getBody();
+        assertThat(me).containsEntry("fontSize", "SMALL");
+        assertThat(comToken(token, HttpMethod.PUT, "/api/v1/users/me/preferences", Map.of()).getStatusCode().value())
+            .isEqualTo(400);
+        assertThat(comToken(token, HttpMethod.PUT, "/api/v1/users/me/preferences", Map.of("fontSize", "HUGE"))
+            .getStatusCode().value()).isEqualTo(400);
     }
 
     @Test

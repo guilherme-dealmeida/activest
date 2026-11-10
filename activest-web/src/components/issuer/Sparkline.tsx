@@ -19,7 +19,7 @@ const GOLD = '#c9a84c';
 export const Sparkline = ({ points, label, width = 160, height = 36 }: Props) => {
   const values = points.map(p => p.value).filter((v): v is number => v != null);
   if (values.length < 2) {
-    return <div style={{ height }} className="flex items-end text-[11px] text-gray-500">sem série suficiente</div>;
+    return <div style={{ height }} className="flex items-end text-[0.6875rem] text-gray-500">sem série suficiente</div>;
   }
   const min = Math.min(...values);
   const max = Math.max(...values);

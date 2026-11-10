@@ -19,6 +19,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { apiMessage } from '@/utils/apiError';
 import { formatDate, formatFxRate, toLocalISODate } from '@/utils/format';
 import { CurrencyAdminRow, ForeignTaxRule } from '@/types';
+import { rem } from '@/utils/fontScale';
 
 const GOLD = '#c9a84c';
 const RANGES = [
@@ -200,8 +201,8 @@ export const CurrenciesPage = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={points} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                   <CartesianGrid stroke={gridColor} vertical={false} />
-                  <XAxis dataKey="date" tick={{ fill: axisColor, fontSize: 11 }} {...axisProps} />
-                  <YAxis domain={['auto', 'auto']} tick={{ fill: axisColor, fontSize: 11 }} width={56}
+                  <XAxis dataKey="date" tick={{ fill: axisColor, fontSize: rem(11) }} {...axisProps} />
+                  <YAxis domain={['auto', 'auto']} tick={{ fill: axisColor, fontSize: rem(11) }} width={56}
                     tickFormatter={(v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
                   <Tooltip
                     contentStyle={{ background: theme === 'light' ? '#fff' : '#111111', border: '1px solid #333' }}

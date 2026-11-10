@@ -296,17 +296,17 @@ export const NotificationsPage = () => {
                         <p className={clsx('truncate text-sm', item.read ? 'text-gray-300' : 'font-semibold text-white')}>
                           {item.title}
                         </p>
-                        <span className="shrink-0 text-[11px] text-gray-500">{when(item.createdAt)}</span>
+                        <span className="shrink-0 text-[0.6875rem] text-gray-500">{when(item.createdAt)}</span>
                       </div>
                       <div className="mt-1 flex items-center gap-2">
                         <span className="truncate text-xs text-gray-500">{item.body}</span>
                         {item.status && (
-                          <Badge variant={STATUS[item.status].variant} className="shrink-0 px-2 py-0 text-[10px]">
+                          <Badge variant={STATUS[item.status].variant} className="shrink-0 px-2 py-0 text-[0.625rem]">
                             {STATUS[item.status].label}
                           </Badge>
                         )}
                         {item.audience === 'ADMIN' && (
-                          <Badge variant="info" className="shrink-0 px-2 py-0 text-[10px]">Admin</Badge>
+                          <Badge variant="info" className="shrink-0 px-2 py-0 text-[0.625rem]">Admin</Badge>
                         )}
                       </div>
                     </div>
@@ -460,9 +460,9 @@ const Reading = ({ item, busy, onBack, onAction, onState, onStatus }: ReadingPro
           <span>{cat?.label}</span>
           <span>·</span>
           <span>{formatDateTime(item.createdAt)}</span>
-          {item.audience === 'ADMIN' && <Badge variant="info" className="px-2 py-0 text-[10px]">Administração</Badge>}
+          {item.audience === 'ADMIN' && <Badge variant="info" className="px-2 py-0 text-[0.625rem]">Administração</Badge>}
           {item.status && (
-            <Badge variant={STATUS[item.status].variant} className="px-2 py-0 text-[10px]">
+            <Badge variant={STATUS[item.status].variant} className="px-2 py-0 text-[0.625rem]">
               {STATUS[item.status].label}
             </Badge>
           )}

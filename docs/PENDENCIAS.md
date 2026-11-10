@@ -1635,6 +1635,17 @@ Resultado (27/10/2026): 148 testes em 15 arquivos de `utils/`, rodando tambem no
  papel aparece em duas linhas na Carteira, como no Tesouro. Falta decidir o comportamento (recusar, avisar, sugerir o
  aporte ou agrupar) antes de levar o agrupamento a RF; o escopo agrupou so o Tesouro (G8).
 
+## 47. TAMANHO DA TELA (docs/planos/PLANO_CUSTOMIZAR_TAMANHOS.md, 10/11/2026)
+
+**47.1 Primeiro desenho pisca (D7).** Tema e tamanho entram no primeiro efeito do React, a partir do `localStorage`;
+o `index.html` nasce com `class="dark"` e fonte grande. Quem usa claro ou Pequena vê um instante do padrão ao abrir.
+Saída: um script inline no `index.html` que lê `activest-theme` e `activest-font-size` antes do React e põe as
+classes no `<html>` — vale para os dois, por isso ficou fora do escopo.
+
+**47.2 Medidas fixas em px (D5).** Alturas de gráfico (`h-[400px]`, `ResponsiveContainer height={…}`), larguras
+mínimas de tabela e o menu recolhido (`w-[72px]`) não encolhem no Pequena. Na conferência de 10/11/2026 nada ficou
+errado; converter para `rem` só se alguma tela pedir.
+
 ## ORDEM SUGERIDA
 
 O item 1 saiu. O 5.1 (indices) saiu em 05/10/2026; o proximo passo e o 2.1 — a razao de

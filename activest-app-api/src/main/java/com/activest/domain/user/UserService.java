@@ -122,7 +122,12 @@ public class UserService {
     @Transactional
     public UserResponseDTO updatePreferences(UUID userId, PreferencesDTO dto) {
         User user = find(userId);
-        user.setTheme(dto.theme());
+        if (dto.theme() != null) {
+            user.setTheme(dto.theme());
+        }
+        if (dto.fontSize() != null) {
+            user.setFontSize(dto.fontSize());
+        }
         return toDTO(userRepository.save(user));
     }
 
@@ -293,6 +298,7 @@ public class UserService {
             user.getGoogleId() != null,
             user.isAdmin(),
             user.getTheme().name(),
+            user.getFontSize().name(),
             user.getTermsVersion(),
             user.getTermsAcceptedAt(),
             LegalTerms.CURRENT_VERSION,

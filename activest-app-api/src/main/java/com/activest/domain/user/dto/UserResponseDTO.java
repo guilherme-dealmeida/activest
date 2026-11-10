@@ -21,6 +21,7 @@ public record UserResponseDTO(
     boolean googleLinked,
     boolean admin,
     String theme,
+    String fontSize,
     String termsVersion,
     LocalDateTime termsAcceptedAt,
     String currentTermsVersion,

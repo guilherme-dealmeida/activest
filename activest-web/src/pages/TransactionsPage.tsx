@@ -615,15 +615,15 @@ export const TransactionsPage = () => {
                         // carteira. Tesouro e o resto da Renda Fixa: logo do tipo. Demais: o do ativo (null = sem logo).
                         if (nameOfType(row) === RENDA_FIXA && row.noteInfo?.issuerLogoUrl) {
                           return <AssetLogo ticker={row.ticker} hasLogo src={row.noteInfo.issuerLogoUrl} label="RF"
-                            size={38} shape="square" />;
+                            size={32} shape="square" />;
                         }
                         const logoOfType = typeLogo(nameOfType(row));
                         if (logoOfType) {
                           return <AssetLogo ticker={row.ticker} hasLogo={!!logoOfType.src} src={logoOfType.src}
-                            label={logoOfType.label} size={38} shape="square" />;
+                            label={logoOfType.label} size={32} shape="square" />;
                         }
                         return row.hasLogo !== null && row.hasLogo !== undefined
-                          ? <AssetLogo ticker={row.ticker} hasLogo={row.hasLogo} assetType={nameOfType(row)} size={38} shape="square" />
+                          ? <AssetLogo ticker={row.ticker} hasLogo={row.hasLogo} assetType={nameOfType(row)} size={32} shape="square" />
                           : null;
                       })()}
                       <div className="flex flex-wrap items-center gap-y-1">
@@ -632,7 +632,7 @@ export const TransactionsPage = () => {
                             usuário mexeu depois (a sincronização não sobrescreve). */}
                         {row.origin === 'AUTO' && (
                           <span
-                            className="ml-2 rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-normal text-accent"
+                            className="ml-2 rounded bg-accent/15 px-1.5 py-0.5 text-[0.625rem] font-normal text-accent"
                             title={row.editedAt
                               ? `Importada de ${row.connectionLabel ?? providerName(row.connectionProvider, integrationSources)} e editada por você`
                               : `Importada de ${row.connectionLabel ?? providerName(row.connectionProvider, integrationSources)}`}
@@ -643,7 +643,7 @@ export const TransactionsPage = () => {
                         {/* Liquidação automática do título vencido (seção 6 do plano de notificações). */}
                         {row.origin === 'SISTEMA' && (
                           <span
-                            className="ml-2 rounded bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-normal text-blue-400"
+                            className="ml-2 rounded bg-blue-500/15 px-1.5 py-0.5 text-[0.625rem] font-normal text-blue-400"
                             title={row.editedAt
                               ? 'Resgate lançado pelo Activest no vencimento do título (liquidação automática, que deixou de existir) e editado por você'
                               : 'Resgate lançado pelo Activest no vencimento do título (liquidação automática, que deixou de existir). Confira com o valor líquido que caiu na sua conta e edite se for outro.'}
@@ -652,7 +652,7 @@ export const TransactionsPage = () => {
                           </span>
                         )}
                         {row.isFullSettlement && (
-                          <span className="ml-2 rounded bg-danger/15 px-1.5 py-0.5 text-[10px] font-normal text-danger">
+                          <span className="ml-2 rounded bg-danger/15 px-1.5 py-0.5 text-[0.625rem] font-normal text-danger">
                             liquidação total
                           </span>
                         )}
@@ -671,7 +671,7 @@ export const TransactionsPage = () => {
                                 pode consumir mais de um: cada parte é uma linha, e a marca
                                 diz que elas são a mesma venda. */}
                             {(row.groupParts ?? 0) > 1 && (
-                              <span className="ml-2 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-normal text-gray-300">
+                              <span className="ml-2 rounded bg-white/10 px-1.5 py-0.5 text-[0.625rem] font-normal text-gray-300">
                                 título {row.groupPart}/{row.groupParts}
                               </span>
                             )}

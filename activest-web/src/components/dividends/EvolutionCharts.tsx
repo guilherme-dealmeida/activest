@@ -4,6 +4,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { formatCurrency } from '@/utils/format';
 import { MONTH_SHORT, MonthRow, YearRow, monthLabel } from '@/utils/dividendPeriods';
 import { ColoredSeries, toReceiveColors, toReceiveSwatch } from './evolutionColors';
+import { rem } from '@/utils/fontScale';
 
 /**
  * Gráficos da Evolução dos Proventos (docs/planos/PLANO_DIVIDENDOS_POR_PERIODO.md, blocos C e D): barras empilhadas
@@ -79,7 +80,7 @@ const Segment = (props: {
       {/* contorno da cor da superfície = o vão de 2 px entre os segmentos */}
       <path d={d} fill={fill} stroke={surface} strokeWidth={2} />
       {isTop && labelColor && (
-        <text x={x + width / 2} y={y - 8} textAnchor="middle" fontSize={12} fontWeight={600} fill={labelColor}>
+        <text x={x + width / 2} y={y - 8} textAnchor="middle" fontSize={rem(12)} fontWeight={600} fill={labelColor}>
           {formatCurrency(payload.total)}
         </text>
       )}
@@ -140,7 +141,7 @@ const EvolutionTip = ({ active, payload, title, types, note }: {
         <span className="text-gray-300">Total</span>
         <span className="font-semibold text-white tabular-nums">{formatCurrency(row.total)}</span>
       </div>
-      <div className="mt-1 text-[11px] text-gray-500">
+      <div className="mt-1 text-[0.6875rem] text-gray-500">
         {row.count} {row.count === 1 ? 'provento' : 'proventos'}{extra ? ` · ${extra}` : ''}
       </div>
     </div>
@@ -196,9 +197,9 @@ export const MonthlyChart = ({ months, types, averageCents, onSelect }: {
           style={{ cursor: 'pointer' }}>
           {hatchDefs(hatchId, t.isDark)}
           <CartesianGrid stroke={t.grid} vertical={false} />
-          <XAxis dataKey="key" tickFormatter={shortMonth} tick={{ fill: t.axis, fontSize: 11 }} tickLine={false}
+          <XAxis dataKey="key" tickFormatter={shortMonth} tick={{ fill: t.axis, fontSize: rem(11) }} tickLine={false}
             axisLine={{ stroke: t.grid }} minTickGap={6} interval="preserveStartEnd" />
-          <YAxis tickFormatter={compactCurrency} tick={{ fill: t.axis, fontSize: 11 }} tickLine={false} axisLine={false}
+          <YAxis tickFormatter={compactCurrency} tick={{ fill: t.axis, fontSize: rem(11) }} tickLine={false} axisLine={false}
             width={80} />
           <Tooltip cursor={{ fill: t.cursor }} content={
             <EvolutionTip types={types} title={r => monthLabel(r.key)}
@@ -207,7 +208,7 @@ export const MonthlyChart = ({ months, types, averageCents, onSelect }: {
           {stackBars(types, hatchId, 44, t.surface)}
           {average != null && average > 0 && (
             <ReferenceLine y={average} stroke={t.label} strokeOpacity={0.7} strokeDasharray="4 4"
-              label={{ value: `média ${formatCurrency(average)}`, position: 'insideBottomRight', fill: t.label, fontSize: 11, fontWeight: 600 }} />
+              label={{ value: `média ${formatCurrency(average)}`, position: 'insideBottomRight', fill: t.label, fontSize: rem(11), fontWeight: 600 }} />
           )}
         </BarChart>
       </ResponsiveContainer>
@@ -227,9 +228,9 @@ export const YearlyChart = ({ years, types }: { years: YearRow[]; types: Colored
         <BarChart data={rows} margin={{ top: 24, right: 8, bottom: 0, left: 0 }} barCategoryGap="24%">
           {hatchDefs(hatchId, t.isDark)}
           <CartesianGrid stroke={t.grid} vertical={false} />
-          <XAxis dataKey="key" tick={{ fill: t.axis, fontSize: 11 }} tickLine={false} axisLine={{ stroke: t.grid }}
+          <XAxis dataKey="key" tick={{ fill: t.axis, fontSize: rem(11) }} tickLine={false} axisLine={{ stroke: t.grid }}
             tickFormatter={(k: string) => (rows.find(r => r.key === k)?.partial ? `${k} (parcial)` : k)} />
-          <YAxis tickFormatter={compactCurrency} tick={{ fill: t.axis, fontSize: 11 }} tickLine={false} axisLine={false}
+          <YAxis tickFormatter={compactCurrency} tick={{ fill: t.axis, fontSize: rem(11) }} tickLine={false} axisLine={false}
             width={80} />
           <Tooltip cursor={{ fill: t.cursor }} content={
             <EvolutionTip types={types} title={r => r.key}

@@ -70,7 +70,7 @@ const IndicatorCard = ({ code, item, history, loadingSpark, onOpen }: {
             <div className="h-9 animate-pulse rounded bg-white/5" aria-hidden="true" />
           ) : null}
           {avg && avg.value != null && (
-            <span className="mt-1 block text-[11px] text-gray-500">
+            <span className="mt-1 block text-[0.6875rem] text-gray-500">
               média {win} {formatIndicator(avg.value, history!.unit)}
               {avg.fromYear != null && ` · desde ${avg.fromYear}`}
             </span>
