@@ -5,7 +5,9 @@ import { CodeSent, TokenResponse, User, UserUpdateRequest } from '@/types';
 export const usersApi = {
   me: async () => (await apiClient.get<User>('/users/me')).data,
   update: async (body: UserUpdateRequest) => (await apiClient.put<User>('/users/me', body)).data,
-  preferences: async (theme: User['theme']) => (await apiClient.put<User>('/users/me/preferences', { theme })).data,
+  /** Gravação parcial: o que não vier não muda (PLANO_CUSTOMIZAR_TAMANHOS, D4). */
+  preferences: async (body: { theme?: User['theme']; fontSize?: User['fontSize'] }) =>
+    (await apiClient.put<User>('/users/me/preferences', body)).data,
   /** Devolve tokens novos: a troca derruba as outras sessões. */
   changePassword: async (currentPassword: string | undefined, newPassword: string) =>
     (await apiClient.put<TokenResponse>('/users/me/password', { currentPassword, newPassword })).data,

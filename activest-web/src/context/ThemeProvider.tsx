@@ -44,7 +44,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     setThemeState(created);
     if (tokens.access()) {
       // Falhar aqui não desfaz a troca na tela: o tema só não acompanha o usuário em outro navegador.
-      usersApi.preferences(created === 'dark' ? 'DARK' : 'LIGHT').catch(() => {});
+      usersApi.preferences({ theme: created === 'dark' ? 'DARK' : 'LIGHT' }).catch(() => {});
     }
   };
 

@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { clsx } from 'clsx';
 import { logoUrl } from '@/utils/logoUrl';
+import { rem } from '@/utils/fontScale';
 
 interface AssetLogoProps {
   ticker: string;
   /** Há logo guardado para o ativo. false (ou erro ao carregar) mostra as iniciais. */
   hasLogo: boolean;
-  /** Lado em px. Padrão 24. */
+  /** Lado em px de desenho (no tamanho Grande); vira rem e acompanha o tamanho da tela. Padrão 24. */
   size?: number;
   /** Formato do ícone. Padrão 'circle'. */
   shape?: 'circle' | 'square';
@@ -35,7 +36,9 @@ interface AssetLogoProps {
  */
 export const AssetLogo = ({ ticker, hasLogo, size = 24, shape = 'circle', className, src, label, assetType }: AssetLogoProps) => {
   const [failed, setFailed] = useState(false);
-  const style = { width: size, height: size };
+  // rem, para acompanhar o tamanho da tela (PLANO_CUSTOMIZAR_TAMANHOS): em px o logo ficava do mesmo tamanho no
+  // Pequena e passava a ditar a altura das linhas.
+  const style = { width: rem(size), height: rem(size) };
   const rounded = shape === 'square' ? 'rounded-none' : 'rounded-full';
 
   if ((hasLogo || src) && !failed) {
@@ -55,7 +58,7 @@ export const AssetLogo = ({ ticker, hasLogo, size = 24, shape = 'circle', classN
   return (
     <span
       aria-hidden="true"
-      style={{ ...style, fontSize: Math.max(8, Math.round(size * 0.36)) }}
+      style={{ ...style, fontSize: rem(Math.max(8, Math.round(size * 0.36))) }}
       className={clsx(
         'shrink-0 inline-flex items-center justify-center',
         rounded,

@@ -11,6 +11,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { PriceRange } from '@/types';
 import { formatCurrency, formatDate, getReturnColor } from '@/utils/format';
 import { apiMessage } from '@/utils/apiError';
+import { rem } from '@/utils/fontScale';
 
 const RANGES: PriceRange[] = ['1D', '7D', '1M', '6M', 'YTD', '1A', '5A', 'MAX'];
 const DEFAULT_RANGE: PriceRange = '1A';
@@ -175,14 +176,14 @@ export const PriceChart = ({ ticker }: { ticker: string }) => {
               <XAxis
                 dataKey="time"
                 {...axisProps}
-                tick={{ fill: axis, fontSize: 11 }}
+                tick={{ fill: axis, fontSize: rem(11) }}
                 tickLine={false}
                 axisLine={{ stroke: grid }}
               />
               <YAxis
                 domain={['auto', 'auto']}
                 tickFormatter={(v: number) => v.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
-                tick={{ fill: axis, fontSize: 11 }}
+                tick={{ fill: axis, fontSize: rem(11) }}
                 tickLine={false}
                 axisLine={false}
                 width={56}

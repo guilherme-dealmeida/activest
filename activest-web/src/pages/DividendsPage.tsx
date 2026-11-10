@@ -288,7 +288,7 @@ const DividendsTabPanel = ({ tab, rows, listRequest }: { tab: ListTab; rows: Div
                     {/* Igual à carteira: logo à esquerda, nome no hover. null = tipo sem logo. */}
                     <div className="flex items-center gap-3" title={row.assetName || undefined}>
                       {row.hasLogo !== null && row.hasLogo !== undefined && (
-                        <AssetLogo ticker={row.ticker} hasLogo={row.hasLogo} assetType={typeNameOf(row.assetTypeId)} size={38} shape="square" />
+                        <AssetLogo ticker={row.ticker} hasLogo={row.hasLogo} assetType={typeNameOf(row.assetTypeId)} size={32} shape="square" />
                       )}
                       <TickerLink ticker={row.ticker} issuerId={row.issuerId} />
                     </div>

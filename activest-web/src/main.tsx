@@ -6,6 +6,7 @@ import App from './App.tsx';
 import './index.css';
 import { AuthProvider } from './context/AuthProvider';
 import { ThemeProvider } from './context/ThemeProvider';
+import { FontSizeProvider } from './context/FontSizeProvider';
 import { ToastProvider } from './context/ToastProvider';
 
 const queryClient = new QueryClient({
@@ -22,11 +23,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <ThemeProvider>
-          <ToastProvider>
-            <AuthProvider>
-              <App />
-            </AuthProvider>
-          </ToastProvider>
+          <FontSizeProvider>
+            <ToastProvider>
+              <AuthProvider>
+                <App />
+              </AuthProvider>
+            </ToastProvider>
+          </FontSizeProvider>
         </ThemeProvider>
       </BrowserRouter>
     </QueryClientProvider>

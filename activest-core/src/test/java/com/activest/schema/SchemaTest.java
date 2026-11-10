@@ -25,11 +25,14 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Flyway roda ate a V21 (V1-V6 consolidadas + contas novas da tela de Ativos + metas + moedas, proventos do exterior, euro, fundos de investimento, ticker por tipo, origem da inativacao, estrutura do exterior, tarefas do catalogo do exterior e dos deslistados, o indice do ticker o preco diario do exterior, a carga retroativa e os proventos do exterior) e o schema valida contra as entidades")
+    @DisplayName("Flyway roda ate a V23 (V1-V6 consolidadas + contas novas da tela de Ativos + metas + moedas, proventos do exterior, euro, fundos de investimento, ticker por tipo, origem da inativacao, estrutura do exterior, tarefas do catalogo do exterior e dos deslistados, o indice do ticker o preco diario do exterior, a carga retroativa, os proventos do exterior, as cores dos tipos e o tamanho da tela) e o schema valida contra as entidades")
     void appliedMigrations() {
         Number version = (Number) em.createNativeQuery(
             "SELECT MAX(CAST(version AS NUMERIC)) FROM flyway_schema_history WHERE success").getSingleResult();
-        assertThat(version.intValue()).isEqualTo(21);
+        assertThat(version.intValue()).isEqualTo(23);
+        // V23 (PLANO_CUSTOMIZAR_TAMANHOS): tamanho da tela por usuario, LARGE por padrao
+        assertThat(((Number) em.createNativeQuery(
+            "SELECT count(*) FROM users WHERE font_size <> 'LARGE'").getSingleResult()).intValue()).isZero();
         // V19 (PLANO_PRECOS_INTERNACIONAIS): os tres tipos do exterior com a fonte MASSIVE
         assertThat(count("asset_types WHERE price_source = 'MASSIVE'")).isEqualTo(3);
         // V18 (PLANO_PERFORMANCE, P1): a busca por upper(ticker) tem indice

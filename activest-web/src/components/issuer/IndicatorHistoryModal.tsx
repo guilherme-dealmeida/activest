@@ -10,6 +10,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { IndicatorCode, IndicatorHistory, IndicatorPeriod, IndicatorPoint, IndicatorUnit, IndicatorWindow } from '@/types';
 import { INDICATOR_META, INDICATOR_WINDOWS, averageOf, formatIndicator, formatIndicatorAxis, pointsInWindow } from '@/utils/indicators';
 import { apiMessage } from '@/utils/apiError';
+import { rem } from '@/utils/fontScale';
 
 interface Props {
   ticker: string;
@@ -157,16 +158,16 @@ export const IndicatorHistoryModal = ({ ticker, codes, open, initialWindow, onCh
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={bars} margin={{ top: 16, right: 8, bottom: 0, left: 0 }} barCategoryGap="20%">
                     <CartesianGrid stroke={grid} strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fill: axis, fontSize: 11 }} tickLine={false}
+                    <XAxis dataKey="label" tick={{ fill: axis, fontSize: rem(11) }} tickLine={false}
                            axisLine={{ stroke: grid }} interval="preserveStartEnd" minTickGap={8} />
-                    <YAxis tickFormatter={(v: number) => formatIndicatorAxis(v, unit)} tick={{ fill: axis, fontSize: 11 }}
+                    <YAxis tickFormatter={(v: number) => formatIndicatorAxis(v, unit)} tick={{ fill: axis, fontSize: rem(11) }}
                            tickLine={false} axisLine={false} width={60} />
                     <Tooltip content={<BarTooltip unit={unit} />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }} />
                     <ReferenceLine y={0} stroke={axis} strokeOpacity={0.5} />
                     {average != null && (
                       <ReferenceLine y={average} stroke={GOLD} strokeDasharray="6 4" strokeOpacity={0.9}
                                      label={{ value: `média ${win} ${formatIndicator(average, unit)}`, position: 'insideTopRight',
-                                              fill: axis, fontSize: 11 }} />
+                                              fill: axis, fontSize: rem(11) }} />
                     )}
                     <Bar dataKey="plot" radius={[3, 3, 0, 0]} isAnimationActive={false}>
                       {bars.map((b, i) => (

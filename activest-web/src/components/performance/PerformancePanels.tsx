@@ -250,7 +250,7 @@ export const BreakdownSection = ({ b, level, onLevel, showIssuer, onDrill }: {
                           {level === 'POSITION' && r.ticker
                             ? <Link to={`/transactions?position=${r.positionId}`} onClick={e => e.stopPropagation()} className="hover:underline">{assetText(r.label)}</Link>
                             : assetText(r.label)}
-                          {r.closed && <span className="ml-2 rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-gray-300">encerrada</span>}
+                          {r.closed && <span className="ml-2 rounded bg-white/10 px-1.5 py-0.5 text-[0.625rem] text-gray-300">encerrada</span>}
                         </div>
                         {r.detail && <div className="text-xs text-gray-500">{assetText(r.detail)}</div>}
                       </div>

@@ -316,7 +316,7 @@ const COLUMNS: Column[] = [
         {a.maturityDate ? formatDate(a.maturityDate) : '—'}
         {a.matured && (
           <span
-            className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase bg-danger/15 text-danger"
+            className="rounded px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase bg-danger/15 text-danger"
             title={a.valuationBasis === 'CURVA'
               ? 'O título venceu e parou de render. Lance a liquidação com o valor que caiu na sua conta (veja as Notificações, ou o ícone Vender).'
               : 'O título venceu. Lance a liquidação (veja as Notificações, ou o ícone Vender).'}

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDown, Plus, X } from 'lucide-react';
+import { ChevronDown, ChevronsDownUp, ChevronsUpDown, Plus, X } from 'lucide-react';
 import { clsx } from 'clsx';
 import { goalsApi } from '@/api/goals';
 import { Button } from '@/components/ui/Button';
@@ -52,6 +52,16 @@ const CARDS: SummaryCard[] = [
   { title: 'Concluídas', count: s => s.completed, tab: 'CONCLUIDA', situations: [] },
 ];
 
+/**
+ * Etiquetas de situação (10/11/2026): "No ritmo" e "Dentro do objetivo" viram uma só, como no card do resumo; as
+ * demais situações têm a sua. A chave da etiqueta é a primeira situação do grupo.
+ */
+const TAG_GROUPS: { situations: GoalSituation[]; label?: string }[] = [
+  { situations: ['NO_RITMO', 'DENTRO_DO_OBJETIVO'], label: 'No ritmo / dentro' },
+];
+const situationsOfTag = (s: GoalSituation): GoalSituation[] =>
+  TAG_GROUPS.find(g => g.situations.includes(s))?.situations ?? [s];
+
 const TAG_COLORS: Record<string, string> = {
   success: 'border-success/40 text-success',
   danger: 'border-danger/40 text-danger',
@@ -77,7 +87,8 @@ export const GoalsPage = () => {
   useAssetLabel();
   const [tab, setTab] = useState<GoalLifecycle>('ATIVA');
   const [category, setCategory] = useState('');
-  const [situations, setSituations] = useState<GoalSituation[]>([]);
+  // situações filtradas; null = todas (padrão: todas as etiquetas marcadas — 10/11/2026)
+  const [situations, setSituations] = useState<GoalSituation[] | null>(null);
   const [creating, setCreating] = useState(false);
   // sanfona por categoria: todas abertas por padrão
   const [closed, setClosed] = useState<string[]>([]);
@@ -85,9 +96,7 @@ export const GoalsPage = () => {
   const { data: catalog } = useQuery({ queryKey: ['goals', 'catalog'], queryFn: goalsApi.catalog, staleTime: Infinity });
   const { data, isLoading } = useQuery({ queryKey: ['goals', 'list', tab], queryFn: () => goalsApi.list(tab) });
 
-  const changeTab = (t: GoalLifecycle) => { setTab(t); setSituations([]); };
-  const toggle = (s: GoalSituation) =>
-    setSituations(prev => (prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]));
+  const changeTab = (t: GoalLifecycle) => { setTab(t); setSituations(null); };
 
   // etiquetas: as situações das metas da aba (na categoria escolhida), com a contagem
   const inCategory = useMemo(() => (data?.goals ?? []).filter(g => !category || g.category === category), [data, category]);
@@ -96,12 +105,36 @@ export const GoalsPage = () => {
     for (const g of inCategory) {
       if (g.evaluation) count.set(g.evaluation.situation, (count.get(g.evaluation.situation) ?? 0) + 1);
     }
-    return ORDER.filter(s => count.has(s)).map(s => ({ situation: s, count: count.get(s) ?? 0 }));
+    const result: { key: GoalSituation; situations: GoalSituation[]; label?: string; count: number }[] = [];
+    for (const s of ORDER) {
+      if (!count.has(s)) continue;
+      const group = situationsOfTag(s);
+      const existing = result.find(t => t.key === group[0]);
+      if (existing) {
+        existing.count += count.get(s) ?? 0;
+      } else {
+        result.push({ key: group[0], situations: group, label: TAG_GROUPS.find(g => g.situations === group)?.label,
+          count: count.get(s) ?? 0 });
+      }
+    }
+    return result;
   }, [inCategory]);
+
+  const tagOn = (tag: { situations: GoalSituation[] }) =>
+    situations === null || tag.situations.some(x => situations.includes(x));
+  /** Marca/desmarca a etiqueta; tudo marcado volta a "todas" (null). */
+  const toggle = (tag: { situations: GoalSituation[] }) => {
+    const all = tags.flatMap(t => t.situations);
+    const current = situations ?? all;
+    const next = tagOn(tag)
+      ? current.filter(x => !tag.situations.includes(x))
+      : [...current, ...tag.situations];
+    setSituations(all.every(x => next.includes(x)) ? null : next);
+  };
 
   const groups = useMemo(() => {
     const goals = inCategory
-      .filter(g => situations.length === 0 || (g.evaluation && situations.includes(g.evaluation.situation)))
+      .filter(g => situations === null || (g.evaluation && situations.includes(g.evaluation.situation)))
       .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, 'pt-BR'));
     return (catalog?.categories ?? [])
       .map(c => ({ category: c, goals: goals.filter(g => g.category === c.value) }))
@@ -113,13 +146,38 @@ export const GoalsPage = () => {
     if (!s || card.count(s) === 0) return;
     setCategory('');
     setTab(card.tab);
-    setSituations(card.situations);
+    setSituations(card.situations.length === 0 ? null : card.situations);
   };
-  const cardActive = (card: SummaryCard) => tab === card.tab && !category
-    && situations.length === card.situations.length && card.situations.every(x => situations.includes(x));
+  const cardActive = (card: SummaryCard) => tab === card.tab && !category && (card.situations.length === 0
+    ? situations === null
+    : situations !== null && situations.length === card.situations.length
+      && card.situations.every(x => situations.includes(x)));
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-gray-400">Você define o objetivo; o Activest calcula a situação, o progresso e a projeção a partir da carteira.</p>
+        <Button onClick={() => setCreating(true)} disabled={!catalog}><Plus className="w-4 h-4 mr-2" />Nova meta</Button>
+      </div>
+
+      {s && (
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+          {CARDS.map(card => {
+            const n = card.count(s);
+            return (
+              <Card key={card.title} title={card.title}
+                className={clsx(cardActive(card) && n > 0 && 'border-accent/60')}
+                value={
+                  <button type="button" onClick={() => pick(card)} disabled={n === 0}
+                    title={n > 0 ? `Ver: ${card.title.toLowerCase()}` : undefined}
+                    className={clsx(card.className, n > 0 ? 'hover:underline cursor-pointer' : 'cursor-default')}>
+                    {n}
+                  </button>
+                } />
+            );
+          })}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex gap-1 border-b border-surface-light">
@@ -139,24 +197,41 @@ export const GoalsPage = () => {
         </div>
       </div>
 
-      {tags.length > 0 && (
+      {(tags.length > 0 || groups.length > 0) && (
         <div className="flex flex-wrap items-center gap-2">
-          {tags.map(({ situation, count }) => {
-            const { label, variant } = SITUATION[situation];
-            const on = situations.includes(situation);
+          {tags.map(tag => {
+            const { label: situationLabel, variant } = SITUATION[tag.key];
+            const label = tag.label ?? situationLabel;
+            const count = tag.count;
+            const on = tagOn(tag);
             return (
-              <button key={situation} type="button" onClick={() => toggle(situation)} aria-pressed={on}
+              <button key={tag.key} type="button" onClick={() => toggle(tag)} aria-pressed={on}
                 className={clsx('rounded-full border px-3 py-1 text-xs transition-colors', TAG_COLORS[variant],
                   on ? TAG_ACTIVE[variant] : 'opacity-70 hover:opacity-100')}>
                 {label} <span className="ml-1 opacity-80">{count}</span>
               </button>
             );
           })}
-          {situations.length > 0 && (
-            <button type="button" onClick={() => setSituations([])}
+          {situations !== null && (
+            <button type="button" onClick={() => setSituations(null)}
               className="flex items-center gap-1 text-xs text-gray-400 hover:text-white">
               <X className="h-3 w-3" />Limpar
             </button>
+          )}
+          {/* Recolher / expandir todas as categorias (10/11/2026) */}
+          {groups.length > 0 && (
+            <div className="ml-auto flex items-center gap-3">
+              <button type="button" onClick={() => setClosed(groups.map(gr => gr.category.value))}
+                disabled={groups.every(gr => closed.includes(gr.category.value))}
+                className="flex items-center gap-1 text-xs text-gray-400 hover:text-white disabled:opacity-40 disabled:hover:text-gray-400">
+                <ChevronsDownUp className="h-3.5 w-3.5" />Recolher tudo
+              </button>
+              <button type="button" onClick={() => setClosed([])}
+                disabled={!groups.some(gr => closed.includes(gr.category.value))}
+                className="flex items-center gap-1 text-xs text-gray-400 hover:text-white disabled:opacity-40 disabled:hover:text-gray-400">
+                <ChevronsUpDown className="h-3.5 w-3.5" />Expandir tudo
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -166,7 +241,7 @@ export const GoalsPage = () => {
       ) : groups.length === 0 ? (
         <Card>
           <p className="text-gray-400 text-sm text-center py-8">
-            {tab === 'ATIVA' && !category && situations.length === 0
+            {tab === 'ATIVA' && !category && situations === null
               ? 'Nenhuma meta ativa. Crie a primeira: o Activest acompanha a partir da sua carteira.'
               : 'Nenhuma meta aqui.'}
           </p>

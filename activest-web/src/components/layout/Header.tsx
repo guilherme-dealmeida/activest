@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Bell, ChevronDown, LogOut, Moon, Plug, Settings, Sun } from 'lucide-react';
+import { AArrowDown, AArrowUp, Bell, ChevronDown, LogOut, Moon, Plug, Settings, Sun } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useTheme } from '@/context/ThemeContext';
+import { useFontSize } from '@/context/FontSizeContext';
 import { useAuth } from '@/context/AuthContext';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { integrationsApi } from '@/api/integrations';
@@ -34,7 +35,7 @@ const routeNames: Record<string, string> = {
 /** Marcador amarelo de contagem (Notificações e Integrações), sobre o canto do ícone. */
 const CountBadge = ({ count }: { count: number }) => (
   <span
-    className="absolute -top-1 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-yellow-400/20 text-yellow-500 text-[10px] font-semibold flex items-center justify-center"
+    className="absolute -top-1 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-yellow-400/20 text-yellow-500 text-[0.625rem] font-semibold flex items-center justify-center"
     aria-hidden
   >
     {count > 99 ? '99+' : count}
@@ -42,13 +43,15 @@ const CountBadge = ({ count }: { count: number }) => (
 );
 
 /**
- * Cabeçalho: título da tela à esquerda e, à direita (17/10/2026, antes no rodapé do menu lateral), Tema,
+ * Cabeçalho: título da tela à esquerda e, à direita (17/10/2026, antes no rodapé do menu lateral), Tamanho da tela
+ * (A−/A+, PLANO_CUSTOMIZAR_TAMANHOS), Tema,
  * Notificações, Integrações, Configurações e o usuário (foto + nome), que abre o menu com "Sair".
  */
 export const Header = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isDark, toggleTheme } = useTheme();
+  const { isSmall, toggleFontSize } = useFontSize();
   const { user, logout } = useAuth();
   const currentPath = Object.keys(routeNames).find(path => location.pathname.startsWith(path));
   const title = currentPath ? routeNames[currentPath] : '';
@@ -116,6 +119,22 @@ export const Header = () => {
       )}>{title}</h2>
 
       <div className="flex items-center gap-1 shrink-0">
+        {/* Tamanho da tela (PLANO_CUSTOMIZAR_TAMANHOS, D2): mostra a ação disponível, como o sol/lua do tema */}
+        <button
+          type="button"
+          onClick={toggleFontSize}
+          className={clsx(
+            'p-2 rounded-md transition-colors',
+            isDark
+              ? 'text-gray-400 hover:text-yellow-400 hover:bg-white/5'
+              : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100'
+          )}
+          title={isSmall ? 'Tamanho grande' : 'Tamanho pequeno'}
+          aria-label={isSmall ? 'Tamanho grande' : 'Tamanho pequeno'}
+        >
+          {isSmall ? <AArrowUp className="h-5 w-5" /> : <AArrowDown className="h-5 w-5" />}
+        </button>
+
         {/* Tema */}
         <button
           type="button"

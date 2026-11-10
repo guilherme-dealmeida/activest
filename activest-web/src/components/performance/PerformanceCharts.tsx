@@ -9,6 +9,7 @@ import {
   BenchmarkResult, Granularity, PerformancePeriodic, PerformanceSeries, PerformanceWealth,
 } from '@/types/performance';
 import { date, pct, periodLabel, seriesColor } from './performanceFormat';
+import { rem } from '@/utils/fontScale';
 
 const CARTEIRA = 'CARTEIRA';
 
@@ -54,7 +55,7 @@ const TipBox = ({ title, rows, note }: { title: string; rows: TipRow[]; note?: s
         <span className="font-semibold text-white">{r.value}</span>
       </div>
     ))}
-    {note && <div className="mt-1 text-[11px] text-gray-500">{note}</div>}
+    {note && <div className="mt-1 text-[0.6875rem] text-gray-500">{note}</div>}
   </div>
 );
 
@@ -105,10 +106,10 @@ export const CumulativeChart = ({ data }: { data: PerformanceSeries }) => {
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
             <CartesianGrid stroke={t.grid} strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="date" {...axisProps} tick={{ fill: t.axis, fontSize: 11 }}
+            <XAxis dataKey="date" {...axisProps} tick={{ fill: t.axis, fontSize: rem(11) }}
               tickLine={false} axisLine={{ stroke: t.grid }} />
             <YAxis tickFormatter={(v: number) => `${v.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`}
-              tick={{ fill: t.axis, fontSize: 11 }} tickLine={false} axisLine={false} width={56} />
+              tick={{ fill: t.axis, fontSize: rem(11) }} tickLine={false} axisLine={false} width={56} />
             <ReferenceLine y={0} stroke={t.axis} strokeOpacity={0.5} />
             <Tooltip content={<Tip />} cursor={{ stroke: t.axis, strokeDasharray: '3 3' }} />
             {legend.map(l => (
@@ -175,10 +176,10 @@ export const PeriodicChart = ({ data, granularity, onGranularity }: {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barGap={2} barCategoryGap="20%">
             <CartesianGrid stroke={t.grid} strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="key" tickFormatter={periodLabel} tick={{ fill: t.axis, fontSize: 11 }} tickLine={false}
+            <XAxis dataKey="key" tickFormatter={periodLabel} tick={{ fill: t.axis, fontSize: rem(11) }} tickLine={false}
               axisLine={{ stroke: t.grid }} minTickGap={8} />
             <YAxis tickFormatter={(v: number) => `${v.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`}
-              tick={{ fill: t.axis, fontSize: 11 }} tickLine={false} axisLine={false} width={56} />
+              tick={{ fill: t.axis, fontSize: rem(11) }} tickLine={false} axisLine={false} width={56} />
             <ReferenceLine y={0} stroke={t.axis} />
             <Tooltip content={<Tip />} cursor={{ fill: t.cursor }} />
             {series.map(s => (
@@ -241,10 +242,10 @@ export const WealthChart = ({ data }: { data: PerformanceWealth }) => {
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data.points} margin={{ top: 8, right: 12, bottom: 0, left: 8 }}>
             <CartesianGrid stroke={t.grid} strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="date" {...axisProps} tick={{ fill: t.axis, fontSize: 11 }}
+            <XAxis dataKey="date" {...axisProps} tick={{ fill: t.axis, fontSize: rem(11) }}
               tickLine={false} axisLine={{ stroke: t.grid }} />
             <YAxis tickFormatter={(v: number) => v.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 })}
-              tick={{ fill: t.axis, fontSize: 11 }} tickLine={false} axisLine={false} width={56} />
+              tick={{ fill: t.axis, fontSize: rem(11) }} tickLine={false} axisLine={false} width={56} />
             <Tooltip content={<Tip />} cursor={{ stroke: t.axis, strokeDasharray: '3 3' }} />
             {items.map(i => (
               <Line key={i.key} dataKey={i.key} type="linear" stroke={i.color} dot={false} hide={hidden.has(i.key)}

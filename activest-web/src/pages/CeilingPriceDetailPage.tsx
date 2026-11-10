@@ -82,7 +82,7 @@ const LEVEL_LABEL: Record<CeilingIssue['level'], string> = { BLOQUEIO: 'Bloqueio
 
 /** Origem de um campo: padrão (importado), informado ou calculado — passo 9.6 do pedido. */
 const OriginTag = ({ kind, title }: { kind: 'PADRAO' | 'INFORMADO' | 'CALCULADO'; title?: string }) => (
-  <span title={title} className={clsx('inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+  <span title={title} className={clsx('inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase tracking-wide',
     kind === 'PADRAO' && 'bg-white/5 text-gray-300 border border-white/10',
     kind === 'INFORMADO' && 'bg-accent/15 text-accent border border-accent/40',
     kind === 'CALCULADO' && 'bg-transparent text-yellow-500 border border-dashed border-yellow-600')}>

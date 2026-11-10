@@ -3,6 +3,12 @@
 @tailwind utilities;
 
 @layer base {
+  /* Tamanho da tela (docs/planos/PLANO_CUSTOMIZAR_TAMANHOS.md): tudo é rem, então reduzir a fonte raiz
+     reduz a tela inteira. Grande = 100% (16 px); Pequena = 87,5% (14 px, D1). */
+  html.font-small {
+    font-size: 87.5%;
+  }
+
   /* Dark mode (default) */
   html.dark body {
     @apply bg-black text-white antialiased;

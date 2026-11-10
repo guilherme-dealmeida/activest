@@ -178,7 +178,7 @@ export const IssuerListingTable = ({ tab }: { tab: ListingTab }) => {
               <tr key={row.ticker} className="hover:bg-white/5 transition-colors">
                 <td className="px-3 py-3 text-white">
                   <div className="flex items-center gap-3">
-                    <AssetLogo ticker={row.ticker} hasLogo={row.hasLogo} size={38} shape="square" />
+                    <AssetLogo ticker={row.ticker} hasLogo={row.hasLogo} size={32} shape="square" />
                     <TickerLink ticker={row.ticker} issuerId={row.issuerId} />
                   </div>
                 </td>

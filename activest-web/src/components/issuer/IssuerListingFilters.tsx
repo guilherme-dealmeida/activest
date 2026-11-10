@@ -109,7 +109,7 @@ export const IssuerListingFilters = ({ tab, rows, state, onChange }: Props) => {
                   {meta ? meta.label : c.key === 'price' ? 'Preço' : 'Patrimônio líquido'}
                   {meta && <InfoTooltip label={`O que é ${meta.label}`} content={<><strong>{meta.name}.</strong> {meta.formula}</>} />}
                 </span>
-                <span className="text-[11px] text-gray-500">{unitHint(c)}</span>
+                <span className="text-[0.6875rem] text-gray-500">{unitHint(c)}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <RangeInput column={c} label={`${c.label} mínimo`} placeholder="mín" value={r.min}
@@ -122,7 +122,7 @@ export const IssuerListingFilters = ({ tab, rows, state, onChange }: Props) => {
           );
         })}
       </div>
-      <p className="text-[11px] text-gray-500">
+      <p className="text-[0.6875rem] text-gray-500">
         Percentuais em pontos (DY 6,00 = 6%); patrimônio líquido em R$ milhões. Campo vazio = sem limite. O botão ± aparece
         nos indicadores que podem ser negativos. Com uma faixa preenchida, quem não tem o indicador sai da lista.
       </p>

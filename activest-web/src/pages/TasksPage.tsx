@@ -17,7 +17,7 @@ import { describeCron } from '@/utils/cron';
 import { toLocalISODate } from '@/utils/format';
 import { TaskEditModal } from '@/components/tasks/TaskEditModal';
 import { TaskExecutionModal } from '@/components/tasks/TaskExecutionModal';
-import { ALL_STATUSES, formatDateTime, formatDuration, STATUS_HINT, TRIGGER_HINT } from '@/components/tasks/taskFormat';
+import { ALL_STATUSES, formatDateTime, formatDuration, STATUS_HINT } from '@/components/tasks/taskFormat';
 import { StatusBadge } from '@/components/tasks/StatusBadge';
 import { useSortable } from '@/hooks/useSortable';
 import { TaskExecutionItem, TaskExecutionStatus, TaskItem } from '@/types';

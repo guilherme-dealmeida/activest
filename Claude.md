@@ -5,7 +5,9 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 02/11/2026, tarde (**Performance das telas — ambiente de dev**, `docs/planos/PLANO_PERFORMANCE_TELAS.md`:
+> **Última revisão**: 10/11/2026 (**Tamanho da tela**, `docs/planos/PLANO_CUSTOMIZAR_TAMANHOS.md`: V23 — `users.font_size`
+> (LARGE/SMALL); botão A−/A+ no cabeçalho e "Grande | Pequena" em Configurações → Preferências; Pequena = fonte raiz
+> 87,5%, a tela inteira acompanha por ser em rem — ver "Tamanho da tela" em Padrão Visual). Antes: 02/11/2026, tarde (**Performance das telas — ambiente de dev**, `docs/planos/PLANO_PERFORMANCE_TELAS.md`:
 > a lentidão geral vinha da varredura de arquivos pelo bind mount do Windows (~2–3 ms por arquivo): `DEV_WATCH=false`
 > por padrão (sem varredura do backend; `dev-watch.sh reload` sob demanda), polling do Vite a cada 10 s, páginas internas
 > sob demanda (`React.lazy`, `utils/lazyPage.ts`) e memória do PostgreSQL no compose — chamada pelo proxy do Vite de
@@ -663,7 +665,7 @@ em desenvolvimento. **Não versione credenciais reais.**
 
 | Tabela | Descrição |
 |--------|-----------|
-| `users` | Usuários (bcrypt em `password_hash`, ou `google_id` para OAuth). V41: `phone` (E.164, único), CPF cifrado (`cpf_ciphertext`/`cpf_iv`/`cpf_key_version`, AES-256-GCM com o id do usuário como AAD) + `cpf_hash` (HMAC, único), `email_verified_at`, `password_changed_at` (corta tokens anteriores), `terms_accepted_at`/`terms_version`, `theme`. E-mail sempre minúsculo (`uk_users_email_lower`) |
+| `users` | Usuários (bcrypt em `password_hash`, ou `google_id` para OAuth). V41: `phone` (E.164, único), CPF cifrado (`cpf_ciphertext`/`cpf_iv`/`cpf_key_version`, AES-256-GCM com o id do usuário como AAD) + `cpf_hash` (HMAC, único), `email_verified_at`, `password_changed_at` (corta tokens anteriores), `terms_accepted_at`/`terms_version`, `theme`; V23: `font_size` (LARGE padrão, SMALL — tamanho da tela). E-mail sempre minúsculo (`uk_users_email_lower`) |
 | `user_avatars` | Foto de perfil enviada (V42): JPEG 512×512 regravado pela API (sem metadados). Tabela própria para a imagem não vir em toda leitura de `users`. `users.avatar_url` continua sendo a foto do Google; a enviada tem precedência |
 | `portfolios` | Carteira (1 por usuário) |
 | `portfolio_assets` | A posição. Chave lógica: `(portfolio_id, asset_id, note_id)` com `NULLS NOT DISTINCT`. **Não guarda cotas, preço médio nem custo** — saem das transações (V28) |
@@ -780,6 +782,7 @@ existir: o banco novo não tem o dado que elas corrigiam.
 | `V18__assets_ticker_upper_index.sql` | (29/10/2026, `docs/planos/PLANO_PERFORMANCE.md`, P1) `idx_assets_ticker_upper` em `assets (upper(ticker))` — a busca por ticker deixou de ler as ~100 mil linhas (18–22 ms → ~0,3 ms) |
 | `V19__foreign_daily_quotes.sql` | (01/11/2026, `docs/planos/PLANO_PRECOS_INTERNACIONAIS.md`) fonte `MASSIVE` em `ck_asset_types_price_source` e `ck_price_history_source`; Stock, REIT e ETF internacional com `price_source = MASSIVE`; tipo e tarefa `FOREIGN_DAILY_QUOTES` (ter–sáb 03:00, subida, `FROM_DATE`/`TO_DATE`) |
 | `V20__foreign_history_quotes_task.sql` | (01/11/2026, `docs/planos/PLANO_PRECOS_HISTORICOS_INTERNACIONAIS.md`) tipo e tarefa `FOREIGN_HISTORY_QUOTES` (só Run; `FROM_DATE` vazio = 2 anos atrás, `TO_DATE` vazio = ontem) |
+| `V23__user_font_size.sql` | (10/11/2026, `docs/planos/PLANO_CUSTOMIZAR_TAMANHOS.md`) `users.font_size VARCHAR(10) NOT NULL DEFAULT 'LARGE'` + `ck_users_font_size` (LARGE, SMALL) |
 | `V21__foreign_dividends.sql` | (02/11/2026, `docs/planos/PLANO_PROVENTOS_INTERNACIONAIS.md`) fonte `MASSIVE` em `ck_asset_cash_events_source`; tipos e tarefas `FOREIGN_DIVIDENDS` (ter–sáb 03:30, subida) e `FOREIGN_DIVIDENDS_HISTORY` (só Run; `FROM_DATE` 2010-01-01, `TO_DATE`) |
 
 **Como foi verificado** — o método a repetir num próximo reset. As 67 migrations
@@ -1072,9 +1075,9 @@ Só administrador (401 sem token, 403 aos demais). O front chega pela regra `/ap
 ### Users (o próprio usuário)
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| GET | `/api/v1/users/me` | Perfil: `avatarUrl` (Google), `avatarVersion` (foto enviada), `phone`, `cpfMasked` (`***.456.789-**`), `emailVerified`, `hasPassword`, `googleLinked`, `admin`, `theme`, termos (`termsVersion`, `termsAcceptedAt`, `currentTermsVersion`, `termsPending`) |
+| GET | `/api/v1/users/me` | Perfil: `avatarUrl` (Google), `avatarVersion` (foto enviada), `phone`, `cpfMasked` (`***.456.789-**`), `emailVerified`, `hasPassword`, `googleLinked`, `admin`, `theme`, `fontSize`, termos (`termsVersion`, `termsAcceptedAt`, `currentTermsVersion`, `termsPending`) |
 | PUT | `/api/v1/users/me` | `{name, phone, cpf}` — `cpf` nulo não mexe, vazio tira; com conexão viva com a B3 o CPF não muda (D20) |
-| PUT | `/api/v1/users/me/preferences` | `{theme: DARK\|LIGHT}` |
+| PUT | `/api/v1/users/me/preferences` | `{theme?: DARK\|LIGHT, fontSize?: LARGE\|SMALL}` — gravação parcial: o que não vier não muda; os dois ausentes: 400 (10/11/2026) |
 | PUT | `/api/v1/users/me/password` | `{currentPassword?, newPassword}` → tokens novos (derruba as outras sessões) |
 | POST | `/api/v1/users/me/email` · `/email/resend` · `/email/confirm` | Troca de e-mail com código no endereço novo |
 | POST · DELETE | `/api/v1/users/me/google` | Vincular (ID token) · desvincular (exige senha) |
@@ -1120,7 +1123,7 @@ Rotas em `App.tsx`; tudo abaixo de `/login` é protegido por `ProtectedRoute`.
 | `/currencies` | **Moedas** (26/10/2026, `docs/planos/PLANO_CADASTRO_MOEDAS.md`; só administrador — item do menu depois de Tarefas e rota): tabela das moedas (código, nome, símbolo, situação, fonte, último câmbio, cobertura da série) com Editar e Nova moeda (modal), gráfico do câmbio (compra e venda, 1A/5A/MAX) e a tabela das regras de tributo do exterior em consulta |
 | `/tasks` | **Tarefas** (22/10/2026, `docs/planos/PLANO_TAREFAS.md`; só administrador — item do menu e rota): abas na URL (`?tab=monitoring|schedules|configuration`). **Acompanhamento**: rodadas iniciadas no período (na tela, padrão ontem a amanhã), filtro de status por tags como as da Carteira (várias marcadas; padrão todas menos `SCHEDULED`), status e origem em inglês (D2); colunas tarefa, vigência, início, fim, duração, origem, quem pediu, resumo, status (penúltima) e ações, todas ordenáveis (padrão vigência decrescente). **Agendamentos** (23/10/2026): só as agendadas calculadas do horário (`SCHEDULED`), filtros De/Até/Tipo (padrão hoje e amanhã), a mesma tabela sem a coluna status, ordem padrão vigência crescente; Run (com confirmação), Stop (só `RUNNING` em tipo `stoppable`) e Ver log (modal: resumo, erro, atributos usados, linhas por nível); consulta a cada 5 s só com rodada em execução, e o botão Atualizar. **Configuração**: as tarefas com tipo, serviço, horário legível (cron no hover), próxima execução, situação e última rodada; Run, Editar (nome, descrição, ligada, horário pelo editor — todo dia, dias da semana, mensal ou cron —, atributos pelo tipo do valor) e Nova/Excluir desabilitados ("em breve", D15). `?execution=<id>` abre a rodada (link da mensagem `ROTINA_FALHOU`) |
 | `/notifications` | Notificações (13/10/2026, `docs/planos/PLANO_NOTIFICACOES.md`): aberta pelo sino do cabeçalho (até 17/10/2026 ficava no rodapé do menu lateral), com o número de não lidas no marcador amarelo, consulta a cada 60 s. Caixa estilo e-mail (`NotificationsPage`): Entrada/Arquivadas, filtros de categoria, situação, público (admin) e "só não lidas", lista à esquerda e leitura à direita (celular: uma de cada vez), seleção em lote (lida, não lida, arquivar, desarquivar, excluir), ações da mensagem (link, "Informar custo"), Dispensar/Reabrir na pendência |
-| `/settings` | Configurações (05/10/2026): Perfil (foto centralizada com envio e recorte no navegador — `AvatarCropModal`, JPEG/PNG/WebP até 5 MB, ≥ 128 px —, nome, e-mail com troca por código, celular, CPF mascarado), Acesso (alterar/definir senha — botão amarelo com ícone de chave desde 17/10/2026 —, vincular/desvincular Google, termos aceitos), Preferências (tema, gravado no usuário), Zona de perigo (excluir conta com código; botão com ícone de lixeira) |
+| `/settings` | Configurações (05/10/2026): Perfil (foto centralizada com envio e recorte no navegador — `AvatarCropModal`, JPEG/PNG/WebP até 5 MB, ≥ 128 px —, nome, e-mail com troca por código, celular, CPF mascarado), Acesso (alterar/definir senha — botão amarelo com ícone de chave desde 17/10/2026 —, vincular/desvincular Google, termos aceitos), Preferências (tema e tamanho da tela — Grande | Pequena —, gravados no usuário), Zona de perigo (excluir conta com código; botão com ícone de lixeira) |
 | `/login` | Login (email/senha + Google), links "Esqueci a senha" e "Criar conta" (só com o cadastro ligado) |
 | `/signup` | Criar conta (pública): dados (celular e CPF opcionais) + aceite dos termos → código por e-mail → já entra. Ou Google |
 | `/forgot-password` | Esqueci a senha (pública): e-mail → código + nova senha |
@@ -1424,7 +1427,17 @@ edição apagaria emissor, vencimento e taxa.
   linha) e, só para administrador, Tarefas (ícone de relógio, 22/10/2026). Integrações saiu do menu e o rodapé (usuário, sino, Modo, Configurações, Sair) também. Recolhível pelo botão
   redondo sobre a borda direita, na altura do logo: 256px ↔ 72px. Recolhido mostra só "PV" e os ícones (nome no
   `title`/`aria-label`). A escolha fica em `localStorage` (`activest-sidebar-collapsed`), como o tema.
-- **Cabeçalho** (`Header.tsx`, 17/10/2026): título da tela à esquerda; à direita, nesta ordem, Tema (sol/lua),
+- **Tamanho da tela** (10/11/2026, `docs/planos/PLANO_CUSTOMIZAR_TAMANHOS.md`): Grande (padrão, 16 px) | Pequena
+  (`html.font-small` em `index.css`, fonte raiz 87,5% = 14 px). Como toda a tela é `rem` (classes padrão do Tailwind),
+  ela encolhe inteira, como um zoom. `FontSizeContext`/`FontSizeProvider` no molde do tema: cache em `localStorage`
+  (`activest-font-size`), o do usuário (`users.font_size`) aplicado pelo `AuthProvider`, a troca grava pelo
+  `PUT /users/me/preferences`. **Tamanho fixo em tela nova: use `rem`, não px** — `text-[0.6875rem]` em vez de
+  `text-[11px]`, e nos gráficos do Recharts `fontSize: rem(11)` (`utils/fontScale.ts`); px fixo não acompanha o
+  Pequena. Medidas de caixa em px (alturas de gráfico, larguras mínimas de tabela) ficaram fixas de propósito (D5).
+  O `AssetLogo` também é rem (o `size` é o lado em px no Grande); nas tabelas (Carteira, Transações, Dividendos,
+  listagem de Ativos) o logo passou de 38 para 32 (review de 10/11/2026: em px ele ditava a altura das linhas).
+- **Cabeçalho** (`Header.tsx`, 17/10/2026): título da tela à esquerda; à direita, nesta ordem, Tamanho da tela (A−/A+, mostra a
+  ação disponível; 10/11/2026), Tema (sol/lua),
   Notificações (sino com o número de não lidas), Integrações (com o número de conexões que pedem atenção),
   Configurações e o usuário (foto + nome), que abre um menu com "Sair". Os dois contadores consultam a cada 60 s.
 - **Popover** (`components/ui/Popover.tsx`, 17/10/2026): painel ancorado num ícone, aberto por clique, que fica até

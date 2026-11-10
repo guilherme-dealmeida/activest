@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Save, User as UserIcon, Mail, CreditCard, KeyRound, Moon, Sun, ShieldAlert, FileText, Camera, Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useFontSize } from '@/context/FontSizeContext';
 import { useToast } from '@/context/ToastContext';
 import { useGoogleSignIn } from '@/hooks/useGoogleSignIn';
 import { usersApi } from '@/api/users';
@@ -39,6 +40,7 @@ const formatDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('pt
 export const SettingsPage = () => {
   const { user, setUser, startSession, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const { isSmall, toggleFontSize } = useFontSize();
   const { showToast } = useToast();
 
   // ---------------- perfil
@@ -337,6 +339,22 @@ export const SettingsPage = () => {
                 onClick={() => { if ((t === 'dark') !== isDark) toggleTheme(); }}
                 className={`px-4 py-1.5 text-sm rounded ${(t === 'dark') === isDark ? 'bg-accent text-black font-medium' : 'text-gray-400 hover:text-white'}`}>
                 {t === 'dark' ? 'Escuro' : 'Claro'}
+              </button>
+            ))}
+          </div>
+        </div>
+        {/* Tamanho da tela (PLANO_CUSTOMIZAR_TAMANHOS, D3: "Grande | Pequena") */}
+        <div className="flex flex-wrap items-center justify-between gap-4 mt-4 pt-4 border-t border-white/10">
+          <div>
+            <p className="text-sm text-white">Tamanho</p>
+            <p className="text-xs text-gray-500">Reduz a tela inteira. Também fica guardado na sua conta.</p>
+          </div>
+          <div className="inline-flex rounded-md border border-white/10 p-1">
+            {(['large', 'small'] as const).map((s) => (
+              <button key={s} type="button"
+                onClick={() => { if ((s === 'small') !== isSmall) toggleFontSize(); }}
+                className={`px-4 py-1.5 text-sm rounded ${(s === 'small') === isSmall ? 'bg-accent text-black font-medium' : 'text-gray-400 hover:text-white'}`}>
+                {s === 'large' ? 'Grande' : 'Pequena'}
               </button>
             ))}
           </div>

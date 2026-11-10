@@ -25,6 +25,7 @@ import { assetText, useAssetLabel } from '@/utils/assetLabel';
 import { useElementWidth } from '@/hooks/useElementWidth';
 import { calendarTimeTicks, maxTicksFor } from '@/utils/calendarTicks';
 import { barWidth, limitBarClass, limitUsage } from '@/utils/goalProgress';
+import { rem } from '@/utils/fontScale';
 
 const EVENT_LABEL: Record<string, string> = {
   CRIADA: 'Criada', EDITADA: 'Editada', PAUSADA: 'Pausada', RETOMADA: 'Retomada', CONCLUIDA: 'Concluída',
@@ -45,7 +46,7 @@ const FigureRow = ({ f }: { f: GoalFigure }) => (
     </div>
     <div className="text-right shrink-0">
       {f.value !== null && <p className={`text-sm font-medium ${NATURE[f.nature].className}`}>{formatGoalValue(f.value, f.unit)}</p>}
-      <p className="text-[11px] text-gray-500">{NATURE[f.nature].label}</p>
+      <p className="text-[0.6875rem] text-gray-500">{NATURE[f.nature].label}</p>
     </div>
   </div>
 );
@@ -76,13 +77,13 @@ const PeriodBars = ({ items, target, tolerance, isDark }: {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data}>
             <CartesianGrid stroke={grid} vertical={false} />
-            <XAxis dataKey="period" stroke="#777" fontSize={11} minTickGap={20} />
-            <YAxis stroke="#777" fontSize={11} width={80} tickFormatter={v => formatGoalValue(v, 'BRL').replace(',00', '')} />
+            <XAxis dataKey="period" stroke="#777" fontSize={rem(11)} minTickGap={20} />
+            <YAxis stroke="#777" fontSize={rem(11)} width={80} tickFormatter={v => formatGoalValue(v, 'BRL').replace(',00', '')} />
             <Tooltip formatter={(v: number) => [formatGoalValue(v, 'BRL'), 'Aporte líquido']}
               cursor={{ fill: isDark ? '#ffffff10' : '#00000008' }}
               contentStyle={{ background: isDark ? '#111' : '#fff', border: `1px solid ${grid}` }} />
             <ReferenceLine y={target} stroke="#38a169" strokeDasharray="6 4"
-              label={{ value: `Alvo ${formatGoalValue(target, 'BRL')}`, position: 'insideTopRight', fill: '#38a169', fontSize: 11 }} />
+              label={{ value: `Alvo ${formatGoalValue(target, 'BRL')}`, position: 'insideTopRight', fill: '#38a169', fontSize: rem(11) }} />
             {tolerance > 0 && <ReferenceLine y={target - tolerance} stroke="#38a169" strokeOpacity={0.4} strokeDasharray="2 4" />}
             <Bar dataKey="amount" radius={[3, 3, 0, 0]}>
               {data.map(d => (
@@ -380,12 +381,12 @@ export const GoalDetailPage = () => {
                     const d = new Date(Number(t));
                     const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                     return timeAxis ? timeAxis.format(iso) : formatDateBR(iso).slice(3);
-                  }} stroke="#777" fontSize={11} />
-                <YAxis stroke="#777" fontSize={11} width={80} reversed={drawdown}
+                  }} stroke="#777" fontSize={rem(11)} />
+                <YAxis stroke="#777" fontSize={rem(11)} width={80} reversed={drawdown}
                   tickFormatter={v => `${drawdown && Number(v) > 0 ? '−' : ''}${formatGoalValue(v, unit as GoalUnit, 0)}`} />
                 <Tooltip formatter={(v: number) => formatGoalValue(v, unit as GoalUnit)} labelFormatter={t => formatDateBR(new Date(t as number).toISOString())}
                   contentStyle={{ background: isDark ? '#111' : '#fff', border: `1px solid ${grid}` }} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Legend wrapperStyle={{ fontSize: rem(11) }} />
                 {(history?.extras ?? []).map((x, i) => (
                   <Line key={x.key} type="monotone" dataKey={`x_${x.key}`} name={x.label} dot={false} connectNulls
                     stroke={i === 0 ? '#4299e1' : '#9f7aea'} strokeWidth={x.key === 'monthly' ? 1 : 2}
