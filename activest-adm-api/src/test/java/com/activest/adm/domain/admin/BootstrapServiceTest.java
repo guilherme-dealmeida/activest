@@ -43,7 +43,7 @@ class BootstrapServiceTest {
             Clock.fixed(Instant.parse("2026-09-28T12:00:00Z"), ZoneId.of("America/Sao_Paulo")));
 
     @Test
-    @DisplayName("Ordem: emissores, emissoras de renda fixa, COTAHIST (ISIN), proventos (eventos societarios), datas de pagamento (CVM e levantamento), balancos (escala EVENTO), informe de FII, indices, Tesouro")
+    @DisplayName("Ordem: emissores, emissoras de renda fixa, COTAHIST (ISIN), proventos (eventos societarios), datas de pagamento (CVM e levantamento), balancos (escala EVENTO), informe de FII, indices, Tesouro, curva de juros do Tesouro")
     void order() {
         when(dividends.syncAll(anyString())).thenReturn(new DividendCatalogService.SyncResult(654, 0, 0, 0));
 
@@ -59,9 +59,10 @@ class BootstrapServiceTest {
         o.verify(survey).run(anyString());
         o.verify(statements).importYears(eq(2010), eq(2026), eq(false), anyString());
         o.verify(fii).importYears(eq(2016), eq(2026), eq(false), anyString());
-        o.verify(indices).importAll(anyString());
+        o.verify(indices).importAll(anyString(), eq(false));
         o.verify(treasury).importFrom(eq(2010), anyString());
-        assertThat(r.steps()).hasSize(10);
+        o.verify(indices).importCurve(anyString());
+        assertThat(r.steps()).hasSize(11);
     }
 
     @Test
@@ -78,7 +79,7 @@ class BootstrapServiceTest {
         o.verify(service.foreignCatalog).run(eq(true), anyString(), org.mockito.ArgumentMatchers.any());
         o.verify(service.foreignDelisted).run(org.mockito.ArgumentMatchers.isNull(),
                 org.mockito.ArgumentMatchers.isNull(), eq(true), anyString(), org.mockito.ArgumentMatchers.any());
-        assertThat(r.steps()).hasSize(12);
+        assertThat(r.steps()).hasSize(13);
     }
 
     @Test

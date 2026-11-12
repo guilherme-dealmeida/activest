@@ -4,6 +4,9 @@ import com.activest.adm.integration.indices.B3IndexClient;
 import com.activest.adm.integration.indices.BcbSgsClient;
 import com.activest.adm.integration.indices.IndexFixtures;
 import com.activest.adm.integration.indices.IndexSourceException;
+import com.activest.adm.integration.indices.TreasuryCurveSource;
+import com.activest.domain.catalog.CatalogChange;
+import com.activest.domain.catalog.CatalogMessaging.CatalogChangePublisher;
 import com.activest.domain.marketindex.IndexPoint;
 import com.activest.domain.user.User;
 import com.activest.support.IntegrationTestBase;
@@ -20,11 +23,14 @@ import java.sql.Date;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -42,6 +48,12 @@ class MarketIndexImportIT extends IntegrationTestBase {
     @MockBean
     B3IndexClient b3;
 
+    @MockBean
+    TreasuryCurveSource curve;
+
+    @MockBean
+    CatalogChangePublisher publisher;
+
     @Autowired
     MarketIndexImportService service;
 
@@ -49,6 +61,7 @@ class MarketIndexImportIT extends IntegrationTestBase {
     void sources() throws Exception {
         when(sgs.year(anyString(), anyInt())).thenReturn(List.of());
         when(b3.year(anyString(), anyInt())).thenReturn(List.of());
+        when(curve.year(anyString(), anyInt())).thenReturn(List.of());
         when(sgs.year("12", 2024)).thenReturn(parseSgs("sgs_12_2024"));
         when(sgs.year("433", 2024)).thenReturn(parseSgs("sgs_433_2024"));
         when(b3.year("IBOV", 2024)).thenReturn(parseB3("b3_IBOV_2024", 2024));
@@ -77,6 +90,34 @@ class MarketIndexImportIT extends IntegrationTestBase {
         return jdbc.queryForObject("SELECT v.value FROM market_index_values v JOIN market_indices i "
                 + "ON i.id = v.index_id WHERE i.code = ? AND v.reference_date = ?", BigDecimal.class, code,
                 Date.valueOf(d));
+    }
+
+    @Test
+    @DisplayName("Curva do Tesouro (PLANO_JUROS_FUTUROS, J2): grava o prazo e nao avisa a app-api; com o CDI, avisa so o CDI")
+    void yieldCurveIsSilent() {
+        when(curve.year("PRE:5", 2024)).thenReturn(List.of(
+                new IndexPoint(LocalDate.of(2024, 1, 2), new BigDecimal("10.12345678")),
+                new IndexPoint(LocalDate.of(2024, 1, 3), new BigDecimal("10.2"))));
+
+        MarketIndexImportService.Result r = service.importYears(List.of("JUROS_PRE_5A"), 2024, 2024, "teste");
+
+        assertThat(r.created()).isEqualTo(2);
+        assertThat(value("JUROS_PRE_5A", LocalDate.of(2024, 1, 2))).isEqualByComparingTo("10.12345678");
+        verify(publisher, never()).publish(any());
+
+        service.importYears(List.of("CDI", "JUROS_PRE_5A"), 2024, 2024, "teste");
+        verify(publisher).publish(argThat((CatalogChange c) -> c.indexCodes().equals(Set.of("CDI"))));
+    }
+
+    @Test
+    @DisplayName("Carga inicial sem a curva e a curva sozinha depois")
+    void curveApart() {
+        when(curve.year("REAL:10", 2024)).thenReturn(List.of(new IndexPoint(LocalDate.of(2024, 1, 2), new BigDecimal("5.9"))));
+
+        service.importCurve("teste");
+
+        assertThat(count("JUROS_REAL_10A")).isEqualTo(1);
+        assertThat(count("CDI")).isZero();
     }
 
     @Test
@@ -163,7 +204,7 @@ class MarketIndexImportIT extends IntegrationTestBase {
 
         List<MarketIndexImportService.Stale> late = service.stale();
 
-        assertThat(late).hasSize(10);
+        assertThat(late).hasSize(19); // 10 + 9 prazos da curva do Tesouro (V24)
         assertThat(late).contains(new MarketIndexImportService.Stale("CDI", LocalDate.of(2024, 12, 31)),
                 new MarketIndexImportService.Stale("IPCA", null));
     }
@@ -175,12 +216,12 @@ class MarketIndexImportIT extends IntegrationTestBase {
 
         service.audit("teste");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM notifications WHERE kind = 'CATALOGO_INDICE_ATRASADO' "
-                + "AND audience = 'ADMIN' AND status = 'NAO_RESOLVIDA'", Integer.class)).isEqualTo(10);
+                + "AND audience = 'ADMIN' AND status = 'NAO_RESOLVIDA'", Integer.class)).isEqualTo(19); // 10 + 9 da curva (V24)
 
         // de novo: nao repete
         service.audit("teste");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM notifications WHERE kind = 'CATALOGO_INDICE_ATRASADO'",
-                Integer.class)).isEqualTo(10);
+                Integer.class)).isEqualTo(19);
 
         // o CDI volta ao dia: a mensagem dele fica resolvida
         jdbc.update("INSERT INTO market_index_values (index_id, reference_date, value) SELECT id, CURRENT_DATE, 0.05 "

@@ -1436,7 +1436,13 @@ export interface PriceSeries {
 // Índices de mercado (docs/planos/PLANO_INDICES_MERCADO.md)
 // ---------------------------------------------------------------------------
 
-export type IndexCode = 'SELIC' | 'CDI' | 'IPCA' | 'IBOV' | 'IFIX' | 'IGPM' | 'INPC' | 'TR' | 'SELIC_META' | 'USD_PTAX';
+export type IndexCode = 'SELIC' | 'CDI' | 'IPCA' | 'IBOV' | 'IFIX' | 'IGPM' | 'INPC' | 'TR' | 'SELIC_META' | 'USD_PTAX'
+  | YieldCurveCode;
+/** Curva de juros do Tesouro (docs/planos/PLANO_JUROS_FUTUROS.md): um índice por prazo, em % a.a. */
+export type YieldCurveKind = 'PRE' | 'REAL';
+export type YieldCurveCode =
+  | 'JUROS_PRE_1A' | 'JUROS_PRE_2A' | 'JUROS_PRE_3A' | 'JUROS_PRE_5A' | 'JUROS_PRE_8A'
+  | 'JUROS_REAL_4A' | 'JUROS_REAL_5A' | 'JUROS_REAL_10A' | 'JUROS_REAL_20A';
 export type IndexView = 'MENSAL' | 'ANUAL';
 export type IndexUnit = 'PCT_DIA' | 'PCT_MES' | 'PCT_PERIODO' | 'PCT_ANO' | 'PONTOS' | 'BRL';
 
@@ -1446,7 +1452,7 @@ export interface MarketIndex {
   name: string;
   periodicity: 'DIARIA' | 'MENSAL';
   unit: IndexUnit;
-  source: 'BCB_SGS' | 'B3';
+  source: 'BCB_SGS' | 'B3' | 'TESOURO';
   accumulates: boolean;
   firstDate?: string;
   lastDate?: string;
@@ -1463,7 +1469,7 @@ export interface IndexChart {
   periodicity: 'DIARIA' | 'MENSAL';
   unit: IndexUnit;
   displayUnit: string;
-  source: 'BCB_SGS' | 'B3';
+  source: 'BCB_SGS' | 'B3' | 'TESOURO';
   firstDate?: string;
   lastDate?: string;
   from?: string;
@@ -1479,6 +1485,17 @@ export interface IndexChart {
   changePct?: number;
   accumulatedPct?: number;
   points: { date: string; value: number }[];
+}
+
+/**
+ * GET /indices/curves/{PRE|REAL} — curva do dia: os prazos e, por data pedida (hoje, 1 mês e 1 ano antes), as taxas
+ * no último dia com dado até ela (`rates` na ordem de `vertices`; nula quando o prazo não tem valor no dia).
+ */
+export interface YieldCurve {
+  curve: YieldCurveKind;
+  name: string;
+  vertices: { code: YieldCurveCode; years: number }[];
+  dates: { requested: string; date: string | null; rates: (number | null)[] }[];
 }
 
 // ------------------------------------------------------------------ notificações (docs/planos/PLANO_NOTIFICACOES.md)

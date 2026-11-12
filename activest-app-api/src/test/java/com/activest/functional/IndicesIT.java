@@ -55,12 +55,12 @@ class IndicesIT extends FunctionalBase {
     }
 
     @Test
-    @DisplayName("Lista: os 10 indices, com primeira e ultima data de quem tem serie")
+    @DisplayName("Lista: os 19 indices (10 + 9 prazos da curva do Tesouro), com primeira e ultima data de quem tem serie")
     @SuppressWarnings("unchecked")
     void list() {
         List<Map<String, Object>> l = get(user, "/api/v1/indices", List.class).getBody();
 
-        assertThat(l).hasSize(10);
+        assertThat(l).hasSize(19);
         Map<String, Object> ipca = l.stream().filter(i -> "IPCA".equals(i.get("code"))).findFirst().orElseThrow();
         assertThat(ipca).containsEntry("firstDate", "2024-01-01").containsEntry("lastDate", "2024-12-01")
                 .containsEntry("unit", "PCT_MES").containsEntry("accumulates", true);
@@ -158,5 +158,42 @@ class IndicesIT extends FunctionalBase {
                 .getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
         assertThat(rest.exchange("/api/v1/indices", HttpMethod.GET, HttpEntity.EMPTY, String.class).getStatusCode())
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("Curva do dia (PLANO_JUROS_FUTUROS, J3): prazos em ordem, ultimo dia com dado ate a data, prazo sem valor nulo; nao acumula")
+    @SuppressWarnings("unchecked")
+    void yieldCurve() {
+        insert("JUROS_PRE_1A", LocalDate.of(2024, 1, 2), "11.5");
+        insert("JUROS_PRE_5A", LocalDate.of(2024, 1, 2), "10.9");
+        insert("JUROS_PRE_8A", LocalDate.of(2024, 1, 2), "11.2");
+        insert("JUROS_PRE_1A", LocalDate.of(2024, 6, 3), "10.6");
+        insert("JUROS_PRE_5A", LocalDate.of(2024, 6, 3), "11.8");
+
+        Map<String, Object> c = getMap("/api/v1/indices/curves/pre?dates=2024-06-05,2024-01-02,2023-12-01");
+
+        assertThat(c).containsEntry("curve", "PRE").containsEntry("name", "Juros prefixados (Tesouro)");
+        List<Map<String, Object>> vs = (List<Map<String, Object>>) c.get("vertices");
+        assertThat(vs).extracting(v -> v.get("years")).containsExactly(1, 2, 3, 5, 8);
+        List<Map<String, Object>> ds = (List<Map<String, Object>>) c.get("dates");
+        assertThat(ds.get(0)).containsEntry("requested", "2024-06-05").containsEntry("date", "2024-06-03");
+        List<Object> june = (List<Object>) ds.get(0).get("rates");
+        assertThat(june).hasSize(5);
+        assertThat(new BigDecimal(june.get(0).toString())).isEqualByComparingTo("10.6");
+        assertThat(june.get(1)).isNull();
+        assertThat(june.get(4)).isNull(); // 8 anos sem valor em 03/06
+        assertThat(ds.get(1)).containsEntry("date", "2024-01-02");
+        assertThat(ds.get(2).get("date")).isNull();
+        assertThat(((List<Object>) ds.get(2).get("rates"))).containsOnlyNulls();
+
+        assertThat(((List<Object>) getMap("/api/v1/indices/curves/REAL").get("vertices"))).hasSize(4);
+        assertThat(get(user, "/api/v1/indices/curves/XPTO", String.class).getStatusCode())
+                .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(get(user, "/api/v1/indices/curves/PRE?dates=2024-01-01,2024-01-02,2024-01-03,2024-01-04",
+                String.class).getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(get(user, "/api/v1/indices/JUROS_PRE_5A/accumulated?from=2024-01-01", String.class).getStatusCode())
+                .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(getMap("/api/v1/indices/JUROS_PRE_5A/chart?from=2024-01-01&to=2024-12-31"))
+                .containsEntry("displayUnit", "% a.a.");
     }
 }

@@ -100,6 +100,9 @@ activest/
   atualizados todo dia às 10:00 (Banco Central e B3), com consulta da série e do acumulado no período
   (tela **Índices**: um card por índice com período e gráfico; `/api/v1/indices`). Base da futura valorização da
   renda fixa
+- ✅ Curva de juros do Tesouro (11/11/2026): taxas prefixadas (1, 2, 3, 5 e 8 anos) e reais (4, 5, 10 e 20 anos)
+  desde 2010, calculadas todo dia do arquivo do Tesouro Direto; na tela **Índices**, um card por curva com seletor
+  de prazo e a curva do dia (hoje × 1 mês × 1 ano)
 - ✅ Ativos (tela "Emissoras" até 18/10/2026): **listagem do catálogo** (17/10/2026) em abas Ações e FIIs, com logo, nome, setor/segmento, os
   indicadores de cada tipo e o patrimônio líquido (ordem padrão), colunas ordenáveis, filtros por nome, setor e faixa
   de indicador, estado na URL e marca de dado antigo (`docs/planos/PLANO_LISTAGEM_EMISSORAS.md`); e a página de cada
@@ -247,7 +250,7 @@ relatórios de proventos da CVM (2022+), datas de pagamento do levantamento 2010
 (`carga/data/levantamento/datas-pagamento.json`, só onde ainda falta data), balanços com a série
 trimestral, informe mensal de FII, o preço oficial do Tesouro Direto desde 2010 (`tesouro/`) e os índices de mercado desde 2010 (CDI, Selic, IPCA, IGP-M, INPC,
 TR, meta Selic, dólar PTAX, Ibovespa e IFIX — `docs/planos/PLANO_INDICES_MERCADO.md`; ~2 min sem os
-arquivos de `bcb/` e `b3/indices/`, segundos com eles) e, por último, os fundos de investimento da CVM (cadastro e a
+arquivos de `bcb/` e `b3/indices/`, segundos com eles), a curva de juros do Tesouro (calculada do arquivo do Tesouro, segundos) e, por último, os fundos de investimento da CVM (cadastro e a
 última cota de cada fundo, varrendo o informe diário desde 2010 em `cvm/fi`, ~7 min; sem série — ela entra quando o
 fundo vai para uma carteira), o catálogo vivo dos EUA (`FOREIGN_CATALOG` gravando: lista do Nasdaq Trader, OpenFIGI e
 as fichas da SEC — ~35 min na primeira vez sem `sec/profiles/`) e os deslistados dos EUA desde 2010 (`FOREIGN_DELISTED`

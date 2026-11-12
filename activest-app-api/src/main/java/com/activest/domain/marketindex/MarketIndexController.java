@@ -2,6 +2,7 @@ package com.activest.domain.marketindex;
 
 import com.activest.domain.marketindex.MarketIndexDTOs.AccumulatedDTO;
 import com.activest.domain.marketindex.MarketIndexDTOs.ChartDTO;
+import com.activest.domain.marketindex.MarketIndexDTOs.CurveDTO;
 import com.activest.domain.marketindex.MarketIndexDTOs.HistoryDTO;
 import com.activest.domain.marketindex.MarketIndexDTOs.IndexDTO;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -36,6 +37,17 @@ public class MarketIndexController {
     @GetMapping
     public ResponseEntity<List<IndexDTO>> list() {
         return ResponseEntity.ok(service.list());
+    }
+
+    /**
+     * Curva do dia (docs/planos/PLANO_JUROS_FUTUROS.md, J3): {@code PRE} ou {@code REAL}; {@code dates} ate 3 (padrao:
+     * hoje, 1 mes e 1 ano antes).
+     */
+    @GetMapping("/curves/{curve}")
+    public ResponseEntity<CurveDTO> curve(@PathVariable String curve,
+                                          @RequestParam(required = false)
+                                          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) List<LocalDate> dates) {
+        return ResponseEntity.ok(service.curve(curve, dates, LocalDate.now(ZONE)));
     }
 
     /** Serie de {@code from} (padrao: um ano antes de {@code to}) a {@code to} (padrao: hoje). */

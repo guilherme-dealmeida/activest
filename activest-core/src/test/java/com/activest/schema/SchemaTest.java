@@ -25,11 +25,14 @@ class SchemaTest extends JpaTestBase {
     }
 
     @Test
-    @DisplayName("Flyway roda ate a V23 (V1-V6 consolidadas + contas novas da tela de Ativos + metas + moedas, proventos do exterior, euro, fundos de investimento, ticker por tipo, origem da inativacao, estrutura do exterior, tarefas do catalogo do exterior e dos deslistados, o indice do ticker o preco diario do exterior, a carga retroativa, os proventos do exterior, as cores dos tipos e o tamanho da tela) e o schema valida contra as entidades")
+    @DisplayName("Flyway roda ate a V24 (V1-V6 consolidadas + contas novas da tela de Ativos + metas + moedas, proventos do exterior, euro, fundos de investimento, ticker por tipo, origem da inativacao, estrutura do exterior, tarefas do catalogo do exterior e dos deslistados, o indice do ticker o preco diario do exterior, a carga retroativa, os proventos do exterior, as cores dos tipos, o tamanho da tela e a curva de juros do Tesouro) e o schema valida contra as entidades")
     void appliedMigrations() {
         Number version = (Number) em.createNativeQuery(
             "SELECT MAX(CAST(version AS NUMERIC)) FROM flyway_schema_history WHERE success").getSingleResult();
-        assertThat(version.intValue()).isEqualTo(23);
+        assertThat(version.intValue()).isEqualTo(24);
+        // V24 (PLANO_JUROS_FUTUROS): as 9 series da curva de juros do Tesouro, fonte TESOURO, % a.a.
+        assertThat(count("market_indices WHERE source = 'TESOURO' AND unit = 'PCT_ANO' AND periodicity = 'DIARIA'"))
+            .isEqualTo(9);
         // V23 (PLANO_CUSTOMIZAR_TAMANHOS): tamanho da tela por usuario, LARGE por padrao
         assertThat(((Number) em.createNativeQuery(
             "SELECT count(*) FROM users WHERE font_size <> 'LARGE'").getSingleResult()).intValue()).isZero();
@@ -201,8 +204,9 @@ class SchemaTest extends JpaTestBase {
         // V12: 9 regras de fundo (IR e come-cotas por regime); as 48 da V52 ficam GENERAL
         assertThat(count("fixed_income_tax_rules WHERE regime = 'GENERAL'")).isEqualTo(48);
         assertThat(count("fixed_income_tax_rules WHERE tax = 'CC'")).isEqualTo(2);
-        // Indices de mercado (V43, D1): 6 indexadores de renda fixa + meta Selic, PTAX, Ibovespa e IFIX; serie vazia
-        assertThat(count("market_indices")).isEqualTo(10);
+        // Indices de mercado (V43, D1): 6 indexadores de renda fixa + meta Selic, PTAX, Ibovespa e IFIX; V24: + 9
+        // prazos da curva de juros do Tesouro; serie vazia
+        assertThat(count("market_indices")).isEqualTo(19);
         assertThat(count("market_indices WHERE code IN ('CDI','SELIC','IPCA','IGPM','INPC','TR')")).isEqualTo(6);
         assertThat(count("market_index_values")).isZero();
     }

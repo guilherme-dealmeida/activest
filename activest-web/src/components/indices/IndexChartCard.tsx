@@ -1,5 +1,5 @@
 import { useCalendarAxis } from '@/hooks/useCalendarAxis';
-import { useMemo, useState } from 'react';
+import { ReactNode, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -22,7 +22,7 @@ const DEFAULT_RANGE: PriceRange = '1A';
 const GOLD = '#c9a84c';
 
 /** O que cada card explica no (i): fonte, unidade e o que o resumo mostra. */
-const INFO: Record<IndexCode, string> = {
+const INFO: Partial<Record<IndexCode, string>> = {
   SELIC: 'Selic efetiva (over), publicada pelo Banco Central (SGS 11) a cada dia útil. O gráfico mostra a taxa anualizada em 252 dias úteis; o acumulado compõe a taxa de cada dia do período.',
   CDI: 'Taxa DI (CDI), publicada pelo Banco Central (SGS 12) a cada dia útil. O gráfico mostra a taxa anualizada em 252 dias úteis; o acumulado compõe a taxa de cada dia do período — é a base do "% do CDI" da renda fixa.',
   IPCA: 'Inflação oficial (IBGE), variação mensal pelo Banco Central (SGS 433), divulgada por volta do dia 10 do mês seguinte. Visão anual: cada mês mostra o acumulado dos 12 meses terminados nele (% a.a.). O acumulado do resumo compõe os meses inteiros do período.',
@@ -62,7 +62,19 @@ const tooltipDate = (iso: string, monthly: boolean) => {
  * padrão, período de/até; nos mensais sem 1D e 7D). Diário em área (meta Selic em degraus); mensal em barras, porque a variação do mês pode
  * ser negativa. O período fica no card: cada índice tem o seu.
  */
-export const IndexChartCard = ({ code }: { code: IndexCode }) => {
+interface IndexChartCardProps {
+  code: IndexCode;
+  /** Título no lugar do nome do cadastro (o card da curva mostra o nome da curva, e o prazo no seletor). */
+  title?: string;
+  /** Texto do (i) no lugar do padrão do índice. */
+  info?: string;
+  /** Controles extras no cabeçalho, antes dos períodos (ex.: seletor de prazo da curva). */
+  controls?: ReactNode;
+  /** Conteúdo abaixo do gráfico (ex.: a curva do dia). */
+  footer?: ReactNode;
+}
+
+export const IndexChartCard = ({ code, title: titleOverride, info, controls, footer }: IndexChartCardProps) => {
   const { isDark } = useTheme();
   const [range, setRangeState] = useState<PriceRange>(DEFAULT_RANGE);
   const [dateFrom, setDateFrom] = useState<string>('');
@@ -105,7 +117,7 @@ export const IndexChartCard = ({ code }: { code: IndexCode }) => {
   const dates = useMemo(() => points.map(p => p.date), [points]);
   const { ref: axisRef, axisProps } = useCalendarAxis(dates, monthly ? 'MONTH' : 'DAY');
   // o nome do cadastro já diz o índice ("CDI — Taxa DI", "Meta Selic (Copom)"); o código só enquanto carrega
-  const title = data?.name ?? code;
+  const title = titleOverride ?? data?.name ?? code;
   const fillId = `indice-${code}`;
 
   const ChartTooltip = ({ active, payload }: { active?: boolean; payload?: { payload: { date: string; value: number } }[] }) => {
@@ -144,9 +156,10 @@ export const IndexChartCard = ({ code }: { code: IndexCode }) => {
       <div className="flex flex-col gap-3 mb-4 lg:flex-row lg:items-center lg:justify-between">
         <h3 className="text-sm font-medium text-gray-400 flex items-center gap-1.5">
           {title}
-          <InfoTooltip content={INFO[code]} />
+          <InfoTooltip content={info ?? INFO[code] ?? ''} />
         </h3>
         <div className="flex flex-wrap items-center gap-2">
+          {controls}
           {isMonthlyIndex && (
             <select
               aria-label={`Visão de ${code}`}
@@ -235,7 +248,7 @@ export const IndexChartCard = ({ code }: { code: IndexCode }) => {
           </div>
         ) : points.length === 0 ? (
           <div className="flex h-full items-center justify-center text-sm text-gray-400">
-            {data?.lastDate ? `Sem valor de ${code} no período escolhido.` : `Série de ${code} ainda não carregada.`}
+            {data?.lastDate ? `Sem valor de ${data?.name ?? title} no período escolhido.` : `Série de ${data?.name ?? title} ainda não carregada.`}
           </div>
         ) : bars ? (
           <ResponsiveContainer width="100%" height="100%">
@@ -275,6 +288,7 @@ export const IndexChartCard = ({ code }: { code: IndexCode }) => {
           </ResponsiveContainer>
         )}
       </div>
+      {footer}
     </Card>
   );
 };

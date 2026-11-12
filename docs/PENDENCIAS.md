@@ -1646,6 +1646,25 @@ classes no `<html>` — vale para os dois, por isso ficou fora do escopo.
 mínimas de tabela e o menu recolhido (`w-[72px]`) não encolhem no Pequena. Na conferência de 10/11/2026 nada ficou
 errado; converter para `rem` só se alguma tela pedir.
 
+## 48. CURVA DE JUROS DO TESOURO (docs/planos/PLANO_JUROS_FUTUROS.md, 11/11/2026)
+
+**48.1 Usos da curva fora da tela Índices (D9).** Preço Teto (prefixada longa como alternativa à Selic na taxa de
+desconto), Metas (premissa de rendimento das projeções, hoje CDI e IPCA) e renda fixa prefixada / Tesouro Prefixado
+(comparar a taxa contratada com a do mercado no mesmo prazo). Cada um pede escopo próprio.
+
+**48.2 Taxa sem cupom calculada (I1 c).** Os títulos com juros semestrais entram com a taxa deles, como aproximação.
+O certo é extrair a taxa sem cupom do PU (bootstrap); na real, precisa do VNA do IPCA.
+
+**48.3 Inflação implícita (D2 c).** Prefixada − real por prazo (a expectativa de IPCA do mercado), sem fonte nova.
+
+**48.4 Outras fontes.** ETTJ da ANBIMA (curva de referência do mercado; confirmar histórico e termos de uso). DI
+futuro de verdade só com licença da B3 (a página de taxas proíbe coleta automatizada) ou plano pago da BRAPI (o
+gratuito não tem futuros, conferido em 11/11/2026).
+
+**48.5 Buracos sem título no prazo.** Prefixada de 8 anos sem 14 dias (04–21/01/2010) e real de 4 anos sem 64 dias
+(nov/2019–ago/2020): nenhum título do dia alcança o prazo, e a curva não extrapola. O gráfico mostra o trecho sem
+linha.
+
 ## ORDEM SUGERIDA
 
 O item 1 saiu. O 5.1 (indices) saiu em 05/10/2026; o proximo passo e o 2.1 — a razao de

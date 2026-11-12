@@ -11,7 +11,7 @@ public enum IndexUnit {
     PCT_MES(true, 12),
     /** TR: taxa de um periodo de um mes que comeca no dia. Os periodos se sobrepoem — nao acumula dia a dia. */
     PCT_PERIODO(false, 0),
-    /** Meta Selic: taxa anual em vigor no dia. E uma meta, nao um rendimento — nao acumula. */
+    /** Taxa anual do dia (meta Selic, curva de juros do Tesouro). E uma taxa, nao um rendimento — nao acumula. */
     PCT_ANO(false, 0),
     /** Pontos de um indice da B3. Variacao = ultimo / base. */
     PONTOS(false, 0),
