@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { IndexChart, IndexView, MarketIndex, PriceRange } from '../types';
+import { IndexChart, IndexView, MarketIndex, PriceRange, YieldCurve, YieldCurveKind } from '../types';
 
 /** Índices de mercado (docs/planos/PLANO_INDICES_MERCADO.md): lista e gráfico de cada card da tela Índices. */
 export const indicesApi = {
@@ -11,6 +11,12 @@ export const indicesApi = {
   chart: async (code: string, period: { range: PriceRange } | { from?: string; to?: string }, view?: IndexView) => {
     const { data } = await apiClient.get<IndexChart>(`/indices/${encodeURIComponent(code)}/chart`,
       { params: { ...period, view } });
+    return data;
+  },
+  /** Curva do dia (PLANO_JUROS_FUTUROS): sem `dates`, hoje, 1 mês e 1 ano antes. */
+  curve: async (curve: YieldCurveKind, dates?: string[]) => {
+    const { data } = await apiClient.get<YieldCurve>(`/indices/curves/${curve}`,
+      { params: dates?.length ? { dates: dates.join(',') } : undefined });
     return data;
   },
 };

@@ -5,6 +5,8 @@ import com.activest.domain.task.TaskRun;
 import com.activest.adm.integration.indices.B3IndexClient;
 import com.activest.adm.integration.indices.BcbSgsClient;
 import com.activest.adm.integration.indices.IndexSourceException;
+import com.activest.adm.integration.indices.TreasuryCurveSource;
+import com.activest.domain.marketindex.IndexSource;
 import com.activest.domain.catalog.CatalogChange;
 import com.activest.domain.catalog.CatalogMessaging.CatalogChangePublisher;
 import com.activest.domain.marketindex.IndexPeriodicity;
@@ -55,7 +57,9 @@ import java.util.concurrent.locks.ReentrantLock;
  * {@code antigo → novo} (D10). Nada e apagado. Indice que falha nao impede os outros. Uma carga por vez.</p>
  *
  * <p>O resultado traz, por indice, a menor data que mudou; quando algo mudou, publica "catalogo mudou" (INDICES) e a
- * app-api refaz a curva da renda fixa privada (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, R5).</p>
+ * app-api refaz a curva da renda fixa privada (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, R5). A curva de juros do
+ * Tesouro (fonte {@code TESOURO}, docs/planos/PLANO_JUROS_FUTUROS.md) nao e indexador de nada: mudanca so nela nao
+ * publica.</p>
  */
 @Slf4j
 @Service
@@ -78,6 +82,7 @@ public class MarketIndexImportService {
     private final MarketIndexRepository indices;
     private final BcbSgsClient sgs;
     private final B3IndexClient b3;
+    private final TreasuryCurveSource curve;
     private final JdbcTemplate jdbc;
     private final TransactionTemplate tx;
     private final CatalogChangePublisher publisher;
@@ -86,15 +91,18 @@ public class MarketIndexImportService {
 
     @Autowired
     public MarketIndexImportService(MarketIndexRepository indices, BcbSgsClient sgs, B3IndexClient b3,
-                                    JdbcTemplate jdbc, PlatformTransactionManager txm, CatalogChangePublisher publisher) {
-        this(indices, sgs, b3, jdbc, txm, publisher, Clock.system(ZONE));
+                                    TreasuryCurveSource curve, JdbcTemplate jdbc, PlatformTransactionManager txm,
+                                    CatalogChangePublisher publisher) {
+        this(indices, sgs, b3, curve, jdbc, txm, publisher, Clock.system(ZONE));
     }
 
-    MarketIndexImportService(MarketIndexRepository indices, BcbSgsClient sgs, B3IndexClient b3, JdbcTemplate jdbc,
-                             PlatformTransactionManager txm, CatalogChangePublisher publisher, Clock clock) {
+    MarketIndexImportService(MarketIndexRepository indices, BcbSgsClient sgs, B3IndexClient b3,
+                             TreasuryCurveSource curve, JdbcTemplate jdbc, PlatformTransactionManager txm,
+                             CatalogChangePublisher publisher, Clock clock) {
         this.indices = indices;
         this.sgs = sgs;
         this.b3 = b3;
+        this.curve = curve;
         this.jdbc = jdbc;
         this.tx = new TransactionTemplate(txm);
         this.publisher = publisher;
@@ -143,7 +151,27 @@ public class MarketIndexImportService {
 
     /** Carga historica de todos os indices ativos: de {@code history_from} ate o ano corrente. */
     public Result importAll(String trigger) {
-        return importYears(null, null, LocalDate.now(clock).getYear(), trigger);
+        return importAll(trigger, true);
+    }
+
+    /**
+     * Carga historica; {@code withCurve} falso deixa de fora a curva do Tesouro (carga inicial: ela depende do arquivo
+     * do Tesouro, que vem num passo depois — {@link #importCurve}).
+     */
+    public Result importAll(String trigger, boolean withCurve) {
+        List<String> codes = withCurve ? null : indices.findByActiveTrueOrderByIdAsc().stream()
+                .filter(i -> i.getSource() != IndexSource.TESOURO).map(MarketIndex::getCode).toList();
+        return importYears(codes, null, LocalDate.now(clock).getYear(), trigger);
+    }
+
+    /** Carga historica so da curva de juros do Tesouro (todos os prazos). Nulo se ja ha uma carga rodando. */
+    public Result importCurve(String trigger) {
+        List<String> codes = indices.findByActiveTrueOrderByIdAsc().stream()
+                .filter(i -> i.getSource() == IndexSource.TESOURO).map(MarketIndex::getCode).toList();
+        if (codes.isEmpty()) {
+            return new Result(List.of());
+        }
+        return importYears(codes, null, LocalDate.now(clock).getYear(), trigger);
     }
 
     /**
@@ -168,7 +196,7 @@ public class MarketIndexImportService {
                 int from = fromYear != null ? fromYear : index.getHistoryFrom().getYear();
                 results.add(load(index, from, toYear));
             }
-            return finish(trigger, results, started);
+            return finish(trigger, results, selected, started);
         } finally {
             running.unlock();
         }
@@ -192,7 +220,7 @@ public class MarketIndexImportService {
                         .orElse(index.getHistoryFrom().getYear());
                 results.add(load(index, Math.min(from, year), year));
             }
-            return finish(trigger, results, started);
+            return finish(trigger, results, active, started);
         } finally {
             running.unlock();
         }
@@ -266,11 +294,16 @@ public class MarketIndexImportService {
         return Optional.ofNullable(d).map(Date::toLocalDate);
     }
 
-    private Result finish(String trigger, List<IndexResult> results, long started) {
+    private Result finish(String trigger, List<IndexResult> results, List<MarketIndex> processed, long started) {
         Result r = new Result(results);
-        // D8 da renda fixa (R5): a app-api revaloriza a renda fixa privada quando um indice entra ou muda
-        if (!r.changedFrom().isEmpty()) {
-            publisher.publish(CatalogChange.indices(r.changedFrom().keySet()));
+        // D8 da renda fixa (R5): a app-api revaloriza a renda fixa privada quando um indice entra ou muda. A curva do
+        // Tesouro nao e indexador: mudanca so nela nao avisa ninguem (PLANO_JUROS_FUTUROS, 4.2)
+        Set<String> curveCodes = new TreeSet<>();
+        processed.stream().filter(i -> i.getSource() == IndexSource.TESOURO).forEach(i -> curveCodes.add(i.getCode()));
+        Set<String> changed = new TreeSet<>(r.changedFrom().keySet());
+        changed.removeAll(curveCodes);
+        if (!changed.isEmpty()) {
+            publisher.publish(CatalogChange.indices(changed));
         }
         log.info("Indices ({}) em {}s: {}", trigger, (System.currentTimeMillis() - started) / 1000, r);
         results.forEach(i -> log.info("Indices: {} {}-{} — {} novos, {} corrigidos, {} iguais, ultimo {}{}",
@@ -294,8 +327,7 @@ public class MarketIndexImportService {
             } catch (IndexSourceException e) {
                 error = year + ": " + e.getMessage();
                 log.error("Indices: {} {} indisponivel: {}", index.getCode(), year, e.getMessage());
-                notices.sourceUnavailable("Índices de mercado",
-                        index.getSource() == com.activest.domain.marketindex.IndexSource.B3 ? "B3" : "Banco Central (SGS)",
+                notices.sourceUnavailable("Índices de mercado", sourceLabel(index.getSource()),
                         index.getCode()
                         + " " + year + ": " + e.getMessage());
                 continue;
@@ -358,6 +390,15 @@ public class MarketIndexImportService {
         return switch (index.getSource()) {
             case BCB_SGS -> sgs.year(index.getSourceRef(), year);
             case B3 -> b3.year(index.getSourceRef(), year);
+            case TESOURO -> curve.year(index.getSourceRef(), year);
+        };
+    }
+
+    private static String sourceLabel(IndexSource source) {
+        return switch (source) {
+            case BCB_SGS -> "Banco Central (SGS)";
+            case B3 -> "B3";
+            case TESOURO -> "Tesouro Direto (curva de juros)";
         };
     }
 }

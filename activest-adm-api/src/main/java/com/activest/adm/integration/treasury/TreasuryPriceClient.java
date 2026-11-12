@@ -64,6 +64,11 @@ public class TreasuryPriceClient {
         this.files = files;
     }
 
+    /** A copia em disco do arquivo do Tesouro (pode nao existir antes da primeira rodada). */
+    public Path file() {
+        return target;
+    }
+
     /** Pergunta ao Tesouro (baixa so se mudou) e conta o que aconteceu, com o arquivo em disco, se houver. */
     public PublicFileCache.Result fetch() {
         return files.get(url, target, true, PublicFileCache.ContentCheck.csvHeader(HEADER_PREFIX));

@@ -38,7 +38,8 @@ class MarketIndexRepositoryTest extends JpaTestBase {
         assertThat(cdi.getPeriodicity()).isEqualTo(IndexPeriodicity.DIARIA);
         assertThat(indices.findByCode("IPCA").orElseThrow().getPeriodicity()).isEqualTo(IndexPeriodicity.MENSAL);
         assertThat(indices.findByCode("IBOV").orElseThrow().getSource()).isEqualTo(IndexSource.B3);
-        assertThat(indices.findByActiveTrueOrderByIdAsc()).hasSize(10);
+        assertThat(indices.findByActiveTrueOrderByIdAsc()).hasSize(19); // 10 + 9 prazos da curva (V24)
+        assertThat(indices.findByCode("JUROS_PRE_5A").orElseThrow().getSource()).isEqualTo(IndexSource.TESOURO);
     }
 
     @Test

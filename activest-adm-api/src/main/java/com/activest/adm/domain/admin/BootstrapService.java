@@ -49,6 +49,8 @@ import java.util.function.Supplier;
  *   fechados de {@code carga/data/bcb/ptax};</li>
  *   <li><b>preco do Tesouro Direto</b> 2010+ (docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md, R1): o PU de venda de cada
  *   titulo, de {@code carga/data/tesouro} (ou do Tesouro Transparente, se mudou).</li>
+ *   <li><b>curva de juros do Tesouro</b> 2010+ (docs/planos/PLANO_JUROS_FUTUROS.md, J2): os prazos da prefixada e da
+ *   real, calculados do arquivo do passo anterior — por isso fica fora do passo dos indices.</li>
  *   <li><b>historico de cripto</b> (docs/planos/PLANO_RENTABILIDADE.md, 3.3): {@code carga/data/coingecko/historico}
  *   e {@code carga/data/binance/klines} — o benchmark BTC e o que estiver em carteira.</li>
  *   <li><b>fundos de investimento</b> (docs/planos/PLANO_FUNDOS_INVESTIMENTO.md, F2): cadastros e informe diario da CVM
@@ -170,13 +172,15 @@ public class BootstrapService {
                     () -> statements.importYears(FinancialStatementImportService.FIRST_YEAR, year, false, reason)));
             steps.add(step("informe FII " + FiiMonthlyImportService.FIRST_YEAR + "-" + year,
                     () -> fiiMonthly.importYears(FiiMonthlyImportService.FIRST_YEAR, year, false, reason)));
-            steps.add(step("indices de mercado", () -> indices.importAll(reason)));
+            steps.add(step("indices de mercado", () -> indices.importAll(reason, false)));
             if (exchangeRates != null) {
                 steps.add(step("cambio " + com.activest.adm.domain.currency.ExchangeRateImportService.HISTORY_FROM
                         .getYear() + "+", () -> exchangeRates.importRecent(reason)));
             }
             steps.add(step("preco do Tesouro " + TreasuryPriceService.FIRST_YEAR + "+",
                     () -> treasury.importFrom(TreasuryPriceService.FIRST_YEAR, reason)));
+            // a curva de juros sai do arquivo do Tesouro baixado no passo anterior (PLANO_JUROS_FUTUROS, J2)
+            steps.add(step("curva de juros do Tesouro", () -> indices.importCurve(reason)));
             if (cryptoHistory != null) {
                 steps.add(step("historico de cripto", () -> cryptoHistory.importAll(reason)));
             }

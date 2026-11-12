@@ -2,6 +2,9 @@ package com.activest.domain.marketindex;
 
 import com.activest.domain.marketindex.MarketIndexDTOs.AccumulatedDTO;
 import com.activest.domain.marketindex.MarketIndexDTOs.ChartDTO;
+import com.activest.domain.marketindex.MarketIndexDTOs.CurveDTO;
+import com.activest.domain.marketindex.MarketIndexDTOs.CurveDateDTO;
+import com.activest.domain.marketindex.MarketIndexDTOs.CurveVertexDTO;
 import com.activest.domain.pricehistory.PriceSeries.Interval;
 import com.activest.domain.pricehistory.PriceSeries.Range;
 import com.activest.domain.marketindex.MarketIndexDTOs.HistoryDTO;
@@ -89,7 +92,9 @@ public class MarketIndexQueryService {
             a = MarketIndexCalculator.level(unit, base, end);
         } else {
             throw new BusinessException(index.getCode() + " não acumula: "
-                    + (unit == IndexUnit.PCT_ANO ? "é uma meta anual, não um rendimento"
+                    + (index.getSource() == IndexSource.TESOURO
+                    ? "é a taxa que o mercado pede para o prazo, não um rendimento"
+                    : unit == IndexUnit.PCT_ANO ? "é uma meta anual, não um rendimento"
                     : "cada valor é a taxa de um período de um mês que começa no dia"));
         }
         return new AccumulatedDTO(index.getCode(), unit, from, to, percentOfIndex, spreadPerYear, a.firstDate(),
@@ -184,6 +189,49 @@ public class MarketIndexQueryService {
                 displayUnit, index.getSource(), first, last,
                 window.isEmpty() ? start : window.firstKey(), window.isEmpty() ? end : window.lastKey(), label,
                 interval.name(), v, lastShown, min, max, s.change(), s.changePct(), s.accumulatedPct(), points);
+    }
+
+    /**
+     * Curva do dia (docs/planos/PLANO_JUROS_FUTUROS.md, J3): para cada data pedida (ate 3; padrao hoje, 1 mes e 1 ano
+     * antes), as taxas de todos os prazos da curva {@code PRE} ou {@code REAL} no ultimo dia com dado ate ela. Prazo
+     * sem valor naquele dia vem nulo (fora dos titulos: nao se extrapola).
+     */
+    public CurveDTO curve(String curve, List<LocalDate> dates, LocalDate today) {
+        YieldCurve.Curve c;
+        try {
+            c = YieldCurve.Curve.valueOf(curve.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException("Curva inválida: " + curve + " (PRE ou REAL)");
+        }
+        List<LocalDate> wanted = dates == null || dates.isEmpty()
+                ? List.of(today, today.minusMonths(1), today.minusYears(1)) : dates;
+        if (wanted.size() > 3) {
+            throw new BusinessException("No máximo 3 datas");
+        }
+        List<MarketIndex> vertices = indices.findByActiveTrueOrderByIdAsc().stream()
+                .filter(i -> i.getSource() == IndexSource.TESOURO)
+                .filter(i -> YieldCurve.Vertex.parse(i.getSourceRef()).curve() == c)
+                .sorted(java.util.Comparator.comparingInt(i -> YieldCurve.Vertex.parse(i.getSourceRef()).years()))
+                .toList();
+        if (vertices.isEmpty()) {
+            throw new ResourceNotFoundException("Curva " + c + " sem prazos cadastrados");
+        }
+        List<CurveVertexDTO> vs = vertices.stream()
+                .map(i -> new CurveVertexDTO(i.getCode(), YieldCurve.Vertex.parse(i.getSourceRef()).years())).toList();
+        List<CurveDateDTO> out = new java.util.ArrayList<>();
+        for (LocalDate requested : wanted) {
+            // o ultimo dia com dado ate a data, olhando todos os prazos (o mais curto pode faltar num dia, o longo nao)
+            LocalDate day = vertices.stream()
+                    .map(i -> values.findFirstByIndexIdAndReferenceDateLessThanEqualOrderByReferenceDateDesc(i.getId(),
+                            requested).map(MarketIndexValue::getReferenceDate).orElse(null))
+                    .filter(java.util.Objects::nonNull).max(LocalDate::compareTo).orElse(null);
+            List<BigDecimal> rates = vertices.stream().map(i -> day == null ? null
+                    : values.findByIndexIdAndReferenceDateBetweenOrderByReferenceDate(i.getId(), day, day).stream()
+                            .findFirst().map(MarketIndexValue::getValue).orElse(null)).toList();
+            out.add(new CurveDateDTO(requested, day, rates));
+        }
+        String name = c == YieldCurve.Curve.PRE ? "Juros prefixados (Tesouro)" : "Juros reais (Tesouro IPCA+)";
+        return new CurveDTO(c.name(), name, vs, out);
     }
 
     private MarketIndex find(String code) {

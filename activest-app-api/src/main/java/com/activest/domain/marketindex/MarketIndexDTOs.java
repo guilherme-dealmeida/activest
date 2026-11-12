@@ -44,4 +44,18 @@ public final class MarketIndexDTOs {
                                  BigDecimal percentOfIndex, BigDecimal spreadPerYear, LocalDate firstDate,
                                  LocalDate lastDate, int periods, BigDecimal factor, BigDecimal percent) {
     }
+
+    /** Curva do dia (docs/planos/PLANO_JUROS_FUTUROS.md, J3): os prazos e, por data pedida, as taxas % a.a. */
+    public record CurveDTO(String curve, String name, List<CurveVertexDTO> vertices, List<CurveDateDTO> dates) {
+    }
+
+    public record CurveVertexDTO(String code, int years) {
+    }
+
+    /**
+     * {@code requested}: a data pedida; {@code date}: o ultimo dia com dado ate ela (nulo sem serie); {@code rates}: uma
+     * por prazo, na ordem de {@code vertices}, nula quando o prazo nao tem valor no dia.
+     */
+    public record CurveDateDTO(LocalDate requested, LocalDate date, List<BigDecimal> rates) {
+    }
 }
