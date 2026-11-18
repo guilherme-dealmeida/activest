@@ -1,6 +1,6 @@
 # Activest — Plano do Índice de Juros Futuros
 
-> Fase: **implementado em 11/11/2026** (J1–J5) — andamento na seção 7. D1–D9, I1–I4 e P1–P4 decididas. Etapas 1 a 3 não alteram código (REGRAS_CLAUDE.md 2.2).
+> Fase: **concluído** — implementado em 11/11/2026 (J1–J5) e comitado pelo Guilherme (`881c819`, PR #19 na `develop`, 12/11/2026); andamento na seção 7. D1–D9, I1–I4 e P1–P4 decididas. Etapas 1 a 3 não alteram código (REGRAS_CLAUDE.md 2.2).
 > Origem: chat de dúvidas de 10–11/11/2026 ("Consigo aderir o índice de juros futuros no Activest?").
 
 ## 1. Objetivo
@@ -240,5 +240,7 @@ título que alcance o prazo fica sem linha.
   rodada o `MarketIndexImportIT.reconciliationBecomesMessage` ainda contava 10 avisos de atraso; passou a 19.)
   Review: sem achados além do ajuste do eixo (J4) e da cobertura da real de 4 anos (seção 5). Durante a carga, a
   porta 8080 da app-api no Windows parou de responder (dentro do container e pelo proxy do front, normal); a carga foi
-  disparada com `--api http://127.0.0.1:5173`.
+  disparada com `--api http://127.0.0.1:5173` (PENDENCIAS 49.2).
+- 12/11/2026 — **Commit** feito pelo Guilherme: `881c819` "TRACK_01 - Curva de juros do Tesouro (prefixada e real por
+  prazo) na tela Índices", PR #19 na `develop`. Próximos usos da curva: PENDENCIAS 48.1 e 48.6.
 - 11/11/2026 — escopo aberto; Discovery feito (seções 2 e 3); BRAPI conferida (plano gratuito sem futuros); D1–D9 pela recomendação; Impact feito (seção 4); I1–I4 pela recomendação, real de 4 anos; Planning apresentado (seção 5), aguardando P1–P4 e a ordem de execução.

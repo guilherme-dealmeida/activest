@@ -5,7 +5,9 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 10/11/2026 (**Tamanho da tela**, `docs/planos/PLANO_CUSTOMIZAR_TAMANHOS.md`: V23 — `users.font_size`
+> **Última revisão**: 11/11/2026 (**Curva de juros do Tesouro**, `docs/planos/PLANO_JUROS_FUTUROS.md`: V24 — fonte
+> `TESOURO` e 9 índices `JUROS_PRE_*`/`JUROS_REAL_*` em % a.a., calculados na adm-api do arquivo do Tesouro Direto;
+> `GET /api/v1/indices/curves/{PRE|REAL}`; cards com seletor de prazo e curva do dia na tela Índices). Antes: 10/11/2026 (**Tamanho da tela**, `docs/planos/PLANO_CUSTOMIZAR_TAMANHOS.md`: V23 — `users.font_size`
 > (LARGE/SMALL); botão A−/A+ no cabeçalho e "Grande | Pequena" em Configurações → Preferências; Pequena = fonte raiz
 > 87,5%, a tela inteira acompanha por ser em rem — ver "Tamanho da tela" em Padrão Visual). Antes: 02/11/2026, tarde (**Performance das telas — ambiente de dev**, `docs/planos/PLANO_PERFORMANCE_TELAS.md`:
 > a lentidão geral vinha da varredura de arquivos pelo bind mount do Windows (~2–3 ms por arquivo): `DEV_WATCH=false`
@@ -783,6 +785,7 @@ existir: o banco novo não tem o dado que elas corrigiam.
 | `V19__foreign_daily_quotes.sql` | (01/11/2026, `docs/planos/PLANO_PRECOS_INTERNACIONAIS.md`) fonte `MASSIVE` em `ck_asset_types_price_source` e `ck_price_history_source`; Stock, REIT e ETF internacional com `price_source = MASSIVE`; tipo e tarefa `FOREIGN_DAILY_QUOTES` (ter–sáb 03:00, subida, `FROM_DATE`/`TO_DATE`) |
 | `V20__foreign_history_quotes_task.sql` | (01/11/2026, `docs/planos/PLANO_PRECOS_HISTORICOS_INTERNACIONAIS.md`) tipo e tarefa `FOREIGN_HISTORY_QUOTES` (só Run; `FROM_DATE` vazio = 2 anos atrás, `TO_DATE` vazio = ontem) |
 | `V23__user_font_size.sql` | (10/11/2026, `docs/planos/PLANO_CUSTOMIZAR_TAMANHOS.md`) `users.font_size VARCHAR(10) NOT NULL DEFAULT 'LARGE'` + `ck_users_font_size` (LARGE, SMALL) |
+| `V24__yield_curve.sql` | (11/11/2026, `docs/planos/PLANO_JUROS_FUTUROS.md`) `TESOURO` em `ck_market_indices_source`; seed dos 9 prazos da curva de juros do Tesouro (ids 11–19: `JUROS_PRE_1A/2A/3A/5A/8A`, `JUROS_REAL_4A/5A/10A/20A`, DIARIA, `PCT_ANO`, `source_ref` `<PRE\|REAL>:<anos>`, desde 2010); texto da tarefa `MARKET_INDICES` |
 | `V21__foreign_dividends.sql` | (02/11/2026, `docs/planos/PLANO_PROVENTOS_INTERNACIONAIS.md`) fonte `MASSIVE` em `ck_asset_cash_events_source`; tipos e tarefas `FOREIGN_DIVIDENDS` (ter–sáb 03:30, subida) e `FOREIGN_DIVIDENDS_HISTORY` (só Run; `FROM_DATE` 2010-01-01, `TO_DATE`) |
 
 **Como foi verificado** — o método a repetir num próximo reset. As 67 migrations
