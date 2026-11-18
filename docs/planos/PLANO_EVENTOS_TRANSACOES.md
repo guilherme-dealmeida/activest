@@ -1,7 +1,9 @@
 # Activest — Plano dos eventos do papel em Transações
 
-> Fase: **Commit** — etapas 1 a 6 feitas em 18/11/2026, com a mudança da Review (bonificação a custo zero no preço
-> médio, como a corretora, seção 8.4; D15–D18 aprovadas pela recomendação); falta o commit do Guilherme. Etapas 1 a 5 feitas; D1–D11 aprovadas pela recomendação do Claude. Origem: dúvidas de 17/11/2026 (KLBN4: 600 cotas na Carteira × 597 somadas em Transações; onde a bonificação
+> Fase: **Encerrado em 18/11/2026** — as 7 etapas feitas, com a mudança da Review (bonificação a custo zero no preço
+> médio, como a corretora, seção 8.4); commit `146d223` na `TRACK_01-bonificacao`, feito pelo Guilherme, que declarou o
+> escopo encerrado. D1–D11 e D15–D18 aprovadas pela recomendação do Claude.
+> Origem: dúvidas de 17/11/2026 (KLBN4: 600 cotas na Carteira × 597 somadas em Transações; onde a bonificação
 > está gravada; outros ativos com bonificação), que viraram o ESCOPO "Tornar eventos em transações Activest"
 > (18/11/2026, REGRAS_CLAUDE.md 2.9), ampliado para **bonificação, desdobramento e grupamento**.
 
@@ -355,4 +357,4 @@ Consequências, sem decisão a tomar:
   319; 7 min 22 s); front `tsc -b`, lint, Vitest 195 e `vite build` verdes. Review: sem achados abertos. Docs:
   `Claude.md` (cabeçalho, endpoint, Transações, "Bonificação: preço médio da corretora", Notificações, testes),
   `README.md`, `docs/PENDENCIAS.md` (13.2 revisto, 50.4).
-
+- 18/11/2026 — **Commit** `146d223` (TRACK_01-bonificacao) pelo Guilherme; escopo encerrado.
