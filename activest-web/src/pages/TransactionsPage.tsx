@@ -13,7 +13,7 @@ import { TransactionFormModal, TransactionPreset } from '@/components/transactio
 import { presetFromPosition, presetFromTransaction } from '@/components/transactions/transactionPreset';
 import { TABLE_ACTION_CLASS } from '@/components/ui/tableAction';
 import { formatCurrency, formatDate, formatFxRate, formatMoney, formatPercentage, formatQuantity, formatUnitPrice, toLocalISODate } from '@/utils/format';
-import { TransactionResponse, TransactionType, AssetType, TransactionCreate, PortfolioAssetDetail } from '@/types';
+import { TransactionResponse, TransactionType, AssetType, TransactionCreate, PortfolioAssetDetail, StockEventEntry } from '@/types';
 import { useSortable } from '@/hooks/useSortable';
 import { isFixedIncomeNote, RENDA_FIXA, TESOURO_DIRETO, typeLogo } from '@/utils/assetTypeRules';
 import { AssetLogo } from '@/components/ui/AssetLogo';
@@ -24,6 +24,9 @@ import { useToast } from '@/context/ToastContext';
 import { providerName } from '@/utils/integrations';
 import { useIntegrationSources } from '@/hooks/useIntegrationSources';
 import { assetText, useAssetLabel } from '@/utils/assetLabel';
+import { mergeLedger, StockEventRow, stockEventTitle, toStockEventRow } from '@/utils/stockEventRows';
+import { StockEventLine } from '@/components/transactions/StockEventLine';
+import { InformCostModal } from '@/components/notifications/InformCostModal';
 
 /** Rótulo do tipo como a listagem o mostra — a mesma convenção dos DTOs. */
 const labelOfType = (type: AssetType) => type.description || type.name;
@@ -88,7 +91,10 @@ export const TransactionsPage = () => {
   const [filterCategory, setFilterCategory] = useState('ALL');
   const [filterAsset, setFilterAsset] = useState('ALL');
   const [filterPeriod, setFilterPeriod] = useState('ALL');
-  const [filterOrigin, setFilterOrigin] = useState<'ALL' | 'MANUAL' | 'AUTO' | 'SISTEMA'>('ALL');
+  /** EVENT: as linhas de evento do papel (PLANO_EVENTOS_TRANSACOES.md, D7). */
+  const [filterOrigin, setFilterOrigin] = useState<'ALL' | 'MANUAL' | 'AUTO' | 'SISTEMA' | 'EVENT'>('ALL');
+  /** "Informar custo" da bonificação pela linha do evento (D6). */
+  const [informCost, setInformCost] = useState<StockEventRow | null>(null);
   /** D6: emissora (renda fixa) e distribuidora (renda fixa e Tesouro), pelo nome de exibição. */
   const [filterIssuer, setFilterIssuer] = useState('ALL');
   const [filterDistributor, setFilterDistributor] = useState('ALL');
@@ -123,6 +129,13 @@ export const TransactionsPage = () => {
   const { data: transactions, isLoading } = useQuery<TransactionResponse[]>({
     queryKey: ['transactions'],
     queryFn: transactionsApi.list
+  });
+
+  // Eventos do papel que mexeram nas posições (PLANO_EVENTOS_TRANSACOES.md): sob ['transactions'], então tudo o que
+  // invalida o extrato (lançar, editar, excluir, informar custo) também os atualiza.
+  const { data: stockEvents } = useQuery<StockEventEntry[]>({
+    queryKey: ['transactions', 'stock-events'],
+    queryFn: transactionsApi.stockEvents
   });
 
   // As posições da carteira, na mesma queryKey da Carteira (cache único). É
@@ -198,12 +211,18 @@ export const TransactionsPage = () => {
     }
   });
 
-  const enriched = useMemo(() => (transactions || []).map(t => ({
-    ...t,
-    assetType: t.assetTypeName || '',
-    // a coluna TÍTULO ordena pela distribuidora, que vem dentro de noteInfo
-    distributorName: t.noteInfo?.distributorName ?? null
-  })), [transactions]);
+  // Transações e eventos do papel numa lista só (D1: o evento é calculado, não gravado), da data mais recente para a
+  // mais antiga. Os filtros, a busca e a ordenação leem os mesmos campos das duas.
+  const enriched = useMemo(() => mergeLedger(
+    (transactions || []).map(t => ({
+      ...t,
+      kind: 'TRANSACTION' as const,
+      assetType: t.assetTypeName || '',
+      // a coluna TÍTULO ordena pela distribuidora, que vem dentro de noteInfo
+      distributorName: t.noteInfo?.distributorName ?? null
+    })),
+    (stockEvents || []).map(toStockEventRow)
+  ), [transactions, stockEvents]);
 
   const uniqueTypes = [...new Set(enriched.map(t => t.assetType).filter(Boolean))].sort();
 
@@ -264,7 +283,7 @@ export const TransactionsPage = () => {
   };
 
   /** Nome técnico do tipo da linha (a linha traz o id e a descrição). */
-  const nameOfType = (row: TransactionResponse | null) =>
+  const nameOfType = (row: { assetTypeId: number | null } | null) =>
     (assetTypes || []).find(t => t.id === row?.assetTypeId)?.name ?? null;
 
   const filteredPosition = positionFilter
@@ -317,8 +336,9 @@ export const TransactionsPage = () => {
     filterBy(saved ?? null, txData.ticker);
   };
 
-  /** Ícone Listar da linha: a mesma regra do filtro depois de salvar. */
-  const fetchList = (row: TransactionResponse) => filterBy(row, row.ticker);
+  /** Ícone Listar da linha (transação ou evento): a mesma regra do filtro depois de salvar. */
+  const fetchList = (row: { assetTypeId: number | null; portfolioAssetId: string | null; ticker: string }) =>
+    filterBy(row, row.ticker);
 
   // Ativos do extrato para a busca por ticker ou nome — todos os tipos, um por ticker.
   const searchOptions = useMemo<LocalAssetOption[]>(() => {
@@ -344,7 +364,8 @@ export const TransactionsPage = () => {
     filterBy(positionList.size === 1 ? ofAsset[0] : null, ticker);
   };
 
-  const filterBy = (row: TransactionResponse | null, ticker: string) => {
+  const filterBy = (row: { assetTypeId: number | null; portfolioAssetId: string | null; ticker: string } | null,
+                    ticker: string) => {
     const params = new URLSearchParams(searchParams);
     params.delete('position');
     params.delete('ticker');
@@ -539,13 +560,14 @@ export const TransactionsPage = () => {
           <label className="block text-xs text-gray-400 mb-1">Origem</label>
           <select
             value={filterOrigin}
-            onChange={(e) => { setFilterOrigin(e.target.value as 'ALL' | 'MANUAL' | 'AUTO' | 'SISTEMA'); setCurrentPage(1); }}
+            onChange={(e) => { setFilterOrigin(e.target.value as 'ALL' | 'MANUAL' | 'AUTO' | 'SISTEMA' | 'EVENT'); setCurrentPage(1); }}
             className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2"
           >
             <option value="ALL">Todas</option>
             <option value="MANUAL">Digitadas</option>
             <option value="AUTO">Importadas</option>
             <option value="SISTEMA">Automáticas</option>
+            <option value="EVENT">Eventos do papel</option>
           </select>
         </div>
 
@@ -605,7 +627,10 @@ export const TransactionsPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {paginated.map((row) => (
+              {paginated.map((row) => row.kind === 'STOCK_EVENT' ? (
+                <StockEventLine key={row.id} row={row} typeName={nameOfType(row)} onList={fetchList}
+                  onInformCost={setInformCost} />
+              ) : (
                 <tr key={row.id} className="hover:bg-white/5 transition-colors">
                   <td className="px-4 py-3 text-white font-medium">
                     {/* Logo e link para a emissora, como na carteira. Nome do ativo no hover. */}
@@ -793,6 +818,27 @@ export const TransactionsPage = () => {
           totalItems={sortedData.length}
         />
       </Card>
+
+      {informCost && informCost.event.stockEventId != null && (
+        <InformCostModal
+          isOpen
+          params={{
+            positionId: informCost.portfolioAssetId,
+            stockEventId: informCost.event.stockEventId,
+            ticker: informCost.ticker,
+            label: `${assetText(informCost.ticker)} — ${stockEventTitle(informCost.event)}`,
+            ...(informCost.event.taxUnitCost != null && informCost.event.taxCostOrigin === 'USER'
+              ? { costPerShare: informCost.event.taxUnitCost } : {}),
+          }}
+          onClose={() => setInformCost(null)}
+          onSaved={() => {
+            setInformCost(null);
+            queryClient.invalidateQueries({ queryKey: ['transactions'] });
+            queryClient.invalidateQueries({ queryKey: ['portfolio'] });
+            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+          }}
+        />
+      )}
 
       <TransactionFormModal
         isOpen={isModalOpen}

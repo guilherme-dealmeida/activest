@@ -47,6 +47,10 @@ activest/
 ### Módulo Gestão de Carteira B3
 - ✅ Catálogo de ativos já populado (Ações, FIIs, Tesouro, Renda Fixa, ETFs, BDRs, Cripto) — a transação seleciona do catálogo, não cria ativo novo
 - ✅ Registro de compras e vendas com cálculo de preço médio
+- ✅ Eventos do papel no extrato de Transações (18/11/2026): bonificação, desdobramento e grupamento que mexeram
+  numa posição aparecem junto das compras e vendas, com a variação das cotas — o extrato de uma posição soma a
+  quantidade e o custo da Carteira. A bonificação entra no preço médio sem custo, como na corretora; o custo atribuído
+  pela empresa fica como o preço médio para o IR (`docs/planos/PLANO_EVENTOS_TRANSACOES.md`)
 - ✅ Cálculo de rentabilidade por ativo e da carteira total — renda variável pela cotação, **Tesouro Direto pelo preço
   oficial do Tesouro** (atualizado todo dia) e **renda fixa privada pela curva da taxa contratada** (% do CDI, CDI +
   spread, prefixado, IPCA + spread), valores brutos — ver `docs/planos/PLANO_RENDA_FIXA_VALORIZACAO.md`

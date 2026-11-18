@@ -15,7 +15,11 @@ public enum NotificationKind {
     // --- usuário
     PROVENTO_PAGO(USER, PROVENTOS, INFO, false),
     EVENTO_APLICADO(USER, EVENTOS, INFO, false),
-    BONIFICACAO_SEM_CUSTO(USER, EVENTOS, ATENCAO, true),
+    /**
+     * Bonificacao sem o custo atribuido: informativa desde 18/11/2026 (docs/planos/PLANO_EVENTOS_TRANSACOES.md, D17) — o
+     * preco medio segue a corretora (bonificacao sem custo) e o custo serve ao IR. Antes era pendencia (ATENCAO).
+     */
+    BONIFICACAO_SEM_CUSTO(USER, EVENTOS, INFO, false),
     /** Titulo vencido em aberto: lance a liquidacao (docs/planos/PLANO_VENDA_RENDA_FIXA.md, secao 6). */
     RF_VENCIDO(USER, RENDA_FIXA, ATENCAO, true),
     // As tres abaixo eram da liquidacao automatica (revogada pela secao 6 do PLANO_VENDA_RENDA_FIXA): nao sao mais

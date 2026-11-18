@@ -165,7 +165,9 @@ public class PortfolioService {
     public List<PortfolioAssetDetailDTO> getPortfolioAssets(UUID userId) {
         Portfolio portfolio = getOrCreatePortfolio(userId);
         List<PortfolioAsset> assets = portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolio.getId());
-        Map<UUID, Position> positions = positionCalculator.positionsOf(portfolio.getId(), assets);
+        // a posicao da corretora (bonificacao sem custo) e, onde difere, a do IR (D15 do PLANO_EVENTOS_TRANSACOES)
+        PositionCalculator.PositionsWithTax both = positionCalculator.positionsWithTaxOf(portfolio.getId(), assets);
+        Map<UUID, Position> positions = both.broker();
         Map<UUID, BigDecimal> dividends = dividendsByPosition(portfolio.getId());
         List<PortfolioAsset> open = assets.stream()
             // So posicoes em aberto: a liquidada acabou, e a sem custo nunca
@@ -248,7 +250,9 @@ public class PortfolioService {
                     foreignQuote,
                     foreignValues == null ? null : foreignValues.of(pa, costFx.get(pa.getId()),
                         dividendCalendar.today(), safe(position.totalShares()), safe(position.averagePrice()),
-                        invested, currentPrice, dividends.getOrDefault(pa.getId(), BigDecimal.ZERO))
+                        invested, currentPrice, dividends.getOrDefault(pa.getId(), BigDecimal.ZERO)),
+                    both.tax().containsKey(pa.getId()) ? both.tax().get(pa.getId()).averagePrice() : null,
+                    both.tax().containsKey(pa.getId()) ? both.tax().get(pa.getId()).totalInvested() : null
                 );
             }).collect(Collectors.toList());
     }

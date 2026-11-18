@@ -390,7 +390,11 @@ export const NotificationsPage = () => {
           isOpen
           params={informCost.action.params ?? {}}
           onClose={() => setInformCost(null)}
-          onSaved={() => { setInformCost(null); refresh(); queryClient.invalidateQueries({ queryKey: ['portfolio'] }); }}
+          onSaved={() => {
+            setInformCost(null); refresh();
+            queryClient.invalidateQueries({ queryKey: ['portfolio'] });
+            queryClient.invalidateQueries({ queryKey: ['transactions'] });
+          }}
         />
       )}
     </div>

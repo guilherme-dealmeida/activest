@@ -214,6 +214,82 @@ public class PositionCalculator {
      * <p>Posicao sem transacao aparece com {@link Position#EMPTY}.</p>
      */
     public Map<UUID, Position> positionsOf(UUID portfolioId, Collection<PortfolioAsset> positions) {
+        Loaded loaded = load(portfolioId, positions);
+        Map<UUID, Position> result = new HashMap<>();
+        for (PortfolioAsset pa : positions) {
+            List<Transaction> txs = loaded.transactions().get(pa.getId());
+            if (txs == null) {
+                result.put(pa.getId(), Position.EMPTY);
+                continue;
+            }
+            result.put(pa.getId(), calculate(isValuedByTotal(pa.getAsset()), chronological(txs), loaded.events(pa, txs)));
+        }
+        return result;
+    }
+
+    /**
+     * A posicao de cada linha na base da corretora (a das telas) e, so para as posicoes em que uma bonificacao com
+     * custo conhecido (catalogo ou informado) mudou o custo, a mesma posicao na base da Receita — o preco medio
+     * "para o IR" (docs/planos/PLANO_EVENTOS_TRANSACOES.md, D15). Uma carga so, como {@link #positionsOf}.
+     */
+    public PositionsWithTax positionsWithTaxOf(UUID portfolioId, Collection<PortfolioAsset> positions) {
+        Loaded loaded = load(portfolioId, positions);
+        Map<UUID, Position> broker = new HashMap<>();
+        Map<UUID, Position> tax = new HashMap<>();
+        LocalDate today = LocalDate.now(B3_ZONE);
+        for (PortfolioAsset pa : positions) {
+            List<Transaction> txs = loaded.transactions().get(pa.getId());
+            if (txs == null) {
+                broker.put(pa.getId(), Position.EMPTY);
+                continue;
+            }
+            boolean byTotal = isValuedByTotal(pa.getAsset());
+            List<Transaction> chron = chronological(txs);
+            PositionEvents events = loaded.events(pa, txs);
+            Position b = calculate(byTotal, chron, events, today, CostBasis.BROKER);
+            broker.put(pa.getId(), b);
+            boolean costedBonus = !byTotal && events.stockEvents().stream().anyMatch(e ->
+                    e.type() == com.activest.domain.corporateaction.StockEventType.BONIFICACAO
+                            && e.assignedCost() != null);
+            if (costedBonus) {
+                Position t = calculate(false, chron, events, today, CostBasis.TAX);
+                if (t.totalInvested().compareTo(b.totalInvested()) != 0) {
+                    tax.put(pa.getId(), t);
+                }
+            }
+        }
+        return new PositionsWithTax(broker, tax);
+    }
+
+    /** {@link #positionsWithTaxOf}: a base da corretora de todas as posicoes e a da Receita onde ela difere. */
+    public record PositionsWithTax(Map<UUID, Position> broker, Map<UUID, Position> tax) {
+    }
+
+    /**
+     * Os eventos do papel que mexeram em cada posicao de uma carteira — a linha do evento no extrato de Transacoes
+     * (docs/planos/PLANO_EVENTOS_TRANSACOES.md). Mesmas consultas em lote e mesmo percurso de {@link #positionsOf}.
+     * Posicao sem transacao, ou de tipo lancado por valor, fica de fora.
+     */
+    public Map<UUID, List<AppliedStockEvent>> appliedStockEventsOf(UUID portfolioId,
+                                                                   Collection<PortfolioAsset> positions) {
+        Loaded loaded = load(portfolioId, positions);
+        Map<UUID, List<AppliedStockEvent>> result = new HashMap<>();
+        for (PortfolioAsset pa : positions) {
+            List<Transaction> txs = loaded.transactions().get(pa.getId());
+            if (txs == null || isValuedByTotal(pa.getAsset())) {
+                continue;
+            }
+            List<AppliedStockEvent> applied = appliedStockEvents(chronological(txs), loaded.events(pa, txs),
+                    LocalDate.now(B3_ZONE));
+            if (!applied.isEmpty()) {
+                result.put(pa.getId(), applied);
+            }
+        }
+        return result;
+    }
+
+    /** Transacoes, eventos do papel, custos informados e devolucoes de capital de uma carteira, uma consulta cada. */
+    private Loaded load(UUID portfolioId, Collection<PortfolioAsset> positions) {
         Map<UUID, List<Transaction>> txByPosition = transactionRepository
                 .findByPortfolioAssetPortfolioIdOrderByTransactionDateDesc(portfolioId)
                 .stream()
@@ -240,23 +316,36 @@ public class PositionCalculator {
                         .add(toCapitalReturn(d));
             }
         }
+        return new Loaded(txByPosition, stockByAsset, costs, returnsByPosition);
+    }
 
-        Map<UUID, Position> result = new HashMap<>();
-        for (PortfolioAsset pa : positions) {
-            List<Transaction> txs = txByPosition.get(pa.getId());
-            if (txs == null) {
-                result.put(pa.getId(), Position.EMPTY);
-                continue;
-            }
+    /** O que {@link #load} trouxe; {@link #events} monta os passos de uma posicao. */
+    private final class Loaded {
+        private final Map<UUID, List<Transaction>> transactions;
+        private final Map<Long, List<AssetStockEvent>> stockByAsset;
+        private final Map<UUID, Map<Long, BigDecimal>> costs;
+        private final Map<UUID, List<CapitalReturn>> returnsByPosition;
+
+        Loaded(Map<UUID, List<Transaction>> transactions, Map<Long, List<AssetStockEvent>> stockByAsset,
+               Map<UUID, Map<Long, BigDecimal>> costs, Map<UUID, List<CapitalReturn>> returnsByPosition) {
+            this.transactions = transactions;
+            this.stockByAsset = stockByAsset;
+            this.costs = costs;
+            this.returnsByPosition = returnsByPosition;
+        }
+
+        Map<UUID, List<Transaction>> transactions() {
+            return transactions;
+        }
+
+        PositionEvents events(PortfolioAsset pa, List<Transaction> txs) {
             Long assetId = pa.getAsset() != null ? pa.getAsset().getId() : null;
             Map<Long, BigDecimal> mine = costs.getOrDefault(pa.getId(), Map.of());
-            PositionEvents events = new PositionEvents(
+            return new PositionEvents(
                     stockByAsset.getOrDefault(assetId, List.of()).stream().map(e -> e.toStep(mine.get(e.getId()))).toList(),
                     returnsByPosition.getOrDefault(pa.getId(), List.of()),
                     isFund(pa.getAsset()) ? withholdings(txs.stream().map(Transaction::getId).toList()) : List.of());
-            result.put(pa.getId(), calculate(isValuedByTotal(pa.getAsset()), chronological(txs), events));
         }
-        return result;
     }
 
     /**
@@ -287,11 +376,20 @@ public class PositionCalculator {
      */
     public Position calculate(boolean valuedByTotal, List<Transaction> chronological, PositionEvents events,
                               LocalDate asOf) {
+        return calculate(valuedByTotal, chronological, events, asOf, CostBasis.BROKER);
+    }
+
+    /**
+     * Apura a posicao numa base de custo da bonificacao ({@link CostBasis}): a da corretora (sem custo, a das telas)
+     * ou a da Receita (com o custo atribuido, a do IR).
+     */
+    public Position calculate(boolean valuedByTotal, List<Transaction> chronological, PositionEvents events,
+                              LocalDate asOf, CostBasis basis) {
         if (valuedByTotal) {
             return calculateByTotal(chronological);
         }
 
-        Walk walk = new Walk(events);
+        Walk walk = new Walk(events, basis);
         for (Transaction tx : chronological) {
             walk.advanceBefore(tx.getTransactionDate());
             walk.holding = walk.holding.apply(tx);
@@ -305,6 +403,25 @@ public class PositionCalculator {
 
         return new Position(holding.shares(), averagePrice,
                 holding.cost().setScale(MONEY_SCALE, RoundingMode.HALF_UP), BigDecimal.ZERO);
+    }
+
+    /**
+     * Cada evento do papel que mexeu na posicao ate {@code asOf}, com as cotas e o custo de antes e de depois — o mesmo
+     * percurso de {@link #calculate(boolean, List, PositionEvents, LocalDate)} (docs/planos/PLANO_EVENTOS_TRANSACOES.md).
+     * Evento sobre posicao zerada, ou que nao mudou cotas nem custo, fica de fora (D2).
+     *
+     * @param chronological transacoes em ordem cronologica (tipo com cotas)
+     */
+    public List<AppliedStockEvent> appliedStockEvents(List<Transaction> chronological, PositionEvents events,
+                                                      LocalDate asOf) {
+        Walk walk = new Walk(events);
+        walk.applied = new ArrayList<>();
+        for (Transaction tx : chronological) {
+            walk.advanceBefore(tx.getTransactionDate());
+            walk.holding = walk.holding.apply(tx);
+        }
+        walk.advanceUntil(asOf);
+        return walk.applied;
     }
 
     /**
@@ -346,11 +463,19 @@ public class PositionCalculator {
         private int nextCapital;
         private int nextWithheld;
         Holding holding = Holding.NONE;
+        /** Quando nao nulo, cada evento que mudou a posicao e anotado aqui ({@link #appliedStockEvents}). */
+        List<AppliedStockEvent> applied;
+        private final CostBasis basis;
 
         Walk(PositionEvents events) {
+            this(events, CostBasis.BROKER);
+        }
+
+        Walk(PositionEvents events, CostBasis basis) {
             this.stock = events.stockEvents();
             this.capital = events.capitalReturns();
             this.withheld = events.withholdings();
+            this.basis = basis;
         }
 
         /**
@@ -365,6 +490,13 @@ public class PositionCalculator {
         /** Fim do calculo: tudo o que ja vale ate {@code asOf}. */
         void advanceUntil(LocalDate asOf) {
             apply(asOf, true);
+        }
+
+        private void record(StockEventStep s, Holding before, Holding after) {
+            AppliedStockEvent a = PositionCalculator.applied(s, before, after);
+            if (a != null) {
+                applied.add(a);
+            }
         }
 
         private void apply(LocalDate limit, boolean end) {
@@ -387,7 +519,11 @@ public class PositionCalculator {
                 // do dia seguinte a data-com; o pagamento, no proprio dia.
                 boolean stockFirst = stockDue && (!capitalDue || !s.dataCom().plusDays(1).isAfter(c.date()));
                 if (stockFirst) {
-                    holding = holding.after(s);
+                    Holding before = holding;
+                    holding = holding.after(s, basis);
+                    if (applied != null) {
+                        record(s, before, holding);
+                    }
                     nextStock++;
                 } else {
                     holding = holding.minusCapital(c.amount());
@@ -395,6 +531,28 @@ public class PositionCalculator {
                 }
             }
         }
+    }
+
+    /** O passo de um evento que mudou cotas ou custo, com a fracao que nao virou cota. */
+    private static AppliedStockEvent applied(StockEventStep s, Holding before, Holding after) {
+        if (before.shares().signum() <= 0
+                || (before.shares().compareTo(after.shares()) == 0 && before.cost().compareTo(after.cost()) == 0)) {
+            return null;
+        }
+        BigDecimal fraction = BigDecimal.ZERO;
+        BigDecimal ratio = s.type().quantityRatio(s.factor());
+        if (ratio != null) {
+            BigDecimal exact = before.shares().multiply(ratio).setScale(AVERAGE_PRICE_SCALE, RoundingMode.HALF_UP);
+            BigDecimal left = exact.subtract(after.shares());
+            if (left.signum() > 0) {
+                fraction = left.stripTrailingZeros();
+            }
+        }
+        // o custo do IR (catalogo ou informado): na posicao da corretora a bonificacao entrou sem custo
+        BigDecimal taxUnitCost = s.type() == com.activest.domain.corporateaction.StockEventType.BONIFICACAO
+                ? s.assignedCost() : null;
+        return new AppliedStockEvent(s.eventId(), s.type(), s.factor(), s.dataCom(), before.shares(), after.shares(),
+                before.cost(), after.cost(), taxUnitCost, fraction);
     }
 
     /** Cotas e custo acumulados ate um ponto da historia da posicao. */
@@ -426,10 +584,14 @@ public class PositionCalculator {
             return this;
         }
 
-        /** Desdobramento, grupamento ou bonificacao. */
-        Holding after(StockEventStep event) {
-            CorporateActionApplier.Holding next =
-                    CorporateActionApplier.apply(new CorporateActionApplier.Holding(shares, cost), event);
+        /**
+         * Desdobramento, grupamento ou bonificacao. Na base da corretora a bonificacao entra sem custo; na da Receita,
+         * com o custo atribuido do passo ({@link CostBasis}).
+         */
+        Holding after(StockEventStep event, CostBasis basis) {
+            BigDecimal cost = basis == CostBasis.TAX ? event.assignedCost() : null;
+            CorporateActionApplier.Holding next = CorporateActionApplier.apply(
+                    new CorporateActionApplier.Holding(shares, this.cost), event.type(), event.factor(), cost);
             return new Holding(next.shares(), next.cost());
         }
 

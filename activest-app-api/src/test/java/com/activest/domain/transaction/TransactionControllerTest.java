@@ -34,6 +34,9 @@ class TransactionControllerTest extends MvcTestBase {
     @MockBean
     private TransactionService transactionService;
 
+    @MockBean
+    private StockEventEntryService stockEventEntryService;
+
     private static final UUID USER = UUID.fromString(USER_ID);
 
     private static final String VALID_BUY = """
@@ -56,6 +59,31 @@ class TransactionControllerTest extends MvcTestBase {
         mvc.perform(post("/api/v1/transactions/").contentType(MediaType.APPLICATION_JSON).content(VALID_BUY))
             .andExpect(status().isUnauthorized());
         mvc.perform(delete("/api/v1/transactions/{id}", UUID.randomUUID())).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/transactions/stock-events")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(username = USER_ID)
+    @DisplayName("Eventos do papel: a rota literal nao cai no /{id} e devolve as linhas do usuario")
+    void stockEvents() throws Exception {
+        when(stockEventEntryService.list(USER)).thenReturn(List.of(
+            new com.activest.domain.transaction.dto.StockEventEntryDTO(UUID.randomUUID(), 621L, "KLBN4", "KLABIN S.A.",
+                1L, "Ações", 58L, "Papel e Celulose", true, 346L,
+                com.activest.domain.corporateaction.StockEventType.BONIFICACAO, BigDecimal.ONE,
+                new BigDecimal("1.01"), LocalDate.of(2025, 12, 17), LocalDate.of(2025, 12, 18), "B3",
+                new BigDecimal("300"), new BigDecimal("303"), new BigDecimal("3"), BigDecimal.ZERO,
+                BigDecimal.ZERO, new BigDecimal("12.94564989"), new BigDecimal("38.84"),
+                com.activest.domain.transaction.dto.StockEventEntryDTO.TaxCostOrigin.USER)));
+
+        mvc.perform(get("/api/v1/transactions/stock-events"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].ticker").value("KLBN4"))
+            .andExpect(jsonPath("$[0].type").value("BONIFICACAO"))
+            .andExpect(jsonPath("$[0].exDate").value("2025-12-18"))
+            .andExpect(jsonPath("$[0].sharesDelta").value(3))
+            .andExpect(jsonPath("$[0].costDelta").value(0))
+            .andExpect(jsonPath("$[0].taxCostOrigin").value("USER"))
+            .andExpect(jsonPath("$[0].taxCostDelta").value(38.84));
     }
 
     @Test

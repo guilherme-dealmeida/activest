@@ -79,6 +79,8 @@ class PortfolioServiceTest {
         when(portfolioRepository.findFirstByUserId(userId)).thenReturn(Optional.of(portfolioEntity));
         when(portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(portfolioEntity.getId())).thenReturn(positions);
         when(positionCalculator.positionsOf(any(), any())).thenReturn(calculatedPositions);
+        when(positionCalculator.positionsWithTaxOf(any(), any())).thenAnswer(inv ->
+            new PositionCalculator.PositionsWithTax(calculatedPositions, java.util.Map.of()));
         when(dividendCalendar.today()).thenReturn(TODAY);
         when(dividendRepository.sumTotalAmountByPosition(portfolioEntity.getId(), TODAY)).thenReturn(List.of());
     }

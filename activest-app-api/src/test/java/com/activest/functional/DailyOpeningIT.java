@@ -131,7 +131,7 @@ class DailyOpeningIT extends FunctionalBase {
     // ------------------------------------------------------------------ bonificação sem custo
 
     @Test
-    @DisplayName("Bonificação sem custo: pendência com Informar custo e ícone na Carteira; informar resolve e recalcula o preço médio")
+    @DisplayName("Bonificação sem custo: informativa com Informar custo e ícone na Carteira; o custo informado é o do IR, o preço médio segue a corretora")
     @SuppressWarnings("unchecked")
     void bonusWithoutCost() {
         recordSuccessfully(owner, buy(CatalogIds.STOCK, "2025-01-06", "100", "30.00"));
@@ -140,7 +140,7 @@ class DailyOpeningIT extends FunctionalBase {
         opening.run(LocalDate.of(2026, 10, 13), "teste");
         List<Map<String, Object>> m = messages("BONIFICACAO_SEM_CUSTO");
         assertThat(m).hasSize(1);
-        assertThat(m.get(0).get("status")).isEqualTo("NAO_RESOLVIDA");
+        assertThat(m.get(0).get("status")).isNull();                         // informativa (D17)
         assertThat((String) m.get(0).get("payload")).contains("INFORMAR_CUSTO").contains("Ações novas na sua posição: 10");
 
         Map<String, Object> pos = positionOf(owner, CatalogIds.STOCK);
@@ -155,9 +155,12 @@ class DailyOpeningIT extends FunctionalBase {
 
         Map<String, Object> after = positionOf(owner, CatalogIds.STOCK);
         assertThat((List<?>) after.get("pendingBonusCosts")).isEmpty();
-        // (3000 + 10 × 12,50) / 110
-        assertThat(number(after.get("averagePrice")).doubleValue()).isCloseTo(3125.0 / 110, within(0.0001));
-        assertThat(messages("BONIFICACAO_SEM_CUSTO").get(0).get("status")).isEqualTo("RESOLVIDA");
+        // a corretora: 3000 / 110, como antes; o IR: (3000 + 10 × 12,50) / 110
+        assertThat(number(after.get("averagePrice")).doubleValue()).isCloseTo(3000.0 / 110, within(0.0001));
+        assertThat(number(after.get("totalInvested"))).isEqualByComparingTo("3000.00");
+        assertThat(number(after.get("taxAveragePrice")).doubleValue()).isCloseTo(3125.0 / 110, within(0.0001));
+        assertThat(number(after.get("taxInvested"))).isEqualByComparingTo("3125.00");
+        assertThat(messages("BONIFICACAO_SEM_CUSTO").get(0).get("status")).isNull();
 
         opening.run(LocalDate.of(2026, 10, 14), "dia seguinte");
         assertThat(messages("BONIFICACAO_SEM_CUSTO")).hasSize(1);

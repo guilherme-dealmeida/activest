@@ -79,8 +79,9 @@ public record PortfolioAssetDetailDTO(
     /** Passou do vencimento: na renda fixa privada, falta lancar o resgate. */
     boolean matured,
     /**
-     * Bonificacoes sem custo atribuido que pegam a posicao (docs/planos/PLANO_NOTIFICACOES.md, 5.4): o icone de
-     * atencao ao lado do preco medio e o "Informar custo". Vazia quando nao ha.
+     * Bonificacoes sem custo atribuido que pegam a posicao (docs/planos/PLANO_NOTIFICACOES.md, 5.4): o icone
+     * informativo ao lado do preco medio e o "Informar custo" — o custo e so para o IR desde 18/11/2026
+     * (docs/planos/PLANO_EVENTOS_TRANSACOES.md, D16). Vazia quando nao ha.
      */
     java.util.List<PendingBonusCost> pendingBonusCosts,
     /**
@@ -105,7 +106,14 @@ public record PortfolioAssetDetailDTO(
      * Segunda linha em outra moeda (docs/planos/PLANO_PRECOS_INTERNACIONAIS.md, R2 e R4): a posição do exterior na
      * moeda do ativo e a cripto em dólar. Nulo para o resto.
      */
-    ForeignValues foreignValues
+    ForeignValues foreignValues,
+    /**
+     * Preço médio e custo para o IR (docs/planos/PLANO_EVENTOS_TRANSACOES.md, D15): com o custo atribuído das ações
+     * bonificadas (catálogo ou informado), como a Receita. Nulos quando são iguais aos de cima — sem bonificação com
+     * custo conhecido. Os de cima são os da corretora: a bonificação entra sem custo.
+     */
+    BigDecimal taxAveragePrice,
+    BigDecimal taxInvested
 ) {
     /** Cotação na moeda do ativo, câmbio de venda usado e a data do boletim (diferente de hoje = carregado, D27). */
     public record ForeignQuote(String currencyCode, String symbol, BigDecimal price, BigDecimal fxRate,

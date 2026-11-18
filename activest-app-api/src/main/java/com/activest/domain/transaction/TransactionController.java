@@ -16,9 +16,12 @@ import java.util.UUID;
 public class TransactionController {
 
     private final TransactionService transactionService;
+    private final StockEventEntryService stockEventEntryService;
 
-    public TransactionController(TransactionService transactionService) {
+    public TransactionController(TransactionService transactionService,
+                                 StockEventEntryService stockEventEntryService) {
         this.transactionService = transactionService;
+        this.stockEventEntryService = stockEventEntryService;
     }
 
     @PostMapping("/")
@@ -29,6 +32,15 @@ public class TransactionController {
     @GetMapping("/")
     public ResponseEntity<List<TransactionResponseDTO>> getTransactions() {
         return ResponseEntity.ok(transactionService.getTransactions(SecurityUtils.getCurrentUserId()));
+    }
+
+    /**
+     * Eventos do papel (bonificacao, desdobramento, grupamento) que mexeram nas posicoes do usuario: as linhas de evento
+     * do extrato (docs/planos/PLANO_EVENTOS_TRANSACOES.md). Calculadas na leitura; nao sao transacoes.
+     */
+    @GetMapping("/stock-events")
+    public ResponseEntity<List<com.activest.domain.transaction.dto.StockEventEntryDTO>> getStockEvents() {
+        return ResponseEntity.ok(stockEventEntryService.list(SecurityUtils.getCurrentUserId()));
     }
 
     /** Titulos de renda fixa do usuario num ativo, para o seletor da Nova Transacao (todos, inclusive liquidados). */

@@ -64,7 +64,9 @@ public class ForeignSaleTax {
         int changed = 0;
         for (Transaction tx : chronological) {
             if (tx.getType() == TransactionType.SELL && tx.getShares() != null) {
-                Position p = positionCalculator.calculate(false, before, events, tx.getTransactionDate());
+                // o custo do IR: a bonificacao com o custo atribuido, como a Receita (PLANO_EVENTOS_TRANSACOES, 8.4)
+                Position p = positionCalculator.calculate(false, before, events, tx.getTransactionDate(),
+                    com.activest.domain.portfolio.CostBasis.TAX);
                 BigDecimal cost = p.averagePrice().multiply(tx.getShares()).setScale(2, RoundingMode.HALF_EVEN);
                 BigDecimal gain = tx.getTotalAmount().subtract(cost);
                 ForeignTaxRule rule = ForeignTaxRuleService.select(rules, ForeignTax.IR_FOREIGN, ForeignTaxEvent.SALE,
