@@ -2,7 +2,8 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 31/10/2026 — secao 43 (integracoes genericas e Binance Stocks, docs/planos/PLANO_INTEGRACOES.md);
+Ultima atualizacao: 12/11/2026 — secao 48 (curva de juros do Tesouro, docs/planos/PLANO_JUROS_FUTUROS.md) e secao 49
+(propostas levantadas em duvidas, ainda sem escopo). Antes: 31/10/2026 — secao 43 (integracoes genericas e Binance Stocks, docs/planos/PLANO_INTEGRACOES.md);
 35.7 e 37.5 resolvidos; 17.1 resolvido; 38.1 em parte (importacao de operacoes em USD da Binance). Antes: 29/10/2026, noite — secao 42 (performance das listagens, docs/planos/PLANO_PERFORMANCE.md: compressao,
 busca de ativos, consultas que sobraram na Carteira e no Preco Teto). Antes: 29/10/2026 — secao 41: 41.2 a 41.5 (preco do exterior fora, curadoria do catalogo vivo,
 deslistados sem ticker, releitura da SEC). Antes: 28/10/2026 — secao 41 (ativos internacionais, docs/planos/PLANO_ATIVOS_INTERNACIONAIS.md; 41.1
@@ -1664,6 +1665,29 @@ gratuito não tem futuros, conferido em 11/11/2026).
 **48.5 Buracos sem título no prazo.** Prefixada de 8 anos sem 14 dias (04–21/01/2010) e real de 4 anos sem 64 dias
 (nov/2019–ago/2020): nenhum título do dia alcança o prazo, e a curva não extrapola. O gráfico mostra o trecho sem
 linha.
+
+**48.6 Prioridade sugerida entre os usos (12/11/2026, duvida respondida).** Renda fixa primeiro (taxa do mercado no
+mesmo prazo ao lado da contratada, no titulo e na compra; depois o valor de mercado estimado do prefixado privado),
+depois Preco Teto, Metas e inflacao implicita. Sugestao do Claude, nao decisao.
+
+## 49. PROPOSTAS LEVANTADAS EM DUVIDAS (sem escopo aberto)
+
+**49.1 Unicidade das metas ativas (duvida de 10/11/2026).** Pergunta do Guilherme: alguns tipos de meta deveriam
+ter uma so ativa (patrimonio-alvo, aporte mensal/anual, renda passiva, rentabilidade-alvo, seguir a estrategia, risco
+e concentracao, aposentadoria, renda maior que aportes). Resposta do Claude (nao decidida): em vez de "uma por tipo",
+"uma por tipo e o que ela mede", seguindo a natureza do `GoalType` — metas de acumular (CRESCENTE) aceitam varias
+(marcos), bloqueando so a identica; metas de controle (CONTROLE/SEQUENCIA) uma por chave (tipo + escopo, dimensao,
+periodo, base; o alvo fora da chave): concentracao por dimensao, rentabilidade-alvo por escopo/periodo/base/real,
+superar indice por indice/periodo/escopo, participacao de um item por dimensao+item, aporte mensal/anual por
+periodicidade+escopo, queda maxima por escopo+janela; unicas de fato: seguir a estrategia e qualidade dos dados;
+renda maior que aportes uma por escopo; aposentadoria aceitaria varias (cenarios). So metas ativas contam; checagem no
+`GoalService` ao criar e editar (a chave mora nos parametros JSON, sem indice unico no banco); conferir duplicadas na
+base antes de ligar. Vira escopo se ele quiser.
+
+**49.2 Porta 8080 da app-api no Windows (11/11/2026).** Durante a carga da curva, `localhost:8080` parou de responder
+no host, com a app-api normal dentro do container e pelo proxy do front (`127.0.0.1:5173/api`). Nao investigado;
+provavel encaminhamento de porta do Docker Desktop apos dias no ar (reiniciar o Docker Desktop deve resolver). Se
+voltar, `admin.mjs` aceita `--api http://127.0.0.1:5173`.
 
 ## ORDEM SUGERIDA
 
