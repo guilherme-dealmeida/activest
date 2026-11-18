@@ -300,6 +300,12 @@ export interface PortfolioAssetDetail {
   /** Bonificações sem custo atribuído pela B3 que pegam a posição: ícone no preço médio e "Informar custo". */
   pendingBonusCosts?: PendingBonusCost[];
   /**
+   * Preço médio e custo para o IR, com o custo atribuído das ações bonificadas (PLANO_EVENTOS_TRANSACOES.md, D15).
+   * null quando iguais aos da corretora (averagePrice/totalInvested), que entram com a bonificação sem custo.
+   */
+  taxAveragePrice?: number | null;
+  taxInvested?: number | null;
+  /**
    * Emissor do catálogo (companhia ou FII) — link para /ativos/{ticker}.
    * null = sem emissor (renda fixa, ETF, BDR, cripto). Não confundir com
    * `issuer` da carteira, que é o emissor da NOTA de renda fixa.
@@ -481,6 +487,53 @@ export interface PortfolioAllocationDetailed {
 export enum TransactionType {
   BUY = 'BUY',
   SELL = 'SELL'
+}
+
+/**
+ * Evento do papel que mexeu numa posição — a linha do evento no extrato de Transações
+ * (docs/planos/PLANO_EVENTOS_TRANSACOES.md). Calculado na leitura pela mesma conta da Carteira; não é transação.
+ */
+export type StockEventKind = 'BONIFICACAO' | 'DESDOBRAMENTO' | 'GRUPAMENTO';
+
+export interface StockEventEntry {
+  portfolioAssetId: string;
+  /** id em asset_stock_events: o "Informar custo" da bonificação. */
+  stockEventId: number | null;
+  ticker: string;
+  assetName: string;
+  assetTypeId: number | null;
+  assetTypeName: string;
+  assetCategoryId: number | null;
+  assetCategoryName: string;
+  hasLogo: boolean | null;
+  issuerId: number | null;
+  type: StockEventKind;
+  /** Como a B3 publica: % de ações novas (desdobramento, bonificação) ou multiplicador (grupamento). */
+  factor: number;
+  /** Quantas cotas cada cota vira (desdobramento 100 → 2; grupamento 0,1; bonificação 1 → 1,01). */
+  ratio: number | null;
+  dataCom: string;
+  /** Data ex (pregão seguinte à data-com): a data da linha. */
+  exDate: string;
+  /** B3 ou MASSIVE (EUA). */
+  source: string | null;
+  sharesBefore: number;
+  sharesAfter: number;
+  /** Variação com sinal: +3, +900, −95. */
+  sharesDelta: number;
+  /** Fração vendida em leilão pela B3 (paga em dinheiro, fora do Activest). 0 sem fração. */
+  fractionShares: number;
+  /**
+   * Variação do custo da posição como a corretora, em R$: 0 na bonificação (as ações novas entram sem custo); no
+   * desdobramento/grupamento, o que saiu com a fração (negativo).
+   */
+  costDelta: number;
+  /** Custo por ação bonificada para o IR (catálogo ou informado); null fora da bonificação ou sem custo. */
+  taxUnitCost: number | null;
+  /** Custo das ações bonificadas para o IR (novas × custo); null sem custo. */
+  taxCostDelta: number | null;
+  /** De onde veio o custo do IR: B3 (catálogo), informado, ou ainda não informado. null fora da bonificação. */
+  taxCostOrigin: 'CATALOG' | 'USER' | 'MISSING' | null;
 }
 
 export interface TransactionResponse {

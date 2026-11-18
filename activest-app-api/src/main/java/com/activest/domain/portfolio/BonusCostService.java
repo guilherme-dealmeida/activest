@@ -24,15 +24,17 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
- * Bonificação sem custo atribuído pela B3 (docs/planos/PLANO_NOTIFICACOES.md, 5.4 — PENDENCIAS 13.2). As ações novas
- * entram com custo zero provisório (o preço médio cai); o usuário informa o valor por ação do fato relevante e ele
- * vale só para a posição dele ({@code stock_event_costs}, V51). Enquanto não houver custo:
+ * Bonificação sem custo atribuído pela B3 (docs/planos/PLANO_NOTIFICACOES.md, 5.4 — PENDENCIAS 13.2). Desde
+ * 18/11/2026 (docs/planos/PLANO_EVENTOS_TRANSACOES.md, seção 8.4) o preço médio das telas segue a corretora: as ações
+ * novas entram <b>sem custo</b>, com ou sem custo informado. O custo atribuído (o valor por ação do fato relevante,
+ * {@code stock_event_costs}, V51) é a informação do IR — o preço médio "para o IR". Enquanto não houver custo:
  * <ul>
- *   <li>a Carteira mostra o ícone de atenção ao lado do preço médio ({@link #pendingFor});</li>
- *   <li>a caixa tem a pendência {@link NotificationKind#BONIFICACAO_SEM_CUSTO}, com a ação "Informar custo"
- *   ({@link #check}) — criada para as bonificações novas e, na primeira rodada, para as que já existiam (D3).</li>
+ *   <li>a Carteira mostra o ícone informativo ao lado do preço médio ({@link #pendingFor}, D16);</li>
+ *   <li>a caixa tem a mensagem informativa {@link NotificationKind#BONIFICACAO_SEM_CUSTO}, com a ação "Informar custo"
+ *   ({@link #check}, D17).</li>
  * </ul>
- * Informar o custo recalcula o preço médio e resolve a pendência.
+ * Informar o custo não muda o preço médio da corretora; dá o preço médio do IR (e resolve a pendência antiga, de
+ * antes de a mensagem virar informativa).
  */
 @Slf4j
 @Service
@@ -128,17 +130,19 @@ public class BonusCostService {
                 keep.add(key);
                 boolean isNew = notifications.notify(NotificationDraft.of(NotificationKind.BONIFICACAO_SEM_CUSTO)
                     .user(userId)
-                    .title(p.label() + " sem custo atribuído")
+                    .title(p.label() + " — custo para o IR não informado")
                     .body("A empresa bonificou " + pct(p.factor()) + " em ações (data-com " + p.dataCom().format(BR)
-                        + "). A B3 não informou o custo atribuído, e as ações novas entraram na sua posição com custo "
-                        + "zero provisório — o preço médio está mais baixo do que deveria. Informe o valor por ação: "
-                        + "ele está no fato relevante da empresa.")
+                        + "). As ações novas entraram na sua posição sem custo no preço médio, como na corretora. "
+                        + "Para o imposto de renda, elas custam o valor atribuído pela empresa, que a B3 não "
+                        + "informou: informe o valor por ação (está no fato relevante) para ter o preço médio do IR.")
                     .ref("POSITION", pa.getId()).key(key)
                     .line("Ações novas na sua posição: " + p.newShares().toPlainString())
                     .action(new NotificationDraft.Action("INFORMAR_CUSTO", "Informar custo", null, Map.of(
                         "positionId", pa.getId().toString(), "stockEventId", p.stockEventId(), "ticker", ticker,
                         "label", p.label())))
                     .link("Ver carteira", "/portfolio")
+                    // a linha da bonificação no extrato (docs/planos/PLANO_EVENTOS_TRANSACOES.md, D10)
+                    .link("Ver transações", "/transactions?position=" + pa.getId())
                     .build()).isPresent();
                 if (isNew) {
                     created++;
@@ -155,7 +159,10 @@ public class BonusCostService {
         return created;
     }
 
-    /** "Informar custo": grava o valor por ação para a posição, recalcula o preço médio e resolve a pendência. */
+    /**
+     * "Informar custo": grava o valor por ação para a posição — o custo do IR (o preço médio da corretora não muda) — e
+     * resolve a pendência antiga, se houver.
+     */
     @Transactional
     public void setCost(UUID userId, UUID positionId, Long stockEventId, BigDecimal costPerShare) {
         PortfolioAsset pa = positions.findOwnedById(userId, positionId)

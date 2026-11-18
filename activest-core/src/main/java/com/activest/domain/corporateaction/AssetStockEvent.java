@@ -66,7 +66,7 @@ public class AssetStockEvent {
     }
 
     public StockEventStep toStep() {
-        return new StockEventStep(dataCom, type, factor, assignedCost);
+        return new StockEventStep(dataCom, type, factor, assignedCost, id);
     }
 
     /**
@@ -74,6 +74,6 @@ public class AssetStockEvent {
      * ({@code stock_event_costs}, V51). Nenhum dos dois = zero provisorio.
      */
     public StockEventStep toStep(BigDecimal userCost) {
-        return new StockEventStep(dataCom, type, factor, assignedCost != null ? assignedCost : userCost);
+        return new StockEventStep(dataCom, type, factor, assignedCost != null ? assignedCost : userCost, id);
     }
 }

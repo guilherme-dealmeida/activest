@@ -1,6 +1,5 @@
 package com.activest.domain.notification;
 
-import com.activest.domain.calendar.BusinessCalendar;
 import com.activest.domain.corporateaction.AssetStockEvent;
 import com.activest.domain.corporateaction.AssetStockEventRepository;
 import com.activest.domain.corporateaction.CorporateActionApplier;
@@ -169,11 +168,7 @@ public class DailyOpeningService {
 
     /** A data-ex de um evento: o pregão seguinte à data-com. */
     static LocalDate dataEx(LocalDate dataCom) {
-        LocalDate d = dataCom.plusDays(1);
-        while (!BusinessCalendar.isBusinessDay(d)) {
-            d = d.plusDays(1);
-        }
-        return d;
+        return com.activest.domain.portfolio.AppliedStockEvent.exDateOf(dataCom);
     }
 
     int appliedEvents(LocalDate today) {
@@ -228,14 +223,18 @@ public class DailyOpeningService {
                     + plain(m.after()) + " e o preço médio foi ajustado na mesma proporção (o custo total não muda)."
                     + (fraction(e, m.before()) ? " A fração que sobrou é vendida em leilão pela B3 e paga em dinheiro." : "");
                 case BONIFICACAO -> "A " + what + " (data-com " + e.getDataCom().format(BR) + ") entrou na sua posição "
-                    + "hoje: " + plain(m.after().subtract(m.before())) + " ações novas a " + money(m.cost(), 4)
-                    + " cada; as cotas passaram de " + plain(m.before()) + " para " + plain(m.after()) + ".";
+                    + "hoje: " + plain(m.after().subtract(m.before())) + " ações novas, sem custo no preço médio (como "
+                    + "na corretora); as cotas passaram de " + plain(m.before()) + " para " + plain(m.after())
+                    + ". Para o imposto de renda, cada ação nova custa " + money(m.cost(), 4)
+                    + " (custo atribuído pela empresa).";
             };
             if (notifications.notify(NotificationDraft.of(NotificationKind.EVENTO_APLICADO).user(m.userId())
                     .title(m.ticker() + " — " + what + " aplicado")
                     .body(body)
                     .ref("POSITION", m.positionId()).key(m.positionId() + ":" + e.getId())
                     .link("Ver carteira", "/portfolio")
+                    // a linha do evento no extrato (docs/planos/PLANO_EVENTOS_TRANSACOES.md, D10)
+                    .link("Ver transações", "/transactions?position=" + m.positionId())
                     .build()).isPresent()) {
                 created++;
             }

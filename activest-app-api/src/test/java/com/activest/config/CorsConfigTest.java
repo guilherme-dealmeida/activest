@@ -28,6 +28,9 @@ class CorsConfigTest extends MvcTestBase {
     @MockBean
     private TransactionService transactionService;
 
+    @MockBean
+    private com.activest.domain.transaction.StockEventEntryService stockEventEntryService;
+
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {
         "http://localhost:5173", "http://127.0.0.1:5173",

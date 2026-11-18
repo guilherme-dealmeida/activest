@@ -9,7 +9,7 @@ import { assetsApi } from '@/api/assets';
 import { PositionLogo } from '@/components/ui/PositionLogo';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Switch } from '@/components/ui/Switch';
-import { LabelWithInfo } from '@/components/ui/InfoTooltip';
+import { InfoTooltip, LabelWithInfo } from '@/components/ui/InfoTooltip';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/context/ToastContext';
 import { TransactionFormModal, TransactionPreset } from '@/components/transactions/TransactionFormModal';
@@ -355,7 +355,7 @@ const COLUMNS: Column[] = [
   {
     key: 'averagePrice',
     label: 'PREÇO MÉDIO',
-    info: 'Custo médio por cota, considerando todas as compras da posição.',
+    info: 'Custo médio por cota, considerando todas as compras da posição. Ações recebidas em bonificação entram sem custo, como na corretora; com o custo atribuído pela empresa, o preço médio para o IR aparece no (i) ao lado.',
     align: 'right',
     visible: showAveragePrice,
     render: (a) => (
@@ -363,6 +363,9 @@ const COLUMNS: Column[] = [
         <span className="inline-flex items-center justify-end gap-1">
           {formatUnitPrice(a.averagePrice, a.isCrypto)}
           <BonusCostBadge asset={a} />
+          {a.taxAveragePrice != null && (
+            <InfoTooltip content={`Para o IR, com o custo atribuído às ações bonificadas: ${formatUnitPrice(a.taxAveragePrice, a.isCrypto)} (custo ${formatCurrency(a.taxInvested ?? 0)}). O preço médio ao lado é o da corretora: a bonificação entra sem custo.`} />
+          )}
         </span>
         <ForeignLine asset={a} value={a.foreignValues?.averagePrice} maxDigits={a.isCrypto ? 8 : 2} cost />
       </span>

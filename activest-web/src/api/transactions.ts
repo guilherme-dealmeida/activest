@@ -1,8 +1,10 @@
 import { apiClient } from './client';
-import { DistributorChangePreview, NoteOption, SalePreview, TransactionCreate, TransactionResponse } from '../types';
+import { DistributorChangePreview, NoteOption, SalePreview, StockEventEntry, TransactionCreate, TransactionResponse } from '../types';
 
 export const transactionsApi = {
   list: async () => { const { data } = await apiClient.get<TransactionResponse[]>('/transactions/'); return data; },
+  /** Eventos do papel que mexeram nas posições — as linhas de evento do extrato (PLANO_EVENTOS_TRANSACOES.md). */
+  stockEvents: async () => { const { data } = await apiClient.get<StockEventEntry[]>('/transactions/stock-events'); return data; },
   create: async (txData: TransactionCreate) => { const { data } = await apiClient.post<TransactionResponse>('/transactions/', txData); return data; },
   update: async (id: string, txData: TransactionCreate) => { const { data } = await apiClient.put<TransactionResponse>(`/transactions/${id}`, txData); return data; },
   getById: async (id: string) => { const { data } = await apiClient.get<TransactionResponse>(`/transactions/${id}`); return data; },

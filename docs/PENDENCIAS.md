@@ -2,7 +2,8 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 12/11/2026 — secao 48 (curva de juros do Tesouro, docs/planos/PLANO_JUROS_FUTUROS.md) e secao 49
+Ultima atualizacao: 18/11/2026 — secao 50 (eventos do papel em Transacoes,
+docs/planos/PLANO_EVENTOS_TRANSACOES.md). Antes: 12/11/2026 — secao 48 (curva de juros do Tesouro, docs/planos/PLANO_JUROS_FUTUROS.md) e secao 49
 (propostas levantadas em duvidas, ainda sem escopo). Antes: 31/10/2026 — secao 43 (integracoes genericas e Binance Stocks, docs/planos/PLANO_INTEGRACOES.md);
 35.7 e 37.5 resolvidos; 17.1 resolvido; 38.1 em parte (importacao de operacoes em USD da Binance). Antes: 29/10/2026, noite — secao 42 (performance das listagens, docs/planos/PLANO_PERFORMANCE.md: compressao,
 busca de ativos, consultas que sobraram na Carteira e no Preco Teto). Antes: 29/10/2026 — secao 41: 41.2 a 41.5 (preco do exterior fora, curadoria do catalogo vivo,
@@ -600,6 +601,10 @@ FEITO em 21/10/2026 (KLBN4, bonificacao de 1% em 17/12/2025, custo do
 fato relevante R$ 12,94564988922): o campo "Informar custo" passou de 4
 para 8 casas, igual a stock_event_costs.cost_per_share NUMERIC(18,8),
 com a mesma mascara numerica dos outros campos.
+REVISTO em 18/11/2026 (docs/planos/PLANO_EVENTOS_TRANSACOES.md, secao 8.4): o preco medio das telas segue a
+corretora — a bonificacao entra SEM custo, com ou sem custo informado; o custo atribuido (catalogo ou informado) e o
+custo do IR (dica do preco medio na Carteira, linha da bonificacao em Transacoes, IR do exterior). A mensagem
+BONIFICACAO_SEM_CUSTO virou informativa e o icone da Carteira, informativo.
 
 ## 14. ROTINAS EXTERNAS — achados da carga de transacoes de 24/09/2026
 
@@ -1688,6 +1693,23 @@ base antes de ligar. Vira escopo se ele quiser.
 no host, com a app-api normal dentro do container e pelo proxy do front (`127.0.0.1:5173/api`). Nao investigado;
 provavel encaminhamento de porta do Docker Desktop apos dias no ar (reiniciar o Docker Desktop deve resolver). Se
 voltar, `admin.mjs` aceita `--api http://127.0.0.1:5173`.
+
+## 50. EVENTOS DO PAPEL EM TRANSACOES (docs/planos/PLANO_EVENTOS_TRANSACOES.md, 18/11/2026)
+
+**50.1 Fracao vendida em leilao (D8).** No desdobramento, grupamento e bonificacao com fracao, a B3 vende a fracao em
+leilao e paga em dinheiro. O Activest tira a fracao (e, no desdobramento/grupamento, o custo proporcional) e mostra a
+fracao no hover da linha do evento, mas o dinheiro do leilao nao entra em lugar nenhum (nem como provento nem como
+venda). A B3 nao publica o valor do leilao na mesma API dos eventos; tratar se aparecer fonte (na integracao com a
+Area do Investidor, movimento com "FRACAO" no nome e classificado como evento do papel e nao e importado —
+`B3InvestidorConnector`).
+**50.2 Bonificacao que so gera fracao** (ex.: 20 cotas x 2% = 0,4) nao muda cotas nem custo e nao aparece no extrato
+(D2). Junto com o 50.1, se o leilao entrar um dia, ela passa a ter linha.
+**50.3 Evento errado no catalogo nao se corrige pelo usuario.** A linha do evento nao tem editar/excluir (o evento e do
+catalogo). Uma correcao hoje e do administrador, no banco (`asset_stock_events`); a linha muda sozinha na proxima
+leitura.
+**50.4 Preco medio do IR so na dica.** A base da Receita (CostBasis.TAX) aparece no (i) do preco medio da Carteira e
+na linha da bonificacao; nao ha relatorio de IR (Bens e Direitos, rendimento isento codigo 18 "Bonificacoes em acoes")
+nem o IR da venda de acoes brasileiras. Quando existir, ele usa a base TAX.
 
 ## ORDEM SUGERIDA
 

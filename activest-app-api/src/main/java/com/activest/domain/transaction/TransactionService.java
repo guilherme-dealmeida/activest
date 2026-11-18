@@ -1141,7 +1141,9 @@ public class TransactionService {
         boolean valuedByTotal = isValuedByTotal(pa.getAsset());
         String label = label(pa);
 
-        List<StockEventStep> stockEvents = valuedByTotal ? List.of() : positionCalculator.stockEventsOf(pa.getAsset());
+        // Os eventos do papel com o custo de bonificacao que o usuario informou, como na Carteira
+        // (docs/planos/PLANO_EVENTOS_TRANSACOES.md, D9): a regra I e o IR do exterior usam o mesmo custo da tela.
+        List<StockEventStep> stockEvents = valuedByTotal ? List.of() : positionCalculator.stockEventsOf(pa);
         if (valuedByTotal) {
             // vendas pelo liquido: bruto, IR e IOF de todas as vendas do titulo refeitos pelos lotes ANTES das
             // regras E, F e G, que comparam o resgatado (bruto) com o saldo (docs/planos/PLANO_VENDA_RENDA_FIXA.md, R10)

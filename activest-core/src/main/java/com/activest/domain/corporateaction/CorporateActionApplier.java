@@ -23,9 +23,9 @@ import java.math.RoundingMode;
  * sai com a fracao). Na bonificacao a fracao das cotas novas simplesmente nao
  * entra — ela nao tinha custo.</p>
  *
- * <p><b>Bonificacao sem custo informado</b> (B27): as cotas novas entram na
- * hora com custo zero provisorio, para a quantidade ja ficar certa. O preco
- * medio cai ate o custo ser informado.</p>
+ * <p><b>Bonificacao sem custo</b>: as cotas novas entram com custo zero. E a regra das telas desde 18/11/2026 (como
+ * a corretora — {@code PositionCalculator} passa custo nulo na base {@code CostBasis.BROKER}); o custo atribuido so
+ * entra na base da Receita ({@code CostBasis.TAX}), a do IR (docs/planos/PLANO_EVENTOS_TRANSACOES.md, secao 8.4).</p>
  *
  * <p>Posicao zerada nao muda: evento antes da primeira compra ou depois da
  * venda total nao afeta nada.</p>

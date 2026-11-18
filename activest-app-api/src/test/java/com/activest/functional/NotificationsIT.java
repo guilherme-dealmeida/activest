@@ -65,16 +65,16 @@ class NotificationsIT extends FunctionalBase {
         assertThat(shouldNotify(NotificationKind.PROVENTO_PAGO, u, "PETR4:2026-10-13")).isNotNull();
         assertThat(shouldNotify(NotificationKind.PROVENTO_PAGO, u, "PETR4:2026-10-13")).isNull();
 
-        UUID pending = shouldNotify(NotificationKind.BONIFICACAO_SEM_CUSTO, u, "pos:evt");
+        UUID pending = shouldNotify(NotificationKind.RF_VENCIDO, u, "pos:evt");
         assertThat(pending).isNotNull();
-        assertThat(shouldNotify(NotificationKind.BONIFICACAO_SEM_CUSTO, u, "pos:evt")).isNull();
+        assertThat(shouldNotify(NotificationKind.RF_VENCIDO, u, "pos:evt")).isNull();
 
         // dispensada também segura a chave: a rotina não reabre o que a pessoa dispensou
         patch(u, "/api/v1/notifications/" + pending + "/status", Map.of("action", "DISMISS"));
-        assertThat(shouldNotify(NotificationKind.BONIFICACAO_SEM_CUSTO, u, "pos:evt")).isNull();
+        assertThat(shouldNotify(NotificationKind.RF_VENCIDO, u, "pos:evt")).isNull();
 
-        assertThat(notifications.resolve(NotificationKind.BONIFICACAO_SEM_CUSTO, u.getId(), "pos:evt")).isEqualTo(1);
-        assertThat(shouldNotify(NotificationKind.BONIFICACAO_SEM_CUSTO, u, "pos:evt")).isNotNull();
+        assertThat(notifications.resolve(NotificationKind.RF_VENCIDO, u.getId(), "pos:evt")).isEqualTo(1);
+        assertThat(shouldNotify(NotificationKind.RF_VENCIDO, u, "pos:evt")).isNotNull();
         assertThat(cash(u, "")).hasSize(3);
     }
 
