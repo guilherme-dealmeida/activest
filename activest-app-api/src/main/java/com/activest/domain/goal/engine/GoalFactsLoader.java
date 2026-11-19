@@ -105,8 +105,9 @@ public class GoalFactsLoader {
                 continue;
             }
             Asset a = assets.get(d.id());
-            boolean rf = "RENDA_FIXA".equals(info.typeName());
-            BigDecimal cost = rf ? nz(d.totalInvested()).subtract(nz(d.totalSold())) : nz(d.totalInvested());
+            // custo = o valor investido da Carteira; na renda fixa, o aplicado em aberto
+            // (docs/planos/PLANO_VALOR_APLICADO_RENDA_FIXA.md, D2)
+            BigDecimal cost = nz(d.totalInvested());
             boolean noPrice = !info.fixedIncome() && a.getAssetType() != null
                     && a.getAssetType().getPriceSource() == PriceSource.MANUAL;
             LocalDate priceDate = info.fixedIncome() ? d.valuationDate()

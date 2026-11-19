@@ -99,10 +99,10 @@ public class PortfolioService {
             if (pa.isSettled() || !position.hasInvestment()) {
                 continue;
             }
-            totalInvested = totalInvested.add(safe(position.totalInvested()));
+            PositionValuationInfo.Info info = info(infos, pa);
+            totalInvested = totalInvested.add(displayInvested(pa, position, info));
             BigDecimal value = currentValue(pa, position);
             currentValue = currentValue.add(value);
-            PositionValuationInfo.Info info = info(infos, pa);
             currentNetValue = currentNetValue.add(info != null && info.estimatedNet() != null ? info.estimatedNet() : value);
         }
 
@@ -180,9 +180,13 @@ public class PortfolioService {
         return open.stream()
             .map(pa -> {
                 Position position = positions.get(pa.getId());
-                BigDecimal invested = safe(position.totalInvested());
-                BigDecimal valorization = appreciation(pa);
+                PositionValuationInfo.Info valuation = info(infos, pa);
+                boolean byTotal = isValuedByTotal(pa);
+                BigDecimal invested = displayInvested(pa, position, valuation);
                 BigDecimal currentValue = currentValue(pa, position);
+                // Renda fixa: a valorizacao da tela e a do que esta em aberto (valor atual - aplicado em aberto), como
+                // nos tipos por cota; a gravada e a de toda a vida (base das regras E/F/G) e nao muda (PLANO D3)
+                BigDecimal valorization = byTotal ? currentValue.subtract(invested) : appreciation(pa);
 
                 BigDecimal currentPrice;
                 PortfolioAssetDetailDTO.ForeignQuote foreignQuote = foreignQuote(pa.getAsset());
@@ -252,7 +256,9 @@ public class PortfolioService {
                         dividendCalendar.today(), safe(position.totalShares()), safe(position.averagePrice()),
                         invested, currentPrice, dividends.getOrDefault(pa.getId(), BigDecimal.ZERO)),
                     both.tax().containsKey(pa.getId()) ? both.tax().get(pa.getId()).averagePrice() : null,
-                    both.tax().containsKey(pa.getId()) ? both.tax().get(pa.getId()).totalInvested() : null
+                    both.tax().containsKey(pa.getId()) ? both.tax().get(pa.getId()).totalInvested() : null,
+                    byTotal ? position.invested() : null,
+                    byTotal ? position.invested().subtract(invested) : null
                 );
             }).collect(Collectors.toList());
     }
@@ -511,6 +517,34 @@ public class PortfolioService {
      */
     private BigDecimal currentValue(PortfolioAsset pa, Position position) {
         return safe(position.totalInvested()).add(appreciation(pa)).subtract(position.sold());
+    }
+
+    /**
+     * Valor investido das telas (docs/planos/PLANO_VALOR_APLICADO_RENDA_FIXA.md, D1, D2 e D5).
+     *
+     * <p>Nos tipos por cota e o custo que continua na posicao ({@link Position#totalInvested()}, ja reduzido pelas
+     * vendas pelo preco medio). Na renda fixa privada e o APLICADO EM ABERTO: o principal que continua no titulo
+     * depois dos resgates, pelos lotes ({@code FixedIncomeLots}), que separam em cada resgate o principal do
+     * rendimento. Sem curva nao ha rendimento calculado, e o resgate sai inteiro do principal: aplicado - resgatado,
+     * nunca abaixo de zero.</p>
+     *
+     * <p>So apresentacao: {@link Position} continua com o aplicado total e o resgatado separados, base do valor atual
+     * ({@link #currentValue}) e das regras E e F.</p>
+     */
+    static BigDecimal displayInvested(PortfolioAsset pa, Position position, PositionValuationInfo.Info info) {
+        BigDecimal invested = position.invested();
+        if (!isValuedByTotal(pa)) {
+            return invested;
+        }
+        if (info != null && info.openInvested() != null) {
+            return info.openInvested();
+        }
+        return invested.subtract(position.sold()).max(BigDecimal.ZERO);
+    }
+
+    private static boolean isValuedByTotal(PortfolioAsset pa) {
+        return pa.getAsset() != null && pa.getAsset().getAssetType() != null
+            && pa.getAsset().getAssetType().isValuedByTotal();
     }
 
     /**

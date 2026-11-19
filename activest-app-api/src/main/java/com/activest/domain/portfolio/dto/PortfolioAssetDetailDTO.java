@@ -22,12 +22,14 @@ import java.util.UUID;
  * <p>rateType, indexer e indexerRate são a remuneração contratada na nota
  * ("110% do CDI", "IPCA + 6%"). Também nulos para renda variável.</p>
  *
- * <p>{@code totalInvested} tem significados diferentes por tipo, de propósito:
- * nos tipos por cota é o custo que ainda está na posição, já reduzido pelas
- * vendas; na Renda Fixa é o VALOR APLICADO, a soma das compras, e o que saiu
- * está em {@code totalSold}. A tela usa rótulos diferentes pelo mesmo motivo —
- * as regras E e F da renda fixa comparam o aplicado com o resgatado, e abater
- * um do outro tornaria as duas indecidíveis.</p>
+ * <p>{@code totalInvested} é o custo que continua na posição: nos tipos por
+ * cota, o que foi investido já reduzido pelas vendas pelo preço médio; na Renda
+ * Fixa (desde 19/11/2026, docs/planos/PLANO_VALOR_APLICADO_RENDA_FIXA.md) o
+ * APLICADO EM ABERTO — as compras menos o principal que os resgates levaram,
+ * separado do rendimento pelos lotes. O aplicado total e o principal resgatado
+ * vêm em {@code appliedTotal} e {@code soldPrincipal}; o resgatado (bruto) em
+ * {@code totalSold}. A posição ({@code Position}) continua com o aplicado total
+ * e o resgatado separados: as regras E e F comparam um com o outro.</p>
  */
 public record PortfolioAssetDetailDTO(
     UUID id,
@@ -45,7 +47,7 @@ public record PortfolioAssetDetailDTO(
     BigDecimal totalShares,
     BigDecimal averagePrice,
     BigDecimal totalInvested,
-    /** Resgatado: só na Renda Fixa. Zero nos tipos por cota. */
+    /** Resgatado (bruto): só na Renda Fixa. Zero nos tipos por cota. */
     BigDecimal totalSold,
     BigDecimal currentValue,
     BigDecimal currentPrice,
@@ -113,7 +115,14 @@ public record PortfolioAssetDetailDTO(
      * custo conhecido. Os de cima são os da corretora: a bonificação entra sem custo.
      */
     BigDecimal taxAveragePrice,
-    BigDecimal taxInvested
+    BigDecimal taxInvested,
+    /** Renda Fixa: a soma das compras do título (o aplicado de toda a vida). Nulo nos demais tipos. */
+    BigDecimal appliedTotal,
+    /**
+     * Renda Fixa: o principal que os resgates levaram (aplicado total − aplicado em aberto); o resto do resgatado
+     * bruto ({@code totalSold}) é rendimento. Nulo nos demais tipos.
+     */
+    BigDecimal soldPrincipal
 ) {
     /** Cotação na moeda do ativo, câmbio de venda usado e a data do boletim (diferente de hoje = carregado, D27). */
     public record ForeignQuote(String currencyCode, String symbol, BigDecimal price, BigDecimal fxRate,

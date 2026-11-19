@@ -96,12 +96,47 @@ class FixedIncomeCurveIT extends FunctionalBase {
         Map<String, Object> p = positionOf(owner, CatalogIds.CDB);
         // sobra o centavo da regra F, rendendo de 16 a 31 de janeiro (12 dias uteis)
         assertThat(number(p.get("currentValue")).doubleValue()).isCloseTo(0.01, within(0.001));
-        assertThat(number(p.get("valorization")))
+        // o resgate levou todo o principal (PLANO_VALOR_APLICADO_RENDA_FIXA): aplicado em aberto zero, e a valorizacao
+        // da tela e a do que ficou; o ganho de toda a vida continua gravado (base das regras E/F/G)
+        assertThat(number(p.get("totalInvested"))).isEqualByComparingTo("0.00");
+        assertThat(number(p.get("appliedTotal"))).isEqualByComparingTo("1000.00");
+        assertThat(number(p.get("soldPrincipal"))).isEqualByComparingTo("1000.00");
+        assertThat(number(p.get("valorization"))).isEqualByComparingTo(number(p.get("currentValue")));
+        assertThat(jdbc.queryForObject("SELECT appreciation FROM portfolio_assets WHERE id = ?::uuid",
+            BigDecimal.class, String.valueOf(p.get("id"))))
             .isEqualByComparingTo(stored.totalAmount().subtract(new BigDecimal("1000.00")).add(new BigDecimal("0.01")));
 
         assertThat(delete(owner, "/api/v1/transactions/" + sale.id()).getStatusCode().is2xxSuccessful()).isTrue();
         Map<String, Object> after = positionOf(owner, CatalogIds.CDB);
         assertThat(number(after.get("currentValue")).doubleValue()).isCloseTo(1000 * Math.pow(1.0005, 22), within(0.01));
+    }
+
+    @Test
+    @DisplayName("Resgate parcial: o valor aplicado e o aplicado em aberto dos lotes (o resgate leva principal e "
+        + "rendimento na mesma proporcao) e a valorizacao e a do que esta em aberto (PLANO_VALOR_APLICADO_RENDA_FIXA)")
+    @SuppressWarnings("unchecked")
+    void openInvestedAfterPartialRedemption() {
+        TransactionResponseDTO buy = recordSuccessfully(owner, cdb100("2024-01-02", "1000.00"));
+        recordSuccessfully(owner, netRedemption(buy.noteId(), "2024-01-16", "500.00"));
+
+        Map<String, Object> p = positionOf(owner, CatalogIds.CDB);
+        BigDecimal invested = number(p.get("totalInvested"));
+        BigDecimal sold = number(p.get("totalSold"));
+        BigDecimal lotsApplied = ((java.util.List<Map<String, Object>>) p.get("lots")).stream()
+            .map(l -> number(l.get("applied"))).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // o mesmo aplicado do detalhe dos aportes
+        assertThat(invested).isEqualByComparingTo(lotsApplied);
+        // o resgate levou rendimento junto: sobra mais que aplicado - resgatado, e menos que o aplicado
+        assertThat(invested).isGreaterThan(new BigDecimal("1000.00").subtract(sold)).isLessThan(new BigDecimal("1000.00"));
+        assertThat(number(p.get("appliedTotal"))).isEqualByComparingTo("1000.00");
+        assertThat(number(p.get("soldPrincipal")).add(invested)).isEqualByComparingTo("1000.00");
+        assertThat(number(p.get("valorization")))
+            .isEqualByComparingTo(number(p.get("currentValue")).subtract(invested));
+
+        Map<String, Object> summary = get(owner, "/api/v1/portfolio/", Map.class).getBody();
+        assertThat(number(summary.get("totalInvested"))).isEqualByComparingTo(invested);
+        assertThat(number(summary.get("currentValue"))).isEqualByComparingTo(number(p.get("currentValue")));
     }
 
     private Map<String, Object> netRedemption(Object noteId, String data, String net) {

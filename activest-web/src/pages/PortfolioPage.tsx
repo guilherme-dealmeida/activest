@@ -399,10 +399,11 @@ const COLUMNS: Column[] = [
     key: 'totalInvested',
     label: 'VALOR INICIAL',
     labelFor: (type) => (type.name === RENDA_FIXA ? 'VALOR APLICADO' : 'VALOR INICIAL'),
-    // Mesmo motivo do labelFor: nos tipos por cota a venda já reduziu o custo,
-    // então "a soma das compras" só é verdade na Renda Fixa.
+    // Nos tipos por cota a venda reduz o custo pelo preço médio; na Renda Fixa o resgate leva principal e
+    // rendimento, e só o principal sai do valor aplicado (PLANO_VALOR_APLICADO_RENDA_FIXA, 19/11/2026).
     info: (type) => (type.name === RENDA_FIXA
-      ? 'Quanto foi investido na posição: a soma das compras.'
+      ? 'O que continua aplicado no título: as compras menos o principal que os resgates levaram (o rendimento '
+        + 'resgatado não entra). É a soma da coluna Aplicado dos aportes.'
       : 'Custo que continua na posição: o que foi investido, já descontadas as vendas pelo preço médio.'),
     align: 'right',
     render: (a) => (
@@ -415,15 +416,23 @@ const COLUMNS: Column[] = [
   {
     key: 'totalSold',
     label: 'RESGATADO',
-    info: 'Quanto já foi resgatado desta aplicação.',
+    info: 'Quanto já foi resgatado desta aplicação (bruto, antes do IR e do IOF). Passe o mouse no valor para ver '
+      + 'quanto foi principal e quanto foi rendimento.',
     align: 'right',
     visible: showSold,
-    render: (a) => formatCurrency(a.totalSold),
+    render: (a) => (a.soldPrincipal != null && a.totalSold > 0
+      ? (
+        <span className="cursor-help underline decoration-dotted decoration-gray-500 underline-offset-2"
+          title={`Principal: ${formatCurrency(a.soldPrincipal)} · Rendimento: ${formatCurrency(a.totalSold - a.soldPrincipal)}`}>
+          {formatCurrency(a.totalSold)}
+        </span>
+      )
+      : formatCurrency(a.totalSold)),
   },
   {
     key: 'currentValue',
     label: 'VALOR ATUAL',
-    info: 'Valor aplicado + valorização − resgatado. Na renda fixa, valor bruto; embaixo, o líquido estimado de um '
+    info: 'Valor aplicado + valorização. Na renda fixa, valor bruto; embaixo, o líquido estimado de um '
       + 'resgate hoje (sem IR e IOF), com os aportes ao clicar.',
     align: 'right',
     render: (a) => (
@@ -452,8 +461,11 @@ const COLUMNS: Column[] = [
     // 17/10/2026: em reais; desde 01/11/2026 a % foi para a coluna VARIAÇÃO. Embaixo, na moeda (exterior e cripto).
     key: 'valorization',
     label: 'VALORIZAÇÃO',
-    info: 'Quanto a posição ganhou ou perdeu em relação ao valor aplicado, sem os proventos. No exterior e na cripto, '
-      + 'embaixo, o mesmo na moeda (dólar).',
+    info: (type) => (type.name === RENDA_FIXA
+      ? 'Quanto o que continua aplicado rendeu: valor atual − valor aplicado. O rendimento que já saiu nos resgates '
+        + 'aparece no RESGATADO.'
+      : 'Quanto a posição ganhou ou perdeu em relação ao valor aplicado, sem os proventos. No exterior e na cripto, '
+        + 'embaixo, o mesmo na moeda (dólar).'),
     align: 'right',
     render: (a) => (
       <SignedLines main={{ value: a.valorization, text: formatCurrency(a.valorization) }}

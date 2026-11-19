@@ -263,13 +263,18 @@ export interface PortfolioAssetDetail {
   indexerRate: number | null;
   totalShares: number;
   averagePrice: number;
-  // Nos tipos por cota é o custo que ainda está na posição, já reduzido pelas
-  // vendas. Na Renda Fixa é o VALOR APLICADO — a soma das compras —, e o que
-  // saiu está em totalSold: as regras E e F comparam as duas pontas, e abater
-  // uma da outra tornaria ambas indecidíveis. A tabela usa rótulos diferentes
-  // por isso.
+  // O custo que continua na posição. Nos tipos por cota, já reduzido pelas
+  // vendas pelo preço médio. Na Renda Fixa (19/11/2026,
+  // docs/planos/PLANO_VALOR_APLICADO_RENDA_FIXA.md) é o APLICADO EM ABERTO: as
+  // compras menos o principal que os resgates levaram (pelos aportes, que
+  // separam principal de rendimento). A tabela usa rótulos diferentes por tipo.
   totalInvested: number;
+  /** Resgatado (bruto): só na Renda Fixa; zero nos tipos por cota. */
   totalSold: number;
+  /** Renda Fixa: a soma das compras do título. null nos demais tipos. */
+  appliedTotal?: number | null;
+  /** Renda Fixa: o principal que os resgates levaram; o resto de totalSold é rendimento. null nos demais tipos. */
+  soldPrincipal?: number | null;
   currentValue: number;
   currentPrice: number;
   totalDividends: number;

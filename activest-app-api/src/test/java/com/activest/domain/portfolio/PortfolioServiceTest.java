@@ -51,6 +51,7 @@ class PortfolioServiceTest {
     @Mock private PositionCalculator positionCalculator;
     @Mock private DividendCalendar dividendCalendar;
     @Mock private com.activest.domain.asset.AssetLogos assetLogos;
+    @Mock private PositionValuationInfo valuationInfo;
 
     @InjectMocks private PortfolioService service;
 
@@ -375,6 +376,82 @@ class PortfolioServiceTest {
 
         private AssetCategory category(String displayName, String descriptionText) {
             return AssetCategory.builder().name(displayName).description(descriptionText).build();
+        }
+    }
+
+    @Nested
+    @DisplayName("Valor aplicado da renda fixa (PLANO_VALOR_APLICADO_RENDA_FIXA)")
+    class FixedIncomeOpenInvested {
+
+        /** Titulo de renda fixa com resgate: aplicado total, resgatado (bruto) e a valorizacao gravada (de toda a vida). */
+        private PortfolioAsset fixedIncome(String applied, String sold, String appreciationValue) {
+            PortfolioAsset pa = position(fixedIncomeType, "RDB", applied, appreciationValue, null, false);
+            calculatedPositions.put(pa.getId(), new Position(null, null, new BigDecimal(applied), new BigDecimal(sold)));
+            return pa;
+        }
+
+        @Test
+        @DisplayName("Com curva: o valor aplicado e o aplicado em aberto dos lotes; a valorizacao e a do que esta em aberto")
+        void openInvestedFromLots() {
+            PortfolioAsset rdb = fixedIncome("4210.00", "1810.14", "130.92");
+            when(valuationInfo.of(any())).thenReturn(Map.of(rdb.getId(), new PositionValuationInfo.Info(
+                "CURVA", TODAY, null, false, null, List.of(), new BigDecimal("2434.96"))));
+
+            PortfolioAssetDetailDTO row = service.getPortfolioAssets(userId).get(0);
+
+            assertThat(row.totalInvested()).isEqualByComparingTo("2434.96");
+            assertThat(row.currentValue()).isEqualByComparingTo("2530.78");
+            assertThat(row.valorization()).isEqualByComparingTo("95.82");
+            assertThat(row.returnPercentage()).isEqualByComparingTo("3.94");
+            assertThat(row.totalSold()).isEqualByComparingTo("1810.14");
+            assertThat(row.appliedTotal()).isEqualByComparingTo("4210.00");
+            assertThat(row.soldPrincipal()).isEqualByComparingTo("1775.04");
+
+            PortfolioSummaryDTO summary = service.getPortfolioSummary(userId);
+            assertThat(summary.totalInvested()).isEqualByComparingTo("2434.96");
+            assertThat(summary.currentValue()).isEqualByComparingTo("2530.78");
+            assertThat(summary.totalReturn()).isEqualByComparingTo("95.82");
+        }
+
+        @Test
+        @DisplayName("Sem curva: o resgate sai inteiro do principal (aplicado - resgatado)")
+        void withoutCurve() {
+            fixedIncome("4210.00", "1810.14", "130.92");
+
+            PortfolioAssetDetailDTO row = service.getPortfolioAssets(userId).get(0);
+
+            assertThat(row.totalInvested()).isEqualByComparingTo("2399.86");
+            assertThat(row.currentValue()).isEqualByComparingTo("2530.78");
+            assertThat(row.valorization()).isEqualByComparingTo("130.92");
+            assertThat(row.soldPrincipal()).isEqualByComparingTo("1810.14");
+            assertThat(service.getPortfolioSummary(userId).totalInvested()).isEqualByComparingTo("2399.86");
+        }
+
+        @Test
+        @DisplayName("Sem curva, resgatado maior que o aplicado: o valor aplicado fica em zero, nunca negativo")
+        void neverNegative() {
+            fixedIncome("1000.00", "1100.00", "150.00");
+
+            PortfolioAssetDetailDTO row = service.getPortfolioAssets(userId).get(0);
+
+            assertThat(row.totalInvested()).isEqualByComparingTo("0.00");
+            assertThat(row.currentValue()).isEqualByComparingTo("50.00");
+            assertThat(row.valorization()).isEqualByComparingTo("50.00");
+            assertThat(row.returnPercentage()).isEqualByComparingTo("0.00");
+            assertThat(row.soldPrincipal()).isEqualByComparingTo("1000.00");
+        }
+
+        @Test
+        @DisplayName("Tipos por cota nao mudam: custo da posicao, valorizacao gravada e sem os campos da renda fixa")
+        void sharesUnchanged() {
+            position(stockType, "PETR4", "1000.00", "200.00", "100", false);
+
+            PortfolioAssetDetailDTO row = service.getPortfolioAssets(userId).get(0);
+
+            assertThat(row.totalInvested()).isEqualByComparingTo("1000.00");
+            assertThat(row.valorization()).isEqualByComparingTo("200.00");
+            assertThat(row.appliedTotal()).isNull();
+            assertThat(row.soldPrincipal()).isNull();
         }
     }
 }

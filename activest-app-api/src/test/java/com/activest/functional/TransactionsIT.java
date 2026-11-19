@@ -406,7 +406,13 @@ class TransactionsIT extends FunctionalBase {
             assertThat(sale.totalAmount()).isEqualByComparingTo("1062.50");
             assertThat(sale.incomeTax()).isEqualByComparingTo("12.50");
             Map<String, Object> position = positionOf(owner, CatalogIds.CDB);
-            assertThat(new BigDecimal(position.get("valorization").toString())).isEqualByComparingTo("62.51");
+            // a valorizacao de toda a vida (gravada, base das regras E/F/G) e 62,50 + o centavo; a da tela e a do que
+            // ficou em aberto: o resgate levou todo o principal (PLANO_VALOR_APLICADO_RENDA_FIXA)
+            assertThat(jdbc.queryForObject("SELECT appreciation FROM portfolio_assets WHERE id = ?::uuid",
+                BigDecimal.class, String.valueOf(position.get("id")))).isEqualByComparingTo("62.51");
+            assertThat(new BigDecimal(position.get("totalInvested").toString())).isEqualByComparingTo("0.00");
+            assertThat(new BigDecimal(position.get("appliedTotal").toString())).isEqualByComparingTo("1000.00");
+            assertThat(new BigDecimal(position.get("valorization").toString())).isEqualByComparingTo("0.01");
             assertThat(position.get("isSettled")).isEqualTo(false);
         }
 

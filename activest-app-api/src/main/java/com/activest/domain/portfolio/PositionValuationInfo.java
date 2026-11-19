@@ -39,12 +39,20 @@ public class PositionValuationInfo {
      * @param estimatedNet liquido estimado se resgatasse na data do valor: bruto - IOF - IR (PLANO_VENDA_RENDA_FIXA,
      *                     R11); nulo sem valor
      * @param lots    o titulo aporte a aporte (renda fixa privada) ou o proprio titulo (Tesouro); vazio sem valor
+     * @param openInvested aplicado em aberto da renda fixa privada com curva: o principal que continua no titulo
+     *                     depois dos resgates, pelos lotes (docs/planos/PLANO_VALOR_APLICADO_RENDA_FIXA.md, D1). Nulo
+     *                     sem curva e nos demais tipos
      */
     public record Info(String basis, LocalDate date, String note, boolean matured, BigDecimal estimatedNet,
-                       List<FixedIncomeLots.Lot> lots) {
+                       List<FixedIncomeLots.Lot> lots, BigDecimal openInvested) {
 
         Info(String basis, LocalDate date, String note, boolean matured) {
-            this(basis, date, note, matured, null, List.of());
+            this(basis, date, note, matured, null, List.of(), null);
+        }
+
+        Info(String basis, LocalDate date, String note, boolean matured, BigDecimal estimatedNet,
+             List<FixedIncomeLots.Lot> lots) {
+            this(basis, date, note, matured, estimatedNet, lots, null);
         }
     }
 
@@ -117,7 +125,7 @@ public class PositionValuationInfo {
             } else {
                 out.put(pa.getId(), new Info("CURVA", r.referenceDate(),
                         r.estimated() ? "inclui a inflação do mês corrente estimada pelo último índice publicado" : null,
-                        r.status() == FixedIncomeCurve.Status.MATURED, r.estimatedNet(), r.lots()));
+                        r.status() == FixedIncomeCurve.Status.MATURED, r.estimatedNet(), r.lots(), r.applied()));
             }
         }
         return out;

@@ -58,6 +58,10 @@ activest/
 - ✅ Venda de renda fixa pelo **valor líquido** (15/10/2026): o Activest calcula o bruto, o IR (tabela regressiva) e o
   IOF aporte a aporte, com prévia antes de gravar; no Tesouro, IR e IOF por título; a Carteira mostra o líquido
   estimado de cada título — ver `docs/planos/PLANO_VENDA_RENDA_FIXA.md`
+- ✅ Valor aplicado da renda fixa (19/11/2026): depois de um resgate, o valor investido de um título é o principal que
+  continua aplicado — o resgate leva principal e rendimento na mesma proporção, aporte a aporte —, como o custo médio
+  das ações; o resgatado mostra quanto foi principal e quanto foi rendimento — ver
+  `docs/planos/PLANO_VALOR_APLICADO_RENDA_FIXA.md`
 - ✅ Gráficos de alocação (pizza por tipo e por categoria)
 - ✅ Estratégia de alocação com % ideal e tela própria de Rebalanceamento (sugestão de aporte)
 - ✅ Preço Teto e Preço Ideal de ações pelo modelo PREÇO TETO V2 (10/10/2026): lucros dos 4 últimos trimestres
