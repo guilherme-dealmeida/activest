@@ -13,6 +13,7 @@ import com.activest.domain.catalog.CatalogMessaging.CatalogChangePublisher;
 import com.activest.domain.asset.Asset;
 import com.activest.domain.asset.AssetRepository;
 import com.activest.domain.asset.PriceSource;
+import com.activest.domain.asset.Tickers;
 import com.activest.domain.corporateaction.AssetStockEvent;
 import com.activest.domain.corporateaction.AssetStockEventRepository;
 import com.activest.domain.corporateaction.StockEventType;
@@ -558,11 +559,11 @@ public class DividendCatalogService {
                         .filter(i -> i != null && i.startsWith(prefix)).findFirst()
                         .or(() -> supplement.stock().stream().map(s -> B3Values.trim(s.isinCode()))
                                 .filter(i -> i != null && i.startsWith(prefix)).findFirst())
-                        .ifPresent(isin -> group.assets().forEach(a -> isinByTicker.put(baseTicker(a.getTicker()), isin)));
+                        .ifPresent(isin -> group.assets().forEach(a -> isinByTicker.put(Tickers.base(a.getTicker()), isin)));
             }
             for (Asset a : group.assets()) {
                 if (a.getIsin() == null) {
-                    String isin = isinByTicker.get(baseTicker(a.getTicker()));
+                    String isin = isinByTicker.get(Tickers.base(a.getTicker()));
                     if (isin != null) {
                         a.setIsin(isin);
                         tx.executeWithoutResult(s -> assetRepository.findById(a.getId()).ifPresent(db -> {
@@ -581,13 +582,6 @@ public class DividendCatalogService {
         group.assets().stream().filter(a -> a.getIsin() != null)
                 .forEach(a -> byIsin.computeIfAbsent(a.getIsin(), k -> new ArrayList<>()).add(a));
         return byIsin;
-    }
-
-    /** PETR4F → PETR4: o fracionario e o mesmo papel. */
-    static String baseTicker(String ticker) {
-        String t = ticker.trim().toUpperCase();
-        return t.endsWith("F") && t.length() > 5 && Character.isDigit(t.charAt(t.length() - 2))
-                ? t.substring(0, t.length() - 1) : t;
     }
 
     // ------------------------------------------------------------------
@@ -697,7 +691,7 @@ public class DividendCatalogService {
     private int applyCompanyHistory(IssuerGroup group, List<Asset> needing, List<B3HistoryPage.Item> items) {
         boolean bdr = "BDR".equals(group.assets().get(0).getAssetType().getName());
         Map<String, List<Asset>> byTicker = new HashMap<>();
-        needing.forEach(a -> byTicker.computeIfAbsent(baseTicker(a.getTicker()), k -> new ArrayList<>()).add(a));
+        needing.forEach(a -> byTicker.computeIfAbsent(Tickers.base(a.getTicker()), k -> new ArrayList<>()).add(a));
         boolean singleBase = byTicker.size() == 1;
         Installments installments = new Installments();
         int saved = 0;
@@ -1024,7 +1018,7 @@ public class DividendCatalogService {
         }
         for (Asset a : assets) {
             if ((p.isin() != null && p.isin().equalsIgnoreCase(a.getIsin()))
-                    || (p.ticker() != null && p.ticker().equalsIgnoreCase(baseTicker(a.getTicker())))) {
+                    || (p.ticker() != null && p.ticker().equalsIgnoreCase(Tickers.base(a.getTicker())))) {
                 return a;
             }
         }
@@ -1211,7 +1205,7 @@ public class DividendCatalogService {
             return false;
         }
         Matcher m = FUND_TICKER.matcher(p.ticker().trim().toUpperCase());
-        return m.matches() && assets.stream().anyMatch(a -> baseTicker(a.getTicker()).startsWith(m.group(1)));
+        return m.matches() && assets.stream().anyMatch(a -> Tickers.base(a.getTicker()).startsWith(m.group(1)));
     }
 
     /** O ISIN da linha e o de um ativo do grupo. */
@@ -1251,7 +1245,7 @@ public class DividendCatalogService {
         String t = p.ticker().trim().toUpperCase();
         Matcher m = FUND_TICKER.matcher(t);
         String base = m.matches() ? m.group(1) + m.group(2) : t;
-        return assets.stream().anyMatch(a -> baseTicker(a.getTicker()).equals(base));
+        return assets.stream().anyMatch(a -> Tickers.base(a.getTicker()).equals(base));
     }
 
     /** R7: o ISIN e da cota de outro ativo do catalogo, ligado a outro emissor. */

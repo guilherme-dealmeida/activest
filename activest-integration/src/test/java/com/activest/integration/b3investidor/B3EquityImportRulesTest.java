@@ -3,6 +3,7 @@ package com.activest.integration.b3investidor;
 import com.activest.domain.asset.Asset;
 import com.activest.domain.asset.AssetType;
 import com.activest.domain.asset.PriceSource;
+import com.activest.domain.asset.Tickers;
 import com.activest.domain.integration.pipeline.ImportRules;
 import com.activest.domain.integration.source.ImportedMovement;
 import com.activest.domain.integration.source.MovementKind;
@@ -38,7 +39,7 @@ class B3EquityImportRulesTest {
 
     private static ImportedMovement trade(String ticker, MovementSide side, String market, String qtd, String value) {
         LocalDate day = LocalDate.of(2024, 3, 4);
-        return new ImportedMovement("b3:negociacao:2024-03-04:" + B3EquityImportRules.baseTicker(ticker) + ":"
+        return new ImportedMovement("b3:negociacao:2024-03-04:" + Tickers.base(ticker) + ":"
             + (side == MovementSide.BUY ? "C" : "V"), MovementKind.EQUITY_TRADE, ticker, side,
             qtd == null ? null : new BigDecimal(qtd), "BRL", value == null ? null : new BigDecimal(value), null, null,
             day.atStartOfDay(ZoneId.of("America/Sao_Paulo")).toInstant(), "{}", market, "CORRETORA FICTICIA S.A.", day);
@@ -79,8 +80,8 @@ class B3EquityImportRulesTest {
         assertThat(r.mapped()).isTrue();
         assertThat(r.transaction().ticker()).isEqualTo("PETR4");
         assertThat(r.transaction().type()).isEqualTo(TransactionType.SELL);
-        assertThat(B3EquityImportRules.baseTicker("HGLG11")).isEqualTo("HGLG11");
-        assertThat(B3EquityImportRules.baseTicker("petr4f ")).isEqualTo("PETR4");
+        assertThat(Tickers.base("HGLG11")).isEqualTo("HGLG11");
+        assertThat(Tickers.base("petr4f ")).isEqualTo("PETR4");
     }
 
     @Test

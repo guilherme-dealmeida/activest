@@ -5,7 +5,13 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 20/11/2026 (**Melhoria do front-end — tema "Instrumento"**, `docs/planos/PLANO_FRONT_DESIGN.md`:
+> **Última revisão**: 21/11/2026 (**Regra do ticker base**, `docs/planos/PLANO_TICKER_BASE.md`: a transformação
+> "fracionário → papel inteiro" (PETR4F → PETR4) passou a ter **um dono só** — `com.activest.domain.asset.Tickers`
+> (core), com `base` e `isOddLot`; antes ela estava escrita em 10 lugares, em 3 variantes que discordavam entre si
+> (5 exigiam dígito antes do F e quebravam a classe B, `MRSA3BF`; 4 não exigiam e quebravam os tickers com hífen,
+> `TRTN-F`; 1 usava regex e quebravava os dois). A nova regra: F final, 6 ou mais caracteres, sem hífen e depois de
+> letra ou dígito. **Só a leitura muda** — sem migration, sem dado gravado; ver "Ticker base" em Pontos de Atenção).
+> Antes: 20/11/2026 (**Melhoria do front-end — tema "Instrumento"**, `docs/planos/PLANO_FRONT_DESIGN.md`:
 > tokens de cor por papel semântico com um valor por tema, **tema claro refeito de verdade** (o override
 > `html.light .text-white/NN` saiu), escala de raio (`rounded-panel`/`rounded-control`) e voz tipográfica (cabeçalho
 > de tabela como rótulo), tema dos gráficos unificado (oito cópias → uma), menu agrupado com gaveta na tela estreita
@@ -1760,6 +1766,34 @@ publicou; o valor só existe no Comunicado ao Mercado da Petrobras — PENDENCIA
 - Testes: `DividendReconciliationIT` (5) e `PaymentDateSourceIT` (2: CVM cede à B3; FNET assume a reserva da B3).
 
 ## ⚠️ Pontos de Atenção
+
+### Ticker base — uma regra só (21/11/2026)
+Plano: `docs/planos/PLANO_TICKER_BASE.md` (D1–D5, etapas E1–E4).
+
+O ticker do **fracionário** é o do papel inteiro com um `F` no fim (`PETR4F` → `PETR4`). A transformação está
+hoje em **um lugar só**: `com.activest.domain.asset.Tickers` (core), com dois métodos —
+
+| Método | O que responde |
+|---|---|
+| `Tickers.base(ticker)` | o ticker do papel inteiro: `PETR4F` → `PETR4`, `MRSA3BF` → `MRSA3B` |
+| `Tickers.isOddLot(ticker)` | a pergunta inversa: isto é fracionário? `PETR4F` → true, `PETR4` → false |
+
+**A regra:** o F final é o marcador do fracionário quando o ticker tem **6 ou mais caracteres**, **não tem
+hífen** e o F vem depois de **letra ou dígito**. O hífen é o que separa o ticker de papel inteiro com sufixo
+(`TRTN-F`, `BANC-F`, `RITM-F`) do fracionário: nenhum deles tem lote padrão no catálogo, e nenhum fracionário
+do catálogo tem base com hífen (conferido no banco em 20/11/2026).
+
+Antes ela estava escrita em **10 lugares**, em **3 variantes que discordavam entre si**: 5 exigiam dígito antes
+do F (quebravam a classe B — `MRSA3BF` ficava inteiro) e 4 não exigiam (quebravam os com hífen — `TRTN-F`
+virava `TRTN-`). Nenhuma das duas cobria o catálogo inteiro. Hoje as chamadas são 12: `AssetPriceHistoryService`,
+`IndicatorService`, `PortfolioTimelineBuilder` (app-api); `AssetLogoService`, `CatalogAuditService`,
+`CatalogDelisting`, `IssuerLinkService`, `DividendCatalogService`, `HistoricalQuotesImportService` (adm-api);
+`B3EquityImportRules` e `B3InvestidorConnector` (integration); `ShareClass.fromTicker` (core).
+
+**O que muda na tela:** só os **4 fracionários de classe B** (`MRSA3BF`, `MRSA5BF`, `MRSA6BF`, `EQMA3BF`) —
+que passam a usar a série do lote padrão, como os outros 380, e mostram o rótulo "preço do MRSA3B". Os 384
+fracionários com lote padrão e os 24 que só existem no fracionário (`EKTR3F`, `CEDO3F`…) seguem iguais. Sem
+migration, sem dado gravado. Teste da regra: `TickersTest` (core).
 
 ### Integrações genéricas e Binance Stocks (31/10/2026)
 Plano: `docs/planos/PLANO_INTEGRACOES.md` (D1–D12, P1–P4, etapas E1–E7).

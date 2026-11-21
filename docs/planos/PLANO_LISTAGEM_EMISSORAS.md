@@ -43,8 +43,9 @@ página da emissora.
 
 - ETF, BDR, Tesouro, Renda Fixa e Cripto não têm emissor em `issuers` e ficam fora (D6). As emissoras de renda fixa
   (`fixed_income_issuers`) existem, mas não têm indicadores.
-- Fracionário = a regra que o sistema já usa (`IndicatorService.baseTicker`: termina em F, mais de 5 caracteres,
-  dígito antes do F). PETR4F usa o preço, os eventos e os proventos de PETR4: os indicadores são idênticos.
+- Fracionário = a regra que o sistema já usa (`com.activest.domain.asset.Tickers.base`: termina em F, mais de 5
+  caracteres, sem hífen e com letra ou dígito antes do F — `docs/planos/PLANO_TICKER_BASE.md`). PETR4F usa o preço, os
+  eventos e os proventos de PETR4: os indicadores são idênticos.
 
 ### 1.2 Casos de borda (D8 — todos aparecem, com marca de "dado antigo")
 

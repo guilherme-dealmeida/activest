@@ -4,6 +4,7 @@ import com.activest.domain.task.TaskRun;
 
 import com.activest.domain.asset.Asset;
 import com.activest.domain.asset.AssetRepository;
+import com.activest.domain.asset.Tickers;
 import com.activest.adm.integration.b3.B3HistoricalQuotesClient;
 import com.activest.adm.integration.b3.CotahistQuote;
 import lombok.extern.slf4j.Slf4j;
@@ -226,7 +227,7 @@ public class HistoricalQuotesImportService {
                 if (a.getDelistedOn() == null || !byTicker.containsKey(a.getTicker().toUpperCase())) {
                     byTicker.put(a.getTicker().toUpperCase(), a.getId());
                 }
-                if (a.getIsin() != null && !a.getIsin().isBlank() && !isOddLot(a.getTicker())) {
+                if (a.getIsin() != null && !a.getIsin().isBlank() && !Tickers.isOddLot(a.getTicker())) {
                     byIsin.putIfAbsent(a.getIsin().trim().toUpperCase(), a.getId());
                 }
             }
@@ -246,7 +247,7 @@ public class HistoricalQuotesImportService {
             if (direct) {
                 c.latestIsin().merge(assetId, new LatestIsin(q.date(), q.isin()),
                         (a, b) -> b.date().isAfter(a.date()) ? b : a);
-                if (spot && !q.isin().isEmpty() && !isOddLot(q.ticker())) {
+                if (spot && !q.isin().isEmpty() && !Tickers.isOddLot(q.ticker())) {
                     c.byIsin().putIfAbsent(q.isin(), assetId);
                 }
             } else if (spot && !q.isin().isEmpty()) {
@@ -281,15 +282,6 @@ public class HistoricalQuotesImportService {
     /** Do primeiro ano da serie ({@value #FIRST_YEAR}) ate o ano corrente. */
     public Result importAll(String reason) {
         return importYears(FIRST_YEAR, LocalDate.now(ZONE).getYear(), reason);
-    }
-
-    /**
-     * Ticker do fracionario (PETR4F). Ele tem o mesmo ISIN do lote padrao, entao
-     * nunca e destino da busca pelo ISIN — senao o pregao do CALI3 cairia no
-     * CALI3F quando o catalogo so tem o fracionario (visto na carga de 27/09).
-     */
-    static boolean isOddLot(String ticker) {
-        return ticker != null && ticker.length() > 5 && ticker.endsWith("F");
     }
 
     private void flush(List<Object[]> batch) {

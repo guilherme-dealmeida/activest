@@ -1735,6 +1735,28 @@ tabela; os numeros grandes de card (Dashboard, Metas) levam `tabular-nums` na cl
 numero dentro de texto corrido (o "R$ 280,73" ao lado da porcentagem, por exemplo) — irrelevante para a leitura, e
 cada caso e uma excecao.
 
+## 52. AUDITORIA DE EFICIENCIA E DUPLICATAS (20-21/11/2026) — ESCOPO A FEITO, B E C PLANEJADOS
+
+Auditoria de todo o repositorio (21 achados, feita em 20/11/2026). O Guilherme mandou dividir em tres escopos.
+**Escopo A (regra do ticker base) foi executado em 21/11/2026** (`docs/planos/PLANO_TICKER_BASE.md`): a
+transformacao fracionario -> papel inteiro passou a ter um dono so, `com.activest.domain.asset.Tickers` (core),
+com `base` e `isOddLot`; as 12 chamadas passam por la. Sem migration, sem dado gravado. O que ficou:
+
+**52.1 Escopo B — consultas repetidas** (`docs/planos/PLANO_CONSULTAS_REPETIDAS.md`, D6-D8 em aberto).
+Medido no dev em 20/11/2026: `/goals` 150 consultas SQL, `/portfolio/assets` 98, `/ceiling-prices` 39,
+`/assets/indicators?kind=COMPANY` 32. As telas warm (2a chamada em diante) estao entre 40 e 240 ms — nao ha
+tela quebrada; o que sobra e repeticao. O plano tem 5 etapas: `GoalFacts` compartilhado por request,
+pre-carga de emissores e tipos, `CeilingPriceDefaults` em lote, transacoes ja carregadas na
+`PositionValuationInfo` e cache do `fingerprint` da linha do tempo. O `sharesOn` (O(dias x transacoes) no
+`PortfolioTimelineBuilder`) fica de fora por decisao — e um PR separado.
+
+**52.2 Escopo C — duplicacao e lean** (`docs/planos/PLANO_DUPLICACAO_CODIGO.md`, D1-D5 em aberto). Tres
+sub-escopos: (a) backend com dono unico por regra (`DuplicateStringUtils`, o `switch` do `DuplicatedSupplier`,
+o `Thread.sleep` do `ActionMonitor`, as strings magicas e o `@MappedSuperclass Timestamped` nas 33 entidades);
+(b) front, com ~30 chamadas de `toLocaleString('pt-BR')` dispersas no lugar dos formatadores de
+`utils/format.ts`, e o codigo morto (`INDICATOR_ORDER`, `formatFull`); (c) MapStruct fora do `pom.xml` — nenhum
+arquivo importa `org.mapstruct`.
+
 ## ORDEM SUGERIDA
 
 O item 1 saiu. O 5.1 (indices) saiu em 05/10/2026; o proximo passo e o 2.1 — a razao de

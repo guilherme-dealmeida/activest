@@ -2,6 +2,7 @@ package com.activest.integration.b3investidor;
 
 import com.activest.domain.asset.Asset;
 import com.activest.domain.asset.PriceSource;
+import com.activest.domain.asset.Tickers;
 import com.activest.domain.integration.pipeline.ImportRules;
 import com.activest.domain.integration.pipeline.ProposedTransaction;
 import com.activest.domain.integration.source.ImportedMovement;
@@ -97,7 +98,7 @@ public final class B3EquityImportRules implements ImportRules {
         }
 
         // B3 / B4 — ticker do catalogo, de renda variavel listada; nunca cria ativo.
-        String ticker = baseTicker(m.asset());
+        String ticker = Tickers.base(m.asset());
         Optional<Asset> asset = catalog.apply(ticker);
         if (asset.isEmpty()) {
             return Result.no("Ativo " + ticker + " não está no catálogo do Activest.");
@@ -184,12 +185,6 @@ public final class B3EquityImportRules implements ImportRules {
     @Override
     public boolean emptyBalanceMeansNoPosition() {
         return false;
-    }
-
-    /** B3 — 'PETR4F' (fracionario) e o mesmo papel de 'PETR4'. */
-    public static String baseTicker(String ticker) {
-        String t = ticker.strip().toUpperCase();
-        return t.matches(".*\\dF") ? t.substring(0, t.length() - 1) : t;
     }
 
     /** Sem acento e em maiusculas, para comparar nomes da B3. */

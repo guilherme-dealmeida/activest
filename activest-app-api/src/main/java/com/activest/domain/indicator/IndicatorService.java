@@ -7,6 +7,7 @@ import com.activest.domain.indicator.IndicatorRules.Value;
 import com.activest.domain.indicator.dto.AssetIndicatorsDTO;
 import com.activest.domain.indicator.dto.IndicatorHistoryDTO;
 import com.activest.domain.indicator.dto.IndicatorPointDTO;
+import com.activest.domain.asset.Tickers;
 import com.activest.domain.corporateaction.StockEventType;
 import com.activest.domain.issuer.IssuerKind;
 import org.springframework.http.HttpStatus;
@@ -176,7 +177,7 @@ public class IndicatorService {
         java.util.Set<String> tickers = new java.util.HashSet<>();
         assets.forEach(a -> tickers.add(a.ticker.trim().toUpperCase()));
         // fracionarios sem o lote padrao na lista: quais lotes padrao existem no catalogo (fora da lista)
-        List<String> missingBases = assets.stream().map(a -> baseTicker(a.ticker))
+        List<String> missingBases = assets.stream().map(a -> Tickers.base(a.ticker))
                 .filter(b -> !tickers.contains(b)).distinct().toList();
         java.util.Set<String> basesInCatalog = new java.util.HashSet<>();
         if (!missingBases.isEmpty()) {
@@ -226,7 +227,7 @@ public class IndicatorService {
 
         List<CurrentSnapshot> out = new ArrayList<>();
         for (Row a : assets) {
-            String base = baseTicker(a.ticker);
+            String base = Tickers.base(a.ticker);
             if (!base.equals(a.ticker.trim().toUpperCase())) {
                 if (tickers.contains(base)) {
                     continue; // fracionario: a linha do lote padrao ja esta na lista
@@ -609,7 +610,7 @@ public class IndicatorService {
         ClassQuote[] chosen = new ClassQuote[2];
         for (boolean ordinary : new boolean[]{true, false}) {
             Candidate c = all.stream()
-                    .filter(x -> x.ordinary() == ordinary && baseTicker(x.ticker()).equals(x.ticker().trim().toUpperCase()))
+                    .filter(x -> x.ordinary() == ordinary && Tickers.base(x.ticker()).equals(x.ticker().trim().toUpperCase()))
                     .sorted(best).findFirst().orElse(null);
             if (c != null) {
                 NavigableMap<LocalDate, BigDecimal> closes = c.id() == ctx.asset.priceAssetId ? ctx.closes : closes(c.id());
@@ -793,7 +794,7 @@ public class IndicatorService {
                     (rs, i) -> new StockEvent(rs.getDate("data_com").toLocalDate(), rs.getString("type"),
                             rs.getBigDecimal("factor")), asset.priceAssetId);
             // proventos do proprio ticker (D5); o fracionario usa os do lote padrao
-            long cashAsset = asset.ticker.equals(baseTicker(asset.ticker)) ? asset.id : asset.priceAssetId;
+            long cashAsset = asset.ticker.equals(Tickers.base(asset.ticker)) ? asset.id : asset.priceAssetId;
             this.cashEvents = jdbc.query("""
                     SELECT data_com, value_per_share FROM asset_cash_events
                     WHERE asset_id = ? AND type IN ('DIVIDENDO', 'JCP', 'RENDIMENTO') ORDER BY data_com""",
@@ -855,7 +856,7 @@ public class IndicatorService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "Ativo sem emissor: indicadores so para acoes e FIIs ligados a um emissor (" + t + ")");
         }
-        String base = baseTicker(a.ticker);
+        String base = Tickers.base(a.ticker);
         long priceAsset = a.id;
         if (!base.equals(a.ticker)) {
             List<Long> ids = jdbc.queryForList("SELECT id FROM assets WHERE upper(ticker) = ?", Long.class, base);
@@ -873,13 +874,6 @@ public class IndicatorService {
         }
         return new Context(new AssetRow(a.id, a.ticker, a.issuerId, a.kind, a.shareClass, priceAsset, unitShares,
                 a.statementLayout));
-    }
-
-    /** PETR4F -> PETR4: o fracionario e o mesmo papel (D8). */
-    static String baseTicker(String ticker) {
-        String t = ticker.trim().toUpperCase();
-        return t.endsWith("F") && t.length() > 5 && Character.isDigit(t.charAt(t.length() - 2))
-                ? t.substring(0, t.length() - 1) : t;
     }
 
     private NavigableMap<LocalDate, BigDecimal> closes(long assetId) {

@@ -1,5 +1,6 @@
 package com.activest.domain.indicator;
 
+import com.activest.domain.asset.Tickers;
 import com.activest.domain.indicator.IndicatorRules.CompanyBasis;
 import com.activest.domain.indicator.IndicatorRules.FundBasis;
 import com.activest.domain.indicator.IndicatorRules.Value;
@@ -284,8 +285,8 @@ class IndicatorRulesTest {
     void labels() {
         assertThat(IndicatorService.quarterLabel(LocalDate.of(2026, 6, 30))).isEqualTo("2T26");
         assertThat(IndicatorService.quarterLabel(LocalDate.of(2025, 2, 28))).isEqualTo("1T25");
-        assertThat(IndicatorService.baseTicker("PETR4F")).isEqualTo("PETR4");
-        assertThat(IndicatorService.baseTicker("KLBN11F")).isEqualTo("KLBN11");
-        assertThat(IndicatorService.baseTicker("HGLG11")).isEqualTo("HGLG11");
+        assertThat(Tickers.base("PETR4F")).isEqualTo("PETR4");
+        assertThat(Tickers.base("KLBN11F")).isEqualTo("KLBN11");
+        assertThat(Tickers.base("HGLG11")).isEqualTo("HGLG11");
     }
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.activest.domain.asset.Tickers;
 import com.activest.domain.integration.IntegrationProvider;
 import com.activest.domain.integration.credential.InvestorDocument;
 import com.activest.domain.integration.credential.SourceCredentials;
@@ -34,7 +35,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-import static com.activest.integration.b3investidor.B3EquityImportRules.baseTicker;
 import static com.activest.integration.b3investidor.B3EquityImportRules.normalize;
 
 /**
@@ -192,7 +192,7 @@ public class B3InvestidorConnector implements SourceConnector {
                     ObjectNode n = trade.deepCopy();
                     n.put("referenceDate", data);
                     MovementSide side = side(text(trade, "side"));
-                    String key = data + ":" + baseTicker(ticker) + ":" + letter(side);
+                    String key = data + ":" + Tickers.base(ticker) + ":" + letter(side);
                     groups.computeIfAbsent(key, k -> new ArrayList<>()).add(n);
                 }
             }
@@ -205,7 +205,7 @@ public class B3InvestidorConnector implements SourceConnector {
     ImportedMovement group(String key, List<ObjectNode> trades) {
         ObjectNode firstValue = trades.get(0);
         LocalDate data = LocalDate.parse(firstValue.path("referenceDate").asText());
-        String ticker = baseTicker(firstValue.path("tickerSymbol").asText());
+        String ticker = Tickers.base(firstValue.path("tickerSymbol").asText());
         MovementSide side = side(text(firstValue, "side"));
 
         BigDecimal quantity = BigDecimal.ZERO;
@@ -349,7 +349,7 @@ public class B3InvestidorConnector implements SourceConnector {
                 String ticker = text(p, "tickerSymbol");
                 BigDecimal q = dec(firstNode(p, "equitiesQuantity", "quantity"));
                 if (ticker != null && q != null && q.signum() != 0) {
-                    balances.merge(baseTicker(ticker), q, BigDecimal::add);
+                    balances.merge(Tickers.base(ticker), q, BigDecimal::add);
                 }
             }
         }

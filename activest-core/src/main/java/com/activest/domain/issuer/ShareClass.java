@@ -1,5 +1,7 @@
 package com.activest.domain.issuer;
 
+import com.activest.domain.asset.Tickers;
+
 /** Classe da acao (V28). UNIT e um pacote de outras classes (ver UnitComposition). */
 public enum ShareClass {
     ON, PN, PNA, PNB, PNC, PND, UNIT;
@@ -12,10 +14,7 @@ public enum ShareClass {
         if (ticker == null) {
             return null;
         }
-        String t = ticker.trim().toUpperCase();
-        if (t.endsWith("F")) {
-            t = t.substring(0, t.length() - 1);
-        }
+        String t = Tickers.base(ticker);
         String digits = t.replaceAll("^[A-Z0-9]{4}", "");
         return switch (digits) {
             case "3" -> ON;

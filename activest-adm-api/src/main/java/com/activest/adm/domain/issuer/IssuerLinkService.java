@@ -8,6 +8,7 @@ import com.activest.domain.issuer.ShareClass;
 
 import com.activest.domain.asset.Asset;
 import com.activest.domain.asset.AssetRepository;
+import com.activest.domain.asset.Tickers;
 import com.activest.adm.integration.b3.B3Client;
 import com.activest.adm.integration.b3.B3Supplement;
 import com.activest.adm.integration.cvm.CvmCompany;
@@ -142,7 +143,7 @@ public class IssuerLinkService {
 
         Map<String, List<Asset>> byBase = new TreeMap<>();
         for (Asset a : stocks) {
-            byBase.computeIfAbsent(base(a.getTicker()), k -> new ArrayList<>()).add(a);
+            byBase.computeIfAbsent(Tickers.base(a.getTicker()), k -> new ArrayList<>()).add(a);
         }
 
         // 1. FCA
@@ -330,7 +331,7 @@ public class IssuerLinkService {
             if (a.getIssuerLinkSource() == IssuerLinkSource.MANUAL) {
                 continue;
             }
-            String isin = a.getIsin() != null ? a.getIsin().trim().toUpperCase() : isinByBase.get(base(a.getTicker()));
+            String isin = a.getIsin() != null ? a.getIsin().trim().toUpperCase() : isinByBase.get(Tickers.base(a.getTicker()));
             CvmFiiGeneral report = isin == null ? null : byIsin.get(isin);
             if (report == null) {
                 if (a.getIssuer() == null) {
@@ -476,12 +477,6 @@ public class IssuerLinkService {
     }
 
     // ------------------------------------------------------------------
-
-    /** Ticker sem o F do fracionario. */
-    static String base(String ticker) {
-        String t = ticker.trim().toUpperCase();
-        return t.length() > 5 && t.endsWith("F") ? t.substring(0, t.length() - 1) : t;
-    }
 
     static String root(String ticker) {
         return ticker.length() >= 4 ? ticker.substring(0, 4) : ticker;
