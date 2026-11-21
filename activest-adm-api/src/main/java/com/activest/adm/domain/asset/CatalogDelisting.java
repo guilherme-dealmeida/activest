@@ -6,6 +6,7 @@ import com.activest.adm.integration.cvm.CvmOpenDataClient;
 import com.activest.domain.asset.Asset;
 import com.activest.domain.asset.AssetTypeNames;
 import com.activest.domain.asset.DelistingSource;
+import com.activest.domain.asset.Tickers;
 import com.activest.domain.notification.NotificationKind;
 import com.activest.domain.notification.NotificationService;
 import lombok.extern.slf4j.Slf4j;
@@ -121,7 +122,7 @@ public class CatalogDelisting {
                     continue;
                 }
                 String ticker = a.getTicker().toUpperCase();
-                String base = base(ticker);
+                String base = Tickers.base(ticker);
                 if (official.containsKey(ticker) || official.containsKey(base) || ignored.contains(ticker)
                         || renamedOld.contains(ticker) || renamedOld.contains(base)) {
                     continue;
@@ -151,16 +152,11 @@ public class CatalogDelisting {
         return a.getAssetType() != null && AssetTypeNames.B3_LISTED.contains(a.getAssetType().getName());
     }
 
-    /** Fracionário (PETR4F) → o papel inteiro (PETR4). */
-    static String base(String ticker) {
-        return ticker.endsWith("F") && ticker.length() > 5 ? ticker.substring(0, ticker.length() - 1) : ticker;
-    }
-
     /** Último pregão com negócio do papel; no fracionário, o mais recente entre ele e o papel inteiro. */
     private static LocalDate last(Asset a, Map<Long, LocalDate> lastTrade, Map<String, Long> idByTicker) {
         LocalDate own = lastTrade.get(a.getId());
         String ticker = a.getTicker().toUpperCase();
-        String base = base(ticker);
+        String base = Tickers.base(ticker);
         LocalDate whole = base.equals(ticker) ? null : lastTrade.get(idByTicker.get(base));
         return own == null ? whole : whole == null || own.isAfter(whole) ? own : whole;
     }
@@ -228,7 +224,7 @@ public class CatalogDelisting {
                    AND t.name IN ('ACAO', 'FII', 'ETF', 'BDR')""", Long.class)) {
             String ticker = tickers.get(id);
             LocalDate own = lastTrade.get(id);
-            LocalDate whole = base(ticker).equals(ticker) ? null : lastTrade.get(ids.get(base(ticker)));
+            LocalDate whole = Tickers.base(ticker).equals(ticker) ? null : lastTrade.get(ids.get(Tickers.base(ticker)));
             LocalDate last = own == null ? whole : whole == null || own.isAfter(whole) ? own : whole;
             if (last != null) {
                 filled += jdbc.update("UPDATE assets SET delisted_on = ? WHERE id = ? "

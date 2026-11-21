@@ -2,6 +2,7 @@ package com.activest.adm.domain.asset;
 
 import com.activest.domain.asset.AssetLogos;
 import com.activest.domain.asset.AssetType;
+import com.activest.domain.asset.Tickers;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,10 +32,10 @@ class AssetLogoServiceTest {
     @Test
     @DisplayName("O fracionario usa o logo do papel inteiro")
     void fracionario() {
-        assertThat(AssetLogoService.baseTicker("PETR4F")).isEqualTo("PETR4");
-        assertThat(AssetLogoService.baseTicker("TAEE11F")).isEqualTo("TAEE11");
-        assertThat(AssetLogoService.baseTicker("MXRF11")).isEqualTo("MXRF11");
-        assertThat(AssetLogoService.baseTicker("MRSA5B")).isEqualTo("MRSA5B");
+        assertThat(Tickers.base("PETR4F")).isEqualTo("PETR4");
+        assertThat(Tickers.base("TAEE11F")).isEqualTo("TAEE11");
+        assertThat(Tickers.base("MXRF11")).isEqualTo("MXRF11");
+        assertThat(Tickers.base("MRSA5B")).isEqualTo("MRSA5B");
     }
 
     @Test

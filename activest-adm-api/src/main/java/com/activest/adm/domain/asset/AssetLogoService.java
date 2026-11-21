@@ -5,6 +5,7 @@ import com.activest.domain.task.TaskRun;
 import com.activest.domain.asset.Asset;
 import com.activest.domain.asset.AssetLogos;
 import com.activest.domain.asset.AssetRepository;
+import com.activest.domain.asset.Tickers;
 
 import com.activest.adm.integration.coingecko.CoinGeckoClient;
 import lombok.extern.slf4j.Slf4j;
@@ -164,7 +165,7 @@ public class AssetLogoService {
                 boolean crypto = "CRIPTO".equals(asset.getAssetType().getName());
                 String url = crypto
                         ? coinImages.get(asset.getPriceSourceRef())
-                        : brapiIconsUrl + baseTicker(asset.getTicker()) + ".svg";
+                        : brapiIconsUrl + Tickers.base(asset.getTicker()) + ".svg";
                 if (url == null) {
                     continue;
                 }
@@ -243,12 +244,5 @@ public class AssetLogoService {
             case "webp" -> "webp";
             default -> null;
         };
-    }
-
-    /** PETR4F → PETR4: o fracionario tem o logo do papel inteiro. */
-    static String baseTicker(String ticker) {
-        String t = ticker.trim().toUpperCase();
-        return t.endsWith("F") && t.length() > 5 && Character.isDigit(t.charAt(t.length() - 2))
-                ? t.substring(0, t.length() - 1) : t;
     }
 }

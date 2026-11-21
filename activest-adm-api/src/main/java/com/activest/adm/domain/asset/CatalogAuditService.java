@@ -3,6 +3,7 @@ package com.activest.adm.domain.asset;
 import com.activest.domain.asset.Asset;
 import com.activest.domain.asset.AssetRepository;
 import com.activest.domain.asset.PriceSource;
+import com.activest.domain.asset.Tickers;
 
 import com.activest.domain.portfolio.OpenPositions;
 import com.activest.adm.integration.brapi.BrApiClient;
@@ -138,7 +139,7 @@ public class CatalogAuditService {
                 continue;
             }
             String ticker = a.getTicker().toUpperCase();
-            String base = ticker.endsWith("F") && ticker.length() > 5 ? ticker.substring(0, ticker.length() - 1) : ticker;
+            String base = Tickers.base(ticker);
             if (official.containsKey(ticker) || official.containsKey(base) || ignored.contains(ticker)) {
                 continue;
             }

@@ -2,6 +2,7 @@ package com.activest.domain.performance;
 
 import com.activest.domain.asset.Asset;
 import com.activest.domain.asset.AssetType;
+import com.activest.domain.asset.Tickers;
 import com.activest.domain.calendar.BusinessCalendar;
 import com.activest.domain.corporateaction.AssetStockEvent;
 import com.activest.domain.corporateaction.AssetStockEventRepository;
@@ -526,7 +527,7 @@ public class PortfolioTimelineBuilder {
         for (PortfolioAsset pa : positions) {
             Asset a = pa.getAsset();
             out.put(a.getId(), a.getId());
-            String base = baseTicker(a.getTicker());
+            String base = Tickers.base(a.getTicker());
             if (!base.equals(a.getTicker().toUpperCase())) {
                 wanted.put(base, a.getId());
             }
@@ -538,12 +539,6 @@ public class PortfolioTimelineBuilder {
                     rs -> { out.put(wanted.get(rs.getString("t")), rs.getLong("id")); });
         }
         return out;
-    }
-
-    static String baseTicker(String ticker) {
-        String t = ticker.trim().toUpperCase();
-        return t.endsWith("F") && t.length() > 5 && Character.isDigit(t.charAt(t.length() - 2))
-                ? t.substring(0, t.length() - 1) : t;
     }
 
     private Map<Long, NavigableMap<LocalDate, Double>> prices(Collection<Long> assetIds, LocalDate from) {

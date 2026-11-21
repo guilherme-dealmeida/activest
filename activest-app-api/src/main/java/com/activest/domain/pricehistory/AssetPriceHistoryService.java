@@ -1,5 +1,6 @@
 package com.activest.domain.pricehistory;
 
+import com.activest.domain.asset.Tickers;
 import com.activest.domain.corporateaction.StockEventType;
 import com.activest.domain.pricehistory.PriceSeries.Event;
 import com.activest.domain.pricehistory.PriceSeries.Interval;
@@ -66,7 +67,7 @@ public class AssetPriceHistoryService {
         }
         String priceTicker = t;
         long assetId = ids.get(0);
-        String base = baseTicker(t);
+        String base = Tickers.base(t);
         if (!base.equals(t)) {
             List<Long> baseIds = jdbc.queryForList("""
                     SELECT a.id FROM assets a JOIN asset_types ty ON ty.id = a.asset_type_id
@@ -136,13 +137,6 @@ public class AssetPriceHistoryService {
         return new PriceHistoryDTO(t, priceTicker, first, last, window.isEmpty() ? start : window.firstKey(),
                 window.isEmpty() ? end : window.lastKey(), rangeLabel, interval.name(), adj, true, change, changePct,
                 min, max, points);
-    }
-
-    /** PETR4F -> PETR4: o fracionario e o mesmo papel. */
-    static String baseTicker(String ticker) {
-        String t = ticker.trim().toUpperCase();
-        return t.endsWith("F") && t.length() > 5 && Character.isDigit(t.charAt(t.length() - 2))
-                ? t.substring(0, t.length() - 1) : t;
     }
 
     private NavigableMap<LocalDate, BigDecimal> closes(long assetId) {
