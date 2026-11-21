@@ -23,7 +23,7 @@ export const IssuerListing = ({ onOpen }: { onOpen: (ticker: string) => void }) 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex space-x-1 bg-surface p-1 rounded-lg w-fit border border-surface-light" role="tablist">
+        <div className="flex space-x-1 bg-surface p-1 rounded-control w-fit border border-line" role="tablist">
           {TABS.map(t => (
             <button
               key={t}
@@ -31,8 +31,8 @@ export const IssuerListing = ({ onOpen }: { onOpen: (ticker: string) => void }) 
               aria-selected={tab === t}
               onClick={() => setTab(t)}
               className={clsx(
-                'px-4 py-2 text-sm font-medium rounded-md transition-colors',
-                tab === t ? 'bg-surface-light text-white' : 'text-gray-400 hover:text-white hover:bg-surface-light/50'
+                'px-4 py-2 text-sm font-medium rounded-control transition-colors',
+                tab === t ? 'bg-accent/15 text-accent-text' : 'text-content-3 hover:text-content hover:bg-overlay'
               )}
             >
               {TAB_LABEL[t]}

@@ -13,7 +13,7 @@ import { TaskAttributeItem, TaskItem } from '@/types';
 import { buildCron, CronForm, CronMode, describeCron, parseCron, WEEK_DAYS } from '@/utils/cron';
 
 const fieldClass =
-  'flex h-10 w-full rounded-md border border-surface-light bg-surface px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent';
+  'flex h-10 w-full rounded-control border border-line bg-surface px-3 py-2 text-sm text-content placeholder:text-content-4 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent';
 
 const MODE_LABELS: Record<CronMode, string> = {
   none: 'Sem horário (só pelo Run)',
@@ -130,7 +130,7 @@ export const TaskEditModal = ({ task, onClose }: { task: TaskItem | null; onClos
               label="Ligada"
               title="Desligada, a tarefa não roda pelo horário; o Run continua disponível."
             />
-            <span className="ml-3 text-sm text-gray-300">{enabled ? 'Ligada' : 'Desligada'}</span>
+            <span className="ml-3 text-sm text-content-2">{enabled ? 'Ligada' : 'Desligada'}</span>
             {!task.typeEnabled && (
               <span className="ml-3 text-xs text-danger" title="O tipo está desligado (muda só por migration).">
                 tipo desligado
@@ -144,12 +144,12 @@ export const TaskEditModal = ({ task, onClose }: { task: TaskItem | null; onClos
                 title="Na subida do serviço, roda uma vez se ainda não rodou no dia (e se a rotina disser que há o que recuperar)."
               />
             </span>
-            <span className="ml-3 text-sm text-gray-300">Roda na subida</span>
+            <span className="ml-3 text-sm text-content-2">Roda na subida</span>
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1.5">
+          <label className="block text-sm font-medium text-content-2 mb-1.5">
             <LabelWithInfo info="Vazia, vale a descrição do tipo.">Descrição</LabelWithInfo>
           </label>
           <textarea
@@ -160,20 +160,20 @@ export const TaskEditModal = ({ task, onClose }: { task: TaskItem | null; onClos
           />
         </div>
 
-        <fieldset className="rounded-md border border-white/10 p-4 space-y-3">
-          <legend className="px-1 text-sm font-medium text-gray-300">
+        <fieldset className="rounded-control border border-line p-4 space-y-3">
+          <legend className="px-1 text-sm font-medium text-content-2">
             <LabelWithInfo info={CRON_HELP}>Horário</LabelWithInfo>
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Repetição</label>
+              <label className="block text-xs text-content-3 mb-1">Repetição</label>
               <select className={fieldClass} value={cron.mode} onChange={(e) => setMode(e.target.value as CronMode)}>
                 {(Object.keys(MODE_LABELS) as CronMode[]).map(m => <option key={m} value={m}>{MODE_LABELS[m]}</option>)}
               </select>
             </div>
             {(cron.mode === 'daily' || cron.mode === 'weekly' || cron.mode === 'monthly') && (
               <div>
-                <label className="block text-xs text-gray-400 mb-1">
+                <label className="block text-xs text-content-3 mb-1">
                   {cron.mode === 'daily' ? 'Horário(s) — HH:MM, separados por vírgula' : 'Horário — HH:MM'}
                 </label>
                 <input className={fieldClass} value={cron.times} placeholder="19:00"
@@ -182,14 +182,14 @@ export const TaskEditModal = ({ task, onClose }: { task: TaskItem | null; onClos
             )}
             {cron.mode === 'monthly' && (
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Dia do mês</label>
+                <label className="block text-xs text-content-3 mb-1">Dia do mês</label>
                 <input type="number" min={1} max={31} className={fieldClass} value={cron.dayOfMonth}
                        onChange={(e) => setCron(c => ({ ...c, dayOfMonth: Number(e.target.value) }))} />
               </div>
             )}
             {cron.mode === 'advanced' && (
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Cron (6 campos)</label>
+                <label className="block text-xs text-content-3 mb-1">Cron (6 campos)</label>
                 <input className={`${fieldClass} font-mono`} value={cron.raw} placeholder="0 30 8,21 * * *"
                        onChange={(e) => setCron(c => ({ ...c, raw: e.target.value }))} />
               </div>
@@ -198,7 +198,7 @@ export const TaskEditModal = ({ task, onClose }: { task: TaskItem | null; onClos
           {cron.mode === 'weekly' && (
             <div className="flex flex-wrap gap-2">
               {WEEK_DAYS.map(d => (
-                <label key={d.key} className="flex items-center gap-1.5 text-sm text-gray-300 cursor-pointer">
+                <label key={d.key} className="flex items-center gap-1.5 text-sm text-content-2 cursor-pointer">
                   <input type="checkbox" checked={cron.days.includes(d.key)} onChange={() => toggleDay(d.key)}
                          className="accent-[#c9a84c]" />
                   {d.label}
@@ -206,17 +206,17 @@ export const TaskEditModal = ({ task, onClose }: { task: TaskItem | null; onClos
               ))}
             </div>
           )}
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-content-4">
             {'cron' in preview
-              ? <>Fica: <span className="text-gray-300">{describeCron(preview.cron || null)}</span>
+              ? <>Fica: <span className="text-content-2">{describeCron(preview.cron || null)}</span>
                   {preview.cron && <span className="font-mono ml-2" title={CRON_HELP}>({preview.cron})</span>}</>
               : <span className="text-danger">{preview.error}</span>}
           </p>
         </fieldset>
 
         {task.attributes.length > 0 && (
-          <fieldset className="rounded-md border border-white/10 p-4">
-            <legend className="px-1 text-sm font-medium text-gray-300">Atributos</legend>
+          <fieldset className="rounded-control border border-line p-4">
+            <legend className="px-1 text-sm font-medium text-content-2">Atributos</legend>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {task.attributes.map(a => (
                 <AttributeField key={a.typeAttributeId} attribute={a} value={values[a.name] ?? ''}
@@ -237,7 +237,7 @@ const AttributeField = ({ attribute, value, onChange }: {
   attribute: TaskAttributeItem; value: string; onChange: (v: string) => void;
 }) => {
   const label = (
-    <label className="block text-xs text-gray-400 mb-1">
+    <label className="block text-xs text-content-3 mb-1">
       <LabelWithInfo info={
         <>
           {attribute.description}

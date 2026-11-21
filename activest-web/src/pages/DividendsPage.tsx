@@ -128,7 +128,7 @@ export const DividendsPage = () => {
   const toReceiveRows = useMemo(() => allRows.filter(r => !r.received), [allRows]);
 
   if (isLoading) {
-    return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent" /></div>;
+    return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent-text" /></div>;
   }
 
   const tabs: DividendTab[] = ['periods', 'received', 'toReceive'];
@@ -136,14 +136,14 @@ export const DividendsPage = () => {
   return (
     <div className="space-y-6">
       {/* Abas no mesmo estilo da Estratégia. */}
-      <div className="flex space-x-1 bg-surface p-1 rounded-lg w-fit border border-surface-light">
+      <div className="flex space-x-1 bg-surface p-1 rounded-control w-fit border border-line">
         {tabs.map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={clsx(
-              'px-4 py-2 text-sm font-medium rounded-md transition-colors',
-              activeTab === tab ? 'bg-surface-light text-white' : 'text-gray-400 hover:text-white hover:bg-surface-light/50'
+              'px-4 py-2 text-sm font-medium rounded-control transition-colors',
+              activeTab === tab ? 'bg-accent/15 text-accent-text' : 'text-content-3 hover:text-content hover:bg-overlay'
             )}
           >
             {TAB_LABELS[tab]}
@@ -213,28 +213,28 @@ const DividendsTabPanel = ({ tab, rows, listRequest }: { tab: ListTab; rows: Div
           title={texts.total}
           value={formatCurrency(totals.net)}
           description={
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-content-4">
               Bruto {formatCurrency(totals.gross)} · IR {formatCurrency(totals.tax)}
             </span>
           }
           icon={tab === 'received'
             ? <DollarSign className="text-success" />
-            : <CalendarClock className="text-gray-300" />}
+            : <CalendarClock className="text-content-2" />}
           className="md:col-span-1"
         />
         <Card className="md:col-span-2">
-          <h3 className="text-sm font-medium text-gray-400 mb-4">{texts.byType}</h3>
+          <h3 className="text-sm font-medium text-content-3 mb-4">{texts.byType}</h3>
           <div className="flex flex-wrap gap-8">
             {byTypeFiltered.map(({ type, net, gross, tax }) => (
               <div key={type}>
-                <p className="text-sm text-gray-500">{TYPE_GROUP_LABELS[type]}</p>
-                <p className="text-xl font-semibold text-white">{formatCurrency(net)}</p>
-                <p className="text-xs text-gray-500">
+                <p className="text-sm text-content-4">{TYPE_GROUP_LABELS[type]}</p>
+                <p className="text-xl font-semibold text-content">{formatCurrency(net)}</p>
+                <p className="text-xs text-content-4">
                   Bruto {formatCurrency(gross)} · IR {formatCurrency(tax)}
                 </p>
               </div>
             ))}
-            {byTypeFiltered.length === 0 && <p className="text-sm text-gray-500">{texts.emptyByType}</p>}
+            {byTypeFiltered.length === 0 && <p className="text-sm text-content-4">{texts.emptyByType}</p>}
           </div>
         </Card>
       </div>
@@ -244,12 +244,12 @@ const DividendsTabPanel = ({ tab, rows, listRequest }: { tab: ListTab; rows: Div
 
       <Card>
         <div className="mb-6">
-          <h3 className="text-lg font-medium text-white">{TAB_LABELS[tab]}</h3>
+          <h3 className="text-lg font-medium text-content">{TAB_LABELS[tab]}</h3>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="text-xs text-gray-400 uppercase border-b border-white/10">
+            <thead className="text-content-3 uppercase border-b border-line">
               <tr>
                 <th className={`px-4 py-3 cursor-pointer ${getSortClass('ticker')}`} onClick={() => requestSort('ticker')}>
                   ATIVO{getSortIndicator('ticker')}
@@ -281,10 +281,10 @@ const DividendsTabPanel = ({ tab, rows, listRequest }: { tab: ListTab; rows: Div
                 <th className="px-4 py-3 text-center">AÇÕES</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-line-soft">
               {paginated.map((row) => (
-                <tr key={row.id} className="hover:bg-white/5 transition-colors">
-                  <td className="px-4 py-3 text-white">
+                <tr key={row.id} className="hover:bg-overlay transition-colors">
+                  <td className="px-4 py-3 text-content">
                     {/* Igual à carteira: logo à esquerda, nome no hover. null = tipo sem logo. */}
                     <div className="flex items-center gap-3" title={row.assetName || undefined}>
                       {row.hasLogo !== null && row.hasLogo !== undefined && (
@@ -299,23 +299,23 @@ const DividendsTabPanel = ({ tab, rows, listRequest }: { tab: ListTab; rows: Div
                   <td className="px-4 py-3">
                     {row.paymentDate
                       ? (row.paymentDateSource && PAYMENT_DATE_SOURCE_HINT[row.paymentDateSource]
-                          ? <span className="cursor-help underline decoration-dotted decoration-gray-500" title={PAYMENT_DATE_SOURCE_HINT[row.paymentDateSource]}>{formatDate(row.paymentDate)}</span>
+                          ? <span className="cursor-help underline decoration-dotted decoration-content-4" title={PAYMENT_DATE_SOURCE_HINT[row.paymentDateSource]}>{formatDate(row.paymentDate)}</span>
                           : formatDate(row.paymentDate))
-                      : <span className="text-gray-500 cursor-help whitespace-nowrap" title={NO_PAYMENT_DATE_HINT}>{NO_PAYMENT_DATE_LABEL}</span>}
+                      : <span className="text-content-4 cursor-help whitespace-nowrap" title={NO_PAYMENT_DATE_HINT}>{NO_PAYMENT_DATE_LABEL}</span>}
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-gray-300">
+                    <span className="text-content-2">
                       {DIVIDEND_TYPE_LABELS[row.type] ?? row.type}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {row.sharesOnDate != null ? formatShares(row.sharesOnDate) : <span className="text-gray-500">—</span>}
+                    {row.sharesOnDate != null ? formatShares(row.sharesOnDate) : <span className="text-content-4">—</span>}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <span className="inline-flex flex-col items-end">
                       <span>{formatCurrencyPrecise(row.amountPerShare)}</span>
                       {row.foreign && (
-                        <span className="text-xs text-gray-400 tabular-nums"
+                        <span className="text-xs text-content-3 tabular-nums"
                           title={`Câmbio ${formatFxRate(row.foreign.fxRate)} (PTAX compra do pagamento)`}>
                           {formatMoney(row.foreign.originalAmountPerShare, row.foreign.symbol, 2, 8)}
                         </span>
@@ -330,12 +330,12 @@ const DividendsTabPanel = ({ tab, rows, listRequest }: { tab: ListTab; rows: Div
                         </span>
                       : formatRate(row.withholdingRate) != null
                       ? <span className="cursor-help" title={row.withholdingLegalBasis ?? undefined}>{formatRate(row.withholdingRate)}</span>
-                      : <span className="text-gray-500 cursor-help" title={NO_TAX_RULE_HINT}>—</span>}
+                      : <span className="text-content-4 cursor-help" title={NO_TAX_RULE_HINT}>—</span>}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {row.netAmountPerShare != null
                       ? formatCurrencyPrecise(row.netAmountPerShare)
-                      : <span className="text-gray-500 cursor-help" title={NO_TAX_RULE_HINT}>—</span>}
+                      : <span className="text-content-4 cursor-help" title={NO_TAX_RULE_HINT}>—</span>}
                   </td>
                   <td
                     className="px-4 py-3 text-right text-success font-medium cursor-help"
@@ -364,7 +364,7 @@ const DividendsTabPanel = ({ tab, rows, listRequest }: { tab: ListTab; rows: Div
                 </tr>
               ))}
               {paginated.length === 0 && (
-                <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-500">{texts.emptyList}</td></tr>
+                <tr><td colSpan={10} className="px-4 py-8 text-center text-content-4">{texts.emptyList}</td></tr>
               )}
             </tbody>
           </table>

@@ -28,8 +28,8 @@ export const StockEventLine = ({ row, typeName, onList, onInformCost }: Props) =
   const taxHint = taxCostHint(e);
   const what = e.source === 'MASSIVE' ? 'do catálogo dos EUA (Massive)' : 'do catálogo da B3';
   return (
-    <tr className="hover:bg-white/5 transition-colors">
-      <td className="px-4 py-3 text-white font-medium">
+    <tr className="hover:bg-overlay transition-colors">
+      <td className="px-4 py-3 text-content font-medium">
         <div className="flex items-center gap-3" title={row.assetName || undefined}>
           {row.hasLogo !== null && row.hasLogo !== undefined && (
             <AssetLogo ticker={row.ticker} hasLogo={row.hasLogo} assetType={typeName} size={32} shape="square" />
@@ -37,7 +37,7 @@ export const StockEventLine = ({ row, typeName, onList, onInformCost }: Props) =
           <div className="flex flex-wrap items-center gap-y-1">
             <TickerLink ticker={row.ticker} issuerId={row.issuerId} />
             <span
-              className="ml-2 whitespace-nowrap rounded bg-sky-500/15 px-1.5 py-0.5 text-[0.625rem] font-normal text-sky-500"
+              className="ml-2 whitespace-nowrap rounded bg-info/15 px-1.5 py-0.5 text-[0.625rem] font-normal text-info"
               title={`Evento do papel ${what}: entra na posição pela mesma conta da Carteira. Não é uma transação — `
                 + 'não se edita nem se exclui.'}
             >
@@ -46,19 +46,19 @@ export const StockEventLine = ({ row, typeName, onList, onInformCost }: Props) =
           </div>
         </div>
       </td>
-      <td className="px-4 py-3 text-white/70">—</td>
+      <td className="px-4 py-3 text-content/70">—</td>
       <td className="px-4 py-3">
         <div>{formatDate(e.exDate)}</div>
-        <div className="text-xs text-gray-400">data-com {formatDate(e.dataCom)}</div>
+        <div className="text-xs text-content-3">data-com {formatDate(e.dataCom)}</div>
       </td>
-      <td className="px-4 py-3 text-gray-400">{row.assetType}</td>
+      <td className="px-4 py-3 text-content-3">{row.assetType}</td>
       <td className="px-4 py-3">
-        <span className="font-medium text-accent whitespace-nowrap">{stockEventTitle(e)}</span>
+        <span className="font-medium text-accent-text whitespace-nowrap">{stockEventTitle(e)}</span>
       </td>
       <td className="px-4 py-3 text-right" title={fractionHint(e)}>
         <span className="inline-flex flex-col items-end">
           <span className="tabular-nums">{signedShares(e.sharesDelta)}</span>
-          <span className="text-xs text-gray-400 tabular-nums">
+          <span className="text-xs text-content-3 tabular-nums">
             {formatShares(e.sharesBefore)} → {formatShares(e.sharesAfter)}
             {e.fractionShares > 0 && ' *'}
           </span>
@@ -68,16 +68,16 @@ export const StockEventLine = ({ row, typeName, onList, onInformCost }: Props) =
         {bonus ? (
           <span className="inline-flex flex-col items-end" title={taxHint}>
             <span>{formatCurrency(0)}</span>
-            {taxLabel && <span className="text-xs text-gray-400 whitespace-nowrap">{taxLabel}</span>}
+            {taxLabel && <span className="text-xs text-content-3 whitespace-nowrap">{taxLabel}</span>}
           </span>
         ) : '—'}
       </td>
-      <td className="px-4 py-3 text-right font-medium text-white">
+      <td className="px-4 py-3 text-right font-medium text-content">
         {bonus ? (
           <span className="inline-flex flex-col items-end" title={taxHint}>
             <span>{formatCurrency(e.costDelta)}</span>
             {e.taxCostDelta != null && (
-              <span className="text-xs font-normal text-gray-400 whitespace-nowrap">IR: {formatCurrency(e.taxCostDelta)}</span>
+              <span className="text-xs font-normal text-content-3 whitespace-nowrap">IR: {formatCurrency(e.taxCostDelta)}</span>
             )}
           </span>
         ) : '—'}

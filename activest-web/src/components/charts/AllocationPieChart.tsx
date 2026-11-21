@@ -39,13 +39,13 @@ export const AllocationTooltip = ({ active, payload }: SliceTooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-surface border border-surface-light p-3 rounded-lg shadow-lg">
-        <p className="font-medium text-white mb-1">{data.name}</p>
-        <p className="text-sm text-gray-300">
-          Valor: <span className="text-white font-medium">{formatCurrency(data.value)}</span>
+      <div className="bg-surface border border-line p-3 rounded-control shadow-lg">
+        <p className="font-medium text-content mb-1">{data.name}</p>
+        <p className="text-sm text-content-2">
+          Valor: <span className="text-content font-medium">{formatCurrency(data.value)}</span>
         </p>
-        <p className="text-sm text-gray-300">
-          Participação: <span className="text-white font-medium">{formatPercentage(data.percentage)}</span>
+        <p className="text-sm text-content-2">
+          Participação: <span className="text-content font-medium">{formatPercentage(data.percentage)}</span>
         </p>
       </div>
     );
@@ -58,8 +58,8 @@ export const AllocationPieChart = ({ data: rawData, totalValue, title, titleInfo
   const data = byValueDesc(rawData);
   const totalCenter = (
     <>
-      <span className="text-sm text-gray-400">Total</span>
-      <span className="text-lg font-semibold text-white">{formatCurrency(totalValue)}</span>
+      <span className="text-sm text-content-3">Total</span>
+      <span className="text-lg font-semibold text-content">{formatCurrency(totalValue)}</span>
     </>
   );
 
@@ -67,7 +67,7 @@ export const AllocationPieChart = ({ data: rawData, totalValue, title, titleInfo
     return (
       <div className="w-full flex flex-col items-center">
         {title && (
-          <h3 className="text-lg font-medium text-white mb-4 text-center">
+          <h3 className="text-lg font-medium text-content mb-4 text-center">
             <LabelWithInfo info={titleInfo}>{title}</LabelWithInfo>
           </h3>
         )}
@@ -86,7 +86,7 @@ export const AllocationPieChart = ({ data: rawData, totalValue, title, titleInfo
   return (
     <div className="w-full h-full min-h-[300px] flex flex-col items-center">
       {title && (
-        <h3 className="text-lg font-medium text-white mb-4 text-center">
+        <h3 className="text-lg font-medium text-content mb-4 text-center">
           <LabelWithInfo info={titleInfo}>{title}</LabelWithInfo>
         </h3>
       )}

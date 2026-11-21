@@ -5,7 +5,7 @@ import { InfoTooltip } from '@/components/ui/InfoTooltip';
 export const FieldLabel = ({ children, required, info, htmlFor }: {
   children: ReactNode; required?: boolean; info?: ReactNode; htmlFor?: string;
 }) => (
-  <label htmlFor={htmlFor} className="mb-1.5 flex items-center gap-1 text-sm font-medium text-gray-300">
+  <label htmlFor={htmlFor} className="mb-1.5 flex items-center gap-1 text-sm font-medium text-content-2">
     {children}
     {required && <span className="text-danger" aria-label="obrigatório">*</span>}
     {info && <InfoTooltip content={info} />}

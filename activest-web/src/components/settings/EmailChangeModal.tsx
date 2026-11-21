@@ -56,7 +56,7 @@ export const EmailChangeModal = ({ isOpen, onClose, onChanged }: Props) => {
         />
       ) : (
         <form onSubmit={request} className="space-y-4">
-          <p className="text-sm text-gray-300">
+          <p className="text-sm text-content-2">
             O e-mail é o seu login. Enviaremos um código para o endereço novo; a troca só vale depois de confirmá-lo,
             e o endereço atual recebe um aviso.
           </p>

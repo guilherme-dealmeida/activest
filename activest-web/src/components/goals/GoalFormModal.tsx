@@ -21,7 +21,7 @@ import { assetText } from '@/utils/assetLabel';
 import { barWidth } from '@/utils/goalProgress';
 
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
-  <p className="text-xs uppercase tracking-wide text-gray-500">{children}</p>
+  <p className="text-xs uppercase tracking-wide text-content-4">{children}</p>
 );
 
 /** Classes literais (o Tailwind só gera o que aparece escrito no código). */
@@ -179,7 +179,7 @@ export const GoalFormModal = ({ isOpen, onClose, catalog, goal, onSaved }: Props
     <div className="flex flex-wrap items-center justify-between gap-3">
       {!goal ? <Button variant="ghost" onClick={() => setStep('type')}><ArrowLeft className="w-4 h-4 mr-1" />Voltar</Button> : <span />}
       <div className="flex flex-wrap items-center gap-4">
-        <label className="flex items-center gap-2 text-sm text-gray-300">
+        <label className="flex items-center gap-2 text-sm text-content-2">
           <Switch checked={notifications} onChange={setNotifications} label="Avisos da meta" />
           Avisar em Notificações
         </label>
@@ -201,9 +201,9 @@ export const GoalFormModal = ({ isOpen, onClose, catalog, goal, onSaved }: Props
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {catalog.categories.map(c => (
             <button key={c.value} type="button" onClick={() => { setCategory(c.value); setStep('type'); }}
-              className="text-left rounded-lg border border-surface-light p-4 hover:border-accent/60 hover:bg-surface-light transition-colors">
-              <p className="text-white font-medium">{c.label}</p>
-              <p className="text-xs text-gray-400 mt-1">
+              className="text-left rounded-control border border-line p-4 hover:border-accent/60 hover:bg-elevated transition-colors">
+              <p className="text-content font-medium">{c.label}</p>
+              <p className="text-xs text-content-3 mt-1">
                 {catalog.types.filter(t => t.category === c.value).map(t => t.label).join(' · ')}
               </p>
             </button>
@@ -217,13 +217,13 @@ export const GoalFormModal = ({ isOpen, onClose, catalog, goal, onSaved }: Props
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {catalog.types.filter(t => t.category === category).map(t => (
               <button key={t.type} type="button" onClick={() => { setTypeKey(t.type); setStep('form'); }}
-                className="text-left rounded-lg border border-surface-light p-4 hover:border-accent/60 hover:bg-surface-light transition-colors">
-                <p className="text-white font-medium">{t.label}</p>
-                <p className="text-sm text-gray-300 mt-1">{t.description}</p>
-                <ul className="mt-2 space-y-0.5 text-xs text-gray-400 list-disc pl-4">
+                className="text-left rounded-control border border-line p-4 hover:border-accent/60 hover:bg-elevated transition-colors">
+                <p className="text-content font-medium">{t.label}</p>
+                <p className="text-sm text-content-2 mt-1">{t.description}</p>
+                <ul className="mt-2 space-y-0.5 text-xs text-content-3 list-disc pl-4">
                   {t.calculates.map(c => <li key={c}>{c}</li>)}
                 </ul>
-                {t.limitations.length > 0 && <p className="text-xs text-gray-500 mt-2">{t.limitations.join(' · ')}</p>}
+                {t.limitations.length > 0 && <p className="text-xs text-content-4 mt-2">{t.limitations.join(' · ')}</p>}
               </button>
             ))}
           </div>
@@ -267,11 +267,11 @@ export const GoalFormModal = ({ isOpen, onClose, catalog, goal, onSaved }: Props
                 <div>
                   <FieldLabel required={type.reservation === 'EXPLICIT'}
                     info="A reserva de emergência são as posições marcadas como reserva na Carteira.">Reserva de emergência</FieldLabel>
-                  <div className="grid grid-cols-3 rounded-md border border-surface-light p-0.5">
+                  <div className="grid grid-cols-3 rounded-control border border-line p-0.5">
                     {RESERVATION.map(([v, l]) => (
                       <button key={v} type="button" onClick={() => setReservation(v)}
                         className={clsx('rounded px-2 py-1.5 text-sm transition-colors',
-                          reservation === v ? 'bg-accent text-primary font-medium' : 'text-gray-300 hover:bg-surface-light')}>
+                          reservation === v ? 'bg-accent text-on-accent font-medium' : 'text-content-2 hover:bg-elevated')}>
                         {l}
                       </button>
                     ))}
@@ -300,10 +300,10 @@ export const GoalFormModal = ({ isOpen, onClose, catalog, goal, onSaved }: Props
                   <div key={f.key}>
                     <GoalFieldInput field={f} value={informed(f.key) ? params[f.key] : auto?.value ?? null}
                       onChange={v => setField(f, v)} required={false} />
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-content-4">
                       {informed(f.key) ? (
                         <>Informado por você ·{' '}
-                          <button type="button" className="text-accent hover:underline"
+                          <button type="button" className="text-accent-text hover:underline"
                             onClick={() => setParams(p => ({ ...p, [f.key]: null }))}>usar automático</button></>
                       ) : auto ? `Automático · ${auto.reference ?? ''}` : 'Automático'}
                     </p>
@@ -313,28 +313,28 @@ export const GoalFormModal = ({ isOpen, onClose, catalog, goal, onSaved }: Props
             </div>
           )}
 
-          <div className="lg:sticky lg:top-0 h-fit space-y-3 rounded-lg bg-background/40 p-4">
+          <div className="lg:sticky lg:top-0 h-fit space-y-3 rounded-control bg-bg/40 p-4">
             <SectionTitle>Calculado agora, a partir da carteira</SectionTitle>
-            {preview.isFetching && <LoadingSpinner className="h-5 w-5 text-accent" />}
-            {preview.isError && <p className="text-sm text-yellow-500">{apiMessage(preview.error) ?? 'Complete os campos para ver o cálculo.'}</p>}
+            {preview.isFetching && <LoadingSpinner className="h-5 w-5 text-accent-text" />}
+            {preview.isError && <p className="text-sm text-accent-text">{apiMessage(preview.error) ?? 'Complete os campos para ver o cálculo.'}</p>}
             {ev && !preview.isError && (
               <>
-                <p className="text-sm text-white">{ev.objective}</p>
-                {preview.data?.scopeLabel && <p className="text-xs text-gray-400">{assetText(preview.data.scopeLabel)}</p>}
+                <p className="text-sm text-content">{ev.objective}</p>
+                {preview.data?.scopeLabel && <p className="text-xs text-content-3">{assetText(preview.data.scopeLabel)}</p>}
                 <div>
-                  <p className="text-xs text-gray-400">{ev.indicatorLabel}</p>
-                  <p className="text-2xl font-semibold text-white">{formatGoalValue(ev.indicator, ev.unit)}</p>
-                  {ev.target !== null && <p className="text-xs text-gray-400">Alvo: {formatGoalValue(ev.target, ev.unit)}</p>}
+                  <p className="text-xs text-content-3">{ev.indicatorLabel}</p>
+                  <p className="text-2xl font-semibold text-content">{formatGoalValue(ev.indicator, ev.unit)}</p>
+                  {ev.target !== null && <p className="text-xs text-content-3">Alvo: {formatGoalValue(ev.target, ev.unit)}</p>}
                 </div>
                 {ev.progressPct !== null && (
-                  <div className="h-2 w-full rounded-full bg-surface-light overflow-hidden">
+                  <div className="h-2 w-full rounded-full bg-elevated overflow-hidden">
                     <div className="h-full bg-accent" style={{ width: `${barWidth(ev.progressPct)}%` }} />
                   </div>
                 )}
                 <Badge variant={SITUATION[ev.situation].variant}>{SITUATION[ev.situation].label}</Badge>
-                {ev.situationNote && <p className="text-xs text-gray-400">{ev.situationNote}</p>}
+                {ev.situationNote && <p className="text-xs text-content-3">{ev.situationNote}</p>}
                 {ev.issues.length > 0 && (
-                  <ul className="text-xs text-yellow-500 list-disc pl-4">{ev.issues.slice(0, 4).map(i => <li key={i}>{i}</li>)}</ul>
+                  <ul className="text-xs text-accent-text list-disc pl-4">{ev.issues.slice(0, 4).map(i => <li key={i}>{i}</li>)}</ul>
                 )}
               </>
             )}

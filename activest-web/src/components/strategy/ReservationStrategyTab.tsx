@@ -42,11 +42,11 @@ const SliceTooltip = ({ active, payload, asCurrency }: SliceTooltipProps) => {
   if (!active || !payload?.length) return null;
   const slice = payload[0].payload;
   return (
-    <div className="bg-surface border border-surface-light p-3 rounded-lg shadow-lg">
-      <p className="font-medium text-white mb-1">{slice.name}</p>
-      <p className="text-sm text-gray-300">
+    <div className="bg-surface border border-line p-3 rounded-control shadow-lg">
+      <p className="font-medium text-content mb-1">{slice.name}</p>
+      <p className="text-sm text-content-2">
         {asCurrency ? 'Valor' : 'Percentual'}:{' '}
-        <span className="text-white font-medium">
+        <span className="text-content font-medium">
           {asCurrency ? formatCurrency(slice.value) : formatPercentage(slice.value)}
         </span>
       </p>
@@ -94,7 +94,7 @@ export const ReservationStrategyTab = () => {
   if (isLoading || !reservation || !draft) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <LoadingSpinner className="h-8 w-8 text-accent" />
+        <LoadingSpinner className="h-8 w-8 text-accent-text" />
       </div>
     );
   }
@@ -145,8 +145,8 @@ export const ReservationStrategyTab = () => {
       <Card>
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h3 className="text-lg font-medium text-white">Estratégia de Reserva de Emergência</h3>
-            <p className="text-sm text-gray-400">
+            <h3 className="text-lg font-medium text-content">Estratégia de Reserva de Emergência</h3>
+            <p className="text-sm text-content-3">
               Defina quanto da carteira deve estar na reserva de emergência.
             </p>
           </div>
@@ -156,7 +156,7 @@ export const ReservationStrategyTab = () => {
                 setDraft(draftFrom(reservation));
                 showToast(restoredMessage(hasChanges), 'info');
               }}
-              className="p-2 text-gray-400 hover:text-white transition-colors rounded-md hover:bg-surface-light"
+              className="p-2 text-content-3 hover:text-content transition-colors rounded-control hover:bg-elevated"
               title="Restaurar do banco de dados"
             >
               <RefreshCw className="w-4 h-4" />
@@ -169,14 +169,14 @@ export const ReservationStrategyTab = () => {
         </div>
 
         {hasChanges && (
-          <div className="mb-4 px-3 py-2 rounded-md bg-accent/10 border border-accent/20 text-sm text-accent">
+          <div className="mb-4 px-3 py-2 rounded-control bg-accent/10 border border-accent/20 text-sm text-accent-text">
             Alterações não salvas. Clique em "Salvar" para persistir.
           </div>
         )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="text-xs text-gray-400 uppercase bg-surface-light border-b border-surface-light">
+            <thead className="text-content-3 uppercase bg-elevated border-b border-line">
               <tr>
                 <th className="px-4 py-3"><LabelWithInfo info={STRATEGY_HELP.reservationType}>Tipo de Estratégia</LabelWithInfo></th>
                 <th className="px-4 py-3 text-center"><LabelWithInfo info={STRATEGY_HELP.currentPercentage}>% Atual</LabelWithInfo></th>
@@ -185,12 +185,12 @@ export const ReservationStrategyTab = () => {
               </tr>
             </thead>
             <tbody>
-              <tr className="hover:bg-surface-light/30">
+              <tr className="hover:bg-overlay">
                 <td className="px-4 py-3">
                   <select
                     value={draft.type}
                     onChange={(e) => setDraft({ ...draft, type: e.target.value as ReservationType })}
-                    className="h-10 w-full min-w-[10rem] rounded-md border border-surface-light bg-surface px-3 py-2 text-sm text-white focus:ring-2 focus:ring-accent focus:border-transparent"
+                    className="h-10 w-full min-w-[10rem] rounded-control border border-line bg-surface px-3 py-2 text-sm text-content focus:ring-2 focus:ring-accent focus:border-transparent"
                   >
                     {(Object.keys(RESERVATION_TYPE_LABELS) as ReservationType[]).map((t) => (
                       <option key={t} value={t}>
@@ -227,7 +227,7 @@ export const ReservationStrategyTab = () => {
                   <span
                     className={clsx(
                       'font-medium',
-                      diff > 0 ? 'text-success' : diff < 0 ? 'text-danger' : 'text-gray-400'
+                      diff > 0 ? 'text-success' : diff < 0 ? 'text-danger' : 'text-content-3'
                     )}
                   >
                     {formatPercentage(diffAbs)} {diffSide}
@@ -238,24 +238,24 @@ export const ReservationStrategyTab = () => {
           </table>
         </div>
 
-        <div className="mt-4 pt-4 border-t border-surface-light grid grid-cols-3 gap-4 text-sm">
+        <div className="mt-4 pt-4 border-t border-line grid grid-cols-3 gap-4 text-sm">
           <div>
-            <p className="text-gray-400">Reserva de emergência</p>
-            <p className="font-medium text-white">{formatCurrency(reservation.reservationValue)}</p>
+            <p className="text-content-3">Reserva de emergência</p>
+            <p className="font-medium text-content">{formatCurrency(reservation.reservationValue)}</p>
           </div>
           <div>
-            <p className="text-gray-400">Geração de renda</p>
-            <p className="font-medium text-white">{formatCurrency(reservation.incomeValue)}</p>
+            <p className="text-content-3">Geração de renda</p>
+            <p className="font-medium text-content">{formatCurrency(reservation.incomeValue)}</p>
           </div>
           <div>
-            <p className="text-gray-400">Carteira</p>
-            <p className="font-medium text-white">{formatCurrency(total)}</p>
+            <p className="text-content-3">Carteira</p>
+            <p className="font-medium text-content">{formatCurrency(total)}</p>
           </div>
         </div>
       </Card>
 
       <Card>
-        <h3 className="text-lg font-medium text-white mb-4 text-center">Distribuição Estratégica Reserva</h3>
+        <h3 className="text-lg font-medium text-content mb-4 text-center">Distribuição Estratégica Reserva</h3>
         {visibleSlices.length > 0 ? (
           <>
           <div className="h-[340px] w-full relative">
@@ -281,8 +281,8 @@ export const ReservationStrategyTab = () => {
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-sm text-gray-400">Reserva</span>
-              <span className="text-lg font-semibold text-white">
+              <span className="text-sm text-content-3">Reserva</span>
+              <span className="text-lg font-semibold text-content">
                 {formatSlice(isValue ? draft.value : draft.percentage)}
               </span>
             </div>
@@ -293,7 +293,7 @@ export const ReservationStrategyTab = () => {
           />
           </>
         ) : (
-          <div className="h-[400px] flex items-center justify-center text-gray-500">
+          <div className="h-[400px] flex items-center justify-center text-content-4">
             <p>Defina o valor ideal da reserva para visualizar o gráfico</p>
           </div>
         )}

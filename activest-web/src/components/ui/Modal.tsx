@@ -63,24 +63,24 @@ export const Modal = ({ isOpen, onClose, title, titleInfo, description, size = '
     // O p-4 impede o painel de encostar na borda da tela em telas pequenas.
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
-        className="fixed inset-0 bg-background/80 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-bg/80 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
       <div
-        className={`relative z-50 flex max-h-[85vh] w-full ${WIDTHS[size]} flex-col overflow-hidden rounded-xl bg-surface border border-surface-light shadow-lg animate-in fade-in zoom-in-95 duration-200`}
+        className={`relative z-50 flex max-h-[85vh] w-full ${WIDTHS[size]} flex-col overflow-hidden rounded-panel bg-surface border border-line shadow-lg animate-in fade-in zoom-in-95 duration-200`}
       >
         {/* Cabeçalho e rodapé são shrink-0: só o miolo cede espaço. */}
-        <div className={`flex shrink-0 justify-between gap-4 border-b border-surface-light px-6 py-4 ${description ? 'items-start' : 'items-center'}`}>
+        <div className={`flex shrink-0 justify-between gap-4 border-b border-line px-6 py-4 ${description ? 'items-start' : 'items-center'}`}>
           <div className="min-w-0">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-content">
               {title}
               {titleInfo && <InfoTooltip content={titleInfo} />}
             </h2>
-            {description && <p className="mt-1 text-sm text-gray-400">{description}</p>}
+            {description && <p className="mt-1 text-sm text-content-3">{description}</p>}
           </div>
           <button
             onClick={onClose}
-            className="rounded-md p-1 text-gray-400 hover:bg-surface-light hover:text-white transition-colors"
+            className="rounded-control p-1 text-content-3 hover:bg-elevated hover:text-content transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -91,7 +91,7 @@ export const Modal = ({ isOpen, onClose, title, titleInfo, description, size = '
         </div>
 
         {footer && (
-          <div className="shrink-0 border-t border-surface-light bg-surface px-6 py-4">
+          <div className="shrink-0 border-t border-line bg-surface px-6 py-4">
             {footer}
           </div>
         )}

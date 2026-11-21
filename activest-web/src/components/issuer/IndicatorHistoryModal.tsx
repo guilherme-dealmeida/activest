@@ -6,11 +6,11 @@ import { indicatorsApi } from '@/api/indicators';
 import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Toggle } from '@/components/ui/Toggle';
-import { useTheme } from '@/context/ThemeContext';
 import { IndicatorCode, IndicatorHistory, IndicatorPeriod, IndicatorPoint, IndicatorUnit, IndicatorWindow } from '@/types';
 import { INDICATOR_META, INDICATOR_WINDOWS, averageOf, formatIndicator, formatIndicatorAxis, pointsInWindow } from '@/utils/indicators';
 import { apiMessage } from '@/utils/apiError';
 import { rem } from '@/utils/fontScale';
+import { chartTheme } from '@/theme/chart';
 
 interface Props {
   ticker: string;
@@ -37,10 +37,10 @@ const BarTooltip = ({ active, payload, unit }: {
   if (!active || !payload?.length) return null;
   const p = payload[0].payload;
   return (
-    <div className="max-w-[240px] rounded-md border border-white/10 bg-surface px-3 py-2 text-xs shadow-lg">
-      <div className="text-gray-400">{p.label}</div>
-      <div className="mt-0.5 text-sm font-semibold text-white">{formatIndicator(p.value, unit, true)}</div>
-      {p.note && <div className="mt-1 text-gray-400">{p.note}</div>}
+    <div className="max-w-[240px] rounded-control border border-line bg-surface px-3 py-2 text-xs shadow-lg">
+      <div className="text-content-3">{p.label}</div>
+      <div className="mt-0.5 text-sm font-semibold text-content">{formatIndicator(p.value, unit, true)}</div>
+      {p.note && <div className="mt-1 text-content-3">{p.note}</div>}
     </div>
   );
 };
@@ -51,7 +51,6 @@ const BarTooltip = ({ active, payload, unit }: {
  * tracejada, tabela embaixo, ‹ › (e ← →) para o indicador vizinho, mantendo a janela.
  */
 export const IndicatorHistoryModal = ({ ticker, codes, open, initialWindow, onChange, annual }: Props) => {
-  const { isDark } = useTheme();
   const [period, setPeriod] = useState<IndicatorPeriod>('YEAR');
   const [win, setWin] = useState<IndicatorWindow>(initialWindow);
   // ao abrir (fechado → aberto), começa na janela do cartão; navegando com ‹ › fica a do modal
@@ -99,9 +98,8 @@ export const IndicatorHistoryModal = ({ ticker, codes, open, initialWindow, onCh
         ...p, plot: p.value ?? 0, isCurrent: i === all.length - 1,
       }))
     : [];
-  const grid = isDark ? '#2a2a2a' : '#e8e8e0';
-  const axis = '#777777';
-  const muted = isDark ? '#6b6b6b' : '#b8b8ae';
+  const { grid, axis } = chartTheme();
+  const muted = 'var(--content-4)';
 
   return (
     <Modal
@@ -115,14 +113,14 @@ export const IndicatorHistoryModal = ({ ticker, codes, open, initialWindow, onCh
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
             <div>
-              <span className="text-xs uppercase text-gray-500">Atual</span>
-              <div className="text-xl font-semibold text-accent">
+              <span className="text-xs uppercase text-content-4">Atual</span>
+              <div className="text-xl font-semibold text-accent-text">
                 {data ? formatIndicator(data.current.value, unit) : '…'}
               </div>
             </div>
             <div>
-              <span className="text-xs uppercase text-gray-500">Média {win}</span>
-              <div className="text-xl font-semibold text-white">
+              <span className="text-xs uppercase text-content-4">Média {win}</span>
+              <div className="text-xl font-semibold text-content">
                 {data ? formatIndicator(average, unit) : '…'}
               </div>
             </div>
@@ -133,24 +131,24 @@ export const IndicatorHistoryModal = ({ ticker, codes, open, initialWindow, onCh
             <Toggle label="Periodicidade" value={period} onChange={setPeriod}
                     options={[{ value: 'YEAR', label: 'Anual' }, { value: 'QUARTER', label: 'Trimestral' }]} />
             <button type="button" onClick={() => go(-1)} aria-label="Indicador anterior"
-                    className="rounded-md p-1.5 text-gray-400 hover:bg-white/5 hover:text-white">
+                    className="rounded-control p-1.5 text-content-3 hover:bg-overlay hover:text-content">
               <ChevronLeft className="h-5 w-5" />
             </button>
             <button type="button" onClick={() => go(1)} aria-label="Próximo indicador"
-                    className="rounded-md p-1.5 text-gray-400 hover:bg-white/5 hover:text-white">
+                    className="rounded-control p-1.5 text-content-3 hover:bg-overlay hover:text-content">
               <ChevronRight className="h-5 w-5" />
             </button>
           </div>
         </div>
 
         {isLoading && !data ? (
-          <div className="flex h-72 items-center justify-center"><LoadingSpinner className="h-6 w-6 text-accent" /></div>
+          <div className="flex h-72 items-center justify-center"><LoadingSpinner className="h-6 w-6 text-accent-text" /></div>
         ) : isError && !data ? (
-          <div className="flex h-72 items-center justify-center text-sm text-gray-400">
+          <div className="flex h-72 items-center justify-center text-sm text-content-3">
             {apiMessage(error) ?? 'Não foi possível carregar o histórico.'}
           </div>
         ) : data && bars.length <= 1 ? (
-          <div className="flex h-40 items-center justify-center text-sm text-gray-400">Sem histórico para este indicador.</div>
+          <div className="flex h-40 items-center justify-center text-sm text-content-3">Sem histórico para este indicador.</div>
         ) : data ? (
           <>
             <div className="overflow-x-auto">
@@ -162,7 +160,7 @@ export const IndicatorHistoryModal = ({ ticker, codes, open, initialWindow, onCh
                            axisLine={{ stroke: grid }} interval="preserveStartEnd" minTickGap={8} />
                     <YAxis tickFormatter={(v: number) => formatIndicatorAxis(v, unit)} tick={{ fill: axis, fontSize: rem(11) }}
                            tickLine={false} axisLine={false} width={60} />
-                    <Tooltip content={<BarTooltip unit={unit} />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }} />
+                    <Tooltip content={<BarTooltip unit={unit} />} cursor={{ fill: 'var(--chart-cursor)' }} />
                     <ReferenceLine y={0} stroke={axis} strokeOpacity={0.5} />
                     {average != null && (
                       <ReferenceLine y={average} stroke={GOLD} strokeDasharray="6 4" strokeOpacity={0.9}
@@ -179,32 +177,32 @@ export const IndicatorHistoryModal = ({ ticker, codes, open, initialWindow, onCh
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-md border border-white/10">
+            <div className="overflow-x-auto rounded-control border border-line">
               <table className="w-full text-xs">
                 <tbody>
-                  <tr className="border-b border-white/10">
+                  <tr className="border-b border-line">
                     {bars.map((b, i) => (
-                      <th key={i} className={`px-2 py-1.5 text-center font-medium whitespace-nowrap ${b.isCurrent ? 'text-accent' : 'text-gray-400'}`}>
+                      <th key={i} className={`px-2 py-1.5 text-center whitespace-nowrap ${b.isCurrent ? 'text-accent-text' : 'text-content-3'}`}>
                         {b.label}
                       </th>
                     ))}
-                    <th className="px-2 py-1.5 text-center font-medium text-gray-400">Média {win}</th>
+                    <th className="px-2 py-1.5 text-center text-content-3">Média {win}</th>
                   </tr>
                   <tr>
                     {bars.map((b, i) => (
                       <td key={i} title={b.note ?? undefined}
-                          className={`px-2 py-1.5 text-center whitespace-nowrap ${b.isCurrent ? 'font-semibold text-accent' : 'text-white'} ${b.note ? 'cursor-help underline decoration-dotted decoration-gray-500' : ''}`}>
+                          className={`px-2 py-1.5 text-center whitespace-nowrap ${b.isCurrent ? 'font-semibold text-accent-text' : 'text-content'} ${b.note ? 'cursor-help underline decoration-dotted decoration-content-4' : ''}`}>
                         {formatIndicator(b.value, unit, true)}
                       </td>
                     ))}
-                    <td className="px-2 py-1.5 text-center font-semibold text-white whitespace-nowrap">
+                    <td className="px-2 py-1.5 text-center font-semibold text-content whitespace-nowrap">
                       {formatIndicator(average, unit, true)}
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-content-4">
               {period === 'YEAR'
                 ? 'Ponto anual: balanço do exercício (ou informe de dezembro) com o fechamento da data. Média: pontos anuais da janela + Atual; valores nulos ficam fora.'
                 : 'Ponto trimestral: cada balanço (ou informe de março, junho, setembro e dezembro), desde o 1º trimestre do primeiro ano da janela. A média é sempre a dos pontos anuais da janela + Atual.'}

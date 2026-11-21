@@ -47,7 +47,7 @@ const STATUS_FILTER = [
 ];
 
 const selectClass =
-  'bg-surface border border-surface-light text-gray-300 text-sm rounded-md px-2 py-1.5 focus:ring-accent focus:border-accent';
+  'bg-surface border border-line text-content-2 text-sm rounded-control px-2 py-1.5 focus:ring-accent focus:border-accent';
 
 /** "há 5 min", "ontem 14:02" ou a data — o carimbo da API vem no relógio do servidor (UTC). */
 const when = (value: string): string => {
@@ -153,14 +153,14 @@ export const NotificationsPage = () => {
     <div className="space-y-4">
       {/* Pastas e filtros */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex rounded-lg border border-surface-light bg-surface p-1">
+        <div className="inline-flex rounded-control border border-line bg-surface p-1">
           {([['INBOX', 'Entrada', Inbox], ['ARCHIVED', 'Arquivadas', Archive]] as const).map(([value, label, Icon]) => (
             <button
               key={value}
               onClick={() => setFilter({ folder: value })}
               className={clsx(
-                'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-                filters.folder === value ? 'bg-white/10 text-accent' : 'text-gray-400 hover:text-white'
+                'flex items-center gap-2 rounded-control px-3 py-1.5 text-sm font-medium transition-colors',
+                filters.folder === value ? 'bg-selected text-accent-text' : 'text-content-3 hover:text-content'
               )}
             >
               <Icon className="h-4 w-4" /> {label}
@@ -202,7 +202,7 @@ export const NotificationsPage = () => {
           </select>
         )}
 
-        <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer select-none">
+        <label className="flex items-center gap-2 text-sm text-content-3 cursor-pointer select-none">
           <input
             type="checkbox"
             className="accent-[#c9a84c]"
@@ -212,13 +212,13 @@ export const NotificationsPage = () => {
           Só não lidas
         </label>
 
-        {isFetching && !isLoading && <LoadingSpinner className="h-4 w-4 text-accent" />}
+        {isFetching && !isLoading && <LoadingSpinner className="h-4 w-4 text-accent-text" />}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(320px,440px)_1fr]">
         {/* Lista */}
         <Card className={clsx('p-0 overflow-hidden', selected && 'hidden lg:block')}>
-          <div className="flex items-center gap-2 border-b border-surface-light px-4 py-2.5">
+          <div className="flex items-center gap-2 border-b border-line px-4 py-2.5">
             <input
               type="checkbox"
               className="accent-[#c9a84c]"
@@ -228,12 +228,12 @@ export const NotificationsPage = () => {
               disabled={items.length === 0}
             />
             {bulk.length === 0 ? (
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-content-4">
                 {data ? `${data.total} mensage${data.total === 1 ? 'm' : 'ns'}` : ''}
               </span>
             ) : (
               <div className="flex flex-wrap items-center gap-1">
-                <span className="mr-1 text-xs text-gray-400">{bulk.length} selecionada{bulk.length === 1 ? '' : 's'}</span>
+                <span className="mr-1 text-xs text-content-3">{bulk.length} selecionada{bulk.length === 1 ? '' : 's'}</span>
                 <IconButton title="Marcar como lidas" onClick={() => state.mutate({ ids: bulk, action: 'READ' })}>
                   <MailOpen className="h-4 w-4" />
                 </IconButton>
@@ -257,14 +257,14 @@ export const NotificationsPage = () => {
           </div>
 
           {isLoading ? (
-            <div className="flex justify-center py-16"><LoadingSpinner className="h-6 w-6 text-accent" /></div>
+            <div className="flex justify-center py-16"><LoadingSpinner className="h-6 w-6 text-accent-text" /></div>
           ) : items.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 px-6 py-16 text-center text-sm text-gray-500">
-              <CheckCheck className="h-8 w-8 text-gray-600" />
+            <div className="flex flex-col items-center gap-2 px-6 py-16 text-center text-sm text-content-4">
+              <CheckCheck className="h-8 w-8 text-content-4" />
               {archived ? 'Nenhuma mensagem arquivada.' : 'Nenhuma mensagem por aqui.'}
             </div>
           ) : (
-            <ul className="max-h-[calc(100vh-15rem)] divide-y divide-surface-light overflow-y-auto">
+            <ul className="max-h-[calc(100vh-15rem)] divide-y divide-line overflow-y-auto">
               {items.map(item => {
                 const Icon = CATEGORY[item.category]?.icon ?? Bell;
                 const active = selected?.id === item.id;
@@ -273,7 +273,7 @@ export const NotificationsPage = () => {
                     key={item.id}
                     className={clsx(
                       'flex cursor-pointer gap-3 px-4 py-3 transition-colors',
-                      active ? 'bg-white/10' : 'hover:bg-white/5'
+                      active ? 'bg-selected' : 'hover:bg-overlay'
                     )}
                     onClick={() => select(item)}
                   >
@@ -286,20 +286,20 @@ export const NotificationsPage = () => {
                       onChange={() => toggle(item.id)}
                     />
                     <span className="relative mt-0.5 shrink-0">
-                      <Icon className={clsx('h-4 w-4', item.severity === 'ATENCAO' ? 'text-yellow-500' : 'text-gray-400')} />
+                      <Icon className={clsx('h-4 w-4', item.severity === 'ATENCAO' ? 'text-accent-text' : 'text-content-3')} />
                       {!item.read && (
                         <span className="absolute -left-2 top-1 h-1.5 w-1.5 rounded-full bg-accent" aria-label="Não lida" />
                       )}
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
-                        <p className={clsx('truncate text-sm', item.read ? 'text-gray-300' : 'font-semibold text-white')}>
+                        <p className={clsx('truncate text-sm', item.read ? 'text-content-2' : 'font-semibold text-content')}>
                           {item.title}
                         </p>
-                        <span className="shrink-0 text-[0.6875rem] text-gray-500">{when(item.createdAt)}</span>
+                        <span className="shrink-0 text-[0.6875rem] text-content-4">{when(item.createdAt)}</span>
                       </div>
                       <div className="mt-1 flex items-center gap-2">
-                        <span className="truncate text-xs text-gray-500">{item.body}</span>
+                        <span className="truncate text-xs text-content-4">{item.body}</span>
                         {item.status && (
                           <Badge variant={STATUS[item.status].variant} className="shrink-0 px-2 py-0 text-[0.625rem]">
                             {STATUS[item.status].label}
@@ -317,7 +317,7 @@ export const NotificationsPage = () => {
           )}
 
           {data && totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-surface-light px-4 py-2 text-xs text-gray-400">
+            <div className="flex items-center justify-between border-t border-line px-4 py-2 text-xs text-content-3">
               <button
                 className="flex items-center gap-1 disabled:opacity-40"
                 disabled={data.page === 0}
@@ -340,8 +340,8 @@ export const NotificationsPage = () => {
         {/* Leitura */}
         <Card className={clsx('min-h-[320px]', !selected && 'hidden lg:block')}>
           {!selected ? (
-            <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-2 text-sm text-gray-500">
-              <Mail className="h-8 w-8 text-gray-600" />
+            <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-2 text-sm text-content-4">
+              <Mail className="h-8 w-8 text-content-4" />
               Selecione uma mensagem para ler.
             </div>
           ) : (
@@ -379,7 +379,7 @@ export const NotificationsPage = () => {
           </div>
         )}
       >
-        <p className="text-sm text-gray-300">
+        <p className="text-sm text-content-2">
           {confirmDelete?.length === 1 ? 'A mensagem some' : `As ${confirmDelete?.length} mensagens somem`} da sua caixa e
           não podem ser restauradas. Se for uma pendência, a situação dela não muda.
         </p>
@@ -410,8 +410,8 @@ const IconButton = ({ title, onClick, danger, children }: {
     aria-label={title}
     onClick={onClick}
     className={clsx(
-      'rounded-md p-1.5 transition-colors',
-      danger ? 'text-gray-400 hover:bg-danger/10 hover:text-danger' : 'text-gray-400 hover:bg-white/5 hover:text-white'
+      'rounded-control p-1.5 transition-colors',
+      danger ? 'text-content-3 hover:bg-danger/10 hover:text-danger' : 'text-content-3 hover:bg-overlay hover:text-content'
     )}
   >
     {children}
@@ -436,7 +436,7 @@ const Reading = ({ item, busy, onBack, onAction, onState, onStatus }: ReadingPro
   return (
     <article className="space-y-5">
       <div className="flex items-center justify-between gap-2">
-        <button onClick={onBack} className="flex items-center gap-1 text-sm text-gray-400 hover:text-white lg:hidden">
+        <button onClick={onBack} className="flex items-center gap-1 text-sm text-content-3 hover:text-content lg:hidden">
           <ArrowLeft className="h-4 w-4" /> Voltar
         </button>
         <div className="ml-auto flex items-center gap-1">
@@ -459,8 +459,8 @@ const Reading = ({ item, busy, onBack, onAction, onState, onStatus }: ReadingPro
       </div>
 
       <header className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-          <Icon className={clsx('h-4 w-4', item.severity === 'ATENCAO' ? 'text-yellow-500' : 'text-gray-400')} />
+        <div className="flex flex-wrap items-center gap-2 text-xs text-content-4">
+          <Icon className={clsx('h-4 w-4', item.severity === 'ATENCAO' ? 'text-accent-text' : 'text-content-3')} />
           <span>{cat?.label}</span>
           <span>·</span>
           <span>{formatDateTime(item.createdAt)}</span>
@@ -471,19 +471,19 @@ const Reading = ({ item, busy, onBack, onAction, onState, onStatus }: ReadingPro
             </Badge>
           )}
         </div>
-        <h3 className="text-lg font-semibold text-white">{item.title}</h3>
+        <h3 className="text-lg font-semibold text-content">{item.title}</h3>
       </header>
 
-      <p className="whitespace-pre-line text-sm leading-relaxed text-gray-300">{item.body}</p>
+      <p className="whitespace-pre-line text-sm leading-relaxed text-content-2">{item.body}</p>
 
       {lines.length > 0 && (
-        <ul className="space-y-1 rounded-lg border border-surface-light bg-black/20 p-3 text-sm text-gray-300">
+        <ul className="space-y-1 rounded-control border border-line bg-black/20 p-3 text-sm text-content-2">
           {lines.map((l, i) => <li key={i} className="tabular-nums">{l}</li>)}
         </ul>
       )}
 
       {(actions.length > 0 || item.status === 'NAO_RESOLVIDA' || item.status === 'DISPENSADA') && (
-        <div className="flex flex-wrap gap-2 border-t border-surface-light pt-4">
+        <div className="flex flex-wrap gap-2 border-t border-line pt-4">
           {actions.map((a, i) => (
             <Button key={i} size="sm" variant={i === 0 ? 'primary' : 'outline'} onClick={() => onAction(a)}>
               {a.label}

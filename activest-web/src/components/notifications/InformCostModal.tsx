@@ -53,7 +53,7 @@ export const InformCostModal = ({ isOpen, params, onClose, onSaved }: InformCost
       )}
     >
       <div className="space-y-4">
-        <p className="text-sm text-gray-300">
+        <p className="text-sm text-content-2">
           {label}. As ações novas entram sem custo no preço médio, como na corretora. Para o imposto de renda, elas custam
           o valor atribuído pela empresa: informe o valor por ação que está no fato relevante — ele vale só para a sua
           posição e dá o preço médio para o IR (o preço médio da Carteira não muda).

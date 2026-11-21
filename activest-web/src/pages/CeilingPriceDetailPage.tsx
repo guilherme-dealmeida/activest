@@ -69,23 +69,23 @@ const defaultInfo = (dv: CeilingDefaultValue | undefined, description: string) =
   <div className="space-y-1">
     {dv?.ref && <div>Padrão: {dv.ref}</div>}
     {dv?.note && <div>{dv.ref ? dv.note : `Sem padrão: ${dv.note}`}</div>}
-    <div className="text-gray-400">{description}</div>
+    <div className="text-content-3">{description}</div>
   </div>
 );
 
 const LEVEL_STYLE: Record<CeilingIssue['level'], string> = {
   BLOQUEIO: 'border-danger/40 bg-danger/10 text-danger',
-  ATENCAO: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-500',
-  INFORMACAO: 'border-white/10 bg-white/5 text-gray-300',
+  ATENCAO: 'border-accent/40 bg-accent/10 text-accent-text',
+  INFORMACAO: 'border-line bg-overlay text-content-2',
 };
 const LEVEL_LABEL: Record<CeilingIssue['level'], string> = { BLOQUEIO: 'Bloqueio', ATENCAO: 'Atenção', INFORMACAO: 'Informação' };
 
 /** Origem de um campo: padrão (importado), informado ou calculado — passo 9.6 do pedido. */
 const OriginTag = ({ kind, title }: { kind: 'PADRAO' | 'INFORMADO' | 'CALCULADO'; title?: string }) => (
   <span title={title} className={clsx('inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase tracking-wide',
-    kind === 'PADRAO' && 'bg-white/5 text-gray-300 border border-white/10',
-    kind === 'INFORMADO' && 'bg-accent/15 text-accent border border-accent/40',
-    kind === 'CALCULADO' && 'bg-transparent text-yellow-500 border border-dashed border-yellow-600')}>
+    kind === 'PADRAO' && 'bg-overlay text-content-2 border border-line',
+    kind === 'INFORMADO' && 'bg-accent/15 text-accent-text border border-accent/40',
+    kind === 'CALCULADO' && 'bg-transparent text-accent-text border border-dashed border-accent/50')}>
     {kind === 'INFORMADO' && <Pencil className="w-3 h-3" />}
     {kind === 'CALCULADO' && <FunctionSquare className="w-3 h-3" />}
     {kind === 'PADRAO' ? 'Padrão' : kind === 'INFORMADO' ? 'Informado' : 'Calculado'}
@@ -200,12 +200,12 @@ export const CeilingPriceDetailPage = () => {
     return (
       <div className="space-y-4">
         <Button variant="ghost" onClick={() => navigate('/ceiling-prices')}><ArrowLeft className="w-4 h-4 mr-2" />Voltar</Button>
-        <Card><p className="text-gray-300">{msg}</p></Card>
+        <Card><p className="text-content-2">{msg}</p></Card>
       </div>
     );
   }
   if (!defaults || !form) {
-    return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent" /></div>;
+    return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent-text" /></div>;
   }
 
   const changed = saved?.changedDefaults ?? [];
@@ -222,11 +222,11 @@ export const CeilingPriceDetailPage = () => {
           <Button variant="ghost" size="sm" onClick={back}><ArrowLeft className="w-4 h-4" /></Button>
           <AssetLogo ticker={defaults.ticker} hasLogo={!!defaults.hasLogo} size={36} />
           <div>
-            <div className="text-lg font-semibold text-white"><TickerLink ticker={defaults.ticker} issuerId={defaults.issuerId} className="font-semibold" /></div>
-            <div className="text-sm text-gray-400">{defaults.assetName}</div>
+            <div className="text-lg font-semibold text-content"><TickerLink ticker={defaults.ticker} issuerId={defaults.issuerId} className="font-semibold" /></div>
+            <div className="text-sm text-content-3">{defaults.assetName}</div>
           </div>
-          {saved && <span className="text-xs text-gray-500 ml-2">calculado em {formatDate(saved.calculatedAt.slice(0, 10))}</span>}
-          {!existingId && <span className="text-xs text-accent ml-2">cálculo novo — não salvo</span>}
+          {saved && <span className="text-xs text-content-4 ml-2">calculado em {formatDate(saved.calculatedAt.slice(0, 10))}</span>}
+          {!existingId && <span className="text-xs text-accent-text ml-2">cálculo novo — não salvo</span>}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={restoreAll} title="Aplica os padrões de hoje em todos os campos (só vale ao salvar)">
@@ -239,13 +239,13 @@ export const CeilingPriceDetailPage = () => {
       </div>
 
       {/* legenda */}
-      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400">
+      <div className="flex flex-wrap items-center gap-3 text-xs text-content-3">
         <span>Legenda:</span>
         <span className="flex items-center gap-1"><OriginTag kind="PADRAO" /> veio do catálogo (CVM, B3, BCB)</span>
         <span className="flex items-center gap-1"><OriginTag kind="INFORMADO" /> alterado por você</span>
         <span className="flex items-center gap-1"><OriginTag kind="CALCULADO" /> calculado pelo modelo</span>
         <span className="flex items-center gap-1">
-          <span className="inline-flex items-center rounded px-1.5 py-0.5 bg-accent/15 text-accent border border-accent/40">
+          <span className="inline-flex items-center rounded px-1.5 py-0.5 bg-accent/15 text-accent-text border border-accent/40">
             <RefreshCw className="w-3 h-3" />
           </span>
           traz o padrão de hoje para o campo
@@ -266,7 +266,7 @@ export const CeilingPriceDetailPage = () => {
                 return (
                   <div key={f.key}>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="text-sm text-gray-300">
+                      <label className="text-sm text-content-2">
                         <LabelWithInfo info={defaultInfo(dv, f.info)}>{f.label}</LabelWithInfo>
                       </label>
                       <OriginTag kind={isDefault ? 'PADRAO' : 'INFORMADO'} />
@@ -279,36 +279,36 @@ export const CeilingPriceDetailPage = () => {
                       <button type="button" disabled={dv?.value == null}
                               title={dv?.value != null ? `Padrão de hoje: ${f.decimals === 0 ? dv.value.toLocaleString('pt-BR') : dv.value.toLocaleString('pt-BR', { maximumFractionDigits: 4 })}` : 'Sem padrão'}
                               onClick={() => dv?.value != null && update({ [f.key]: dv.value } as Partial<CeilingPriceInput>)}
-                              className={clsx('p-2 rounded-md border disabled:opacity-30', highlight ? 'border-accent/60 text-accent' : 'border-surface-light text-gray-500')}>
+                              className={clsx('p-2 rounded-control border disabled:opacity-30', highlight ? 'border-accent/60 text-accent-text' : 'border-line text-content-4')}>
                         <RefreshCw className="w-4 h-4" />
                       </button>
                     </div>
-                    {issues.map((x, k) => <p key={k} className={clsx('text-xs', x.level === 'BLOQUEIO' ? 'text-danger' : 'text-yellow-500')}>{x.message}</p>)}
+                    {issues.map((x, k) => <p key={k} className={clsx('text-xs', x.level === 'BLOQUEIO' ? 'text-danger' : 'text-accent-text')}>{x.message}</p>)}
                   </div>
                 );
               })}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-gray-300">Crescimento sustentável (g)</span>
+                  <span className="text-sm text-content-2">Crescimento sustentável (g)</span>
                   <OriginTag kind="CALCULADO" />
                 </div>
-                <div className="h-10 flex items-center justify-end rounded-md border border-dashed border-gray-600 px-3 text-sm text-gray-300 tabular-nums">
+                <div className="h-10 flex items-center justify-end rounded-control border border-dashed border-line-strong px-3 text-sm text-content-2 tabular-nums">
                   {pct(r?.growthPct)}
                 </div>
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-gray-300">
+                  <span className="text-sm text-content-2">
                     <LabelWithInfo info={defaultInfo(defaults.perpetualGrowthPct, 'Crescimento do lucro depois do 3º período. Precisa ser menor que a taxa de desconto.')}>
                       Crescimento na perpetuidade (G)
                     </LabelWithInfo>
                   </span>
                   <OriginTag kind={same(form.perpetualGrowthPct, defaults.perpetualGrowthPct.value) ? 'PADRAO' : 'INFORMADO'} />
                 </div>
-                <div className="h-10 flex items-center justify-end rounded-md border border-dashed border-gray-600 px-3 text-sm text-gray-300 tabular-nums">
+                <div className="h-10 flex items-center justify-end rounded-control border border-dashed border-line-strong px-3 text-sm text-content-2 tabular-nums">
                   {pct(form.perpetualGrowthPct)}
                 </div>
-                {fieldIssues('perpetualGrowthPct').map((x, k) => <p key={k} className={clsx('text-xs', x.level === 'BLOQUEIO' ? 'text-danger' : 'text-yellow-500')}>{x.message}</p>)}
+                {fieldIssues('perpetualGrowthPct').map((x, k) => <p key={k} className={clsx('text-xs', x.level === 'BLOQUEIO' ? 'text-danger' : 'text-accent-text')}>{x.message}</p>)}
               </div>
             </div>
           </Card>
@@ -316,7 +316,7 @@ export const CeilingPriceDetailPage = () => {
           {/* D8 revisada (docs/planos/PLANO_USABILIDADE_PRECO_TETO.md): mesmo nome da linha dos Demonstrativos */}
           <Card title="Lucro líquido da controladora — 4 últimos trimestres" titleInfo="Lucro líquido atribuível aos acionistas">
             {newerQuarters && (
-              <div className="mb-3 flex items-center justify-between rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-sm text-accent">
+              <div className="mb-3 flex items-center justify-between rounded-control border border-accent/40 bg-accent/10 px-3 py-2 text-sm text-accent-text">
                 <span>Há balanço mais recente ({quarterLabel(defaults.latestQuarterEnd!)}).</span>
                 <Button size="sm" variant="outline" onClick={() => { update({ quarters: fromDefaults(defaults).quarters }); }}>
                   Atualizar trimestres
@@ -333,20 +333,20 @@ export const CeilingPriceDetailPage = () => {
                 return (
                   <div key={i}>
                     <div className="flex flex-wrap items-center gap-2 mb-2">
-                      <span className="font-semibold text-white w-12">{quarterLabel(q.periodEnd)}</span>
+                      <span className="font-semibold text-content w-12">{quarterLabel(q.periodEnd)}</span>
                       <OriginTag kind={isDefault ? 'PADRAO' : 'INFORMADO'} />
-                      {dq?.value == null && dq?.note && <span className="text-xs text-gray-500 truncate">{dq.note}</span>}
+                      {dq?.value == null && dq?.note && <span className="text-xs text-content-4 truncate">{dq.note}</span>}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <SignedNumberInput className={clsx('flex-1 min-w-[200px]', !isDefault && '[&_input]:border-accent/60')}
                         value={q.originalValue} onChange={v => updateQuarter(i, { originalValue: v })} ariaLabel={`Lucro ${quarterLabel(q.periodEnd)}`}
                         error={issues.some(x => x.level === 'BLOQUEIO')} />
                       <select value={q.unit} onChange={e => updateQuarter(i, { unit: e.target.value as CeilingUnit })}
-                              className="h-10 bg-surface border border-surface-light text-white text-sm rounded-md px-2">
+                              className="h-10 bg-surface border border-line text-content text-sm rounded-control px-2">
                         {UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
                       </select>
                       <select value={q.currency} onChange={e => updateQuarter(i, { currency: e.target.value as 'BRL' | 'USD', fxRate: null })}
-                              className="h-10 bg-surface border border-surface-light text-white text-sm rounded-md px-2">
+                              className="h-10 bg-surface border border-line text-content text-sm rounded-control px-2">
                         <option value="BRL">BRL</option>
                         <option value="USD">USD</option>
                       </select>
@@ -358,17 +358,17 @@ export const CeilingPriceDetailPage = () => {
                       )}
                       <button type="button" title={`Padrão: ${dq?.value != null ? bigMoney(dq.value) : '—'}`}
                               onClick={() => dq && updateQuarter(i, { originalValue: dq.value, unit: 'UNIDADE', currency: 'BRL', fxRate: null })}
-                              className={clsx('p-2 rounded-md border', !isDefault && dq?.value != null ? 'border-accent/60 text-accent' : 'border-surface-light text-gray-500')}>
+                              className={clsx('p-2 rounded-control border', !isDefault && dq?.value != null ? 'border-accent/60 text-accent-text' : 'border-line text-content-4')}>
                         <RefreshCw className="w-4 h-4" />
                       </button>
                     </div>
-                    {issues.map((x, k) => <p key={k} className={clsx('mt-1 text-xs', x.level === 'BLOQUEIO' ? 'text-danger' : x.level === 'ATENCAO' ? 'text-yellow-500' : 'text-gray-400')}>{x.message}</p>)}
+                    {issues.map((x, k) => <p key={k} className={clsx('mt-1 text-xs', x.level === 'BLOQUEIO' ? 'text-danger' : x.level === 'ATENCAO' ? 'text-accent-text' : 'text-content-3')}>{x.message}</p>)}
                   </div>
                 );
               })}
-              <div className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2">
-                <span className="text-sm text-gray-300 flex items-center gap-2">Lucro líquido últimos 12 meses (LL TTM) <OriginTag kind="CALCULADO" /></span>
-                <span className="font-semibold text-white tabular-nums">{r?.netIncomeTtm == null ? '—' : formatCurrency(r.netIncomeTtm)}</span>
+              <div className="flex items-center justify-between rounded-control bg-overlay px-3 py-2">
+                <span className="text-sm text-content-2 flex items-center gap-2">Lucro líquido últimos 12 meses (LL TTM) <OriginTag kind="CALCULADO" /></span>
+                <span className="font-semibold text-content tabular-nums">{r?.netIncomeTtm == null ? '—' : formatCurrency(r.netIncomeTtm)}</span>
               </div>
             </div>
           </Card>
@@ -379,24 +379,24 @@ export const CeilingPriceDetailPage = () => {
         <div className="xl:col-span-2 space-y-6">
           <Card title="Resultado" titleInfo="Calculado das entradas ao lado. Só é gravado ao salvar." icon={calculating ? <LoadingSpinner className="h-4 w-4" /> : <Calculator className="w-4 h-4" />}>
             <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-lg border border-accent/40 bg-accent/5 p-3">
-                <div className="text-xs text-gray-400">Preço Teto</div>
-                <div className="text-2xl font-semibold text-accent tabular-nums">{r?.ceilingPrice == null ? '—' : formatCurrency(r.ceilingPrice)}</div>
+              <div className="rounded-control border border-accent/40 bg-accent/5 p-3">
+                <div className="text-xs text-content-3">Preço Teto</div>
+                <div className="text-2xl font-semibold text-accent-text tabular-nums">{r?.ceilingPrice == null ? '—' : formatCurrency(r.ceilingPrice)}</div>
                 <div className={clsx('text-xs tabular-nums', (r?.ceilingMarginPct ?? 0) >= 0 ? 'text-success' : 'text-danger')}>margem {signedPct(r?.ceilingMarginPct)}{priceRef}</div>
               </div>
-              <div className="rounded-lg border border-surface-light p-3">
-                <div className="text-xs text-gray-400"><LabelWithInfo info={IDEAL_PRICE_INFO}>Preço Ideal</LabelWithInfo></div>
-                <div className="text-2xl font-semibold text-white tabular-nums">{r?.idealPrice == null ? '—' : formatCurrency(r.idealPrice)}</div>
+              <div className="rounded-control border border-line p-3">
+                <div className="text-xs text-content-3"><LabelWithInfo info={IDEAL_PRICE_INFO}>Preço Ideal</LabelWithInfo></div>
+                <div className="text-2xl font-semibold text-content tabular-nums">{r?.idealPrice == null ? '—' : formatCurrency(r.idealPrice)}</div>
                 <div className={clsx('text-xs tabular-nums', (r?.idealMarginPct ?? 0) >= 0 ? 'text-success' : 'text-danger')}>margem {signedPct(r?.idealMarginPct)}{priceRef}</div>
               </div>
             </div>
           </Card>
 
           <Card title="Alertas e dados faltantes">
-            {(r?.issues ?? []).length === 0 ? <p className="text-sm text-gray-500">Nenhum alerta.</p> : (
+            {(r?.issues ?? []).length === 0 ? <p className="text-sm text-content-4">Nenhum alerta.</p> : (
               <ul className="space-y-2">
                 {r!.issues.map((x, k) => (
-                  <li key={k} className={clsx('rounded-md border px-3 py-2 text-sm', LEVEL_STYLE[x.level])}>
+                  <li key={k} className={clsx('rounded-control border px-3 py-2 text-sm', LEVEL_STYLE[x.level])}>
                     <span className="font-semibold mr-1">{LEVEL_LABEL[x.level]}:</span>{x.message}
                   </li>
                 ))}
@@ -414,10 +414,10 @@ export const CeilingPriceDetailPage = () => {
                  {onlyWarnings && <Button onClick={() => { setRejection(null); save(true); }}>Salvar mesmo assim</Button>}
                </div>
              }>
-        <p className="text-sm text-gray-300 mb-3">{rejection?.message}</p>
+        <p className="text-sm text-content-2 mb-3">{rejection?.message}</p>
         <ul className="space-y-2">
           {rejection?.issues.map((x, k) => (
-            <li key={k} className={clsx('rounded-md border px-3 py-2 text-sm', LEVEL_STYLE[x.level])}>
+            <li key={k} className={clsx('rounded-control border px-3 py-2 text-sm', LEVEL_STYLE[x.level])}>
               <span className="font-semibold mr-1">{LEVEL_LABEL[x.level]}:</span>{x.message}
             </li>
           ))}

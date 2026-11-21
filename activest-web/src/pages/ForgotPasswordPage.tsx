@@ -41,7 +41,7 @@ export const ForgotPasswordPage = () => {
   if (sent) {
     return (
       <AuthShell title="Redefinir a senha"
-        footer={<Link to="/login" className="text-accent hover:underline">Voltar para o login</Link>}>
+        footer={<Link to="/login" className="text-accent-text hover:underline">Voltar para o login</Link>}>
         <CodeStep
           sent={sent}
           confirmLabel="Salvar nova senha"
@@ -65,7 +65,7 @@ export const ForgotPasswordPage = () => {
 
   return (
     <AuthShell title="Esqueci a senha" subtitle="Informe o e-mail da conta: enviaremos um código para criar uma nova senha."
-      footer={<Link to="/login" className="text-accent hover:underline">Voltar para o login</Link>}>
+      footer={<Link to="/login" className="text-accent-text hover:underline">Voltar para o login</Link>}>
       <FormError message={error} />
       <form onSubmit={request} className="space-y-4">
         <Input label="E-mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />

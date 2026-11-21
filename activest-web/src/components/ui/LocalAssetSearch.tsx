@@ -83,7 +83,7 @@ export const LocalAssetSearch = ({ options, onSelect, ariaLabel = 'Buscar ativo 
   return (
     <div ref={boxRef} className="relative w-full max-w-md">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-content-3" />
         <input
           type="text"
           autoComplete="off"
@@ -98,24 +98,24 @@ export const LocalAssetSearch = ({ options, onSelect, ariaLabel = 'Buscar ativo 
             else if (e.key === 'Escape') setOpen(false);
           }}
           placeholder="Buscar ticker ou nome (ex: PETR4, HGLG11, Itaú)"
-          className="flex h-10 w-full rounded-md border border-surface-light bg-surface pl-9 pr-3 py-2 text-sm text-white focus:ring-2 focus:ring-accent focus:border-transparent"
+          className="flex h-10 w-full rounded-control border border-line bg-surface pl-9 pr-3 py-2 text-sm text-content focus:ring-2 focus:ring-accent focus:border-transparent"
         />
       </div>
 
       {open && matches.length > 0 && (
-        <div className="absolute z-40 w-full mt-1 max-h-72 overflow-y-auto rounded-md border border-white/10 bg-surface shadow-xl">
+        <div className="absolute z-40 w-full mt-1 max-h-72 overflow-y-auto rounded-control border border-line bg-surface shadow-xl">
           {matches.map((opt, idx) => (
             <button
               key={opt.ticker}
               type="button"
               onClick={() => go(opt.ticker)}
-              className={`w-full text-left px-3 py-2.5 flex items-center gap-3 text-sm transition-colors border-b border-white/5 last:border-0 ${
-                idx === highlight ? 'bg-accent/15 text-white' : 'text-gray-300 hover:bg-white/5'
+              className={`w-full text-left px-3 py-2.5 flex items-center gap-3 text-sm transition-colors border-b border-line-soft last:border-0 ${
+                idx === highlight ? 'bg-accent/15 text-content' : 'text-content-2 hover:bg-overlay'
               }`}
             >
-              <span className="font-semibold text-white min-w-[80px]">{assetText(opt.ticker)}</span>
-              <span className="truncate flex-1 text-gray-400">{opt.name}</span>
-              <span className="text-xs text-gray-500">{opt.typeLabel}</span>
+              <span className="font-semibold text-content min-w-[80px]">{assetText(opt.ticker)}</span>
+              <span className="truncate flex-1 text-content-3">{opt.name}</span>
+              <span className="text-xs text-content-4">{opt.typeLabel}</span>
             </button>
           ))}
         </div>

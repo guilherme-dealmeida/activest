@@ -28,18 +28,18 @@ export const MonthYearTable = ({ periods, selected, onSelect }: {
     <div className="overflow-x-auto">
       <table className="w-full min-w-[880px] text-xs border-separate tabular-nums" style={{ borderSpacing: 2 }}>
         <thead>
-          <tr className="text-gray-400">
-            <th className="px-2 py-1 text-left font-medium">Ano</th>
-            {MONTH_SHORT.map(m => <th key={m} className="px-1 py-1 text-right font-medium capitalize">{m}</th>)}
-            <th className="px-2 py-1 text-right font-medium">Total</th>
-            <th className="px-2 py-1 text-right font-medium">Média mensal</th>
+          <tr className="text-content-3">
+            <th className="px-2 py-1 text-left">Ano</th>
+            {MONTH_SHORT.map(m => <th key={m} className="px-1 py-1 text-right capitalize">{m}</th>)}
+            <th className="px-2 py-1 text-right">Total</th>
+            <th className="px-2 py-1 text-right">Média mensal</th>
           </tr>
         </thead>
         <tbody>
           {years.map(y => (
             <tr key={y.year}>
-              <td className="px-2 py-1.5 font-medium text-gray-300 whitespace-nowrap">
-                {y.year}{y.partial && <span className="ml-1 text-[0.625rem] font-normal text-gray-500">parcial</span>}
+              <td className="px-2 py-1.5 font-medium text-content-2 whitespace-nowrap">
+                {y.year}{y.partial && <span className="ml-1 text-[0.625rem] font-normal text-content-4">parcial</span>}
               </td>
               {MONTH_SHORT.map((_, i) => {
                 const key = monthKey(y.year, i);
@@ -59,9 +59,9 @@ export const MonthYearTable = ({ periods, selected, onSelect }: {
                       title={title}
                       aria-pressed={selected === key}
                       className={clsx(
-                        'w-full rounded px-1.5 py-1.5 text-right text-gray-200 transition-shadow hover:ring-1 hover:ring-accent/60',
+                        'w-full rounded px-1.5 py-1.5 text-right text-content transition-shadow hover:ring-1 hover:ring-accent/60',
                         pending && 'italic',
-                        m.totalCents === 0 && 'text-gray-500',
+                        m.totalCents === 0 && 'text-content-4',
                         selected === key && 'ring-2 ring-accent',
                       )}
                       style={{ background: m.totalCents > 0 ? heatBackground(m.totalCents / max) : undefined }}
@@ -71,8 +71,8 @@ export const MonthYearTable = ({ periods, selected, onSelect }: {
                   </td>
                 );
               })}
-              <td className="px-2 py-1.5 text-right font-semibold text-white whitespace-nowrap">{amount(y.totalCents)}</td>
-              <td className="px-2 py-1.5 text-right text-gray-300 whitespace-nowrap"
+              <td className="px-2 py-1.5 text-right font-semibold text-content whitespace-nowrap">{amount(y.totalCents)}</td>
+              <td className="px-2 py-1.5 text-right text-content-2 whitespace-nowrap"
                 title={`${money(y.totalCents)} ÷ ${y.months} ${y.months === 1 ? 'mês' : 'meses'}`}>
                 {amount(y.monthlyAverageCents)}
               </td>
@@ -80,17 +80,17 @@ export const MonthYearTable = ({ periods, selected, onSelect }: {
           ))}
         </tbody>
         <tfoot>
-          <tr className="text-gray-300">
-            <td className="px-2 py-1.5 font-medium border-t border-white/10">Total</td>
+          <tr className="text-content-2">
+            <td className="px-2 py-1.5 font-medium border-t border-line">Total</td>
             {columnTotals.map((c, i) => (
-              <td key={i} className="px-1.5 py-1.5 text-right border-t border-white/10 whitespace-nowrap">{amount(c)}</td>
+              <td key={i} className="px-1.5 py-1.5 text-right border-t border-line whitespace-nowrap">{amount(c)}</td>
             ))}
-            <td className="px-2 py-1.5 text-right font-semibold text-white border-t border-white/10 whitespace-nowrap">{amount(grand)}</td>
-            <td className="border-t border-white/10" />
+            <td className="px-2 py-1.5 text-right font-semibold text-content border-t border-line whitespace-nowrap">{amount(grand)}</td>
+            <td className="border-t border-line" />
           </tr>
         </tfoot>
       </table>
-      <p className="mt-2 text-xs text-gray-500">
+      <p className="mt-2 text-xs text-content-4">
         Em R$, líquido, pela data de pagamento. Em itálico: o mês tem proventos a receber. A média mensal divide o total do ano
         pelos meses dele desde o primeiro provento até o último anunciado. Clique num mês para ver os proventos.
       </p>

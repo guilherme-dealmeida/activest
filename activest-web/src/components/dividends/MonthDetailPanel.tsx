@@ -48,29 +48,29 @@ export const MonthDetailPanel = ({ monthKey, rows, onClose, onShowInList }: {
     <Card id="dividend-month-detail" className="scroll-mt-4">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-lg font-medium text-white">{monthKey ? `Proventos de ${monthLabel(monthKey)}` : 'Proventos'}</h3>
+          <h3 className="text-lg font-medium text-content">{monthKey ? `Proventos de ${monthLabel(monthKey)}` : 'Proventos'}</h3>
           {monthKey && (
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-content-4">
               {count} {count === 1 ? 'provento' : 'proventos'} de {detail.length} {detail.length === 1 ? 'ativo' : 'ativos'},
               pela data de pagamento
             </p>
           )}
         </div>
         {monthKey && (
-          <button type="button" onClick={onClose} className="rounded p-1 text-gray-400 hover:bg-white/5 hover:text-white"
+          <button type="button" onClick={onClose} className="rounded p-1 text-content-3 hover:bg-overlay hover:text-content"
             aria-label="Limpar o mês escolhido" title="Limpar o mês escolhido">
             <X className="h-4 w-4" />
           </button>
         )}
       </div>
       {!monthKey ? (
-        <p className="text-sm text-gray-500">Clique num mês do gráfico ou da tabela "Mês a mês" para ver os proventos dele por ativo.</p>
+        <p className="text-sm text-content-4">Clique num mês do gráfico ou da tabela "Mês a mês" para ver os proventos dele por ativo.</p>
       ) : detail.length === 0 ? (
-        <p className="text-sm text-gray-500">Nenhum provento neste mês.</p>
+        <p className="text-sm text-content-4">Nenhum provento neste mês.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left tabular-nums">
-            <thead className="text-xs uppercase border-b border-white/10">
+            <thead className="uppercase border-b border-line">
               <tr>
                 {COLUMNS.map(c => (
                   <th key={c.key} onClick={() => requestSort(c.key)}
@@ -78,25 +78,25 @@ export const MonthDetailPanel = ({ monthKey, rows, onClose, onShowInList }: {
                     {c.label}{getSortIndicator(c.key)}
                   </th>
                 ))}
-                <th className="px-4 py-2 text-center text-gray-400">Ações</th>
+                <th className="px-4 py-2 text-center text-content-3">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-line-soft">
               {sortedData.map(r => (
-                <tr key={r.ticker} className="hover:bg-white/5">
-                  <td className="px-4 py-2 font-medium text-white" title={r.assetName || undefined}>{r.ticker}</td>
-                  <td className="px-4 py-2 text-gray-300">{r.assetTypeDescription ?? '—'}</td>
-                  <td className="px-4 py-2 text-gray-300">
+                <tr key={r.ticker} className="hover:bg-overlay">
+                  <td className="px-4 py-2 font-medium text-content" title={r.assetName || undefined}>{r.ticker}</td>
+                  <td className="px-4 py-2 text-content-2">{r.assetTypeDescription ?? '—'}</td>
+                  <td className="px-4 py-2 text-content-2">
                     {r.typesLabel}
                     {r.toReceiveCount > 0 && (
-                      <span className="ml-2 text-xs italic text-gray-500">
+                      <span className="ml-2 text-xs italic text-content-4">
                         {r.receivedCount > 0 ? `${r.toReceiveCount} a receber` : 'a receber'}
                       </span>
                     )}
                   </td>
                   <td className="px-4 py-2 text-right">{r.count}</td>
                   <td className="px-4 py-2 text-right">{money(r.grossCents)}</td>
-                  <td className="px-4 py-2 text-right text-gray-400">{money(r.taxCents)}</td>
+                  <td className="px-4 py-2 text-right text-content-3">{money(r.taxCents)}</td>
                   <td className="px-4 py-2 text-right font-medium text-success">{money(r.netCents)}</td>
                   <td className="px-4 py-2 text-center">
                     <button type="button" className={TABLE_ACTION_CLASS} disabled={r.assetTypeId == null}
@@ -109,11 +109,11 @@ export const MonthDetailPanel = ({ monthKey, rows, onClose, onShowInList }: {
               ))}
             </tbody>
             <tfoot>
-              <tr className="font-semibold text-white border-t border-white/10">
+              <tr className="font-semibold text-content border-t border-line">
                 <td className="px-4 py-2" colSpan={3}>Total</td>
                 <td className="px-4 py-2 text-right">{count}</td>
                 <td className="px-4 py-2 text-right">{money(sum(r => r.grossCents))}</td>
-                <td className="px-4 py-2 text-right text-gray-400">{money(sum(r => r.taxCents))}</td>
+                <td className="px-4 py-2 text-right text-content-3">{money(sum(r => r.taxCents))}</td>
                 <td className="px-4 py-2 text-right text-success">{money(sum(r => r.netCents))}</td>
                 <td />
               </tr>

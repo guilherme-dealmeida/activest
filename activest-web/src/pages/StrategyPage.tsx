@@ -23,7 +23,7 @@ import { PageLink } from '@/components/ui/PageLink';
 import { AssetTypeName } from '@/components/ui/AssetTypeName';
 import { isStrategyTotalValid, strategyTotal, strategyTotalLabel } from '@/utils/strategyRules';
 
-const PIE_COLORS = ['#c9a84c', '#38a169', '#e53e3e', '#3182ce', '#805ad5', '#d69e2e', '#ed8936', '#dd6b20'];
+const PIE_COLORS = ['#c9a84c', '#3987e5', '#199e70', '#d95926', '#9085e9', '#d55181', '#8d96a4', '#2a78d6'];
 
 interface AssetType {
   id: number;
@@ -47,10 +47,10 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-surface border border-surface-light p-3 rounded-lg shadow-lg">
-        <p className="font-medium text-white mb-1">{data.name}</p>
-        <p className="text-sm text-gray-300">
-          Percentual: <span className="text-white font-medium">{formatPercentage(data.value)}</span>
+      <div className="bg-surface border border-line p-3 rounded-control shadow-lg">
+        <p className="font-medium text-content mb-1">{data.name}</p>
+        <p className="text-sm text-content-2">
+          Percentual: <span className="text-content font-medium">{formatPercentage(data.value)}</span>
         </p>
       </div>
     );
@@ -121,7 +121,7 @@ export const StrategyPage = () => {
   }, [strategy]);
 
   if (loadingStrategy || loadingRebalance) {
-    return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent" /></div>;
+    return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent-text" /></div>;
   }
 
   // Asset types not in the local editing state
@@ -229,12 +229,12 @@ export const StrategyPage = () => {
     <div className="space-y-6">
       {/* Abas à esquerda; à direita, o link para o Rebalanceamento (tela própria desde 11/10/2026) */}
       <div className="flex flex-wrap items-center justify-between gap-4">
-      <div className="flex space-x-1 bg-surface p-1 rounded-lg w-fit border border-surface-light">
+      <div className="flex space-x-1 bg-surface p-1 rounded-control w-fit border border-line">
         <button
           onClick={() => setActiveTab('ideal')}
           className={clsx(
-            "px-4 py-2 text-sm font-medium rounded-md transition-colors",
-            activeTab === 'ideal' ? "bg-surface-light text-white" : "text-gray-400 hover:text-white hover:bg-surface-light/50"
+            "px-4 py-2 text-sm font-medium rounded-control transition-colors",
+            activeTab === 'ideal' ? "bg-accent/15 text-accent-text" : "text-content-3 hover:text-content hover:bg-overlay"
           )}
         >
           Ideal Estratégico
@@ -242,8 +242,8 @@ export const StrategyPage = () => {
         <button
           onClick={() => setActiveTab('reservation')}
           className={clsx(
-            "px-4 py-2 text-sm font-medium rounded-md transition-colors",
-            activeTab === 'reservation' ? "bg-surface-light text-white" : "text-gray-400 hover:text-white hover:bg-surface-light/50"
+            "px-4 py-2 text-sm font-medium rounded-control transition-colors",
+            activeTab === 'reservation' ? "bg-accent/15 text-accent-text" : "text-content-3 hover:text-content hover:bg-overlay"
           )}
         >
           Estratégia Reserva
@@ -259,13 +259,13 @@ export const StrategyPage = () => {
           <Card>
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-lg font-medium text-white">Percentuais Ideais (Estratégia)</h3>
-                <p className="text-sm text-gray-400">Defina o percentual alvo para cada tipo de ativo.</p>
+                <h3 className="text-lg font-medium text-content">Percentuais Ideais (Estratégia)</h3>
+                <p className="text-sm text-content-3">Defina o percentual alvo para cada tipo de ativo.</p>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleRefresh}
-                  className="p-2 text-gray-400 hover:text-white transition-colors rounded-md hover:bg-surface-light"
+                  className="p-2 text-content-3 hover:text-content transition-colors rounded-control hover:bg-elevated"
                   title="Restaurar do banco de dados"
                 >
                   <RefreshCw className="w-4 h-4" />
@@ -278,14 +278,14 @@ export const StrategyPage = () => {
             </div>
 
             {hasChanges && (
-              <div className="mb-4 px-3 py-2 rounded-md bg-accent/10 border border-accent/20 text-sm text-accent">
+              <div className="mb-4 px-3 py-2 rounded-control bg-accent/10 border border-accent/20 text-sm text-accent-text">
                 Alterações não salvas. Clique em "Salvar" para persistir.
               </div>
             )}
 
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
-                <thead className="text-xs text-gray-400 uppercase bg-surface-light border-b border-surface-light">
+                <thead className="text-content-3 uppercase bg-elevated border-b border-line">
                   <tr>
                     <th className="px-4 py-3">Tipo Ativo</th>
                     <th className="px-4 py-3 text-center"><LabelWithInfo info={STRATEGY_HELP.currentPercentage}>% Atual</LabelWithInfo></th>
@@ -294,10 +294,10 @@ export const StrategyPage = () => {
                     <th className="px-4 py-3 w-10"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-surface-light">
+                <tbody className="divide-y divide-line">
                   {strategyRows.map((row) => (
-                    <tr key={row.assetTypeId} className="hover:bg-surface-light/30">
-                      <td className="px-4 py-3 font-medium text-white">
+                    <tr key={row.assetTypeId} className="hover:bg-overlay">
+                      <td className="px-4 py-3 font-medium text-content">
                         <AssetTypeName name={(assetTypes || []).find(t => t.id === row.assetTypeId)?.name} label={row.typeName} />
                       </td>
                       <td className="px-4 py-3 text-center">{formatPercentage(row.currentPercentage)}</td>
@@ -319,13 +319,13 @@ export const StrategyPage = () => {
                               }))}
                             />
                           </div>
-                          <span className="text-gray-400">%</span>
+                          <span className="text-content-3">%</span>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span className={clsx(
                           "font-medium",
-                          row.diffPercentage > 0 ? "text-success" : row.diffPercentage < 0 ? "text-danger" : "text-gray-400"
+                          row.diffPercentage > 0 ? "text-success" : row.diffPercentage < 0 ? "text-danger" : "text-content-3"
                         )}>
                           {formatPercentage(Math.abs(row.diffPercentage))} {row.diffPercentage > 0 ? 'acima' : row.diffPercentage < 0 ? 'abaixo' : ''}
                         </span>
@@ -343,9 +343,9 @@ export const StrategyPage = () => {
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t border-surface-light">
-                    <td className="px-4 py-3 font-medium text-white">Total</td>
-                    <td className="px-4 py-3 text-center text-white font-medium">100,00%</td>
+                  <tr className="border-t border-line">
+                    <td className="px-4 py-3 font-medium text-content">Total</td>
+                    <td className="px-4 py-3 text-center text-content font-medium">100,00%</td>
                     <td className="px-4 py-3 text-center">
                       <span className={clsx(
                         "font-semibold",
@@ -362,11 +362,11 @@ export const StrategyPage = () => {
 
             {/* Adicionar tipo de ativo */}
             {availableTypes.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-surface-light flex items-center gap-3">
+              <div className="mt-4 pt-4 border-t border-line flex items-center gap-3">
                 <select
                   value={selectedTypeToAdd}
                   onChange={(e) => setSelectedTypeToAdd(e.target.value)}
-                  className="flex-1 h-10 rounded-md border border-surface-light bg-surface px-3 py-2 text-sm text-white focus:ring-2 focus:ring-accent focus:border-transparent"
+                  className="flex-1 h-10 rounded-control border border-line bg-surface px-3 py-2 text-sm text-content focus:ring-2 focus:ring-accent focus:border-transparent"
                 >
                   <option value="">Selecione um tipo de ativo...</option>
                   {availableTypes.map(t => (
@@ -383,7 +383,7 @@ export const StrategyPage = () => {
 
           {/* Gráfico de Pizza */}
           <Card>
-            <h3 className="text-lg font-medium text-white mb-4 text-center">Distribuição Estratégica</h3>
+            <h3 className="text-lg font-medium text-content mb-4 text-center">Distribuição Estratégica</h3>
             {pieData.length > 0 ? (
               <>
               <div className="h-[340px] w-full relative">
@@ -409,8 +409,8 @@ export const StrategyPage = () => {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-sm text-gray-400">Total</span>
-                  <span className="text-lg font-semibold text-white">{formatPercentage(totalPct)}</span>
+                  <span className="text-sm text-content-3">Total</span>
+                  <span className="text-lg font-semibold text-content">{formatPercentage(totalPct)}</span>
                 </div>
               </div>
               <ChartLegend
@@ -419,7 +419,7 @@ export const StrategyPage = () => {
               />
               </>
             ) : (
-              <div className="h-[400px] flex items-center justify-center text-gray-500">
+              <div className="h-[400px] flex items-center justify-center text-content-4">
                 <p>Defina os percentuais ideais para visualizar o gráfico</p>
               </div>
             )}

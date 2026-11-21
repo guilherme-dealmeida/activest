@@ -22,12 +22,12 @@ export const formatDuration = (seconds?: number | null): string => {
 
 /** D2: o status aparece em inglês também na tela; a cor diz a situação. */
 export const STATUS_CLASS: Record<TaskExecutionStatus, string> = {
-  RUNNING: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
+  RUNNING: 'bg-info/15 text-info border-info/30',
   SUCCEEDED: 'bg-success/15 text-success border-success/30',
   FAILED: 'bg-danger/15 text-danger border-danger/30',
-  CANCELLED: 'bg-orange-500/15 text-orange-300 border-orange-500/30',
-  SKIPPED: 'bg-gray-500/15 text-gray-300 border-gray-500/30',
-  SCHEDULED: 'bg-accent/10 text-accent border-accent/30',
+  CANCELLED: 'bg-accent/15 text-accent-text border-accent/30',
+  SKIPPED: 'bg-overlay text-content-2 border-line',
+  SCHEDULED: 'bg-accent/10 text-accent-text border-accent/30',
 };
 
 export const STATUS_HINT: Record<TaskExecutionStatus, string> = {

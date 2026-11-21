@@ -1,41 +1,42 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { AArrowDown, AArrowUp, Bell, ChevronDown, LogOut, Moon, Plug, Settings, Sun } from 'lucide-react';
+import { AArrowDown, AArrowUp, Bell, ChevronDown, LogOut, Menu, Moon, Plug, Settings, Sun } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { useTheme } from '@/context/ThemeContext';
 import { useFontSize } from '@/context/FontSizeContext';
+import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { integrationsApi } from '@/api/integrations';
 import { notificationsApi } from '@/api/notifications';
 import { needsAttention } from '@/utils/integrations';
 
-const routeNames: Record<string, string> = {
-  '/dashboard': 'Dashboard',
-  '/performance': 'Rentabilidade',
-  '/portfolio': 'Carteira',
-  '/allocation': 'Alocação',
-  '/strategy': 'Estratégia de Investimentos',
-  '/rebalance': 'Rebalanceamento',
-  '/transactions': 'Transações',
-  '/ceiling-prices': 'Preço Teto',
-  '/assets': 'Ativos',
-  '/indices': 'Índices',
-  '/dividends': 'Dividendos e Proventos',
-  '/goals': 'Minhas Metas',
-  '/integrations': 'Integrações',
-  '/settings': 'Configurações',
-  '/notifications': 'Notificações',
-  '/tasks': 'Tarefas',
-  '/currencies': 'Moedas',
+/** Título da tela e o bloco do menu a que ela pertence (o mesmo do menu lateral). */
+const routeNames: Record<string, { title: string; section: string }> = {
+  '/dashboard': { title: 'Dashboard', section: 'Posição' },
+  '/portfolio': { title: 'Carteira', section: 'Posição' },
+  '/transactions': { title: 'Transações', section: 'Posição' },
+  '/dividends': { title: 'Dividendos e Proventos', section: 'Análise' },
+  '/performance': { title: 'Rentabilidade', section: 'Análise' },
+  '/allocation': { title: 'Alocação', section: 'Análise' },
+  '/strategy': { title: 'Estratégia de Investimentos', section: 'Planejamento' },
+  '/rebalance': { title: 'Rebalanceamento', section: 'Planejamento' },
+  '/ceiling-prices': { title: 'Preço Teto', section: 'Planejamento' },
+  '/goals': { title: 'Minhas Metas', section: 'Planejamento' },
+  '/assets': { title: 'Ativos', section: 'Mercado' },
+  '/indices': { title: 'Índices', section: 'Mercado' },
+  '/tasks': { title: 'Tarefas', section: 'Administração' },
+  '/currencies': { title: 'Moedas', section: 'Administração' },
+  '/integrations': { title: 'Integrações', section: 'Configurações' },
+  '/settings': { title: 'Configurações', section: 'Configurações' },
+  '/notifications': { title: 'Notificações', section: 'Configurações' },
 };
 
-/** Marcador amarelo de contagem (Notificações e Integrações), sobre o canto do ícone. */
+/** Marcador de contagem (Notificações e Integrações), sobre o canto do ícone. */
 const CountBadge = ({ count }: { count: number }) => (
   <span
-    className="absolute -top-1 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-yellow-400/20 text-yellow-500 text-[0.625rem] font-semibold flex items-center justify-center"
+    className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-accent/20 text-accent-text text-[0.5625rem] font-semibold flex items-center justify-center tabular-nums"
     aria-hidden
   >
     {count > 99 ? '99+' : count}
@@ -43,18 +44,18 @@ const CountBadge = ({ count }: { count: number }) => (
 );
 
 /**
- * Cabeçalho: título da tela à esquerda e, à direita (17/10/2026, antes no rodapé do menu lateral), Tamanho da tela
+ * Cabeçalho: o bloco da tela à esquerda e, à direita (17/10/2026, antes no rodapé do menu lateral), Tamanho da tela
  * (A−/A+, PLANO_CUSTOMIZAR_TAMANHOS), Tema,
  * Notificações, Integrações, Configurações e o usuário (foto + nome), que abre o menu com "Sair".
  */
-export const Header = () => {
+export const Header = ({ onToggleMenu }: { onToggleMenu?: () => void }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isDark, toggleTheme } = useTheme();
   const { isSmall, toggleFontSize } = useFontSize();
   const { user, logout } = useAuth();
   const currentPath = Object.keys(routeNames).find(path => location.pathname.startsWith(path));
-  const title = currentPath ? routeNames[currentPath] : '';
+  const route = currentPath ? routeNames[currentPath] : null;
 
   // Marcador em Integrações: pré-visualização esperando decisão, divergência de saldo ou chave com problema.
   const { data: connections } = useQuery({
@@ -99,67 +100,73 @@ export const Header = () => {
   const userName = user?.name ?? '';
 
   const iconButton = clsx(
-    'relative p-2 rounded-md transition-colors',
-    isDark
-      ? 'text-gray-400 hover:text-white hover:bg-white/5'
-      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+    'relative h-9 w-9 rounded-control flex items-center justify-center transition-colors',
+    'text-content-3 hover:text-content hover:bg-overlay'
   );
   const isAt = (path: string) => location.pathname.startsWith(path);
 
   return (
-    <header className={clsx(
-      "h-16 border-b flex items-center justify-between gap-4 px-6 transition-colors duration-300",
-      isDark
-        ? "bg-[#111111] border-white/10"
-        : "bg-white border-gray-200"
-    )}>
-      <h2 className={clsx(
-        "text-xl font-semibold truncate",
-        isDark ? "text-white" : "text-gray-900"
-      )}>{title}</h2>
+    <header className="h-14 shrink-0 bg-surface border-b border-line flex items-center justify-between gap-3 px-4 sm:px-6">
+      <div className="flex items-center gap-2 min-w-0">
+        {/* Menu em tela estreita: lá o menu lateral é gaveta (ver Sidebar). */}
+        {onToggleMenu && (
+          <button
+            type="button"
+            onClick={onToggleMenu}
+            aria-label="Abrir menu"
+            title="Abrir menu"
+            className="lg:hidden relative h-9 w-9 rounded-control flex items-center justify-center transition-colors text-content-3 hover:text-content hover:bg-overlay"
+          >
+            <Menu className="h-[18px] w-[18px]" />
+          </button>
+        )}
+        <div className="min-w-0">
+          {route && (
+            <p className="text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-content-4 leading-none">
+              {route.section}
+            </p>
+          )}
+          <h2 className={clsx(
+            'truncate leading-tight mt-0.5 text-[0.9375rem] font-semibold tracking-[-0.01em] text-content',
+            !route && 'mt-0'
+          )}>{route?.title ?? ''}</h2>
+        </div>
+      </div>
 
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex items-center gap-0.5 shrink-0">
         {/* Tamanho da tela (PLANO_CUSTOMIZAR_TAMANHOS, D2): mostra a ação disponível, como o sol/lua do tema */}
         <button
           type="button"
           onClick={toggleFontSize}
-          className={clsx(
-            'p-2 rounded-md transition-colors',
-            isDark
-              ? 'text-gray-400 hover:text-yellow-400 hover:bg-white/5'
-              : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100'
-          )}
+          className={clsx(iconButton, 'hover:text-accent-text', 'hidden sm:flex')}
           title={isSmall ? 'Tamanho grande' : 'Tamanho pequeno'}
           aria-label={isSmall ? 'Tamanho grande' : 'Tamanho pequeno'}
         >
-          {isSmall ? <AArrowUp className="h-5 w-5" /> : <AArrowDown className="h-5 w-5" />}
+          {isSmall ? <AArrowUp className="h-[18px] w-[18px]" /> : <AArrowDown className="h-[18px] w-[18px]" />}
         </button>
 
         {/* Tema */}
         <button
           type="button"
           onClick={toggleTheme}
-          className={clsx(
-            'p-2 rounded-md transition-colors',
-            isDark
-              ? 'text-gray-400 hover:text-yellow-400 hover:bg-white/5'
-              : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100'
-          )}
+          className={clsx(iconButton, 'hover:text-accent-text')}
           title={isDark ? 'Modo Claro' : 'Modo Escuro'}
           aria-label={isDark ? 'Modo Claro' : 'Modo Escuro'}
         >
-          {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          {isDark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
         </button>
+
+        <span className="mx-2 h-5 w-px bg-line" aria-hidden />
 
         {/* Notificações */}
         <button
           type="button"
           onClick={() => navigate('/notifications')}
-          className={twMerge(iconButton, isAt('/notifications') && 'text-accent')}
+          className={twMerge(iconButton, isAt('/notifications') && 'text-accent-text')}
           title={unreadTitle}
           aria-label={unreadTitle}
         >
-          <Bell className="h-5 w-5" />
+          <Bell className="h-[18px] w-[18px]" />
           {unread > 0 && <CountBadge count={unread} />}
         </button>
 
@@ -167,11 +174,11 @@ export const Header = () => {
         <button
           type="button"
           onClick={() => navigate('/integrations')}
-          className={twMerge(iconButton, isAt('/integrations') && 'text-accent')}
+          className={twMerge(iconButton, isAt('/integrations') && 'text-accent-text')}
           title={integrationsTitle}
           aria-label={integrationsTitle}
         >
-          <Plug className="h-5 w-5" />
+          <Plug className="h-[18px] w-[18px]" />
           {attention > 0 && <CountBadge count={attention} />}
         </button>
 
@@ -179,11 +186,11 @@ export const Header = () => {
         <button
           type="button"
           onClick={() => navigate('/settings')}
-          className={twMerge(iconButton, isAt('/settings') && 'text-accent')}
+          className={twMerge(iconButton, isAt('/settings') && 'text-accent-text')}
           title="Configurações"
           aria-label="Configurações"
         >
-          <Settings className="h-5 w-5" />
+          <Settings className="h-[18px] w-[18px]" />
         </button>
 
         {/* Usuário: foto + nome, com o menu de Sair */}
@@ -193,40 +200,25 @@ export const Header = () => {
             onClick={() => setMenuOpen(o => !o)}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
-            className={clsx(
-              'flex items-center gap-2 pl-1 pr-2 py-1 rounded-md transition-colors',
-              isDark ? 'hover:bg-white/5' : 'hover:bg-gray-100'
-            )}
+            className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-control transition-colors hover:bg-overlay"
           >
             <UserAvatar user={user} className="h-8 w-8" textClassName="text-sm" />
-            <span
-              className={clsx(
-                'hidden lg:block max-w-[180px] text-sm font-medium truncate',
-                isDark ? 'text-white' : 'text-gray-900'
-              )}
-              title={userName}
-            >
+            <span className="hidden lg:block max-w-[180px] text-sm font-medium truncate text-content" title={userName}>
               {userName}
             </span>
-            <ChevronDown className={clsx('h-4 w-4 transition-transform', menuOpen && 'rotate-180', isDark ? 'text-gray-400' : 'text-gray-500')} />
+            <ChevronDown className={clsx('h-4 w-4 transition-transform', menuOpen && 'rotate-180', 'text-content-3')} />
           </button>
 
           {menuOpen && (
             <div
               role="menu"
-              className={clsx(
-                'absolute right-0 mt-2 w-48 rounded-md border shadow-lg py-1 z-50',
-                isDark ? 'bg-[#111111] border-white/10' : 'bg-white border-gray-200'
-              )}
+              className="absolute right-0 mt-2 w-48 rounded-control border border-line bg-surface py-1 z-50 shadow-xl shadow-black/20"
             >
               <button
                 type="button"
                 role="menuitem"
                 onClick={logout}
-                className={clsx(
-                  'w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors',
-                  isDark ? 'text-gray-300 hover:bg-white/5 hover:text-white' : 'text-gray-700 hover:bg-gray-100'
-                )}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors text-content-2 hover:bg-overlay hover:text-content"
               >
                 <LogOut className="h-4 w-4" />
                 Sair

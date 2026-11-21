@@ -41,7 +41,7 @@ const EstimatedNet = ({ asset }: { asset: PortfolioAssetDetail }) => {
     // fundo de investimento (PLANO_FUNDOS_INVESTIMENTO.md, C10): o líquido de um resgate total hoje, sem a tabela de
     // aportes; na Previdência, o bruto (IR do plano não calculado — D21)
     return (
-      <span className="text-xs text-gray-400 tabular-nums"
+      <span className="text-xs text-content-3 tabular-nums"
         title={asset.valuationNote ?? 'Líquido estimado de um resgate total hoje: bruto − IOF − IR, aporte a aporte (PEPS), já descontado o come-cotas.'}>
         {formatCurrency(asset.estimatedNet ?? 0)}
       </span>
@@ -52,7 +52,7 @@ const EstimatedNet = ({ asset }: { asset: PortfolioAssetDetail }) => {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-xs text-gray-400 hover:text-accent hover:underline tabular-nums"
+        className="text-xs text-content-3 hover:text-accent-text hover:underline tabular-nums"
         title="Líquido estimado de um resgate hoje (sem IR e IOF). Clique para ver os aportes."
       >
         {formatCurrency(asset.estimatedNet ?? 0)}
@@ -63,27 +63,27 @@ const EstimatedNet = ({ asset }: { asset: PortfolioAssetDetail }) => {
         title={`${assetText(asset.ticker)}${asset.issuer ? ` ${asset.issuer}` : ''} — aportes`}
         size="xl"
       >
-        <p className="mb-4 text-sm text-gray-400">
+        <p className="mb-4 text-sm text-content-3">
           Cada aporte rende e é tributado pela própria idade: o IOF até o 29º dia, o IR pela tabela regressiva
           ({asset.valuationDate ? `resgate estimado em ${formatDate(asset.valuationDate)}` : 'resgate estimado hoje'}).
         </p>
         <div className="overflow-x-auto">
           <table className="w-full text-sm tabular-nums">
-            <thead className="text-xs text-gray-500">
-              <tr className="border-b border-white/10">
-                <th className="py-2 px-2 text-left font-medium">{asset.lots?.length === 1 && !asset.noteId ? 'Título de' : 'Aporte'}</th>
-                <th className="py-2 px-2 text-right font-medium">Dias</th>
-                <th className="py-2 px-2 text-right font-medium">Aplicado</th>
-                <th className="py-2 px-2 text-right font-medium">Rendimento</th>
-                <th className="py-2 px-2 text-right font-medium">% IOF</th>
-                <th className="py-2 px-2 text-right font-medium">Alíq. IR</th>
-                <th className="py-2 px-2 text-right font-medium">IR + IOF</th>
-                <th className="py-2 px-2 text-right font-medium">Líquido</th>
+            <thead className="text-content-4">
+              <tr className="border-b border-line">
+                <th className="py-2 px-2 text-left">{asset.lots?.length === 1 && !asset.noteId ? 'Título de' : 'Aporte'}</th>
+                <th className="py-2 px-2 text-right">Dias</th>
+                <th className="py-2 px-2 text-right">Aplicado</th>
+                <th className="py-2 px-2 text-right">Rendimento</th>
+                <th className="py-2 px-2 text-right">% IOF</th>
+                <th className="py-2 px-2 text-right">Alíq. IR</th>
+                <th className="py-2 px-2 text-right">IR + IOF</th>
+                <th className="py-2 px-2 text-right">Líquido</th>
               </tr>
             </thead>
-            <tbody className="text-gray-200">
+            <tbody className="text-content">
               {lots.map((l, i) => (
-                <tr key={i} className="border-b border-white/5">
+                <tr key={i} className="border-b border-line-soft">
                   <td className="py-2 px-2">{formatDate(l.date)}</td>
                   <td className="py-2 px-2 text-right">{l.days}</td>
                   <td className="py-2 px-2 text-right">{l.applied == null ? '—' : formatCurrency(l.applied)}</td>
@@ -196,7 +196,7 @@ interface Column {
 /** Segunda linha da RENTABILIDADE: "TWR: x%", ou "TWR: —" quando o motor não tem o número (falta de preço). */
 const TwrLine = ({ value, title }: { value: number | null | undefined; title?: string }) => (
   value == null
-    ? <span className="text-xs font-normal text-gray-400" title={title ?? 'TWR indisponível: falta preço em algum dia do período (detalhes na tela Rentabilidade).'}>TWR: —</span>
+    ? <span className="text-xs font-normal text-content-3" title={title ?? 'TWR indisponível: falta preço em algum dia do período (detalhes na tela Rentabilidade).'}>TWR: —</span>
     : <span className={clsx('text-xs font-normal tabular-nums', getReturnColor(value))} title={title}>TWR: {formatPercentage(value)}</span>
 );
 
@@ -213,7 +213,7 @@ const ForeignLine = ({ asset, value, maxDigits = 2, cost = false }: {
     ? (fv.costFxRate != null ? `Câmbio médio das compras ${formatFxRate(fv.costFxRate)}` : undefined)
     : `Câmbio ${formatFxRate(fv.fxRate)} (PTAX venda de ${formatDate(fv.rateDate ?? '')})`;
   return (
-    <span className="text-xs tabular-nums text-gray-400" title={title}>
+    <span className="text-xs tabular-nums text-content-3" title={title}>
       {formatMoney(value, fv.symbol, 2, maxDigits)}
     </span>
   );
@@ -231,7 +231,7 @@ const SignedLines = ({ main, below, title, footer = false }: {
   footer?: boolean;
 }) => (
   <span className="inline-flex flex-col items-end">
-    {main ? <span className={clsx('tabular-nums', getReturnColor(main.value))}>{main.text}</span> : <span className="text-gray-400">—</span>}
+    {main ? <span className={clsx('tabular-nums', getReturnColor(main.value))}>{main.text}</span> : <span className="text-content-3">—</span>}
     {below && (
       <span className={clsx('text-xs tabular-nums', footer && 'font-normal', getReturnColor(below.value))} title={title}>
         {below.text}
@@ -260,7 +260,7 @@ const COLUMNS: Column[] = [
           ? (
             <div className="flex flex-col">
               <TickerLink ticker={a.ticker} issuerId={a.issuerId} />
-              <span className="text-xs font-normal text-gray-400">{a.groupSize} títulos</span>
+              <span className="text-xs font-normal text-content-3">{a.groupSize} títulos</span>
             </div>
           )
           : <TickerLink ticker={a.ticker} issuerId={a.issuerId} />}
@@ -283,7 +283,7 @@ const COLUMNS: Column[] = [
     align: 'left',
     visible: showIssuer,
     render: (a) => (
-      <span className="text-white/70" title={a.noteInfo?.issuerLegalName ?? undefined}>{a.issuer || '—'}</span>
+      <span className="text-content/70" title={a.noteInfo?.issuerLegalName ?? undefined}>{a.issuer || '—'}</span>
     ),
   },
   {
@@ -293,7 +293,7 @@ const COLUMNS: Column[] = [
     align: 'left',
     visible: showDistributor,
     render: (a) => (
-      <span className="text-white/70" title={a.noteInfo?.distributorLegalName ?? undefined}>
+      <span className="text-content/70" title={a.noteInfo?.distributorLegalName ?? undefined}>
         {a.noteInfo?.distributorName || '—'}
       </span>
     ),
@@ -304,7 +304,7 @@ const COLUMNS: Column[] = [
     info: 'Data de compra do título. A venda consome os títulos da aplicação mais antiga para a mais nova.',
     align: 'left',
     visible: showPurchaseDate,
-    render: (a) => <span className="text-white/70">{a.purchaseDate ? formatDate(a.purchaseDate) : '—'}</span>,
+    render: (a) => <span className="text-content/70">{a.purchaseDate ? formatDate(a.purchaseDate) : '—'}</span>,
   },
   {
     key: 'maturityDate',
@@ -312,7 +312,7 @@ const COLUMNS: Column[] = [
     align: 'left',
     visible: showMaturity,
     render: (a) => (
-      <span className="inline-flex items-center gap-1.5 text-white/70">
+      <span className="inline-flex items-center gap-1.5 text-content/70">
         {a.maturityDate ? formatDate(a.maturityDate) : '—'}
         {a.matured && (
           <span
@@ -333,7 +333,7 @@ const COLUMNS: Column[] = [
     label: 'REMUNERAÇÃO',
     align: 'left',
     visible: showRateType,
-    render: (a) => <span className="text-white/70">{a.rateType ? RATE_TYPE_LABELS[a.rateType] : '—'}</span>,
+    render: (a) => <span className="text-content/70">{a.rateType ? RATE_TYPE_LABELS[a.rateType] : '—'}</span>,
   },
   {
     key: 'indexerRate',
@@ -380,7 +380,7 @@ const COLUMNS: Column[] = [
     render: (a) => a.foreignQuote ? (
       <span className="inline-flex flex-col items-end">
         <span>{formatUnitPrice(a.currentPrice, a.isCrypto)}</span>
-        <span className="text-xs text-gray-400 tabular-nums"
+        <span className="text-xs text-content-3 tabular-nums"
           title={a.foreignQuote.fxRate != null
             ? `Câmbio ${formatFxRate(a.foreignQuote.fxRate)} (PTAX venda de ${formatDate(a.foreignQuote.rateDate ?? '')})`
             : 'Sem câmbio carregado'}>
@@ -471,7 +471,7 @@ const COLUMNS: Column[] = [
       + 'médio − 1). No exterior e na cripto, embaixo, a variação na moeda (dólar) — a diferença para a de cima é o câmbio.',
     align: 'right',
     render: (a) => a.valuationBasis === 'SEM_CURVA'
-      ? <span className="text-gray-400" title={a.valuationNote ?? undefined}>—</span>
+      ? <span className="text-content-3" title={a.valuationNote ?? undefined}>—</span>
       : (
         <SignedLines main={{ value: a.returnPercentage, text: formatPercentage(a.returnPercentage) }}
           below={a.foreignValues?.returnPercentage != null
@@ -492,7 +492,7 @@ const COLUMNS: Column[] = [
     render: (a) => (
       <span className="inline-flex flex-col items-end">
         {a.valuationBasis === 'SEM_CURVA' || a.classicReturn == null
-          ? <span className="text-gray-400" title={a.valuationNote ?? undefined}>—</span>
+          ? <span className="text-content-3" title={a.valuationNote ?? undefined}>—</span>
           : <span className={getReturnColor(a.classicReturn)}>{formatPercentage(a.classicReturn)}</span>}
         <TwrLine value={a.twr} />
       </span>
@@ -531,11 +531,11 @@ const PortfolioFlags = ({ keys, offKeys, onToggle }: FlagsProps) => (
           className={clsx(
             'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
             on
-              ? 'border-accent/40 bg-accent/15 text-accent hover:bg-accent/25'
-              : 'border-white/10 bg-surface-light/40 text-gray-500 hover:text-gray-300'
+              ? 'border-accent/40 bg-accent/15 text-accent-text hover:bg-accent/25'
+              : 'border-line bg-overlay text-content-4 hover:text-content-2'
           )}
         >
-          <span className={clsx('h-1.5 w-1.5 rounded-full', on ? 'bg-accent' : 'bg-gray-600')} />
+          <span className={clsx('h-1.5 w-1.5 rounded-full', on ? 'bg-accent' : 'bg-raised')} />
           {key}
         </button>
       );
@@ -629,7 +629,7 @@ const PortfolioTypeTable = ({ type, assets, reservation, twrByPosition, twrByAss
   // R2/R4 (01/11/2026): exterior e cripto ganham a segunda linha na moeda também nos Totais
   const foreign = foreignTotals(assets);
   const foreignLine = (value: number) => foreign && (
-    <span className="text-xs font-normal text-gray-400 tabular-nums">{formatMoney(value, foreign.symbol)}</span>
+    <span className="text-xs font-normal text-content-3 tabular-nums">{formatMoney(value, foreign.symbol)}</span>
   );
   const withForeign = (brl: ReactNode, value: number | undefined) => foreign && value != null
     ? <span className="inline-flex flex-col items-end"><span>{brl}</span>{foreignLine(value)}</span>
@@ -642,7 +642,7 @@ const PortfolioTypeTable = ({ type, assets, reservation, twrByPosition, twrByAss
       ? (
         <span className="inline-flex flex-col items-end">
           <span>{formatCurrency(totalCurrent)}</span>
-          <span className="text-xs font-normal text-gray-400 tabular-nums">{formatCurrency(totalNet)}</span>
+          <span className="text-xs font-normal text-content-3 tabular-nums">{formatCurrency(totalNet)}</span>
         </span>
       )
       : withForeign(formatCurrency(totalCurrent), foreign?.current),
@@ -704,7 +704,7 @@ const PortfolioTypeTable = ({ type, assets, reservation, twrByPosition, twrByAss
    */
   const renderPosition = (asset: PortfolioAssetDetail, kind: 'single' | 'child') => (
     // key pelo id da posição: o ticker não é único na carteira.
-    <tr key={asset.id} className={clsx('border-b border-white/5 hover:bg-white/5 transition-colors', kind === 'child' && 'bg-white/[0.02]')}>
+    <tr key={asset.id} className={clsx('border-b border-line-soft hover:bg-overlay transition-colors', kind === 'child' && 'bg-overlay')}>
       {showReservation && (kind === 'single'
         ? reservationSwitch(asset, asset, reservation.pendingId === asset.id, assetText(asset.ticker))
         : <td className="py-3 px-3" />)}
@@ -728,7 +728,7 @@ const PortfolioTypeTable = ({ type, assets, reservation, twrByPosition, twrByAss
     const presetBase = { ...group, noteInfo: commonNoteInfo(children) };
     const Chevron = open ? ChevronDown : ChevronRight;
     return (
-      <tr key={key} className="border-b border-white/5 hover:bg-white/5 transition-colors font-medium">
+      <tr key={key} className="border-b border-line-soft hover:bg-overlay transition-colors font-medium">
         {showReservation && reservationSwitch(group, children[0],
           children.some((c) => c.id === reservation.pendingId), `${assetText(group.ticker)} (todos os títulos)`)}
         <td className="py-3 px-1">
@@ -737,7 +737,7 @@ const PortfolioTypeTable = ({ type, assets, reservation, twrByPosition, twrByAss
             onClick={() => toggleGroup(key)}
             aria-expanded={open}
             title={open ? 'Recolher os títulos' : 'Mostrar os títulos'}
-            className="rounded p-1 text-gray-400 hover:bg-white/10 hover:text-white"
+            className="rounded p-1 text-content-3 hover:bg-selected hover:text-content"
           >
             <Chevron className="w-4 h-4" />
           </button>
@@ -757,11 +757,11 @@ const PortfolioTypeTable = ({ type, assets, reservation, twrByPosition, twrByAss
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-white/10">
+          <tr className="border-b border-line">
             {/* Primeira coluna, e só nas abas de renda fixa. Não ordena: o
                 estado muda com um clique ali mesmo. */}
             {showReservation && (
-              <th className="py-3 px-3 font-medium text-xs text-center">
+              <th className="py-3 px-3 text-center">
                 <LabelWithInfo info={type.name === TESOURO_DIRETO
                   ? 'Marque os ativos que fazem parte da sua reserva de emergência. No Tesouro a reserva é do ativo: vale para todos os títulos dele, inclusive as próximas compras. Eles saem do rebalanceamento por tipo e passam a contar no bloco da reserva.'
                   : 'Marque os títulos que fazem parte da sua reserva de emergência. Eles saem do rebalanceamento por tipo e passam a contar no bloco da reserva.'}>
@@ -791,7 +791,7 @@ const PortfolioTypeTable = ({ type, assets, reservation, twrByPosition, twrByAss
               </th>
             ))}
             {/* Ações não ordena: não é dado da posição. */}
-            <th className="py-3 px-3 font-medium text-xs text-center">AÇÕES</th>
+            <th className="py-3 px-3 text-center">AÇÕES</th>
           </tr>
         </thead>
         <tbody>
@@ -806,7 +806,7 @@ const PortfolioTypeTable = ({ type, assets, reservation, twrByPosition, twrByAss
           })}
         </tbody>
         <tfoot>
-          <tr className="border-t border-white/10 font-semibold">
+          <tr className="border-t border-line font-semibold">
             <td className="py-3 px-3" colSpan={labelSpan + (showReservation ? 1 : 0) + (hasGroups ? 1 : 0)}>
               Totais
             </td>
@@ -868,7 +868,7 @@ const PortfolioTypeSection = ({ type, assets, reservation, twrByPosition, twrByA
           onSell={onSell}
         />
       ) : (
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-content-3">
           {isFixedIncomeNote(type)
             ? 'Nenhum ativo selecionado. Ligue ao menos uma flag para ver as posições.'
             : 'Nenhuma categoria selecionada. Ligue ao menos uma flag para ver as posições.'}
@@ -987,16 +987,16 @@ export const PortfolioPage = () => {
   return (
     <div className="space-y-6">
       {tabs.length > 0 && (
-        <div className="flex flex-wrap gap-1 bg-surface p-1 rounded-lg w-fit border border-surface-light">
+        <div className="flex flex-wrap gap-1 bg-surface p-1 rounded-control w-fit border border-line">
           {tabs.map(({ type }) => (
             <button
               key={type.id}
               onClick={() => setSearchParams({ tab: type.name.toLowerCase() }, { replace: true })}
               className={clsx(
-                'px-4 py-2 text-sm font-medium rounded-md transition-colors',
+                'px-4 py-2 text-sm font-medium rounded-control transition-colors',
                 activeTab?.type.id === type.id
-                  ? 'bg-surface-light text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-surface-light/50'
+                  ? 'bg-accent/15 text-accent-text'
+                  : 'text-content-3 hover:text-content hover:bg-overlay'
               )}
             >
               {type.description}
@@ -1005,7 +1005,7 @@ export const PortfolioPage = () => {
         </div>
       )}
 
-      <div className="bg-surface rounded-lg border border-white/10 p-6">
+      <div className="bg-surface rounded-control border border-line p-6">
         {activeTab ? (
           // key pelo tipo: trocar de aba volta a ordenação e as flags ao padrão.
           <PortfolioTypeSection
@@ -1022,7 +1022,7 @@ export const PortfolioPage = () => {
             onSell={(asset) => setPreset(presetFromPosition(TransactionType.SELL, activeTab.type, asset))}
           />
         ) : (
-          <p className="text-sm text-gray-400">Nenhum ativo na carteira.</p>
+          <p className="text-sm text-content-3">Nenhum ativo na carteira.</p>
         )}
       </div>
 

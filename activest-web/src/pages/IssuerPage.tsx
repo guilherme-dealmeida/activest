@@ -60,19 +60,19 @@ export const IssuerPage = () => {
     // Sem ticker: a listagem de ativos (Ações e FIIs) no lugar do aviso vazio, com a busca ao lado das abas
     content = <IssuerListing onOpen={goTo} />;
   } else if (current.isLoading) {
-    content = <div className="flex h-64 items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent" /></div>;
+    content = <div className="flex h-64 items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent-text" /></div>;
   } else if (current.isError) {
     const msg = apiMessage(current.error) ?? '';
     const withoutIssuer = /sem emissor/i.test(msg);
     const notFound = status(current.error) === 404 && !withoutIssuer;
     content = (
-      <div className="rounded-xl border border-white/10 bg-surface p-8 text-center">
-        <p className="text-white font-medium">
+      <div className="rounded-panel border border-line bg-surface p-8 text-center">
+        <p className="text-content font-medium">
           {notFound ? `Não achamos o ticker ${ticker}.`
             : withoutIssuer ? `${ticker} não tem emissor cadastrado.`
             : 'Não foi possível carregar o ativo.'}
         </p>
-        <p className="mt-1 text-sm text-gray-400">
+        <p className="mt-1 text-sm text-content-3">
           {notFound ? 'Confira o código ou use a busca acima.'
             : withoutIssuer ? 'Indicadores e demonstrativos existem só para ações e FIIs ligados a um emissor (ETF, BDR, Tesouro, renda fixa e cripto ficam de fora).'
             : msg}
@@ -88,7 +88,7 @@ export const IssuerPage = () => {
         {issuer.data && <CompanyData key={`company-data-${current.data.ticker}`} ticker={current.data.ticker} issuer={issuer.data} />}
         {issuer.data && <FinancialStatements key={issuer.data.id} issuer={issuer.data} />}
         {issuer.isError && (
-          <p className="text-sm text-gray-400">{apiMessage(issuer.error) ?? 'Não foi possível carregar o cadastro do emissor.'}</p>
+          <p className="text-sm text-content-3">{apiMessage(issuer.error) ?? 'Não foi possível carregar o cadastro do emissor.'}</p>
         )}
       </>
     );

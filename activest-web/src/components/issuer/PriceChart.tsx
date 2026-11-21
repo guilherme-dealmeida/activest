@@ -7,7 +7,6 @@ import { assetsApi } from '@/api/assets';
 import { Card } from '@/components/ui/Card';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { InfoTooltip } from '@/components/ui/InfoTooltip';
-import { useTheme } from '@/context/ThemeContext';
 import { PriceRange } from '@/types';
 import { formatCurrency, formatDate, getReturnColor } from '@/utils/format';
 import { apiMessage } from '@/utils/apiError';
@@ -28,9 +27,9 @@ const PriceTooltip = ({ active, payload }: TooltipPayload) => {
   if (!active || !payload?.length) return null;
   const p = payload[0].payload;
   return (
-    <div className="rounded-md border border-white/10 bg-surface px-3 py-2 text-xs shadow-lg">
-      <div className="text-gray-400">{formatDate(p.time.slice(0, 10))}</div>
-      <div className="mt-0.5 text-sm font-semibold text-white">{formatCurrency(p.close)}</div>
+    <div className="rounded-control border border-line bg-surface px-3 py-2 text-xs shadow-lg">
+      <div className="text-content-3">{formatDate(p.time.slice(0, 10))}</div>
+      <div className="mt-0.5 text-sm font-semibold text-content">{formatCurrency(p.close)}</div>
     </div>
   );
 };
@@ -42,7 +41,6 @@ const PriceTooltip = ({ active, payload }: TooltipPayload) => {
  * pelo servidor.
  */
 export const PriceChart = ({ ticker }: { ticker: string }) => {
-  const { isDark } = useTheme();
   const [params, setParams] = useSearchParams();
   const dateFrom = params.get('from');
   const dateTo = params.get('to');
@@ -81,8 +79,8 @@ export const PriceChart = ({ ticker }: { ticker: string }) => {
     setParams(next, { replace: true });
   };
 
-  const grid = isDark ? '#2a2a2a' : '#e8e8e0';
-  const axis = isDark ? '#777777' : '#777777';
+  const grid = 'var(--chart-grid)';
+  const axis = 'var(--chart-axis)';
   const points = useMemo(() => data?.points ?? [], [data]);
   // eixo X de calendário (docs/planos/PLANO_CALENDARIO_GRAFICOS.md)
   const times = useMemo(() => points.map(p => p.time), [points]);
@@ -91,7 +89,7 @@ export const PriceChart = ({ ticker }: { ticker: string }) => {
   return (
     <Card>
       <div className="flex flex-col gap-3 mb-4 lg:flex-row lg:items-center lg:justify-between">
-        <h3 className="text-sm font-medium text-gray-400 flex items-center gap-1.5">
+        <h3 className="text-sm font-medium text-content-3 flex items-center gap-1.5">
           Cotação
           <InfoTooltip content="Fechamento diário da B3 desde 2010. Preços anteriores a desdobramentos, grupamentos e bonificações são ajustados para a quantidade de hoje; proventos não entram no ajuste." />
         </h3>
@@ -103,24 +101,24 @@ export const PriceChart = ({ ticker }: { ticker: string }) => {
                 type="button"
                 onClick={() => setRange(r)}
                 aria-pressed={!custom && range === r}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                className={`rounded-control px-2.5 py-1 text-xs font-medium transition-colors ${
                   !custom && range === r
                     ? 'bg-accent text-black'
-                    : 'bg-white/5 text-gray-300 hover:bg-white/10'
+                    : 'bg-overlay text-content-2 hover:bg-selected'
                 }`}
               >
                 {r}
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+          <div className="flex items-center gap-1.5 text-xs text-content-3">
             <label htmlFor="cot-de">de</label>
             <input
               id="cot-de" type="date"
               value={custom ? (dateFrom ?? data?.from ?? '') : ''}
               min={data?.firstDate ?? undefined} max={data?.lastDate ?? undefined}
               onChange={(e) => setDate('from', e.target.value)}
-              className="rounded-md border border-surface-light bg-surface px-2 py-1 text-xs text-white"
+              className="rounded-control border border-line bg-surface px-2 py-1 text-xs text-content"
             />
             <label htmlFor="cot-ate">até</label>
             <input
@@ -128,7 +126,7 @@ export const PriceChart = ({ ticker }: { ticker: string }) => {
               value={custom ? (dateTo ?? data?.to ?? '') : ''}
               min={data?.firstDate ?? undefined} max={data?.lastDate ?? undefined}
               onChange={(e) => setDate('to', e.target.value)}
-              className="rounded-md border border-surface-light bg-surface px-2 py-1 text-xs text-white"
+              className="rounded-control border border-line bg-surface px-2 py-1 text-xs text-content"
             />
           </div>
         </div>
@@ -141,9 +139,9 @@ export const PriceChart = ({ ticker }: { ticker: string }) => {
             {data.change != null ? formatCurrency(data.change) : '—'}
             {data.changePct != null && ` (${data.changePct > 0 ? '+' : ''}${data.changePct.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)`}
           </span>
-          <span className="text-gray-400">mín <span className="text-white">{data.min != null ? formatCurrency(data.min) : '—'}</span></span>
-          <span className="text-gray-400">máx <span className="text-white">{data.max != null ? formatCurrency(data.max) : '—'}</span></span>
-          <span className="text-xs text-gray-500">
+          <span className="text-content-3">mín <span className="text-content">{data.min != null ? formatCurrency(data.min) : '—'}</span></span>
+          <span className="text-content-3">máx <span className="text-content">{data.max != null ? formatCurrency(data.max) : '—'}</span></span>
+          <span className="text-xs text-content-4">
             {data.from && data.to && `${formatDate(data.from)} a ${formatDate(data.to)}`}
             {!custom && range === '1D' && data.closeOnly && ' · só fechamento'}
             {data.adjusted && ' · ajustado por eventos societários'}
@@ -154,13 +152,13 @@ export const PriceChart = ({ ticker }: { ticker: string }) => {
 
       <div ref={axisRef} className="h-72">
         {isLoading && !data ? (
-          <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-6 w-6 text-accent" /></div>
+          <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-6 w-6 text-accent-text" /></div>
         ) : isError ? (
-          <div className="flex h-full items-center justify-center text-sm text-gray-400">
+          <div className="flex h-full items-center justify-center text-sm text-content-3">
             {apiMessage(error) ?? 'Não foi possível carregar a cotação.'}
           </div>
         ) : points.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-sm text-gray-400">
+          <div className="flex h-full items-center justify-center text-sm text-content-3">
             Sem cotação registrada para {ticker}{custom ? ' no período escolhido' : ''}.
           </div>
         ) : (
@@ -196,7 +194,7 @@ export const PriceChart = ({ ticker }: { ticker: string }) => {
                 strokeWidth={2}
                 fill="url(#cotacaoFill)"
                 dot={points.length <= 10 ? { r: 4, fill: GOLD, strokeWidth: 0 } : false}
-                activeDot={{ r: 4, fill: GOLD, stroke: isDark ? '#111111' : '#ffffff', strokeWidth: 2 }}
+                activeDot={{ r: 4, fill: GOLD, stroke: 'var(--surface)', strokeWidth: 2 }}
                 isAnimationActive={false}
               />
             </AreaChart>

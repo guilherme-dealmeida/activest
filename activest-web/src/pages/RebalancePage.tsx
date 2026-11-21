@@ -33,11 +33,11 @@ type RebalanceRow = RebalanceItem & {
 
 const SUGGESTION_CLASS: Record<RebalanceSuggestion, string> = {
   APORTAR: 'bg-success/20 text-success border-success/30',
-  COMPLEMENTAR: 'bg-accent/20 text-accent border-accent/30',
-  AGUARDAR: 'bg-surface-light text-gray-300 border-gray-700',
+  COMPLEMENTAR: 'bg-accent/20 text-accent-text border-accent/30',
+  AGUARDAR: 'bg-elevated text-content-2 border-line-strong',
 };
 
-const signColor = (n: number) => (n > 0 ? 'text-success' : n < 0 ? 'text-danger' : 'text-gray-400');
+const signColor = (n: number) => (n > 0 ? 'text-success' : n < 0 ? 'text-danger' : 'text-content-3');
 
 /**
  * Rebalanceamento (11/10/2026): era a terceira aba de Estratégia de Investimentos e virou tela própria, com item no
@@ -92,7 +92,7 @@ export const RebalancePage = () => {
   );
 
   if (isLoading) {
-    return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent" /></div>;
+    return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent-text" /></div>;
   }
 
   // Totais: quanto aportar somado e quanto a carteira passa a valer depois desses aportes.
@@ -105,7 +105,7 @@ export const RebalancePage = () => {
         <div className="overflow-x-auto mt-4">
           <table className={REBALANCE_TABLE_CLASS}>
             <RebalanceColGroup />
-            <thead className="text-xs text-gray-400 uppercase bg-surface-light border-b border-surface-light">
+            <thead className="text-content-3 uppercase bg-elevated border-b border-line">
               <tr>
                 {th('typeName', 'Tipo Ativo', undefined, 'text-left')}
                 {th('idealPercentage', '% Ideal', STRATEGY_HELP.idealPercentage)}
@@ -118,30 +118,30 @@ export const RebalancePage = () => {
                 {th('suggestionRank', 'Sugestão', STRATEGY_HELP.typeSuggestion, 'text-center')}
               </tr>
             </thead>
-            <tbody className="divide-y divide-surface-light">
+            <tbody className="divide-y divide-line">
               {sortedData.map(item => {
                 // Valor que o tipo passa a ter depois do aporte sugerido:
                 // vem do backend, que ja aplica a regra do tipo mais acima do ideal.
                 const strategicValue = item.idealValue;
                 return (
                   <tr key={item.typeName}
-                    className={clsx('hover:bg-surface-light/30', item.portfolioLink && 'cursor-pointer')}
+                    className={clsx('hover:bg-overlay', item.portfolioLink && 'cursor-pointer')}
                     title={item.portfolioLink ? `Ver ${item.typeName} na Carteira` : undefined}
                     onClick={item.portfolioLink ? () => navigate(item.portfolioLink as string) : undefined}>
-                    <td className="px-4 py-3 font-medium text-white"><AssetTypeName name={item.assetTypeKey} label={item.typeName} /></td>
+                    <td className="px-4 py-3 font-medium text-content"><AssetTypeName name={item.assetTypeKey} label={item.typeName} /></td>
                     <td className="px-4 py-3 text-right">{formatPercentage(item.idealPercentage)}</td>
                     <td className="px-4 py-3 text-right">{formatCurrency(item.currentValue)}</td>
                     <td className="px-4 py-3 text-right font-medium">
-                      <span className={item.amountToRebalance > 0 ? "text-success" : item.amountToRebalance < 0 ? "text-danger" : "text-gray-400"}>
+                      <span className={item.amountToRebalance > 0 ? "text-success" : item.amountToRebalance < 0 ? "text-danger" : "text-content-3"}>
                         {formatCurrency(item.amountToRebalance)}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right font-medium text-white">
+                    <td className="px-4 py-3 text-right font-medium text-content">
                       {formatCurrency(strategicValue)}
                     </td>
                     <td className="px-4 py-3 text-right">{formatPercentage(item.currentPercentage)}</td>
                     <td className="px-4 py-3 text-right">
-                      <span className={item.diffPercentage > 0 ? "text-success" : item.diffPercentage < 0 ? "text-danger" : "text-gray-400"}>
+                      <span className={item.diffPercentage > 0 ? "text-success" : item.diffPercentage < 0 ? "text-danger" : "text-content-3"}>
                         {formatPercentage(item.diffPercentage)}
                       </span>
                     </td>
@@ -164,12 +164,12 @@ export const RebalancePage = () => {
             </tbody>
             {rebalance && (
               <tfoot>
-                <tr className="border-t border-surface-light">
-                  <td className="px-4 py-3 font-semibold text-white">Total</td>
-                  <td className="px-4 py-3 text-right font-medium text-white">100,00%</td>
-                  <td className="px-4 py-3 text-right font-semibold text-white">{formatCurrency(rebalance.totalPortfolioValue)}</td>
+                <tr className="border-t border-line">
+                  <td className="px-4 py-3 font-semibold text-content">Total</td>
+                  <td className="px-4 py-3 text-right font-medium text-content">100,00%</td>
+                  <td className="px-4 py-3 text-right font-semibold text-content">{formatCurrency(rebalance.totalPortfolioValue)}</td>
                   <td className="px-4 py-3 text-right font-semibold text-success">{formatCurrency(totalToInvest)}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-white">{formatCurrency(strategicTotal)}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-content">{formatCurrency(strategicTotal)}</td>
                   <td colSpan={4}></td>
                 </tr>
               </tfoot>

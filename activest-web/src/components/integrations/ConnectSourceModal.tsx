@@ -101,12 +101,12 @@ export const ConnectSourceModal = ({ source, onClose, onConnected }: Props) => {
         onSubmit={(e) => { e.preventDefault(); if (canSave) mutation.mutate(); }}
         autoComplete="off"
       >
-        <div className="rounded-md border border-surface-light bg-surface-light/40 p-4 text-sm text-gray-300 space-y-2">
-          <p className="font-medium text-white">{help.title}</p>
+        <div className="rounded-control border border-line bg-overlay p-4 text-sm text-content-2 space-y-2">
+          <p className="font-medium text-content">{help.title}</p>
           <ol className="list-decimal pl-5 space-y-1">
             {help.steps.map((step, i) => <li key={i}>{step}</li>)}
           </ol>
-          {help.note && <p className="text-xs text-gray-400">{help.note}</p>}
+          {help.note && <p className="text-xs text-content-3">{help.note}</p>}
         </div>
 
         <Input label="Apelido" value={label} maxLength={100} onChange={(e) => setLabel(e.target.value)}
@@ -121,7 +121,7 @@ export const ConnectSourceModal = ({ source, onClose, onConnected }: Props) => {
                 onChange={(e) => setApiSecret(e.target.value)} spellCheck={false} autoComplete="new-password"
                 hint="Guardado cifrado. Nunca é mostrado de novo." required />
               <button type="button" onClick={() => setShowSecret(v => !v)}
-                className="absolute right-3 top-9 text-gray-400 hover:text-white"
+                className="absolute right-3 top-9 text-content-3 hover:text-content"
                 title={showSecret ? 'Ocultar' : 'Mostrar'} aria-label={showSecret ? 'Ocultar segredo' : 'Mostrar segredo'}>
                 {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -131,13 +131,13 @@ export const ConnectSourceModal = ({ source, onClose, onConnected }: Props) => {
           <Input label="CPF" value={profileCpf} disabled readOnly
             hint="O CPF do seu cadastro. Para usar outro, altere-o em Configurações." />
         ) : (
-          <div className="rounded-md border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm text-gray-200">
+          <div className="rounded-control border border-accent/40 bg-accent/10 p-3 text-sm text-content">
             A conexão com a {source.name} usa o CPF do seu cadastro, e ele ainda não foi informado.{' '}
-            <Link to="/settings" onClick={close} className="text-accent hover:underline">Cadastrar o CPF em Configurações</Link>
+            <Link to="/settings" onClick={close} className="text-accent-text hover:underline">Cadastrar o CPF em Configurações</Link>
           </div>
         )}
 
-        <label className="flex items-start gap-3 text-sm text-gray-300 cursor-pointer">
+        <label className="flex items-start gap-3 text-sm text-content-2 cursor-pointer">
           <input type="checkbox" className="mt-1 accent-accent" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
           <span>{help.consent}</span>
         </label>

@@ -51,24 +51,24 @@ const StatCard = ({ title, titleInfo, icon, lines }: {
         if (i === 0) {
           return (
             <div key={line.label}>
-              <span className="block text-xs text-gray-400">{line.label}</span>
-              <span className={`block text-2xl font-semibold whitespace-nowrap ${line.className ?? 'text-white'}`}>{value}</span>
+              <span className="block text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-content-4">{line.label}</span>
+              <span className={`block text-2xl font-semibold tracking-tight tabular-nums whitespace-nowrap ${line.className ?? 'text-content'}`}>{value}</span>
             </div>
           );
         }
         if (line.stacked) {
           return (
             <div key={line.label}>
-              <span className="block text-xs text-gray-400">{line.label}</span>
-              <span className={`block text-sm font-medium whitespace-nowrap ${line.className ?? 'text-white'}`}>{value}</span>
+              <span className="block text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-content-4">{line.label}</span>
+              <span className={`block text-sm font-medium tabular-nums whitespace-nowrap ${line.className ?? 'text-content'}`}>{value}</span>
             </div>
           );
         }
         return (
           // Em card estreito o valor desce para a linha de baixo, alinhado à direita, em vez de vazar do card.
           <div key={line.label} className="flex flex-wrap items-baseline justify-between gap-x-3">
-            <span className="text-xs text-gray-400 whitespace-nowrap">{line.label}</span>
-            <span className={`ml-auto text-sm font-medium text-right whitespace-nowrap ${line.className ?? 'text-white'}`}>{value}</span>
+            <span className="text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-content-4 whitespace-nowrap">{line.label}</span>
+            <span className={`ml-auto text-sm font-medium tabular-nums text-right whitespace-nowrap ${line.className ?? 'text-content'}`}>{value}</span>
           </div>
         );
       })}
@@ -78,13 +78,13 @@ const StatCard = ({ title, titleInfo, icon, lines }: {
 
 /** TWR do período com o resultado em reais, ou o motivo de não haver número. */
 const returnLine = (label: string, perf: PerformanceSummary | undefined, to: string, stacked = false): StatLine => {
-  if (!perf) return { label, stacked, value: '—', className: 'text-gray-500' };
+  if (!perf) return { label, stacked, value: '—', className: 'text-content-4' };
   if (perf.twr == null) {
     return {
       label,
       stacked,
       value: !perf.coverage.available ? 'indisponível' : '—',
-      className: 'text-gray-500',
+      className: 'text-content-4',
     };
   }
   return {
@@ -229,8 +229,8 @@ export const DashboardPage = () => {
 
       {/* Charts & Tables */}
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-        <div className="xl:col-span-2 bg-surface rounded-lg border border-white/10 p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Alocação da Carteira</h3>
+        <div className="xl:col-span-2 bg-surface rounded-control border border-line p-6">
+          <h3 className="text-lg font-semibold text-content mb-4">Alocação da Carteira</h3>
           {/* Sem altura fixa: rosca centralizada e legenda no canto inferior direito (CornerLegendDonut, 12/10/2026). */}
           <div>
             <AllocationPieChart 
@@ -241,16 +241,16 @@ export const DashboardPage = () => {
           </div>
         </div>
         
-        <div className="xl:col-span-3 bg-surface rounded-lg border border-white/10 p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Top 5 Ativos</h3>
+        <div className="xl:col-span-3 bg-surface rounded-control border border-line p-6">
+          <h3 className="text-lg font-semibold text-content mb-4">Top 5 Ativos</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-white/10">
-                  <th className="text-left py-3 px-4 text-gray-400 font-medium">Ativo</th>
-                  <th className="text-left py-3 px-4 text-gray-400 font-medium">Tipo</th>
-                  <th className="text-right py-3 px-4 text-gray-400 font-medium">Valor Atual</th>
-                  <th className="text-right py-3 px-4 text-gray-400 font-medium">
+                <tr className="border-b border-line">
+                  <th className="text-left py-3 px-4 text-content-3">Ativo</th>
+                  <th className="text-left py-3 px-4 text-content-3">Tipo</th>
+                  <th className="text-right py-3 px-4 text-content-3">Valor Atual</th>
+                  <th className="text-right py-3 px-4 text-content-3">
                     <LabelWithInfo info="Rentabilidade com os proventos: (valorização + proventos) ÷ valor aplicado, a mesma da Carteira. Embaixo, o TWR bruto desde a primeira compra, a rentabilidade no tempo da tela Rentabilidade.">
                       Rentabilidade
                     </LabelWithInfo>
@@ -259,30 +259,30 @@ export const DashboardPage = () => {
               </thead>
               <tbody>
                 {topAssets.map(({ key, asset, titles, twr }) => (
-                  <tr key={key} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                  <tr key={key} className="border-b border-line-soft hover:bg-overlay transition-colors">
                     <td className="py-3 px-4">
                       {/* Logo com as regras da Carteira (review R3); o tipo vem pela descrição no DTO */}
                       <div className="flex items-center gap-3">
                         <PositionLogo typeName={assetTypes?.find(t => t.description === asset.typeName)?.name} asset={asset} size={32} />
                       <div>
-                        <span className="text-white font-medium">{assetText(asset.ticker)}</span>
+                        <span className="text-content font-medium">{assetText(asset.ticker)}</span>
                         {/* D6: ativo agrupado mostra quantos títulos somou */}
-                        <p className="text-gray-500 text-xs">{titles > 1 ? `${titles} títulos` : asset.assetName}</p>
+                        <p className="text-content-4 text-xs">{titles > 1 ? `${titles} títulos` : asset.assetName}</p>
                       </div>
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-gray-400">{asset.typeName}</td>
-                    <td className="py-3 px-4 text-right text-white">{formatCurrency(asset.currentValue)}</td>
+                    <td className="py-3 px-4 text-content-3">{asset.typeName}</td>
+                    <td className="py-3 px-4 text-right text-content">{formatCurrency(asset.currentValue)}</td>
                     {/* 17/10/2026: a clássica (como na Carteira) e, embaixo, o TWR — antes só o TWR */}
                     <td className="py-3 px-4 text-right">
                       {(() => {
                         const classic = classicReturn(asset.valorization, asset.totalDividends, asset.totalInvested);
                         return (
                           <span className="inline-flex flex-col items-end">
-                            <span className={`font-medium ${classic != null ? getReturnColor(classic) : 'text-gray-500'}`}>
+                            <span className={`font-medium ${classic != null ? getReturnColor(classic) : 'text-content-4'}`}>
                               {classic != null ? formatPercentage(classic) : '—'}
                             </span>
-                            <span className={`text-xs tabular-nums ${twr != null ? getReturnColor(twr) : 'text-gray-500'}`}>
+                            <span className={`text-xs tabular-nums ${twr != null ? getReturnColor(twr) : 'text-content-4'}`}>
                               TWR: {twr != null ? formatPercentage(twr) : '—'}
                             </span>
                           </span>

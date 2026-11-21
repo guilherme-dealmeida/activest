@@ -119,19 +119,19 @@ const SalePreviewPanel = ({ preview, loading, treasury, fee, fund = false }: {
   preview: SalePreview | undefined; loading: boolean; treasury: boolean; fee: number; fund?: boolean;
 }) => {
   if (!preview) {
-    return <p className="text-gray-400">{loading ? 'Calculando IR e IOF…' : 'Preencha a venda para ver a prévia.'}</p>;
+    return <p className="text-content-3">{loading ? 'Calculando IR e IOF…' : 'Preencha a venda para ver a prévia.'}</p>;
   }
   const row = (labelText: string, amount: number | null | undefined, highlight = false) => (
     <div className="flex items-baseline justify-between gap-4">
-      <span className={highlight ? 'text-gray-200' : 'text-gray-400'}>{labelText}</span>
-      <span className={`tabular-nums ${highlight ? 'font-semibold text-white' : 'text-gray-200'}`}>
+      <span className={highlight ? 'text-content' : 'text-content-3'}>{labelText}</span>
+      <span className={`tabular-nums ${highlight ? 'font-semibold text-content' : 'text-content'}`}>
         {amount == null ? '—' : formatCurrency(amount)}
       </span>
     </div>
   );
   return (
     <div className={loading ? 'opacity-60' : ''}>
-      <p className="mb-3 text-xs text-gray-400">
+      <p className="mb-3 text-xs text-content-3">
         {fund
           ? `O valor digitado é o bruto. IR e IOF calculados aporte a aporte, do mais antigo para o mais novo (PEPS), sobre o rendimento (cota do resgate − cota da aplicação), já descontado o come-cotas retido.${preview.reason ? ` ${preview.reason}` : ''}`
           : treasury
@@ -149,7 +149,7 @@ const SalePreviewPanel = ({ preview, loading, treasury, fee, fund = false }: {
       </div>
       {preview.lots.length > 0 && (
         <table className="mt-3 w-full text-xs tabular-nums">
-          <thead className="text-gray-500">
+          <thead className="text-content-4">
             <tr>
               <th className="text-left font-normal">{treasury ? 'Título de' : 'Aporte'}</th>
               <th className="text-right font-normal">Dias</th>
@@ -158,7 +158,7 @@ const SalePreviewPanel = ({ preview, loading, treasury, fee, fund = false }: {
               <th className="text-right font-normal">IR</th>
             </tr>
           </thead>
-          <tbody className="text-gray-300">
+          <tbody className="text-content-2">
             {preview.lots.map((l, i) => (
               <tr key={i}>
                 <td>{formatDate(l.date)}</td>
@@ -880,7 +880,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 content-start">
           {/* Toggle Compra/Venda */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">
+            <label className="block text-sm font-medium text-content-2 mb-1.5">
               <LabelWithInfo
                 info={standaloneFiSale
                   ? 'Na venda de Renda Fixa escolha de qual título sai o resgate.'
@@ -891,7 +891,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
                 Operação
               </LabelWithInfo>
             </label>
-            <div className={`flex bg-surface rounded-md border border-white/10 p-1 ${locked ? 'opacity-60 pointer-events-none' : ''}`}>
+            <div className={`flex bg-surface rounded-control border border-line p-1 ${locked ? 'opacity-60 pointer-events-none' : ''}`}>
               <button
                 type="button"
                 disabled={locked}
@@ -899,7 +899,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
                 className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded text-sm font-medium transition-all ${
                   formData.type === TransactionType.BUY
                     ? 'bg-success/15 text-success border border-success/30 shadow-sm'
-                    : 'text-gray-400 hover:text-gray-300 hover:bg-white/5'
+                    : 'text-content-3 hover:text-content-2 hover:bg-overlay'
                 }`}
               >
                 <ArrowDownLeft className="w-4 h-4" />
@@ -912,7 +912,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
                 className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded text-sm font-medium transition-all ${
                   formData.type === TransactionType.SELL
                     ? 'bg-danger/15 text-danger border border-danger/30 shadow-sm'
-                    : 'text-gray-400 hover:text-gray-300 hover:bg-white/5'
+                    : 'text-content-3 hover:text-content-2 hover:bg-overlay'
                 }`}
               >
                 <ArrowUpRight className="w-4 h-4" />
@@ -948,7 +948,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
               />
             )}
             {isFund && matchedAsset?.fund?.pension && (
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-content-3 mt-1">
                 Fundo de previdência: vale o valor bruto. O IR é do plano (PGBL/VGBL) e não é calculado.
               </p>
             )}
@@ -956,14 +956,14 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
 
           {choosesNote && (
             <div className="sm:col-span-2">
-              <label htmlFor="titulo-rf" className="block text-sm font-medium text-gray-300 mb-1.5">Título</label>
+              <label htmlFor="titulo-rf" className="block text-sm font-medium text-content-2 mb-1.5">Título</label>
               <select
                 id="titulo-rf"
                 required={isSale}
                 disabled={!isSale && !matchedAsset}
                 value={picked?.noteId ?? ''}
                 onChange={(e) => chooseNote(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-surface-light bg-surface px-3 py-2 text-sm text-white disabled:opacity-60 disabled:cursor-not-allowed"
+                className="flex h-10 w-full rounded-control border border-line bg-surface px-3 py-2 text-sm text-content disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <option value="">{!currentTicker
                   ? 'Escolha o ativo primeiro'
@@ -1015,14 +1015,14 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
               {/* A liquidação total só existe na venda: ela diz que este resgate
                   encerra a aplicação, e é o que autoriza a posição a zerar. */}
               {isSale && (
-                <label className="flex h-10 items-center gap-2 rounded-md border border-white/10 bg-surface-light/40 px-3 cursor-pointer">
+                <label className="flex h-10 items-center gap-2 rounded-control border border-line bg-overlay px-3 cursor-pointer">
                   <input
                     type="checkbox"
                     className="accent-accent"
                     checked={fullSettlement}
                     onChange={(e) => setFullSettlement(e.target.checked)}
                   />
-                  <span className="text-sm text-gray-300">Liquidação total</span>
+                  <span className="text-sm text-content-2">Liquidação total</span>
                   <InfoTooltip content="Marque quando este resgate encerra a aplicação. A posição é zerada e a valorização é ajustada para o valor resgatado." />
                 </label>
               )}
@@ -1033,7 +1033,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
                     setFormData({ ...formData, totalAmount: fullRedemptionAmount(noteNet) });
                     setFullSettlement(true);
                   }}
-                  className="sm:col-span-2 justify-self-start text-xs text-accent hover:underline"
+                  className="sm:col-span-2 justify-self-start text-xs text-accent-text hover:underline"
                 >
                   Resgatar tudo — líquido estimado hoje {formatCurrency(noteNet)}
                 </button>
@@ -1075,7 +1075,7 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
             />
             {/* D11: papel que saiu da bolsa só recebe lançamento até a saída */}
             {matchedAsset?.delistedOn && (
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-content-3 mt-1">
                 {matchedAsset.ticker} saiu da bolsa em {formatDate(matchedAsset.delistedOn)}: a data vai até a saída.
               </p>
             )}
@@ -1121,8 +1121,8 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
 
           {/* Total é resultado, não campo: uma linha de leitura ocupa metade
               da altura de um input com rótulo e texto de apoio. */}
-          <div className="sm:col-span-2 flex items-baseline justify-between gap-4 rounded-md border border-surface-light bg-surface-light/40 px-4 py-3">
-            <span className="inline-flex items-center text-sm text-gray-400">
+          <div className="sm:col-span-2 flex items-baseline justify-between gap-4 rounded-control border border-line bg-overlay px-4 py-3">
+            <span className="inline-flex items-center text-sm text-content-3">
               <LabelWithInfo
                 info={selectedType && isFund
                   ? (isSale
@@ -1155,45 +1155,45 @@ export const TransactionFormModal = ({ isOpen, onClose, editing, preset, assetTy
             </span>
             {isForeign ? (
               <span className="text-right">
-                <span className="block text-lg font-semibold tabular-nums text-white">
+                <span className="block text-lg font-semibold tabular-nums text-content">
                   {formatMoney(computedTotal, currencySymbol)}
                 </span>
-                <span className="block text-xs tabular-nums text-gray-400">
+                <span className="block text-xs tabular-nums text-content-3">
                   {fxRate ? `${formatCurrency(computedTotal * fxRate)} em reais` : 'em reais: informe o câmbio'}
                 </span>
               </span>
             ) : isFund ? (
               // D16: as cotas são calculadas (valor ÷ cota) e só lidas — se não baterem com o extrato, corrige-se a cota
               <span className="text-right">
-                <span className="block text-lg font-semibold tabular-nums text-white">{formatCurrency(computedTotal)}</span>
-                <span className="block text-xs tabular-nums text-gray-400">
+                <span className="block text-lg font-semibold tabular-nums text-content">{formatCurrency(computedTotal)}</span>
+                <span className="block text-xs tabular-nums text-content-3">
                   {fundShares > 0
                     ? `${fundShares.toLocaleString('pt-BR', { maximumFractionDigits: 8 })} cotas`
                     : 'cotas: informe valor e cota'}
                 </span>
               </span>
             ) : (
-              <span className="text-lg font-semibold tabular-nums text-white">
+              <span className="text-lg font-semibold tabular-nums text-content">
                 {formatCurrency(computedTotal)}
               </span>
             )}
           </div>
 
           {hasPreview && previewError && (
-            <div className="sm:col-span-2 rounded-md border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+            <div className="sm:col-span-2 rounded-control border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
               {apiMessage(previewError) ?? 'Não foi possível calcular a prévia.'}
             </div>
           )}
           {hasPreview && currentPreview?.aboveAvailable && (
-            <p className="sm:col-span-2 text-xs text-accent">
+            <p className="sm:col-span-2 text-xs text-accent-text">
               O valor passa do líquido disponível estimado. Se é o resgate total, marque “Liquidação total”.
             </p>
           )}
 
           {askTotal && (
-            <div className="sm:col-span-2 rounded-md border border-accent/40 bg-accent/10 px-4 py-3 text-sm">
-              <p className="font-medium text-accent">É o resgate total?</p>
-              <p className="mt-1 text-gray-300">
+            <div className="sm:col-span-2 rounded-control border border-accent/40 bg-accent/10 px-4 py-3 text-sm">
+              <p className="font-medium text-accent-text">É o resgate total?</p>
+              <p className="mt-1 text-content-2">
                 O valor informado passa do líquido disponível estimado
                 {preview?.availableNet != null ? ` (${formatCurrency(preview.availableNet)})` : ''}.
                 Se este resgate encerra a aplicação, marque como liquidação total: a diferença entra no bruto como

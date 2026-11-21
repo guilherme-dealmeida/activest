@@ -11,5 +11,5 @@ export const RESERVATION_TYPE_LABELS: Record<ReservationType, string> = {
  * Não vêm de asset_types.color_hex: reserva e geração de renda não são tipos
  * de ativo, são a divisão da carteira inteira em dois blocos.
  */
-export const RESERVATION_COLOR = '#8a00c4';
-export const INCOME_COLOR = '#7d7e7f';
+export const RESERVATION_COLOR = '#9a7ce0';
+export const INCOME_COLOR = '#8d96a4';

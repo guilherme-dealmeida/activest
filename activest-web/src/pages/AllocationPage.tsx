@@ -50,7 +50,7 @@ export const AllocationPage = () => {
   });
 
   if (loadingAlloc || loadingDetailed || loadingReservation) {
-    return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent" /></div>;
+    return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent-text" /></div>;
   }
 
   const chartData = allocation?.map(item => ({
@@ -85,12 +85,12 @@ export const AllocationPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex space-x-1 bg-surface p-1 rounded-lg w-fit border border-surface-light">
+      <div className="flex space-x-1 bg-surface p-1 rounded-control w-fit border border-line">
         <button
           onClick={() => setActiveTab('geral')}
           className={clsx(
-            "px-4 py-2 text-sm font-medium rounded-md transition-colors",
-            activeTab === 'geral' ? "bg-surface-light text-white" : "text-gray-400 hover:text-white hover:bg-surface-light/50"
+            "px-4 py-2 text-sm font-medium rounded-control transition-colors",
+            activeTab === 'geral' ? "bg-accent/15 text-accent-text" : "text-content-3 hover:text-content hover:bg-overlay"
           )}
         >
           Carteira de Investimentos
@@ -98,8 +98,8 @@ export const AllocationPage = () => {
         <button
           onClick={() => setActiveTab('detalhada')}
           className={clsx(
-            "px-4 py-2 text-sm font-medium rounded-md transition-colors",
-            activeTab === 'detalhada' ? "bg-surface-light text-white" : "text-gray-400 hover:text-white hover:bg-surface-light/50"
+            "px-4 py-2 text-sm font-medium rounded-control transition-colors",
+            activeTab === 'detalhada' ? "bg-accent/15 text-accent-text" : "text-content-3 hover:text-content hover:bg-overlay"
           )}
         >
           Por Categoria
@@ -130,7 +130,7 @@ export const AllocationPage = () => {
 
       {activeTab === 'detalhada' && detailedAllocation && (
         <div className="space-y-4">
-          <h3 className="text-lg font-medium text-white">
+          <h3 className="text-lg font-medium text-content">
             <LabelWithInfo info="Distribuição dentro de cada tipo de ativo, sem a reserva de emergência.">
               Alocação por Categoria (Dentro de cada Tipo)
             </LabelWithInfo>

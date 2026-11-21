@@ -29,9 +29,9 @@ const IndicatorCard = ({ code, item, history, loadingSpark, onOpen }: {
   const hasHistory = HISTORY_AVAILABLE.has(code);
   const avg = history ? averageOf(history, win) : null;
   return (
-    <div className="flex flex-col rounded-xl border border-surface-light bg-surface p-4">
+    <div className="flex flex-col rounded-panel border border-line bg-surface p-4">
       <div className="flex items-start justify-between gap-2">
-        <span className="flex items-center gap-1 text-sm font-medium text-gray-400">
+        <span className="flex items-center gap-1 text-sm font-medium text-content-3">
           {meta.label}
           <InfoTooltip label={`O que é ${meta.label}`} content={<><strong>{meta.name}.</strong> {meta.formula}</>} />
         </span>
@@ -41,7 +41,7 @@ const IndicatorCard = ({ code, item, history, loadingSpark, onOpen }: {
             onClick={() => onOpen(code, win)}
             aria-label={`Histórico de ${meta.label}`}
             title="Ver histórico"
-            className="shrink-0 rounded-md p-1 text-gray-400 hover:bg-white/5 hover:text-accent transition-colors"
+            className="shrink-0 rounded-control p-1 text-content-3 hover:bg-overlay hover:text-accent-text transition-colors"
           >
             <LineChart className="h-4 w-4" />
           </button>
@@ -49,7 +49,7 @@ const IndicatorCard = ({ code, item, history, loadingSpark, onOpen }: {
       </div>
       <div className="mt-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
         <div className="flex min-w-0 items-center gap-1.5">
-          <span className="text-2xl font-semibold text-white">{formatIndicator(item.value, item.unit)}</span>
+          <span className="text-2xl font-semibold text-content">{formatIndicator(item.value, item.unit)}</span>
           {item.note && <InfoTooltip label="Motivo" content={item.note} />}
         </div>
         {hasHistory && (
@@ -67,10 +67,10 @@ const IndicatorCard = ({ code, item, history, loadingSpark, onOpen }: {
             <Sparkline points={[...pointsInWindow(history, win), history.current]}
                        label={`Tendência anual de ${meta.label} (${win})`} />
           ) : loadingSpark ? (
-            <div className="h-9 animate-pulse rounded bg-white/5" aria-hidden="true" />
+            <div className="h-9 animate-pulse rounded bg-overlay" aria-hidden="true" />
           ) : null}
           {avg && avg.value != null && (
-            <span className="mt-1 block text-[0.6875rem] text-gray-500">
+            <span className="mt-1 block text-[0.6875rem] text-content-4">
               média {win} {formatIndicator(avg.value, history!.unit)}
               {avg.fromYear != null && ` · desde ${avg.fromYear}`}
             </span>
@@ -107,15 +107,15 @@ export const IndicatorGrid = ({ current }: { current: AssetIndicators }) => {
 
   return (
     <section aria-labelledby="indicadores-titulo" className="space-y-4">
-      <h3 id="indicadores-titulo" className="text-sm font-medium text-gray-400">Indicadores</h3>
+      <h3 id="indicadores-titulo" className="text-sm font-medium text-content-3">Indicadores</h3>
       {financial && (
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-content-4">
           Indicadores de margem, EBIT/EBITDA, dívida e capital de giro não se aplicam a bancos e seguradoras.
         </p>
       )}
       {groups.map(g => (
         <div key={g.title ?? 'all'}>
-          {g.title && <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">{g.title}</h4>}
+          {g.title && <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-content-4">{g.title}</h4>}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {g.codes.map(code => (
               <IndicatorCard key={code} code={code} item={byCode.get(code)!} history={series(code)}

@@ -13,7 +13,7 @@ export const limitUsage = (indicator: number | string | null, limit: number | st
 
 /** Cor da barra do limite: passou de 100% vermelho, de 80% amarelo, senão verde. */
 export const limitBarClass = (usage: number): string =>
-  usage > 100 ? 'h-full bg-danger' : usage > 80 ? 'h-full bg-yellow-500' : 'h-full bg-success';
+  usage > 100 ? 'h-full bg-danger' : usage > 80 ? 'h-full bg-accent' : 'h-full bg-success';
 
 /** Largura da barra, em %: o valor limitado a 100 (a barra não passa do trilho). */
 export const barWidth = (pct: number | string): number => Math.min(100, Number(pct));

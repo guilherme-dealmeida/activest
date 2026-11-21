@@ -147,10 +147,10 @@ function Table<T>({ columns, headers, rows }: { columns: T[]; headers: Column[];
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-white/10 text-xs text-gray-400">
-            <th className="sticky left-0 z-10 bg-surface px-3 py-2 text-left font-medium">&nbsp;</th>
+          <tr className="border-b border-line text-xs text-content-3">
+            <th className="sticky left-0 z-10 bg-surface px-3 py-2 text-left">&nbsp;</th>
             {headers.map((h, i) => (
-              <th key={i} title={h.title} className={`px-3 py-2 text-right font-medium whitespace-nowrap ${h.title ? 'cursor-help' : ''}`}>
+              <th key={i} title={h.title} className={`px-3 py-2 text-right whitespace-nowrap ${h.title ? 'cursor-help' : ''}`}>
                 {h.label}
               </th>
             ))}
@@ -158,15 +158,15 @@ function Table<T>({ columns, headers, rows }: { columns: T[]; headers: Column[];
         </thead>
         <tbody>
           {rows.map(row => (
-            <tr key={row.label} className="border-b border-white/5 last:border-0 hover:bg-white/5">
-              <th scope="row" className="sticky left-0 z-10 bg-surface px-3 py-2 text-left font-normal text-gray-300 min-w-[8.5rem] sm:whitespace-nowrap">
+            <tr key={row.label} className="border-b border-line-soft last:border-0 hover:bg-overlay">
+              <th scope="row" className="sticky left-0 z-10 bg-surface px-3 py-2 text-left font-normal min-w-[8.5rem] sm:whitespace-nowrap">
                 <LabelWithInfo info={row.info}>{row.label}</LabelWithInfo>
               </th>
               {columns.map((c, i) => {
                 const v = row.get(c);
                 const cell = fmtCell(v, row.fmt);
                 return (
-                  <td key={i} className={`px-3 py-2 text-right whitespace-nowrap tabular-nums ${v != null && v < 0 ? 'text-danger' : 'text-white'}`}>
+                  <td key={i} className={`px-3 py-2 text-right whitespace-nowrap tabular-nums ${v != null && v < 0 ? 'text-danger' : 'text-content'}`}>
                     <span className="inline-flex items-center justify-end gap-1">
                       <span title={cell.title}>{cell.text}</span>
                       {v != null && <CopyButton text={copyText(v, row.fmt)} />}
@@ -190,7 +190,7 @@ const PAGE = 6;
 const NavButton = ({ dir, disabled, onClick }: { dir: 'newer' | 'older'; disabled: boolean; onClick: () => void }) => (
   <button type="button" onClick={onClick} disabled={disabled}
           aria-label={dir === 'newer' ? 'Mais recentes' : 'Mais antigos'} title={dir === 'newer' ? 'Mais recentes' : 'Mais antigos'}
-          className="rounded-md p-1.5 text-gray-400 hover:bg-white/5 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400">
+          className="rounded-control p-1.5 text-content-3 hover:bg-overlay hover:text-content disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-content-3">
     {dir === 'newer' ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
   </button>
 );
@@ -236,11 +236,11 @@ export const FinancialStatements = ({ issuer }: { issuer: Issuer }) => {
   let body: ReactNode;
   let headers: Column[] = [];
   if (q.isLoading) {
-    body = <div className="flex h-40 items-center justify-center"><LoadingSpinner className="h-6 w-6 text-accent" /></div>;
+    body = <div className="flex h-40 items-center justify-center"><LoadingSpinner className="h-6 w-6 text-accent-text" /></div>;
   } else if (q.isError) {
-    body = <p className="text-sm text-gray-400">{apiMessage(q.error) ?? 'Não foi possível carregar os demonstrativos.'}</p>;
+    body = <p className="text-sm text-content-3">{apiMessage(q.error) ?? 'Não foi possível carregar os demonstrativos.'}</p>;
   } else if (total === 0) {
-    body = <p className="text-sm text-gray-400">{company ? 'Nenhum balanço importado para esta companhia.' : 'Nenhum informe mensal da CVM para este fundo.'}</p>;
+    body = <p className="text-sm text-content-3">{company ? 'Nenhum balanço importado para esta companhia.' : 'Nenhum informe mensal da CVM para este fundo.'}</p>;
   } else if (annual) {
     const cols = visible(years.data);
     headers = cols.map(yearColumn);
@@ -258,7 +258,7 @@ export const FinancialStatements = ({ issuer }: { issuer: Issuer }) => {
   return (
     <Card>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-sm font-medium text-gray-400">
+        <h3 className="text-sm font-medium text-content-3">
           {company ? 'Demonstrativos (CVM — DFP/ITR)' : 'Informe mensal (CVM)'}
         </h3>
         <div className="flex flex-wrap items-center gap-2">
@@ -269,7 +269,7 @@ export const FinancialStatements = ({ issuer }: { issuer: Issuer }) => {
           {total > PAGE && headers.length > 0 && (
             <div className="flex items-center gap-1">
               {/* D7: posição da janela */}
-              <span className="mr-1 text-xs text-gray-500 tabular-nums whitespace-nowrap">
+              <span className="mr-1 text-xs text-content-4 tabular-nums whitespace-nowrap">
                 {headers[0].label} – {headers[headers.length - 1].label} · {end - start} de {total}
               </span>
               <NavButton dir="newer" disabled={start === 0} onClick={() => setOffset(Math.max(0, start - PAGE))} />
@@ -280,7 +280,7 @@ export const FinancialStatements = ({ issuer }: { issuer: Issuer }) => {
       </div>
       {body}
       {total > 0 && (
-        <p className="mt-3 text-xs text-gray-500">
+        <p className="mt-3 text-xs text-content-4">
           {company && (annual
             ? 'Anual: exercício fechado (DFP); o ano em andamento soma os trimestres desde o início do exercício. '
             : 'Receita a dividendos: trimestre isolado. ')}

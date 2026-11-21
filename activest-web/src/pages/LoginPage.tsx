@@ -7,7 +7,7 @@ import { loginErrorMessage } from '@/utils/loginError';
 import { authApi } from '@/api/auth';
 import { AuthShell, FormError, FormSuccess } from '@/components/auth/AuthShell';
 
-const inputClass = 'w-full rounded-md border border-surface-light bg-surface-light px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:ring-2 focus:ring-accent focus:border-transparent';
+const inputClass = 'w-full rounded-control border border-line bg-elevated px-3 py-2.5 text-sm text-content placeholder-content-3 focus:ring-2 focus:ring-accent focus:border-transparent';
 
 export const LoginPage = () => {
   const location = useLocation();
@@ -50,21 +50,21 @@ export const LoginPage = () => {
     <AuthShell
       title="Entrar"
       footer={signup?.enabled && (
-        <>Não tem conta? <Link to="/signup" className="text-accent hover:underline">Criar conta</Link></>
+        <>Não tem conta? <Link to="/signup" className="text-accent-text hover:underline">Criar conta</Link></>
       )}
     >
       <FormSuccess message={notice?.message} />
       <FormError message={error || google.error} />
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1.5">Email</label>
+          <label className="block text-sm font-medium text-content-2 mb-1.5">Email</label>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass}
             placeholder="seu@email.com" autoComplete="email" required />
         </div>
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-sm font-medium text-gray-300">Senha</label>
-            <Link to="/forgot-password" state={{ email }} className="text-xs text-accent hover:underline">Esqueci a senha</Link>
+            <label className="block text-sm font-medium text-content-2">Senha</label>
+            <Link to="/forgot-password" state={{ email }} className="text-xs text-accent-text hover:underline">Esqueci a senha</Link>
           </div>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass}
             placeholder="••••••••" autoComplete="current-password" required />
@@ -72,7 +72,7 @@ export const LoginPage = () => {
         <button
           type="submit"
           disabled={isLoading || google.isLoading}
-          className="w-full bg-accent hover:bg-accent/90 text-black font-semibold py-2.5 px-4 rounded-md transition-colors disabled:opacity-50"
+          className="w-full bg-accent hover:bg-accent/90 text-black font-semibold py-2.5 px-4 rounded-control transition-colors disabled:opacity-50"
         >
           {isLoading ? 'Entrando...' : 'Entrar'}
         </button>
@@ -83,21 +83,21 @@ export const LoginPage = () => {
       {google.enabled && (
         <>
           <div className="flex items-center gap-3 my-6">
-            <span className="h-px flex-1 bg-white/10" />
-            <span className="text-xs uppercase tracking-wider text-gray-500">ou</span>
-            <span className="h-px flex-1 bg-white/10" />
+            <span className="h-px flex-1 bg-selected" />
+            <span className="text-xs uppercase tracking-wider text-content-4">ou</span>
+            <span className="h-px flex-1 bg-selected" />
           </div>
 
           <div className="flex justify-center min-h-[44px]">
             {google.isLoading
-              ? <span className="text-sm text-gray-400 self-center">Entrando com o Google...</span>
+              ? <span className="text-sm text-content-3 self-center">Entrando com o Google...</span>
               : <div ref={google.containerRef} />}
           </div>
           {signup?.enabled && (
-            <p className="mt-3 text-center text-xs text-gray-500">
+            <p className="mt-3 text-center text-xs text-content-4">
               Sem conta ainda? Ao continuar com o Google você cria uma e aceita os{' '}
-              <Link to="/terms" target="_blank" className="text-accent hover:underline">Termos de Uso</Link> e a{' '}
-              <Link to="/privacy" target="_blank" className="text-accent hover:underline">Política de Privacidade</Link>.
+              <Link to="/terms" target="_blank" className="text-accent-text hover:underline">Termos de Uso</Link> e a{' '}
+              <Link to="/privacy" target="_blank" className="text-accent-text hover:underline">Política de Privacidade</Link>.
             </p>
           )}
         </>

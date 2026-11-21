@@ -4,11 +4,11 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { indicesApi } from '@/api/indices';
 import { IndexChartCard } from '@/components/indices/IndexChartCard';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { useTheme } from '@/context/ThemeContext';
 import { YieldCurveCode, YieldCurveKind } from '@/types';
 import { formatDate } from '@/utils/format';
 import { apiMessage } from '@/utils/apiError';
 import { rem } from '@/utils/fontScale';
+import { chartTheme } from '@/theme/chart';
 
 const GOLD = '#c9a84c';
 
@@ -49,14 +49,12 @@ const yearsLabel = (y: number) => `${y} ${y === 1 ? 'ano' : 'anos'}`;
 
 /** Curva do dia: taxa × prazo, com hoje, 1 mês e 1 ano atrás. */
 const CurveOfDay = ({ curve }: { curve: YieldCurveKind }) => {
-  const { isDark } = useTheme();
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['indices', 'curve', curve],
     queryFn: () => indicesApi.curve(curve),
   });
-  const grid = isDark ? '#2a2a2a' : '#e8e8e0';
-  const axis = '#777777';
-  const colors = [GOLD, isDark ? '#9ca3af' : '#6b7280', isDark ? '#6b7280' : '#a3a3a3'];
+  const { grid, axis } = chartTheme();
+  const colors = [GOLD, 'var(--content-3)', 'var(--content-4)'];
 
   const rows = useMemo(() => (data?.vertices ?? []).map((v, i) => {
     const row: Record<string, number | null> = { years: v.years };
@@ -69,8 +67,8 @@ const CurveOfDay = ({ curve }: { curve: YieldCurveKind }) => {
     if (!active || !payload?.length || !data) return null;
     const r = payload[0].payload;
     return (
-      <div className="rounded-md border border-white/10 bg-surface px-3 py-2 text-xs shadow-lg">
-        <div className="text-gray-400">{yearsLabel(r.years as number)}</div>
+      <div className="rounded-control border border-line bg-surface px-3 py-2 text-xs shadow-lg">
+        <div className="text-content-3">{yearsLabel(r.years as number)}</div>
         {LINES.map((l, j) => {
           const d = data.dates[j];
           if (!d) return null;
@@ -78,8 +76,8 @@ const CurveOfDay = ({ curve }: { curve: YieldCurveKind }) => {
           return (
             <div key={l.key} className="mt-0.5 flex items-center gap-2">
               <span className="inline-block h-2 w-2 rounded-full" style={{ background: colors[j] }} />
-              <span className="text-gray-400">{d.date ? formatDate(d.date) : l.label}</span>
-              <span className="font-semibold text-white">{v != null ? pct(v) : '—'}</span>
+              <span className="text-content-3">{d.date ? formatDate(d.date) : l.label}</span>
+              <span className="font-semibold text-content">{v != null ? pct(v) : '—'}</span>
             </div>
           );
         })}
@@ -88,11 +86,11 @@ const CurveOfDay = ({ curve }: { curve: YieldCurveKind }) => {
   };
 
   return (
-    <div className="mt-6 border-t border-white/10 pt-4">
+    <div className="mt-6 border-t border-line pt-4">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <h4 className="text-sm font-medium text-gray-400">Curva do dia</h4>
+        <h4 className="text-sm font-medium text-content-3">Curva do dia</h4>
         {data && (
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-content-3">
             {LINES.map((l, j) => data.dates[j] && (
               <span key={l.key} className="flex items-center gap-1.5">
                 <span className="inline-block h-0.5 w-4" style={{ background: colors[j] }} />
@@ -104,13 +102,13 @@ const CurveOfDay = ({ curve }: { curve: YieldCurveKind }) => {
       </div>
       <div className="h-56">
         {isLoading ? (
-          <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-6 w-6 text-accent" /></div>
+          <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-6 w-6 text-accent-text" /></div>
         ) : isError ? (
-          <div className="flex h-full items-center justify-center text-sm text-gray-400">
+          <div className="flex h-full items-center justify-center text-sm text-content-3">
             {apiMessage(error) ?? 'Não foi possível carregar a curva.'}
           </div>
         ) : !hasAny ? (
-          <div className="flex h-full items-center justify-center text-sm text-gray-400">Curva ainda não carregada.</div>
+          <div className="flex h-full items-center justify-center text-sm text-content-3">Curva ainda não carregada.</div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
@@ -159,8 +157,8 @@ export const YieldCurveCard = ({ curve }: { curve: YieldCurveKind }) => {
           onClick={() => setYears(y)}
           aria-pressed={years === y}
           title={yearsLabel(y)}
-          className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-            years === y ? 'bg-accent text-black' : 'border border-white/10 text-gray-300 hover:bg-white/10'
+          className={`rounded-control px-2.5 py-1 text-xs font-medium transition-colors ${
+            years === y ? 'bg-accent text-black' : 'border border-line text-content-2 hover:bg-selected'
           }`}
         >
           {y}a

@@ -62,7 +62,7 @@ export const AssetLogo = ({ ticker, hasLogo, size = 24, shape = 'circle', classN
       className={clsx(
         'shrink-0 inline-flex items-center justify-center',
         rounded,
-        'bg-[#111111] text-[#c9a84c] border border-[#c9a84c]/40 font-semibold leading-none',
+        'bg-elevated text-accent-text border border-accent/30 font-semibold leading-none',
         className
       )}
     >

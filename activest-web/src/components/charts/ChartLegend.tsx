@@ -29,10 +29,10 @@ export const ChartLegend = ({ items, className }: { items: ChartLegendItem[]; cl
         {items.map(item => (
           <li key={item.name} className="contents">
             <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: item.color }} aria-hidden />
-            <span className="text-gray-300">{item.name}</span>
-            <span className="text-white text-right tabular-nums">{item.value}</span>
+            <span className="text-content-2">{item.name}</span>
+            <span className="text-content text-right tabular-nums">{item.value}</span>
             {hasIdeal && (
-              <span className="text-gray-400 tabular-nums whitespace-nowrap">
+              <span className="text-content-3 tabular-nums whitespace-nowrap">
                 {item.ideal !== undefined ? `ideal ${item.ideal}` : ''}
               </span>
             )}

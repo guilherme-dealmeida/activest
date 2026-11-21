@@ -5,7 +5,16 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 18/11/2026 (**Eventos do papel em Transações**, `docs/planos/PLANO_EVENTOS_TRANSACOES.md`:
+> **Última revisão**: 20/11/2026 (**Melhoria do front-end — tema "Instrumento"**, `docs/planos/PLANO_FRONT_DESIGN.md`:
+> tokens de cor por papel semântico com um valor por tema, **tema claro refeito de verdade** (o override
+> `html.light .text-white/NN` saiu), escala de raio (`rounded-panel`/`rounded-control`) e voz tipográfica (cabeçalho
+> de tabela como rótulo), tema dos gráficos unificado (oito cópias → uma), menu agrupado com gaveta na tela estreita
+> e paleta crua do Tailwind fora — **só visual: nenhuma regra de negócio, tela ou endpoint mudou**; ver "Padrão
+> Visual"). Antes: 19/11/2026 (**Valor aplicado da renda fixa**, `docs/planos/PLANO_VALOR_APLICADO_RENDA_FIXA.md`:
+> na renda fixa privada o valor investido das telas — Dashboard, Carteira (coluna, totais, Top 5) e Metas — passou a
+> ser o **aplicado em aberto** dos lotes (`FixedIncomeLots`: o resgate leva principal e rendimento na mesma proporção),
+> e a valorização da Carteira a do que está em aberto; `Position`, a valorização gravada e as regras E/F/G não mudaram;
+> sem migration — ver "Valor aplicado da renda fixa" em Fluxo de Transações). Antes: 18/11/2026 (**Eventos do papel em Transações**, `docs/planos/PLANO_EVENTOS_TRANSACOES.md`:
 > bonificação, desdobramento e grupamento que mexeram numa posição aparecem no extrato, calculados na leitura pelo
 > mesmo percurso da Carteira — `PositionCalculator.appliedStockEvents`, `GET /api/v1/transactions/stock-events`, linha
 > com selo "Evento B3", quantidade com sinal e "Informar custo"; e, na Review, **a bonificação entra no preço médio sem
@@ -1162,8 +1171,8 @@ Rotas em `App.tsx`; tudo abaixo de `/login` é protegido por `ProtectedRoute`.
 
 ### Alocação
 Aba **Carteira de Investimentos** (gráfico "pizza de pizza" desde 12/10/2026, `components/charts/PieOfPieChart`): um
-card com duas roscas num só gráfico — à esquerda "Alocação da Reserva de Emergência" (reserva `#8a00c4` × geração de
-renda `#7d7e7f`), girada para a fatia da Geração de Renda ficar virada para a direita; à direita, com 75% do tamanho,
+card com duas roscas num só gráfico — à esquerda "Alocação da Reserva de Emergência" (reserva `#9a7ce0` × geração de
+renda `#8d96a4`; as duas mudaram em 20/11/2026, com a paleta nova do tema — ver `utils/reservation.ts`), girada para a fatia da Geração de Renda ficar virada para a direita; à direita, com 75% do tamanho,
 "Alocação da Carteira (Por Tipo de Ativo)", que é essa fatia aberta por tipo. Duas linhas ligam a fatia à segunda
 rosca (das bordas da fatia, ou do topo e da base da rosca quando a fatia passa de meia volta). Total no centro e
 legenda vertical embaixo de cada rosca — na por tipo, com o **ideal da estratégia** de cada tipo à frente (`GET /strategy`,
@@ -1316,7 +1325,7 @@ a chave precisa avisar quem está de fora que o estado mudou. Por isso o
   tipo: `PercentInput` ("%" à direita) ou `CurrencyInput` ("R$" à esquerda).
   % Ideal e % Diff reagem ao que está sendo digitado; % Atual vem do servidor.
   Donut "Distribuição Estratégica Reserva" com a distribuição **ideal**:
-  reserva `#8a00c4`, geração de renda `#7d7e7f`, em % no tipo percentual e em
+  reserva `#9a7ce0`, geração de renda `#8d96a4`, em % no tipo percentual e em
   R$ no tipo valor. Componente em `components/strategy/ReservationStrategyTab`.
 - **Link para o Rebalanceamento** (11/10/2026): no canto superior direito do conteúdo, na linha das abas,
   "Ir para Rebalanceamento" (`components/ui/PageLink`). O caminho inverso, desde 17/10/2026, sai de cada card do
@@ -1468,20 +1477,88 @@ edição apagaria emissor, vencimento e taxa.
 
 ---
 
+## 🎨 Frontend — skills obrigatórias (todos os projetos)
+
+**Regra permanente do Guilherme (21/11/2026):** toda demanda que envolva frontend usa o
+conjunto de skills de frontend já configurado na máquina. A regra completa, que vale para
+**qualquer** projeto — inclusive os que ainda não existem — está em
+`C:\Users\guilh\.claude\CLAUDE.md` (memória de usuário do Claude Code, carregada em todo
+repositório). Esta seção é o espelho dela no projeto, porque a sessão do app desktop não lê o
+arquivo global.
+
+**Skills:** `frontend-design` (Anthropic), `impeccable`, `ui-ux-pro-max`,
+`design-taste-frontend` (tasteskill 2.5.1), `emil-design-eng`, `review-animations`,
+`web-design-guidelines` (Vercel), `vercel-react-best-practices` e Playwright, para a conferência
+no navegador real.
+
+**Como aplicar:**
+
+- a skill entra **antes** de mexer no código, e só na atividade em que é competente: direção
+  estética, construção, polimento de motion, auditoria e conferência no navegador;
+- **não se cria funcionalidade ou efeito incompatível com o produto** só para demonstrar uma
+  skill — o produto manda, a skill orienta o ofício;
+- skill ou ferramenta indisponível é **registrada no relatório**, com a alternativa usada;
+  nunca se esconde nem se entrega menos por causa disso.
+
+**Playwright:** o Playwright MCP não está instalado neste ambiente. A conferência no navegador
+real é feita pelo script `C:\Users\guilh\.claude\tools\uicheck.cjs` (npm `playwright` com
+`channel: 'chrome'`, sem `playwright install`): screenshots por viewport (1440/1024/768/390),
+erro de console, `pageerror` e overflow horizontal. Ele roda pelo `desktop-commander`
+(`start_process`), no Windows do usuário — ver "Como o Claude executa comandos aqui".
+
+---
+
 ## 📐 Padrão Visual
 
-- **Tema**: dark por padrão, claro disponível (`darkMode: 'class'`, `ThemeContext`)
-  O claro é feito por **override em `index.css`** (`html.light .text-white`
-  etc.), classe por classe — e o Tailwind gera uma classe por opacidade. Cor
-  com opacidade sem override no claro some: `text-white/70` ficava branco
-  sobre branco e apagava EMISSOR, APLICAÇÃO, VENCIMENTO e REMUNERAÇÃO na
-  Carteira até 23/09/2026. Usou `text-white/NN`, `bg-surface-light/NN`,
-  `hover:text-white` ou similar numa tela nova? Confira se o override existe.
-- **Menu lateral** (`Sidebar.tsx`, ordem de 17/10/2026): Dashboard, Carteira, Transações, Dividendos, Rentabilidade,
+- **Estética "Instrumento"** (20/11/2026, escopo "Melhoria do Front-End"): o app é um instrumento de leitura de
+  dados, não um painel deBI genérico. Três decisões carregam a identidade: **superfície em grafite** (a página é mais
+  escura que o cartão, e o fio de separação é um hairline, não uma borda), **dourado da marca com um papel só** (item
+  ativo do menu, aba selecionada, ação de tabela — nunca em todo lugar), e **números que talkingo** (coluna reta,
+  algarismo alinhado, rótulo pequeno em maiúscula).
+- **Tokens de cor** (`activest-web/src/index.css`): toda cor é uma **variável CSS por papel semântico**, com um valor
+  por tema. Papéis: `bg` (fundo da página), `surface` (cartão, menu, cabeçalho), `elevated` (campo, chip, aba
+  selecionada), `raised` (hover mais forte), `line` / `line-soft` / `line-strong` (fios), `overlay` (véu de hover),
+  `selected` (item selecionado), `content`…`content-4` (texto, quatro níveis de ênfase), `accent` (a marca, preenchimento),
+  `accent-text` (a marca **como texto**), `on-accent` (texto sobre o dourado), `up` / `down` (variação) e o bloco
+  `--chart-*` (moldura dos gráficos). **O tema claro é um conjunto de valores, não uma reescrita classe por classe**:
+  o override `html.light .text-white/NN` — e a armadilha que ele escondia — **não existe mais**. Cor nova = variável
+  nova em `:root` e em `html.light`; nenhuma tela precisa saber qual tema está no ar.
+  - **Cores do Tailwind**: `bg`, `surface`, `elevated`, `raised`, `line`, `line-soft`, `line-strong`, `overlay`,
+    `selected`, `content`…`content-4`, `accent` (preenchimento), `accent-text` (texto), `on-accent`, `success`,
+    `danger`. O verde do PrimeVest (`primary: '#0d2818'`) saiu.
+  - **`text-accent` nunca**: o dourado de preenchimento (`#c9a84c`) dá 2,2:1 sobre papel. Como texto use
+    **`text-accent-text`** (escuro `#e0c274`, papel `#8a6d1f`). Em 20/11/2026 as 134 ocorrências de `text-accent` foram
+    trocadas por `text-accent-text`; nenhum `text-accent` fica sobre dourado sólido.
+- **Valores**: fundo `#0a0b0d` (papel `#f2f0ea`) · cartão `#14171c` (papel `#fdfcf8`) · campo `#1b1f26` (papel
+  `#f6f4ec`) · fio `rgba(255,255,255,.08)` (papel `rgba(24,26,20,.13)`) · texto `#eef1f5` (papel `#16180f`) ·
+  marca `#c9a84c` · positivo `#46b881` (papel `#1f8a5b`) · negativo `#e0575b` (papel `#c5343a`).
+- **Raio e Ritmo**: duas medidas só — `rounded-panel` (0,75 rem, cartão, modal, painel) e `rounded-control`
+  (0,5 rem, botão, campo, chip, aba). O `rounded-xl`/`rounded-lg`/`rounded-md` solto no código foi substituído pelas
+  duas em 20/11/2026 (186 pontos).
+- **Voz tipográfica**: cabeçalho de tabela é **rótulo** — 11 px, semibold, maiúsculo, `tracking 0.07em`, em
+  `content-3` (uma regra só, `table th` no `index.css`; as classes utilitárias que brigavam com ela saíram dos `<th>`).
+  Rótulo de seção e de linha nos cards é o mesmo formato (`text-[0.625rem] uppercase tracking-[0.14em]`). Título de
+  card é `text-sm font-semibold text-content-2`. Número grande é `font-semibold tracking-tight tabular-nums`.
+  Toda tabela tem `font-variant-numeric: tabular-nums` por regra de base — a coluna de valores é a interface.
+- **Tema dos gráficos** (`activest-web/src/theme/chart.ts`): grade, eixo, cursor e balão saem de uma função só
+  (`chartTheme()`), em variável CSS — **não há mais uma cópia do tema em cada gráfico** (eram oito, uma delas
+  desatualizada). As cores categóricas (carteira, benchmarks, tipo de ativo) continuam no módulo que as conhece:
+  a cor é da série, não do tema.
+- **Cor de tipo de ativo**: vem do cadastro (`asset_types.color_hex`) e **não é da paleta da interface** — é
+  identidade do tipo (FII verde, ação vermelho) e tem companheira na tela (o ícone do tipo, `public/images/tipos`).
+  Por isso ela **não** foi harmonizada com o tema, e por isso a rosca da Alocação é a única coisa colorida da tela.
+- **Menu lateral** (`Sidebar.tsx`, ordem de 17/10/2026; agrupada em 20/11/2026): Dashboard, Carteira, Transações, Dividendos, Rentabilidade,
   Alocação, Estratégia, Rebalanceamento (ícone de balança), Preço Teto, Metas, Ativos (ícone de candlestick; "Emissoras" até 18/10/2026), Índices (ícone de gráfico de
-  linha) e, só para administrador, Tarefas (ícone de relógio, 22/10/2026). Integrações saiu do menu e o rodapé (usuário, sino, Modo, Configurações, Sair) também. Recolhível pelo botão
+  linha) e, só para administrador, Tarefas (ícone de relógio, 22/10/2026) e Moedas. Integrações saiu do menu e o rodapé (usuário, sino, Modo, Configurações, Sair) também. Recolhível pelo botão
   redondo sobre a borda direita, na altura do logo: 256px ↔ 72px. Recolhido mostra só "PV" e os ícones (nome no
   `title`/`aria-label`). A escolha fica em `localStorage` (`activest-sidebar-collapsed`), como o tema.
+  **Nenhum item mudou de lugar**: os rótulos de grupo (POSIÇÃO, ANÁLISE, PLANEJAMENTO, MERCADO, ADMINISTRAÇÃO) só
+  separam a lista em blocos. O item ativo é `bg-selected text-accent-text` com um trilho dourado na borda.
+- **Menu em tela estreita** (20/11/2026): abaixo de `lg` (1024 px) o menu lateral é **gaveta** — fora do fluxo, sobre
+  um véu, aberto pelo botão do cabeçalho e fechado ao escolher um item ou trocar de tela (`Layout.tsx` guarda o
+  estado). Antes ele ficava fixo de 256 px e o conteúdo era cortado (o `overflow-x-hidden` do `main` escondia o
+  problema). Da tela larga em diante é a coluna de sempre; **recolher o menu é afordância da tela larga** (na gaveta o
+  menu aparece inteiro, mesmo com a escolha "recolhido" no navegador).
 - **Tamanho da tela** (10/11/2026, `docs/planos/PLANO_CUSTOMIZAR_TAMANHOS.md`): Grande (padrão, 16 px) | Pequena
   (`html.font-small` em `index.css`, fonte raiz 87,5% = 14 px). Como toda a tela é `rem` (classes padrão do Tailwind),
   ela encolhe inteira, como um zoom. `FontSizeContext`/`FontSizeProvider` no molde do tema: cache em `localStorage`
@@ -1491,7 +1568,8 @@ edição apagaria emissor, vencimento e taxa.
   Pequena. Medidas de caixa em px (alturas de gráfico, larguras mínimas de tabela) ficaram fixas de propósito (D5).
   O `AssetLogo` também é rem (o `size` é o lado em px no Grande); nas tabelas (Carteira, Transações, Dividendos,
   listagem de Ativos) o logo passou de 38 para 32 (review de 10/11/2026: em px ele ditava a altura das linhas).
-- **Cabeçalho** (`Header.tsx`, 17/10/2026): título da tela à esquerda; à direita, nesta ordem, Tamanho da tela (A−/A+, mostra a
+- **Cabeçalho** (`Header.tsx`, 17/10/2026; reescrito em 20/11/2026): **seção** em maiúscula pequena e o título da tela
+  embaixo, à esquerda; à direita, nesta ordem, Tamanho da tela (A−/A+, mostra a
   ação disponível; 10/11/2026), Tema (sol/lua),
   Notificações (sino com o número de não lidas), Integrações (com o número de conexões que pedem atenção),
   Configurações e o usuário (foto + nome), que abre um menu com "Sair". Os dois contadores consultam a cada 60 s.
@@ -1507,9 +1585,8 @@ edição apagaria emissor, vencimento e taxa.
   parada) = servidor fora do ar; 500 com mensagem = erro interno; 422 = texto
   da regra. O interceptor do `api/client.ts` não trata 401 de `/auth/*` como
   sessão vencida: antes, senha errada recarregava `/login` e apagava a mensagem.
-- **Background**: `#000000` (claro: `#f5f5f0`) · **Surfaces**: `#111111` (claro: `#ffffff`)
-- **Accent/Gold**: `#c9a84c` · **Success**: `#38a169` · **Danger**: `#e53e3e`
-- **Fonte**: Inter · **Idioma da UI**: Português (Brasil)
+- **Background**: ver "Tokens de cor", acima. **Accent/Gold**: `#c9a84c` · **Success**: `#46b881` (papel `#1f8a5b`) ·
+  **Danger**: `#e0575b` (papel `#c5343a`) · **Fonte**: Inter · **Idioma da UI**: Português (Brasil)
 - **Avisos**: `ToastContext` (`useToast`) — canto superior direito, empilha,
   some em 4s, variantes `success` / `error` / `info`. Criado em 19/09/2026 com
   o switch da reserva: uma ação que grava sem modal não tem onde pendurar o

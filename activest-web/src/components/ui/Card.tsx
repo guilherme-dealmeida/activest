@@ -16,15 +16,15 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const Card = ({ title, titleInfo, value, icon, description, action, className, children, ...props }: CardProps) => {
   return (
-    <div className={twMerge(clsx("bg-surface rounded-xl border border-surface-light p-5", className))} {...props}>
+    <div className={twMerge(clsx("bg-surface rounded-panel border border-line p-5", className))} {...props}>
       {(title || value || icon || action) && (
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
-            {title && <h3 className="text-sm font-medium text-gray-400"><LabelWithInfo info={titleInfo}>{title}</LabelWithInfo></h3>}
-            {value && <div className="mt-1 text-2xl font-semibold text-white">{value}</div>}
+            {title && <h3 className="text-sm font-semibold text-content-2"><LabelWithInfo info={titleInfo}>{title}</LabelWithInfo></h3>}
+            {value && <div className="mt-1 text-2xl font-semibold text-content">{value}</div>}
             {description && <div className="mt-1 text-sm">{description}</div>}
           </div>
-          {icon && <div className="text-gray-400 p-2 bg-surface-light rounded-lg">{icon}</div>}
+          {icon && <div className="text-content-3 p-2 bg-elevated rounded-control">{icon}</div>}
           {action && <div className="shrink-0">{action}</div>}
         </div>
       )}

@@ -15,7 +15,6 @@ import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import { useToast } from '@/context/ToastContext';
-import { useTheme } from '@/context/ThemeContext';
 import { apiMessage } from '@/utils/apiError';
 import { getReturnColor } from '@/utils/format';
 import { GoalFormModal } from '@/components/goals/GoalFormModal';
@@ -39,14 +38,14 @@ const ISSUE_LABEL: Record<string, string> = {
 };
 
 const FigureRow = ({ f }: { f: GoalFigure }) => (
-  <div className="flex items-start justify-between gap-4 py-2 border-b border-surface-light last:border-0">
+  <div className="flex items-start justify-between gap-4 py-2 border-b border-line last:border-0">
     <div>
-      <p className="text-sm text-gray-300">{f.label}</p>
-      {f.note && <p className="text-xs text-gray-500">{f.note}</p>}
+      <p className="text-sm text-content-2">{f.label}</p>
+      {f.note && <p className="text-xs text-content-4">{f.note}</p>}
     </div>
     <div className="text-right shrink-0">
       {f.value !== null && <p className={`text-sm font-medium ${NATURE[f.nature].className}`}>{formatGoalValue(f.value, f.unit)}</p>}
-      <p className="text-[0.6875rem] text-gray-500">{NATURE[f.nature].label}</p>
+      <p className="text-[0.6875rem] text-content-4">{NATURE[f.nature].label}</p>
     </div>
   </div>
 );
@@ -57,10 +56,10 @@ const FigureRow = ({ f }: { f: GoalFigure }) => (
  * vermelho não cumprido, dourado o período em andamento. Substitui a lista e o acumulado (que não se compara com um
  * valor por período).
  */
-const PeriodBars = ({ items, target, tolerance, isDark }: {
-  items: Record<string, unknown>[]; target: number; tolerance: number; isDark: boolean;
+const PeriodBars = ({ items, target, tolerance }: {
+  items: Record<string, unknown>[]; target: number; tolerance: number;
 }) => {
-  const grid = isDark ? '#2a2a2a' : '#e8e8e0';
+  const grid = 'var(--chart-grid)';
   const data = items.map(i => ({
     period: String(i.period), amount: Number(i.amount ?? 0), closed: Boolean(i.closed), fulfilled: Boolean(i.fulfilled),
   }));
@@ -68,26 +67,26 @@ const PeriodBars = ({ items, target, tolerance, isDark }: {
   const closed = data.filter(d => d.closed).length;
   return (
     <>
-      <p className="text-xs text-gray-500 mb-2">
+      <p className="text-xs text-content-4 mb-2">
         {closed > 0 ? `${done} de ${closed} períodos fechados cumpridos` : 'Nenhum período fechado ainda'}
         {' · '}<span className="text-success">■</span> cumprido <span className="text-danger ml-2">■</span> não cumprido
-        <span className="text-accent ml-2">■</span> em andamento
+        <span className="text-accent-text ml-2">■</span> em andamento
       </p>
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data}>
             <CartesianGrid stroke={grid} vertical={false} />
-            <XAxis dataKey="period" stroke="#777" fontSize={rem(11)} minTickGap={20} />
-            <YAxis stroke="#777" fontSize={rem(11)} width={80} tickFormatter={v => formatGoalValue(v, 'BRL').replace(',00', '')} />
+            <XAxis dataKey="period" stroke="var(--chart-axis)" fontSize={rem(11)} minTickGap={20} />
+            <YAxis stroke="var(--chart-axis)" fontSize={rem(11)} width={80} tickFormatter={v => formatGoalValue(v, 'BRL').replace(',00', '')} />
             <Tooltip formatter={(v: number) => [formatGoalValue(v, 'BRL'), 'Aporte líquido']}
-              cursor={{ fill: isDark ? '#ffffff10' : '#00000008' }}
-              contentStyle={{ background: isDark ? '#111' : '#fff', border: `1px solid ${grid}` }} />
-            <ReferenceLine y={target} stroke="#38a169" strokeDasharray="6 4"
-              label={{ value: `Alvo ${formatGoalValue(target, 'BRL')}`, position: 'insideTopRight', fill: '#38a169', fontSize: rem(11) }} />
-            {tolerance > 0 && <ReferenceLine y={target - tolerance} stroke="#38a169" strokeOpacity={0.4} strokeDasharray="2 4" />}
+              cursor={{ fill: 'var(--chart-cursor)' }}
+              contentStyle={{ background: 'var(--chart-tip-bg)', border: '1px solid var(--chart-tip-line)', color: 'var(--content)' }} />
+            <ReferenceLine y={target} stroke="var(--up)" strokeDasharray="6 4"
+              label={{ value: `Alvo ${formatGoalValue(target, 'BRL')}`, position: 'insideTopRight', fill: 'var(--up)', fontSize: rem(11) }} />
+            {tolerance > 0 && <ReferenceLine y={target - tolerance} stroke="var(--up)" strokeOpacity={0.4} strokeDasharray="2 4" />}
             <Bar dataKey="amount" radius={[3, 3, 0, 0]}>
               {data.map(d => (
-                <Cell key={d.period} fill={!d.closed ? '#c9a84c' : d.fulfilled ? '#38a169' : '#e53e3e'}
+                <Cell key={d.period} fill={!d.closed ? '#c9a84c' : d.fulfilled ? 'var(--up)' : 'var(--down)'}
                   fillOpacity={d.closed ? 0.85 : 0.6} />
               ))}
             </Bar>
@@ -108,12 +107,12 @@ const ItemsTable = ({ items }: { items: Record<string, unknown>[] }) => {
   };
   // cores (revisão de 26/10/2026): desvio pelo sinal, como o Rebalanceamento; excesso e "fora" em vermelho
   const tone = (k: string, v: unknown): string => {
-    if (v === null || v === undefined) return 'text-gray-300';
+    if (v === null || v === undefined) return 'text-content-2';
     if (k === 'deviation') return getReturnColor(Number(v));
-    if (k === 'excessPp' || k === 'reduce') return Number(v) > 0 ? 'text-danger' : 'text-gray-300';
+    if (k === 'excessPp' || k === 'reduce') return Number(v) > 0 ? 'text-danger' : 'text-content-2';
     if (k === 'outside' || k === 'above') return v ? 'text-danger' : 'text-success';
     if (k === 'fulfilled') return v ? 'text-success' : 'text-danger';
-    return 'text-gray-300';
+    return 'text-content-2';
   };
   const fmt = (k: string, v: unknown) => {
     if (v === null || v === undefined) return '—';
@@ -130,13 +129,13 @@ const ItemsTable = ({ items }: { items: Record<string, unknown>[] }) => {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-left text-xs text-gray-400 border-b border-surface-light">
-            {keys.map(k => <th key={k} className="py-2 pr-4 font-medium">{LABEL[k] ?? k}</th>)}
+          <tr className="text-left text-xs text-content-3 border-b border-line">
+            {keys.map(k => <th key={k} className="py-2 pr-4">{LABEL[k] ?? k}</th>)}
           </tr>
         </thead>
         <tbody>
           {items.map((row, i) => (
-            <tr key={i} className="border-b border-surface-light/50">
+            <tr key={i} className="border-b border-line/50">
               {keys.map(k => <td key={k} className={`py-1.5 pr-4 ${tone(k, row[k])}`}>{fmt(k, row[k])}</td>)}
             </tr>
           ))}
@@ -153,9 +152,9 @@ const Situation = ({ e, limit }: { e: GoalEvaluation; limit: string | null }) =>
   <Card title="Situação" titleInfo="Calculada agora com os dados da carteira. Observado = dado registrado; Calculado = regra fixa; Estimativa = depende de premissa.">
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div>
-        <p className="text-xs text-gray-400">{e.indicatorLabel}</p>
-        <p className="text-3xl font-semibold text-white">{formatGoalValue(e.indicator, e.unit)}</p>
-        {e.target !== null && <p className="text-sm text-gray-400">{limit ?? 'Alvo'}: {formatGoalValue(e.target, e.unit)}</p>}
+        <p className="text-xs text-content-3">{e.indicatorLabel}</p>
+        <p className="text-3xl font-semibold text-content">{formatGoalValue(e.indicator, e.unit)}</p>
+        {e.target !== null && <p className="text-sm text-content-3">{limit ?? 'Alvo'}: {formatGoalValue(e.target, e.unit)}</p>}
       </div>
       <div className="flex flex-col items-end gap-1">
         <Badge variant={SITUATION[e.situation].variant}>{SITUATION[e.situation].label}</Badge>
@@ -164,26 +163,26 @@ const Situation = ({ e, limit }: { e: GoalEvaluation; limit: string | null }) =>
     </div>
     {used !== null ? (
       <div className="mt-4">
-        <div className="h-3 w-full rounded-full bg-surface-light overflow-hidden">
+        <div className="h-3 w-full rounded-full bg-elevated overflow-hidden">
           <div className={limitBarClass(used)} style={{ width: `${barWidth(used)}%` }} />
         </div>
-        <p className="text-xs text-gray-400 mt-1">{formatGoalValue(used, 'PERCENT')} do limite</p>
+        <p className="text-xs text-content-3 mt-1">{formatGoalValue(used, 'PERCENT')} do limite</p>
       </div>
     ) : e.progressPct !== null && (
       <div className="mt-4">
-        <div className="h-3 w-full rounded-full bg-surface-light overflow-hidden">
+        <div className="h-3 w-full rounded-full bg-elevated overflow-hidden">
           <div className={e.achieved ? 'h-full bg-success' : 'h-full bg-accent'} style={{ width: `${barWidth(e.progressPct)}%` }} />
         </div>
-        <p className="text-xs text-gray-400 mt-1">{formatGoalValue(e.progressPct, 'PERCENT')} do alvo</p>
+        <p className="text-xs text-content-3 mt-1">{formatGoalValue(e.progressPct, 'PERCENT')} do alvo</p>
       </div>
     )}
     {e.remaining !== null && e.remainingLabel && (
-      <p className="text-sm text-gray-300 mt-3">{e.remainingLabel}: <span className="text-white font-medium">
+      <p className="text-sm text-content-2 mt-3">{e.remainingLabel}: <span className="text-content font-medium">
         {formatGoalValue(e.remaining, e.remainingUnit ?? e.unit)}</span></p>
     )}
-    {e.situationNote && <p className="text-sm text-gray-400 mt-2">{e.situationNote}</p>}
+    {e.situationNote && <p className="text-sm text-content-3 mt-2">{e.situationNote}</p>}
     {e.issues.length > 0 && (
-      <ul className="mt-3 text-xs text-yellow-500 list-disc pl-4 space-y-0.5">{e.issues.map(i => <li key={i}>{i}</li>)}</ul>
+      <ul className="mt-3 text-xs text-accent-text list-disc pl-4 space-y-0.5">{e.issues.map(i => <li key={i}>{i}</li>)}</ul>
     )}
   </Card>
   );
@@ -201,7 +200,6 @@ export const GoalDetailPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
-  const { isDark } = useTheme();
   const [editing, setEditing] = useState(false);
 
   const { data: goal, isLoading, isError } = useQuery({ queryKey: ['goals', 'detail', id], queryFn: () => goalsApi.get(id) });
@@ -279,8 +277,8 @@ export const GoalDetailPage = () => {
       maxTicksFor(axisWidth), iso => new Date(`${iso}T12:00:00`).getTime());
   }, [chart, axisWidth]);
 
-  if (isLoading) return <div className="flex justify-center py-12"><LoadingSpinner className="h-8 w-8 text-accent" /></div>;
-  if (isError || !goal) return <Card><p className="text-gray-400">Meta não encontrada. <Link to="/goals" className="text-accent">Voltar</Link></p></Card>;
+  if (isLoading) return <div className="flex justify-center py-12"><LoadingSpinner className="h-8 w-8 text-accent-text" /></div>;
+  if (isError || !goal) return <Card><p className="text-content-3">Meta não encontrada. <Link to="/goals" className="text-accent-text">Voltar</Link></p></Card>;
 
   const e = goal.evaluation;
   const final = goal.finalResult as Record<string, unknown> | null;
@@ -298,17 +296,17 @@ export const GoalDetailPage = () => {
   const drawdown = goal.type === 'RIS_2';
   // aporte periódico: barras por período no lugar da lista e do acumulado
   const periodic = goal.type === 'APO_2';
-  const grid = isDark ? '#2a2a2a' : '#e8e8e0';
+  const grid = 'var(--chart-grid)';
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Link to="/goals" className="text-sm text-gray-400 hover:text-white inline-flex items-center gap-1"><ArrowLeft className="w-4 h-4" />Metas</Link>
-          <h2 className="text-xl font-semibold text-white mt-1">{assetText(goal.name)}</h2>
-          <p className="text-sm text-gray-400">{goal.categoryLabel} · {goal.typeLabel} · {LIFECYCLE[lc]}{goal.revision > 1 ? ` · ${goal.revision}ª versão` : ''}</p>
-          <p className="text-sm text-gray-300 mt-1">{e?.objective ?? (final?.objective as string)}</p>
-          {goal.scopeLabel && <p className="text-xs text-gray-500">{assetText(goal.scopeLabel)}</p>}
+          <Link to="/goals" className="text-sm text-content-3 hover:text-content inline-flex items-center gap-1"><ArrowLeft className="w-4 h-4" />Metas</Link>
+          <h2 className="text-xl font-semibold text-content mt-1">{assetText(goal.name)}</h2>
+          <p className="text-sm text-content-3">{goal.categoryLabel} · {goal.typeLabel} · {LIFECYCLE[lc]}{goal.revision > 1 ? ` · ${goal.revision}ª versão` : ''}</p>
+          <p className="text-sm text-content-2 mt-1">{e?.objective ?? (final?.objective as string)}</p>
+          {goal.scopeLabel && <p className="text-xs text-content-4">{assetText(goal.scopeLabel)}</p>}
         </div>
         <div className="flex flex-wrap gap-2">
           {(lc === 'ATIVA' || lc === 'PAUSADA') && <Button variant="outline" size="sm" onClick={() => setEditing(true)} disabled={!catalog}><Pencil className="w-4 h-4 mr-1" />Editar</Button>}
@@ -324,12 +322,12 @@ export const GoalDetailPage = () => {
         </div>
       </div>
 
-      {lc === 'PAUSADA' && <p className="text-sm text-yellow-500">Meta pausada: a situação abaixo é calculada agora, mas a fotografia diária e os avisos estão parados.</p>}
+      {lc === 'PAUSADA' && <p className="text-sm text-accent-text">Meta pausada: a situação abaixo é calculada agora, mas a fotografia diária e os avisos estão parados.</p>}
 
       {e ? <Situation e={e} limit={limit?.label ?? null} /> : final && (
         <Card title="Resultado final" titleInfo="Congelado na conclusão: se a carteira mudar depois, a meta continua concluída.">
-          <p className="text-3xl font-semibold text-white">{formatGoalValue(final.indicator as number, final.unit as GoalUnit)}</p>
-          <p className="text-sm text-gray-400">{final.indicatorLabel as string} em {formatDateBR(final.date as string)}
+          <p className="text-3xl font-semibold text-content">{formatGoalValue(final.indicator as number, final.unit as GoalUnit)}</p>
+          <p className="text-sm text-content-3">{final.indicatorLabel as string} em {formatDateBR(final.date as string)}
             {final.by === 'SISTEMA' ? ' — concluída automaticamente ao atingir o alvo' : ''}</p>
         </Card>
       )}
@@ -342,15 +340,15 @@ export const GoalDetailPage = () => {
         )}
         {e?.projection && (
           <Card title="Projeção" titleInfo="Estimativa — não é garantia. Premissas automáticas são recalculadas a cada dia; informadas ficam fixas na meta (edite para mudar).">
-            {e.projection.suspended && <p className="text-sm text-gray-400 mb-3">{e.projection.suspended}</p>}
+            {e.projection.suspended && <p className="text-sm text-content-3 mb-3">{e.projection.suspended}</p>}
             {e.projection.figures.map(f => <FigureRow key={f.key} f={f} />)}
             {e.projection.assumptions.length > 0 && (
               <div className="mt-4">
-                <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Premissas</p>
+                <p className="text-xs uppercase tracking-wide text-content-4 mb-1">Premissas</p>
                 {e.projection.assumptions.map(a => (
                   <div key={a.key} className="flex justify-between gap-3 py-1 text-sm">
-                    <span className="text-gray-300">{a.label} <span className="text-xs text-gray-500">({a.origin === 'INFORMADA' ? 'informada' : 'automática'}{a.reference ? ` · ${a.reference}` : ''}{a.referenceDate ? ` · ${formatDateBR(a.referenceDate)}` : ''})</span></span>
-                    <span className={a.origin === 'INFORMADA' ? 'text-accent' : 'text-white'}>{formatGoalValue(a.value, a.unit)}</span>
+                    <span className="text-content-2">{a.label} <span className="text-xs text-content-4">({a.origin === 'INFORMADA' ? 'informada' : 'automática'}{a.reference ? ` · ${a.reference}` : ''}{a.referenceDate ? ` · ${formatDateBR(a.referenceDate)}` : ''})</span></span>
+                    <span className={a.origin === 'INFORMADA' ? 'text-accent-text' : 'text-content'}>{formatGoalValue(a.value, a.unit)}</span>
                   </div>
                 ))}
               </div>
@@ -362,14 +360,14 @@ export const GoalDetailPage = () => {
       {e && e.items.length > 0 && (periodic ? (
         <Card title="Aporte por período"
           titleInfo="Aporte líquido (compras − vendas) de cada período do escopo, contra o valor da meta. A linha verde tracejada é o alvo; a mais fraca, o alvo menos a tolerância.">
-          <PeriodBars items={e.items} target={Number(goal.targetValue ?? 0)} tolerance={Number(goal.params?.tolerance ?? 0)} isDark={isDark} />
+          <PeriodBars items={e.items} target={Number(goal.targetValue ?? 0)} tolerance={Number(goal.params?.tolerance ?? 0)} />
         </Card>
       ) : (
         <Card title="Detalhamento"><ItemsTable items={e.items} /></Card>
       ))}
 
       {!periodic && <Card title={history?.seriesLabel ?? 'Evolução'} titleInfo="Linha cheia: evolução recalculada com os dados de hoje (inclusive antes da meta existir). Pontos: a fotografia de cada dia, como a meta estava. Linha dourada tracejada: a projeção com as premissas (estimativa). Linha verde tracejada: o alvo.">
-        {history?.note && <p className="text-xs text-gray-500 mb-2">{history.note}</p>}
+        {history?.note && <p className="text-xs text-content-4 mb-2">{history.note}</p>}
         {chart.length > 1 ? (
           <div className="h-72" ref={axisRef}>
             <ResponsiveContainer width="100%" height="100%">
@@ -381,47 +379,47 @@ export const GoalDetailPage = () => {
                     const d = new Date(Number(t));
                     const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                     return timeAxis ? timeAxis.format(iso) : formatDateBR(iso).slice(3);
-                  }} stroke="#777" fontSize={rem(11)} />
-                <YAxis stroke="#777" fontSize={rem(11)} width={80} reversed={drawdown}
+                  }} stroke="var(--chart-axis)" fontSize={rem(11)} />
+                <YAxis stroke="var(--chart-axis)" fontSize={rem(11)} width={80} reversed={drawdown}
                   tickFormatter={v => `${drawdown && Number(v) > 0 ? '−' : ''}${formatGoalValue(v, unit as GoalUnit, 0)}`} />
                 <Tooltip formatter={(v: number) => formatGoalValue(v, unit as GoalUnit)} labelFormatter={t => formatDateBR(new Date(t as number).toISOString())}
-                  contentStyle={{ background: isDark ? '#111' : '#fff', border: `1px solid ${grid}` }} />
+                  contentStyle={{ background: 'var(--chart-tip-bg)', border: '1px solid var(--chart-tip-line)', color: 'var(--content)' }} />
                 <Legend wrapperStyle={{ fontSize: rem(11) }} />
                 {(history?.extras ?? []).map((x, i) => (
                   <Line key={x.key} type="monotone" dataKey={`x_${x.key}`} name={x.label} dot={false} connectNulls
-                    stroke={i === 0 ? '#4299e1' : '#9f7aea'} strokeWidth={x.key === 'monthly' ? 1 : 2}
+                    stroke={i === 0 ? 'var(--content-3)' : 'var(--content-4)'} strokeWidth={x.key === 'monthly' ? 1 : 2}
                     strokeOpacity={x.key === 'monthly' ? 0.5 : 1} />
                 ))}
                 {has('value') && <Line type="monotone" dataKey="value" name={history?.seriesLabel ?? 'Evolução'} stroke="#c9a84c" dot={false} strokeWidth={2} connectNulls />}
                 {has('projection') && <Line type="monotone" dataKey="projection" name="Projeção" stroke="#c9a84c" strokeOpacity={0.6} strokeDasharray="6 4" dot={false} strokeWidth={2} connectNulls />}
-                {has('snapshot') && <Line type="linear" dataKey="snapshot" name="Fotografias" stroke="#9a9b9c" strokeDasharray="2 3" strokeWidth={1}
-                  dot={{ r: 3, fill: '#9a9b9c', strokeWidth: 0 }} connectNulls />}
-                {has('link') && <Line type="linear" dataKey="link" legendType="none" tooltipType="none" stroke="#9a9b9c" strokeDasharray="2 3" strokeWidth={1} dot={false} connectNulls />}
+                {has('snapshot') && <Line type="linear" dataKey="snapshot" name="Fotografias" stroke="var(--content-4)" strokeDasharray="2 3" strokeWidth={1}
+                  dot={{ r: 3, fill: 'var(--content-4)', strokeWidth: 0 }} connectNulls />}
+                {has('link') && <Line type="linear" dataKey="link" legendType="none" tooltipType="none" stroke="var(--content-4)" strokeDasharray="2 3" strokeWidth={1} dot={false} connectNulls />}
                 {has('target') && <Line type="linear" dataKey="target" name={`${limit ? limit.label : 'Alvo'} ${formatGoalValue(Number(lastTarget), unit as GoalUnit)}`}
-                  stroke={limit ? '#e53e3e' : '#38a169'} strokeDasharray="6 4" strokeWidth={1.5} dot={false} />}
+                  stroke={limit ? 'var(--down)' : 'var(--up)'} strokeDasharray="6 4" strokeWidth={1.5} dot={false} />}
               </ComposedChart>
             </ResponsiveContainer>
           </div>
-        ) : <p className="text-sm text-gray-500">Sem pontos suficientes para o gráfico.</p>}
+        ) : <p className="text-sm text-content-4">Sem pontos suficientes para o gráfico.</p>}
       </Card>}
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <Card title="Alterações e resultados">
           {(events ?? []).slice().reverse().map(ev => (
-            <div key={ev.id} className="flex justify-between gap-3 py-1.5 border-b border-surface-light last:border-0 text-sm">
-              <span className="text-gray-300">{EVENT_LABEL[ev.kind] ?? ev.kind} <span className="text-xs text-gray-500">{ev.revision}ª versão</span></span>
-              <span className="text-gray-500">{formatDateBR(ev.occurredAt)}</span>
+            <div key={ev.id} className="flex justify-between gap-3 py-1.5 border-b border-line last:border-0 text-sm">
+              <span className="text-content-2">{EVENT_LABEL[ev.kind] ?? ev.kind} <span className="text-xs text-content-4">{ev.revision}ª versão</span></span>
+              <span className="text-content-4">{formatDateBR(ev.occurredAt)}</span>
             </div>
           ))}
         </Card>
         {e && (
           <Card title="Origem dos dados" titleInfo="De onde vêm os números e até quando os dados valem.">
             {e.sources.map(s => (
-              <div key={s.label} className="flex justify-between py-1.5 text-sm border-b border-surface-light last:border-0">
-                <span className="text-gray-300">{s.label}</span><span className="text-gray-400">{formatDateBR(s.date)}</span>
+              <div key={s.label} className="flex justify-between py-1.5 text-sm border-b border-line last:border-0">
+                <span className="text-content-2">{s.label}</span><span className="text-content-3">{formatDateBR(s.date)}</span>
               </div>
             ))}
-            <p className="text-xs text-gray-500 mt-3 flex items-center gap-1">
+            <p className="text-xs text-content-4 mt-3 flex items-center gap-1">
               Os mesmos números da Carteira, de Dividendos e da Rentabilidade.
               <InfoTooltip content="Patrimônio = valor atual da Carteira; renda = proventos líquidos da tela Dividendos (sem amortização); rentabilidade = a da tela Rentabilidade; estratégia = Rebalanceamento." />
             </p>

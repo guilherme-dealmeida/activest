@@ -50,9 +50,9 @@ export const QUALITY: Record<GoalQuality, string> = {
 
 /** G2: Observado · Calculado · Estimativa — como Padrão/Informado/Calculado do Preço Teto. */
 export const NATURE: Record<GoalNumberNature, { label: string; className: string; help: string }> = {
-  OBSERVADO: { label: 'Observado', className: 'text-gray-300', help: 'Dado registrado: transação, provento pago, cotação, índice publicado.' },
-  CALCULADO: { label: 'Calculado', className: 'text-white', help: 'Derivado dos dados observados por regra fixa.' },
-  ESTIMATIVA: { label: 'Estimativa', className: 'text-accent', help: 'Depende de premissa: não é garantia.' },
+  OBSERVADO: { label: 'Observado', className: 'text-content-2', help: 'Dado registrado: transação, provento pago, cotação, índice publicado.' },
+  CALCULADO: { label: 'Calculado', className: 'text-content', help: 'Derivado dos dados observados por regra fixa.' },
+  ESTIMATIVA: { label: 'Estimativa', className: 'text-accent-text', help: 'Depende de premissa: não é garantia.' },
 };
 
 export const formatDateBR = (iso: string | null | undefined): string => {

@@ -9,7 +9,7 @@ import { ArrowRight } from 'lucide-react';
 export const PageLink = ({ to, label }: { to: string; label: string }) => (
   <Link
     to={to}
-    className="inline-flex items-center h-9 px-3 rounded-md bg-accent text-sm font-medium text-primary whitespace-nowrap transition-colors hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-accent"
+    className="inline-flex items-center h-9 px-3 rounded-control bg-accent text-sm font-medium text-on-accent whitespace-nowrap transition-colors hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-accent"
   >
     {label}
     <ArrowRight className="w-4 h-4 ml-2" />

@@ -18,8 +18,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
-import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -45,6 +45,18 @@ const navItems = [
 ];
 
 /**
+ * Grupos do menu. Nenhum item muda de lugar: os rótulos só separam a lista em
+ * blocos, na ordem que já existia.
+ */
+const GROUPS = [
+  { label: 'Posição', from: 0 },
+  { label: 'Análise', from: 3 },
+  { label: 'Planejamento', from: 8 },
+  { label: 'Mercado', from: 10 },
+  { label: 'Administração', from: 12 },
+];
+
+/**
  * Menu recolhido ou expandido, lembrado entre recargas como o tema.
  *
  * O localStorage pode falhar (aba anônima, armazenamento bloqueado): aí o menu
@@ -60,8 +72,16 @@ const readCollapsed = () => {
   }
 };
 
-export const Sidebar = () => {
+interface SidebarProps {
+  /** Gaveta aberta (tela estreita). */
+  open?: boolean;
+  /** Fecha a gaveta ao escolher um item. */
+  onClose?: () => void;
+}
+
+export const Sidebar = ({ open = false, onClose }: SidebarProps) => {
   const { isDark } = useTheme();
+  // O tema só decide a variante do logo (o arquivo tem a palavra em duas cores).
   const { user } = useAuth();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(readCollapsed);
@@ -74,91 +94,116 @@ export const Sidebar = () => {
     }
   }, [collapsed]);
 
+  const items = navItems.filter(item => !item.adminOnly || user?.admin);
+
   return (
-    <div className={clsx(
-      'relative flex flex-col shrink-0 h-full border-r transition-[width,background-color,border-color] duration-300',
-      collapsed ? 'w-[72px]' : 'w-64',
-      isDark
-        ? 'bg-[#111111] border-white/10'
-        : 'bg-white border-gray-200'
-    )}>
-      {/* Recolher/expandir: sobre a borda direita, na altura do logo. Fica no
-          mesmo lugar nos dois estados, sem disputar os 72px com o "PV". */}
-      <button
-        type="button"
-        onClick={() => setCollapsed(c => !c)}
-        aria-expanded={!collapsed}
-        aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
-        title={collapsed ? 'Expandir menu' : 'Recolher menu'}
+    <>
+      {/* Véu da gaveta (só na tela estreita). */}
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 lg:hidden"
+          onClick={onClose}
+          aria-hidden
+        />
+      )}
+
+      <div
         className={clsx(
-          'absolute -right-3 top-[34px] z-20 h-6 w-6 rounded-full border flex items-center justify-center shadow-sm transition-colors',
-          isDark
-            ? 'bg-[#111111] border-white/15 text-gray-400 hover:text-accent hover:border-accent/50'
-            : 'bg-white border-gray-300 text-gray-500 hover:text-accent hover:border-accent/50'
+          // Abaixo de `lg` a gaveta: fora do fluxo, sobre o conteúdo, e some
+          // com um toque no véu. De `lg` em diante é a coluna fixa de sempre.
+          // `visibility` entra na transição para a gaveta fechada sair do tab
+          // (teclado) sem cortar a animação de saída.
+          'fixed inset-y-0 left-0 z-50 flex flex-col h-full w-64 bg-surface border-r border-line',
+          'transition-[transform,visibility] duration-200 lg:static lg:visible lg:z-auto lg:translate-x-0',
+          open ? 'translate-x-0 visible' : '-translate-x-full invisible',
+          collapsed ? 'lg:w-[72px]' : 'lg:w-64'
         )}
       >
-        {collapsed ? <PanelLeftOpen className="h-3.5 w-3.5" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
-      </button>
-
-      {/* Logo: altura fixa, para os itens não pularem quando o slogan some. */}
-      <div className={clsx(
-        'h-[92px] flex flex-col items-center justify-center px-4 border-b overflow-hidden transition-colors duration-300',
-        isDark ? 'border-white/10' : 'border-gray-200'
-      )}>
-        {/* Clicar no logo leva ao Dashboard (página inicial). */}
-        <Link to="/dashboard" title="Ir para o Dashboard" className="block w-full">
-          {collapsed ? (
-            <img src={isDark ? '/images/gv2.png' : '/images/v1.png'} alt="Activest — Disciplina leva à liberdade" className="mx-auto w-full max-w-[320px] h-auto object-contain" />
-          ) : (
-            <img src={isDark ? '/images/activest2.png' : '/images/activest1.png'} alt="Activest — Disciplina leva à liberdade" className="mx-auto w-full max-w-[320px] h-auto object-contain" />
+        {/* Recolher/expandir: sobre a borda direita, na altura do logo. Fica no
+            mesmo lugar nos dois estados, sem disputar os 72px com o "PV". */}
+        <button
+          type="button"
+          onClick={() => setCollapsed(c => !c)}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+          title={collapsed ? 'Expandir menu' : 'Recolher menu'}
+          className={clsx(
+            'hidden lg:flex absolute -right-3 top-[24px] z-20 h-6 w-6 rounded-full border border-line-strong bg-surface items-center justify-center shadow-sm transition-colors',
+            'text-content-3 hover:text-accent-text hover:border-accent/50'
           )}
-        </Link>
-      </div>
+        >
+          {collapsed ? <PanelLeftOpen className="h-3.5 w-3.5" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
+        </button>
 
-      <nav className={clsx('flex-1 py-6 space-y-1 overflow-y-auto overflow-x-hidden', collapsed ? 'px-3' : 'px-4')}>
-        {navItems.filter(item => !item.adminOnly || user?.admin).map((item) => {
-          const Icon = item.icon;
-          const isActive = location.pathname.startsWith(item.path);
+        {/* Logo: altura fixa, para os itens não pularem quando o slogan some. */}
+        <div className="h-[72px] flex items-center justify-center px-4 border-b border-line overflow-hidden">
+          {/* Clicar no logo leva ao Dashboard (página inicial). */}
+          <Link to="/dashboard" title="Ir para o Dashboard" className="block w-full">
+            <img
+              src={isDark ? '/images/gv2.png' : '/images/v1.png'}
+              alt="Activest — Disciplina leva à liberdade"
+              className={clsx('mx-auto w-full max-w-[320px] h-auto object-contain', collapsed ? 'hidden lg:block' : 'hidden')}
+            />
+            <img
+              src={isDark ? '/images/activest2.png' : '/images/activest1.png'}
+              alt="Activest — Disciplina leva à liberdade"
+              className={clsx('mx-auto w-full max-w-[320px] h-auto object-contain', collapsed ? 'lg:hidden' : '')}
+            />
+          </Link>
+        </div>
 
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              // Recolhido o nome não aparece: vira dica no mouse e rótulo para
-              // leitor de tela.
-              title={collapsed ? item.name : undefined}
-              aria-label={collapsed ? item.name : undefined}
-              className={twMerge(
-                clsx(
-                  'group flex items-center py-2.5 text-sm font-medium rounded-md transition-colors whitespace-nowrap overflow-hidden',
-                  collapsed ? 'justify-center px-0' : 'px-3',
-                  isActive
-                    ? isDark
-                      ? 'bg-white/10 text-accent'
-                      : 'bg-accent/10 text-accent'
-                    : isDark
-                      ? 'text-gray-300 hover:bg-white/5 hover:text-white'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                )
-              )}
-            >
-              <span className={clsx('relative flex-shrink-0', !collapsed && 'mr-3')}>
-              <Icon
-                className={clsx(
-                  'flex-shrink-0 h-5 w-5',
-                  isActive
-                    ? 'text-accent'
-                    : isDark
-                      ? 'text-gray-400 group-hover:text-gray-300'
-                      : 'text-gray-400 group-hover:text-gray-600'
+        <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden px-3">
+          {items.map((item, idx) => {
+            const Icon = item.icon;
+            const isActive = location.pathname.startsWith(item.path);
+            const group = GROUPS.find(g => g.from === idx);
+
+            return (
+              <div key={item.path}>
+                {group && (
+                  <p className={clsx(
+                    'px-3 pt-4 pb-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-content-4',
+                    collapsed && 'lg:hidden'
+                  )}>
+                    {group.label}
+                  </p>
                 )}
-              />
-              </span>
-              {!collapsed && item.name}
-            </NavLink>
-          );
-        })}
-      </nav>
-    </div>
+                {group && collapsed && <div className="hidden lg:block mx-2 my-3 border-t border-line-soft" aria-hidden />}
+                <NavLink
+                  to={item.path}
+                  onClick={onClose}
+                  // Recolhido o nome não aparece: vira dica no mouse e rótulo para
+                  // leitor de tela.
+                  title={collapsed ? item.name : undefined}
+                  aria-label={collapsed ? item.name : undefined}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={twMerge(
+                    clsx(
+                      'group relative flex items-center h-9 text-sm font-medium rounded-control transition-colors whitespace-nowrap overflow-hidden',
+                      collapsed ? 'lg:justify-center lg:px-0 px-3' : 'px-3',
+                      isActive
+                        ? 'bg-selected text-accent-text'
+                        : 'text-content-2 hover:bg-overlay hover:text-content'
+                    )
+                  )}
+                >
+                  {/* Trilho do item ativo, encostado na borda do menu. */}
+                  {isActive && <span className="absolute left-0 -ml-3 h-5 w-0.5 rounded-full bg-accent" aria-hidden />}
+                  <span className={clsx('relative flex-shrink-0', collapsed ? 'mr-3 lg:mr-0' : 'mr-3')}>
+                    <Icon
+                      className={clsx(
+                        'flex-shrink-0 h-[18px] w-[18px] transition-colors',
+                        isActive ? 'text-accent-text' : 'text-content-4 group-hover:text-content-2'
+                      )}
+                    />
+                  </span>
+                  <span className={clsx(collapsed && 'lg:hidden')}>{item.name}</span>
+                </NavLink>
+              </div>
+            );
+          })}
+        </nav>
+      </div>
+    </>
   );
 };

@@ -112,8 +112,8 @@ export const Popover = ({ trigger, label, title, children, width = 420, classNam
         onClick={toggle}
         onMouseDown={(e) => e.stopPropagation()}
         className={clsx(
-          'inline-flex shrink-0 items-center justify-center rounded-md p-1 align-middle transition-colors',
-          'text-accent hover:bg-accent/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+          'inline-flex shrink-0 items-center justify-center rounded-control p-1 align-middle transition-colors',
+          'text-accent-text hover:bg-accent/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent',
           open && 'bg-accent/10',
           className
         )}
@@ -134,9 +134,9 @@ export const Popover = ({ trigger, label, title, children, width = 420, classNam
             maxHeight: `calc(100vh - ${EDGE * 2}px)`,
             visibility: pos ? 'visible' : 'hidden',
           }}
-          className="z-[60] overflow-y-auto rounded-lg border border-white/10 bg-surface p-4 text-left text-sm font-normal normal-case tracking-normal text-gray-300 shadow-xl"
+          className="z-[60] overflow-y-auto rounded-control border border-line bg-surface p-4 text-left text-sm font-normal normal-case tracking-normal text-content-2 shadow-xl"
         >
-          {title && <div className="mb-2 font-medium text-gray-200">{title}</div>}
+          {title && <div className="mb-2 font-medium text-content">{title}</div>}
           {children}
         </div>,
         document.body

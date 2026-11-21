@@ -24,7 +24,7 @@ export const BonusCostBadge = ({ asset }: { asset: PortfolioAssetDetail }) => {
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); setOpen(true); }}
-        className="text-gray-400 hover:text-accent"
+        className="text-content-3 hover:text-accent-text"
         title={title}
         aria-label="Informar custo da bonificação"
       >

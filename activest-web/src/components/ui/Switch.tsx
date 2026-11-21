@@ -28,7 +28,7 @@ export const Switch = ({ checked, onChange, disabled = false, label, title }: Sw
     className={clsx(
       'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
       'focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60',
-      checked ? 'border-accent/60 bg-accent/70' : 'border-white/15 bg-surface-light',
+      checked ? 'border-accent/60 bg-accent/70' : 'border-line-strong bg-elevated',
       disabled && 'cursor-not-allowed opacity-50'
     )}
   >

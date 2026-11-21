@@ -109,7 +109,7 @@ export const MaskedNumberInput = React.forwardRef<HTMLInputElement, MaskedNumber
     return (
       <div className="w-full">
         {label && (
-          <label htmlFor={inputId} className="block text-sm font-medium text-gray-300 mb-1.5">
+          <label htmlFor={inputId} className="block text-sm font-medium text-content-2 mb-1.5">
             <LabelWithInfo info={info}>{label}</LabelWithInfo>
           </label>
         )}
@@ -120,7 +120,7 @@ export const MaskedNumberInput = React.forwardRef<HTMLInputElement, MaskedNumber
                 'absolute top-1/2 -translate-y-1/2 text-sm pointer-events-none',
                 left && 'left-3',
                 right && 'right-3',
-                disabled ? 'text-gray-600' : 'text-gray-400'
+                disabled ? 'text-content-4' : 'text-content-3'
               )}
             >
               {adornment.text}
@@ -142,7 +142,7 @@ export const MaskedNumberInput = React.forwardRef<HTMLInputElement, MaskedNumber
             placeholder={(0).toFixed(decimals).replace('.', ',')}
             className={twMerge(
               clsx(
-                'flex h-10 w-full rounded-md border border-surface-light bg-surface py-2 text-sm text-white text-right tabular-nums placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 transition-colors',
+                'flex h-10 w-full rounded-control border border-line bg-surface py-2 text-sm text-content text-right tabular-nums placeholder:text-content-4 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 transition-colors',
                 left ? 'pl-9 pr-3' : right ? 'pl-3 pr-8' : 'px-3',
                 error && 'border-danger focus:ring-danger',
                 className
@@ -152,7 +152,7 @@ export const MaskedNumberInput = React.forwardRef<HTMLInputElement, MaskedNumber
           />
         </div>
         {error && <p className="mt-1 text-sm text-danger">{error}</p>}
-        {!error && hint && <p className="mt-1 text-xs text-gray-500">{hint}</p>}
+        {!error && hint && <p className="mt-1 text-xs text-content-4">{hint}</p>}
       </div>
     );
   }

@@ -11,11 +11,11 @@ export const SourceLogo = ({ source, fallback }: { source?: IntegrationSource; f
   if (source?.logo && !failed) {
     return (
       <img src={source.logo} alt={name} onError={() => setFailed(true)}
-        className="h-10 w-10 shrink-0 rounded-full bg-white/5 object-contain p-1" />
+        className="h-10 w-10 shrink-0 rounded-full bg-overlay object-contain p-1" />
     );
   }
   return (
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent font-bold">
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent-text font-bold">
       {name.charAt(0)}
     </div>
   );

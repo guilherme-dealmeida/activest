@@ -168,7 +168,7 @@ export const PerformancePage = () => {
       />
 
       {error ? (
-        <div className="rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-white">
+        <div className="rounded-control border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-content">
           {apiMessage(error) ?? 'Não foi possível calcular a rentabilidade.'}
         </div>
       ) : !summary.data ? (

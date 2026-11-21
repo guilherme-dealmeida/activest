@@ -114,7 +114,7 @@ export const AvatarCropModal = ({ file, onClose, onConfirm }: Props) => {
       <div className="flex flex-col items-center gap-4">
         {error && <p className="w-full text-sm text-danger">{error}</p>}
         <div
-          className="relative overflow-hidden rounded-md bg-black touch-none select-none cursor-grab active:cursor-grabbing"
+          className="relative overflow-hidden rounded-control bg-black touch-none select-none cursor-grab active:cursor-grabbing"
           style={{ width: VIEW, height: VIEW }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -130,12 +130,12 @@ export const AvatarCropModal = ({ file, onClose, onConfirm }: Props) => {
           <div className="pointer-events-none absolute inset-0 rounded-full"
             style={{ boxShadow: '0 0 0 9999px rgba(0,0,0,0.55)', border: '2px solid rgba(201,168,76,0.8)' }} />
         </div>
-        <label className="flex w-full max-w-[280px] items-center gap-3 text-xs text-gray-400">
+        <label className="flex w-full max-w-[280px] items-center gap-3 text-xs text-content-3">
           Zoom
           <input type="range" min={1} max={3} step={0.01} value={zoom} disabled={!img}
             onChange={(e) => changeZoom(Number(e.target.value))} className="flex-1 accent-accent" />
         </label>
-        <p className="text-xs text-gray-500 text-center">Arraste para posicionar. A foto é salva quadrada, em 512×512 px.</p>
+        <p className="text-xs text-content-4 text-center">Arraste para posicionar. A foto é salva quadrada, em 512×512 px.</p>
       </div>
     </Modal>
   );

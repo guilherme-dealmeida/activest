@@ -9,7 +9,7 @@ import { STRATEGY_HELP } from './strategyHelp';
 import { REBALANCE_TABLE_CLASS, RebalanceColGroup } from './rebalanceColumns';
 import { relativeDeviation, relativeDeviationByValue } from '@/utils/strategyRules';
 
-const signColor = (n: number) => (n > 0 ? 'text-success' : n < 0 ? 'text-danger' : 'text-gray-400');
+const signColor = (n: number) => (n > 0 ? 'text-success' : n < 0 ? 'text-danger' : 'text-content-3');
 
 /** Desvio relativo: Por Porcentagem, % Diff ÷ % Ideal; Por Valor, (reserva − alvo) ÷ alvo. */
 const reservationRelativeDeviation = (r: ReservationRebalance): number | null =>
@@ -33,7 +33,7 @@ export const ReservationRebalanceCard = ({ reservation, action }: { reservation:
     <div className="overflow-x-auto mt-4">
       <table className={REBALANCE_TABLE_CLASS}>
         <RebalanceColGroup />
-        <thead className="text-xs text-gray-400 uppercase bg-surface-light border-b border-surface-light">
+        <thead className="text-content-3 uppercase bg-elevated border-b border-line">
           <tr>
             <th className="px-4 py-3"><LabelWithInfo info={STRATEGY_HELP.reservationType}>Tipo de Estratégia</LabelWithInfo></th>
             <th className="px-4 py-3 text-right"><LabelWithInfo info={STRATEGY_HELP.idealPercentage}>% Ideal</LabelWithInfo></th>
@@ -47,8 +47,8 @@ export const ReservationRebalanceCard = ({ reservation, action }: { reservation:
           </tr>
         </thead>
         <tbody>
-          <tr className="hover:bg-surface-light/30">
-            <td className="px-4 py-3 font-medium text-white">
+          <tr className="hover:bg-overlay">
+            <td className="px-4 py-3 font-medium text-content">
               {RESERVATION_TYPE_LABELS[reservation.typeReservation]}
             </td>
             <td className="px-4 py-3 text-right">
@@ -61,7 +61,7 @@ export const ReservationRebalanceCard = ({ reservation, action }: { reservation:
                 {formatCurrency(reservation.amountToRebalance)}
               </span>
             </td>
-            <td className="px-4 py-3 text-right font-medium text-white">{formatCurrency(reservation.idealValue)}</td>
+            <td className="px-4 py-3 text-right font-medium text-content">{formatCurrency(reservation.idealValue)}</td>
             <td className="px-4 py-3 text-right">{formatPercentage(reservation.currentPercentage)}</td>
             <td className="px-4 py-3 text-right">
               <span className={signColor(reservation.diffPercentage)}>{formatPercentage(reservation.diffPercentage)}</span>
@@ -75,7 +75,7 @@ export const ReservationRebalanceCard = ({ reservation, action }: { reservation:
                   'px-2.5 py-1 rounded-full text-xs font-medium border',
                   reservation.amountToRebalance > 0
                     ? 'bg-success/20 text-success border-success/30'
-                    : 'bg-surface-light text-gray-300 border-gray-700'
+                    : 'bg-elevated text-content-2 border-line-strong'
                 )}
               >
                 {reservation.amountToRebalance > 0 ? 'APORTAR' : 'AGUARDAR'}

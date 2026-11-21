@@ -2,9 +2,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Save, User as UserIcon, Mail, CreditCard, KeyRound, Moon, Sun, ShieldAlert, FileText, Camera, Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { useTheme } from '@/context/ThemeContext';
 import { useFontSize } from '@/context/FontSizeContext';
 import { useToast } from '@/context/ToastContext';
+import { useTheme } from '@/context/ThemeContext';
 import { useGoogleSignIn } from '@/hooks/useGoogleSignIn';
 import { usersApi } from '@/api/users';
 import { Button } from '@/components/ui/Button';
@@ -23,8 +23,8 @@ import { tokens } from '@/api/tokens';
 const Section = ({ title, icon, children, danger }: {
   title: string; icon: React.ReactNode; children: React.ReactNode; danger?: boolean;
 }) => (
-  <section className={`bg-surface rounded-lg border p-6 ${danger ? 'border-danger/40' : 'border-white/10'}`}>
-    <h3 className={`mb-5 flex items-center gap-2 text-base font-semibold ${danger ? 'text-danger' : 'text-white'}`}>
+  <section className={`bg-surface rounded-control border p-6 ${danger ? 'border-danger/40' : 'border-line'}`}>
+    <h3 className={`mb-5 flex items-center gap-2 text-base font-semibold ${danger ? 'text-danger' : 'text-content'}`}>
       {icon}{title}
     </h3>
     {children}
@@ -163,12 +163,12 @@ export const SettingsPage = () => {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">Configurações</h2>
-        <p className="text-gray-400 mt-1">Seus dados, o acesso à conta e as preferências</p>
+        <h2 className="text-2xl font-bold text-content">Configurações</h2>
+        <p className="text-content-3 mt-1">Seus dados, o acesso à conta e as preferências</p>
       </div>
 
       {/* Perfil */}
-      <Section title="Perfil" icon={<UserIcon className="h-4 w-4 text-accent" />}>
+      <Section title="Perfil" icon={<UserIcon className="h-4 w-4 text-accent-text" />}>
         {/* Foto centralizada, com troca por upload (adendo de 05/10/2026). */}
         <div className="flex flex-col items-center text-center mb-8">
           <button type="button" onClick={() => photoInput.current?.click()}
@@ -176,15 +176,15 @@ export const SettingsPage = () => {
             title="Alterar foto" aria-label="Alterar foto">
             <UserAvatar user={user} className="h-28 w-28 border-2 border-accent/40" textClassName="text-4xl font-bold" />
             <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
-              <Camera className="h-7 w-7 text-white" />
+              <Camera className="h-7 w-7 text-content" />
             </span>
             <span className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full bg-accent text-black shadow">
               <Camera className="h-4 w-4" />
             </span>
           </button>
           <input ref={photoInput} type="file" accept={AVATAR_TYPES.join(',')} className="hidden" onChange={choosePhoto} />
-          <h4 className="mt-4 text-lg font-semibold text-white">{user.name}</h4>
-          <p className="text-gray-400 text-sm">Conta criada em {formatDate(user.createdAt)}</p>
+          <h4 className="mt-4 text-lg font-semibold text-content">{user.name}</h4>
+          <p className="text-content-3 text-sm">Conta criada em {formatDate(user.createdAt)}</p>
           <div className="mt-3 flex gap-2">
             <Button type="button" size="sm" variant="outline" onClick={() => photoInput.current?.click()}>
               {user.avatarVersion ? 'Trocar foto' : 'Enviar foto'}
@@ -193,7 +193,7 @@ export const SettingsPage = () => {
               <Button type="button" size="sm" variant="ghost" onClick={removePhoto}>Remover foto</Button>
             )}
           </div>
-          <p className="mt-2 text-xs text-gray-500">
+          <p className="mt-2 text-xs text-content-4">
             JPEG, PNG ou WebP, até {AVATAR_MAX_MB} MB e com pelo menos {AVATAR_MIN_PX}×{AVATAR_MIN_PX} px.
             {!user.avatarVersion && user.avatarUrl && ' Hoje aparece a foto da sua conta Google.'}
           </p>
@@ -203,17 +203,17 @@ export const SettingsPage = () => {
           <Input label="Nome completo" value={name} onChange={(e) => setName(e.target.value)} maxLength={255} required />
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">
+            <label className="block text-sm font-medium text-content-2 mb-1.5">
               <Mail className="inline h-4 w-4 mr-1.5 -mt-0.5" />E-mail
             </label>
             <div className="flex flex-wrap items-center gap-3">
-              <span className="text-sm text-white">{user.email}</span>
+              <span className="text-sm text-content">{user.email}</span>
               {user.emailVerified
                 ? <Badge variant="success">verificado</Badge>
                 : <Badge variant="warning">não verificado</Badge>}
               <Button type="button" size="sm" variant="outline" onClick={() => setEmailModal(true)}>Alterar</Button>
             </div>
-            <p className="mt-1 text-xs text-gray-500">É o seu login. A troca é confirmada por um código enviado ao novo endereço.</p>
+            <p className="mt-1 text-xs text-content-4">É o seu login. A troca é confirmada por um código enviado ao novo endereço.</p>
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
@@ -231,21 +231,21 @@ export const SettingsPage = () => {
                   hint={user.cpfMasked ? 'Digite o novo CPF e salve.' : 'Opcional. Usado na integração com a B3.'} />
               ) : (
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                  <label className="block text-sm font-medium text-content-2 mb-1.5">
                     <CreditCard className="inline h-4 w-4 mr-1.5 -mt-0.5" />CPF
                   </label>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-sm text-white">{user.cpfMasked}</span>
+                    <span className="font-mono text-sm text-content">{user.cpfMasked}</span>
                     <Button type="button" size="sm" variant="outline" onClick={() => setEditingCpf(true)}>Alterar</Button>
                     <Button type="button" size="sm" variant="ghost" onClick={(e) => saveProfile(e, true)}>Remover</Button>
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">Guardado cifrado. Não muda enquanto houver conexão com a B3.</p>
+                  <p className="mt-1 text-xs text-content-4">Guardado cifrado. Não muda enquanto houver conexão com a B3.</p>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="pt-4 border-t border-white/10 flex gap-3">
+          <div className="pt-4 border-t border-line flex gap-3">
             <Button type="submit" disabled={!profileOk} isLoading={saving}>
               <Save className="w-4 h-4 mr-2" />Salvar alterações
             </Button>
@@ -257,12 +257,12 @@ export const SettingsPage = () => {
       </Section>
 
       {/* Acesso */}
-      <Section title="Acesso" icon={<KeyRound className="h-4 w-4 text-accent" />}>
+      <Section title="Acesso" icon={<KeyRound className="h-4 w-4 text-accent-text" />}>
         <div className="space-y-8">
           <form onSubmit={savePassword} className="space-y-4">
             <div>
-              <h4 className="text-sm font-medium text-white">{user.hasPassword ? 'Alterar senha' : 'Definir senha'}</h4>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <h4 className="text-sm font-medium text-content">{user.hasPassword ? 'Alterar senha' : 'Definir senha'}</h4>
+              <p className="text-xs text-content-4 mt-0.5">
                 {user.hasPassword
                   ? 'Ao trocar, as outras sessões abertas são encerradas.'
                   : 'Sua conta entra só pelo Google. Defina uma senha para entrar também por e-mail.'}
@@ -286,9 +286,9 @@ export const SettingsPage = () => {
             </Button>
           </form>
 
-          <div className="pt-6 border-t border-white/10 space-y-3">
+          <div className="pt-6 border-t border-line space-y-3">
             <div className="flex flex-wrap items-center gap-3">
-              <h4 className="text-sm font-medium text-white">Conta Google</h4>
+              <h4 className="text-sm font-medium text-content">Conta Google</h4>
               {user.googleLinked ? <Badge variant="success">vinculada</Badge> : <Badge>não vinculada</Badge>}
             </div>
             {user.googleLinked ? (
@@ -297,63 +297,63 @@ export const SettingsPage = () => {
                   Desvincular
                 </Button>
                 {!user.hasPassword && (
-                  <span className="text-xs text-gray-500">Defina uma senha antes: sem ela não haveria como entrar.</span>
+                  <span className="text-xs text-content-4">Defina uma senha antes: sem ela não haveria como entrar.</span>
                 )}
               </div>
             ) : google.enabled ? (
               <div>
-                <p className="text-xs text-gray-500 mb-2">Vincule para entrar com um clique pelo Google.</p>
+                <p className="text-xs text-content-4 mb-2">Vincule para entrar com um clique pelo Google.</p>
                 {google.error && <p className="text-sm text-danger mb-2">{google.error}</p>}
                 <div className="min-h-[44px]">
-                  {google.isLoading ? <span className="text-sm text-gray-400">Vinculando...</span> : <div ref={google.containerRef} />}
+                  {google.isLoading ? <span className="text-sm text-content-3">Vinculando...</span> : <div ref={google.containerRef} />}
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-gray-500">O login com Google não está configurado neste ambiente.</p>
+              <p className="text-xs text-content-4">O login com Google não está configurado neste ambiente.</p>
             )}
           </div>
 
-          <div className="pt-6 border-t border-white/10">
-            <h4 className="text-sm font-medium text-white flex items-center gap-2"><FileText className="h-4 w-4" />Termos</h4>
-            <p className="text-sm text-gray-400 mt-1">
+          <div className="pt-6 border-t border-line">
+            <h4 className="text-sm font-medium text-content flex items-center gap-2"><FileText className="h-4 w-4" />Termos</h4>
+            <p className="text-sm text-content-3 mt-1">
               {user.termsAcceptedAt
-                ? <>Versão <span className="text-white">{user.termsVersion}</span> aceita em {formatDate(user.termsAcceptedAt)}.</>
+                ? <>Versão <span className="text-content">{user.termsVersion}</span> aceita em {formatDate(user.termsAcceptedAt)}.</>
                 : 'Nenhum aceite registrado.'}{' '}
-              <Link to="/terms" target="_blank" className="text-accent hover:underline">Termos de Uso</Link> ·{' '}
-              <Link to="/privacy" target="_blank" className="text-accent hover:underline">Política de Privacidade</Link>
+              <Link to="/terms" target="_blank" className="text-accent-text hover:underline">Termos de Uso</Link> ·{' '}
+              <Link to="/privacy" target="_blank" className="text-accent-text hover:underline">Política de Privacidade</Link>
             </p>
           </div>
         </div>
       </Section>
 
       {/* Preferências */}
-      <Section title="Preferências" icon={isDark ? <Moon className="h-4 w-4 text-accent" /> : <Sun className="h-4 w-4 text-accent" />}>
+      <Section title="Preferências" icon={isDark ? <Moon className="h-4 w-4 text-accent-text" /> : <Sun className="h-4 w-4 text-accent-text" />}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-sm text-white">Tema</p>
-            <p className="text-xs text-gray-500">Fica guardado na sua conta e vale em qualquer navegador.</p>
+            <p className="text-sm text-content">Tema</p>
+            <p className="text-xs text-content-4">Fica guardado na sua conta e vale em qualquer navegador.</p>
           </div>
-          <div className="inline-flex rounded-md border border-white/10 p-1">
+          <div className="inline-flex rounded-control border border-line p-1">
             {(['dark', 'light'] as const).map((t) => (
               <button key={t} type="button"
                 onClick={() => { if ((t === 'dark') !== isDark) toggleTheme(); }}
-                className={`px-4 py-1.5 text-sm rounded ${(t === 'dark') === isDark ? 'bg-accent text-black font-medium' : 'text-gray-400 hover:text-white'}`}>
+                className={`px-4 py-1.5 text-sm rounded ${(t === 'dark') === isDark ? 'bg-accent text-black font-medium' : 'text-content-3 hover:text-content'}`}>
                 {t === 'dark' ? 'Escuro' : 'Claro'}
               </button>
             ))}
           </div>
         </div>
         {/* Tamanho da tela (PLANO_CUSTOMIZAR_TAMANHOS, D3: "Grande | Pequena") */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mt-4 pt-4 border-t border-white/10">
+        <div className="flex flex-wrap items-center justify-between gap-4 mt-4 pt-4 border-t border-line">
           <div>
-            <p className="text-sm text-white">Tamanho</p>
-            <p className="text-xs text-gray-500">Reduz a tela inteira. Também fica guardado na sua conta.</p>
+            <p className="text-sm text-content">Tamanho</p>
+            <p className="text-xs text-content-4">Reduz a tela inteira. Também fica guardado na sua conta.</p>
           </div>
-          <div className="inline-flex rounded-md border border-white/10 p-1">
+          <div className="inline-flex rounded-control border border-line p-1">
             {(['large', 'small'] as const).map((s) => (
               <button key={s} type="button"
                 onClick={() => { if ((s === 'small') !== isSmall) toggleFontSize(); }}
-                className={`px-4 py-1.5 text-sm rounded ${(s === 'small') === isSmall ? 'bg-accent text-black font-medium' : 'text-gray-400 hover:text-white'}`}>
+                className={`px-4 py-1.5 text-sm rounded ${(s === 'small') === isSmall ? 'bg-accent text-black font-medium' : 'text-content-3 hover:text-content'}`}>
                 {s === 'large' ? 'Grande' : 'Pequena'}
               </button>
             ))}
@@ -364,7 +364,7 @@ export const SettingsPage = () => {
       {/* Zona de perigo */}
       <Section title="Zona de perigo" icon={<ShieldAlert className="h-4 w-4" />} danger>
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <p className="text-sm text-gray-300">Excluir a conta apaga definitivamente todos os seus dados no Activest.</p>
+          <p className="text-sm text-content-2">Excluir a conta apaga definitivamente todos os seus dados no Activest.</p>
           <Button type="button" variant="danger" onClick={() => setDeleteModal(true)}>
             <Trash2 className="h-4 w-4 mr-2" />
             Excluir conta

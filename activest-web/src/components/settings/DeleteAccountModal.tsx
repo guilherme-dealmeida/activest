@@ -53,14 +53,14 @@ export const DeleteAccountModal = ({ isOpen, onClose, onDeleted }: Props) => {
         />
       ) : (
         <div className="space-y-4">
-          <div className="rounded-md border border-danger/40 bg-danger/10 p-4 text-sm text-gray-200 space-y-2">
+          <div className="rounded-control border border-danger/40 bg-danger/10 p-4 text-sm text-content space-y-2">
             <p className="font-medium text-danger">Esta ação não tem volta.</p>
             <p>
               A conta e tudo o que está ligado a ela — carteira, transações, proventos, estratégia, metas, preços-teto
               e integrações — serão apagados definitivamente.
             </p>
           </div>
-          <p className="text-sm text-gray-300">Para confirmar, enviaremos um código para o e-mail da conta.</p>
+          <p className="text-sm text-content-2">Para confirmar, enviaremos um código para o e-mail da conta.</p>
           {error && <p className="text-sm text-danger">{error}</p>}
           <div className="flex justify-end gap-3">
             <Button type="button" variant="ghost" onClick={close}>Cancelar</Button>

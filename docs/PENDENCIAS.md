@@ -2,7 +2,7 @@
 
 Levantado em 15/09/2026. Secao 1 resolvida no mesmo dia. Cada item foi conferido
 no codigo antes de entrar aqui.
-Ultima atualizacao: 18/11/2026 — secao 50 (eventos do papel em Transacoes,
+Ultima atualizacao: 20/11/2026 — secao 51 (melhoria do front-end, docs/planos/PLANO_FRONT_DESIGN.md). Antes: 18/11/2026 — secao 50 (eventos do papel em Transacoes,
 docs/planos/PLANO_EVENTOS_TRANSACOES.md). Antes: 12/11/2026 — secao 48 (curva de juros do Tesouro, docs/planos/PLANO_JUROS_FUTUROS.md) e secao 49
 (propostas levantadas em duvidas, ainda sem escopo). Antes: 31/10/2026 — secao 43 (integracoes genericas e Binance Stocks, docs/planos/PLANO_INTEGRACOES.md);
 35.7 e 37.5 resolvidos; 17.1 resolvido; 38.1 em parte (importacao de operacoes em USD da Binance). Antes: 29/10/2026, noite — secao 42 (performance das listagens, docs/planos/PLANO_PERFORMANCE.md: compressao,
@@ -1710,6 +1710,30 @@ leitura.
 **50.4 Preco medio do IR so na dica.** A base da Receita (CostBasis.TAX) aparece no (i) do preco medio da Carteira e
 na linha da bonificacao; nao ha relatorio de IR (Bens e Direitos, rendimento isento codigo 18 "Bonificacoes em acoes")
 nem o IR da venda de acoes brasileiras. Quando existir, ele usa a base TAX.
+
+## 51. MELHORIA DO FRONT-END — TEMA "INSTRUMENTO" (docs/planos/PLANO_FRONT_DESIGN.md, 20/11/2026)
+
+Escopo encerrado no mesmo dia: so visual, sem mudanca de regra de negocio, tela ou endpoint. O que ficou de fora:
+
+**51.1 Cor da rosca da Alocacao e do Dashboard.** A cor do tipo de ativo vem do cadastro (`asset_types.color_hex`,
+semeado na V2) e e a identidade do tipo (FII verde, acao vermelho, renda fixa azul), com companheira na tela — o
+icone do tipo em `public/images/tipos`. **Nao** foi harmonizada com a paleta da interface: mudar seria mudanca de
+dado (migration) e quebraria o par cor/icone. A rosca e, de proposito, a unica coisa colorida da tela. Se a paleta
+categorica for reharmonizada um dia, o caminho e uma migration que mude `asset_types.color_hex` **e** os icones em
+`public/images/tipos` juntos, para os dois continuarem falando a mesma lingua.
+
+**51.2 Esqueleto de carga.** O `LoadingSpinner` continua em todas as telas. Esqueleto (fanta de cinza que ocupa o
+lugar do dado) e componente novo, com medicao de layout para nao pular quando o conteudo chega; fica para um escopo
+proprio.
+
+**51.3 Serifa nos numeros.** Nenhuma fonte com "personalidade" entrou: coluna de valor com serif nao combina com
+`tabular-nums` e com a leitura em tela pequena. A identidade veio da hierarquia (rotulo pequeno, numero grande,
+tabela como placa), nao da familia tipografica.
+
+**51.4 Coluna de valores em fonte tabular em tudo.** A regra `table { font-variant-numeric: tabular-nums }` cobre
+tabela; os numeros grandes de card (Dashboard, Metas) levam `tabular-nums` na classe. O que ainda nao tem e o
+numero dentro de texto corrido (o "R$ 280,73" ao lado da porcentagem, por exemplo) — irrelevante para a leitura, e
+cada caso e uma excecao.
 
 ## ORDEM SUGERIDA
 
