@@ -3,25 +3,15 @@ import { useMemo, useState } from 'react';
 import {
   Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
-import { useTheme } from '@/context/ThemeContext';
 import { formatCurrency } from '@/utils/format';
 import {
   BenchmarkResult, Granularity, PerformancePeriodic, PerformanceSeries, PerformanceWealth,
 } from '@/types/performance';
 import { date, pct, periodLabel, seriesColor } from './performanceFormat';
 import { rem } from '@/utils/fontScale';
+import { useChartTheme } from '@/theme/chart';
 
 const CARTEIRA = 'CARTEIRA';
-
-const useChartTheme = () => {
-  const { isDark } = useTheme();
-  return {
-    isDark,
-    grid: isDark ? '#2a2a2a' : '#e8e8e0',
-    axis: '#777777',
-    cursor: isDark ? '#ffffff0d' : '#0000000a',
-  };
-};
 
 
 /** Legenda acima do gráfico: cor, nome e o valor do período (rótulo direto — a cor nunca é a única pista). */
@@ -35,8 +25,8 @@ const SeriesLegend = ({ items, hidden, onToggle }: {
       <button key={it.key} type="button" onClick={() => onToggle(it.key)} aria-pressed={!hidden.has(it.key)}
         className={`inline-flex items-center gap-1.5 ${hidden.has(it.key) ? 'opacity-40' : ''}`}>
         <span className="inline-block h-0.5 w-4 rounded" style={{ background: it.color }} aria-hidden="true" />
-        <span className="text-gray-300">{it.name}</span>
-        {it.value && <span className="font-semibold text-white">{it.value}</span>}
+        <span className="text-content-2">{it.name}</span>
+        {it.value && <span className="font-semibold text-content">{it.value}</span>}
       </button>
     ))}
   </div>
@@ -45,17 +35,17 @@ const SeriesLegend = ({ items, hidden, onToggle }: {
 interface TipRow { name: string; color: string; value: string }
 
 const TipBox = ({ title, rows, note }: { title: string; rows: TipRow[]; note?: string }) => (
-  <div className="rounded-md border border-white/10 bg-surface px-3 py-2 text-xs shadow-lg min-w-[180px]">
-    <div className="mb-1 text-gray-400">{title}</div>
+  <div className="rounded-control border border-line bg-surface px-3 py-2 text-xs shadow-lg min-w-[180px]">
+    <div className="mb-1 text-content-3">{title}</div>
     {rows.map(r => (
       <div key={r.name} className="flex items-center justify-between gap-4">
-        <span className="flex items-center gap-1.5 text-gray-300">
+        <span className="flex items-center gap-1.5 text-content-2">
           <span className="inline-block h-2 w-2 rounded-full" style={{ background: r.color }} aria-hidden="true" />{r.name}
         </span>
-        <span className="font-semibold text-white">{r.value}</span>
+        <span className="font-semibold text-content">{r.value}</span>
       </div>
     ))}
-    {note && <div className="mt-1 text-[0.6875rem] text-gray-500">{note}</div>}
+    {note && <div className="mt-1 text-[0.6875rem] text-content-4">{note}</div>}
   </div>
 );
 
@@ -115,7 +105,7 @@ export const CumulativeChart = ({ data }: { data: PerformanceSeries }) => {
             {legend.map(l => (
               <Line key={l.key} dataKey={l.key} type="linear" stroke={l.color} dot={false}
                 strokeWidth={l.key === CARTEIRA ? 2.5 : 2} hide={hidden.has(l.key)} connectNulls={false}
-                isAnimationActive={false} activeDot={{ r: 4, strokeWidth: 2, stroke: t.isDark ? '#111111' : '#ffffff' }} />
+                isAnimationActive={false} activeDot={{ r: 4, strokeWidth: 2, stroke: 'var(--surface)' }} />
             ))}
           </LineChart>
         </ResponsiveContainer>
@@ -157,7 +147,7 @@ export const PeriodicChart = ({ data, granularity, onGranularity }: {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
           {series.map(s => (
-            <span key={s.key} className="inline-flex items-center gap-1.5 text-gray-300">
+            <span key={s.key} className="inline-flex items-center gap-1.5 text-content-2">
               <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: seriesColor(s.key, t.isDark) }} aria-hidden="true" />
               {s.name}
             </span>
@@ -166,7 +156,7 @@ export const PeriodicChart = ({ data, granularity, onGranularity }: {
         <div className="flex gap-1" role="group" aria-label="Agrupamento">
           {(['MONTH', 'QUARTER', 'YEAR'] as Granularity[]).map(g => (
             <button key={g} type="button" onClick={() => onGranularity(g)} aria-pressed={granularity === g}
-              className={`rounded-md px-2.5 py-1 text-xs font-medium ${granularity === g ? 'bg-accent text-black' : 'bg-white/5 text-gray-300 hover:bg-white/10'}`}>
+              className={`rounded-control px-2.5 py-1 text-xs font-medium ${granularity === g ? 'bg-accent text-black' : 'bg-overlay text-content-2 hover:bg-selected'}`}>
               {GRAN_LABEL[g]}
             </button>
           ))}

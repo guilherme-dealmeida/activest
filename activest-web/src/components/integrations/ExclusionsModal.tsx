@@ -44,12 +44,12 @@ export const ExclusionsModal = ({ connection, onClose }: Props) => {
     <Modal isOpen={!!connection} onClose={onClose} title={`Operações excluídas · ${connection?.label ?? ''}`} size="lg"
       titleInfo="Operações importadas que você excluiu. Elas não voltam nas próximas sincronizações; restaurar devolve a operação à carteira na hora.">
       {isLoading ? (
-        <div className="flex justify-center py-8"><LoadingSpinner className="h-6 w-6 text-accent" /></div>
+        <div className="flex justify-center py-8"><LoadingSpinner className="h-6 w-6 text-accent-text" /></div>
       ) : !data || data.length === 0 ? (
-        <p className="py-6 text-center text-sm text-gray-500">Nenhuma operação excluída.</p>
+        <p className="py-6 text-center text-sm text-content-4">Nenhuma operação excluída.</p>
       ) : (
         <table className="w-full text-sm">
-          <thead className="text-xs uppercase text-gray-400 border-b border-white/10">
+          <thead className="uppercase text-content-3 border-b border-line">
             <tr>
               <th className="py-2 text-left">Data</th>
               <th className="py-2 text-left">Ativo</th>
@@ -59,19 +59,19 @@ export const ExclusionsModal = ({ connection, onClose }: Props) => {
               <th className="py-2" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
+          <tbody className="divide-y divide-line-soft">
             {data.map(e => (
               <tr key={e.id}>
                 <td className="py-2">{formatDateTime(e.executedAt)}</td>
-                <td className="py-2 text-white font-medium">
-                  {e.ticker} <span className="text-gray-400 font-normal">{e.side === 'SELL' ? 'venda' : 'compra'}</span>
+                <td className="py-2 text-content font-medium">
+                  {e.ticker} <span className="text-content-3 font-normal">{e.side === 'SELL' ? 'venda' : 'compra'}</span>
                 </td>
                 <td className="py-2 text-right">{e.grossQuantity != null ? formatQuantity(e.grossQuantity, true) : '—'}</td>
                 <td className="py-2 text-right">{e.quoteAmount != null ? formatCurrency(e.quoteAmount) : '—'}</td>
-                <td className="py-2 text-right text-gray-400">{formatDateTime(e.excludedAt)}</td>
+                <td className="py-2 text-right text-content-3">{formatDateTime(e.excludedAt)}</td>
                 <td className="py-2 text-right">
                   <button onClick={() => restore.mutate(e.id)} disabled={restore.isPending}
-                    className="inline-flex items-center gap-1 text-xs text-accent hover:underline disabled:opacity-50">
+                    className="inline-flex items-center gap-1 text-xs text-accent-text hover:underline disabled:opacity-50">
                     <RotateCcw className="h-3.5 w-3.5" /> Restaurar
                   </button>
                 </td>

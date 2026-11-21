@@ -21,7 +21,7 @@ export const CoverageNotice = ({ coverage }: { coverage: Coverage }) => {
   const allGaps = coverage.gaps.map(g => ({ ...g, ticker: assetText(g.ticker) }));
   if (coverage.empty) {
     return (
-      <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300">
+      <div className="rounded-control border border-line bg-overlay px-4 py-3 text-sm text-content-2">
         Sem movimentação no recorte e período escolhidos.
       </div>
     );
@@ -39,7 +39,7 @@ export const CoverageNotice = ({ coverage }: { coverage: Coverage }) => {
   return (
     <div className="space-y-2">
       {missing.length > 0 && (
-        <div className="flex gap-2 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-white" role="alert">
+        <div className="flex gap-2 rounded-control border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-content" role="alert">
           <AlertTriangle className="h-4 w-4 shrink-0 text-danger mt-0.5" aria-hidden="true" />
           <div>
             <strong>Resultado indisponível no período:</strong> sem preço de{' '}
@@ -52,8 +52,8 @@ export const CoverageNotice = ({ coverage }: { coverage: Coverage }) => {
         </div>
       )}
       {carried.length > 0 && (
-        <div className="flex gap-2 rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm text-white" role="status">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-yellow-500 mt-0.5" aria-hidden="true" />
+        <div className="flex gap-2 rounded-control border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-content" role="status">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-accent-text mt-0.5" aria-hidden="true" />
           <div>
             <strong>Preço carregado:</strong>{' '}
             {carried.map(({ gap: g, tickers }, i) => (
@@ -66,8 +66,8 @@ export const CoverageNotice = ({ coverage }: { coverage: Coverage }) => {
           </div>
         </div>
       )}
-      <div className="flex gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-xs text-gray-300">
-        <Info className="h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />
+      <div className="flex gap-2 rounded-control border border-line bg-overlay px-4 py-2.5 text-xs text-content-2">
+        <Info className="h-4 w-4 shrink-0 text-content-3" aria-hidden="true" />
         <div className="space-y-0.5">
           {stale.length > 0 && (
             <div>Sem negócio em algum dia: vale o último fechamento (até 5 pregões) —{' '}
@@ -95,10 +95,10 @@ export const CoverageNotice = ({ coverage }: { coverage: Coverage }) => {
 const Stat = ({ title, info, value, sub, tone }: {
   title: string; info: string; value: string; sub?: React.ReactNode; tone?: number | null;
 }) => (
-  <div className="bg-surface rounded-xl border border-surface-light p-4">
-    <div className="text-xs font-medium text-gray-400 flex items-center gap-1">{title}<InfoTooltip content={info} /></div>
-    <div className={`mt-1 text-2xl font-semibold ${tone != null ? getReturnColor(tone) : 'text-white'}`}>{value}</div>
-    {sub && <div className="mt-1 text-xs text-gray-400">{sub}</div>}
+  <div className="bg-surface rounded-panel border border-line p-4">
+    <div className="text-xs font-medium text-content-3 flex items-center gap-1">{title}<InfoTooltip content={info} /></div>
+    <div className={`mt-1 text-2xl font-semibold ${tone != null ? getReturnColor(tone) : 'text-content'}`}>{value}</div>
+    {sub && <div className="mt-1 text-xs text-content-3">{sub}</div>}
   </div>
 );
 
@@ -140,13 +140,13 @@ export const ComparisonTable = ({ t }: { t: PerformanceTable }) => (
   <div className="overflow-x-auto">
     <table className="w-full text-sm">
       <thead>
-        <tr className="border-b border-white/10 text-gray-400">
-          <th className="text-left py-2 px-3 font-medium">Indicador</th>
-          <th className="text-right py-2 px-3 font-medium">No mês</th>
-          <th className="text-right py-2 px-3 font-medium">No ano</th>
-          <th className="text-right py-2 px-3 font-medium">12 meses</th>
-          <th className="text-right py-2 px-3 font-medium">No período</th>
-          <th className="text-right py-2 px-3 font-medium">
+        <tr className="border-b border-line text-content-3">
+          <th className="text-left py-2 px-3">Indicador</th>
+          <th className="text-right py-2 px-3">No mês</th>
+          <th className="text-right py-2 px-3">No ano</th>
+          <th className="text-right py-2 px-3">12 meses</th>
+          <th className="text-right py-2 px-3">No período</th>
+          <th className="text-right py-2 px-3">
             <span className="inline-flex items-center gap-1">Carteira − indicador
               <InfoTooltip content="Diferença no período, em pontos percentuais. Positiva: a carteira rendeu mais." /></span>
           </th>
@@ -154,12 +154,12 @@ export const ComparisonTable = ({ t }: { t: PerformanceTable }) => (
       </thead>
       <tbody>
         {t.rows.map(r => (
-          <tr key={r.code} className={`border-b border-white/5 ${r.portfolio ? 'font-semibold' : ''}`}>
-            <td className="py-2 px-3 text-white">{r.name}{(r.until || r.estimatedFrom) && <span className="text-gray-500 font-normal"> *</span>}</td>
+          <tr key={r.code} className={`border-b border-line-soft ${r.portfolio ? 'font-semibold' : ''}`}>
+            <td className="py-2 px-3 text-content">{r.name}{(r.until || r.estimatedFrom) && <span className="text-content-4 font-normal"> *</span>}</td>
             {[r.month, r.year, r.months12, r.period].map((v, i) => (
-              <td key={i} className={`py-2 px-3 text-right ${v != null ? getReturnColor(v) : 'text-gray-500'}`}>{pct(v)}</td>
+              <td key={i} className={`py-2 px-3 text-right ${v != null ? getReturnColor(v) : 'text-content-4'}`}>{pct(v)}</td>
             ))}
-            <td className={`py-2 px-3 text-right ${r.diffPeriod != null ? getReturnColor(r.diffPeriod) : 'text-gray-500'}`}>
+            <td className={`py-2 px-3 text-right ${r.diffPeriod != null ? getReturnColor(r.diffPeriod) : 'text-content-4'}`}>
               {r.portfolio ? '' : pp(r.diffPeriod)}
             </td>
           </tr>
@@ -167,16 +167,16 @@ export const ComparisonTable = ({ t }: { t: PerformanceTable }) => (
       </tbody>
     </table>
     {t.rows.filter(r => r.until).map(r => (
-      <p key={r.code} className="mt-2 text-xs text-gray-500">
+      <p key={r.code} className="mt-2 text-xs text-content-4">
         * {r.name}: até {date(r.until)} (último dado publicado); a diferença compara a carteira no mesmo intervalo.
       </p>
     ))}
     {t.rows.filter(r => r.estimatedFrom).map(r => (
-      <p key={`${r.code}-est`} className="mt-2 text-xs text-gray-500">
+      <p key={`${r.code}-est`} className="mt-2 text-xs text-content-4">
         * {r.name}: estimado desde {monthYear(r.estimatedFrom)} pelo último IPCA publicado; muda quando o oficial sair.
       </p>
     ))}
-    <p className="mt-2 text-xs text-gray-500">
+    <p className="mt-2 text-xs text-content-4">
       No mês desde {date(t.monthFrom)} · no ano desde {date(t.yearFrom)} · 12 meses desde {date(t.months12From)}
       {' '}(ou desde o início da carteira, se mais recente).
     </p>
@@ -209,28 +209,28 @@ export const BreakdownSection = ({ b, level, onLevel, showIssuer, onDrill }: {
         <div className="flex gap-1" role="tablist" aria-label="Agrupamento da análise">
           {LEVELS.filter(l => l.key !== 'ISSUER' || showIssuer).map(l => (
             <button key={l.key} type="button" role="tab" aria-selected={level === l.key} onClick={() => onLevel(l.key)}
-              className={`rounded-md px-2.5 py-1 text-xs font-medium ${level === l.key ? 'bg-accent text-black' : 'bg-white/5 text-gray-300 hover:bg-white/10'}`}>
+              className={`rounded-control px-2.5 py-1 text-xs font-medium ${level === l.key ? 'bg-accent text-black' : 'bg-overlay text-content-2 hover:bg-selected'}`}>
               {l.label}
             </button>
           ))}
         </div>
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-content-3">
           Carteira {pct(b.total)} · resultado {b.totalGain != null ? formatCurrency(b.totalGain) : '—'}
         </span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-white/10 text-gray-400">
-              <th className="text-left py-2 px-3 font-medium">{HEADER[level]}</th>
-              <th className="text-right py-2 px-3 font-medium"><span className="inline-flex items-center gap-1">Rentabilidade
+            <tr className="border-b border-line text-content-3">
+              <th className="text-left py-2 px-3">{HEADER[level]}</th>
+              <th className="text-right py-2 px-3"><span className="inline-flex items-center gap-1">Rentabilidade
                 <InfoTooltip content="Rentabilidade do próprio grupo (TWR) nos dias em que ele esteve na carteira." /></span></th>
-              <th className="text-right py-2 px-3 font-medium"><span className="inline-flex items-center gap-1">Peso médio
+              <th className="text-right py-2 px-3"><span className="inline-flex items-center gap-1">Peso médio
                 <InfoTooltip content="Participação média no capital da carteira durante o período." /></span></th>
-              <th className="text-right py-2 px-3 font-medium">Resultado</th>
-              <th className="py-2 px-3 font-medium min-w-[180px]"><span className="inline-flex items-center gap-1">Contribuição
+              <th className="text-right py-2 px-3">Resultado</th>
+              <th className="py-2 px-3 min-w-[180px]"><span className="inline-flex items-center gap-1">Contribuição
                 <InfoTooltip content="Quanto o grupo somou à rentabilidade da carteira, em pontos percentuais (a soma das linhas dá a rentabilidade total). Um ativo pode render muito e contribuir pouco, se pesou pouco." /></span></th>
-              <th className="text-right py-2 px-3 font-medium">Valor atual</th>
+              <th className="text-right py-2 px-3">Valor atual</th>
             </tr>
           </thead>
           <tbody>
@@ -239,36 +239,36 @@ export const BreakdownSection = ({ b, level, onLevel, showIssuer, onDrill }: {
               const c = r.contribution ?? 0;
               const width = `${Math.abs(c) / maxAbs * 50}%`;
               return (
-                <tr key={r.key} className="border-b border-white/5 hover:bg-white/5 cursor-pointer" onClick={() => onDrill(r)}>
+                <tr key={r.key} className="border-b border-line-soft hover:bg-overlay cursor-pointer" onClick={() => onDrill(r)}>
                   <td className="py-2 px-3">
                     <div className="flex items-center gap-2">
                       {level === 'POSITION' && r.ticker && (
                         <AssetLogo ticker={r.ticker} hasLogo={!!r.hasLogo} src={logo?.src} label={logo?.label} assetType={r.typeName} />
                       )}
                       <div>
-                        <div className="text-white font-medium">
+                        <div className="text-content font-medium">
                           {level === 'POSITION' && r.ticker
                             ? <Link to={`/transactions?position=${r.positionId}`} onClick={e => e.stopPropagation()} className="hover:underline">{assetText(r.label)}</Link>
                             : assetText(r.label)}
-                          {r.closed && <span className="ml-2 rounded bg-white/10 px-1.5 py-0.5 text-[0.625rem] text-gray-300">encerrada</span>}
+                          {r.closed && <span className="ml-2 rounded bg-selected px-1.5 py-0.5 text-[0.625rem] text-content-2">encerrada</span>}
                         </div>
-                        {r.detail && <div className="text-xs text-gray-500">{assetText(r.detail)}</div>}
+                        {r.detail && <div className="text-xs text-content-4">{assetText(r.detail)}</div>}
                       </div>
                     </div>
                   </td>
-                  <td className={`py-2 px-3 text-right ${r.individual != null ? getReturnColor(r.individual) : 'text-gray-500'}`}>{pct(r.individual)}</td>
-                  <td className="py-2 px-3 text-right text-gray-300">{r.weight != null ? pct(r.weight, 1, false) : '—'}</td>
-                  <td className={`py-2 px-3 text-right ${r.gain != null ? getReturnColor(r.gain) : 'text-gray-500'}`}>{r.gain != null ? formatCurrency(r.gain) : '—'}</td>
+                  <td className={`py-2 px-3 text-right ${r.individual != null ? getReturnColor(r.individual) : 'text-content-4'}`}>{pct(r.individual)}</td>
+                  <td className="py-2 px-3 text-right text-content-2">{r.weight != null ? pct(r.weight, 1, false) : '—'}</td>
+                  <td className={`py-2 px-3 text-right ${r.gain != null ? getReturnColor(r.gain) : 'text-content-4'}`}>{r.gain != null ? formatCurrency(r.gain) : '—'}</td>
                   <td className="py-2 px-3">
                     <div className="flex items-center gap-2">
-                      <div className="relative h-2.5 flex-1 rounded bg-white/5" aria-hidden="true">
-                        <div className="absolute inset-y-0 left-1/2 w-px bg-white/20" />
+                      <div className="relative h-2.5 flex-1 rounded bg-overlay" aria-hidden="true">
+                        <div className="absolute inset-y-0 left-1/2 w-px bg-raised" />
                         <div className={`absolute inset-y-0 rounded ${c >= 0 ? 'left-1/2 bg-success' : 'right-1/2 bg-danger'}`} style={{ width }} />
                       </div>
-                      <span className={`w-20 text-right text-xs ${r.contribution != null ? getReturnColor(c) : 'text-gray-500'}`}>{pp(r.contribution)}</span>
+                      <span className={`w-20 text-right text-xs ${r.contribution != null ? getReturnColor(c) : 'text-content-4'}`}>{pp(r.contribution)}</span>
                     </div>
                   </td>
-                  <td className="py-2 px-3 text-right text-white">{formatCurrency(r.valueEnd)}</td>
+                  <td className="py-2 px-3 text-right text-content">{formatCurrency(r.valueEnd)}</td>
                 </tr>
               );
             })}
@@ -301,29 +301,29 @@ export const ReturnHeatmap = ({ data }: { data: PerformancePeriodic }) => {
     <div className="overflow-x-auto">
       <table className="w-full text-xs border-separate" style={{ borderSpacing: 2 }}>
         <thead>
-          <tr className="text-gray-400">
-            <th className="text-left font-medium px-1">Ano</th>
-            {MONTHS.map(m => <th key={m} className="font-medium px-1">{m}</th>)}
-            <th className="font-medium px-1">Ano</th>
+          <tr className="text-content-3">
+            <th className="text-left px-1">Ano</th>
+            {MONTHS.map(m => <th key={m} className="px-1">{m}</th>)}
+            <th className="px-1">Ano</th>
           </tr>
         </thead>
         <tbody>
           {years.map(({ year: y, months, yearReturn: yr }) => {
             return (
               <tr key={y}>
-                <td className="px-1 text-gray-300 font-medium">{y}</td>
+                <td className="px-1 text-content-2 font-medium">{y}</td>
                 {MONTHS.map((_, i) => {
                   const cell = months.get(i + 1);
                   const strong = cell?.v != null && Math.abs(cell.v) / cap > 0.55;
                   return (
-                    <td key={i} className={`rounded px-1 py-1.5 text-center ${strong ? 'text-white' : 'text-gray-200'}`}
+                    <td key={i} className={`rounded px-1 py-1.5 text-center ${strong ? 'text-content' : 'text-content'}`}
                       style={{ background: bg(cell?.v ?? null) }}
                       title={cell ? `${MONTHS[i]}/${y}: ${pct(cell.v)}${cell.partial ? ' (mês incompleto)' : ''}` : undefined}>
                       {cell ? `${cell.v != null ? cell.v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '—'}${cell.partial ? '*' : ''}` : ''}
                     </td>
                   );
                 })}
-                <td className={`px-1 text-center font-semibold ${yr != null ? getReturnColor(yr) : 'text-gray-500'}`}>
+                <td className={`px-1 text-center font-semibold ${yr != null ? getReturnColor(yr) : 'text-content-4'}`}>
                   {yr != null ? pct(yr, 1) : '—'}
                 </td>
               </tr>
@@ -331,7 +331,7 @@ export const ReturnHeatmap = ({ data }: { data: PerformancePeriodic }) => {
           })}
         </tbody>
       </table>
-      <p className="mt-2 text-xs text-gray-500">Em %. * mês incompleto (início da carteira ou mês corrente). A coluna "Ano" compõe os meses mostrados.</p>
+      <p className="mt-2 text-xs text-content-4">Em %. * mês incompleto (início da carteira ou mês corrente). A coluna "Ano" compõe os meses mostrados.</p>
     </div>
   );
 };
@@ -341,13 +341,13 @@ export const ReturnHeatmap = ({ data }: { data: PerformancePeriodic }) => {
 /** Indicadores de risco (E07, L14). */
 export const RiskPanel = ({ r }: { r: PerformanceRisk }) => {
   if (r.volatility == null) {
-    return <p className="text-sm text-gray-400">{r.note ?? 'Sem dados suficientes.'}</p>;
+    return <p className="text-sm text-content-3">{r.note ?? 'Sem dados suficientes.'}</p>;
   }
   const item = (title: string, value: string, info: string, sub?: string) => (
-    <div className="rounded-lg bg-white/5 p-3">
-      <div className="text-xs text-gray-400 flex items-center gap-1">{title}<InfoTooltip content={info} /></div>
-      <div className="mt-1 text-lg font-semibold text-white">{value}</div>
-      {sub && <div className="text-xs text-gray-500">{sub}</div>}
+    <div className="rounded-control bg-overlay p-3">
+      <div className="text-xs text-content-3 flex items-center gap-1">{title}<InfoTooltip content={info} /></div>
+      <div className="mt-1 text-lg font-semibold text-content">{value}</div>
+      {sub && <div className="text-xs text-content-4">{sub}</div>}
     </div>
   );
   const num = (v: number | null) => (v == null ? '—' : v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
@@ -359,7 +359,7 @@ export const RiskPanel = ({ r }: { r: PerformanceRisk }) => {
         {item('Índice de Sharpe', num(r.sharpe), 'Retorno anualizado acima do CDI dividido pela volatilidade: quanto de retorno extra por unidade de risco.', `retorno ${pct(r.annualReturn)} a.a. · CDI ${pct(r.annualCdi)} a.a.`)}
         {item('Índice de Sortino', num(r.sortino), 'Como o Sharpe, mas só conta as oscilações abaixo do CDI (risco de queda).')}
       </div>
-      <p className="mt-2 text-xs text-gray-500">
+      <p className="mt-2 text-xs text-content-4">
         {r.days} pregões de {date(r.from)} a {date(r.to)}. {r.note}
       </p>
     </div>

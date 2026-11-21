@@ -9,17 +9,17 @@ import { formatQuantity } from '@/utils/format';
 export const DivergenceList = ({ divergences, provider }: { divergences: Divergence[]; provider: string }) => {
   if (divergences.length === 0) return null;
   return (
-    <div className="rounded-md border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm">
-      <p className="flex items-center gap-2 font-medium text-yellow-500">
+    <div className="rounded-control border border-accent/30 bg-accent/10 p-4 text-sm">
+      <p className="flex items-center gap-2 font-medium text-accent-text">
         <AlertTriangle className="h-4 w-4" />
         {divergences.length === 1 ? '1 ativo diverge' : `${divergences.length} ativos divergem`} da {provider}
       </p>
-      <p className="mt-1 text-gray-400">
+      <p className="mt-1 text-content-3">
         Comparação da carteira com o saldo informado pela {provider} no momento da busca. Operações que não são
         importadas e o mesmo ativo guardado em outra carteira ou corretora também aparecem aqui.
       </p>
       <table className="mt-3 w-full">
-        <thead className="text-xs uppercase text-gray-400">
+        <thead className="uppercase text-content-3">
           <tr>
             <th className="py-1 text-left">Ativo</th>
             <th className="py-1 text-right">Activest</th>
@@ -30,7 +30,7 @@ export const DivergenceList = ({ divergences, provider }: { divergences: Diverge
         <tbody>
           {divergences.map(d => (
             <tr key={d.asset}>
-              <td className="py-1 text-white font-medium">{d.asset}</td>
+              <td className="py-1 text-content font-medium">{d.asset}</td>
               <td className="py-1 text-right">{formatQuantity(d.activest, true)}</td>
               <td className="py-1 text-right">{formatQuantity(d.exchange, true)}</td>
               <td className={`py-1 text-right font-medium ${d.difference > 0 ? 'text-success' : 'text-danger'}`}>

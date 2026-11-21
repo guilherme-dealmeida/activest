@@ -29,8 +29,8 @@ export const GoalAssetPicker = ({ value, ticker, assetTypeLabel, onChange }: Pro
         <TickerAutocomplete value={text} typeId={type?.id ?? null}
           onChange={(t, asset) => { setText(t); onChange(asset ? asset.id : null); }} />
         {chosen && !text && ticker && (
-          <p className="text-xs text-gray-400 mt-1">
-            Escolhido: <span className="text-white font-medium">{ticker}</span>
+          <p className="text-xs text-content-3 mt-1">
+            Escolhido: <span className="text-content font-medium">{ticker}</span>
             {assetTypeLabel ? ` (${assetTypeLabel})` : ''}. Para trocar, escolha o tipo e busque o ativo.
           </p>
         )}

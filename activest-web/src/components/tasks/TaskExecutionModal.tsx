@@ -10,8 +10,8 @@ import { StatusBadge } from './StatusBadge';
 
 const LEVELS = ['', 'INFO', 'WARN', 'ERROR'] as const;
 const LEVEL_CLASS: Record<TaskLogLine['level'], string> = {
-  INFO: 'text-gray-400',
-  WARN: 'text-orange-300',
+  INFO: 'text-content-3',
+  WARN: 'text-accent-text',
   ERROR: 'text-danger',
 };
 
@@ -52,7 +52,7 @@ export const TaskExecutionModal = ({ executionId, onClose }: { executionId: numb
   return (
     <Modal isOpen onClose={onClose} title={e ? `Rodada ${e.id} — ${e.taskName}` : 'Rodada'} size="2xl">
       {!detail.data ? (
-        <div className="flex justify-center py-10"><LoadingSpinner className="h-6 w-6 text-accent" /></div>
+        <div className="flex justify-center py-10"><LoadingSpinner className="h-6 w-6 text-accent-text" /></div>
       ) : (
         <div className="space-y-5 text-sm">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -76,14 +76,14 @@ export const TaskExecutionModal = ({ executionId, onClose }: { executionId: numb
 
           {detail.data.execution.summary && (
             <div>
-              <p className="text-xs text-gray-400 mb-1">Resumo</p>
-              <p className="rounded-md bg-surface-light/40 p-3 text-gray-200 break-words">{detail.data.execution.summary}</p>
+              <p className="text-xs text-content-3 mb-1">Resumo</p>
+              <p className="rounded-control bg-overlay p-3 text-content break-words">{detail.data.execution.summary}</p>
             </div>
           )}
           {detail.data.execution.errorMessage && (
             <div>
-              <p className="text-xs text-gray-400 mb-1">{detail.data.execution.status === 'FAILED' ? 'Erro' : 'Motivo'}</p>
-              <p className="rounded-md border border-danger/30 bg-danger/10 p-3 text-gray-200 break-words">
+              <p className="text-xs text-content-3 mb-1">{detail.data.execution.status === 'FAILED' ? 'Erro' : 'Motivo'}</p>
+              <p className="rounded-control border border-danger/30 bg-danger/10 p-3 text-content break-words">
                 {detail.data.execution.errorMessage}
               </p>
             </div>
@@ -91,12 +91,12 @@ export const TaskExecutionModal = ({ executionId, onClose }: { executionId: numb
 
           {Object.keys(detail.data.parameters).length > 0 && (
             <div>
-              <p className="text-xs text-gray-400 mb-1">Atributos usados</p>
+              <p className="text-xs text-content-3 mb-1">Atributos usados</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
                 {Object.entries(detail.data.parameters).map(([k, v]) => (
                   <div key={k} className="flex gap-2 font-mono text-xs">
-                    <span className="text-gray-400">{k}</span>
-                    <span className="text-gray-200 break-all">{v == null || v === '' ? '—' : v}</span>
+                    <span className="text-content-3">{k}</span>
+                    <span className="text-content break-all">{v == null || v === '' ? '—' : v}</span>
                   </div>
                 ))}
               </div>
@@ -105,26 +105,26 @@ export const TaskExecutionModal = ({ executionId, onClose }: { executionId: numb
 
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-content-3">
                 Log da rodada ({logs.data?.total ?? detail.data.logLines} linha(s)
                 {detail.data.execution.logLinesOmitted > 0 && `; ${detail.data.execution.logLinesOmitted} linha(s) INFO omitidas pelo teto`})
               </p>
               <select
-                className="ml-auto bg-surface-light border border-white/10 text-white text-xs rounded-md p-1.5"
+                className="ml-auto bg-elevated border border-line text-content text-xs rounded-control p-1.5"
                 value={level}
                 onChange={(ev) => { setLevel(ev.target.value); setPages(1); }}
               >
                 {LEVELS.map(l => <option key={l} value={l}>{l || 'Todos os níveis'}</option>)}
               </select>
             </div>
-            <div className="max-h-80 overflow-y-auto rounded-md bg-black/40 border border-white/10 p-3 font-mono text-xs space-y-0.5">
-              {logs.isLoading && <LoadingSpinner className="h-4 w-4 text-accent" />}
-              {logs.data?.lines.length === 0 && <p className="text-gray-500">Nenhuma linha.</p>}
+            <div className="max-h-80 overflow-y-auto rounded-control bg-black/40 border border-line p-3 font-mono text-xs space-y-0.5">
+              {logs.isLoading && <LoadingSpinner className="h-4 w-4 text-accent-text" />}
+              {logs.data?.lines.length === 0 && <p className="text-content-4">Nenhuma linha.</p>}
               {logs.data?.lines.map(l => (
                 <div key={l.id} className="flex gap-2">
-                  <span className="text-gray-500 shrink-0">{formatDateTime(l.loggedAt, true).slice(11)}</span>
+                  <span className="text-content-4 shrink-0">{formatDateTime(l.loggedAt, true).slice(11)}</span>
                   <span className={`shrink-0 w-11 ${LEVEL_CLASS[l.level]}`}>{l.level}</span>
-                  <span className="text-gray-200 break-all whitespace-pre-wrap">{l.message}</span>
+                  <span className="text-content break-all whitespace-pre-wrap">{l.message}</span>
                 </div>
               ))}
             </div>
@@ -144,7 +144,7 @@ export const TaskExecutionModal = ({ executionId, onClose }: { executionId: numb
 
 const Info = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div>
-    <p className="text-xs text-gray-400 mb-0.5">{label}</p>
-    <div className="text-gray-200">{children}</div>
+    <p className="text-xs text-content-3 mb-0.5">{label}</p>
+    <div className="text-content">{children}</div>
   </div>
 );

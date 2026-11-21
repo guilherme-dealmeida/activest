@@ -1,10 +1,10 @@
 import { useId } from 'react';
 import { Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { useTheme } from '@/context/ThemeContext';
 import { formatCurrency } from '@/utils/format';
 import { MONTH_SHORT, MonthRow, YearRow, monthLabel } from '@/utils/dividendPeriods';
 import { ColoredSeries, toReceiveColors, toReceiveSwatch } from './evolutionColors';
 import { rem } from '@/utils/fontScale';
+import { useChartTheme } from '@/theme/chart';
 
 /**
  * Gráficos da Evolução dos Proventos (docs/planos/PLANO_DIVIDENDOS_POR_PERIODO.md, blocos C e D): barras empilhadas
@@ -13,18 +13,6 @@ import { rem } from '@/utils/fontScale';
 
 const TO_RECEIVE = 'toReceive';
 const seriesKey = (typeKey: string) => `t_${typeKey}`;
-
-const useChartTheme = () => {
-  const { isDark } = useTheme();
-  return {
-    isDark,
-    surface: isDark ? '#111111' : '#ffffff',
-    grid: isDark ? '#2a2a2a' : '#e8e8e0',
-    axis: isDark ? '#8a8a8a' : '#6b6b6b',
-    label: isDark ? '#d1d5db' : '#374151',
-    cursor: isDark ? '#ffffff0d' : '#0000000a',
-  };
-};
 
 /** "R$ 1,2 mil", "R$ 250" — eixo e rótulos. */
 const compactCurrency = (v: number) =>
@@ -90,18 +78,17 @@ const Segment = (props: {
 
 /** Legenda acima do gráfico: amostra + nome (a cor nunca é a única pista). */
 export const EvolutionLegend = ({ types, hasToReceive }: { types: ColoredSeries[]; hasToReceive: boolean }) => {
-  const { isDark } = useTheme();
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs" role="list" aria-label="Legenda">
       {types.map(t => (
-        <span key={t.key} role="listitem" className="inline-flex items-center gap-1.5 text-gray-300">
+        <span key={t.key} role="listitem" className="inline-flex items-center gap-1.5 text-content-2">
           <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: t.color }} aria-hidden="true" />
           {t.label}
         </span>
       ))}
       {hasToReceive && (
-        <span role="listitem" className="inline-flex items-center gap-1.5 text-gray-300">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: toReceiveSwatch(isDark) }} aria-hidden="true" />
+        <span role="listitem" className="inline-flex items-center gap-1.5 text-content-2">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: toReceiveSwatch() }} aria-hidden="true" />
           A receber
         </span>
       )}
@@ -115,33 +102,32 @@ const EvolutionTip = ({ active, payload, title, types, note }: {
   active?: boolean; payload?: TipPayload; title: (row: ChartRow) => string; types: ColoredSeries[];
   note?: (row: ChartRow) => string | undefined;
 }) => {
-  const { isDark } = useTheme();
   if (!active || !payload?.length) return null;
   const row = payload[0].payload;
   // de cima para baixo, como a pilha
   const parts = [
-    ...(row[TO_RECEIVE] > 0 ? [{ name: 'A receber', swatch: toReceiveSwatch(isDark), value: row[TO_RECEIVE] }] : []),
+    ...(row[TO_RECEIVE] > 0 ? [{ name: 'A receber', swatch: toReceiveSwatch(), value: row[TO_RECEIVE] }] : []),
     ...[...types].reverse()
       .map(t => ({ name: t.label, swatch: t.color, value: Number(row[seriesKey(t.key)] ?? 0) }))
       .filter(p => p.value > 0),
   ];
   const extra = note?.(row);
   return (
-    <div className="rounded-md border border-white/10 bg-surface px-3 py-2 text-xs shadow-lg min-w-[200px]">
-      <div className="mb-1 text-gray-400">{title(row)}</div>
+    <div className="rounded-control border border-line bg-surface px-3 py-2 text-xs shadow-lg min-w-[200px]">
+      <div className="mb-1 text-content-3">{title(row)}</div>
       {parts.map(p => (
         <div key={p.name} className="flex items-center justify-between gap-4">
-          <span className="flex items-center gap-1.5 text-gray-300">
+          <span className="flex items-center gap-1.5 text-content-2">
             <span className="inline-block h-2 w-2 rounded-sm" style={{ background: p.swatch }} aria-hidden="true" />{p.name}
           </span>
-          <span className="font-medium text-white tabular-nums">{formatCurrency(p.value)}</span>
+          <span className="font-medium text-content tabular-nums">{formatCurrency(p.value)}</span>
         </div>
       ))}
-      <div className="mt-1 flex items-center justify-between gap-4 border-t border-white/10 pt-1">
-        <span className="text-gray-300">Total</span>
-        <span className="font-semibold text-white tabular-nums">{formatCurrency(row.total)}</span>
+      <div className="mt-1 flex items-center justify-between gap-4 border-t border-line pt-1">
+        <span className="text-content-2">Total</span>
+        <span className="font-semibold text-content tabular-nums">{formatCurrency(row.total)}</span>
       </div>
-      <div className="mt-1 text-[0.6875rem] text-gray-500">
+      <div className="mt-1 text-[0.6875rem] text-content-4">
         {row.count} {row.count === 1 ? 'provento' : 'proventos'}{extra ? ` · ${extra}` : ''}
       </div>
     </div>
@@ -163,8 +149,8 @@ const stackBars = (types: ColoredSeries[], hatchId: string, barSize: number, sur
 ];
 
 /** Hachura do a receber (padrão SVG), também filho direto do gráfico. */
-const hatchDefs = (id: string, isDark: boolean) => {
-  const { stripe, wash } = toReceiveColors(isDark);
+const hatchDefs = (id: string) => {
+  const { stripe, wash } = toReceiveColors();
   return (
     <defs>
       <pattern id={id} patternUnits="userSpaceOnUse" width={6} height={6} patternTransform="rotate(45)">
@@ -195,7 +181,7 @@ export const MonthlyChart = ({ months, types, averageCents, onSelect }: {
         <BarChart data={rows} margin={{ top: 12, right: 8, bottom: 0, left: 0 }} barCategoryGap="16%"
           onClick={(state) => { if (state?.activeLabel) onSelect(String(state.activeLabel)); }}
           style={{ cursor: 'pointer' }}>
-          {hatchDefs(hatchId, t.isDark)}
+          {hatchDefs(hatchId)}
           <CartesianGrid stroke={t.grid} vertical={false} />
           <XAxis dataKey="key" tickFormatter={shortMonth} tick={{ fill: t.axis, fontSize: rem(11) }} tickLine={false}
             axisLine={{ stroke: t.grid }} minTickGap={6} interval="preserveStartEnd" />
@@ -226,7 +212,7 @@ export const YearlyChart = ({ years, types }: { years: YearRow[]; types: Colored
     <div className="h-72">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={rows} margin={{ top: 24, right: 8, bottom: 0, left: 0 }} barCategoryGap="24%">
-          {hatchDefs(hatchId, t.isDark)}
+          {hatchDefs(hatchId)}
           <CartesianGrid stroke={t.grid} vertical={false} />
           <XAxis dataKey="key" tick={{ fill: t.axis, fontSize: rem(11) }} tickLine={false} axisLine={{ stroke: t.grid }}
             tickFormatter={(k: string) => (rows.find(r => r.key === k)?.partial ? `${k} (parcial)` : k)} />

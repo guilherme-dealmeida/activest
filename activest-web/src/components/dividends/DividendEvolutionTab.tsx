@@ -27,7 +27,7 @@ const WINDOWS: { value: MonthWindow; label: string }[] = [
 ];
 
 const pill = (active: boolean) =>
-  `rounded-md px-2.5 py-1 text-xs font-medium ${active ? 'bg-accent text-black' : 'bg-white/5 text-gray-300 hover:bg-white/10'}`;
+  `rounded-control px-2.5 py-1 text-xs font-medium ${active ? 'bg-accent text-black' : 'bg-overlay text-content-2 hover:bg-selected'}`;
 
 /**
  * Aba "Evolução dos Proventos" (27/10/2026, docs/planos/PLANO_DIVIDENDOS_POR_PERIODO.md): valores mensais e anuais dos
@@ -93,14 +93,14 @@ export const DividendEvolutionTab = ({ rows, onShowInList }: {
       <DividendFilterBar f={f} />
 
       {empty ? (
-        <Card><p className="text-sm text-gray-500">Nenhum provento no filtro.</p></Card>
+        <Card><p className="text-sm text-content-4">Nenhum provento no filtro.</p></Card>
       ) : (
         <>
           <Card>
             <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h3 className="text-lg font-medium text-white">{view === 'month' ? 'Proventos por mês' : 'Proventos por ano'}</h3>
-                <p className="text-xs text-gray-500">
+                <h3 className="text-lg font-medium text-content">{view === 'month' ? 'Proventos por mês' : 'Proventos por ano'}</h3>
+                <p className="text-xs text-content-4">
                   {view === 'month'
                     ? 'Líquido, pela data de pagamento. Clique num mês para ver os proventos.'
                     : 'Líquido, pela data de pagamento. O crescimento sobre o ano anterior aparece no balão, entre anos completos.'}
@@ -108,11 +108,11 @@ export const DividendEvolutionTab = ({ rows, onShowInList }: {
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 {/* Mês | Ano: um gráfico de cada vez, no estilo das abas da tela */}
-                <div className="flex space-x-1 rounded-lg border border-surface-light bg-surface p-1" role="group" aria-label="Gráfico">
+                <div className="flex space-x-1 rounded-control border border-line bg-surface p-1" role="group" aria-label="Gráfico">
                   {(['month', 'year'] as ChartView[]).map(v => (
                     <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v}
-                      className={clsx('rounded-md px-3 py-1 text-xs font-medium transition-colors',
-                        view === v ? 'bg-surface-light text-white' : 'text-gray-400 hover:bg-surface-light/50 hover:text-white')}>
+                      className={clsx('rounded-control px-3 py-1 text-xs font-medium transition-colors',
+                        view === v ? 'bg-accent/15 text-accent-text' : 'text-content-3 hover:bg-overlay hover:text-content')}>
                       {v === 'month' ? 'Por mês' : 'Por ano'}
                     </button>
                   ))}
@@ -130,13 +130,13 @@ export const DividendEvolutionTab = ({ rows, onShowInList }: {
                       onChange={(e) => setRange(e.target.value ? Number(e.target.value) : '12M')}
                       aria-label="Ano"
                       className={clsx(
-                        'rounded-md border-0 py-1 pl-2.5 pr-7 text-xs font-medium focus:ring-accent',
-                        typeof range === 'number' ? 'bg-accent text-black' : 'bg-surface-light text-gray-300'
+                        'rounded-control border-0 py-1 pl-2.5 pr-7 text-xs font-medium focus:ring-accent',
+                        typeof range === 'number' ? 'bg-accent text-black' : 'bg-elevated text-content-2'
                       )}
                     >
                       {/* opções com o fundo e o texto do tema: herdar do select deixava texto claro em fundo branco */}
-                      <option value="" className="bg-surface text-white">Ano</option>
-                      {years.map(y => <option key={y} value={y} className="bg-surface text-white">{y}</option>)}
+                      <option value="" className="bg-surface text-content">Ano</option>
+                      {years.map(y => <option key={y} value={y} className="bg-surface text-content">{y}</option>)}
                     </select>
                   </div>
                 )}
@@ -150,14 +150,14 @@ export const DividendEvolutionTab = ({ rows, onShowInList }: {
 
           <Card>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-lg font-medium text-white">Mês a mês</h3>
+              <h3 className="text-lg font-medium text-content">Mês a mês</h3>
               <div className="flex flex-wrap items-center gap-4">
-                <label className="inline-flex items-center gap-2 text-xs text-gray-300">
+                <label className="inline-flex items-center gap-2 text-xs text-content-2">
                   <Switch checked={includeToReceive} onChange={setIncludeToReceive} label="Incluir proventos a receber" />
                   Incluir a receber
                 </label>
                 <button type="button" onClick={copyTable}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-white/5 px-3 py-1.5 text-xs font-medium text-gray-300 hover:bg-white/10 hover:text-white">
+                  className="inline-flex items-center gap-1.5 rounded-control bg-overlay px-3 py-1.5 text-xs font-medium text-content-2 hover:bg-selected hover:text-content">
                   <Copy className="h-3.5 w-3.5" />
                   Copiar tabela
                 </button>
@@ -173,7 +173,7 @@ export const DividendEvolutionTab = ({ rows, onShowInList }: {
       )}
 
       {periods.undated.count > 0 && (
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-content-4">
           {periods.undated.count} {periods.undated.count === 1 ? 'provento a receber' : 'proventos a receber'} sem data de
           pagamento ({formatCurrency(periods.undated.cents / 100)}) {periods.undated.count === 1 ? 'fica' : 'ficam'} fora
           dos meses até a empresa divulgar a data.

@@ -110,9 +110,9 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange, includeD
 
   return (
     <div ref={boxRef} className="relative">
-      <label className="block text-sm font-medium text-gray-300 mb-1.5">Ativo (Ticker)</label>
+      <label className="block text-sm font-medium text-content-2 mb-1.5">Ativo (Ticker)</label>
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-content-3" />
         <input
           type="text"
           autoComplete="off"
@@ -133,26 +133,26 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange, includeD
             else if (e.key === 'Escape') setOpen(false);
           }}
           placeholder={withoutType ? 'Escolha o tipo de ativo primeiro' : 'Digite para buscar (ex: PETR4, MXRF11, CDB)'}
-          className="flex h-10 w-full rounded-md border border-surface-light bg-surface pl-9 pr-3 py-2 text-sm text-white focus:ring-2 focus:ring-accent focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed"
+          className="flex h-10 w-full rounded-control border border-line bg-surface pl-9 pr-3 py-2 text-sm text-content focus:ring-2 focus:ring-accent focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed"
         />
-        {searching && <LoadingSpinner className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-accent" />}
+        {searching && <LoadingSpinner className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-accent-text" />}
       </div>
 
       {open && options.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto rounded-md border border-white/10 bg-surface shadow-xl">
+        <div className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto rounded-control border border-line bg-surface shadow-xl">
           {options.map((opt, idx) => (
             <button
               key={opt.id}
               type="button"
               onClick={() => pick(opt)}
-              className={`w-full text-left px-3 py-2.5 flex items-center gap-3 text-sm transition-colors border-b border-white/5 last:border-0 ${
-                idx === highlight ? 'bg-accent/15 text-white' : 'text-gray-300 hover:bg-white/5'
+              className={`w-full text-left px-3 py-2.5 flex items-center gap-3 text-sm transition-colors border-b border-line-soft last:border-0 ${
+                idx === highlight ? 'bg-accent/15 text-content' : 'text-content-2 hover:bg-overlay'
               }`}
             >
-              <span className="font-semibold text-white min-w-[80px]">{opt.ticker}</span>
-              <span className="truncate flex-1 text-gray-400">{opt.name}</span>
+              <span className="font-semibold text-content min-w-[80px]">{opt.ticker}</span>
+              <span className="truncate flex-1 text-content-3">{opt.name}</span>
               {!opt.active && (
-                <span className="shrink-0 text-xs text-amber-400">
+                <span className="shrink-0 text-xs text-accent-text">
                   {opt.delistedOn ? `deslistado em ${formatDate(opt.delistedOn)}` : 'inativo'}
                 </span>
               )}
@@ -162,7 +162,7 @@ export const TickerAutocomplete = ({ value, typeId, disabled, onChange, includeD
           {/* Truncou: o usuário precisa saber que existe mais coisa, senão
               conclui que o ativo não está cadastrado e cria um duplicado. */}
           {truncated && (
-            <p className="px-3 py-2 text-xs text-gray-500 border-t border-white/5">
+            <p className="px-3 py-2 text-xs text-content-4 border-t border-line-soft">
               Mostrando os {SEARCH_LIMIT} primeiros. Refine a busca para ver o resto.
             </p>
           )}

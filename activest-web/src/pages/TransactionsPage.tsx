@@ -450,28 +450,28 @@ export const TransactionsPage = () => {
   };
 
   if (isLoading) {
-    return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent" /></div>;
+    return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent-text" /></div>;
   }
 
   return (
     <div className="space-y-6">
       {(positionFilter || tickerFilter) && (
-        <div className="flex items-center gap-3 rounded-md border border-accent/30 bg-accent/10 px-4 py-2 text-sm">
-          <span className="text-gray-200">
+        <div className="flex items-center gap-3 rounded-control border border-accent/30 bg-accent/10 px-4 py-2 text-sm">
+          <span className="text-content">
             Mostrando apenas as transações de{' '}
             {positionFilter ? (
               <>
-                <span className="font-medium text-white">{filteredPosition?.ticker ? assetText(filteredPosition.ticker) : 'uma posição da carteira'}</span>
+                <span className="font-medium text-content">{filteredPosition?.ticker ? assetText(filteredPosition.ticker) : 'uma posição da carteira'}</span>
                 {filteredPosition?.issuer ? ` · ${filteredPosition.issuer}` : ''}
                 {filteredPosition?.maturityDate ? ` · venc. ${formatDate(filteredPosition.maturityDate)}` : ''}
               </>
             ) : (
-              <span className="font-medium text-white">{tickerFilter}</span>
+              <span className="font-medium text-content">{tickerFilter}</span>
             )}
           </span>
           <button
             onClick={clearPosition}
-            className="ml-auto flex items-center gap-1 text-xs text-gray-300 hover:text-white transition-colors"
+            className="ml-auto flex items-center gap-1 text-xs text-content-2 hover:text-content transition-colors"
           >
             <X className="w-3.5 h-3.5" />
             Limpar filtro
@@ -483,15 +483,15 @@ export const TransactionsPage = () => {
       <div className="flex flex-wrap gap-3 items-end">
         {/* Busca por ticker ou nome, como na tela Ativos e em Dividendos: escolher = Listar. */}
         <div className="w-full sm:w-96">
-          <label className="block text-xs text-gray-400 mb-1">Buscar</label>
+          <label className="block text-xs text-content-3 mb-1">Buscar</label>
           <LocalAssetSearch options={searchOptions} onSelect={listTicker} ariaLabel="Buscar transação por ticker ou nome" />
         </div>
         <div>
-          <label className="block text-xs text-gray-400 mb-1">Tipo de Ativo</label>
+          <label className="block text-xs text-content-3 mb-1">Tipo de Ativo</label>
           <select
             value={filterType}
             onChange={(e) => handleTypeChange(e.target.value)}
-            className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2"
+            className="bg-elevated border border-line text-content text-sm rounded-control focus:ring-accent focus:border-accent p-2"
           >
             <option value="ALL">Todos</option>
             {uniqueTypes.map(t => <option key={t} value={t}>{t}</option>)}
@@ -502,11 +502,11 @@ export const TransactionsPage = () => {
             fixa com emissor, onde o ativo (CDB, LCI, LCA) já é a categoria. */}
         {filterByAsset ? (
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Ativo</label>
+            <label className="block text-xs text-content-3 mb-1">Ativo</label>
             <select
               value={filterAsset}
               onChange={(e) => { setFilterAsset(e.target.value); setCurrentPage(1); }}
-              className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2"
+              className="bg-elevated border border-line text-content text-sm rounded-control focus:ring-accent focus:border-accent p-2"
             >
               <option value="ALL">Todos</option>
               {assetsOfType.map(a => <option key={a} value={a}>{assetText(a)}</option>)}
@@ -514,14 +514,14 @@ export const TransactionsPage = () => {
           </div>
         ) : (
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Categoria</label>
+            <label className="block text-xs text-content-3 mb-1">Categoria</label>
             <select
               value={filterCategory}
               // Sem tipo escolhido só existe "Todas": categoria é do tipo, e
               // misturar as de todos eles não filtraria nada compreensível.
               disabled={filterType === 'ALL' || categoriesOfType.length === 0}
               onChange={(e) => { setFilterCategory(e.target.value); setCurrentPage(1); }}
-              className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="bg-elevated border border-line text-content text-sm rounded-control focus:ring-accent focus:border-accent p-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <option value="ALL">Todas</option>
               {categoriesOfType.map(c => <option key={c} value={c}>{c}</option>)}
@@ -531,11 +531,11 @@ export const TransactionsPage = () => {
 
         {filtersIssuer && (
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Emissora</label>
+            <label className="block text-xs text-content-3 mb-1">Emissora</label>
             <select
               value={filterIssuer}
               onChange={(e) => { setFilterIssuer(e.target.value); setCurrentPage(1); }}
-              className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2"
+              className="bg-elevated border border-line text-content text-sm rounded-control focus:ring-accent focus:border-accent p-2"
             >
               <option value="ALL">Todas</option>
               {issuersOfType.map(n => <option key={n} value={n}>{n}</option>)}
@@ -544,11 +544,11 @@ export const TransactionsPage = () => {
         )}
         {filtersDistributor && (
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Distribuidora</label>
+            <label className="block text-xs text-content-3 mb-1">Distribuidora</label>
             <select
               value={filterDistributor}
               onChange={(e) => { setFilterDistributor(e.target.value); setCurrentPage(1); }}
-              className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2"
+              className="bg-elevated border border-line text-content text-sm rounded-control focus:ring-accent focus:border-accent p-2"
             >
               <option value="ALL">Todas</option>
               {distributorsOfType.map(n => <option key={n} value={n}>{n}</option>)}
@@ -557,11 +557,11 @@ export const TransactionsPage = () => {
         )}
 
         <div>
-          <label className="block text-xs text-gray-400 mb-1">Origem</label>
+          <label className="block text-xs text-content-3 mb-1">Origem</label>
           <select
             value={filterOrigin}
             onChange={(e) => { setFilterOrigin(e.target.value as 'ALL' | 'MANUAL' | 'AUTO' | 'SISTEMA' | 'EVENT'); setCurrentPage(1); }}
-            className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2"
+            className="bg-elevated border border-line text-content text-sm rounded-control focus:ring-accent focus:border-accent p-2"
           >
             <option value="ALL">Todas</option>
             <option value="MANUAL">Digitadas</option>
@@ -572,11 +572,11 @@ export const TransactionsPage = () => {
         </div>
 
         <div>
-          <label className="block text-xs text-gray-400 mb-1">Período</label>
+          <label className="block text-xs text-content-3 mb-1">Período</label>
           <select
             value={filterPeriod}
             onChange={(e) => { setFilterPeriod(e.target.value); setCurrentPage(1); }}
-            className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2"
+            className="bg-elevated border border-line text-content text-sm rounded-control focus:ring-accent focus:border-accent p-2"
           >
             <option value="30">30 dias</option>
             <option value="60">60 dias</option>
@@ -595,7 +595,7 @@ export const TransactionsPage = () => {
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="text-xs text-gray-400 uppercase border-b border-white/10">
+            <thead className="text-content-3 uppercase border-b border-line">
               <tr>
                 {/* ATIVO primeiro, como na carteira. A ordem padrão continua a da
                     API: data da transação, da mais nova para a mais antiga. */}
@@ -626,13 +626,13 @@ export const TransactionsPage = () => {
                 <th className="px-4 py-3 text-center">AÇÕES</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-line-soft">
               {paginated.map((row) => row.kind === 'STOCK_EVENT' ? (
                 <StockEventLine key={row.id} row={row} typeName={nameOfType(row)} onList={fetchList}
                   onInformCost={setInformCost} />
               ) : (
-                <tr key={row.id} className="hover:bg-white/5 transition-colors">
-                  <td className="px-4 py-3 text-white font-medium">
+                <tr key={row.id} className="hover:bg-overlay transition-colors">
+                  <td className="px-4 py-3 text-content font-medium">
                     {/* Logo e link para a emissora, como na carteira. Nome do ativo no hover. */}
                     <div className="flex items-center gap-3" title={row.assetName || undefined}>
                       {(() => {
@@ -657,7 +657,7 @@ export const TransactionsPage = () => {
                             usuário mexeu depois (a sincronização não sobrescreve). */}
                         {row.origin === 'AUTO' && (
                           <span
-                            className="ml-2 rounded bg-accent/15 px-1.5 py-0.5 text-[0.625rem] font-normal text-accent"
+                            className="ml-2 rounded bg-accent/15 px-1.5 py-0.5 text-[0.625rem] font-normal text-accent-text"
                             title={row.editedAt
                               ? `Importada de ${row.connectionLabel ?? providerName(row.connectionProvider, integrationSources)} e editada por você`
                               : `Importada de ${row.connectionLabel ?? providerName(row.connectionProvider, integrationSources)}`}
@@ -668,7 +668,7 @@ export const TransactionsPage = () => {
                         {/* Liquidação automática do título vencido (seção 6 do plano de notificações). */}
                         {row.origin === 'SISTEMA' && (
                           <span
-                            className="ml-2 rounded bg-blue-500/15 px-1.5 py-0.5 text-[0.625rem] font-normal text-blue-400"
+                            className="ml-2 rounded bg-info/15 px-1.5 py-0.5 text-[0.625rem] font-normal text-info"
                             title={row.editedAt
                               ? 'Resgate lançado pelo Activest no vencimento do título (liquidação automática, que deixou de existir) e editado por você'
                               : 'Resgate lançado pelo Activest no vencimento do título (liquidação automática, que deixou de existir). Confira com o valor líquido que caiu na sua conta e edite se for outro.'}
@@ -684,7 +684,7 @@ export const TransactionsPage = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-white/70" title={noteHint(row)}>
+                  <td className="px-4 py-3 text-content/70" title={noteHint(row)}>
                     {(() => {
                       const titleText = noteLabel(row);
                       if (!titleText) return '—';
@@ -696,12 +696,12 @@ export const TransactionsPage = () => {
                                 pode consumir mais de um: cada parte é uma linha, e a marca
                                 diz que elas são a mesma venda. */}
                             {(row.groupParts ?? 0) > 1 && (
-                              <span className="ml-2 rounded bg-white/10 px-1.5 py-0.5 text-[0.625rem] font-normal text-gray-300">
+                              <span className="ml-2 rounded bg-selected px-1.5 py-0.5 text-[0.625rem] font-normal text-content-2">
                                 título {row.groupPart}/{row.groupParts}
                               </span>
                             )}
                           </div>
-                          {titleText.rateValue && <div className="text-xs text-gray-400">{titleText.rateValue}</div>}
+                          {titleText.rateValue && <div className="text-xs text-content-3">{titleText.rateValue}</div>}
                         </>
                       );
                     })()}
@@ -710,10 +710,10 @@ export const TransactionsPage = () => {
                   <td className="px-4 py-3">
                     <div>{formatDate(row.transactionDate)}</div>
                     {row.noteId && row.maturityDate && (
-                      <div className="text-xs text-gray-400">venc. {formatDate(row.maturityDate)}</div>
+                      <div className="text-xs text-content-3">venc. {formatDate(row.maturityDate)}</div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray-400">{row.assetType}</td>
+                  <td className="px-4 py-3 text-content-3">{row.assetType}</td>
                   <td className="px-4 py-3">
                     <span className={row.type === TransactionType.BUY ? "text-success font-medium" : "text-danger font-medium"}>
                       {row.type === TransactionType.BUY ? 'Compra' : 'Venda'}
@@ -725,7 +725,7 @@ export const TransactionsPage = () => {
                     <span className="inline-flex flex-col items-end">
                       <span>{row.pricePerShare != null ? formatUnitPrice(row.pricePerShare, row.isCrypto) : '—'}</span>
                       {row.currency?.originalPricePerShare != null && (
-                        <span className="text-xs text-gray-400 tabular-nums"
+                        <span className="text-xs text-content-3 tabular-nums"
                           title={`Câmbio ${formatFxRate(row.currency.fxRate)} (${row.currency.fxRateOrigin === 'INFORMED' ? 'informado' : 'PTAX venda'})`}>
                           {formatMoney(row.currency.originalPricePerShare, row.currency.symbol, 2, 8)}
                         </span>
@@ -734,17 +734,17 @@ export const TransactionsPage = () => {
                   </td>
                   {/* Venda de Renda Fixa e de Tesouro: o bruto e, embaixo, o líquido — o que caiu na conta —, como o
                       valor atual da Carteira (PLANO_VENDA_RENDA_FIXA, D4). */}
-                  <td className="px-4 py-3 text-right font-medium text-white">
+                  <td className="px-4 py-3 text-right font-medium text-content">
                     <span className="inline-flex flex-col items-end">
                       <span>{formatCurrency(row.totalAmount)}</span>
                       {row.currency && (
-                        <span className="text-xs font-normal text-gray-400 tabular-nums"
+                        <span className="text-xs font-normal text-content-3 tabular-nums"
                           title={`Câmbio ${formatFxRate(row.currency.fxRate)} (${row.currency.fxRateOrigin === 'INFORMED' ? 'informado' : 'PTAX venda'})`}>
                           {formatMoney(row.currency.originalTotalAmount, row.currency.symbol)}
                         </span>
                       )}
                       {row.netAmount != null && (
-                        <span className="text-xs font-normal text-gray-400 tabular-nums">
+                        <span className="text-xs font-normal text-content-3 tabular-nums">
                           {formatCurrency(row.netAmount)}
                         </span>
                       )}
@@ -804,7 +804,7 @@ export const TransactionsPage = () => {
                 </tr>
               ))}
               {paginated.length === 0 && (
-                <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-500">Nenhuma transação encontrada.</td></tr>
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-content-4">Nenhuma transação encontrada.</td></tr>
               )}
             </tbody>
           </table>

@@ -38,7 +38,7 @@ const formatEquity = (value: number | null): string => {
 
 /** Relógio de "dado antigo" (A2), com a data no hover. */
 const StaleMark = ({ title }: { title: string }) => (
-  <span title={title} aria-label={title} className="inline-flex cursor-help text-accent">
+  <span title={title} aria-label={title} className="inline-flex cursor-help text-accent-text">
     <Clock className="h-3.5 w-3.5" />
   </span>
 );
@@ -64,7 +64,7 @@ const NumericCell = ({ row, column, tab }: { row: ListingRow; column: NumericCol
   }
   return (
     <td className={clsx('px-3 py-3 text-right whitespace-nowrap',
-      value === null ? 'text-gray-500' : column.unit === 'EQUITY' && value < 0 ? 'text-danger' : 'text-gray-200')}>
+      value === null ? 'text-content-4' : column.unit === 'EQUITY' && value < 0 ? 'text-danger' : 'text-content')}>
       <span className="inline-flex items-center justify-end gap-1">
         {stale && <StaleMark title={stale} />}
         <span title={title} className={title && value === null ? 'cursor-help' : undefined}>{text}</span>
@@ -112,7 +112,7 @@ export const IssuerListingTable = ({ tab }: { tab: ListingTab }) => {
     return (
       <th key={key}
         className={clsx('px-3 py-3 cursor-pointer select-none whitespace-nowrap', align === 'right' && 'text-right',
-          active ? 'text-accent' : 'text-gray-400')}
+          active ? 'text-accent-text' : 'text-content-3')}
         onClick={() => update({ sort: nextSort(state.sort, key) }, true)}
         aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
         {label}{active ? (dir === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
@@ -121,14 +121,14 @@ export const IssuerListingTable = ({ tab }: { tab: ListingTab }) => {
   };
 
   if (isLoading) {
-    return <div className="flex h-48 items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent" /></div>;
+    return <div className="flex h-48 items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent-text" /></div>;
   }
   if (isError) {
-    return <p className="text-sm text-gray-400">{apiMessage(error) ?? 'Não foi possível carregar a listagem.'}</p>;
+    return <p className="text-sm text-content-3">{apiMessage(error) ?? 'Não foi possível carregar a listagem.'}</p>;
   }
 
   return (
-    <div className="rounded-xl border border-surface-light bg-surface p-5 space-y-4">
+    <div className="rounded-panel border border-line bg-surface p-5 space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <input
           type="search"
@@ -136,26 +136,26 @@ export const IssuerListingTable = ({ tab }: { tab: ListingTab }) => {
           onChange={e => update({ name: e.target.value })}
           placeholder="Filtrar por ticker ou nome"
           aria-label="Filtrar a tabela por ticker ou nome"
-          className="w-full max-w-xs rounded-md border border-white/10 bg-surface-light px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-accent focus:ring-accent"
+          className="w-full max-w-xs rounded-control border border-line bg-elevated px-3 py-2 text-sm text-content placeholder-content-3 focus:border-accent focus:ring-accent"
         />
         <button
           type="button"
           onClick={() => setShowFilters(v => !v)}
           aria-expanded={showFilters}
-          className={clsx('flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors',
-            showFilters || filters > 0 ? 'border-accent/50 text-accent' : 'border-white/10 text-gray-300 hover:text-white')}
+          className={clsx('flex items-center gap-2 rounded-control border px-3 py-2 text-sm transition-colors',
+            showFilters || filters > 0 ? 'border-accent/50 text-accent-text' : 'border-line text-content-2 hover:text-content')}
         >
           <SlidersHorizontal className="h-4 w-4" />
           Filtros{filters > 0 && <span className="rounded-full bg-accent px-1.5 text-xs font-semibold text-black">{filters}</span>}
         </button>
         {(filters > 0 || state.name) && (
           <button type="button" onClick={clearFilters}
-            className="flex items-center gap-1 text-xs text-gray-300 hover:text-white transition-colors">
+            className="flex items-center gap-1 text-xs text-content-2 hover:text-content transition-colors">
             <X className="h-3.5 w-3.5" />
             Limpar filtros
           </button>
         )}
-        <span className="ml-auto text-sm text-gray-400">
+        <span className="ml-auto text-sm text-content-3">
           {sorted.length === rows.length ? `${rows.length} ativos` : `${sorted.length} de ${rows.length} ativos`}
         </span>
       </div>
@@ -164,39 +164,39 @@ export const IssuerListingTable = ({ tab }: { tab: ListingTab }) => {
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
-          <thead className="text-xs uppercase border-b border-white/10">
+          <thead className="uppercase border-b border-line">
             <tr>
               {header('ticker', 'ATIVO', 'left')}
               {header('name', 'NOME', 'left')}
               {header('sector', tab === 'stocks' ? 'SETOR' : 'SEGMENTO', 'left')}
               {columns.map(c => header(c.key, c.label))}
-              <th className="px-3 py-3 text-center text-gray-400">AÇÃO</th>
+              <th className="px-3 py-3 text-center text-content-3">AÇÃO</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
+          <tbody className="divide-y divide-line-soft">
             {visible.map(row => (
-              <tr key={row.ticker} className="hover:bg-white/5 transition-colors">
-                <td className="px-3 py-3 text-white">
+              <tr key={row.ticker} className="hover:bg-overlay transition-colors">
+                <td className="px-3 py-3 text-content">
                   <div className="flex items-center gap-3">
                     <AssetLogo ticker={row.ticker} hasLogo={row.hasLogo} size={32} shape="square" />
                     <TickerLink ticker={row.ticker} issuerId={row.issuerId} />
                   </div>
                 </td>
-                <td className="px-3 py-3 text-gray-200">
+                <td className="px-3 py-3 text-content">
                   <span className="block max-w-[16rem] truncate" title={row.legalName ?? row.name}>{row.name}</span>
                 </td>
                 <td className="px-3 py-3">
                   {tab === 'stocks' ? (
                     <div className="max-w-[16rem]" title={[row.sector, row.subsector, row.segment].filter(Boolean).join(' › ')}>
-                      <span className="block truncate text-gray-200">{row.sector ?? '—'}</span>
+                      <span className="block truncate text-content">{row.sector ?? '—'}</span>
                       {(row.subsector || row.segment) && (
-                        <span className="block truncate text-xs text-gray-500">
+                        <span className="block truncate text-xs text-content-4">
                           {[row.subsector, row.segment].filter(Boolean).join(' › ')}
                         </span>
                       )}
                     </div>
                   ) : (
-                    <span className="block max-w-[12rem] truncate text-gray-200" title={row.segment ?? undefined}>
+                    <span className="block max-w-[12rem] truncate text-content" title={row.segment ?? undefined}>
                       {row.segment ?? '—'}
                     </span>
                   )}
@@ -212,7 +212,7 @@ export const IssuerListingTable = ({ tab }: { tab: ListingTab }) => {
             ))}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={columns.length + 4} className="px-3 py-10 text-center text-gray-400">
+                <td colSpan={columns.length + 4} className="px-3 py-10 text-center text-content-3">
                   Nenhum ativo com esses filtros.
                 </td>
               </tr>

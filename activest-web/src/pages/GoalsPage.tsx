@@ -46,8 +46,8 @@ interface SummaryCard {
 const CARDS: SummaryCard[] = [
   { title: 'Ativas', count: s => s.active, tab: 'ATIVA', situations: [] },
   { title: 'Fora do objetivo', count: s => s.outside, className: 'text-danger', tab: 'ATIVA', situations: ['FORA_DO_OBJETIVO'] },
-  { title: 'Atrasadas / prazo vencido', count: s => s.behind, className: 'text-yellow-500', tab: 'ATIVA', situations: ['ATRASADA', 'PRAZO_VENCIDO'] },
-  { title: 'Em andamento', count: s => s.inProgress, className: 'text-blue-500', tab: 'ATIVA', situations: ['EM_ANDAMENTO', 'ESTIMATIVA'] },
+  { title: 'Atrasadas / prazo vencido', count: s => s.behind, className: 'text-accent-text', tab: 'ATIVA', situations: ['ATRASADA', 'PRAZO_VENCIDO'] },
+  { title: 'Em andamento', count: s => s.inProgress, className: 'text-info', tab: 'ATIVA', situations: ['EM_ANDAMENTO', 'ESTIMATIVA'] },
   { title: 'No ritmo / dentro', count: s => s.onTrack, className: 'text-success', tab: 'ATIVA', situations: ['NO_RITMO', 'DENTRO_DO_OBJETIVO'] },
   { title: 'Concluídas', count: s => s.completed, tab: 'CONCLUIDA', situations: [] },
 ];
@@ -65,16 +65,16 @@ const situationsOfTag = (s: GoalSituation): GoalSituation[] =>
 const TAG_COLORS: Record<string, string> = {
   success: 'border-success/40 text-success',
   danger: 'border-danger/40 text-danger',
-  warning: 'border-yellow-500/40 text-yellow-500',
-  info: 'border-blue-500/40 text-blue-500',
-  default: 'border-surface-light text-gray-300',
+  warning: 'border-accent/40 text-accent-text',
+  info: 'border-info/40 text-info',
+  default: 'border-line text-content-2',
 };
 const TAG_ACTIVE: Record<string, string> = {
   success: 'bg-success/20',
   danger: 'bg-danger/20',
-  warning: 'bg-yellow-500/20',
-  info: 'bg-blue-500/20',
-  default: 'bg-surface-light',
+  warning: 'bg-accent/20',
+  info: 'bg-info/20',
+  default: 'bg-elevated',
 };
 
 /**
@@ -156,7 +156,7 @@ export const GoalsPage = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-gray-400">Você define o objetivo; o Activest calcula a situação, o progresso e a projeção a partir da carteira.</p>
+        <p className="text-sm text-content-3">Você define o objetivo; o Activest calcula a situação, o progresso e a projeção a partir da carteira.</p>
         <Button onClick={() => setCreating(true)} disabled={!catalog}><Plus className="w-4 h-4 mr-2" />Nova meta</Button>
       </div>
 
@@ -180,11 +180,11 @@ export const GoalsPage = () => {
       )}
 
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex gap-1 border-b border-surface-light">
+        <div className="flex gap-1 border-b border-line">
           {TABS.map(t => (
             <button key={t.value} type="button" onClick={() => changeTab(t.value)}
               className={clsx('px-4 py-2 text-sm border-b-2 -mb-px transition-colors',
-                tab === t.value ? 'border-accent text-white' : 'border-transparent text-gray-400 hover:text-white')}>
+                tab === t.value ? 'border-accent text-content' : 'border-transparent text-content-3 hover:text-content')}>
               {t.label}
             </button>
           ))}
@@ -214,7 +214,7 @@ export const GoalsPage = () => {
           })}
           {situations !== null && (
             <button type="button" onClick={() => setSituations(null)}
-              className="flex items-center gap-1 text-xs text-gray-400 hover:text-white">
+              className="flex items-center gap-1 text-xs text-content-3 hover:text-content">
               <X className="h-3 w-3" />Limpar
             </button>
           )}
@@ -223,12 +223,12 @@ export const GoalsPage = () => {
             <div className="ml-auto flex items-center gap-3">
               <button type="button" onClick={() => setClosed(groups.map(gr => gr.category.value))}
                 disabled={groups.every(gr => closed.includes(gr.category.value))}
-                className="flex items-center gap-1 text-xs text-gray-400 hover:text-white disabled:opacity-40 disabled:hover:text-gray-400">
+                className="flex items-center gap-1 text-xs text-content-3 hover:text-content disabled:opacity-40 disabled:hover:text-content-3">
                 <ChevronsDownUp className="h-3.5 w-3.5" />Recolher tudo
               </button>
               <button type="button" onClick={() => setClosed([])}
                 disabled={!groups.some(gr => closed.includes(gr.category.value))}
-                className="flex items-center gap-1 text-xs text-gray-400 hover:text-white disabled:opacity-40 disabled:hover:text-gray-400">
+                className="flex items-center gap-1 text-xs text-content-3 hover:text-content disabled:opacity-40 disabled:hover:text-content-3">
                 <ChevronsUpDown className="h-3.5 w-3.5" />Expandir tudo
               </button>
             </div>
@@ -237,10 +237,10 @@ export const GoalsPage = () => {
       )}
 
       {isLoading ? (
-        <div className="flex justify-center py-12"><LoadingSpinner className="h-8 w-8 text-accent" /></div>
+        <div className="flex justify-center py-12"><LoadingSpinner className="h-8 w-8 text-accent-text" /></div>
       ) : groups.length === 0 ? (
         <Card>
-          <p className="text-gray-400 text-sm text-center py-8">
+          <p className="text-content-3 text-sm text-center py-8">
             {tab === 'ATIVA' && !category && situations === null
               ? 'Nenhuma meta ativa. Crie a primeira: o Activest acompanha a partir da sua carteira.'
               : 'Nenhuma meta aqui.'}
@@ -253,10 +253,10 @@ export const GoalsPage = () => {
               <h2>
                 <button type="button" onClick={() => toggleGroup(gr.category.value)}
                   aria-expanded={!closed.includes(gr.category.value)}
-                  className="flex w-full items-center gap-2 border-b border-surface-light pb-2 text-left text-sm font-medium text-gray-300 hover:text-white">
+                  className="flex w-full items-center gap-2 border-b border-line pb-2 text-left text-sm font-medium text-content-2 hover:text-content">
                   <ChevronDown className={clsx('h-4 w-4 transition-transform',
                     closed.includes(gr.category.value) && '-rotate-90')} aria-hidden="true" />
-                  {gr.category.label} <span className="text-gray-500">· {gr.goals.length}</span>
+                  {gr.category.label} <span className="text-content-4">· {gr.goals.length}</span>
                 </button>
               </h2>
               {!closed.includes(gr.category.value) && (

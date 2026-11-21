@@ -15,7 +15,7 @@ const ERROR_DURATION_MS = 8000;
 const VARIANT_STYLES: Record<ToastVariant, string> = {
   success: 'border-success/40 bg-success/15 text-success',
   error: 'border-danger/40 bg-danger/15 text-danger',
-  info: 'border-accent/40 bg-accent/15 text-accent',
+  info: 'border-accent/40 bg-accent/15 text-accent-text',
 };
 
 const VARIANT_ICONS: Record<ToastVariant, typeof Info> = {
@@ -75,7 +75,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
               key={toast.id}
               role="status"
               className={clsx(
-                'pointer-events-auto flex items-start gap-3 rounded-md border px-4 py-3 text-sm shadow-lg backdrop-blur',
+                'pointer-events-auto flex items-start gap-3 rounded-control border px-4 py-3 text-sm shadow-lg backdrop-blur',
                 VARIANT_STYLES[toast.variant]
               )}
             >

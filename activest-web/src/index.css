@@ -2,6 +2,125 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Tokens do tema.
+ *
+ * Antes a cor vivia em três lugares que não se conheciam: o tailwind.config.js,
+ * um override de `html.light .text-content/NN` para cada classe com opacidade e
+ * hex hardcoded em cada gráfico. O tema claro era a paleta escura com o texto
+ * trocado, e cada tela nova descobria a armadilha sozinha (texto branco sobre
+ * fundo branco).
+ *
+ * Agora a cor é uma variável por papel semântico, e o tema claro é um conjunto
+ * de valores — não uma reescrita classe por classe. Uma cor nova é uma
+ * variável nova em `:root` e em `html.light`; nenhuma tela precisa saber qual
+ * tema está no ar.
+ *
+ * Os papéis:
+ *   bg        fundo da página
+ *   surface   cartão, menu lateral, cabeçalho
+ *   elevated  campo de entrada, chip, aba selecionada
+ *   raised    hover mais forte, estado pressionado
+ *   line      fio de separação (hairline)
+ *   overlay   véu de hover
+ *   selected  fundo de item selecionado
+ *   content   texto, em quatro níveis de ênfase
+ *   accent    a marca (dourado); accent-text é a variante legível como texto
+ *   up/down   variação positiva e negativa
+ */
+:root {
+  color-scheme: dark;
+
+  --bg: #0a0b0d;
+  --surface: #14171c;
+  --surface-2: #1b1f26;
+  --surface-3: #232833;
+
+  --line: rgba(255, 255, 255, 0.08);
+  --line-soft: rgba(255, 255, 255, 0.05);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --overlay: rgba(255, 255, 255, 0.05);
+  --selected: rgba(255, 255, 255, 0.10);
+
+  --content: #eef1f5;
+  --content-2: #b3bbc6;
+  --content-3: #7d8593;
+  --content-4: #767e8b;
+  --content-rgb: 238 241 245;
+  --content-2-rgb: 179 187 198;
+  --content-3-rgb: 125 133 147;
+  --content-4-rgb: 118 126 139;
+
+  /* A marca: o mesmo dourado nos dois temas — a logo é raster e não muda. */
+  --accent: #c9a84c;
+  --accent-text: #e0c274;
+  --on-accent: #12140f;
+  --accent-rgb: 201 168 76;
+
+  --up: #46b881;
+  --down: #e0575b;
+  --up-rgb: 70 184 129;
+  --down-rgb: 224 87 91;
+  --info: #4a90d9;
+  --info-rgb: 74 144 217;
+
+  /* Gráficos */
+  --chart-grid: rgba(255, 255, 255, 0.06);
+  --chart-axis: #6b7380;
+  --chart-cursor: rgba(255, 255, 255, 0.05);
+  --chart-tip-bg: #1b1f26;
+  --chart-tip-line: rgba(255, 255, 255, 0.12);
+  --chart-hatch-stripe: #8c8c8c;
+  --chart-hatch: rgba(140, 140, 140, 0.28);
+}
+
+html.light {
+  color-scheme: light;
+
+  /* Papel: fundo quente, cartão quase branco, tinta de verdade. */
+  --bg: #f2f0ea;
+  --surface: #fdfcf8;
+  --surface-2: #f6f4ec;
+  --surface-3: #eae7db;
+
+  --line: rgba(24, 26, 20, 0.13);
+  --line-soft: rgba(24, 26, 20, 0.07);
+  --line-strong: rgba(24, 26, 20, 0.22);
+  --overlay: rgba(24, 26, 20, 0.05);
+  --selected: rgba(24, 26, 20, 0.09);
+
+  --content: #16180f;
+  --content-2: #4b4e44;
+  --content-3: #6b6f63;
+  --content-4: #8a8d80;
+  --content-rgb: 22 24 15;
+  --content-2-rgb: 75 78 68;
+  --content-3-rgb: 107 111 99;
+  --content-4-rgb: 138 141 128;
+
+  /* O dourado de preenchimento é o da marca; como texto no papel ele precisa
+     escurecer para continuar legível (4,8:1). */
+  --accent: #c9a84c;
+  --accent-text: #8a6d1f;
+  --on-accent: #12140f;
+  --accent-rgb: 201 168 76;
+
+  --up: #1f8a5b;
+  --down: #c5343a;
+  --up-rgb: 31 138 91;
+  --down-rgb: 197 52 58;
+  --info: #2a78d6;
+  --info-rgb: 42 120 214;
+
+  --chart-grid: rgba(24, 26, 20, 0.08);
+  --chart-axis: #7d8175;
+  --chart-cursor: rgba(24, 26, 20, 0.04);
+  --chart-tip-bg: #ffffff;
+  --chart-tip-line: rgba(24, 26, 20, 0.14);
+  --chart-hatch-stripe: #9a9a9a;
+  --chart-hatch: rgba(122, 122, 122, 0.18);
+}
+
 @layer base {
   /* Tamanho da tela (docs/planos/PLANO_CUSTOMIZAR_TAMANHOS.md): tudo é rem, então reduzir a fonte raiz
      reduz a tela inteira. Grande = 100% (16 px); Pequena = 87,5% (14 px, D1). */
@@ -9,101 +128,43 @@
     font-size: 87.5%;
   }
 
-  /* Dark mode (default) */
   html.dark body {
-    @apply bg-black text-white antialiased;
+    @apply bg-bg text-content antialiased;
   }
 
-  /* Light mode */
   html.light body {
-    background-color: #f5f5f0;
-    color: #1a1a1a;
-  }
-
-  html.light .bg-surface {
-    background-color: #ffffff;
-  }
-
-  html.light .bg-surface-light {
-    background-color: #f0f0e8;
-  }
-
-  html.light .border-white\/10 {
-    border-color: rgba(0, 0, 0, 0.1);
-  }
-
-  html.light .border-white\/5 {
-    border-color: rgba(0, 0, 0, 0.05);
-  }
-
-  html.light .text-white {
-    color: #1a1a1a;
-  }
-
-  html.light .text-gray-300 {
-    color: #555555;
-  }
-
-  html.light .text-gray-400 {
-    color: #777777;
-  }
-
-  html.light .text-gray-500 {
-    color: #999999;
-  }
-
-  html.light .hover\:bg-white\/5:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-  }
-
-  html.light .bg-white\/5 {
-    background-color: rgba(0, 0, 0, 0.03);
-  }
-
-  html.light .bg-white\/10 {
-    background-color: rgba(0, 0, 0, 0.06);
+    @apply bg-bg text-content antialiased;
   }
 
   /*
-   * Variações com opacidade. O Tailwind gera uma classe por opacidade, e cada
-   * uma precisa da sua versão clara: sem estas, text-white/70 continuava
-   * branco a 70% sobre fundo branco — EMISSOR, APLICAÇÃO, VENCIMENTO,
-   * REMUNERAÇÃO e o nome do ativo sumiam na Carteira (23/09/2026). Ao usar uma
-   * cor com opacidade nova numa tela, acrescente a versão clara aqui.
+   * Números alinhados: num produto de investimento a coluna de valores é a
+   * interface. `tabular-nums` deixa a coluna reta sem depender de a tela
+   * lembrar de pedir — a classe utilitária já existia em parte dos lugares.
    */
-  html.light .text-white\/70 {
-    color: rgba(26, 26, 26, 0.7);
+  table {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
   }
 
-  html.light .text-white\/50 {
-    color: rgba(26, 26, 26, 0.5);
+  /*
+   * Voz de rótulo nos cabeçalhos de tabela. A coluna de valores é a interface
+   * de um produto de investimento; o cabeçalho é o rótulo dela — pequeno,
+   * maiúsculo e espaçado, como a placa de um instrumento. Uma regra só vale
+   * para toda tabela do app (as classes utilitárias que brigavam com ela
+   * foram removidas dos <th>).
+   */
+  table th {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--content-3);
   }
 
-  html.light .text-gray-200 {
-    color: #333333;
-  }
-
-  /* hover:text-white virava branco no hover — o texto sumia sob o mouse. */
-  html.light .hover\:text-white:hover {
-    color: #1a1a1a;
-  }
-
-  /* Borda do Switch desligado: sem ela a chave some no fundo claro. */
-  html.light .border-white\/15 {
-    border-color: rgba(0, 0, 0, 0.15);
-  }
-
-  /* surface-light com opacidade é #2a2a2a translúcido: no claro vira um
-     cinza escuro sujo em vez do tom de superfície. */
-  html.light .bg-surface-light\/30,
-  html.light .hover\:bg-surface-light\/30:hover {
-    background-color: rgba(0, 0, 0, 0.03);
-  }
-
-  html.light .bg-surface-light\/40,
-  html.light .bg-surface-light\/50,
-  html.light .hover\:bg-surface-light\/50:hover {
-    background-color: rgba(0, 0, 0, 0.04);
+  /* Foco visível em tudo que recebe teclado — o foco só por cor não conta. */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 
   /* Custom Scrollbar - Dark */
@@ -113,17 +174,17 @@
   }
 
   html.dark ::-webkit-scrollbar-track {
-    background: #111111;
+    background: var(--bg);
   }
 
   html.dark ::-webkit-scrollbar-thumb {
     @apply rounded-full;
-    background: #2a2a2a;
-    border: 2px solid #111111;
+    background: #2a2f39;
+    border: 2px solid var(--bg);
   }
 
   html.dark ::-webkit-scrollbar-thumb:hover {
-    background: #444444;
+    background: #3d4450;
   }
 
   /* Custom Scrollbar - Light */
@@ -133,16 +194,16 @@
   }
 
   html.light ::-webkit-scrollbar-track {
-    background: #f5f5f0;
+    background: var(--bg);
   }
 
   html.light ::-webkit-scrollbar-thumb {
     @apply rounded-full;
-    background: #cccccc;
-    border: 2px solid #f5f5f0;
+    background: #c9c6ba;
+    border: 2px solid var(--bg);
   }
 
   html.light ::-webkit-scrollbar-thumb:hover {
-    background: #aaaaaa;
+    background: #a8a598;
   }
 }

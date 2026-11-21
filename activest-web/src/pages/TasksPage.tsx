@@ -33,7 +33,7 @@ const TAB_LABELS: Record<TaskTab, string> = {
 const SOON = 'Em breve: cadastrar e excluir tarefas ainda não têm efetividade (docs/planos/PLANO_TAREFAS.md, D15).';
 
 const selectClass =
-  'bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2';
+  'bg-elevated border border-line text-content text-sm rounded-control focus:ring-accent focus:border-accent p-2';
 
 const addDays = (days: number) => {
   const d = new Date();
@@ -72,14 +72,14 @@ export const TasksPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex space-x-1 bg-surface p-1 rounded-lg w-fit border border-surface-light">
+      <div className="flex space-x-1 bg-surface p-1 rounded-control w-fit border border-line">
         {(Object.keys(TAB_LABELS) as TaskTab[]).map(tab => (
           <button
             key={tab}
             onClick={() => setTab(tab)}
             className={clsx(
-              'px-4 py-2 text-sm font-medium rounded-md transition-colors',
-              activeTab === tab ? 'bg-surface-light text-white' : 'text-gray-400 hover:text-white hover:bg-surface-light/50'
+              'px-4 py-2 text-sm font-medium rounded-control transition-colors',
+              activeTab === tab ? 'bg-accent/15 text-accent-text' : 'text-content-3 hover:text-content hover:bg-overlay'
             )}
           >
             {TAB_LABELS[tab]}
@@ -150,11 +150,11 @@ const RunConfirm = ({ task, onConfirm, onClose, pending }: {
         </div>
       }
     >
-      <div className="space-y-3 text-sm text-gray-300">
+      <div className="space-y-3 text-sm text-content-2">
         <p>A rodada começa agora, com os atributos da tarefa. Recargas de período longo podem levar dezenas de minutos.</p>
         {filled.length > 0 && (
-          <div className="rounded-md bg-surface-light/40 p-3 font-mono text-xs space-y-0.5">
-            {filled.map(a => <div key={a.name}><span className="text-gray-400">{a.name}</span> {a.value}</div>)}
+          <div className="rounded-control bg-overlay p-3 font-mono text-xs space-y-0.5">
+            {filled.map(a => <div key={a.name}><span className="text-content-3">{a.name}</span> {a.value}</div>)}
           </div>
         )}
       </div>
@@ -183,11 +183,11 @@ const StatusFlags = ({ selected, onToggle }: {
           className={clsx(
             'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
             on
-              ? 'border-accent/40 bg-accent/15 text-accent hover:bg-accent/25'
-              : 'border-white/10 bg-surface-light/40 text-gray-500 hover:text-gray-300'
+              ? 'border-accent/40 bg-accent/15 text-accent-text hover:bg-accent/25'
+              : 'border-line bg-overlay text-content-4 hover:text-content-2'
           )}
         >
-          <span className={clsx('h-1.5 w-1.5 rounded-full', on ? 'bg-accent' : 'bg-gray-600')} />
+          <span className={clsx('h-1.5 w-1.5 rounded-full', on ? 'bg-accent' : 'bg-raised')} />
           {s}
         </button>
       );
@@ -260,15 +260,15 @@ const ExecutionsTab = ({ scheduled, onOpenExecution }: {
     <div className="space-y-6">
       <div className="flex flex-wrap gap-3 items-end">
         <div>
-          <label className="block text-xs text-gray-400 mb-1">De</label>
+          <label className="block text-xs text-content-3 mb-1">De</label>
           <input type="date" className={selectClass} value={from} onChange={(e) => setFrom(e.target.value)} />
         </div>
         <div>
-          <label className="block text-xs text-gray-400 mb-1">Até</label>
+          <label className="block text-xs text-content-3 mb-1">Até</label>
           <input type="date" className={selectClass} value={to} onChange={(e) => setTo(e.target.value)} />
         </div>
         <div>
-          <label className="block text-xs text-gray-400 mb-1">Tipo</label>
+          <label className="block text-xs text-content-3 mb-1">Tipo</label>
           <select className={selectClass} value={type} onChange={(e) => setType(e.target.value)}>
             <option value="">Todos</option>
             {typeOptions.map(t => <option key={t} value={t}>{t}</option>)}
@@ -282,7 +282,7 @@ const ExecutionsTab = ({ scheduled, onOpenExecution }: {
 
       <Card>
         {/* <div className="mb-4 flex items-center gap-2">
-          <h3 className="text-lg font-medium text-white">{scheduled ? 'Agendamentos' : 'Execuções'}</h3>
+          <h3 className="text-lg font-medium text-content">{scheduled ? 'Agendamentos' : 'Execuções'}</h3>
           <InfoTooltip content={scheduled
             ? 'Execuções agendadas de agora até o fim do período, calculadas do horário de cada tarefa ligada.'
             : 'Execuções que começaram no período, filtradas pelos status marcados. SCHEDULED inclui as agendadas de agora até o fim do período (as mesmas da aba Agendamentos).'} />
@@ -293,11 +293,11 @@ const ExecutionsTab = ({ scheduled, onOpenExecution }: {
           </div>
         )}
         {executions.isLoading && statuses.length > 0 ? (
-          <div className="flex justify-center py-10"><LoadingSpinner className="h-6 w-6 text-accent" /></div>
+          <div className="flex justify-center py-10"><LoadingSpinner className="h-6 w-6 text-accent-text" /></div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="text-xs text-gray-400 uppercase border-b border-white/10">
+              <thead className="text-content-3 uppercase border-b border-line">
                 <tr>
                   {th('id', '#')}
                   {th('taskName', 'TAREFA')}
@@ -311,16 +311,16 @@ const ExecutionsTab = ({ scheduled, onOpenExecution }: {
                   <th className="px-4 py-3 text-center">AÇÕES</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-line-soft">
                 {paginated.map((e, i) => (
-                  <tr key={e.id ?? `s-${e.taskId}-${e.scheduledFor}-${i}`} className="hover:bg-white/5 transition-colors">
+                  <tr key={e.id ?? `s-${e.taskId}-${e.scheduledFor}-${i}`} className="hover:bg-overlay transition-colors">
                     <td className="px-4 py-3">{e.taskId}</td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5 text-white font-medium">
+                      <div className="flex items-center gap-1.5 text-content font-medium">
                         <span>{e.taskName}</span>
                         {descriptions.get(e.taskId) && <InfoTooltip content={descriptions.get(e.taskId)!} label={`Descrição de ${e.taskName}`} />}
                       </div>
-                      {e.type !== e.taskName && <div className="text-xs text-gray-500">{e.type}</div>}
+                      {e.type !== e.taskName && <div className="text-xs text-content-4">{e.type}</div>}
                     </td>
                     {scheduled && (<td className="px-4 py-3">{e.type}</td>)}
                     <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(e.scheduledFor)}</td>
@@ -328,13 +328,13 @@ const ExecutionsTab = ({ scheduled, onOpenExecution }: {
                     {!scheduled && (<td className="px-4 py-3 whitespace-nowrap">{formatDateTime(e.finishedAt, true)}</td>)}
                     {!scheduled && (<td className="px-4 py-3 text-right whitespace-nowrap">{formatDuration(e.durationSeconds)}</td>)}
                     {!scheduled && (<td className="px-4 py-3 max-w-xs">
-                      <span className="block truncate text-gray-300" title={e.resume}>{e.resume}</span>
+                      <span className="block truncate text-content-2" title={e.resume}>{e.resume}</span>
                     </td>)}
                     {!scheduled && (
                       <td className="px-4 py-3">    
                         <StatusBadge status={e.status} />
                         {e.stopRequestedAt && e.status === 'RUNNING' && (
-                          <div className="text-xs text-orange-300 mt-1">Stop pedido</div>
+                          <div className="text-xs text-accent-text mt-1">Stop pedido</div>
                         )}
                       </td>
                     )}
@@ -360,7 +360,7 @@ const ExecutionsTab = ({ scheduled, onOpenExecution }: {
                 ))}
                 {sortedData.length === 0 && (
                   <tr>
-                    <td colSpan={columns} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={columns} className="px-4 py-8 text-center text-content-4">
                       {statuses.length === 0 ? 'Marque ao menos um status.'
                         : scheduled ? 'Nenhuma execução agendada no período.' : 'Nenhuma rodada no período.'}
                     </td>
@@ -420,11 +420,11 @@ const ConfigurationTab = ({ onOpenExecution }: { onOpenExecution: (id: number) =
         }
       >
         {tasks.isLoading ? (
-          <div className="flex justify-center py-10"><LoadingSpinner className="h-6 w-6 text-accent" /></div>
+          <div className="flex justify-center py-10"><LoadingSpinner className="h-6 w-6 text-accent-text" /></div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="text-xs text-gray-400 uppercase border-b border-white/10">
+              <thead className="text-content-3 uppercase border-b border-line">
                 <tr>
                   <th className="px-4 py-3">TAREFA</th>
                   <th className="px-4 py-3">TIPO</th>
@@ -436,42 +436,42 @@ const ConfigurationTab = ({ onOpenExecution }: { onOpenExecution: (id: number) =
                   <th className="px-4 py-3 text-center">AÇÕES</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-line-soft">
                 {(tasks.data ?? []).map(t => (
-                  <tr key={t.id} className="hover:bg-white/5 transition-colors">
+                  <tr key={t.id} className="hover:bg-overlay transition-colors">
                     <td className="px-4 py-3 max-w-md">
-                      <div className="flex items-center gap-1.5 text-white font-medium">
+                      <div className="flex items-center gap-1.5 text-content font-medium">
                         <span>{t.name}</span>
                         {t.effectiveDescription && <InfoTooltip content={t.effectiveDescription} label={`Descrição de ${t.name}`} />}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-gray-300">{t.type}</td>
-                    <td className="px-4 py-3 text-gray-300">{t.service === 'APP_API' ? 'app-api' : 'adm-api'}</td>
+                    <td className="px-4 py-3 text-content-2">{t.type}</td>
+                    <td className="px-4 py-3 text-content-2">{t.service === 'APP_API' ? 'app-api' : 'adm-api'}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={clsx(t.cron ? 'text-gray-200' : 'text-gray-500')} title={t.cron}>{describeCron(t.cron)}</span>
+                      <span className={clsx(t.cron ? 'text-content' : 'text-content-4')} title={t.cron}>{describeCron(t.cron)}</span>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-gray-300">{formatDateTime(t.nextRun)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-content-2">{formatDateTime(t.nextRun)}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {!t.typeEnabled
                         ? <span className="text-danger" title="O tipo está desligado (muda só por migration).">Tipo desligado</span>
                         : t.enabled
                           ? <span className="text-success">Ligada</span>
-                          : <span className="text-gray-500" title="Não roda pelo horário; o Run continua disponível.">Desligada</span>}
+                          : <span className="text-content-4" title="Não roda pelo horário; o Run continua disponível.">Desligada</span>}
                       {t.runOnStartup && (
-                        <div className="text-xs text-gray-400" title="Na subida do serviço, roda uma vez se ainda não rodou no dia.">
+                        <div className="text-xs text-content-3" title="Na subida do serviço, roda uma vez se ainda não rodou no dia.">
                           roda na subida
                         </div>
                       )}
-                      {t.running && <div className="text-xs text-blue-300">executando</div>}
+                      {t.running && <div className="text-xs text-info">executando</div>}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {t.lastRun ? (
                         <button type="button" className="flex items-center gap-2 hover:opacity-80"
                                 onClick={() => onOpenExecution(t.lastRun!.id)} title="Ver log da rodada">
                           <StatusBadge status={t.lastRun.status} />
-                          <span className="text-xs text-gray-400">{formatDateTime(t.lastRun.startedAt)}</span>
+                          <span className="text-xs text-content-3">{formatDateTime(t.lastRun.startedAt)}</span>
                         </button>
-                      ) : <span className="text-gray-500">—</span>}
+                      ) : <span className="text-content-4">—</span>}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">

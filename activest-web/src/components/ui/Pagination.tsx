@@ -31,26 +31,26 @@ export const Pagination = ({ currentPage, totalPages, onPageChange, totalItems, 
   const endItem = totalItems ? Math.min(currentPage * itemsPerPage, totalItems) : undefined;
 
   return (
-    <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/10 flex-wrap gap-3">
+    <div className="flex items-center justify-between mt-4 pt-4 border-t border-line flex-wrap gap-3">
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-400">Exibir</span>
+          <span className="text-sm text-content-3">Exibir</span>
           <select
             value={itemsPerPage}
             onChange={(e) => {
               onItemsPerPageChange(Number(e.target.value));
               onPageChange(1);
             }}
-            className="bg-transparent border border-white/10 text-gray-300 text-sm rounded-md px-2 py-1 focus:ring-accent focus:border-accent"
+            className="bg-transparent border border-line text-content-2 text-sm rounded-control px-2 py-1 focus:ring-accent focus:border-accent"
           >
             {PAGE_SIZE_OPTIONS.map(size => (
-              <option key={size} value={size} className="bg-[#111] text-white">{size}</option>
+              <option key={size} value={size} className="bg-[#111] text-content">{size}</option>
             ))}
           </select>
-          <span className="text-sm text-gray-400">por página</span>
+          <span className="text-sm text-content-3">por página</span>
         </div>
         {totalItems !== undefined && startItem && endItem && (
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-content-4">
             | {startItem}-{endItem} de {totalItems}
           </span>
         )}
@@ -62,10 +62,10 @@ export const Pagination = ({ currentPage, totalPages, onPageChange, totalItems, 
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
             className={clsx(
-              "p-1.5 rounded-md transition-colors",
+              "p-1.5 rounded-control transition-colors",
               currentPage === 1
-                ? "text-gray-600 cursor-not-allowed"
-                : "text-gray-400 hover:text-white hover:bg-white/10"
+                ? "text-content-4 cursor-not-allowed"
+                : "text-content-3 hover:text-content hover:bg-selected"
             )}
           >
             <ChevronLeft className="h-4 w-4" />
@@ -73,16 +73,16 @@ export const Pagination = ({ currentPage, totalPages, onPageChange, totalItems, 
           
           {pages.map((page, idx) => (
             typeof page === 'string' ? (
-              <span key={`dot-${idx}`} className="px-2 text-gray-500">...</span>
+              <span key={`dot-${idx}`} className="px-2 text-content-4">...</span>
             ) : (
               <button
                 key={page}
                 onClick={() => onPageChange(page)}
                 className={clsx(
-                  "min-w-[32px] h-8 px-2 rounded-md text-sm font-medium transition-colors",
+                  "min-w-[32px] h-8 px-2 rounded-control text-sm font-medium transition-colors",
                   page === currentPage
                     ? "bg-accent text-black"
-                    : "text-gray-400 hover:text-white hover:bg-white/10"
+                    : "text-content-3 hover:text-content hover:bg-selected"
                 )}
               >
                 {page}
@@ -94,10 +94,10 @@ export const Pagination = ({ currentPage, totalPages, onPageChange, totalItems, 
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
             className={clsx(
-              "p-1.5 rounded-md transition-colors",
+              "p-1.5 rounded-control transition-colors",
               currentPage === totalPages
-                ? "text-gray-600 cursor-not-allowed"
-                : "text-gray-400 hover:text-white hover:bg-white/10"
+                ? "text-content-4 cursor-not-allowed"
+                : "text-content-3 hover:text-content hover:bg-selected"
             )}
           >
             <ChevronRight className="h-4 w-4" />

@@ -61,7 +61,7 @@ export const CeilingPricesPage = () => {
   );
 
   if (isLoading) {
-    return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent" /></div>;
+    return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent-text" /></div>;
   }
 
   return (
@@ -69,11 +69,11 @@ export const CeilingPricesPage = () => {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex items-end gap-3">
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Situação</label>
+            <label className="block text-xs text-content-3 mb-1">Situação</label>
             <select
               value={filter}
               onChange={e => setFilter(e.target.value as CeilingStatus | 'ALL')}
-              className="bg-surface-light border border-white/10 text-white text-sm rounded-md focus:ring-accent focus:border-accent p-2"
+              className="bg-elevated border border-line text-content text-sm rounded-control focus:ring-accent focus:border-accent p-2"
             >
               <option value="ALL">Todas</option>
               {(Object.keys(STATUS_LABEL) as CeilingStatus[]).map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
@@ -81,7 +81,7 @@ export const CeilingPricesPage = () => {
           </div>
         </div>
         <div className="w-full max-w-sm">
-          <label className="block text-xs text-gray-400 mb-1">Novo cálculo</label>
+          <label className="block text-xs text-content-3 mb-1">Novo cálculo</label>
           <IssuerSearch
             placeholder="Ação para calcular (ex: VALE3, PETR4)"
             addLabel="Calcular preço teto da ação"
@@ -94,7 +94,7 @@ export const CeilingPricesPage = () => {
       <Card className="p-0">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="text-xs text-gray-400 uppercase border-b border-white/10">
+            <thead className="text-content-3 uppercase border-b border-line">
               <tr>
                 {th('ticker', 'Ativo', 'text-left')}
                 {th('ceilingPrice', 'Preço teto')}
@@ -113,24 +113,24 @@ export const CeilingPricesPage = () => {
                 <th className="px-3 py-3 text-right">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-line-soft">
               {sortedData.map(row => (
-                <tr key={row.id} className="hover:bg-white/5 transition-colors cursor-pointer"
+                <tr key={row.id} className="hover:bg-overlay transition-colors cursor-pointer"
                     onClick={() => navigate(`/ceiling-prices/${encodeURIComponent(row.ticker)}`)}>
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-2">
                       <AssetLogo ticker={row.ticker} hasLogo={!!row.hasLogo} />
                       <div>
-                        <TickerLink ticker={row.ticker} issuerId={row.issuerId} className="font-medium text-white" />
+                        <TickerLink ticker={row.ticker} issuerId={row.issuerId} className="font-medium text-content" />
                       </div>
                     </div>
                   </td>
-                  <td className="px-3 py-3 text-right font-semibold text-accent tabular-nums">
+                  <td className="px-3 py-3 text-right font-semibold text-accent-text tabular-nums">
                     {row.ceilingPrice == null ? '—' : formatCurrency(row.ceilingPrice)}
                   </td>
                   <td className="px-3 py-3 text-right">
                     <div className="tabular-nums">{row.idealPrice == null ? '—' : formatCurrency(row.idealPrice)}</div>
-                    <div className="text-xs text-gray-500 tabular-nums whitespace-nowrap">MS: {pct(row.safetyMarginPct, 1)}</div>
+                    <div className="text-xs text-content-4 tabular-nums whitespace-nowrap">MS: {pct(row.safetyMarginPct, 1)}</div>
                   </td>
                   <td className="px-3 py-3 text-right">
                     <div className="tabular-nums">{formatCurrency(row.calcPrice)}</div>
@@ -141,7 +141,7 @@ export const CeilingPricesPage = () => {
                     <MarginPair ceiling={row.todayCeilingMarginPct} ideal={row.todayIdealMarginPct} />
                   </td>
                   <td className="px-3 py-3 text-right">
-                    {row.averagePrice == null ? <span className="text-gray-600">—</span> : (
+                    {row.averagePrice == null ? <span className="text-content-4">—</span> : (
                       <>
                         <div className="tabular-nums">{formatCurrency(row.averagePrice)}</div>
                         <MarginPair ceiling={row.averageCeilingMarginPct} ideal={row.averageIdealMarginPct} />
@@ -151,7 +151,7 @@ export const CeilingPricesPage = () => {
                   <td className="px-3 py-3 text-center">
                     <Badge variant={STATUS_VARIANT[row.status]}>{STATUS_LABEL[row.status]}</Badge>
                   </td>
-                  <td className="px-3 py-3 text-right text-gray-400 whitespace-nowrap">
+                  <td className="px-3 py-3 text-right text-content-3 whitespace-nowrap">
                     {formatDate(row.calculatedAt.slice(0, 10))}
                   </td>
                   <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
@@ -168,13 +168,13 @@ export const CeilingPricesPage = () => {
                   <td className="px-3 py-3 text-right">
                     <div className="flex justify-end items-center gap-2">
                       {row.defaultsChanged && (
-                        <span title="Há padrões mais novos (balanço, Selic, preço): abra para revisar" className="text-accent">
+                        <span title="Há padrões mais novos (balanço, Selic, preço): abra para revisar" className="text-accent-text">
                           <RefreshCw className="w-4 h-4" />
                         </span>
                       )}
                       {(row.blockingCount + row.warningCount) > 0 && (
                         <span title={`${row.blockingCount + row.warningCount} alerta(s) no cálculo`}
-                              className={row.blockingCount > 0 ? 'text-danger' : 'text-yellow-500'}>
+                              className={row.blockingCount > 0 ? 'text-danger' : 'text-accent-text'}>
                           <AlertTriangle className="w-4 h-4" />
                         </span>
                       )}
@@ -195,7 +195,7 @@ export const CeilingPricesPage = () => {
               ))}
               {sortedData.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-4 py-10 text-center text-gray-500">
+                  <td colSpan={10} className="px-4 py-10 text-center text-content-4">
                     Nenhum cálculo de preço teto. Busque uma ação em "Novo cálculo".
                   </td>
                 </tr>
@@ -206,11 +206,11 @@ export const CeilingPricesPage = () => {
       </Card>
 
       {/* legenda */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-content-3">
         <span>Legenda:</span>
-        <span><strong className="text-white">MS</strong> = margem de segurança usada no cálculo do preço teto</span>
-        <span><strong className="text-white">T</strong> = margem do preço da coluna em relação ao preço teto</span>
-        <span><strong className="text-white">I</strong> = margem do preço da coluna em relação ao preço ideal</span>
+        <span><strong className="text-content">MS</strong> = margem de segurança usada no cálculo do preço teto</span>
+        <span><strong className="text-content">T</strong> = margem do preço da coluna em relação ao preço teto</span>
+        <span><strong className="text-content">I</strong> = margem do preço da coluna em relação ao preço ideal</span>
       </div>
     </div>
   );

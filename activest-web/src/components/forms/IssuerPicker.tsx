@@ -84,7 +84,7 @@ export const IssuerPicker = ({ label, info, role, ticker, value, onChange, disab
 
   return (
     <div ref={boxRef} className="relative w-full">
-      <label className="block text-sm font-medium text-gray-300 mb-1.5">
+      <label className="block text-sm font-medium text-content-2 mb-1.5">
         <LabelWithInfo info={info}>{label}</LabelWithInfo>
       </label>
       <div className="relative">
@@ -105,13 +105,13 @@ export const IssuerPicker = ({ label, info, role, ticker, value, onChange, disab
               if (open && list.length > 0) { e.preventDefault(); choose(list[Math.max(highlight, 0)]); }
             } else if (e.key === 'Escape') { setOpen(false); setText(''); }
           }}
-          className={`flex h-10 w-full rounded-md border border-surface-light bg-surface pl-3 pr-14 py-2 text-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 ${
-            !open && isDead ? 'text-gray-400' : 'text-white'}`}
+          className={`flex h-10 w-full rounded-control border border-line bg-surface pl-3 pr-14 py-2 text-sm placeholder:text-content-4 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 ${
+            !open && isDead ? 'text-content-3' : 'text-content'}`}
         />
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 text-gray-500">
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 text-content-4">
           {!open && isDead && <span className="text-[0.625rem] uppercase">{isDead}</span>}
           {value && !disabled && !options && (
-            <button type="button" aria-label={`Limpar ${label}`} onClick={() => onChange(null)} className="hover:text-gray-300">
+            <button type="button" aria-label={`Limpar ${label}`} onClick={() => onChange(null)} className="hover:text-content-2">
               <X className="w-3.5 h-3.5" />
             </button>
           )}
@@ -120,9 +120,9 @@ export const IssuerPicker = ({ label, info, role, ticker, value, onChange, disab
       </div>
 
       {open && !disabled && (
-        <div className="absolute z-40 w-full mt-1 max-h-72 overflow-y-auto rounded-md border border-white/10 bg-surface shadow-xl">
+        <div className="absolute z-40 w-full mt-1 max-h-72 overflow-y-auto rounded-control border border-line bg-surface shadow-xl">
           {list.length === 0 ? (
-            <p className="px-3 py-2.5 text-sm text-gray-500">
+            <p className="px-3 py-2.5 text-sm text-content-4">
               {isFetching ? 'Buscando…' : role === 'ISSUER' && !ticker ? 'Escolha o ativo primeiro' : 'Nenhuma empresa encontrada'}
             </p>
           ) : list.map((o, idx) => {
@@ -134,11 +134,11 @@ export const IssuerPicker = ({ label, info, role, ticker, value, onChange, disab
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => choose(o)}
-                className={`w-full text-left px-3 py-2 flex items-center gap-2 text-sm border-b border-white/5 last:border-0 transition-colors ${
-                  idx === highlight ? 'bg-accent/15' : 'hover:bg-white/5'} ${s ? 'text-gray-500' : 'text-gray-200'}`}
+                className={`w-full text-left px-3 py-2 flex items-center gap-2 text-sm border-b border-line-soft last:border-0 transition-colors ${
+                  idx === highlight ? 'bg-accent/15' : 'hover:bg-overlay'} ${s ? 'text-content-4' : 'text-content'}`}
               >
                 <span className="truncate flex-1">{o.label}</span>
-                {s && <span className="text-[0.625rem] uppercase text-gray-500">{s}</span>}
+                {s && <span className="text-[0.625rem] uppercase text-content-4">{s}</span>}
               </button>
             );
           })}

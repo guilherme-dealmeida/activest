@@ -31,34 +31,34 @@ export const IssuerHeader = ({ ticker, issuer, current }: Props) => {
   const base = baseLabel(current);
 
   return (
-    <div className="bg-surface rounded-xl border border-surface-light p-5 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+    <div className="bg-surface rounded-panel border border-line p-5 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
       <div className="flex items-start gap-4 min-w-0">
         <AssetLogo ticker={ticker} hasLogo={self?.hasLogo ?? false} size={52} />
         <div className="min-w-0">
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <h1 className="text-2xl font-bold text-white">{ticker}</h1>
-            <span className="text-lg text-gray-300 truncate">{issuer?.tradeName ?? issuer?.legalName ?? ''}</span>
+            <h1 className="text-2xl font-bold text-content">{ticker}</h1>
+            <span className="text-lg text-content-2 truncate">{issuer?.tradeName ?? issuer?.legalName ?? ''}</span>
           </div>
           {issuer?.tradeName && issuer.legalName && issuer.legalName !== issuer.tradeName && (
-            <p className="text-sm text-gray-400 truncate">{issuer.legalName}</p>
+            <p className="text-sm text-content-3 truncate">{issuer.legalName}</p>
           )}
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent">
+            <span className="rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent-text">
               {current.kind === 'FII' ? 'FII' : 'Empresa'}
             </span>
             {issuer?.listingSegment && (
-              <span className="rounded-full border border-white/10 px-2.5 py-0.5 text-xs text-gray-300">
+              <span className="rounded-full border border-line px-2.5 py-0.5 text-xs text-content-2">
                 {issuer.listingSegment}
               </span>
             )}
             {others.length > 0 && (
-              <span className="flex flex-wrap items-center gap-1.5 text-xs text-gray-400">
+              <span className="flex flex-wrap items-center gap-1.5 text-xs text-content-3">
                 <span className="ml-1">Outros tickers:</span>
                 {others.map(t => (
                   <Link
                     key={t.ticker}
                     to={`/assets/${t.ticker}${search}`}
-                    className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 font-medium text-gray-200 hover:border-accent hover:text-accent transition-colors"
+                    className="rounded-control border border-line bg-overlay px-2 py-0.5 font-medium text-content hover:border-accent hover:text-accent-text transition-colors"
                   >
                     {t.ticker}
                   </Link>
@@ -69,10 +69,10 @@ export const IssuerHeader = ({ ticker, issuer, current }: Props) => {
         </div>
       </div>
       <div className="md:text-right shrink-0">
-        <div className="text-2xl font-semibold text-white">
+        <div className="text-2xl font-semibold text-content">
           {current.price != null ? formatCurrency(current.price) : '—'}
         </div>
-        {base && <p className="text-xs text-gray-400 mt-1">Indicadores com base no {base}</p>}
+        {base && <p className="text-xs text-content-3 mt-1">Indicadores com base no {base}</p>}
       </div>
     </div>
   );

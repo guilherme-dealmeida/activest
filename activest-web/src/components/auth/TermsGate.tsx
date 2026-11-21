@@ -30,17 +30,17 @@ export const TermsGate = () => {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">
-      <div className="w-full max-w-lg rounded-xl bg-surface border border-surface-light p-6 space-y-4">
-        <h3 className="text-lg font-semibold text-white">Termos atualizados</h3>
-        <p className="text-sm text-gray-300">
+      <div className="w-full max-w-lg rounded-panel bg-surface border border-line p-6 space-y-4">
+        <h3 className="text-lg font-semibold text-content">Termos atualizados</h3>
+        <p className="text-sm text-content-2">
           {user.termsVersion
             ? 'Os Termos de Uso e a Política de Privacidade do Activest mudaram desde o seu último aceite.'
             : 'Para continuar, aceite os Termos de Uso e a Política de Privacidade do Activest.'}
           {' '}Leia os textos e aceite a nova versão para continuar.
         </p>
         <div className="flex gap-4 text-sm">
-          <Link to="/terms" target="_blank" className="text-accent hover:underline">Termos de Uso</Link>
-          <Link to="/privacy" target="_blank" className="text-accent hover:underline">Política de Privacidade</Link>
+          <Link to="/terms" target="_blank" className="text-accent-text hover:underline">Termos de Uso</Link>
+          <Link to="/privacy" target="_blank" className="text-accent-text hover:underline">Política de Privacidade</Link>
         </div>
         {error && <p className="text-sm text-danger">{error}</p>}
         <div className="flex justify-end gap-3 pt-2">

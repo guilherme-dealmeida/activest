@@ -40,9 +40,9 @@ interface Props {
   onBenchmarks: (v: BenchmarkPick[]) => void;
 }
 
-const selectClass = 'rounded-md border border-surface-light bg-surface px-2 py-1.5 text-sm text-white';
-const segmentClass = (on: boolean) => `rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-  on ? 'bg-accent text-black' : 'bg-white/5 text-gray-300 hover:bg-white/10'}`;
+const selectClass = 'rounded-control border border-line bg-surface px-2 py-1.5 text-sm text-content';
+const segmentClass = (on: boolean) => `rounded-control px-2.5 py-1 text-xs font-medium transition-colors ${
+  on ? 'bg-accent text-black' : 'bg-overlay text-content-2 hover:bg-selected'}`;
 
 /**
  * Filtros da Rentabilidade numa faixa só (docs/planos/PLANO_RENTABILIDADE.md, 6.1): 1ª linha o recorte (tipo →
@@ -106,7 +106,7 @@ export const PerformanceFilters = (p: Props) => {
     : undefined);
 
   return (
-    <div className="bg-surface rounded-xl border border-surface-light p-4 space-y-3">
+    <div className="bg-surface rounded-panel border border-line p-4 space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <select aria-label="Tipo de ativo" value={p.type} onChange={e => p.onType(e.target.value)} className={selectClass}>
           <option value="">Carteira total</option>
@@ -134,15 +134,15 @@ export const PerformanceFilters = (p: Props) => {
               className={segmentClass(!p.dateFrom && !p.dateTo && p.range === r)}>{RANGE_LABEL[r]}</button>
           ))}
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-gray-400">
+        <div className="flex items-center gap-1.5 text-xs text-content-3">
           <label htmlFor="rent-de">de</label>
           <input id="rent-de" type="date" value={p.dateFrom} min={p.firstDate ?? undefined} max={p.lastDate ?? undefined}
             onChange={e => p.onDates(e.target.value, p.dateTo || (p.lastDate ?? ''))}
-            className="rounded-md border border-surface-light bg-surface px-2 py-1 text-xs text-white" />
+            className="rounded-control border border-line bg-surface px-2 py-1 text-xs text-content" />
           <label htmlFor="rent-ate">até</label>
           <input id="rent-ate" type="date" value={p.dateTo} min={p.firstDate ?? undefined} max={p.lastDate ?? undefined}
             onChange={e => p.onDates(p.dateFrom || (p.firstDate ?? ''), e.target.value)}
-            className="rounded-md border border-surface-light bg-surface px-2 py-1 text-xs text-white" />
+            className="rounded-control border border-line bg-surface px-2 py-1 text-xs text-content" />
         </div>
         {/* Reserva e base na linha do período (17/10/2026); Bruto primeiro, é o padrão */}
         {p.showReservation && <div className="flex gap-1" role="group" aria-label="Reserva de emergência">
@@ -163,7 +163,7 @@ export const PerformanceFilters = (p: Props) => {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-gray-400 flex items-center gap-1">
+        <span className="text-xs text-content-3 flex items-center gap-1">
           Comparar com
           <InfoTooltip content={`Até ${MAX_BENCHMARKS} indicadores. O primeiro é o principal (cards e diferença). IPCA + x% usa a taxa real informada (% a.a.). O IVVB11 é um ETF que replica o S&P 500 em reais — uma aproximação, não a série oficial do índice.`} />
         </span>
@@ -181,8 +181,8 @@ export const PerformanceFilters = (p: Props) => {
                 className={clsx(
                   'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed',
                   on
-                    ? 'border-accent/40 bg-accent/15 text-accent hover:bg-accent/25'
-                    : 'border-white/10 bg-surface-light/40 text-gray-500 hover:text-gray-300 disabled:hover:text-gray-500',
+                    ? 'border-accent/40 bg-accent/15 text-accent-text hover:bg-accent/25'
+                    : 'border-line bg-overlay text-content-4 hover:text-content-2 disabled:hover:text-content-4',
                 )}>
                 <span className={clsx('inline-block h-2 w-2 rounded-full', !on && 'opacity-40')}
                   style={{ background: seriesColor(info.code, isDark) }} aria-hidden="true" />
@@ -195,7 +195,7 @@ export const PerformanceFilters = (p: Props) => {
                   onChange={e => setTypedSpread(e.target.value)}
                   onBlur={() => on && typedSpread != null && applySpread(info.code)}
                   onKeyDown={e => { if (e.key === 'Enter' && on) applySpread(info.code); }}
-                  className="w-14 rounded-md border border-surface-light bg-surface px-2 py-1 text-xs text-white disabled:cursor-not-allowed disabled:opacity-40" />
+                  className="w-14 rounded-control border border-line bg-surface px-2 py-1 text-xs text-content disabled:cursor-not-allowed disabled:opacity-40" />
               )}
             </span>
           );

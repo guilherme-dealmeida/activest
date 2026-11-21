@@ -65,20 +65,20 @@ export const DistributorChangeModal = ({ transactionId, preview, purchase, onCan
         </div>
       }
     >
-      <p className="text-sm text-gray-300">
-        Quais transações abaixo quer mover de <span className="font-semibold text-white">{preview.fromName ?? '—'}</span>{' '}
-        para <span className="font-semibold text-white">{preview.toName}</span>?
+      <p className="text-sm text-content-2">
+        Quais transações abaixo quer mover de <span className="font-semibold text-content">{preview.fromName ?? '—'}</span>{' '}
+        para <span className="font-semibold text-content">{preview.toName}</span>?
       </p>
-      <p className="mt-1 text-xs text-gray-500">
+      <p className="mt-1 text-xs text-content-4">
         {preview.ticker}: as vendas que consumiram esta compra e as compras que essas vendas consumiram. O que ficar
         precisa fechar na distribuidora antiga, e o que for, na nova.
       </p>
 
-      <div className="mt-4 divide-y divide-white/5 rounded-md border border-surface-light">
+      <div className="mt-4 divide-y divide-line-soft rounded-control border border-line">
         {preview.items.map(item => (
           <label
             key={`${item.type}-${item.id}`}
-            className={`flex items-center gap-3 px-3 py-2.5 text-sm ${item.locked ? 'opacity-70' : 'cursor-pointer hover:bg-white/5'}`}
+            className={`flex items-center gap-3 px-3 py-2.5 text-sm ${item.locked ? 'opacity-70' : 'cursor-pointer hover:bg-overlay'}`}
           >
             <input
               type="checkbox"
@@ -90,18 +90,18 @@ export const DistributorChangeModal = ({ transactionId, preview, purchase, onCan
             <span className={`w-16 font-medium ${item.type === 'BUY' ? 'text-success' : 'text-danger'}`}>
               {item.type === 'BUY' ? 'Compra' : 'Venda'}
             </span>
-            <span className="w-24 tabular-nums text-gray-300">{formatDate(item.date)}</span>
-            <span className="flex-1 tabular-nums text-gray-300">
+            <span className="w-24 tabular-nums text-content-2">{formatDate(item.date)}</span>
+            <span className="flex-1 tabular-nums text-content-2">
               {shareCount(item.shares)} cotas × {item.pricePerShare == null ? '—' : formatCurrency(item.pricePerShare)}
             </span>
-            <span className="tabular-nums text-gray-200">{item.totalAmount == null ? '—' : formatCurrency(item.totalAmount)}</span>
-            {item.locked && <span className="text-[0.625rem] uppercase text-gray-500">esta compra</span>}
+            <span className="tabular-nums text-content">{item.totalAmount == null ? '—' : formatCurrency(item.totalAmount)}</span>
+            {item.locked && <span className="text-[0.625rem] uppercase text-content-4">esta compra</span>}
           </label>
         ))}
       </div>
 
       {error && (
-        <div className="mt-4 rounded-md border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>
+        <div className="mt-4 rounded-control border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>
       )}
     </Modal>
   );

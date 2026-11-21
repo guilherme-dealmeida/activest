@@ -36,8 +36,8 @@ const CenterTotal = ({ x, y, total }: { x: number; y: number; total: number }) =
     className="absolute flex flex-col items-center pointer-events-none -translate-x-1/2 -translate-y-1/2"
     style={{ left: x, top: y }}
   >
-    <span className="text-sm text-gray-400">Total</span>
-    <span className="text-lg font-semibold text-white whitespace-nowrap">{formatCurrency(total)}</span>
+    <span className="text-sm text-content-3">Total</span>
+    <span className="text-lg font-semibold text-content whitespace-nowrap">{formatCurrency(total)}</span>
   </div>
 );
 
@@ -99,7 +99,7 @@ export const PieOfPieChart = ({ main, detail, expandedName }: PieOfPieChartProps
         <>
           <div className="grid grid-cols-[54%_46%]">
             {[main, detail].map(side => (
-              <h3 key={side.title} className="text-lg font-medium text-white text-center px-2">
+              <h3 key={side.title} className="text-lg font-medium text-content text-center px-2">
                 <LabelWithInfo info={side.titleInfo}>{side.title}</LabelWithInfo>
               </h3>
             ))}

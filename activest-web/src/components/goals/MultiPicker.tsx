@@ -31,23 +31,23 @@ export const MultiPicker = ({ options, value, onChange, placeholder = 'Buscar…
 
   return (
     <div ref={box} className="relative">
-      <div className="flex h-10 items-center gap-2 rounded-md border border-surface-light bg-surface px-3 focus-within:ring-2 focus-within:ring-accent">
-        <Search className="h-4 w-4 shrink-0 text-gray-500" />
+      <div className="flex h-10 items-center gap-2 rounded-control border border-line bg-surface px-3 focus-within:ring-2 focus-within:ring-accent">
+        <Search className="h-4 w-4 shrink-0 text-content-4" />
         <input value={query} placeholder={placeholder} onFocus={() => setOpen(true)}
           onChange={e => { setQuery(e.target.value); setOpen(true); }}
           onKeyDown={e => {
             if (e.key === 'Enter' && filtered[0]) { e.preventDefault(); onChange([...value, filtered[0].value]); setQuery(''); }
             if (e.key === 'Escape') setOpen(false);
           }}
-          className="h-full w-full bg-transparent text-sm text-white placeholder:text-gray-500 focus:outline-none" />
+          className="h-full w-full bg-transparent text-sm text-content placeholder:text-content-4 focus:outline-none" />
       </div>
       {open && (
-        <ul className="absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-md border border-surface-light bg-surface py-1 shadow-lg">
-          {filtered.length === 0 && <li className="px-3 py-2 text-xs text-gray-500">{options.length === 0 ? emptyText : 'Nada encontrado'}</li>}
+        <ul className="absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-control border border-line bg-surface py-1 shadow-lg">
+          {filtered.length === 0 && <li className="px-3 py-2 text-xs text-content-4">{options.length === 0 ? emptyText : 'Nada encontrado'}</li>}
           {filtered.map(o => (
             <li key={o.value}>
               <button type="button" onClick={() => { onChange([...value, o.value]); setQuery(''); }}
-                className="w-full px-3 py-1.5 text-left text-sm text-gray-300 hover:bg-surface-light hover:text-white">
+                className="w-full px-3 py-1.5 text-left text-sm text-content-2 hover:bg-elevated hover:text-content">
                 {assetText(o.label)}
               </button>
             </li>
@@ -57,10 +57,10 @@ export const MultiPicker = ({ options, value, onChange, placeholder = 'Buscar…
       {value.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {value.map(v => (
-            <span key={v} className="inline-flex items-center gap-1 rounded-full bg-surface-light px-2.5 py-0.5 text-xs text-gray-200">
+            <span key={v} className="inline-flex items-center gap-1 rounded-full bg-elevated px-2.5 py-0.5 text-xs text-content">
               {label.get(v) ?? v}
               <button type="button" aria-label={`Tirar ${label.get(v) ?? v}`} onClick={() => onChange(value.filter(x => x !== v))}
-                className="text-gray-500 hover:text-white"><X className="h-3 w-3" /></button>
+                className="text-content-4 hover:text-content"><X className="h-3 w-3" /></button>
             </span>
           ))}
         </div>

@@ -26,13 +26,15 @@ export const useColoredSeries = (types: AssetTypeSeries[]): ColoredSeries[] => {
   return types.map(t => ({ ...t, color: (t.id != null ? byId.get(t.id) : undefined) || FALLBACK }));
 };
 
-/** Hachura do a receber: fundo claro e listras do mesmo cinza. */
-export const toReceiveColors = (isDark: boolean) =>
-  isDark ? { stripe: '#8c8c8c', wash: 'rgba(140, 140, 140, 0.28)' } : { stripe: '#9a9a9a', wash: 'rgba(122, 122, 122, 0.18)' };
+/** Hachura do a receber: listras e wash saem do tema. */
+export const toReceiveColors = () => ({
+  stripe: 'var(--chart-hatch-stripe)',
+  wash: 'var(--chart-hatch)',
+});
 
 /** A mesma hachura em CSS, para as amostras da legenda. */
-export const toReceiveSwatch = (isDark: boolean): string => {
-  const { stripe, wash } = toReceiveColors(isDark);
+export const toReceiveSwatch = (): string => {
+  const { stripe, wash } = toReceiveColors();
   return `repeating-linear-gradient(45deg, ${stripe} 0 2px, ${wash} 2px 5px)`;
 };
 

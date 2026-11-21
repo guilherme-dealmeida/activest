@@ -54,8 +54,8 @@ export function useSortable<T>(data: T[], initialSort: SortConfig = { key: '', d
   };
 
   const getSortClass = (key: string) => {
-    if (sortConfig.key !== key || !sortConfig.direction) return 'text-gray-400';
-    return 'text-accent';
+    if (sortConfig.key !== key || !sortConfig.direction) return 'text-content-3';
+    return 'text-accent-text';
   };
 
   return { sortedData, requestSort, getSortIndicator, getSortClass, sortConfig };

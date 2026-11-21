@@ -40,7 +40,7 @@ describe('percentual e cor do retorno', () => {
   it('verde, vermelho, cinza', () => {
     expect(getReturnColor(0.01)).toBe('text-success');
     expect(getReturnColor(-0.01)).toBe('text-danger');
-    expect(getReturnColor(0)).toBe('text-gray-400');
+    expect(getReturnColor(0)).toBe('text-content-3');
   });
 });
 

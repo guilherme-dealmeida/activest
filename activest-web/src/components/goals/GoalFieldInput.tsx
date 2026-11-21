@@ -38,7 +38,7 @@ export const GoalFieldInput = ({ field, value, onChange, required, options, asse
   if (field.kind === 'BOOLEAN') {
     return (
       <div className="flex h-10 items-center justify-between gap-3 sm:mt-7">
-        <span className="text-sm text-gray-300">{field.label}</span>
+        <span className="text-sm text-content-2">{field.label}</span>
         <Switch checked={Boolean(value)} onChange={onChange} label={field.label} />
       </div>
     );
@@ -82,7 +82,7 @@ export const GoalFieldInput = ({ field, value, onChange, required, options, asse
       input = (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
           {(field.options ?? []).map(o => (
-            <label key={o.value} className="flex items-center gap-2 text-sm text-gray-300">
+            <label key={o.value} className="flex items-center gap-2 text-sm text-content-2">
               <input type="checkbox" className="accent-[#c9a84c]" checked={list.includes(o.value)}
                 onChange={e => onChange(e.target.checked ? [...list, o.value] : list.filter(x => x !== o.value))} />
               {o.label}

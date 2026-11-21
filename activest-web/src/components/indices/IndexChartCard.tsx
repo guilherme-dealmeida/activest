@@ -8,11 +8,11 @@ import { indicesApi } from '@/api/indices';
 import { Card } from '@/components/ui/Card';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { InfoTooltip } from '@/components/ui/InfoTooltip';
-import { useTheme } from '@/context/ThemeContext';
 import { IndexChart, IndexCode, IndexView, PriceRange } from '@/types';
 import { formatDate, getReturnColor } from '@/utils/format';
 import { apiMessage } from '@/utils/apiError';
 import { rem } from '@/utils/fontScale';
+import { chartTheme } from '@/theme/chart';
 
 const RANGES: PriceRange[] = ['1D', '7D', '1M', '6M', 'YTD', '1A', '5A', 'MAX'];
 /** Índices mensais: sem 1D e 7D (um mês é o menor período que eles têm). */
@@ -75,7 +75,6 @@ interface IndexChartCardProps {
 }
 
 export const IndexChartCard = ({ code, title: titleOverride, info, controls, footer }: IndexChartCardProps) => {
-  const { isDark } = useTheme();
   const [range, setRangeState] = useState<PriceRange>(DEFAULT_RANGE);
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
@@ -110,8 +109,7 @@ export const IndexChartCard = ({ code, title: titleOverride, info, controls, foo
   const ranges = monthly ? MONTHLY_RANGES : RANGES;
   // visão anual: o acumulado em 12 meses é uma curva contínua (área); a mensal fica em barras
   const bars = monthly && view === 'MENSAL';
-  const grid = isDark ? '#2a2a2a' : '#e8e8e0';
-  const axis = '#777777';
+  const { grid, axis } = chartTheme();
   const points = useMemo(() => data?.points ?? [], [data]);
   // eixo X de calendário (docs/planos/PLANO_CALENDARIO_GRAFICOS.md); índice mensal nunca mostra dia (C3)
   const dates = useMemo(() => points.map(p => p.date), [points]);
@@ -124,9 +122,9 @@ export const IndexChartCard = ({ code, title: titleOverride, info, controls, foo
     if (!active || !payload?.length || !data) return null;
     const p = payload[0].payload;
     return (
-      <div className="rounded-md border border-white/10 bg-surface px-3 py-2 text-xs shadow-lg">
-        <div className="text-gray-400">{tooltipDate(p.date, monthly)}</div>
-        <div className="mt-0.5 text-sm font-semibold text-white">{formatValue(data, p.value)}</div>
+      <div className="rounded-control border border-line bg-surface px-3 py-2 text-xs shadow-lg">
+        <div className="text-content-3">{tooltipDate(p.date, monthly)}</div>
+        <div className="mt-0.5 text-sm font-semibold text-content">{formatValue(data, p.value)}</div>
       </div>
     );
   };
@@ -154,7 +152,7 @@ export const IndexChartCard = ({ code, title: titleOverride, info, controls, foo
   return (
     <Card>
       <div className="flex flex-col gap-3 mb-4 lg:flex-row lg:items-center lg:justify-between">
-        <h3 className="text-sm font-medium text-gray-400 flex items-center gap-1.5">
+        <h3 className="text-sm font-medium text-content-3 flex items-center gap-1.5">
           {title}
           <InfoTooltip content={info ?? INFO[code] ?? ''} />
         </h3>
@@ -165,7 +163,7 @@ export const IndexChartCard = ({ code, title: titleOverride, info, controls, foo
               aria-label={`Visão de ${code}`}
               value={view}
               onChange={(e) => setView(e.target.value as IndexView)}
-              className="rounded-md border border-surface-light bg-surface px-2 py-1 text-xs text-white"
+              className="rounded-control border border-line bg-surface px-2 py-1 text-xs text-content"
             >
               <option value="MENSAL">Mensal (% no mês)</option>
               <option value="ANUAL">Anual (% a.a., 12 meses)</option>
@@ -178,24 +176,24 @@ export const IndexChartCard = ({ code, title: titleOverride, info, controls, foo
                 type="button"
                 onClick={() => setRange(r)}
                 aria-pressed={!custom && range === r}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                className={`rounded-control px-2.5 py-1 text-xs font-medium transition-colors ${
                   !custom && range === r
                     ? 'bg-accent text-black'
-                    : 'bg-white/5 text-gray-300 hover:bg-white/10'
+                    : 'bg-overlay text-content-2 hover:bg-selected'
                 }`}
               >
                 {r}
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+          <div className="flex items-center gap-1.5 text-xs text-content-3">
             <label htmlFor={`${code}-de`}>de</label>
             <input
               id={`${code}-de`} type="date"
               value={custom ? (dateFrom || data?.from || '') : ''}
               min={data?.firstDate ?? undefined} max={data?.lastDate ?? undefined}
               onChange={(e) => setDate('from', e.target.value)}
-              className="rounded-md border border-surface-light bg-surface px-2 py-1 text-xs text-white"
+              className="rounded-control border border-line bg-surface px-2 py-1 text-xs text-content"
             />
             <label htmlFor={`${code}-ate`}>até</label>
             <input
@@ -203,7 +201,7 @@ export const IndexChartCard = ({ code, title: titleOverride, info, controls, foo
               value={custom ? (dateTo || data?.to || '') : ''}
               min={data?.firstDate ?? undefined} max={data?.lastDate ?? undefined}
               onChange={(e) => setDate('to', e.target.value)}
-              className="rounded-md border border-surface-light bg-surface px-2 py-1 text-xs text-white"
+              className="rounded-control border border-line bg-surface px-2 py-1 text-xs text-content"
             />
           </div>
         </div>
@@ -218,20 +216,20 @@ export const IndexChartCard = ({ code, title: titleOverride, info, controls, foo
             </span>
           )}
           {data.accumulatedPct != null && (
-            <span className="text-gray-400">acumulado{' '}
+            <span className="text-content-3">acumulado{' '}
               <span className={`font-semibold ${getReturnColor(data.accumulatedPct)}`}>
                 {signed(data.accumulatedPct, num(data.accumulatedPct, 2))}%
               </span>
             </span>
           )}
           {data.last != null && data.unit !== 'PONTOS' && data.unit !== 'BRL' && (
-            <span className="text-gray-400">{monthly ? (view === 'ANUAL' ? 'últimos 12 meses' : 'último') : 'atual'}{' '}
-              <span className="text-white">{formatValue(data, data.last)}</span>
+            <span className="text-content-3">{monthly ? (view === 'ANUAL' ? 'últimos 12 meses' : 'último') : 'atual'}{' '}
+              <span className="text-content">{formatValue(data, data.last)}</span>
             </span>
           )}
-          <span className="text-gray-400">mín <span className="text-white">{data.min != null ? formatValue(data, data.min) : '—'}</span></span>
-          <span className="text-gray-400">máx <span className="text-white">{data.max != null ? formatValue(data, data.max) : '—'}</span></span>
-          <span className="text-xs text-gray-500">
+          <span className="text-content-3">mín <span className="text-content">{data.min != null ? formatValue(data, data.min) : '—'}</span></span>
+          <span className="text-content-3">máx <span className="text-content">{data.max != null ? formatValue(data, data.max) : '—'}</span></span>
+          <span className="text-xs text-content-4">
             {data.from && data.to && (monthly
               ? `${tooltipDate(data.from, true)} a ${tooltipDate(data.to, true)}`
               : `${formatDate(data.from)} a ${formatDate(data.to)}`)}
@@ -241,13 +239,13 @@ export const IndexChartCard = ({ code, title: titleOverride, info, controls, foo
 
       <div className="h-72" ref={axisRef}>
         {isLoading && !data ? (
-          <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-6 w-6 text-accent" /></div>
+          <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-6 w-6 text-accent-text" /></div>
         ) : isError ? (
-          <div className="flex h-full items-center justify-center text-sm text-gray-400">
+          <div className="flex h-full items-center justify-center text-sm text-content-3">
             {apiMessage(error) ?? 'Não foi possível carregar o índice.'}
           </div>
         ) : points.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-sm text-gray-400">
+          <div className="flex h-full items-center justify-center text-sm text-content-3">
             {data?.lastDate ? `Sem valor de ${data?.name ?? title} no período escolhido.` : `Série de ${data?.name ?? title} ainda não carregada.`}
           </div>
         ) : bars ? (
@@ -257,7 +255,7 @@ export const IndexChartCard = ({ code, title: titleOverride, info, controls, foo
               {xAxis}
               {yAxis}
               <ReferenceLine y={0} stroke={axis} />
-              <Tooltip content={<ChartTooltip />} cursor={{ fill: isDark ? '#ffffff0d' : '#0000000a' }} />
+              <Tooltip content={<ChartTooltip />} cursor={{ fill: 'var(--chart-cursor)' }} />
               <Bar dataKey="value" fill={GOLD} radius={[4, 4, 0, 0]} maxBarSize={28} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
@@ -281,7 +279,7 @@ export const IndexChartCard = ({ code, title: titleOverride, info, controls, foo
                 strokeWidth={2}
                 fill={`url(#${fillId})`}
                 dot={points.length <= 10 ? { r: 4, fill: GOLD, strokeWidth: 0 } : false}
-                activeDot={{ r: 4, fill: GOLD, stroke: isDark ? '#111111' : '#ffffff', strokeWidth: 2 }}
+                activeDot={{ r: 4, fill: GOLD, stroke: 'var(--surface)', strokeWidth: 2 }}
                 isAnimationActive={false}
               />
             </AreaChart>

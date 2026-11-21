@@ -43,7 +43,7 @@ export const SignedNumberInput = ({ value, onChange, decimals = 2, adornment, al
           title={negative ? 'Negativo — clique para positivo' : 'Positivo — clique para negativo'}
           aria-label="Trocar sinal"
           onClick={toggle}
-          className={clsx('shrink-0 rounded-md border font-semibold', size === 'sm' ? 'w-7 text-xs' : 'w-8 text-sm',
+          className={clsx('shrink-0 rounded-control border font-semibold', size === 'sm' ? 'w-7 text-xs' : 'w-8 text-sm',
             negative ? 'border-danger/50 text-danger bg-danger/10' : 'border-success/50 text-success bg-success/10')}
         >
           {negative ? '−' : '+'}

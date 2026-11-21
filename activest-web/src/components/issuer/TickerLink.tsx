@@ -24,7 +24,7 @@ export const TickerLink = ({ ticker, issuerId, className = 'font-medium' }: Prop
       to={`/assets/${encodeURIComponent(ticker)}`}
       onClick={(e) => e.stopPropagation()}
       title="Ver ativo e indicadores"
-      className={`${className} hover:text-accent hover:underline underline-offset-2 transition-colors`}
+      className={`${className} hover:text-accent-text hover:underline underline-offset-2 transition-colors`}
     >
       {ticker}
     </Link>

@@ -107,7 +107,7 @@ export const IntegrationRunPage = () => {
   });
 
   if (isLoading || !run) {
-    return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent" /></div>;
+    return <div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8 text-accent-text" /></div>;
   }
 
   const status = RUN_STATUS[run.status];
@@ -123,28 +123,28 @@ export const IntegrationRunPage = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
-        <Link to="/integrations" className="flex items-center gap-1 text-sm text-gray-400 hover:text-white">
+        <Link to="/integrations" className="flex items-center gap-1 text-sm text-content-3 hover:text-content">
           <ArrowLeft className="h-4 w-4" /> Integrações
         </Link>
-        <span className="text-white font-semibold">{run.connectionLabel}</span>
+        <span className="text-content font-semibold">{run.connectionLabel}</span>
         <Badge variant={status.variant}>
           {isRunInProgress(run.status) && <LoadingSpinner className="mr-1 h-3 w-3" />}
           {status.label}
         </Badge>
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-content-3">
           {run.trigger === 'SCHEDULED' ? 'Sincronização diária' : 'Sincronização manual'} · {formatDateTime(run.createdAt)}
         </span>
       </div>
 
       {isRunInProgress(run.status) && (
-        <Card className="flex items-center gap-3 text-sm text-gray-300">
-          <LoadingSpinner className="h-5 w-5 text-accent" />
+        <Card className="flex items-center gap-3 text-sm text-content-2">
+          <LoadingSpinner className="h-5 w-5 text-accent-text" />
           Buscando na {provider}… a primeira busca pode levar cerca de 2 minutos. Esta tela atualiza sozinha.
         </Card>
       )}
 
       {run.error && !isRunInProgress(run.status) && (
-        <div className="rounded-md border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+        <div className="rounded-control border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
           {run.status === 'FAILED' ? 'A busca falhou: ' : 'A última tentativa de confirmar falhou — nada foi gravado: '}
           {run.error}
         </div>
@@ -154,9 +154,9 @@ export const IntegrationRunPage = () => {
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
             {summary.map(r => (
-              <div key={r.label} className="rounded-xl border border-surface-light bg-surface p-4">
-                <p className="text-xs text-gray-400">{r.label}</p>
-                <p className={`mt-1 text-xl font-semibold ${r.highlight ? 'text-accent' : 'text-white'}`}>{r.amount}</p>
+              <div key={r.label} className="rounded-panel border border-line bg-surface p-4">
+                <p className="text-xs text-content-3">{r.label}</p>
+                <p className={`mt-1 text-xl font-semibold ${r.highlight ? 'text-accent-text' : 'text-content'}`}>{r.amount}</p>
               </div>
             ))}
           </div>
@@ -183,12 +183,12 @@ export const IntegrationRunPage = () => {
           })}
 
           {run.items.length === 0 && (
-            <Card className="py-8 text-center text-sm text-gray-400">Nenhuma operação nova na {provider} desde a última sincronização.</Card>
+            <Card className="py-8 text-center text-sm text-content-3">Nenhuma operação nova na {provider} desde a última sincronização.</Card>
           )}
 
           {awaiting && (
-            <div className="sticky bottom-0 flex flex-wrap items-center gap-3 rounded-xl border border-surface-light bg-surface p-4">
-              <p className="text-sm text-gray-400">
+            <div className="sticky bottom-0 flex flex-wrap items-center gap-3 rounded-panel border border-line bg-surface p-4">
+              <p className="text-sm text-content-3">
                 {pendingDecisions > 0
                   ? `Decida ${pendingDecisions === 1 ? 'a possível duplicata' : `as ${pendingDecisions} possíveis duplicatas`} para confirmar.`
                   : run.newCount + duplicates.length === 0
@@ -228,7 +228,7 @@ const NEGOCIACAO = new Set<MovementKind>(['TRADE', 'CONVERT', 'EQUITY_TRADE']);
 const ItemsTable = ({ itemList, duplicate, decisions, canDecide, onDecide, soData }: TableProps) => (
   <div className="overflow-x-auto">
     <table className="w-full text-sm">
-      <thead className="text-xs uppercase text-gray-400 border-b border-white/10">
+      <thead className="uppercase text-content-3 border-b border-line">
         <tr>
           <th className="px-3 py-2 text-left">Data</th>
           <th className="px-3 py-2 text-left">Operação</th>
@@ -240,7 +240,7 @@ const ItemsTable = ({ itemList, duplicate, decisions, canDecide, onDecide, soDat
           <th className="px-3 py-2 text-left">{duplicate ? 'Decisão' : 'Situação'}</th>
         </tr>
       </thead>
-      <tbody className="divide-y divide-white/5">
+      <tbody className="divide-y divide-line-soft">
         {itemList.map(i => {
           const t = i.transaction;
           const sale = (t?.type ?? i.side) === 'SELL';
@@ -253,15 +253,15 @@ const ItemsTable = ({ itemList, duplicate, decisions, canDecide, onDecide, soDat
                 <span className={sale ? 'text-danger' : 'text-success'}>
                   {!i.side ? '' : t || NEGOCIACAO.has(i.kind) ? (sale ? 'Venda' : 'Compra') : (sale ? 'Saída' : 'Entrada')}
                 </span>
-                <span className="ml-1 text-xs text-gray-400">{KIND[i.kind]}</span>
+                <span className="ml-1 text-xs text-content-3">{KIND[i.kind]}</span>
               </td>
-              <td className="px-3 py-2 text-white font-medium">{t?.ticker ?? i.asset}</td>
+              <td className="px-3 py-2 text-content font-medium">{t?.ticker ?? i.asset}</td>
               <td className="px-3 py-2 text-right">
                 {t ? formatQuantity(t.shares, true) : i.grossQuantity != null ? formatQuantity(i.grossQuantity, true) : '—'}
               </td>
               <td className="px-3 py-2 text-right">{t ? formatProposalMoney(t.pricePerShare, t.currency, 8) : '—'}</td>
               <td className="px-3 py-2 text-right">{t ? formatProposalMoney(t.brokerageFee, t.currency) : '—'}</td>
-              <td className="px-3 py-2 text-right text-white">
+              <td className="px-3 py-2 text-right text-content">
                 {t ? formatProposalMoney(t.totalAmount, t.currency)
                   : i.quoteAmount == null ? '—'
                     : i.quoteAsset === 'BRL' ? formatCurrency(i.quoteAmount)
@@ -269,14 +269,14 @@ const ItemsTable = ({ itemList, duplicate, decisions, canDecide, onDecide, soDat
               </td>
               <td className="px-3 py-2">
                 {i.resolution ? (
-                  <span className={i.resolution === 'SKIPPED' ? 'text-gray-400' : 'text-success'}>
+                  <span className={i.resolution === 'SKIPPED' ? 'text-content-3' : 'text-success'}>
                     {RESOLUTION[i.resolution]}
-                    {i.transactionId && <Link to="/transactions" className="ml-2 text-xs text-accent hover:underline">ver</Link>}
+                    {i.transactionId && <Link to="/transactions" className="ml-2 text-xs text-accent-text hover:underline">ver</Link>}
                   </span>
                 ) : duplicate ? (
                   <div className="space-y-2">
                     {i.duplicateOf && (
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-content-3">
                         Manual de {formatDate(i.duplicateOf.transactionDate)}:{' '}
                         {i.duplicateOf.shares != null ? formatQuantity(i.duplicateOf.shares, true) : '—'}
                         {i.duplicateOf.pricePerShare != null ? ` a ${formatUnitPrice(i.duplicateOf.pricePerShare, true)}` : ''}
@@ -286,19 +286,19 @@ const ItemsTable = ({ itemList, duplicate, decisions, canDecide, onDecide, soDat
                       {DECISIONS.map(d => (
                         <button key={d.value} type="button" disabled={!canDecide}
                           onClick={() => onDecide(i.externalId, d.value)}
-                          className={`rounded-md border px-2 py-1 text-xs transition-colors ${
+                          className={`rounded-control border px-2 py-1 text-xs transition-colors ${
                             decisions[i.externalId] === d.value
-                              ? 'border-accent bg-accent/10 text-accent'
-                              : 'border-surface-light text-gray-300 hover:bg-white/5'}`}>
+                              ? 'border-accent bg-accent/10 text-accent-text'
+                              : 'border-line text-content-2 hover:bg-overlay'}`}>
                           {d.label}
                         </button>
                       ))}
                     </div>
                   </div>
                 ) : i.reason ? (
-                  <span className="text-xs text-gray-400">{i.reason}</span>
+                  <span className="text-xs text-content-3">{i.reason}</span>
                 ) : t && t.roundingDifference !== 0 ? (
-                  <span className="text-xs text-gray-400">Arredondamento de {formatProposalMoney(t.roundingDifference, t.currency)}</span>
+                  <span className="text-xs text-content-3">Arredondamento de {formatProposalMoney(t.roundingDifference, t.currency)}</span>
                 ) : null}
               </td>
             </tr>

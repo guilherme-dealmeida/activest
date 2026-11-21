@@ -17,14 +17,14 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
   ({ label, hint, info, className, children, ...props }, ref) => (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-gray-300 mb-1.5">
+        <label className="block text-sm font-medium text-content-2 mb-1.5">
           <LabelWithInfo info={info}>{label}</LabelWithInfo>
         </label>
       )}
       <select
         ref={ref}
         className={clsx(
-          'flex h-10 w-full rounded-md border border-surface-light bg-surface px-3 py-2 text-sm text-white',
+          'flex h-10 w-full rounded-control border border-line bg-surface px-3 py-2 text-sm text-content',
           'focus:ring-2 focus:ring-accent focus:border-transparent',
           'disabled:opacity-60 disabled:cursor-not-allowed',
           className
@@ -33,7 +33,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       >
         {children}
       </select>
-      {hint && <p className="text-xs text-gray-500 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-content-4 mt-1">{hint}</p>}
     </div>
   )
 );

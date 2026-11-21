@@ -20,8 +20,8 @@ describe('meta de limite', () => {
 
   it('cor: até 80% verde, até 100% amarelo, acima vermelho', () => {
     expect(limitBarClass(80)).toBe('h-full bg-success');
-    expect(limitBarClass(81)).toBe('h-full bg-yellow-500');
-    expect(limitBarClass(100)).toBe('h-full bg-yellow-500');
+    expect(limitBarClass(81)).toBe('h-full bg-accent');
+    expect(limitBarClass(100)).toBe('h-full bg-accent');
     expect(limitBarClass(100.01)).toBe('h-full bg-danger');
   });
 });

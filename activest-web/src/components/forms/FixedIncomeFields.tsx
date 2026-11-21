@@ -104,8 +104,8 @@ export const FixedIncomeFields = ({
   const locked = readOnly || lockedTerms;
 
   return (
-    <div className="rounded-md border border-accent/20 bg-accent/5 p-4 space-y-4">
-      <p className="text-xs uppercase tracking-wider text-accent/80 font-medium">
+    <div className="rounded-control border border-accent/20 bg-accent/5 p-4 space-y-4">
+      <p className="text-xs uppercase tracking-wider text-accent-text/80 font-medium">
         <LabelWithInfo
           // Papel com parâmetros públicos (Tesouro, o único tipo sem emissor)
           // vem antes: na venda dele o quadro também é somente leitura, mas
@@ -150,7 +150,7 @@ export const FixedIncomeFields = ({
           disabled={distributorReadOnly ?? readOnly}
           onChange={(distributor) => onChange({ distributor })}
         />
-        {distributorWarning && <p className="mt-1 text-xs text-accent">{distributorWarning}</p>}
+        {distributorWarning && <p className="mt-1 text-xs text-accent-text">{distributorWarning}</p>}
       </div>
 
       {showIssuer && (

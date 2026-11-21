@@ -67,14 +67,14 @@ export const SignupPage = () => {
   };
 
   if (loading_) {
-    return <AuthShell title="Criar conta"><p className="text-sm text-gray-400">Carregando...</p></AuthShell>;
+    return <AuthShell title="Criar conta"><p className="text-sm text-content-3">Carregando...</p></AuthShell>;
   }
 
   if (!status?.enabled) {
     return (
       <AuthShell title="Criar conta"
-        footer={<Link to="/login" className="text-accent hover:underline">Voltar para o login</Link>}>
-        <p className="text-sm text-gray-300">
+        footer={<Link to="/login" className="text-accent-text hover:underline">Voltar para o login</Link>}>
+        <p className="text-sm text-content-2">
           O cadastro de novas contas está desativado no momento. Peça acesso a quem administra o Activest.
         </p>
       </AuthShell>
@@ -84,7 +84,7 @@ export const SignupPage = () => {
   if (sent) {
     return (
       <AuthShell title="Confirme o seu e-mail"
-        footer={<>Já tem conta? <Link to="/login" className="text-accent hover:underline">Entrar</Link></>}>
+        footer={<>Já tem conta? <Link to="/login" className="text-accent-text hover:underline">Entrar</Link></>}>
         <CodeStep
           sent={sent}
           confirmLabel="Criar conta"
@@ -101,7 +101,7 @@ export const SignupPage = () => {
 
   return (
     <AuthShell title="Criar conta" subtitle="Leva um minuto: os dados e um código enviado ao seu e-mail." wide
-      footer={<>Já tem conta? <Link to="/login" className="text-accent hover:underline">Entrar</Link></>}>
+      footer={<>Já tem conta? <Link to="/login" className="text-accent-text hover:underline">Entrar</Link></>}>
       <FormError message={error || google.error} />
       <form onSubmit={send} className="space-y-4" autoComplete="on">
         <Input label="Nome" value={form.name} onChange={(e) => set('name', e.target.value)} maxLength={255}
@@ -126,11 +126,11 @@ export const SignupPage = () => {
             onChange={(e) => set('confirm', e.target.value)}
             error={form.confirm && !confirmOk ? 'As senhas não conferem.' : undefined} required />
         </div>
-        <label className="flex items-start gap-3 text-sm text-gray-300 cursor-pointer">
+        <label className="flex items-start gap-3 text-sm text-content-2 cursor-pointer">
           <input type="checkbox" className="mt-1 accent-accent" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} />
           <span>
-            Li e aceito os <Link to="/terms" target="_blank" className="text-accent hover:underline">Termos de Uso</Link> e
-            a <Link to="/privacy" target="_blank" className="text-accent hover:underline">Política de Privacidade</Link>.
+            Li e aceito os <Link to="/terms" target="_blank" className="text-accent-text hover:underline">Termos de Uso</Link> e
+            a <Link to="/privacy" target="_blank" className="text-accent-text hover:underline">Política de Privacidade</Link>.
           </span>
         </label>
         <Button type="submit" className="w-full" disabled={!canSend} isLoading={busy}>Continuar</Button>
@@ -139,19 +139,19 @@ export const SignupPage = () => {
       {google.enabled && (
         <>
           <div className="flex items-center gap-3 my-6">
-            <span className="h-px flex-1 bg-white/10" />
-            <span className="text-xs uppercase tracking-wider text-gray-500">ou</span>
-            <span className="h-px flex-1 bg-white/10" />
+            <span className="h-px flex-1 bg-selected" />
+            <span className="text-xs uppercase tracking-wider text-content-4">ou</span>
+            <span className="h-px flex-1 bg-selected" />
           </div>
           <div className="flex justify-center min-h-[44px]">
             {google.isLoading
-              ? <span className="text-sm text-gray-400 self-center">Entrando com o Google...</span>
+              ? <span className="text-sm text-content-3 self-center">Entrando com o Google...</span>
               : <div ref={google.containerRef} />}
           </div>
-          <p className="mt-3 text-center text-xs text-gray-500">
+          <p className="mt-3 text-center text-xs text-content-4">
             Ao continuar com o Google você aceita os{' '}
-            <Link to="/terms" target="_blank" className="text-accent hover:underline">Termos de Uso</Link> e a{' '}
-            <Link to="/privacy" target="_blank" className="text-accent hover:underline">Política de Privacidade</Link>.
+            <Link to="/terms" target="_blank" className="text-accent-text hover:underline">Termos de Uso</Link> e a{' '}
+            <Link to="/privacy" target="_blank" className="text-accent-text hover:underline">Política de Privacidade</Link>.
           </p>
         </>
       )}

@@ -8,4 +8,4 @@
  * precisar passar o mouse. O que diz qual é a ação é o ícone e o title.
  */
 export const TABLE_ACTION_CLASS =
-  'p-1 rounded text-accent hover:bg-accent/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+  'p-1 rounded text-accent-text hover:bg-accent/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';

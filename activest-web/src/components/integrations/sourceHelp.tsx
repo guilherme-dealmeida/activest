@@ -13,7 +13,7 @@ export interface SourceHelp {
   consent: ReactNode;
 }
 
-const strong = (text: string) => <span className="text-white">{text}</span>;
+const strong = (text: string) => <span className="text-content">{text}</span>;
 
 export const SOURCE_HELP: Record<IntegrationProvider, SourceHelp> = {
   BINANCE: {

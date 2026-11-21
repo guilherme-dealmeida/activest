@@ -112,8 +112,8 @@ export const InfoTooltip = ({ content, label = 'Mais informações', className }
         onBlur={() => { if (!pinned) close(); }}
         className={clsx(
           'inline-flex shrink-0 items-center justify-center rounded-full align-middle normal-case tracking-normal',
-          'text-gray-500 hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors',
-          open && 'text-accent',
+          'text-content-4 hover:text-accent-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors',
+          open && 'text-accent-text',
           className
         )}
       >
@@ -132,7 +132,7 @@ export const InfoTooltip = ({ content, label = 'Mais informações', className }
             // Mede primeiro, mostra depois: sem isso o balão pisca no canto.
             visibility: pos ? 'visible' : 'hidden',
           }}
-          className="z-[60] w-max rounded-lg border border-white/10 bg-surface px-3 py-2 text-left text-sm font-normal normal-case leading-snug tracking-normal text-gray-300 shadow-lg"
+          className="z-[60] w-max rounded-control border border-line bg-surface px-3 py-2 text-left text-sm font-normal normal-case leading-snug tracking-normal text-content-2 shadow-lg"
         >
           {content}
         </div>,

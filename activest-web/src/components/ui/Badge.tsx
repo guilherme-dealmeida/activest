@@ -10,9 +10,9 @@ export const Badge = ({ children, variant = 'default', className, ...props }: Ba
   const variants = {
     success: 'bg-success/20 text-success border-success/30',
     danger: 'bg-danger/20 text-danger border-danger/30',
-    warning: 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30',
-    info: 'bg-blue-500/20 text-blue-500 border-blue-500/30',
-    default: 'bg-surface-light text-gray-300 border-gray-700',
+    warning: 'bg-accent/20 text-accent-text border-accent/30',
+    info: 'bg-info/20 text-info border-info/30',
+    default: 'bg-elevated text-content-2 border-line-strong',
   };
 
   return (

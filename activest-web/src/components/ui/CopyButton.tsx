@@ -22,7 +22,7 @@ export const CopyButton = ({ text, title = 'Copiar valor', className }: { text: 
 
   return (
     <button type="button" onClick={copy} title={copied ? 'Copiado' : `${title}: ${text}`} aria-label={title}
-            className={clsx('shrink-0 rounded p-0.5 transition-colors', copied ? 'text-success' : 'text-gray-600 hover:text-accent', className)}>
+            className={clsx('shrink-0 rounded p-0.5 transition-colors', copied ? 'text-success' : 'text-content-4 hover:text-accent-text', className)}>
       {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
     </button>
   );

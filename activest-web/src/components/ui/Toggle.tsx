@@ -19,12 +19,12 @@ export const Toggle = <T extends string>({ options, value, onChange, label, size
   /** sm: dentro de cartão. */
   size?: 'sm' | 'md';
 }) => (
-  <div className="flex rounded-md bg-white/5 p-0.5" role="group" aria-label={label}>
+  <div className="flex rounded-control bg-overlay p-0.5" role="group" aria-label={label}>
     {options.map(o => (
       <button key={o.value} type="button" onClick={() => onChange(o.value)} aria-pressed={value === o.value}
               title={o.title}
               className={`rounded font-medium transition-colors ${size === 'sm' ? 'px-1.5 py-0.5 text-[0.625rem]' : 'px-3 py-1 text-xs'} ${
-                value === o.value ? 'bg-accent text-black' : 'text-gray-300 hover:text-white'
+                value === o.value ? 'bg-accent text-black' : 'text-content-2 hover:text-content'
               }`}>
         {o.label}
       </button>

@@ -79,13 +79,13 @@ const CustomTooltip = ({ active, payload }: SliceTooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-surface border border-surface-light p-3 rounded-lg shadow-lg z-50">
-        <p className="font-medium text-white mb-1">{data.name}</p>
-        <p className="text-sm text-gray-300">
-          Valor: <span className="text-white font-medium">{formatCurrency(data.value)}</span>
+      <div className="bg-surface border border-line p-3 rounded-control shadow-lg z-50">
+        <p className="font-medium text-content mb-1">{data.name}</p>
+        <p className="text-sm text-content-2">
+          Valor: <span className="text-content font-medium">{formatCurrency(data.value)}</span>
         </p>
-        <p className="text-sm text-gray-300">
-          Participação: <span className="text-white font-medium">{formatPercentage(data.percentage)}</span>
+        <p className="text-sm text-content-2">
+          Participação: <span className="text-content font-medium">{formatPercentage(data.percentage)}</span>
         </p>
       </div>
     );
@@ -113,7 +113,7 @@ export const AllocationDetailedCharts = ({ data }: AllocationDetailedChartsProps
         return (
           <Card key={typeIdx} className="flex flex-col">
             {/* Nome do tipo centralizado, branco e em negrito (12/10/2026): o título padrão do Card é cinza e pequeno. */}
-            <h3 className="text-base font-semibold text-white text-center mb-2">{typeItem.typeName}</h3>
+            <h3 className="text-base font-semibold text-content text-center mb-2">{typeItem.typeName}</h3>
             <CornerLegendDonut
               data={chartData}
               tooltip={<CustomTooltip />}

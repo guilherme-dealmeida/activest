@@ -73,12 +73,12 @@ export const CodeStep = ({
 
   return (
     <form onSubmit={confirm} className="space-y-4">
-      <p className="text-sm text-gray-300">
-        Enviamos um código de 6 dígitos para <span className="text-white font-medium">{destination}</span>.
+      <p className="text-sm text-content-2">
+        Enviamos um código de 6 dígitos para <span className="text-content font-medium">{destination}</span>.
         Ele vale {Math.round(sent.expiresInSeconds / 60)} minutos.
       </p>
-      {error && <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">{error}</div>}
-      {info && <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-sm">{info}</div>}
+      {error && <div className="p-3 bg-danger/10 border border-danger/30 rounded-control text-danger text-sm">{error}</div>}
+      {info && <div className="p-3 bg-success/10 border border-success/30 rounded-control text-success text-sm">{info}</div>}
       <Input
         label="Código"
         value={code}
@@ -96,14 +96,14 @@ export const CodeStep = ({
       </Button>
       <div className="flex items-center justify-between text-sm">
         {onBack ? (
-          <button type="button" onClick={onBack} className="text-gray-400 hover:text-white">{backLabel}</button>
+          <button type="button" onClick={onBack} className="text-content-3 hover:text-content">{backLabel}</button>
         ) : <span />}
         <button type="button" onClick={resend} disabled={waiting > 0}
-          className="text-accent hover:underline disabled:text-gray-500 disabled:no-underline disabled:cursor-not-allowed">
+          className="text-accent-text hover:underline disabled:text-content-4 disabled:no-underline disabled:cursor-not-allowed">
           {waiting > 0 ? `Reenviar em ${waiting}s` : 'Reenviar código'}
         </button>
       </div>
-      <p className="text-xs text-gray-500">Não chegou? Confira a caixa de spam.</p>
+      <p className="text-xs text-content-4">Não chegou? Confira a caixa de spam.</p>
     </form>
   );
 };

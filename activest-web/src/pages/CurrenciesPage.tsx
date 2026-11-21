@@ -15,7 +15,6 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { TABLE_ACTION_CLASS } from '@/components/ui/tableAction';
 import { useToast } from '@/context/ToastContext';
-import { useTheme } from '@/context/ThemeContext';
 import { apiMessage } from '@/utils/apiError';
 import { formatDate, formatFxRate, toLocalISODate } from '@/utils/format';
 import { CurrencyAdminRow, ForeignTaxRule } from '@/types';
@@ -56,7 +55,6 @@ const EMPTY: CurrencyAdminInput = {
 export const CurrenciesPage = () => {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
-  const { theme } = useTheme();
   const [editing, setEditing] = useState<CurrencyAdminRow | null>(null);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<CurrencyAdminInput>(EMPTY);
@@ -112,8 +110,8 @@ export const CurrenciesPage = () => {
     save.mutate({ ...form, countryCode: form.countryCode?.trim() ? form.countryCode.trim().toUpperCase() : null });
   };
 
-  const axisColor = theme === 'light' ? '#6b7280' : '#9ca3af';
-  const gridColor = theme === 'light' ? '#e5e7eb' : '#1f1f1f';
+  const axisColor = 'var(--chart-axis)';
+  const gridColor = 'var(--chart-grid)';
 
   return (
     <div className="space-y-6">
@@ -124,8 +122,8 @@ export const CurrenciesPage = () => {
       >
         {isLoading ? <LoadingSpinner /> : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-gray-400">
-              <thead className="text-xs uppercase bg-surface-light text-gray-300">
+            <table className="w-full text-sm text-left text-content-3">
+              <thead className="uppercase bg-elevated">
                 <tr>
                   <th className="px-4 py-3">CÓDIGO</th>
                   <th className="px-4 py-3">NOME</th>
@@ -139,9 +137,9 @@ export const CurrenciesPage = () => {
               </thead>
               <tbody>
                 {(rows ?? []).map(r => (
-                  <tr key={r.code} className="border-b border-surface-light hover:bg-surface-light/40">
-                    <td className="px-4 py-3 font-medium text-white">{r.code}</td>
-                    <td className="px-4 py-3">{r.name}{r.countryCode ? <span className="text-gray-500"> · {r.countryCode}</span> : null}</td>
+                  <tr key={r.code} className="border-b border-line hover:bg-overlay">
+                    <td className="px-4 py-3 font-medium text-content">{r.code}</td>
+                    <td className="px-4 py-3">{r.name}{r.countryCode ? <span className="text-content-4"> · {r.countryCode}</span> : null}</td>
                     <td className="px-4 py-3">{r.symbol}</td>
                     <td className="px-4 py-3 text-center">
                       {r.base ? <Badge variant="info">Base</Badge>
@@ -151,7 +149,7 @@ export const CurrenciesPage = () => {
                     <td className="px-4 py-3 text-right tabular-nums">
                       {r.lastSell != null ? (
                         <span title={`Compra ${formatFxRate(r.lastBuy ?? 0)} · venda ${formatFxRate(r.lastSell)}`}>
-                          R$ {formatFxRate(r.lastSell)} <span className="text-gray-500">em {formatDate(r.lastDate ?? '')}</span>
+                          R$ {formatFxRate(r.lastSell)} <span className="text-content-4">em {formatDate(r.lastDate ?? '')}</span>
                         </span>
                       ) : '—'}
                     </td>
@@ -184,10 +182,10 @@ export const CurrenciesPage = () => {
           title={`Câmbio ${selected} (PTAX)`}
           titleInfo="Boletim de fechamento da PTAX do Banco Central, em reais por unidade da moeda. A venda converte compras e posições; a compra converte proventos."
           action={
-            <div className="flex space-x-1 bg-surface p-1 rounded-lg border border-surface-light">
+            <div className="flex space-x-1 bg-surface p-1 rounded-control border border-line">
               {RANGES.map(r => (
                 <button key={r.key} type="button" onClick={() => setRange(r.key)}
-                  className={clsx('px-3 py-1 text-xs rounded-md', range === r.key ? 'bg-accent text-black font-semibold' : 'text-gray-400 hover:text-white')}>
+                  className={clsx('px-3 py-1 text-xs rounded-control', range === r.key ? 'bg-accent text-black font-semibold' : 'text-content-3 hover:text-content')}>
                   {r.label}
                 </button>
               ))}
@@ -195,7 +193,7 @@ export const CurrenciesPage = () => {
           }
         >
           {loadingPoints && !points ? <LoadingSpinner /> : !points?.length ? (
-            <p className="text-sm text-gray-500">Sem câmbio carregado no período. Rode a tarefa de câmbio em Tarefas.</p>
+            <p className="text-sm text-content-4">Sem câmbio carregado no período. Rode a tarefa de câmbio em Tarefas.</p>
           ) : (
             <div className="h-72" ref={axisRef}>
               <ResponsiveContainer width="100%" height="100%">
@@ -205,7 +203,7 @@ export const CurrenciesPage = () => {
                   <YAxis domain={['auto', 'auto']} tick={{ fill: axisColor, fontSize: rem(11) }} width={56}
                     tickFormatter={(v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
                   <Tooltip
-                    contentStyle={{ background: theme === 'light' ? '#fff' : '#111111', border: '1px solid #333' }}
+                    contentStyle={{ background: 'var(--chart-tip-bg)', border: '1px solid var(--chart-tip-line)', color: 'var(--content)' }}
                     labelFormatter={(d: string) => formatDate(d)}
                     formatter={(v: number, name: string) => [`R$ ${formatFxRate(v)}`, name === 'sell' ? 'Venda' : 'Compra']}
                   />
@@ -223,8 +221,8 @@ export const CurrenciesPage = () => {
         titleInfo="Alíquotas por data, com a base legal. Usadas no líquido de vendas e proventos de ativos do exterior e no IOF das operações de câmbio. Mudança de alíquota entra por atualização do sistema, com a nova base legal."
       >
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left text-gray-400">
-            <thead className="text-xs uppercase bg-surface-light text-gray-300">
+          <table className="w-full text-sm text-left text-content-3">
+            <thead className="uppercase bg-elevated">
               <tr>
                 <th className="px-4 py-3">TRIBUTO</th>
                 <th className="px-4 py-3">SOBRE</th>
@@ -236,8 +234,8 @@ export const CurrenciesPage = () => {
             </thead>
             <tbody>
               {(rules ?? []).map(r => (
-                <tr key={r.id} className="border-b border-surface-light">
-                  <td className="px-4 py-3 text-white">{TAX_LABEL[r.tax]}</td>
+                <tr key={r.id} className="border-b border-line">
+                  <td className="px-4 py-3 text-content">{TAX_LABEL[r.tax]}</td>
                   <td className="px-4 py-3">{EVENT_LABEL[r.event]}</td>
                   <td className="px-4 py-3">{r.countryCode ?? 'Qualquer'}</td>
                   <td className="px-4 py-3 text-right tabular-nums">

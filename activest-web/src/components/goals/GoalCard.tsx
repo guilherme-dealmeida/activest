@@ -18,11 +18,11 @@ export const GoalCard = ({ goal }: { goal: Goal }) => {
   const updated = dates.length ? dates[dates.length - 1] : undefined;
   return (
     <Link to={`/goals/${goal.id}`}
-      className="block bg-surface rounded-xl border border-surface-light p-5 hover:border-accent/50 transition-colors">
+      className="block bg-surface rounded-panel border border-line p-5 hover:border-accent/50 transition-colors">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs text-gray-400">{goal.categoryLabel} · {goal.typeLabel}</p>
-          <h3 className="text-white font-semibold truncate">{assetText(goal.name)}</h3>
+          <p className="text-xs text-content-3">{goal.categoryLabel} · {goal.typeLabel}</p>
+          <h3 className="text-content font-semibold truncate">{assetText(goal.name)}</h3>
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
           {e && goal.lifecycle === 'ATIVA' && <Badge variant={SITUATION[e.situation].variant}>{SITUATION[e.situation].label}</Badge>}
@@ -30,32 +30,32 @@ export const GoalCard = ({ goal }: { goal: Goal }) => {
           {e?.quality === 'PARCIAL' && <Badge variant="warning">Dados parciais</Badge>}
         </div>
       </div>
-      <p className="text-sm text-gray-300 mt-2">{e?.objective ?? (final?.objective as string) ?? ''}</p>
+      <p className="text-sm text-content-2 mt-2">{e?.objective ?? (final?.objective as string) ?? ''}</p>
       {e && (
         <div className="mt-3">
           <div className="flex items-baseline justify-between gap-2">
-            <span className="text-lg font-semibold text-white">{formatGoalValue(e.indicator, e.unit)}</span>
-            {e.target !== null && <span className="text-xs text-gray-400">alvo {formatGoalValue(e.target, e.unit)}</span>}
+            <span className="text-lg font-semibold text-content">{formatGoalValue(e.indicator, e.unit)}</span>
+            {e.target !== null && <span className="text-xs text-content-3">alvo {formatGoalValue(e.target, e.unit)}</span>}
           </div>
-          <p className="text-xs text-gray-500">{e.indicatorLabel}</p>
+          <p className="text-xs text-content-4">{e.indicatorLabel}</p>
           {e.progressPct !== null && (
-            <div className="mt-2 h-2 w-full rounded-full bg-surface-light overflow-hidden" title={`${formatGoalValue(e.progressPct, 'PERCENT')}`}>
+            <div className="mt-2 h-2 w-full rounded-full bg-elevated overflow-hidden" title={`${formatGoalValue(e.progressPct, 'PERCENT')}`}>
               <div className={e.achieved ? 'h-full bg-success' : 'h-full bg-accent'} style={{ width: `${barWidth(e.progressPct)}%` }} />
             </div>
           )}
           {e.remaining !== null && e.remainingLabel && (
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-content-3 mt-1">
               {e.remainingLabel}: {formatGoalValue(e.remaining, e.remainingUnit ?? e.unit)}
             </p>
           )}
         </div>
       )}
       {!e && final && (
-        <p className="text-sm text-gray-400 mt-3">
+        <p className="text-sm text-content-3 mt-3">
           Resultado final em {formatDateBR(final.date as string)}: {formatGoalValue(final.indicator as number, final.unit as never)}
         </p>
       )}
-      <div className="flex justify-between text-xs text-gray-500 mt-3">
+      <div className="flex justify-between text-xs text-content-4 mt-3">
         <span>{deadline ? `Prazo ${formatDateBR(deadline)}` : 'Sem prazo'}</span>
         {updated && <span>Dados até {formatDateBR(updated)}</span>}
       </div>

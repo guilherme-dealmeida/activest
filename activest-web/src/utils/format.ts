@@ -102,5 +102,5 @@ export const formatUnitPrice = (value: number, crypto: boolean): string => {
 export const getReturnColor = (value: number): string => {
   if (value > 0) return 'text-success';
   if (value < 0) return 'text-danger';
-  return 'text-gray-400';
+  return 'text-content-3';
 };

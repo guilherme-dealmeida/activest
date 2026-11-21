@@ -42,7 +42,7 @@ const AdminOnly = ({ children }: { children: JSX.Element }) => {
 
 const ProtectedRoute = () => {
   const { isAuthenticated, isLoading } = useAuth();
-  if (isLoading) return <div className="min-h-screen flex items-center justify-center text-white">Carregando...</div>;
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center text-content">Carregando...</div>;
   return isAuthenticated ? <Layout /> : <Navigate to="/login" replace />;
 };
 

@@ -6,7 +6,7 @@ import {
 } from '@/utils/issuerListing';
 
 const selectClass =
-  'bg-surface-light border border-white/10 text-white text-xs rounded-md focus:ring-accent focus:border-accent px-2 py-1.5 w-full';
+  'bg-elevated border border-line text-content text-xs rounded-control focus:ring-accent focus:border-accent px-2 py-1.5 w-full';
 
 const unitHint = (c: NumericColumn): string => {
   switch (c.unit) {
@@ -65,11 +65,11 @@ export const IssuerListingFilters = ({ tab, rows, state, onChange }: Props) => {
   };
 
   return (
-    <div className="space-y-3 rounded-lg border border-white/10 bg-surface-light/30 p-3 text-xs">
+    <div className="space-y-3 rounded-control border border-line bg-overlay p-3 text-xs">
       <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-3">
         {tab === 'stocks' && (
           <>
-            <label className="text-gray-400">
+            <label className="text-content-3">
               Setor
               <select className={`${selectClass} mt-1`} value={state.sector}
                 onChange={e => onChange({ sector: e.target.value, subsector: '', segment: '' })}>
@@ -77,7 +77,7 @@ export const IssuerListingFilters = ({ tab, rows, state, onChange }: Props) => {
                 {sectors.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </label>
-            <label className="text-gray-400">
+            <label className="text-content-3">
               Subsetor
               <select className={`${selectClass} mt-1`} value={state.subsector}
                 onChange={e => onChange({ subsector: e.target.value, segment: '' })}>
@@ -87,7 +87,7 @@ export const IssuerListingFilters = ({ tab, rows, state, onChange }: Props) => {
             </label>
           </>
         )}
-        <label className="text-gray-400">
+        <label className="text-content-3">
           Segmento
           <select className={`${selectClass} mt-1`} value={state.segment} onChange={e => onChange({ segment: e.target.value })}>
             <option value="">Todos</option>
@@ -105,16 +105,16 @@ export const IssuerListingFilters = ({ tab, rows, state, onChange }: Props) => {
           return (
             <div key={c.key}>
               <div className="mb-1 flex items-center justify-between">
-                <span className="flex items-center gap-1 text-gray-300">
+                <span className="flex items-center gap-1 text-content-2">
                   {meta ? meta.label : c.key === 'price' ? 'Preço' : 'Patrimônio líquido'}
                   {meta && <InfoTooltip label={`O que é ${meta.label}`} content={<><strong>{meta.name}.</strong> {meta.formula}</>} />}
                 </span>
-                <span className="text-[0.6875rem] text-gray-500">{unitHint(c)}</span>
+                <span className="text-[0.6875rem] text-content-4">{unitHint(c)}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <RangeInput column={c} label={`${c.label} mínimo`} placeholder="mín" value={r.min}
                   onChange={v => setRange(c.key, 'min', v)} />
-                <span className="text-gray-500">a</span>
+                <span className="text-content-4">a</span>
                 <RangeInput column={c} label={`${c.label} máximo`} placeholder="máx" value={r.max}
                   onChange={v => setRange(c.key, 'max', v)} />
               </div>
@@ -122,7 +122,7 @@ export const IssuerListingFilters = ({ tab, rows, state, onChange }: Props) => {
           );
         })}
       </div>
-      <p className="text-[0.6875rem] text-gray-500">
+      <p className="text-[0.6875rem] text-content-4">
         Percentuais em pontos (DY 6,00 = 6%); patrimônio líquido em R$ milhões. Campo vazio = sem limite. O botão ± aparece
         nos indicadores que podem ser negativos. Com uma faixa preenchida, quem não tem o indicador sai da lista.
       </p>

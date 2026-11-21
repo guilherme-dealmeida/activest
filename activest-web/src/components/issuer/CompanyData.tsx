@@ -27,8 +27,8 @@ const exact = (v: number) => v.toLocaleString('pt-BR', { maximumFractionDigits: 
 
 const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   <div className="min-w-0">
-    <dt className="text-xs uppercase tracking-wide text-gray-500">{label}</dt>
-    <dd className="mt-0.5 text-sm text-white break-words">{children}</dd>
+    <dt className="text-xs uppercase tracking-wide text-content-4">{label}</dt>
+    <dd className="mt-0.5 text-sm text-content break-words">{children}</dd>
   </div>
 );
 
@@ -47,13 +47,13 @@ const ValueCell = ({ item }: { item: ValueItem }) => {
   const text = v == null ? '—' : item.kind === 'money' ? formatCompactCurrency(v) : formatCompactNumber(v);
   const title = v == null ? undefined : item.kind === 'money' ? `R$ ${exact(v)}` : exact(v);
   return (
-    <div className="min-w-0 rounded-lg bg-white/[0.03] px-3 py-2">
-      <dt className="flex items-center gap-1 text-xs uppercase tracking-wide text-gray-500">
+    <div className="min-w-0 rounded-control bg-overlay px-3 py-2">
+      <dt className="flex items-center gap-1 text-xs uppercase tracking-wide text-content-4">
         {item.label}
         <InfoTooltip label={`O que é ${item.label}`} content={item.formula} />
       </dt>
       <dd className="mt-0.5 flex items-center gap-1.5">
-        <span title={title} className={`text-base font-semibold tabular-nums ${v != null && v < 0 ? 'text-danger' : 'text-white'}`}>{text}</span>
+        <span title={title} className={`text-base font-semibold tabular-nums ${v != null && v < 0 ? 'text-danger' : 'text-content'}`}>{text}</span>
         {item.note && <InfoTooltip label="Observação" content={item.note} />}
       </dd>
     </div>
@@ -101,7 +101,7 @@ const liquidity = (d: CompanyDataValues): ValueItem => ({
 
 /** Relógio de "dado antigo", com o motivo no hover (mesmos limites da listagem, D5). */
 const StaleMark = ({ title }: { title: string }) => (
-  <span title={title} aria-label={title} className="inline-flex cursor-help text-accent">
+  <span title={title} aria-label={title} className="inline-flex cursor-help text-accent-text">
     <Clock className="h-3.5 w-3.5" />
   </span>
 );
@@ -127,9 +127,9 @@ export const CompanyData = ({ ticker, issuer }: { ticker: string; issuer: Issuer
 
   let values: ReactNode;
   if (data.isLoading) {
-    values = <div className="flex h-24 items-center justify-center"><LoadingSpinner className="h-5 w-5 text-accent" /></div>;
+    values = <div className="flex h-24 items-center justify-center"><LoadingSpinner className="h-5 w-5 text-accent-text" /></div>;
   } else if (data.isError || !data.data) {
-    values = <p className="text-sm text-gray-400">{apiMessage(data.error) ?? 'Não foi possível carregar os valores.'}</p>;
+    values = <p className="text-sm text-content-3">{apiMessage(data.error) ?? 'Não foi possível carregar os valores.'}</p>;
   } else {
     const d = data.data;
     const items = isFund ? fund(d) : company(d);
@@ -141,7 +141,7 @@ export const CompanyData = ({ ticker, issuer }: { ticker: string; issuer: Issuer
           {items.map(i => <ValueCell key={i.label} item={i} />)}
         </dl>
         {(base || price) && (
-          <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-gray-500">
+          <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-content-4">
             {base}
             {d.baseStale && base && <StaleMark title={`${base}: dado antigo`} />}
             {base && price && ' · '}
@@ -156,7 +156,7 @@ export const CompanyData = ({ ticker, issuer }: { ticker: string; issuer: Issuer
   return (
     <Card title={isFund ? 'Dados do fundo' : 'Dados da empresa'}>
       {values}
-      <dl className="mt-5 grid grid-cols-1 gap-4 border-t border-white/5 pt-4 sm:grid-cols-2 lg:grid-cols-3">
+      <dl className="mt-5 grid grid-cols-1 gap-4 border-t border-line-soft pt-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field label="CNPJ">{formatCnpj(issuer.cnpj)}</Field>
         {issuer.cvmCode != null && <Field label="Código CVM">{issuer.cvmCode}</Field>}
         {status && (
@@ -171,7 +171,7 @@ export const CompanyData = ({ ticker, issuer }: { ticker: string; issuer: Issuer
         {site && (
           <Field label="Site">
             <a href={site} target="_blank" rel="noopener noreferrer"
-               className="inline-flex items-center gap-1 text-accent hover:underline break-all">
+               className="inline-flex items-center gap-1 text-accent-text hover:underline break-all">
               {issuer.website}
               <ExternalLink className="h-3.5 w-3.5 shrink-0" />
             </a>

@@ -18,7 +18,7 @@ export const UserAvatar = ({ user, className, textClassName, title }: Props) => 
     return <img src={src} alt="" title={title} referrerPolicy="no-referrer" className={clsx(base, 'object-cover')} />;
   }
   return (
-    <div className={clsx(base, 'bg-accent/20 flex items-center justify-center text-accent font-semibold')} title={title}>
+    <div className={clsx(base, 'bg-accent/20 flex items-center justify-center text-accent-text font-semibold')} title={title}>
       <span className={textClassName}>{(user?.name?.trim()?.[0] ?? '?').toUpperCase()}</span>
     </div>
   );
