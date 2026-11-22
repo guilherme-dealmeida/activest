@@ -86,7 +86,7 @@ public class PortfolioService {
         List<PortfolioAsset> open = assets.stream()
             .filter(pa -> !pa.isSettled() && positions.get(pa.getId()).hasInvestment())
             .toList();
-        Map<UUID, PositionValuationInfo.Info> infos = valuationInfo != null ? valuationInfo.of(open) : null;
+        Map<UUID, PositionValuationInfo.Info> infos = valuationInfo != null ? valuationInfo.of(portfolio.getId(), open) : null;
 
         for (PortfolioAsset pa : assets) {
             Position position = positions.get(pa.getId());
@@ -174,7 +174,7 @@ public class PortfolioService {
             // comecou.
             .filter(pa -> !pa.isSettled() && positions.get(pa.getId()).hasInvestment())
             .toList();
-        Map<UUID, PositionValuationInfo.Info> infos = valuationInfo != null ? valuationInfo.of(open) : null;
+        Map<UUID, PositionValuationInfo.Info> infos = valuationInfo != null ? valuationInfo.of(portfolio.getId(), open) : null;
         Map<UUID, List<BonusCostService.Pending>> bonus = bonusCosts != null ? bonusCosts.pendingFor(open) : Map.of();
         Map<UUID, BigDecimal> costFx = foreignValues != null ? foreignValues.costFx(open) : Map.of();
         return open.stream()

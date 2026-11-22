@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -121,6 +122,20 @@ public class PositionCalculator {
     /** Transacoes de uma posicao em ordem cronologica. */
     public List<Transaction> chronologicalTransactions(PortfolioAsset pa) {
         return chronological(transactionRepository.findByPortfolioAssetIdOrderByTransactionDateDesc(pa.getId()));
+    }
+
+    /**
+     * As transacoes da carteira inteira, agrupadas por posicao e em ordem cronologica — <b>uma consulta</b> para
+     * todas, como {@link #positionsOf}.
+     *
+     * <p>Para quem precisa das transacoes de cada titulo (os aportes, as compras e as vendas) e nao pode abrir uma
+     * consulta por posicao: a {@code PositionValuationInfo} da renda fixa fazia exatamente isso, e a Carteira gastava
+     * uma consulta por titulo (docs/planos/PLANO_CONSULTAS_REPETIDAS.md, E4).</p>
+     */
+    public Map<UUID, List<Transaction>> chronologicalTransactionsOf(UUID portfolioId) {
+        return transactionRepository.findByPortfolioAssetPortfolioIdOrderByTransactionDateDesc(portfolioId).stream()
+                .collect(Collectors.groupingBy(tx -> tx.getPortfolioAsset().getId(), LinkedHashMap::new,
+                        Collectors.collectingAndThen(Collectors.toList(), PositionCalculator::chronological)));
     }
 
     /** Eventos societarios do ativo, como passos do calculo. */

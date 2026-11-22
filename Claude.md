@@ -5,7 +5,19 @@
 Plataforma de gestão de investimentos pessoais: dashboard, carteira, transações,
 alocação, estratégia com rebalanceamento, dividendos, preço teto e metas.
 
-> **Última revisão**: 21/11/2026 (**Regra do ticker base**, `docs/planos/PLANO_TICKER_BASE.md`: a transformação
+> **Última revisão**: 21/11/2026, noite (**Consulta repetida na carteira — o dono é a query**, `docs/planos/PLANO_CONSULTAS_REPETIDAS.md`:
+> o `N+1` da Carteira sumiu: a query que lê as posições (`PortfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly`)
+> agora traz `assetType`, `assetCategory` e `issuer` junto (são `ManyToOne`; sem o fetch, cada um viria num SELECT por
+> linha), e as transações da carteira passaram a vir **numa** consulta (`PositionCalculator.chronologicalTransactionsOf`),
+> que a `PositionValuationInfo` usa em vez de abrir uma por título. No dev: `/goals` 149 → **73** consultas e
+> `/portfolio/assets` 97 → **46**, ~20% menos no tempo de resposta, com o **JSON idêntico campo a campo** nas 5 telas
+> (4.747 campos, 0 diferenças) — ver "Consulta repetida na carteira" em Pontos de Atenção). No mesmo dia, a
+> **importação da corretora** foi corrigida: a confirmação importava os movimentos na ordem em que os itens eram
+> lidos do banco, e uma venda antes da compra era recusada ("Não há posição de PETR4 na carteira para vender") com o
+> extrato inteiro na mesma confirmação — ver "Importação da corretora" em Pontos de Atenção. No mesmo dia, o
+> **escopo D** (perfil do Java) foi aberto: `docs/planos/PLANO_PERFIL_JAVA.md` — a medição mostrou que **87% a 92%
+> do tempo das telas Metas e Carteira está no Java**, e não no SQL (o SQL é 8% a 38% conforme a tela; o custo fixo de
+> uma requisição é 17 ms). Antes: 21/11/2026 (**Regra do ticker base**, `docs/planos/PLANO_TICKER_BASE.md`: a transformação
 > "fracionário → papel inteiro" (PETR4F → PETR4) passou a ter **um dono só** — `com.activest.domain.asset.Tickers`
 > (core), com `base` e `isOddLot`; antes ela estava escrita em 10 lugares, em 3 variantes que discordavam entre si
 > (5 exigiam dígito antes do F e quebravam a classe B, `MRSA3BF`; 4 não exigiam e quebravam os tickers com hífen,
@@ -1821,6 +1833,62 @@ Plano: `docs/planos/PLANO_INTEGRACOES.md` (D1–D12, P1–P4, etapas E1–E7).
 - **Importação de ativo do exterior.** `TransactionService.importTransaction` aceita `FOREIGN_LISTED` (preço `MANUAL`)
   e recusa proposta em moeda diferente da do ativo. Prova real em 31/10/2026: IAU 1,55913017 a US$ 78,26799991, taxa
   US$ 0,17, PTAX 5,0096 (R$ 611,32 + R$ 0,85) e venda de 122,20 USDC; sem divergência (PENDENCIAS 43).
+
+### Importação da corretora: a ordem dos movimentos é a do extrato (21/11/2026)
+
+A confirmação (`IntegrationService.doConfirm`) importa os movimentos **na ordem em que aconteceram**: pelo instante,
+depois pela data de negócio e, no mesmo dia, a compra antes da venda.
+
+**Por quê:** a ordem em que os itens são lidos do banco não é a ordem do extrato — a gravação na pré-visualização é
+ordenada, mas a leitura posterior não traz essa ordem junto. Uma venda importada antes da compra que a sustenta é
+recusada pela Regra A ("Não há posição de PETR4 na carteira para vender"), **com o extrato inteiro na mesma
+confirmação** — no extrato sintético da B3, a compra de PETR4 (04/03/2024) podia vir depois da venda (15/05/2024).
+Foi o que quebrou o `IntegrationsB3IT.fullFlow` na bateria completa (3 falhas em 4 baterias), e o sintoma engana:
+parece defeito da regra, e não é.
+
+A ordem antiga também não era estável: dependia da ordem física das linhas em `integration_run_items`, que muda a
+cada execução.
+
+### Consulta repetida na carteira — o dono é a query (21/11/2026)
+
+Plano: `docs/planos/PLANO_CONSULTAS_REPETIDAS.md` (D1–D8, E2 e E4 entregues). O `N+1` da Carteira e das Metas
+sumiu, em duas regras:
+
+1. **A query que lê as posições traz o emissor e o tipo junto.**
+   `PortfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly` (core) faz `LEFT JOIN FETCH a.assetType`,
+   `LEFT JOIN FETCH a.assetCategory` e `LEFT JOIN FETCH a.issuer`, além do `asset`, do `terms` e da `note`. São
+   `ManyToOne`: sem o fetch, cada um viria num SELECT por linha — 25 emissores e 12 tipos na Carteira, nas Metas,
+   na Estratégia e no Rebalanceamento. É a mesma receita do `a.terms` (P4 do `PLANO_PERFORMANCE`): **quem pergunta
+   é quem traz**.
+2. **As transações da carteira vêm numa consulta só.**
+   `PositionCalculator.chronologicalTransactionsOf(portfolioId)` (core) devolve as transações da carteira agrupadas
+   por posição, em ordem cronológica — **uma** consulta. A `PositionValuationInfo` (app-api) passou a usá-la em vez
+   de `chronologicalTransactions(pa)`, que abria uma consulta por título (27 por requisição: 24 do Tesouro + 3 de
+   renda fixa). A `PositionValuationInfo.of` agora recebe o `portfolioId`.
+
+**Medido no dev (21/11/2026):** `/goals/` 149 → **73** statements (33,1 → 24,2 ms de SQL) e `/portfolio/assets`
+97 → **46** (11,3 → 8,5 ms de SQL); tempo de resposta ~183 → ~147 ms e ~110 → **89 ms** (−20%). O **JSON saiu
+idêntico campo a campo** nas 5 telas (`/goals/`, `/portfolio/assets`, `/portfolio/allocation`,
+`/portfolio/allocation/detailed`, `/strategy/rebalance`): 4.747 campos, 0 diferenças.
+
+**O que sobrou na Carteira (para o próximo escopo):** 7 consultas de transações por posição — as do
+`BonusCostService.pendingFor`, que pergunta as transações dos títulos com bonificação sem custo — e 8 de eventos
+societários, uma por ativo (`PositionCalculator.eventsOf`).
+
+### Compile incremental não pega arquivo restaurado por cópia (21/11/2026)
+
+O `mvn compile` incremental compara a data do `.java` com a do `.class`: **`.class` mais novo = fonte "em dia" =
+não recompila**. O `Copy-Item` do PowerShell **preserva a data de modificação do arquivo de origem**, então um
+arquivo restaurado de um backup fica com a data antiga e **não entra no ar** — sem erro, sem aviso.
+
+O sintoma é enganoso: a medição parece "não ter mudado nada" e o JSON vem idêntico (porque o código velho é que
+está rodando). Duas formas de cair nele: restaurar por cópia, e editar por cima de um arquivo com data antiga.
+
+**Como sair:** `touch` no `.java` antes do `mvn -o compile` (ou, no PowerShell,
+`(Get-Item $f).LastWriteTime = Get-Date`). **Como conferir:**
+`docker exec activest-app-api sh -c "javap -p -cp activest-core/target/classes com.activest.domain.portfolio.PositionCalculator | grep -c chronologicalTransactionsOf"`
+(ou `grep -ac 'JOIN FETCH a.issuer'` na classe do repositório). Vale para qualquer método novo: o nome tem de
+aparecer no `.class`.
 
 ### Performance das listagens (29/10/2026)
 Plano: `docs/planos/PLANO_PERFORMANCE.md` (decisões D1–D8; etapas E0–E5). A listagem de Ativos (aba Ações) e a lista do

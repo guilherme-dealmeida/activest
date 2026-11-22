@@ -47,11 +47,19 @@ public interface PortfolioAssetRepository extends JpaRepository<PortfolioAsset, 
      * depois, linha a linha, seria uma consulta por posição. O {@code terms}
      * também: o lado inverso do {@code @OneToOne} dispararia um SELECT por ativo
      * (docs/planos/PLANO_PERFORMANCE.md, P4).
+     *
+     * <p>E o {@code assetType}, o {@code assetCategory} e o {@code issuer}: são
+     * ManyToOne, e sem o fetch cada um viria num SELECT por linha — 25 emissores
+     * e 12 tipos na Carteira, Metas, Estratégia e Rebalanceamento
+     * (docs/planos/PLANO_CONSULTAS_REPETIDAS.md, E2).</p>
      */
     @Query("""
         SELECT pa FROM PortfolioAsset pa
         JOIN FETCH pa.asset a
         LEFT JOIN FETCH a.terms
+        LEFT JOIN FETCH a.assetType
+        LEFT JOIN FETCH a.assetCategory
+        LEFT JOIN FETCH a.issuer
         LEFT JOIN FETCH pa.note
         WHERE pa.portfolio.id = :portfolioId
         """)

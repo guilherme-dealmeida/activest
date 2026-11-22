@@ -559,7 +559,23 @@ public class IntegrationService {
 
         int imported = 0;
         ImportContext importContext = contexts.create();
-        for (IntegrationRunItem item : runItemList) {
+        // Os movimentos entram na ordem em que aconteceram: uma venda antes da compra que a sustenta
+        // seria recusada pela Regra A ("nao ha posicao para vender"), e a ordem em que os itens foram
+        // gravados na pre-visualizacao nao e a ordem do extrato. O instante vem primeiro (toda fonte o
+        // entrega); a data de negocio desempata, e no mesmo dia a compra vem antes da venda
+        // (docs/planos/PLANO_CONSULTAS_REPETIDAS.md, E8).
+        List<Map.Entry<IntegrationRunItem, ImportedMovement>> ordenados = runItemList.stream()
+            .map(i -> Map.entry(i, movementJson.read(i.getRaw())))
+            .sorted(Comparator
+                .comparing((Map.Entry<IntegrationRunItem, ImportedMovement> e) -> e.getValue().executedAt())
+                .thenComparing(e -> e.getValue().tradeDate(),
+                    Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(e -> e.getValue().side(),
+                    Comparator.nullsFirst(Comparator.naturalOrder())))
+            .toList();
+        for (Map.Entry<IntegrationRunItem, ImportedMovement> entry : ordenados) {
+            IntegrationRunItem item = entry.getKey();
+            ImportedMovement m = entry.getValue();
             boolean isDuplicate = item.getOutcome() == RunItemOutcome.POSSIBLE_DUPLICATE;
             if (item.getOutcome() != RunItemOutcome.NEW && !isDuplicate) {
                 continue;
@@ -571,7 +587,6 @@ public class IntegrationService {
                 item.setResolution(RunItemResolution.SKIPPED);
                 continue;
             }
-            ImportedMovement m = movementJson.read(item.getRaw());
             ImportRules.Result r = connector(connection.getProvider()).rulesFor(m).apply(m, importContext);
             if (!r.mapped()) {
                 throw new BusinessException(lineContext(m, null) + r.reason());

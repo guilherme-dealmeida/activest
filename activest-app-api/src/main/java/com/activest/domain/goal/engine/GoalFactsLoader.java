@@ -83,8 +83,10 @@ public class GoalFactsLoader {
     public GoalFacts load(UUID userId) {
         LocalDate today = dividendCalendar.today();
         Portfolio portfolio = portfolioRepository.findFirstByUserId(userId).orElse(null);
-        Supplier<PortfolioTimeline> timeline = memo(() -> timelineBuilder.timeline(userId));
-        Supplier<RebalanceDTO> rebalance = memo(() -> strategyService.getRebalanceSuggestion(userId));
+        Supplier<PortfolioTimeline> timeline = memo(() -> GoalProfile.time("fatos:linha_tempo",
+                () -> timelineBuilder.timeline(userId)));
+        Supplier<RebalanceDTO> rebalance = memo(() -> GoalProfile.time("fatos:rebalance",
+                () -> strategyService.getRebalanceSuggestion(userId)));
         if (portfolio == null) {
             return new GoalFacts(today, Map.of(), List.of(), List.of(), List.of(), rebalance, timeline, benchmarkData,
                     indices(), 0, Map.of(), this::catalogPrice);
@@ -93,13 +95,15 @@ public class GoalFactsLoader {
 
         Map<UUID, PositionInfo> positions = new LinkedHashMap<>();
         Map<UUID, Asset> assets = new HashMap<>();
-        for (PortfolioAsset pa : portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(pid)) {
+        for (PortfolioAsset pa : GoalProfile.time("fatos:posicoes",
+                () -> portfolioAssetRepository.findAllByPortfolioIdWithAssetEagerly(pid))) {
             assets.put(pa.getId(), pa.getAsset());
             positions.put(pa.getId(), info(pa));
         }
 
         List<GoalFacts.Holding> holdings = new ArrayList<>();
-        for (PortfolioAssetDetailDTO d : portfolioService.getPortfolioAssets(userId)) {
+        for (PortfolioAssetDetailDTO d : GoalProfile.time("fatos:carteira",
+                () -> portfolioService.getPortfolioAssets(userId))) {
             PositionInfo info = positions.get(d.id());
             if (info == null) {
                 continue;
@@ -117,7 +121,8 @@ public class GoalFactsLoader {
         }
 
         List<GoalFacts.Flow> flows = new ArrayList<>();
-        for (Transaction t : transactionRepository.findByPortfolioAssetPortfolioIdOrderByTransactionDateDesc(pid)) {
+        for (Transaction t : GoalProfile.time("fatos:fluxos",
+                () -> transactionRepository.findByPortfolioAssetPortfolioIdOrderByTransactionDateDesc(pid))) {
             BigDecimal amount = t.getType() == TransactionType.SELL && t.getNetAmount() != null
                     ? t.getNetAmount() : nz(t.getTotalAmount());
             flows.add(new GoalFacts.Flow(t.getPortfolioAsset().getId(), t.getTransactionDate(), t.getType(), amount,
@@ -126,7 +131,8 @@ public class GoalFactsLoader {
         flows.sort(Comparator.comparing(GoalFacts.Flow::date));
 
         List<GoalFacts.Income> incomes = new ArrayList<>();
-        for (Dividend d : dividendRepository.findByPortfolioIdWithAsset(pid)) {
+        for (Dividend d : GoalProfile.time("fatos:proventos",
+                () -> dividendRepository.findByPortfolioIdWithAsset(pid))) {
             incomes.add(new GoalFacts.Income(d.getPortfolioAsset().getId(), d.getExDate(), d.getPaymentDate(),
                     d.netOrGross(), d.getTotalAmount(),
                     d.getNetAmountPerShare() != null ? d.getNetAmountPerShare() : d.getAmountPerShare(), d.getType(),
@@ -162,8 +168,9 @@ public class GoalFactsLoader {
                 return Optional.empty();
             }
             LocalDate start = index.getPeriodicity() == IndexPeriodicity.MENSAL ? from.withDayOfMonth(1) : from;
-            List<IndexPoint> rates = marketIndexValues
-                    .findByIndexIdAndReferenceDateBetweenOrderByReferenceDate(index.getId(), start, to)
+            List<IndexPoint> rates = GoalProfile.time("fatos:indices",
+                    () -> marketIndexValues
+                            .findByIndexIdAndReferenceDateBetweenOrderByReferenceDate(index.getId(), start, to))
                     .stream().map(IndexPoint::of).toList();
             if (rates.isEmpty()) {
                 return Optional.empty();
