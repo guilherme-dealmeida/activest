@@ -1742,13 +1742,26 @@ Auditoria de todo o repositorio (21 achados, feita em 20/11/2026). O Guilherme m
 transformacao fracionario -> papel inteiro passou a ter um dono so, `com.activest.domain.asset.Tickers` (core),
 com `base` e `isOddLot`; as 12 chamadas passam por la. Sem migration, sem dado gravado. O que ficou:
 
-**52.1 Escopo B — consultas repetidas** (`docs/planos/PLANO_CONSULTAS_REPETIDAS.md`, D6-D8 em aberto).
-Medido no dev em 20/11/2026: `/goals` 150 consultas SQL, `/portfolio/assets` 98, `/ceiling-prices` 39,
-`/assets/indicators?kind=COMPANY` 32. As telas warm (2a chamada em diante) estao entre 40 e 240 ms — nao ha
-tela quebrada; o que sobra e repeticao. O plano tem 5 etapas: `GoalFacts` compartilhado por request,
-pre-carga de emissores e tipos, `CeilingPriceDefaults` em lote, transacoes ja carregadas na
-`PositionValuationInfo` e cache do `fingerprint` da linha do tempo. O `sharesOn` (O(dias x transacoes) no
-`PortfolioTimelineBuilder`) fica de fora por decisao — e um PR separado.
+**52.1 Escopo B — consultas repetidas** (`docs/planos/PLANO_CONSULTAS_REPETIDAS.md`; D1–D8 respondidas em
+20-21/11/2026, **E2 e E4 entregues em 21/11/2026**).
+Medido no dev em 21/11/2026: `/goals` 149 consultas SQL (33,1 ms de SQL, ~183 ms de resposta) e
+`/portfolio/assets` 97 (11,3 ms, ~110 ms). Depois: **73** e **46** statements, e **~20% menos** no tempo de
+resposta (~147 ms e 89 ms), com o **JSON idêntico campo a campo** nas 5 telas (4.747 campos, 0 diferenças).
+O que ficou de fora: o Preço Teto (9 consultas por cálculo — ganho de ~9 ms com os 2 cálculos do dev; gatilho: 5+
+cálculos, PENDENCIA nova) e a listagem de Ativos (111 ms de SQL em 3 consultas pesadas — vai para o escopo D).
+Sobraram na Carteira **7** consultas de transações por posição (o `BonusCostService.pendingFor`) e **8** de
+eventos societários (uma por ativo, no `PositionCalculator.eventsOf`): as duas são a fila do próximo escopo de SQL.
+O `sharesOn` (O(dias x transações) no `PortfolioTimelineBuilder`) fica de fora por decisão — é um PR separado.
+O **escopo D** (perfil do Java — 87% a 92% do tempo das telas Metas e Carteira está no Java) está em
+`docs/planos/PLANO_PERFIL_JAVA.md`.
+**Bugs achados no caminho (21/11/2026):** a confirmação da importação importava os movimentos na ordem em que os
+itens eram lidos do banco, e essa ordem não é a do extrato — uma venda antes da compra que a sustenta era recusada
+pela Regra A ("Não há posição de PETR4 na carteira para vender"), com o extrato inteiro na mesma confirmação. Era o
+que quebrava o `IntegrationsB3IT.fullFlow` na bateria completa (3 falhas em 4 baterias). **Corrigido**: os itens são
+ordenados pelo instante do movimento, pela data de negócio e, no mesmo dia, a compra vem antes da venda
+(`IntegrationService.doConfirm`). Sobraram na Carteira **7** consultas de transações por posição (o
+`BonusCostService.pendingFor`) e **8** de eventos societários (uma por ativo, no `PositionCalculator.eventsOf`): as
+duas são a fila do próximo escopo de SQL.
 
 **52.2 Escopo C — duplicacao e lean** (`docs/planos/PLANO_DUPLICACAO_CODIGO.md`, D1-D5 em aberto). Tres
 sub-escopos: (a) backend com dono unico por regra (`DuplicateStringUtils`, o `switch` do `DuplicatedSupplier`,

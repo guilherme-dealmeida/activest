@@ -40,24 +40,29 @@ public final class GoalEvaluator {
     public static Evaluation evaluate(GoalDefinition d, GoalFacts f) {
         EvaluationBuilder b = new EvaluationBuilder();
         b.objective = objective(d);
-        switch (d.type()) {
-            case PAT_1 -> patrimony(d, f, b);
-            case APO_1 -> contributionsTotal(d, f, b);
-            case APO_2 -> contributionsPeriodic(d, f, b);
-            case REN_1 -> income(d, f, b);
-            case REN_2 -> incomeCoversExpenses(d, f, b);
-            case REN_3 -> incomeOverContributions(d, f, b);
-            case RNT_1 -> returnTarget(d, f, b);
-            case RNT_2 -> beatIndex(d, f, b);
-            case ALO_1 -> allocationItem(d, f, b);
-            case ALO_2 -> followStrategy(f, d, b);
-            case RIS_1 -> concentration(d, f, b);
-            case RIS_2 -> drawdown(d, f, b);
-            case RIS_3 -> dataQuality(d, f, b);
-            case ATV_1 -> assetShares(d, f, b);
-            case ATV_2 -> assetValue(d, f, b);
-            case ATV_3 -> dividendsBuyShares(d, f, b);
-            case LP_1 -> retirement(d, f, b);
+        long t0 = System.nanoTime();
+        try {
+            switch (d.type()) {
+                case PAT_1 -> patrimony(d, f, b);
+                case APO_1 -> contributionsTotal(d, f, b);
+                case APO_2 -> contributionsPeriodic(d, f, b);
+                case REN_1 -> income(d, f, b);
+                case REN_2 -> incomeCoversExpenses(d, f, b);
+                case REN_3 -> incomeOverContributions(d, f, b);
+                case RNT_1 -> returnTarget(d, f, b);
+                case RNT_2 -> beatIndex(d, f, b);
+                case ALO_1 -> allocationItem(d, f, b);
+                case ALO_2 -> followStrategy(f, d, b);
+                case RIS_1 -> concentration(d, f, b);
+                case RIS_2 -> drawdown(d, f, b);
+                case RIS_3 -> dataQuality(d, f, b);
+                case ATV_1 -> assetShares(d, f, b);
+                case ATV_2 -> assetValue(d, f, b);
+                case ATV_3 -> dividendsBuyShares(d, f, b);
+                case LP_1 -> retirement(d, f, b);
+            }
+        } finally {
+            GoalProfile.add("meta:avaliacao", System.nanoTime() - t0);
         }
         f.sourceDates().forEach(b::source);
         return b.build();
@@ -353,7 +358,7 @@ public final class GoalEvaluator {
             PositionInfo info = f.positions().get(p.id());
             return info != null && d.scope().includes(info);
         };
-        return ScopeSeries.of(t, pred, PerformanceBasis.GROSS);
+        return GoalProfile.time("meta:serie", () -> ScopeSeries.of(t, pred, PerformanceBasis.GROSS));
     }
 
     /** {from, to} no eixo da linha do tempo, como a tela Rentabilidade resolve o periodo; nulo sem dados. */
@@ -391,7 +396,7 @@ public final class GoalEvaluator {
             b.unavailable("Sem dados no período");
             return;
         }
-        double[] r = ReturnMath.daily(s);
+        double[] r = GoalProfile.time("meta:retorno_diario", () -> ReturnMath.daily(s));
         Double nominal = ReturnMath.chain(r, pr[0], pr[1]);
         b.source("Série da carteira", t.dates().get(pr[1]));
         b.fig("periodFrom", "Período: início", null, Unit.COUNT, Nature.OBSERVADO, t.dates().get(pr[0]).format(BR));
@@ -475,7 +480,7 @@ public final class GoalEvaluator {
             return;
         }
         int until = (int) bi[1];
-        double[] r = ReturnMath.daily(s);
+        double[] r = GoalProfile.time("meta:retorno_diario", () -> ReturnMath.daily(s));
         Double rc = ReturnMath.chain(r, pr[0], until);
         if (rc == null) {
             List<String> missing = new ArrayList<>(s.missingTickers(pr[0], until));
@@ -528,7 +533,7 @@ public final class GoalEvaluator {
             b.unavailable("Série curta: menos de 2 meses");
             return;
         }
-        double[] r = ReturnMath.daily(s);
+        double[] r = GoalProfile.time("meta:retorno_diario", () -> ReturnMath.daily(s));
         double cota = 1;
         double peak = 1;
         int peakIdx = from;
@@ -1065,7 +1070,7 @@ public final class GoalEvaluator {
         if (span[0] < 0 || ChronoUnit.MONTHS.between(t.dates().get(span[0]), t.dates().get(span[1])) < 24) {
             return false;
         }
-        Double twr = ReturnMath.chain(ReturnMath.daily(s), span[0], span[1]);
+        Double twr = ReturnMath.chain(GoalProfile.time("meta:retorno_diario", () -> ReturnMath.daily(s)), span[0], span[1]);
         if (twr == null) {
             return false;
         }
@@ -1119,7 +1124,8 @@ public final class GoalEvaluator {
         }
         if (d.type().projection()) {
             b.projection = new Projection(p.assumptions, figs, b.achieved ? "Meta atingida" : suspended,
-                    suspended == null && !b.achieved ? path(v, p, n > 0 ? n : 120) : List.of());
+                    suspended == null && !b.achieved ? GoalProfile.time("meta:projecao",
+                            () -> path(v, p, n > 0 ? n : 120)) : List.of());
         }
     }
 
@@ -1174,7 +1180,7 @@ public final class GoalEvaluator {
         if (!b.achieved && suspended == null) {
             Double months = GoalProjection.monthsToTarget(monthlyTarget * 12 / yieldA, v, p.pmt, p.i);
             int horizon = n > 0 ? n : months != null ? (int) Math.min(Math.ceil(months), 240) : 120;
-            incomePath = path(v, p, Math.max(horizon, 1), yieldA / 12);
+            incomePath = GoalProfile.time("meta:projecao", () -> path(v, p, Math.max(horizon, 1), yieldA / 12));
         }
         b.projection = new Projection(p.assumptions, figs, b.achieved ? "Meta atingida" : suspended, incomePath);
     }
@@ -1495,7 +1501,8 @@ public final class GoalEvaluator {
         double[] inflation = d.flag("real") ? f.benchmarks().byCode("IPCA", t.dates(), t.today()).r() : null;
         String label = (d.flag("real") ? "Rentabilidade real" : "Rentabilidade nominal") + periodLabel(d)
                 + ("ANNUALIZED".equals(d.text("basis")) ? ", anualizada" : "");
-        return List.of(new ChartLine("value", label, rolling(d, t, ReturnMath.daily(s), inflation, span[0], start, end)));
+        return List.of(new ChartLine("value", label, rolling(d, t, GoalProfile.time("meta:retorno_diario",
+                () -> ReturnMath.daily(s)), inflation, span[0], start, end)));
     }
 
     /** RNT-2: carteira e indice, cada um no periodo da meta terminando em cada dia (a diferenca e o indicador). */

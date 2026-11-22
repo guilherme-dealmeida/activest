@@ -167,7 +167,10 @@ class IntegrationsB3IT extends FunctionalBase {
 
         Map<String, Object> confirmed = post(ana, BASE + "/" + connection + "/runs/" + p.get("runId") + "/confirm", null,
             Map.class).getBody();
-        assertThat(confirmed.get("status")).isEqualTo("SUCCEEDED");
+        // A confirmacao recusa com 422 quando uma regra barra a ordem: o corpo traz o motivo, e sem ele a falha
+        // so diz "422" e nao diz por que.
+        assertThat(confirmed.get("status")).withFailMessage("confirmacao recusada: %s", confirmed)
+            .isEqualTo("SUCCEEDED");
         assertThat(number(positionOf(ana, "PETR4").get("totalShares"))).isEqualByComparingTo("77");
         assertThat(number(positionOf(ana, "HGLG11").get("totalShares"))).isEqualByComparingTo("10");
         // A Posicao da B3 bate com a carteira: nenhuma divergencia (6.7).

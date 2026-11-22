@@ -64,19 +64,21 @@ public class PositionValuationInfo {
     }
 
     /** Informacao das posicoes de renda fixa e Tesouro; as demais ficam de fora do mapa. */
-    public Map<UUID, Info> of(List<PortfolioAsset> positions) {
+    public Map<UUID, Info> of(UUID portfolioId, List<PortfolioAsset> positions) {
         Map<UUID, Info> out = new HashMap<>();
         FixedIncomeValuation.Series series = null;
+        // Uma consulta para as transacoes da carteira, e nao uma por titulo (docs/planos/PLANO_CONSULTAS_REPETIDAS.md, E4).
+        Map<UUID, List<Transaction>> transactions = positionCalculator.chronologicalTransactionsOf(portfolioId);
         List<PortfolioAsset> treasury = positions.stream()
                 .filter(pa -> type(pa) != null && type(pa).isTreasury()).toList();
         Map<Long, LocalDate> priceDates = treasuryPriceDates(treasury);
         LocalDate today = LocalDate.now(ZONE);
         for (PortfolioAsset pa : positions) {
             AssetType type = type(pa);
+            List<Transaction> txs = transactions.getOrDefault(pa.getId(), List.of());
             if (fundTax != null && com.activest.domain.fund.FundTaxService.applies(pa.getAsset())) {
                 // fundo: bruto pela última cota, líquido de um resgate total hoje (C10); Previdência vale bruto (D21)
-                com.activest.domain.fund.FundTax.SaleTax est =
-                        fundTax.estimate(pa, positionCalculator.chronologicalTransactions(pa));
+                com.activest.domain.fund.FundTax.SaleTax est = fundTax.estimate(pa, txs);
                 boolean pension = fundTax.regimeOf(pa.getAsset()) == null;
                 LocalDate quoteDate = pa.getAsset().getPriceUpdatedAt() == null ? null
                         : pa.getAsset().getPriceUpdatedAt().toLocalDate();
@@ -99,7 +101,7 @@ public class PositionValuationInfo {
                 if (series == null) {
                     series = valuation.series();
                 }
-                FixedIncomeLots.Lot lot = treasuryLot(pa, d, series.taxes());
+                FixedIncomeLots.Lot lot = treasuryLot(pa, d, series.taxes(), txs);
                 out.put(pa.getId(), new Info("MERCADO", d, null, matured, lot != null ? lot.net() : null,
                         lot != null ? List.of(lot) : List.of()));
                 continue;
@@ -111,7 +113,7 @@ public class PositionValuationInfo {
             if (series == null) {
                 series = valuation.series();
             }
-            FixedIncomeLots.Result r = valuation.lots(pa, positionCalculator.chronologicalTransactions(pa), series);
+            FixedIncomeLots.Result r = valuation.lots(pa, txs, series);
             if (r == null || r.status() == FixedIncomeCurve.Status.UNSUPPORTED) {
                 out.put(pa.getId(), new Info("SEM_CURVA", null, r != null ? r.reason() : null, false));
             } else {
@@ -127,7 +129,8 @@ public class PositionValuationInfo {
      * O titulo do Tesouro como um lote: cotas x PU do dia (bruto), rendimento sobre cotas x PU de compra, IR e IOF
      * da data de compra ate o dia do preco. Nulo sem PU de compra ou sem preco.
      */
-    private FixedIncomeLots.Lot treasuryLot(PortfolioAsset pa, LocalDate priceDate, FixedIncomeTaxTable table) {
+    private FixedIncomeLots.Lot treasuryLot(PortfolioAsset pa, LocalDate priceDate, FixedIncomeTaxTable table,
+                                            List<Transaction> transactions) {
         BigDecimal price = pa.getAsset().getCurrentPrice();
         if (price == null) {
             return null;
@@ -135,7 +138,7 @@ public class PositionValuationInfo {
         BigDecimal shares = BigDecimal.ZERO;
         BigDecimal buyPrice = null;
         LocalDate purchase = pa.getNote() != null ? pa.getNote().getPurchaseDate() : null;
-        for (Transaction tx : positionCalculator.chronologicalTransactions(pa)) {
+        for (Transaction tx : transactions) {
             BigDecimal s = tx.getShares() != null ? tx.getShares() : BigDecimal.ZERO;
             if (tx.getType() == TransactionType.BUY) {
                 shares = shares.add(s);
